@@ -39,7 +39,7 @@ const gy = () => H * 0.92;
 const sx = x => x * u;
 const sy = y => gy() - y * u;
 
-const G = 200, MAX_PULL = 24, POWER = 9.5, RUN = 44, CLIMB = 36;
+const G = 200, MAX_PULL = 24, POWER = 9.5, RUN = 44, CLIMB = 36, MIN_LOFT = 3;
 const ANCHOR = { x: 13, y: 16 };
 const CAT_W = 5, CAT_H = 5;
 const SCREEN_WALL = 'screen';
@@ -82,9 +82,9 @@ const LEVELS = [
 let level = +(localStorage.getItem('saladcat.lvl') || 0) % LEVELS.length;
 let state = 'title'; // title | aim | fly | run | climb | return | clear | win
 let solids, plants, eaten, cukes, nips, cushions, boxes, used;
-let cat = { x: 0, y: 0, vx: 0, vy: 0, wall: null, support: null, zoom: false, face: 1, boxCd: 0 };
+let cat = { x: 0, y: 0, vx: 0, vy: 0, wall: null, support: null, zoom: false, face: 1, boxUsed: false };
 let ptr = null, parts = [], pops = [], tGlobal = 0, returnT = 0, hintT = 0, phase = 0, scare = null;
-let simSpeed = 1; // DEV: fast-forward multiplier (1 / 2 / 4) — remove before release
+let simSpeed = 1, held = false; // hold anywhere while airborne = 4x fast-forward
 
 function loadLevel(i) {
   const L = LEVELS[i]; // levels are authored on a 0-100 grid; scale x into the wider world
@@ -102,7 +102,7 @@ function loadLevel(i) {
 }
 function toSling() {
   cat.x = ANCHOR.x; cat.y = ANCHOR.y; cat.vx = 0; cat.vy = 0;
-  cat.wall = null; cat.support = null; cat.zoom = false; cat.boxCd = 0; cat.face = 1;
+  cat.wall = null; cat.support = null; cat.zoom = false; cat.boxUsed = false; cat.face = 1;
 }
 
 // ---------- helpers ----------
@@ -141,12 +141,14 @@ function eatChecks() {
     }
   }
   cukes = cukes.filter(c => !c.dead);
-  if (cat.boxCd <= 0) for (const pair of boxes) {
+  // The box teleports once per launch. Without this, a cat that flies off a tall shelf can
+  // overshoot the cucumber, land back on the IN box, and loop forever (shelf -> box -> shelf).
+  if (!cat.boxUsed) for (const pair of boxes) {
     const bx = pair[0];
     if (r > bx.x - 4 && l < bx.x + 4 && b < bx.y + 6 && t > bx.y) {
       puff(bx.x, bx.y + 3, 'rgba(170,130,80,0.6)', 12);
       cat.x = pair[1].x; cat.y = pair[1].y + 1;
-      cat.vx = 14; cat.vy = 34; cat.boxCd = 1;
+      cat.vx = 14; cat.vy = 34; cat.boxUsed = true;
       state = 'fly'; cat.support = null; cat.wall = null;
       puff(cat.x, cat.y + 3, 'rgba(170,130,80,0.6)', 12);
       pop(cat.x, cat.y + 9, 'special delivery!', '#8a5f30');
@@ -173,7 +175,6 @@ function startRun(s) {
 function step(dt) {
   tGlobal += dt; phase += dt * 14;
   if (hintT > 0) hintT -= dt;
-  if (cat.boxCd > 0) cat.boxCd -= dt;
   for (const p of parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 60 * dt; p.life -= dt * 1.4; }
   parts = parts.filter(p => p.life > 0);
   for (const p of pops) p.t += dt;
@@ -273,12 +274,8 @@ function step(dt) {
 // ---------- input ----------
 cv.addEventListener('pointerdown', e => {
   e.preventDefault();
+  held = true; // hold-anywhere fast-forward while the cat is airborne (see frame loop)
   const mx = e.clientX, my = e.clientY;
-  // DEV: fast-forward toggle (1x -> 2x -> 4x) — active during play; remove before release
-  const playing = state === 'aim' || state === 'fly' || state === 'run' || state === 'climb' || state === 'return';
-  if (playing && mx > W - 26 * hu && mx < W - 13 * hu && my < 14 * hu) {
-    simSpeed = simSpeed === 1 ? 2 : simSpeed === 2 ? 4 : 1; return;
-  }
   if (state === 'title') { loadLevel(level); return; }
   if (state === 'clear') { level++; loadLevel(level); return; }
   if (state === 'win') { level = 0; loadLevel(0); return; }
@@ -290,22 +287,25 @@ cv.addEventListener('pointerdown', e => {
         level = i; localStorage.setItem('saladcat.lvl', i); loadLevel(i); return;
       }
     }
-    // retry button (top-right)
-    if (mx > W - 13 * hu && my < 14 * hu) { loadLevel(level); return; }
     ptr = { x0: mx, y0: my, x: mx, y: my };
   }
 }, { passive: false });
 cv.addEventListener('pointermove', e => { if (ptr) { ptr.x = e.clientX; ptr.y = e.clientY; } });
-window.addEventListener('pointerup', () => {
+function release() {
+  held = false;
   if (!ptr) return;
   const p = pull(); ptr = null;
   if (p.len > 2.5 && state === 'aim') {
     used++;
     cat.vx = p.vx; cat.vy = p.vy; state = 'fly';
   }
-});
+}
+window.addEventListener('pointerup', release);
+window.addEventListener('pointercancel', release);
 function pull() {
   let px = (ptr.x0 - ptr.x) / u, py = (ptr.y - ptr.y0) / u;
+  // No dead pulls: the cat always launches with an upward arc, never down into the floor.
+  if (py < MIN_LOFT) py = MIN_LOFT;
   let len = Math.hypot(px, py);
   if (len > MAX_PULL) { px *= MAX_PULL / len; py *= MAX_PULL / len; len = MAX_PULL; }
   return { vx: px * POWER, vy: py * POWER, len, px, py };
@@ -605,27 +605,19 @@ function render() {
       ctx.fillText('dev · level select', W / 2, 22.6 * hu);
       ctx.textAlign = 'left';
     }
-    // DEV: fast-forward button (▶▶ + speed) — remove before release
-    {
-      const fx = W - 19.5 * hu, fy = 7 * hu, on = simSpeed > 1;
-      ctx.fillStyle = on ? 'rgba(74,59,42,0.85)' : 'rgba(74,59,42,0.18)';
-      ctx.beginPath(); ctx.roundRect(fx - 5.5 * hu, fy - 3.4 * hu, 11 * hu, 6.8 * hu, 1.4 * hu); ctx.fill();
-      ctx.fillStyle = on ? '#fdf6e3' : 'rgba(74,59,42,0.75)';
+    // fast-forward affordance: shown while the cat cruises, brighter when actively held
+    if (state === 'fly' || state === 'run' || state === 'climb') {
+      const fx = W - 8 * hu, fy = 7 * hu, on = simSpeed > 1;
+      ctx.globalAlpha = on ? 1 : 0.5 + 0.3 * Math.sin(tGlobal * 5);
+      ctx.fillStyle = on ? 'rgba(74,59,42,0.9)' : 'rgba(74,59,42,0.4)';
       const tri = (cx) => { ctx.beginPath();
-        ctx.moveTo(cx - 1.1 * hu, fy - 1.5 * hu); ctx.lineTo(cx + 0.9 * hu, fy); ctx.lineTo(cx - 1.1 * hu, fy + 1.5 * hu); ctx.closePath(); ctx.fill(); };
-      tri(fx - 3.4 * hu); tri(fx - 1.4 * hu);
-      ctx.textAlign = 'left'; ctx.font = F(`800 ${2.8 * hu}px`);
-      ctx.fillText(`${simSpeed}×`, fx + 0.6 * hu, fy + 1 * hu);
+        ctx.moveTo(cx - 1.3 * hu, fy - 1.8 * hu); ctx.lineTo(cx + 1.1 * hu, fy); ctx.lineTo(cx - 1.3 * hu, fy + 1.8 * hu); ctx.closePath(); ctx.fill(); };
+      tri(fx - 1.2 * hu); tri(fx + 1.4 * hu);
+      ctx.textAlign = 'center'; ctx.font = F(`600 ${1.9 * hu}px`);
+      ctx.fillStyle = on ? 'rgba(74,59,42,0.9)' : 'rgba(74,59,42,0.5)';
+      ctx.fillText(on ? 'hold · 4×' : 'hold to skip', fx, fy + 5 * hu);
+      ctx.globalAlpha = 1;
     }
-    // retry button
-    ctx.strokeStyle = 'rgba(74,59,42,0.6)'; ctx.lineWidth = 0.8 * hu;
-    ctx.beginPath(); ctx.arc(W - 7 * hu, 7 * hu, 2.6 * hu, 0.8, 5.8); ctx.stroke();
-    ctx.fillStyle = 'rgba(74,59,42,0.6)';
-    ctx.beginPath();
-    ctx.moveTo(W - 7 * hu + 2.6 * hu * Math.cos(0.8) - 1.2 * hu, 7 * hu + 2.6 * hu * Math.sin(0.8) - 0.6 * hu);
-    ctx.lineTo(W - 7 * hu + 2.6 * hu * Math.cos(0.8) + 1 * hu, 7 * hu + 2.6 * hu * Math.sin(0.8) + 0.8 * hu);
-    ctx.lineTo(W - 7 * hu + 2.6 * hu * Math.cos(0.8) + 1.2 * hu, 7 * hu + 2.6 * hu * Math.sin(0.8) - 1.4 * hu);
-    ctx.fill();
     if (hintT > 0 && state === 'aim') {
       ctx.textAlign = 'center';
       ctx.globalAlpha = Math.min(1, hintT);
@@ -658,7 +650,10 @@ function render() {
 let last = performance.now(), acc = 0;
 function frame(now) {
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
-  acc += dt * simSpeed; // DEV: simSpeed scales the sim clock (render stays real-time)
+  // Hold anywhere while the cat is airborne/running to fast-forward the sim 4x.
+  const cruising = state === 'fly' || state === 'run' || state === 'climb' || state === 'return';
+  simSpeed = (held && cruising) ? 4 : 1;
+  acc += dt * simSpeed;
   let guard = 0;
   while (acc > 1 / 120 && guard++ < 40) { step(1 / 120); acc -= 1 / 120; }
   render();

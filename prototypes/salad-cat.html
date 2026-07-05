@@ -1,0 +1,637 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Salad Cat</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #ead9b5; }
+  #c { position: fixed; inset: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
+</style>
+<canvas id="c"></canvas>
+<script>
+'use strict';
+// ---------- Salad Cat — slingshot Hex at the houseplants. He runs right, climbs walls,
+// ---------- and eats every plant he touches. Clear the greenery in limited launches.
+// Physics space: x in units (1u = 1% width), y = height above floor in units (y-up).
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+let W = 0, H = 0, u = 4, CEIL = 150;
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  u = W / 100;
+  CEIL = Math.max(120, (H * 0.92) / u - 14); // room height adapts to the phone
+}
+window.addEventListener('resize', resize);
+resize();
+if (!ctx.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r); this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r); this.closePath();
+  };
+}
+const gy = () => H * 0.92;
+const sx = x => x * u;
+const sy = y => gy() - y * u;
+
+const G = 200, MAX_PULL = 20, POWER = 8, RUN = 26, CLIMB = 24;
+const ANCHOR = { x: 11, y: 16 };
+const CAT_W = 5, CAT_H = 5;
+const SCREEN_WALL = 'screen';
+
+// ---------- levels (handcrafted) ----------
+// solids: climbable/standable wood. plants: the salad. cukes: cucumbers (end the run).
+// nip: catnip (zoomies — smash cucumbers, extra speed). cushions: bounce pads.
+// boxes: [entrance, exit] teleport pair. All y values = the surface the thing sits on.
+const LEVELS = [
+  { name: 'First Bites', launches: 3,
+    solids: [{ x: 62, y: 0, w: 14, h: 14 }],
+    plants: [{ x: 38, y: 0 }, { x: 50, y: 0 }, { x: 68, y: 14 }, { x: 88, y: 0 }],
+    cukes: [], nip: [], cushions: [], boxes: [],
+    hint: 'drag to launch Hex — he runs right & climbs' },
+  { name: 'Stair Master', launches: 3,
+    solids: [{ x: 46, y: 0, w: 54, h: 18 }, { x: 64, y: 18, w: 36, h: 18 }, { x: 82, y: 36, w: 18, h: 18 }],
+    plants: [{ x: 34, y: 0 }, { x: 55, y: 18 }, { x: 73, y: 36 }, { x: 91, y: 54 }],
+    cukes: [], nip: [], cushions: [], boxes: [],
+    hint: 'cats take the stairs' },
+  { name: 'Sofa So Good', launches: 4,
+    solids: [{ x: 56, y: 66, w: 44, h: 5 }, { x: 84, y: 0, w: 16, h: 16 }],
+    plants: [{ x: 64, y: 71 }, { x: 78, y: 71 }, { x: 70, y: 0 }, { x: 92, y: 16 }],
+    cukes: [], nip: [], cushions: [{ x: 44, y: 0, w: 18 }], boxes: [],
+    hint: 'cushions are bouncy' },
+  { name: 'Cool as a Cucumber', launches: 4,
+    solids: [{ x: 26, y: 0, w: 12, h: 12 }],
+    plants: [{ x: 44, y: 0 }, { x: 58, y: 0 }, { x: 76, y: 0 }, { x: 94, y: 0 }],
+    cukes: [{ x: 50, y: 0 }, { x: 68, y: 0 }, { x: 86, y: 0 }],
+    nip: [{ x: 32, y: 12 }], cushions: [], boxes: [],
+    hint: 'cucumbers scare cats… unless there’s catnip' },
+  { name: 'Special Delivery', launches: 5,
+    solids: [{ x: 6, y: 100, w: 38, h: 5 }, { x: 56, y: 0, w: 12, h: 12 }],
+    plants: [{ x: 16, y: 105 }, { x: 30, y: 105 }, { x: 62, y: 12 }, { x: 96, y: 0 }],
+    cukes: [{ x: 76, y: 0 }],
+    nip: [], cushions: [],
+    boxes: [[{ x: 84, y: 0 }, { x: 10, y: 105 }]],
+    hint: 'if he fits, he sits (and teleports)' },
+];
+
+let level = +(localStorage.getItem('saladcat.lvl') || 0) % LEVELS.length;
+let state = 'title'; // title | aim | fly | run | climb | return | clear | fail | win
+let solids, plants, eaten, cukes, nips, cushions, boxes, launches;
+let cat = { x: 0, y: 0, vx: 0, vy: 0, wall: null, support: null, zoom: false, face: 1, boxCd: 0 };
+let ptr = null, parts = [], pops = [], tGlobal = 0, returnT = 0, hintT = 0, phase = 0, scare = null;
+
+function loadLevel(i) {
+  const L = LEVELS[i];
+  solids = L.solids.map(s => ({ ...s }));
+  plants = L.plants.map(p => ({ ...p, sway: Math.random() * 6.28, kind: (p.x * 7 | 0) % 3 }));
+  eaten = []; parts = []; pops = [];
+  cukes = L.cukes.map(c => ({ ...c }));
+  nips = L.nip.map(n => ({ ...n }));
+  cushions = L.cushions.map(c => ({ ...c }));
+  boxes = L.boxes.map(b => b.map(p => ({ ...p })));
+  launches = L.launches;
+  hintT = 4.5; scare = null;
+  toSling();
+  state = 'aim';
+}
+function toSling() {
+  cat.x = ANCHOR.x; cat.y = ANCHOR.y; cat.vx = 0; cat.vy = 0;
+  cat.wall = null; cat.support = null; cat.zoom = false; cat.boxCd = 0; cat.face = 1;
+}
+
+// ---------- helpers ----------
+function pop(x, y, txt, c) { pops.push({ x, y, t: 0, txt, c: c || '#4a7a3c' }); }
+function puff(x, y, color, n, spread) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 6.28, s = (spread || 14) * (0.4 + Math.random());
+    parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s + 8, life: 0.8, c: color });
+  }
+}
+function endRun(reason) {
+  if (reason === 'cuke') { scare = { x: cat.x, y: cat.y, t: 0 }; }
+  puff(cat.x, cat.y + 2, 'rgba(120,110,140,0.5)', 12);
+  state = 'return'; returnT = reason === 'cuke' ? 1 : 0.55;
+}
+function eatChecks() {
+  const l = cat.x - CAT_W / 2, r = cat.x + CAT_W / 2, b = cat.y, t = cat.y + CAT_H;
+  for (const p of plants) {
+    if (!p.dead && r > p.x - 2.6 && l < p.x + 2.6 && b < p.y + 7 && t > p.y) {
+      p.dead = true; eaten.push({ x: p.x, y: p.y, kind: p.kind });
+      puff(p.x, p.y + 4, '#5f9e54', 14, 20); pop(p.x, p.y + 9, 'chomp!');
+    }
+  }
+  plants = plants.filter(p => !p.dead);
+  for (const n of nips) {
+    if (!n.dead && r > n.x - 2.6 && l < n.x + 2.6 && b < n.y + 7 && t > n.y) {
+      n.dead = true; cat.zoom = true;
+      puff(n.x, n.y + 4, '#b48cff', 18, 24); pop(n.x, n.y + 9, 'ZOOMIES!', '#8a5fd6');
+    }
+  }
+  nips = nips.filter(n => !n.dead);
+  for (const c of cukes) {
+    if (!c.dead && r > c.x - 2.2 && l < c.x + 2.2 && b < c.y + 6 && t > c.y) {
+      if (cat.zoom) { c.dead = true; puff(c.x, c.y + 3, '#5fae4e', 16, 26); pop(c.x, c.y + 8, 'smash!', '#3f7a3c'); }
+      else { endRun('cuke'); return true; }
+    }
+  }
+  cukes = cukes.filter(c => !c.dead);
+  if (cat.boxCd <= 0) for (const pair of boxes) {
+    const bx = pair[0];
+    if (r > bx.x - 4 && l < bx.x + 4 && b < bx.y + 6 && t > bx.y) {
+      puff(bx.x, bx.y + 3, 'rgba(170,130,80,0.6)', 12);
+      cat.x = pair[1].x; cat.y = pair[1].y + 1;
+      cat.vx = 14; cat.vy = 34; cat.boxCd = 1;
+      state = 'fly'; cat.support = null; cat.wall = null;
+      puff(cat.x, cat.y + 3, 'rgba(170,130,80,0.6)', 12);
+      pop(cat.x, cat.y + 9, 'special delivery!', '#8a5f30');
+      return true;
+    }
+  }
+  if (!plants.length && (state === 'fly' || state === 'run' || state === 'climb')) {
+    state = 'return'; returnT = 0.6;
+  }
+  return false;
+}
+function startClimb(s) {
+  cat.wall = s; cat.vx = 0; cat.vy = 0;
+  cat.x = (s === SCREEN_WALL ? 100 : s.x) - CAT_W / 2;
+  state = 'climb';
+}
+function startRun(s) {
+  cat.support = s; cat.vx = 0; cat.vy = 0;
+  cat.y = s ? s.y + s.h : 0;
+  state = 'run';
+}
+
+// ---------- simulation ----------
+function step(dt) {
+  tGlobal += dt; phase += dt * 14;
+  if (hintT > 0) hintT -= dt;
+  if (cat.boxCd > 0) cat.boxCd -= dt;
+  for (const p of parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 60 * dt; p.life -= dt * 1.4; }
+  parts = parts.filter(p => p.life > 0);
+  for (const p of pops) p.t += dt;
+  pops = pops.filter(p => p.t < 1);
+  if (scare) { scare.t += dt; if (scare.t > 1.1) scare = null; }
+
+  if (state === 'return') {
+    returnT -= dt;
+    if (returnT <= 0) {
+      scare = null;
+      if (!plants.length) {
+        if (level === LEVELS.length - 1) { state = 'win'; localStorage.setItem('saladcat.lvl', 0); }
+        else { state = 'clear'; localStorage.setItem('saladcat.lvl', level + 1); }
+      } else if (launches <= 0) state = 'fail';
+      else { toSling(); state = 'aim'; }
+    }
+    return;
+  }
+  if (state !== 'fly' && state !== 'run' && state !== 'climb') return;
+
+  if (state === 'fly') {
+    const px0 = cat.x, py0 = cat.y;
+    cat.vy -= G * dt;
+    cat.x += cat.vx * dt; cat.y += cat.vy * dt;
+    cat.face = cat.vx >= 0 ? 1 : -1;
+    if (cat.zoom) parts.push({ x: cat.x, y: cat.y + 2, vx: 0, vy: 0, life: 0.5, c: 'rgba(180,140,255,0.5)' });
+
+    // cushions first (soft bounce)
+    for (const cu of cushions) {
+      if (cat.vy < 0 && cat.x > cu.x - 1 && cat.x < cu.x + cu.w + 1 && cat.y <= cu.y + 4 && py0 >= cu.y + 2) {
+        cat.y = cu.y + 4; cat.vy = 175; cat.vx *= 0.85;
+        puff(cat.x, cu.y + 3, 'rgba(201,111,69,0.5)', 10); pop(cat.x, cu.y + 10, 'boing!', '#c96f45');
+      }
+    }
+    // room bounds
+    if (cat.y <= 0) { cat.y = 0; if (eatChecks()) return; startRun(null); return; }
+    if (cat.x + CAT_W / 2 >= 100 && cat.vx > 0) { if (eatChecks()) return; startClimb(SCREEN_WALL); return; }
+    if (cat.x - CAT_W / 2 <= 0 && cat.vx < 0) { cat.x = CAT_W / 2; cat.vx = -cat.vx * 0.5; }
+    if (cat.y + CAT_H >= CEIL && cat.vy > 0) { cat.y = CEIL - CAT_H; cat.vy = -cat.vy * 0.3; }
+    // solids
+    for (const s of solids) {
+      const l = cat.x - CAT_W / 2, r = cat.x + CAT_W / 2;
+      if (r > s.x && l < s.x + s.w && cat.y < s.y + s.h && cat.y + CAT_H > s.y) {
+        if (py0 >= s.y + s.h - 0.6 && cat.vy <= 0) { cat.y = s.y + s.h; if (eatChecks()) return; startRun(s); return; }
+        if (px0 + CAT_W / 2 <= s.x + 0.8 && cat.vx > 0) { if (eatChecks()) return; startClimb(s); return; }
+        if (py0 + CAT_H <= s.y + 0.6 && cat.vy > 0) { cat.y = s.y - CAT_H; cat.vy = -cat.vy * 0.3; continue; }
+        if (cat.vx < 0) { cat.x = s.x + s.w + CAT_W / 2; cat.vx = -cat.vx * 0.5; continue; }
+        cat.y = s.y + s.h; if (eatChecks()) return; startRun(s); return;
+      }
+    }
+    if (eatChecks()) return;
+  }
+
+  if (state === 'run') {
+    const speed = cat.zoom ? RUN * 1.8 : RUN;
+    cat.x += speed * dt; cat.face = 1;
+    if (cat.zoom && Math.random() < 0.5) parts.push({ x: cat.x - 2, y: cat.y + 1, vx: -8, vy: 4, life: 0.4, c: 'rgba(180,140,255,0.5)' });
+    if (eatChecks()) return;
+    // wall ahead?
+    if (cat.x + CAT_W / 2 >= 100) { startClimb(SCREEN_WALL); return; }
+    for (const s of solids) {
+      if (s !== cat.support && cat.x + CAT_W / 2 > s.x && cat.x < s.x && s.y <= cat.y + 1 && s.y + s.h > cat.y + 2) { startClimb(s); return; }
+    }
+    // cushion underfoot? bounce off it
+    for (const cu of cushions) {
+      if (cat.y < 1 && cat.x + 2 > cu.x && cat.x - 2 < cu.x + cu.w) {
+        cat.vy = 175; cat.vx = speed; state = 'fly'; cat.support = null;
+        pop(cat.x, 10, 'boing!', '#c96f45'); return;
+      }
+    }
+    // ran off the edge?
+    if (cat.support && cat.x - 1 > cat.support.x + cat.support.w) {
+      cat.vx = speed; cat.vy = 0; state = 'fly'; cat.support = null;
+    }
+  }
+
+  if (state === 'climb') {
+    const speed = cat.zoom ? CLIMB * 1.7 : CLIMB;
+    cat.y += speed * dt;
+    if (eatChecks()) return;
+    // blocked by an overhang (e.g. a shelf jutting off this wall) — dead end
+    for (const s of solids) {
+      if (s !== cat.wall && cat.x + CAT_W / 2 > s.x && cat.x - CAT_W / 2 < s.x + s.w && cat.y + CAT_H > s.y && cat.y < s.y + s.h) {
+        pop(cat.x - 4, cat.y + 8, 'mrrp?', '#8a7a5f'); endRun('stuck'); return;
+      }
+    }
+    const top = cat.wall === SCREEN_WALL ? CEIL : cat.wall.y + cat.wall.h;
+    if (cat.y + CAT_H >= CEIL && cat.wall === SCREEN_WALL) { pop(cat.x - 4, CEIL - 8, 'mrrp?', '#8a7a5f'); endRun('ceiling'); return; }
+    if (cat.y >= top && cat.wall !== SCREEN_WALL) {
+      const s = cat.wall;
+      cat.y = top; cat.x = s.x + CAT_W / 2 + 0.4;
+      startRun(s); return;
+    }
+    if (cat.y + CAT_H >= CEIL) { endRun('ceiling'); return; }
+  }
+}
+
+// ---------- input ----------
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const mx = e.clientX, my = e.clientY;
+  if (state === 'title') { loadLevel(level); return; }
+  if (state === 'clear') { level++; loadLevel(level); return; }
+  if (state === 'fail') { loadLevel(level); return; }
+  if (state === 'win') { level = 0; loadLevel(0); return; }
+  if (state === 'aim') {
+    // retry button (top-right)
+    if (mx > W - 14 * u && my < 14 * u) { loadLevel(level); return; }
+    if (launches > 0) ptr = { x0: mx, y0: my, x: mx, y: my };
+  }
+}, { passive: false });
+cv.addEventListener('pointermove', e => { if (ptr) { ptr.x = e.clientX; ptr.y = e.clientY; } });
+window.addEventListener('pointerup', () => {
+  if (!ptr) return;
+  const p = pull(); ptr = null;
+  if (p.len > 2.5 && state === 'aim') {
+    launches--;
+    cat.vx = p.vx; cat.vy = p.vy; state = 'fly';
+  }
+});
+function pull() {
+  let px = (ptr.x0 - ptr.x) / u, py = (ptr.y - ptr.y0) / u;
+  let len = Math.hypot(px, py);
+  if (len > MAX_PULL) { px *= MAX_PULL / len; py *= MAX_PULL / len; len = MAX_PULL; }
+  return { vx: px * POWER, vy: py * POWER, len, px, py };
+}
+
+// ---------- drawing ----------
+function drawRoom() {
+  // sunny wall
+  const g = ctx.createLinearGradient(0, 0, 0, gy());
+  g.addColorStop(0, '#f3e7c9'); g.addColorStop(1, '#e7d3a6');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // wallpaper stripes
+  ctx.fillStyle = 'rgba(160,120,60,0.05)';
+  for (let x = 0; x < 100; x += 8) ctx.fillRect(sx(x), 0, 3.5 * u, gy());
+  // sunbeam from upper left
+  ctx.save();
+  const beam = ctx.createLinearGradient(0, 0, W * 0.55, H * 0.6);
+  beam.addColorStop(0, 'rgba(255,222,150,0.35)'); beam.addColorStop(1, 'rgba(255,222,150,0)');
+  ctx.fillStyle = beam;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W * 0.4, 0); ctx.lineTo(W * 0.75, H * 0.75); ctx.lineTo(W * 0.2, H * 0.75); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // ceiling molding
+  ctx.fillStyle = '#d9c091'; ctx.fillRect(0, sy(CEIL) - 2.4 * u, W, 2.4 * u);
+  ctx.fillStyle = 'rgba(0,0,0,0.07)'; ctx.fillRect(0, sy(CEIL), W, 0.8 * u);
+  ctx.fillStyle = '#f7efdb'; ctx.fillRect(0, 0, W, sy(CEIL) - 2.4 * u);
+  // floor
+  const f = ctx.createLinearGradient(0, gy(), 0, H);
+  f.addColorStop(0, '#b98a55'); f.addColorStop(1, '#96683a');
+  ctx.fillStyle = f; ctx.fillRect(0, gy(), W, H - gy());
+  ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(0, gy(), W, 0.6 * u);
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 1;
+  for (let x = 10; x < 100; x += 20) { ctx.beginPath(); ctx.moveTo(sx(x), gy()); ctx.lineTo(sx(x - 3), H); ctx.stroke(); }
+  // baseboard
+  ctx.fillStyle = '#d9c091'; ctx.fillRect(0, gy() - 1.6 * u, W, 1.6 * u);
+}
+function drawSolid(s) {
+  const x = sx(s.x), y = sy(s.y + s.h), w = s.w * u, h = s.h * u;
+  ctx.fillStyle = '#a97c50';
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, 0.8 * u); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(x, y, w, 1.1 * u);
+  ctx.strokeStyle = 'rgba(90,60,30,0.35)'; ctx.lineWidth = 0.5 * u;
+  for (let px = x + 6 * u; px < x + w - 2 * u; px += 6 * u) {
+    ctx.beginPath(); ctx.moveTo(px, y + 1.5 * u); ctx.lineTo(px, y + h - 1 * u); ctx.stroke();
+  }
+}
+function drawPlant(p, dead) {
+  const x = sx(p.x), y = sy(p.y);
+  // terracotta pot
+  ctx.fillStyle = dead ? '#c9a084' : '#c96f45';
+  ctx.beginPath();
+  ctx.moveTo(x - 2.4 * u, y - 3.4 * u); ctx.lineTo(x + 2.4 * u, y - 3.4 * u);
+  ctx.lineTo(x + 1.7 * u, y); ctx.lineTo(x - 1.7 * u, y); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = dead ? '#b98e73' : '#b45c38';
+  ctx.fillRect(x - 2.7 * u, y - 4.2 * u, 5.4 * u, 1.1 * u);
+  if (dead) { // sad empty pot + a nibbled stem
+    ctx.strokeStyle = '#7a9e6a'; ctx.lineWidth = 0.5 * u;
+    ctx.beginPath(); ctx.moveTo(x, y - 4.2 * u); ctx.lineTo(x, y - 5.6 * u); ctx.stroke();
+    return;
+  }
+  const swy = Math.sin(tGlobal * 1.6 + p.sway) * 0.15;
+  ctx.save(); ctx.translate(x, y - 4.2 * u); ctx.rotate(swy * 0.15);
+  if (p.kind === 0) { // round leafy bush
+    ctx.fillStyle = '#5f9e54';
+    ctx.beginPath();
+    ctx.arc(-1.4 * u, -2 * u, 1.7 * u, 0, 6.28); ctx.arc(1.4 * u, -2.2 * u, 1.6 * u, 0, 6.28);
+    ctx.arc(0, -3.6 * u, 1.8 * u, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#4a8443';
+    ctx.beginPath(); ctx.arc(0.4 * u, -2.4 * u, 1.1 * u, 0, 6.28); ctx.fill();
+  } else if (p.kind === 1) { // snake plant blades
+    ctx.fillStyle = '#4a8443';
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * 1.2 * u - 0.6 * u, 0);
+      ctx.quadraticCurveTo(i * 1.6 * u - 0.2 * u, -3.4 * u, i * 1.9 * u, -5.4 * u - Math.abs(i) * -1.4 * u);
+      ctx.quadraticCurveTo(i * 1.4 * u + 0.5 * u, -3 * u, i * 1.2 * u + 0.6 * u, 0);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#6fae5e';
+    ctx.beginPath(); ctx.moveTo(-0.5 * u, 0); ctx.quadraticCurveTo(0, -4 * u, 0.2 * u, -6 * u);
+    ctx.quadraticCurveTo(0.6 * u, -3 * u, 0.5 * u, 0); ctx.fill();
+  } else { // trailing vine
+    ctx.strokeStyle = '#5f9e54'; ctx.lineWidth = 0.55 * u; ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath(); ctx.moveTo(0, -0.5 * u);
+      ctx.quadraticCurveTo((i - 1) * 2.4 * u, -2.4 * u, (i - 1) * 3.4 * u, -1 * u + i * 0.6 * u);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#5f9e54';
+    ctx.beginPath();
+    ctx.arc(-3 * u, -1 * u, 0.9 * u, 0, 6.28); ctx.arc(0, -2.8 * u, 1.2 * u, 0, 6.28);
+    ctx.arc(3 * u, -0.6 * u, 0.9 * u, 0, 6.28); ctx.arc(0.6 * u, -1.6 * u, 1 * u, 0, 6.28);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+function drawCuke(c) {
+  const x = sx(c.x), y = sy(c.y);
+  ctx.save(); ctx.translate(x, y - 2.6 * u); ctx.rotate(-0.35);
+  ctx.fillStyle = '#5fae4e';
+  ctx.beginPath(); ctx.ellipse(0, 0, 1.6 * u, 3.1 * u, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#4a8c3c';
+  ctx.beginPath(); ctx.ellipse(-0.5 * u, 0, 0.7 * u, 2.6 * u, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#8fce7e';
+  ctx.beginPath(); ctx.arc(0.4 * u, -2.2 * u, 0.4 * u, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+function drawNip(n) {
+  const x = sx(n.x), y = sy(n.y);
+  ctx.fillStyle = '#8a5fd6';
+  ctx.beginPath();
+  ctx.moveTo(x - 2.2 * u, y - 3 * u); ctx.lineTo(x + 2.2 * u, y - 3 * u);
+  ctx.lineTo(x + 1.5 * u, y); ctx.lineTo(x - 1.5 * u, y); ctx.closePath(); ctx.fill();
+  ctx.save(); ctx.translate(x, y - 3.4 * u);
+  ctx.strokeStyle = '#7a52c9'; ctx.lineWidth = 0.5 * u; ctx.lineCap = 'round';
+  ctx.fillStyle = '#b48cff';
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(i * 1.6 * u, -2 * u, i * 2 * u, -3.4 * u); ctx.stroke();
+    ctx.beginPath(); ctx.arc(i * 2 * u, -3.6 * u, 0.9 * u, 0, 6.28); ctx.fill();
+  }
+  const tw = 0.5 + 0.5 * Math.sin(tGlobal * 3 + n.x);
+  ctx.globalAlpha = tw; ctx.fillStyle = '#e0ccff';
+  ctx.beginPath(); ctx.arc(2.8 * u, -5 * u, 0.5 * u, 0, 6.28); ctx.arc(-3 * u, -4.4 * u, 0.4 * u, 0, 6.28); ctx.fill();
+  ctx.globalAlpha = 1; ctx.restore();
+}
+function drawCushion(cu) {
+  const x = sx(cu.x), y = sy(cu.y);
+  ctx.fillStyle = '#c96f45';
+  ctx.beginPath(); ctx.roundRect(x, y - 4 * u, cu.w * u, 4 * u, 2 * u); ctx.fill();
+  ctx.fillStyle = '#e08a5a';
+  ctx.beginPath(); ctx.roundRect(x + 1 * u, y - 4 * u, cu.w * u - 2 * u, 1.6 * u, 1.4 * u); ctx.fill();
+  ctx.strokeStyle = 'rgba(120,50,20,0.4)'; ctx.lineWidth = 0.4 * u;
+  for (let i = 1; i < 3; i++) {
+    ctx.beginPath(); ctx.moveTo(x + cu.w * u * i / 3, y - 3.6 * u); ctx.lineTo(x + cu.w * u * i / 3, y - 0.5 * u); ctx.stroke();
+  }
+}
+function drawBox(b, isExit) {
+  const x = sx(b.x), y = sy(b.y);
+  ctx.fillStyle = '#c9a468';
+  ctx.beginPath(); ctx.roundRect(x - 4 * u, y - 6 * u, 8 * u, 6 * u, 0.4 * u); ctx.fill();
+  ctx.fillStyle = '#b78f52';
+  ctx.fillRect(x - 4 * u, y - 6 * u, 8 * u, 1.2 * u);
+  // open flaps
+  ctx.fillStyle = '#d9b87e';
+  ctx.beginPath();
+  ctx.moveTo(x - 4 * u, y - 6 * u); ctx.lineTo(x - 6.2 * u, y - 8 * u); ctx.lineTo(x - 4 * u, y - 7.4 * u);
+  ctx.moveTo(x + 4 * u, y - 6 * u); ctx.lineTo(x + 6.2 * u, y - 8 * u); ctx.lineTo(x + 4 * u, y - 7.4 * u);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(60,40,20,0.55)';
+  ctx.fillRect(x - 3 * u, y - 5.2 * u, 6 * u, 3.6 * u);
+  ctx.fillStyle = '#8a5f30'; ctx.textAlign = 'center';
+  ctx.font = `700 ${1.8 * u}px -apple-system, system-ui, sans-serif`;
+  ctx.fillText(isExit ? 'OUT' : 'IN', x, y + 2.2 * u);
+}
+function drawHex(pose) {
+  const x = sx(cat.x), y = sy(cat.y);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(cat.face, 1);
+  const B = '#2e2440', BELLY = '#453760';
+  if (cat.zoom) { ctx.shadowColor = '#b48cff'; ctx.shadowBlur = 10; }
+  if (pose === 'climb') {
+    ctx.rotate(-1.35); // vertical, head up
+  }
+  const stretch = pose === 'fly' ? 1.25 : 1;
+  // tail
+  ctx.strokeStyle = B; ctx.lineWidth = 1.5 * u; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-2.2 * u, -2.4 * u);
+  ctx.quadraticCurveTo(-4.6 * u, -3.4 * u, -4.8 * u, -6 * u + Math.sin(phase * 0.5) * 0.8 * u);
+  ctx.stroke();
+  // body
+  ctx.fillStyle = B;
+  ctx.beginPath(); ctx.ellipse(0, -3.4 * u, 3 * u * stretch, 2.3 * u / stretch, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = BELLY;
+  ctx.beginPath(); ctx.ellipse(0.4 * u, -2.6 * u, 1.9 * u * stretch, 1.2 * u, 0, 0, 6.28); ctx.fill();
+  // head
+  ctx.fillStyle = B;
+  ctx.beginPath(); ctx.arc(2.5 * u, -5.4 * u, 2 * u, 0, 6.28); ctx.fill();
+  // ears
+  ctx.beginPath();
+  ctx.moveTo(1.2 * u, -6.6 * u); ctx.lineTo(1.4 * u, -8.8 * u); ctx.lineTo(2.7 * u, -7.2 * u);
+  ctx.moveTo(3.1 * u, -7.2 * u); ctx.lineTo(4 * u, -8.7 * u); ctx.lineTo(4.4 * u, -6.7 * u);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  // legs
+  ctx.strokeStyle = B; ctx.lineWidth = 1.1 * u;
+  if (pose === 'run' || pose === 'climb') {
+    for (let i = 0; i < 4; i++) {
+      const a = phase + i * 1.6, lx = (-1.6 + i * 1.1) * u, swing = Math.sin(a) * 1.3 * u;
+      ctx.beginPath(); ctx.moveTo(lx, -1.8 * u); ctx.lineTo(lx + swing, 0); ctx.stroke();
+    }
+  } else if (pose === 'fly') {
+    ctx.beginPath();
+    ctx.moveTo(-1.6 * u, -2.2 * u); ctx.lineTo(-2.8 * u, -0.8 * u);
+    ctx.moveTo(2 * u, -2.6 * u); ctx.lineTo(3.4 * u, -1.4 * u);
+    ctx.stroke();
+  } else { // sit
+    ctx.beginPath(); ctx.moveTo(1 * u, -1.8 * u); ctx.lineTo(1.2 * u, 0);
+    ctx.moveTo(2.2 * u, -1.8 * u); ctx.lineTo(2.4 * u, 0); ctx.stroke();
+  }
+  // face
+  const scared = scare && pose !== 'sit';
+  ctx.fillStyle = scared ? '#fff' : '#ffb84d';
+  ctx.beginPath();
+  ctx.arc(1.9 * u, -5.7 * u, scared ? 0.7 * u : 0.45 * u, 0, 6.28);
+  ctx.arc(3.3 * u, -5.7 * u, scared ? 0.7 * u : 0.45 * u, 0, 6.28);
+  ctx.fill();
+  if (scared) {
+    ctx.fillStyle = '#2e2440';
+    ctx.beginPath(); ctx.arc(1.9 * u, -5.7 * u, 0.25 * u, 0, 6.28); ctx.arc(3.3 * u, -5.7 * u, 0.25 * u, 0, 6.28); ctx.fill();
+  } else if (pose === 'run' || cat.zoom) {
+    ctx.fillStyle = '#2e2440';
+    ctx.beginPath(); ctx.arc(2.05 * u, -5.65 * u, 0.2 * u, 0, 6.28); ctx.arc(3.45 * u, -5.65 * u, 0.2 * u, 0, 6.28); ctx.fill();
+  }
+  ctx.restore();
+  if (scare) {
+    ctx.fillStyle = '#c9553d'; ctx.textAlign = 'center';
+    ctx.font = `800 ${4 * u}px -apple-system, system-ui, sans-serif`;
+    ctx.fillText('!', x, y - 10 * u);
+  }
+}
+function drawSling() {
+  const ax = sx(ANCHOR.x), ay = sy(ANCHOR.y);
+  ctx.fillStyle = '#8a5f38';
+  ctx.fillRect(ax - 1.4 * u, ay, 2.8 * u, gy() - ay);
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 0.5 * u;
+  for (let yy = ay + 2 * u; yy < gy() - u; yy += 2.2 * u) { ctx.beginPath(); ctx.moveTo(ax - 1.4 * u, yy); ctx.lineTo(ax + 1.4 * u, yy); ctx.stroke(); }
+  ctx.fillStyle = '#a97c50';
+  ctx.beginPath(); ctx.roundRect(ax - 4 * u, ay - 1.2 * u, 8 * u, 1.8 * u, u); ctx.fill();
+  if (ptr && state === 'aim') {
+    const p = pull();
+    const bx = ax - p.px * u, by = ay - 1.5 * u + p.py * u;
+    ctx.strokeStyle = '#d8c49a'; ctx.lineWidth = 0.9 * u; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(ax - 3.4 * u, ay - 0.5 * u); ctx.lineTo(bx, by - 2 * u); ctx.lineTo(ax + 3.4 * u, ay - 0.5 * u); ctx.stroke();
+    // trajectory dots
+    let tx = ANCHOR.x, ty = ANCHOR.y, tvx = p.vx, tvy = p.vy;
+    ctx.fillStyle = 'rgba(90,70,40,0.4)';
+    for (let i = 0; i < 46; i++) {
+      tvy -= G / 60; tx += tvx / 60; ty += tvy / 60;
+      if (ty < 0 || tx > 100) break;
+      if (i % 4 === 2) { ctx.beginPath(); ctx.arc(sx(tx), sy(ty), 0.55 * u, 0, 6.28); ctx.fill(); }
+    }
+    cat.x = ANCHOR.x + (bx - ax) / u; cat.y = ANCHOR.y + (ay - by) / u - 1.5;
+  } else if (state === 'aim') { cat.x = ANCHOR.x; cat.y = ANCHOR.y; }
+}
+
+function render() {
+  drawRoom();
+  for (const s of solids || []) drawSolid(s);
+  for (const cu of cushions || []) drawCushion(cu);
+  for (const pair of boxes || []) { drawBox(pair[0], false); drawBox(pair[1], true); }
+  for (const e of eaten || []) drawPlant(e, true);
+  for (const p of plants || []) drawPlant(p, false);
+  for (const n of nips || []) drawNip(n);
+  for (const c of cukes || []) drawCuke(c);
+  drawSling();
+  if (state === 'aim' || state === 'fly' || state === 'run' || state === 'climb' || (state === 'return' && scare)) {
+    drawHex(state === 'aim' ? 'sit' : state === 'return' ? 'run' : state);
+  }
+  for (const p of parts) {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.c;
+    ctx.beginPath(); ctx.arc(sx(p.x), sy(p.y), 0.8 * u * Math.max(0.3, p.life), 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  for (const p of pops) {
+    ctx.globalAlpha = 1 - p.t;
+    ctx.fillStyle = p.c; ctx.textAlign = 'center';
+    ctx.font = `800 ${3 * u}px -apple-system, system-ui, sans-serif`;
+    ctx.fillText(p.txt, sx(p.x), sy(p.y + p.t * 8));
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- HUD ----------
+  const F = s => `${s} -apple-system, "Segoe UI", system-ui, sans-serif`;
+  if (state !== 'title') {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#4a3b2a';
+    ctx.font = F(`800 ${3.8 * u}px`);
+    ctx.fillText(`${level + 1} · ${LEVELS[level].name}`, 4 * u, 6.5 * u);
+    ctx.font = F(`600 ${3 * u}px`);
+    ctx.fillStyle = 'rgba(74,59,42,0.75)';
+    ctx.fillText(`${plants.length} plant${plants.length === 1 ? '' : 's'} left`, 4 * u, 10.8 * u);
+    // launches as cat heads
+    for (let i = 0; i < launches; i++) {
+      const hx = (6 + i * 6) * u, hy = 15.5 * u;
+      ctx.fillStyle = '#2e2440';
+      ctx.beginPath(); ctx.arc(hx, hy, 1.9 * u, 0, 6.28); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(hx - 1.7 * u, hy - 0.8 * u); ctx.lineTo(hx - 1.5 * u, hy - 3 * u); ctx.lineTo(hx - 0.2 * u, hy - 1.7 * u);
+      ctx.moveTo(hx + 0.4 * u, hy - 1.7 * u); ctx.lineTo(hx + 1.5 * u, hy - 3 * u); ctx.lineTo(hx + 1.8 * u, hy - 0.7 * u);
+      ctx.fill();
+    }
+    // retry button
+    ctx.strokeStyle = 'rgba(74,59,42,0.6)'; ctx.lineWidth = 0.8 * u;
+    ctx.beginPath(); ctx.arc(W - 7 * u, 7 * u, 2.6 * u, 0.8, 5.8); ctx.stroke();
+    ctx.fillStyle = 'rgba(74,59,42,0.6)';
+    ctx.beginPath();
+    ctx.moveTo(W - 7 * u + 2.6 * u * Math.cos(0.8) - 1.2 * u, 7 * u + 2.6 * u * Math.sin(0.8) - 0.6 * u);
+    ctx.lineTo(W - 7 * u + 2.6 * u * Math.cos(0.8) + 1 * u, 7 * u + 2.6 * u * Math.sin(0.8) + 0.8 * u);
+    ctx.lineTo(W - 7 * u + 2.6 * u * Math.cos(0.8) + 1.2 * u, 7 * u + 2.6 * u * Math.sin(0.8) - 1.4 * u);
+    ctx.fill();
+    if (hintT > 0 && state === 'aim') {
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = Math.min(1, hintT);
+      ctx.fillStyle = '#8a6a3f';
+      ctx.font = F(`600 ${3.2 * u}px`);
+      ctx.fillText(LEVELS[level].hint, W / 2, sy(CEIL) + 8 * u);
+      ctx.globalAlpha = 1;
+    }
+  }
+  const overlay = (title, sub, cta, color) => {
+    ctx.fillStyle = 'rgba(60,45,25,0.55)'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fdf6e3';
+    ctx.font = F(`800 ${7.5 * u}px`); ctx.fillText(title, W / 2, H * 0.34);
+    ctx.fillStyle = color || '#ffd98a';
+    ctx.font = F(`600 ${3.8 * u}px`); ctx.fillText(sub, W / 2, H * 0.41);
+    if (Math.sin(tGlobal * 4) > -0.2) {
+      ctx.fillStyle = '#fdf6e3'; ctx.font = F(`700 ${4 * u}px`);
+      ctx.fillText(cta, W / 2, H * 0.55);
+    }
+  };
+  if (state === 'title') {
+    overlay('SALAD CAT', 'launch Hex · he runs & climbs · eat every plant',
+      level > 0 ? `tap to continue — level ${level + 1}` : 'tap to play', '#a3c48a');
+  }
+  if (state === 'clear') overlay('LEVEL CLEAN!', `${LEVELS[level].name} devoured · ${launches} launch${launches === 1 ? '' : 'es'} to spare`, 'tap for next level');
+  if (state === 'fail') overlay('OUT OF LAUNCHES', 'some plants survived', 'tap to retry');
+  if (state === 'win') overlay('EVERY PLANT EATEN', 'the apartment is safe from botany', 'tap to play again', '#a3c48a');
+}
+
+let last = performance.now(), acc = 0;
+function frame(now) {
+  let dt = Math.min(0.05, (now - last) / 1000); last = now;
+  acc += dt;
+  while (acc > 1 / 120) { step(1 / 120); acc -= 1 / 120; }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>

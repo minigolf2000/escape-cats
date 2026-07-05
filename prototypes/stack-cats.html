@@ -1,0 +1,334 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Stack Cats</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #14142e; }
+  #c { position: fixed; inset: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
+</style>
+<canvas id="c"></canvas>
+<script>
+'use strict';
+// ---------- Stack Cats — tap-timing tower stacker (portrait, one thumb) ----------
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+let W = 0, H = 0, u = 4; // u = 1% of screen width
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  u = W / 100;
+}
+window.addEventListener('resize', resize);
+resize();
+
+if (!ctx.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    this.closePath();
+  };
+}
+
+// Cat coats: Hex (inky violet-black) leads, Goomba (marmalade) second.
+const COATS = [
+  { body: '#2e2440', belly: '#453760', stripe: null,      eye: '#ffd76b' }, // Hex
+  { body: '#e8853d', belly: '#f7b877', stripe: '#c96a24', eye: '#4d3319' }, // Goomba
+  { body: '#8e8fae', belly: '#b9bad1', stripe: '#73749a', eye: '#3a3a52' }, // smoke
+  { body: '#efd9b4', belly: '#fbf0dc', stripe: '#d9b98a', eye: '#59422a' }, // cream tabby
+];
+
+const BH = () => 13 * u;        // block (cat) height
+const BASE_W = 52;              // starting width in units
+const PERFECT = 1.7;            // snap window in units
+
+let state, blocks, cur, fallers, particles, cam, camT, score, best, combo, tGlobal;
+best = +(localStorage.getItem('stackcats.best') || 0);
+
+const stars = [];
+for (let i = 0; i < 90; i++) {
+  stars.push({ x: Math.random() * 100, y: Math.random() * 900, r: Math.random() * 0.5 + 0.15, tw: Math.random() * 6.28 });
+}
+
+function reset() {
+  state = 'ready';
+  blocks = [{ x: 50, w: BASE_W, coat: -1 }]; // rooftop ledge base
+  fallers = []; particles = [];
+  cam = 0; camT = 0; score = 0; combo = 0; tGlobal = 0;
+  newCat();
+}
+function newCat() {
+  const n = blocks.length;
+  cur = {
+    w: blocks[n - 1].w,
+    coat: (n - 1) % COATS.length,
+    phase: Math.random() * 6.28,
+    speed: 1.7 + Math.min(2.6, n * 0.11),
+    x: 50, dropY: 0, dropping: false,
+  };
+}
+
+function baseY() { return H * 0.88; }
+function topIndex() { return blocks.length - 1; }
+function blockY(i) { return baseY() - (i + 1) * BH(); } // top edge of block i's cat
+
+function drop() {
+  if (cur.dropping) return;
+  const top = blocks[topIndex()];
+  const dx = cur.x - top.x;
+  const overlap = Math.min(cur.x + cur.w / 2, top.x + top.w / 2) - Math.max(cur.x - cur.w / 2, top.x - top.w / 2);
+
+  if (overlap <= 1) { // total miss: the cat tumbles away
+    fallers.push({ x: cur.x, y: blockY(blocks.length), w: cur.w, coat: cur.coat, vx: dx > 0 ? 30 : -30, vy: -20, rot: 0, vr: dx > 0 ? 3 : -3 });
+    gameOver();
+    return;
+  }
+
+  let w = overlap, x = (Math.min(cur.x + cur.w / 2, top.x + top.w / 2) + Math.max(cur.x - cur.w / 2, top.x - top.w / 2)) / 2;
+  if (Math.abs(dx) < PERFECT) { // perfect: keep width, small regrow, sparkle
+    w = cur.w; x = top.x; combo++;
+    if (combo >= 2) w = Math.min(w + 1.2, BASE_W);
+    burst(x, blockY(blocks.length) + BH(), '#ffd76b', 18);
+  } else {
+    combo = 0;
+    // trimmed sliver tumbles off
+    const sw = cur.w - overlap, side = dx > 0 ? 1 : -1;
+    fallers.push({ x: x + side * (w / 2 + sw / 2), y: blockY(blocks.length), w: sw, coat: cur.coat, vx: side * 22, vy: -12, rot: 0, vr: side * 4 });
+  }
+
+  blocks.push({ x, w, coat: cur.coat, squash: 1 });
+  score++;
+  camT = Math.max(0, blocks.length * BH() - (baseY() - H * 0.42));
+  newCat();
+}
+
+function gameOver() {
+  state = 'over';
+  if (score > best) { best = score; localStorage.setItem('stackcats.best', best); }
+}
+
+function burst(xu, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 6.28, s = (Math.random() * 26 + 10);
+    particles.push({ x: xu * u, y, vx: Math.cos(a) * s * u * 0.1, vy: Math.sin(a) * s * u * 0.1 - 8, life: 1, color });
+  }
+}
+
+// ---------- input ----------
+function press() {
+  if (state === 'ready') { state = 'play'; return; }
+  if (state === 'play') { drop(); return; }
+  if (state === 'over' && tOver > 0.7) reset();
+}
+let tOver = 0;
+window.addEventListener('pointerdown', e => { e.preventDefault(); press(); }, { passive: false });
+window.addEventListener('keydown', e => { if (e.code === 'Space') press(); });
+
+// ---------- drawing ----------
+function drawCat(xPx, yPx, wPx, hPx, coatIdx, sliver) {
+  const c = COATS[((coatIdx % COATS.length) + COATS.length) % COATS.length];
+  const r = Math.min(hPx * 0.38, wPx * 0.3);
+  // tail
+  if (!sliver && wPx > 8 * u) {
+    ctx.strokeStyle = c.body; ctx.lineWidth = 2.2 * u; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(xPx + wPx / 2 - 1.5 * u, yPx + hPx * 0.55);
+    ctx.quadraticCurveTo(xPx + wPx / 2 + 4.5 * u, yPx + hPx * 0.5, xPx + wPx / 2 + 3.5 * u, yPx + hPx * 0.05);
+    ctx.stroke();
+  }
+  // ears (left side = head)
+  if (!sliver && wPx > 10 * u) {
+    ctx.fillStyle = c.body;
+    const ex = xPx - wPx / 2 + wPx * 0.13, ey = yPx + hPx * 0.08;
+    ctx.beginPath();
+    ctx.moveTo(ex - 2.2 * u, ey + 1.5 * u); ctx.lineTo(ex - 1.1 * u, ey - 2.6 * u); ctx.lineTo(ex + 0.6 * u, ey + 0.8 * u);
+    ctx.moveTo(ex + 2.2 * u, ey + 1.2 * u); ctx.lineTo(ex + 3.6 * u, ey - 2.6 * u); ctx.lineTo(ex + 5 * u, ey + 1 * u);
+    ctx.fill();
+  }
+  // loaf body
+  ctx.fillStyle = c.body;
+  ctx.beginPath(); ctx.roundRect(xPx - wPx / 2, yPx, wPx, hPx, r); ctx.fill();
+  // belly
+  ctx.fillStyle = c.belly;
+  ctx.beginPath(); ctx.roundRect(xPx - wPx / 2 + wPx * 0.08, yPx + hPx * 0.55, wPx * 0.84, hPx * 0.38, r * 0.7); ctx.fill();
+  // stripes
+  if (c.stripe && !sliver) {
+    ctx.strokeStyle = c.stripe; ctx.lineWidth = 1.1 * u; ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+      const sx = xPx - wPx / 2 + wPx * (0.42 + i * 0.17);
+      if (sx > xPx + wPx / 2 - 3 * u) break;
+      ctx.beginPath(); ctx.moveTo(sx, yPx + 0.8 * u); ctx.quadraticCurveTo(sx + 1.2 * u, yPx + hPx * 0.3, sx, yPx + hPx * 0.5); ctx.stroke();
+    }
+  }
+  // face
+  if (!sliver && wPx > 10 * u) {
+    const fx = xPx - wPx / 2 + wPx * 0.13, fy = yPx + hPx * 0.32;
+    ctx.fillStyle = c.eye;
+    ctx.beginPath();
+    ctx.arc(fx - 1.4 * u, fy, 0.62 * u, 0, 6.28);
+    ctx.arc(fx + 2.8 * u, fy, 0.62 * u, 0, 6.28);
+    ctx.fill();
+    ctx.strokeStyle = c.eye; ctx.lineWidth = 0.45 * u;
+    ctx.beginPath();
+    ctx.moveTo(fx + 0.2 * u, fy + 1.5 * u); ctx.lineTo(fx + 0.7 * u, fy + 2.1 * u); ctx.lineTo(fx + 1.3 * u, fy + 1.5 * u);
+    ctx.stroke();
+  }
+}
+
+function drawSky() {
+  const g = ctx.createLinearGradient(0, -cam * 0.2, 0, H);
+  g.addColorStop(0, '#0d0d24'); g.addColorStop(0.55, '#1c1b40'); g.addColorStop(1, '#3b2d55');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // stars (parallax)
+  for (const s of stars) {
+    const sy = ((s.y * u * 0.9 + cam * 0.35) % (H + 40 * u)) - 20 * u;
+    ctx.globalAlpha = 0.35 + 0.35 * Math.sin(tGlobal * 1.7 + s.tw);
+    ctx.fillStyle = '#e8e4ff';
+    ctx.beginPath(); ctx.arc(s.x * u, sy, s.r * u, 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // moon
+  const my = H * 0.16 + cam * 0.25;
+  ctx.fillStyle = '#f4ead2';
+  ctx.beginPath(); ctx.arc(W * 0.8, my, 6.5 * u, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#e3d7ba';
+  ctx.beginPath(); ctx.arc(W * 0.8 - 2 * u, my - 1.6 * u, 1.2 * u, 0, 6.28);
+  ctx.arc(W * 0.8 + 2.4 * u, my + 2 * u, 0.9 * u, 0, 6.28); ctx.fill();
+  // distant skyline with lit windows, pinned near the base
+  const skyY = baseY() + cam;
+  if (skyY < H + 30 * u) {
+    ctx.fillStyle = '#191833';
+    const bw = [14, 10, 18, 9, 13, 12, 11, 15];
+    let bx = -4 * u;
+    for (let i = 0; i < bw.length; i++) {
+      const bh = (22 + ((i * 37) % 26)) * u;
+      ctx.fillRect(bx, skyY - bh, bw[i] * u, bh + 30 * u);
+      ctx.fillStyle = '#ffb84d';
+      for (let wy = 0; wy < 3; wy++) for (let wx = 0; wx < 2; wx++) {
+        if (((i * 7 + wy * 3 + wx * 5) % 4) < 2) ctx.globalAlpha = 0.75; else ctx.globalAlpha = 0.12;
+        ctx.fillRect(bx + (2.2 + wx * 4.5) * u, skyY - bh + (3 + wy * 6) * u, 2 * u, 2.6 * u);
+      }
+      ctx.globalAlpha = 1; ctx.fillStyle = '#191833';
+      bx += (bw[i] + 3) * u;
+    }
+  }
+}
+
+function drawLedge() {
+  const b = blocks[0], y = baseY() + cam;
+  ctx.fillStyle = '#4a3f63';
+  ctx.beginPath(); ctx.roundRect((b.x - b.w / 2) * u, y - BH(), b.w * u, BH() + 40 * u, 1.5 * u); ctx.fill();
+  ctx.fillStyle = '#5d5180';
+  ctx.fillRect((b.x - b.w / 2) * u, y - BH(), b.w * u, 1.6 * u);
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.033, (now - last) / 1000); last = now;
+  tGlobal += dt;
+  cam += (camT - cam) * Math.min(1, dt * 6);
+  if (state === 'over') tOver += dt; else tOver = 0;
+
+  if (state !== 'over' || fallers.length) {
+    // swing current cat
+    if (state === 'play' && cur) {
+      cur.phase += dt * cur.speed;
+      const amp = (100 - cur.w) / 2 + 7;
+      cur.x = 50 + Math.sin(cur.phase) * amp;
+    }
+  }
+  for (const f of fallers) {
+    f.vy += 140 * dt; f.x += f.vx * dt; f.y += f.vy * u * dt * 0.28; f.rot += f.vr * dt;
+  }
+  for (const p of particles) { p.vy += 60 * u * dt * 0.1; p.x += p.vx; p.y += p.vy; p.life -= dt * 1.6; }
+  particles = particles.filter(p => p.life > 0);
+
+  // ---------- render ----------
+  drawSky();
+  drawLedge();
+  for (let i = 1; i < blocks.length; i++) {
+    const b = blocks[i];
+    drawCat(b.x * u, blockY(i) + cam, b.w * u, BH() * 0.98, b.coat, b.w < 9);
+  }
+  // trimmed/tumbling cats
+  for (const f of fallers) {
+    ctx.save();
+    ctx.translate(f.x * u, f.y * u * 0 + (f.y + cam));
+    ctx.rotate(f.rot);
+    drawCat(0, 0, f.w * u, BH() * 0.98, f.coat, f.w < 9);
+    ctx.restore();
+  }
+  // current swinging cat
+  if (state === 'play' && cur) {
+    const y = blockY(blocks.length) - 4 * u + cam;
+    // guide rope
+    ctx.strokeStyle = 'rgba(232,228,255,0.25)'; ctx.lineWidth = 0.5 * u;
+    ctx.beginPath(); ctx.moveTo(cur.x * u, 0); ctx.lineTo(cur.x * u, y + 1 * u); ctx.stroke();
+    drawCat(cur.x * u, y, cur.w * u, BH() * 0.98, cur.coat, false);
+    // shadow on landing zone
+    const top = blocks[topIndex()];
+    ctx.globalAlpha = 0.18; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(cur.x * u, blockY(topIndex()) + cam + 1 * u, cur.w * u * 0.5, 1.2 * u, 0, 0, 6.28); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 0.8 * u * p.life + 0.2 * u, 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // ---------- HUD ----------
+  ctx.textAlign = 'center';
+  if (state === 'ready') {
+    ctx.fillStyle = '#fff3e0';
+    ctx.font = `800 ${9 * u}px -apple-system, "Segoe UI", system-ui, sans-serif`;
+    ctx.fillText('STACK CATS', W / 2, H * 0.3);
+    ctx.font = `600 ${4 * u}px -apple-system, "Segoe UI", system-ui, sans-serif`;
+    ctx.fillStyle = '#ffb84d';
+    ctx.fillText('tap to drop a cat on the pile', W / 2, H * 0.36);
+    ctx.fillStyle = 'rgba(255,243,224,0.6)';
+    ctx.fillText(`best · ${best}`, W / 2, H * 0.42);
+    if (Math.sin(tGlobal * 4) > -0.2) {
+      ctx.fillStyle = '#fff3e0';
+      ctx.font = `700 ${4.5 * u}px -apple-system, system-ui, sans-serif`;
+      ctx.fillText('TAP TO START', W / 2, H * 0.6);
+    }
+  } else {
+    ctx.fillStyle = '#fff3e0';
+    ctx.font = `800 ${10 * u}px -apple-system, "Segoe UI", system-ui, sans-serif`;
+    ctx.fillText(score, W / 2, H * 0.12);
+    if (combo >= 2) {
+      ctx.fillStyle = '#ffd76b';
+      ctx.font = `700 ${3.8 * u}px -apple-system, system-ui, sans-serif`;
+      ctx.fillText(`purrfect ×${combo}`, W / 2, H * 0.155);
+    }
+  }
+  if (state === 'over' && tOver > 0.5) {
+    ctx.fillStyle = 'rgba(13,13,36,0.72)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff3e0';
+    ctx.font = `800 ${7 * u}px -apple-system, system-ui, sans-serif`;
+    ctx.fillText('CAT-ASTROPHE!', W / 2, H * 0.36);
+    ctx.font = `700 ${5 * u}px -apple-system, system-ui, sans-serif`;
+    ctx.fillText(`${score} cats stacked`, W / 2, H * 0.44);
+    ctx.fillStyle = '#ffb84d';
+    ctx.font = `600 ${3.8 * u}px -apple-system, system-ui, sans-serif`;
+    ctx.fillText(score >= best ? 'new best!' : `best · ${best}`, W / 2, H * 0.49);
+    if (tOver > 0.9 && Math.sin(tGlobal * 4) > -0.2) {
+      ctx.fillStyle = '#fff3e0';
+      ctx.font = `700 ${4.2 * u}px -apple-system, system-ui, sans-serif`;
+      ctx.fillText('tap to try again', W / 2, H * 0.6);
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
+reset();
+requestAnimationFrame(frame);
+</script>

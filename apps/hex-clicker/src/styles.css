@@ -1,0 +1,179 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  background: #1a1423;
+  color: #f5f0e8;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.center {
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  padding: 24px;
+}
+
+input {
+  font-size: 18px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #555;
+  background: #2a2135;
+  color: inherit;
+  text-align: center;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  border: none;
+  cursor: pointer;
+}
+
+.primary {
+  font-size: 18px;
+  padding: 12px 32px;
+  border-radius: 8px;
+  background: #7c5cbf;
+}
+
+.primary:disabled {
+  opacity: 0.4;
+}
+
+.game {
+  position: relative;
+  overflow: hidden;
+}
+
+.toy-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+header {
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.points {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.cps {
+  opacity: 0.7;
+}
+
+.progressbar {
+  margin-top: 8px;
+  height: 6px;
+  border-radius: 3px;
+  background: #2a2135;
+  overflow: hidden;
+}
+
+.progressbar > div {
+  height: 100%;
+  background: #e8a33d;
+  transition: width 0.4s;
+}
+
+.clicker {
+  font-size: 96px;
+  background: none;
+  flex: 1;
+  touch-action: manipulation;
+}
+
+.clicker:active {
+  transform: scale(0.92);
+}
+
+.codeword {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 10;
+}
+
+.codeword .word {
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: #e8a33d;
+}
+
+.shop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  max-height: 40%;
+  overflow-y: auto;
+}
+
+.upgrade {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #2a2135;
+  font-size: 16px;
+  text-align: left;
+}
+
+.upgrade:disabled {
+  opacity: 0.4;
+}
+
+.upgrade .label {
+  flex: 1;
+}
+
+.upgrade .cost {
+  color: #e8a33d;
+}
+
+footer {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 8px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.player.offline {
+  text-decoration: line-through;
+  opacity: 0.4;
+}

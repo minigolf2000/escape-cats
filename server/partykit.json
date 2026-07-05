@@ -1,0 +1,14 @@
+{
+  "$schema": "https://www.partykit.io/schema.json",
+  "name": "escape-cats",
+  "compatibilityDate": "2026-07-04",
+  "main": "src/hex.ts",
+  "parties": {
+    "goomba": "src/goomba.ts"
+  },
+  "vars": {
+    "HEX_CODEWORD": "WHISKERS",
+    "GOOMBA_CODEWORD": "POUNCE",
+    "PROCTOR_TOKEN": "dev-proctor"
+  }
+}

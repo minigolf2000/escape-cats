@@ -77,7 +77,8 @@ _Last updated: 2026-07-07._
   `mouseBase`/`mouseR`, trail segment counts, golden-mouse cadence, zoomies
   duration. Everything in `BAL` in the prototype is a first guess; tune against
   the 10-minute target with the TUNE panel's time-scale.
-- **Era structure & count** — see brainstorm below; not yet locked.
+- **Era structure & count** — leaning **3 eras** (launch narrative — see
+  brainstorm below); exact timings/gates pending a paced playtest.
 - **Final upgrade set** — which handful of upgrades actually ship (10 minutes
   fits far fewer than a normal clicker; curation is the real work).
 - **Zoomies multiplier curve & duration.**
@@ -103,15 +104,32 @@ The key product call of any clicker, made brutal by the 10-minute cap.
 - Rule of thumb: **each era should introduce a new verb**, not just bigger
   numbers — a new toy, a new decision, a new reason to look up from tapping.
 
-**Proposed 5-era skeleton (~2 min each) — not locked:**
+**Direction: 3 eras (~3.3 min each), themed as the launch narrative.** The word
+is TO THE MOON — use it. Three eras map cleanly onto the reveal's three states
+(hidden → forming → legible) and the clicker's natural arc (manual → automated →
+absurd). Fewer eras means each transition is a bigger, more memorable beat, and
+the **two transitions become the signature group moments.**
 
-| # | Era | ~time | New verb | Reveal state |
-|---|-----|-------|----------|--------------|
-| 1 | **Paws** | 0:00–1:30 | pure tapping; Ball of Yarn; Sharpened Claws | first few mice creep on |
-| 2 | **Toys** | 1:30–3:30 | passive income (Catnip, Cat Tower); Whiskers; Comet Trails L1 — wall starts drawing | word faintly forming |
-| 3 | **Contraptions** | 3:30–6:00 | machines (Roomba); golden mice ramp up — the coordination era; Trails L2–3 | big scene shapes appear |
-| 4 | **Overdrive** | 6:00–8:30 | top tier (Laser Array); chained zoomies; Trails L4 | letters mostly inked |
-| 5 | **Legible** | 8:30–10:00 | final trail level; last mice climb on; word snaps clear | read it → proctor |
+_Design principle for this venue:_ no-failure means coordination **rewards**
+syncing, never **punishes** desync — bonuses for tapping together, never
+penalties for tapping apart (consistent with Angry Goomba's "no failure, no
+limits").
+
+| # | Era | ~time | Dominant verb | Unlocks | Reveal wall | Coordination hook |
+|---|-----|-------|---------------|---------|-------------|-------------------|
+| 1 | **Ground Control** | 0:00–3:00 | manual tapping | Ball of Yarn, Sharpened Claws | first mice creep on, no trails — word hidden | per-player contribution visible; first golden mouse appears late as a taste |
+| 2 | **Liftoff** | 3:00–6:30 | build & automate | Catnip, Cat Tower, Roomba, Whiskers, Comet Trails L1–2 | scene shapes (rocket, orbit) light up — word forming | two-cat carry on big buys; golden mice regular |
+| 3 | **To The Moon** | 6:30–10:00 | burst & sync | Laser Array, Comet Trails L3–5 | last mice on, trails max — word snaps legible | golden mice peak (all-tap ×7); zoomies chains |
+
+**The two transition gates — the signature group moments:**
+- **Ignition (~3:00):** a launch pad appears; all four tap it together (natural
+  "3-2-1!") to light the engines → unlocks automation + a launch bonus. Ends Era 1.
+- **Escape Velocity (~6:30):** a shared meter the whole team fills; crossing it
+  triggers escape velocity → unlocks the top tier + a zoomies chain. Ends Era 2.
+
+These gates are where physically-present players yell at each other — the whole
+point of a coop escape room. Likely **soft-gated** (bonus for nailing the sync,
+but progress still flows) to stay true to no-failure.
 
 **Upgrade menu to draw from (curate hard — maybe ~12 total ship):**
 - _Passive (mps):_ Ball of Yarn → Catnip → Cat Tower → Roomba → Laser Array (current 5).
@@ -122,6 +140,23 @@ The key product call of any clicker, made brutal by the 10-minute cap.
 - _Coordination:_ Shiny Bait (golden mice appear more often), Nine Lives
   (zoomies last longer), Purr-Sync (bonus if all four tap within a shared beat).
 
-Open question for the team: **5 eras or 4?** Four (~2.5 min each) gives each
-era more room to breathe and is easier to balance to 10 minutes; five makes the
-climb feel faster and busier. Leaning 4–5; not locking until a paced playtest.
+**Coordination mechanics bank (pick a few — golden mouse is locked):**
+1. **Golden mouse** _(LOCKED)_ — one slot per seat, all-tap for ×7 zoomies.
+2. **Launch gates** — all-four-tap-together to advance an era (Ignition, Escape
+   Velocity above). The loudest moments in the room.
+3. **Two-cat carry** — the heaviest purchases (Cat Tower, Laser Array) need two
+   players holding the buy button at once. "Someone help me lift this."
+4. **Purr-sync** — Hex purrs on a beat; taps landing in the same window as a
+   teammate's stack a combo multiplier. Rewards rhythmic group tapping.
+5. **Spotlight cat** — a rotating ×3 bonus on one random seat's taps; that
+   player's badge lights and the team yells at them to go.
+6. **Color ownership** — each seat's color owns a piece of the moon scene; the
+   mice you personally fund wear your color, so you're literally drawing your
+   part of the reveal. Ties identity → the reveal.
+
+**Open questions:**
+- Which 2–3 coordination mechanics beyond the golden mouse make the cut?
+- Hard-gate the era transitions (must complete to advance) or soft-gate (bonus
+  for nailing it, progress flows anyway)? Soft-gate is safer for a no-fail venue.
+- Do the two transition bonuses need a catch-up path for a slow group so the
+  10-minute target holds?

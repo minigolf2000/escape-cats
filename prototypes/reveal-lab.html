@@ -3,11 +3,11 @@
 <style>
   /* Deliberately single-theme: a dark observation room. This is a tuning instrument. */
   html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
-  #c { position: fixed; inset: 0 0 240px 0; width: 100%; height: calc(100% - 240px);
+  #c { position: fixed; inset: 0 0 266px 0; width: 100%; height: calc(100% - 266px);
        touch-action: none; transition: filter .25s; }
   #c.squint { filter: blur(6px) saturate(1.2); }
   #panel {
-    position: fixed; left: 0; right: 0; bottom: 0; height: 240px;
+    position: fixed; left: 0; right: 0; bottom: 0; height: 266px;
     background: #181b22; border-top: 1px solid #262b36;
     font: 500 12px -apple-system, "Segoe UI", system-ui, sans-serif; color: #aeb6c6;
     padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;
@@ -20,6 +20,7 @@
     background: #232833; color: #8d96a8; font: 600 11px -apple-system, system-ui, sans-serif;
   }
   .seg button.on { background: #ffd44d; color: #241f0a; }
+  #scene button.on { background: #b48cff; color: #17102a; }
   .sliders { display: grid; grid-template-columns: 54px 1fr 30px; gap: 2px 8px; align-items: center; }
   .sliders label { text-align: right; color: #77808f; font-size: 11px; }
   .sliders output { font-variant-numeric: tabular-nums; color: #cdd5e3; font-size: 11px; }
@@ -29,6 +30,7 @@
     border-radius: 7px; color: #e8ecf4; padding: 6px 8px; font: 700 12px system-ui;
     text-transform: uppercase; letter-spacing: 0.08em;
   }
+  input[type=text]:disabled { opacity: 0.45; }
   .stat { font-size: 11px; color: #77808f; display: flex; align-items: center; gap: 6px; }
   .stat b { font-variant-numeric: tabular-nums; color: #cdd5e3; }
   .stat .tag { padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 10px; }
@@ -40,35 +42,36 @@
 </style>
 <canvas id="c"></canvas>
 <div id="panel">
+  <div class="row seg" id="scene">
+    <button data-v="none" class="on">word only</button>
+    <button data-v="moon">to the moon</button>
+    <button data-v="dice">six sided</button>
+  </div>
   <div class="row seg" id="mech">
     <button data-v="loop" class="on">loop</button>
     <button data-v="crews">crews</button>
     <button data-v="conga">conga</button>
     <button data-v="scurry">scurry</button>
   </div>
-  <div class="row seg" id="cmode">
-    <button data-v="mono" class="on">mono</button>
-    <button data-v="camo">camouflage</button>
-  </div>
   <div class="sliders">
-    <label>mice</label><input type="range" id="sN" min="1" max="60" value="24"><output id="oN">24</output>
-    <label>yellow %</label><input type="range" id="sY" min="10" max="100" value="55"><output id="oY">55</output>
+    <label>mice</label><input type="range" id="sN" min="1" max="90" value="24"><output id="oN">24</output>
+    <label>word %</label><input type="range" id="sY" min="10" max="100" value="100"><output id="oY">100</output>
     <label>trail</label><input type="range" id="sT" min="0" max="60" value="26"><output id="oT">26</output>
     <label>noise</label><input type="range" id="sW" min="0" max="100" value="12"><output id="oW">12</output>
   </div>
-  <div class="stat">patrol legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
+  <div class="stat">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
   <div class="row mini">
-    <input type="text" id="word" value="CATNIP" maxlength="9">
+    <input type="text" id="word" value="CATNIP" maxlength="12">
     <button class="tbtn" id="squint">squint</button>
     <button class="tbtn" id="reseed">reseed</button>
   </div>
 </div>
 <script>
 'use strict';
-// ---------- Reveal Lab v2 — four styles of stroke patrol ----------
-// Stipple/negative/flash/decoy/lights-out were tested (blind agent reads) and cut:
-// only continuous stroke coverage is legible. This lab now compares HOW the mice
-// walk the strokes. Positions stay a pure function of (seed, index, simTime).
+// ---------- Reveal Lab v3 — patrol styles + illustrated scenes ----------
+// The word (yellow) is patrolled in the chosen style; in scene mode the other four
+// colors each crew an element of a neon line-art illustration ABOUT the word.
+// Positions stay a pure function of (seed, index, simTime).
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 let W = 0, H = 0;
@@ -81,8 +84,8 @@ function resize() {
 addEventListener('resize', resize);
 
 const S = {
-  mech: 'loop', cmode: 'mono',
-  N: 24, yellowPct: 55, trail: 26, noise: 0.12,
+  scene: 'none', mech: 'loop',
+  N: 24, yellowPct: 100, trail: 26, noise: 0.12,
   word: 'CATNIP', seed: 7, squint: false,
 };
 
@@ -96,13 +99,8 @@ function mulberry32(seed) {
   };
 }
 
-// ---------- glyph sampling ----------
-// Renders the word offscreen and derives everything the patrol styles need:
-//  pts          all ink samples (with letter tags)
-//  tour         one continuous nearest-neighbour thread through the whole word
-//  letterRanges [start,end) index ranges of `tour` per letter (for crews)
-//  neighbors    adjacency between nearby ink samples (for scurry random walks)
-function sampleWord(word) {
+// ---------- glyph sampling (one line of text, em space) ----------
+function sampleLine(word) {
   const oc = document.createElement('canvas');
   const octx = oc.getContext('2d');
   const FS = 190;
@@ -131,7 +129,7 @@ function sampleWord(word) {
       }
     }
   }
-  // whole-word tour: nearest-neighbour thread per letter, letters concatenated
+  // per-letter nearest-neighbour thread, letters concatenated
   const byLetter = [];
   for (const p of pts) (byLetter[p.letter] = byLetter[p.letter] || []).push(p);
   const tour = [], letterRanges = [];
@@ -156,9 +154,7 @@ function sampleWord(word) {
     }
     letterRanges.push([start, tour.length]);
   }
-  const validLetters = [];
-  for (let L = 0; L < letterRanges.length; L++) if (letterRanges[L]) validLetters.push(L);
-  // adjacency for scurry: ink samples within ~1.7 grid steps of each other
+  // adjacency for scurry
   const R2 = (STEP * 1.7) ** 2;
   const neighbors = pts.map(() => []);
   for (let i = 0; i < pts.length; i++) {
@@ -167,20 +163,254 @@ function sampleWord(word) {
       if (d <= R2) { neighbors[i].push(j); neighbors[j].push(i); }
     }
   }
-  return { pts, tour, letterRanges, validLetters, neighbors, w: oc.width, h: oc.height, letters: word.length };
+  return { pts, tour, letterRanges, neighbors, w: oc.width, h: oc.height };
 }
-let G = sampleWord(S.word);
 
-// em space -> screen space (word band across the middle)
-function mapPt(p) {
-  const s = Math.min((W * 0.9) / G.w, (H * 0.24) / G.h);
-  return {
-    x: W / 2 + (p.x - G.w / 2) * s,
-    y: H * 0.5 + (p.y - G.h / 2) * s,
+// Build the word object. Band mode: one line, mapped to the mid-band at draw time.
+// Scene mode: lines placed at fixed spots in the 390x620 scene space.
+function buildWord(lines, mode) {
+  const G = { mode, pts: [], tour: [], letterRanges: [], neighbors: [], lines };
+  let letterOff = 0, ptOff = 0;
+  for (const ln of lines) {
+    const s = sampleLine(ln.text);
+    const scale = mode === 'scene' ? ln.size / 190 : 1;
+    const tf = p => mode === 'scene'
+      ? { x: ln.cx + (p.x - s.w / 2) * scale, y: ln.cy + (p.y - s.h / 2) * scale, letter: p.letter + letterOff }
+      : { x: p.x, y: p.y, letter: p.letter };
+    const mapped = s.pts.map(tf);
+    // tour entries reference the same coords; letterRanges shift by current tour length
+    const tourOff = G.tour.length;
+    for (const p of s.tour) G.tour.push(tf(p));
+    for (const r of s.letterRanges) G.letterRanges.push(r ? [r[0] + tourOff, r[1] + tourOff] : null);
+    for (let i = 0; i < s.neighbors.length; i++) G.neighbors.push(s.neighbors[i].map(n => n + ptOff));
+    G.pts.push(...mapped);
+    letterOff += ln.text.length; ptOff += s.pts.length;
+    if (mode !== 'scene') { G.w = s.w; G.h = s.h; }
+  }
+  G.validLetters = [];
+  for (let L = 0; L < G.letterRanges.length; L++) if (G.letterRanges[L]) G.validLetters.push(L);
+  return G;
+}
+
+// ---------- scene path tracer: canvas-like API that records sampled polylines ----------
+function tracer() {
+  const polys = [];
+  let cur = null, tx = 0, ty = 0, rot = 0;
+  const stack = [];
+  const T = (x, y) => {
+    const c = Math.cos(rot), s = Math.sin(rot);
+    return { x: tx + x * c - y * s, y: ty + x * s + y * c };
   };
+  const api = {
+    polys,
+    save() { stack.push([tx, ty, rot]); },
+    restore() { [tx, ty, rot] = stack.pop(); },
+    translate(x, y) { const p = T(x, y); tx = p.x; ty = p.y; },
+    rotate(a) { rot += a; },
+    moveTo(x, y) { cur = [T(x, y)]; polys.push(cur); },
+    lineTo(x, y) { cur ? cur.push(T(x, y)) : api.moveTo(x, y); },
+    closePath() { if (cur && cur.length) cur.push({ ...cur[0] }); },
+    quadraticCurveTo(cx, cy, x, y) {
+      const p0 = cur[cur.length - 1], p1 = T(cx, cy), p2 = T(x, y);
+      for (let i = 1; i <= 12; i++) {
+        const u = i / 12, v = 1 - u;
+        cur.push({ x: v * v * p0.x + 2 * v * u * p1.x + u * u * p2.x,
+                   y: v * v * p0.y + 2 * v * u * p1.y + u * u * p2.y });
+      }
+    },
+    bezierCurveTo(ax, ay, bx, by, x, y) {
+      const p0 = cur[cur.length - 1], p1 = T(ax, ay), p2 = T(bx, by), p3 = T(x, y);
+      for (let i = 1; i <= 16; i++) {
+        const u = i / 16, v = 1 - u;
+        cur.push({ x: v ** 3 * p0.x + 3 * v * v * u * p1.x + 3 * v * u * u * p2.x + u ** 3 * p3.x,
+                   y: v ** 3 * p0.y + 3 * v * v * u * p1.y + 3 * v * u * u * p2.y + u ** 3 * p3.y });
+      }
+    },
+    arc(cx, cy, r, a0, a1, ccw) {
+      let d = a1 - a0;
+      if (ccw && d > 0) d -= Math.PI * 2;
+      if (!ccw && d < 0) d += Math.PI * 2;
+      const n = Math.max(6, Math.ceil(Math.abs(d) * r / 5));
+      for (let i = 0; i <= n; i++) {
+        const a = a0 + d * i / n;
+        api.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      }
+    },
+    ellipse(cx, cy, rx, ry, rota, a0, a1, ccw) {
+      let d = a1 - a0;
+      if (ccw && d > 0) d -= Math.PI * 2;
+      if (!ccw && d < 0) d += Math.PI * 2;
+      const n = Math.max(8, Math.ceil(Math.abs(d) * Math.max(rx, ry) / 5));
+      const cr = Math.cos(rota || 0), sr = Math.sin(rota || 0);
+      for (let i = 0; i <= n; i++) {
+        const a = a0 + d * i / n, ex = Math.cos(a) * rx, ey = Math.sin(a) * ry;
+        api.lineTo(cx + ex * cr - ey * sr, cy + ex * sr + ey * cr);
+      }
+    },
+  };
+  return api;
+}
+function resample(polys, sp) { // even spacing along each polyline; subpath gaps preserved
+  const out = [];
+  for (const poly of polys) {
+    if (!poly.length) continue;
+    out.push(poly[0]);
+    let acc = 0;
+    for (let i = 1; i < poly.length; i++) {
+      const a = poly[i - 1], b = poly[i];
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      if (d < 1e-6) continue;
+      let pos = 0;
+      while (acc + (d - pos) >= sp) {
+        pos += sp - acc; acc = 0;
+        out.push({ x: a.x + (b.x - a.x) * pos / d, y: a.y + (b.y - a.y) * pos / d });
+      }
+      acc += d - pos;
+    }
+  }
+  return out;
+}
+function star4(x, cx, cy, r) {
+  x.moveTo(cx, cy - r); x.quadraticCurveTo(cx, cy, cx + r, cy);
+  x.quadraticCurveTo(cx, cy, cx, cy + r); x.quadraticCurveTo(cx, cy, cx - r, cy);
+  x.quadraticCurveTo(cx, cy, cx, cy - r);
+}
+function hexPath(x, cx, cy, r, rot) {
+  for (let i = 0; i <= 6; i++) {
+    const a = (rot || 0) + i / 6 * Math.PI * 2;
+    i ? x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
+      : x.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+  }
 }
 
-// deterministic smooth wander (sum of incommensurate sines — no state)
+// ---------- the two scenes (geometry ported from the concept sketches) ----------
+const SCENE_DEFS = {
+  moon: {
+    lines: [{ text: 'TO THE', cx: 195, cy: 262, size: 40 }, { text: 'MOON', cx: 195, cy: 322, size: 48 }],
+    elements: [
+      { color: 'blue', draw(x) { // trajectory + Saturn
+        x.moveTo(84, 396); x.bezierCurveTo(210, 350, 330, 300, 312, 152);
+        x.moveTo(326, 530); x.arc(310, 530, 16, 0, 6.283);
+        x.moveTo(341, 530); x.ellipse(310, 530, 31, 9, -0.32, 0, 6.283);
+      } },
+      { color: 'green', draw(x) { // UFO + launch smoke
+        x.moveTo(94, 96); x.ellipse(70, 96, 24, 8, 0, 0, 6.283);
+        x.moveTo(82, 90); x.arc(70, 90, 12, 3.14, 0);
+        x.moveTo(60, 108); x.lineTo(56, 118); x.moveTo(70, 110); x.lineTo(70, 120);
+        x.moveTo(80, 108); x.lineTo(84, 118);
+        x.moveTo(40, 606); x.arc(56, 606, 16, 3.14, 0);
+        x.arc(84, 598, 20, 3.14, 0); x.arc(112, 606, 13, 3.14, 0);
+        x.moveTo(202, 610); x.arc(214, 610, 12, 3.14, 0); x.arc(236, 604, 15, 3.14, 0);
+        x.arc(258, 610, 10, 3.14, 0);
+      } },
+      { color: 'purple', draw(x) { // crescent + stars
+        x.moveTo(300, 62); x.quadraticCurveTo(374, 88, 350, 140);
+        x.moveTo(300, 62); x.quadraticCurveTo(330, 96, 350, 140);
+        star4(x, 60, 200, 7); star4(x, 130, 70, 5); star4(x, 230, 110, 6);
+        star4(x, 356, 220, 5); star4(x, 40, 330, 5); star4(x, 350, 400, 6);
+        star4(x, 180, 160, 4);
+      } },
+      { color: 'pink', draw(x) { // the rocket
+        x.save(); x.translate(110, 470); x.rotate(-0.6);
+        x.moveTo(-18, -30); x.quadraticCurveTo(-6, -66, 0, -70);
+        x.quadraticCurveTo(6, -66, 18, -30);
+        x.moveTo(-18, -30); x.lineTo(-18, 26); x.lineTo(18, 26); x.lineTo(18, -30);
+        x.moveTo(-18, 8); x.lineTo(-33, 34); x.lineTo(-18, 26);
+        x.moveTo(18, 8); x.lineTo(33, 34); x.lineTo(18, 26);
+        x.moveTo(11, -8); x.arc(0, -8, 11, 0, 6.283);
+        x.moveTo(-8, -16); x.lineTo(-6, -23); x.lineTo(-2, -18);
+        x.moveTo(2, -18); x.lineTo(6, -23); x.lineTo(8, -16);
+        x.moveTo(-7, 26); x.quadraticCurveTo(0, 46, 7, 26);
+        x.moveTo(-12, 26); x.quadraticCurveTo(0, 72, 12, 26);
+        x.restore();
+      } },
+    ],
+  },
+  dice: {
+    lines: [{ text: 'SIX SIDED', cx: 195, cy: 290, size: 38 }],
+    elements: [
+      { color: 'green', draw(x) { // honeycomb + loose hexes
+        hexPath(x, 52, 74, 26, 0.26); hexPath(x, 96, 100, 26, 0.26); hexPath(x, 52, 126, 26, 0.26);
+        hexPath(x, 96, 152, 26, 0.26); hexPath(x, 140, 74, 26, 0.26);
+        hexPath(x, 330, 190, 18, 0.1); hexPath(x, 300, 560, 22, 0.4); hexPath(x, 60, 430, 14, 0.9);
+      } },
+      { color: 'pink', draw(x) { // the big d6 + pips
+        x.moveTo(230, 430); x.lineTo(340, 430); x.lineTo(340, 540); x.lineTo(230, 540); x.closePath();
+        x.moveTo(230, 430); x.lineTo(266, 392); x.lineTo(372, 392); x.lineTo(340, 430);
+        x.moveTo(372, 392); x.lineTo(372, 502); x.lineTo(340, 540);
+        const pip = (px, py, r) => { x.moveTo(px + r, py); x.arc(px, py, r, 0, 6.283); };
+        pip(255, 455, 7); pip(315, 455, 7); pip(285, 485, 7); pip(255, 515, 7); pip(315, 515, 7);
+        pip(358, 424, 5); pip(358, 452, 5); pip(358, 480, 5);
+        pip(285, 408, 5); pip(320, 408, 5);
+      } },
+      { color: 'blue', draw(x) { // tumbling die
+        x.save(); x.translate(300, 120); x.rotate(0.45);
+        x.moveTo(-38, -38); x.lineTo(38, -38); x.lineTo(38, 38); x.lineTo(-38, 38); x.closePath();
+        x.moveTo(-38, -38); x.lineTo(-20, -58); x.lineTo(56, -58); x.lineTo(38, -38);
+        x.moveTo(56, -58); x.lineTo(56, 18); x.lineTo(38, 38);
+        x.moveTo(6, 0); x.arc(0, 0, 6, 0, 6.283);
+        x.restore();
+      } },
+      { color: 'purple', draw(x) { // tumble arcs + scattered pips
+        x.moveTo(220, 60); x.quadraticCurveTo(160, 90, 150, 150);
+        x.moveTo(238, 44); x.quadraticCurveTo(170, 74, 158, 140);
+        const dot = (px, py, r) => { x.moveTo(px + r, py); x.arc(px, py, r, 0, 6.283); };
+        dot(120, 250, 4); dot(70, 330, 5); dot(340, 300, 4); dot(160, 560, 4); dot(60, 560, 5); dot(210, 590, 3);
+      } },
+    ],
+  },
+};
+
+const PALETTE = { yellow: '#ffd44d', blue: '#5fb0ff', pink: '#ff6fa5', green: '#5fe0a0', purple: '#b48cff' };
+const NOISE_COLORS = ['blue', 'green', 'purple', 'pink'];
+const LOOP_SPEED = 2.2e-5;   // fraction of the word tour per ms
+const CONGA_SECS = 26;
+const CONGA_SPAN = 0.62;
+const SCURRY_HOP_MS = 190;
+const SCENE_PPMS = 0.004;    // scenery patrol speed, tour-points per ms
+
+let SCENE = null;
+let G = buildWord([{ text: S.word }], 'band');
+
+function loadScene(key) {
+  const def = SCENE_DEFS[key];
+  const input = document.getElementById('word');
+  if (!def) {
+    SCENE = null;
+    G = buildWord([{ text: S.word }], 'band');
+    input.disabled = false; input.value = S.word;
+  } else {
+    SCENE = {
+      elements: def.elements.map(e => {
+        const tr = tracer(); e.draw(tr);
+        const tour = resample(tr.polys, 6);
+        return { color: PALETTE[e.color], tour, len: tour.length };
+      }),
+    };
+    SCENE.totalLen = SCENE.elements.reduce((a, e) => a + e.len, 0);
+    G = buildWord(def.lines, 'scene');
+    input.disabled = true; input.value = def.lines.map(l => l.text).join(' ');
+    // sensible scene defaults on first entry: most mice go to the scenery
+    if (S.yellowPct === 100) {
+      S.yellowPct = 30;
+      document.getElementById('sY').value = 30;
+      document.getElementById('oY').textContent = 30;
+    }
+  }
+  rebuildCast(); updateStat();
+}
+
+// scene space (390x620) -> canvas
+function sceneMap(p) {
+  const s = Math.min(W / 390, H / 620);
+  return { x: (W - 390 * s) / 2 + p.x * s, y: (H - 620 * s) / 2 + p.y * s };
+}
+// word point -> canvas (band mode centers the single line mid-screen)
+function mapPt(p) {
+  if (G.mode === 'scene') return sceneMap(p);
+  const s = Math.min((W * 0.9) / G.w, (H * 0.24) / G.h);
+  return { x: W / 2 + (p.x - G.w / 2) * s, y: H * 0.5 + (p.y - G.h / 2) * s };
+}
 function wander(i, t, amp) {
   const a = i * 12.9898, b = i * 78.233;
   return {
@@ -189,54 +419,57 @@ function wander(i, t, amp) {
   };
 }
 
-const PALETTE = { yellow: '#ffd44d', blue: '#6fa8ff', pink: '#ff7fa5', green: '#67d08a', purple: '#b39ddb' };
-const NOISE_COLORS = ['blue', 'green', 'purple', 'pink'];
-
-// ---------- patrol style constants ----------
-const LOOP_SPEED = 2.2e-5;   // fraction of the whole tour per ms (loop & crews linear speed)
-const CONGA_SECS = 26;       // conga head takes ~26s to write the whole word
-const CONGA_SPAN = 0.62;     // the snake stretches across this fraction of the tour
-const SCURRY_HOP_MS = 190;   // ms per hop between adjacent ink samples
-
-// ---------- per-mouse cast (pure function of seed + index + settings) ----------
+// ---------- per-mouse cast ----------
 function castMouse(i) {
   const rng = mulberry32(S.seed + i * 7919);
   const m = { i, p01: rng(), speed: 0.7 + rng() * 0.6 };
-  if (S.cmode === 'mono') { m.role = 'signal'; m.color = '#e8d9b0'; }
+  if (SCENE) {
+    if (rng() * 100 < S.yellowPct) { m.role = 'signal'; m.color = PALETTE.yellow; }
+    else { // scenery crew, chosen ∝ element stroke length
+      let r = rng() * SCENE.totalLen, e = 0;
+      while (e < SCENE.elements.length - 1 && r > SCENE.elements[e].len) { r -= SCENE.elements[e].len; e++; }
+      m.role = 'scenery'; m.elem = e; m.color = SCENE.elements[e].color;
+    }
+  } else if (S.yellowPct >= 100) { m.role = 'signal'; m.color = '#e8d9b0'; }
   else if (rng() * 100 < S.yellowPct) { m.role = 'signal'; m.color = PALETTE.yellow; }
   else { m.role = 'noise'; m.color = PALETTE[NOISE_COLORS[Math.floor(rng() * NOISE_COLORS.length)]]; }
-  // crews: round-robin over letters so every letter is guaranteed a fair crew
-  m.crew = G.validLetters.length ? G.validLetters[i % G.validLetters.length] : 0;
-  // scurry: precompute a fixed walk cycle over the ink adjacency graph. Prefers
-  // unvisited neighbours (self-avoiding-ish) so walks RANGE along strokes instead
-  // of balling up in one spot.
-  const K = 40;
-  let cur = Math.floor(rng() * G.pts.length);
-  let prev = -1;
-  const seen = new Set([cur]);
-  m.walk = [];
-  for (let s = 0; s < K && G.pts.length; s++) {
-    m.walk.push(G.pts[cur]);
-    const nb = G.neighbors[cur];
-    if (!nb || !nb.length) break;
-    const fresh = nb.filter(n => !seen.has(n));
-    let next;
-    if (fresh.length) next = fresh[Math.floor(rng() * fresh.length)];
-    else {
-      next = nb[Math.floor(rng() * nb.length)];
-      if (next === prev && nb.length > 1) next = nb[(nb.indexOf(next) + 1) % nb.length];
+
+  if (m.role === 'signal') {
+    m.crew = G.validLetters.length ? G.validLetters[i % G.validLetters.length] : 0;
+    const K = 40; // scurry walk
+    let cur = Math.floor(rng() * G.pts.length), prev = -1;
+    const seen = new Set([cur]);
+    m.walk = [];
+    for (let s = 0; s < K && G.pts.length; s++) {
+      m.walk.push(G.pts[cur]);
+      const nb = G.neighbors[cur];
+      if (!nb || !nb.length) break;
+      const fresh = nb.filter(n => !seen.has(n));
+      let next;
+      if (fresh.length) next = fresh[Math.floor(rng() * fresh.length)];
+      else {
+        next = nb[Math.floor(rng() * nb.length)];
+        if (next === prev && nb.length > 1) next = nb[(nb.indexOf(next) + 1) % nb.length];
+      }
+      seen.add(next); prev = cur; cur = next;
     }
-    seen.add(next);
-    prev = cur; cur = next;
   }
-  // free-wander params (noise mice)
   m.cx = 0.1 + rng() * 0.8; m.cy = 0.12 + rng() * 0.76;
   m.rx = 0.06 + rng() * 0.16; m.ry = 0.05 + rng() * 0.13;
   m.wob = 2 + Math.floor(rng() * 3);
   return m;
 }
 let cast = [];
-function rebuildCast() { cast = []; for (let i = 0; i < 60; i++) cast.push(castMouse(i)); }
+function rebuildCast() {
+  cast = [];
+  for (let i = 0; i < 90; i++) cast.push(castMouse(i));
+  if (SCENE) { // evenly phase each element's crew along its strokes
+    SCENE.elements.forEach((el, e) => {
+      const members = cast.filter(m => m.role === 'scenery' && m.elem === e);
+      members.forEach((m, k) => { m.phaseE = k / Math.max(1, members.length); });
+    });
+  }
+}
 rebuildCast();
 
 function freePos(m, t) {
@@ -246,40 +479,44 @@ function freePos(m, t) {
     y: (m.cy + Math.sin(tt * m.wob) * m.ry) * H,
   };
 }
-function interpTour(fp, lo, len) { // interpolate at float index fp within tour[lo..lo+len)
+function interpTour(fp, lo, len) {
   const idx = Math.floor(fp) % len, frac = fp - Math.floor(fp);
   const a = mapPt(G.tour[lo + idx]), b = mapPt(G.tour[lo + (idx + 1) % len]);
   return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
 }
 
-// where is mouse m at time t? THE pure function under test.
+// where is mouse m at time t?
 function posAt(m, t) {
+  const noiseAmp = S.noise * 90;
   if (m.role === 'noise') return freePos(m, t);
+  if (m.role === 'scenery') {
+    const el = SCENE.elements[m.elem], L2 = el.tour.length;
+    if (!L2) return freePos(m, t);
+    const u = ((t * SCENE_PPMS / L2 + m.phaseE) % 1 + 1) % 1;
+    const fp = u * L2, idx = Math.floor(fp) % L2, frac = fp - Math.floor(fp);
+    const a = sceneMap(el.tour[idx]), b = sceneMap(el.tour[(idx + 1) % L2]);
+    const w = wander(m.i, t, noiseAmp * 0.3);
+    return { x: a.x + (b.x - a.x) * frac + w.x, y: a.y + (b.y - a.y) * frac + w.y };
+  }
   const L = G.tour.length;
   if (!L) return freePos(m, t);
-  const noiseAmp = S.noise * 90;
   let p;
-
   if (S.mech === 'loop') {
-    // everyone walks the whole word, evenly phase-spaced
     const u = ((t * LOOP_SPEED + m.i / S.N) % 1 + 1) % 1;
     p = interpTour(u * L, 0, L);
   } else if (S.mech === 'crews') {
-    // each letter has a resident crew that only patrols its own letter
     const range = G.letterRanges[m.crew] || [0, L];
     const len = range[1] - range[0];
-    const ptsPerMs = LOOP_SPEED * L; // same linear speed as loop
+    const ptsPerMs = LOOP_SPEED * L;
     const u = ((t * ptsPerMs / len + m.p01) % 1 + 1) % 1;
     p = interpTour(u * len, range[0], len);
   } else if (S.mech === 'conga') {
-    // follow-the-leader: a snake spanning ~62% of the word sweeps through it,
-    // the head writing new letters while the tail's end fades out
     const ppms = L / (CONGA_SECS * 1000);
     const gapPts = CONGA_SPAN * L / Math.max(1, S.N);
     let fp = (t * ppms - m.i * gapPts) % L;
     if (fp < 0) fp += L;
     p = interpTour(fp, 0, L);
-  } else { // scurry: random walk cycle constrained to the ink
+  } else { // scurry
     const K = m.walk.length;
     if (!K) return freePos(m, t);
     const f = ((t / SCURRY_HOP_MS + m.p01 * K) % K + K) % K;
@@ -303,7 +540,6 @@ function drawMouse(x, y, color, r) {
   ctx.quadraticCurveTo(x + r * 2.1, y + r * 0.5, x + r * 2.6, y - r * 0.4); ctx.stroke();
 }
 
-// sim clock: accumulated so slider tweaks don't teleport mice (lab convenience)
 let simT = 0, last = performance.now();
 function frame(now) {
   const dt = now - last; last = now;
@@ -314,11 +550,14 @@ function frame(now) {
   ctx.fillStyle = '#14171d'; ctx.fillRect(0, 0, W, H);
 
   const trailN = S.trail, trailDt = 80;
+  // A patrol step moves only a few px per 80ms; anything longer is a glide between
+  // disjoint strokes (letter gaps, star to star) and must not leave ink.
+  const maxSeg = 16;
+  const mouseR = SCENE ? 3.1 : 4.5;
   for (let i = 0; i < S.N; i++) {
     const m = cast[i];
     if (trailN > 0) {
-      ctx.lineWidth = 2.4; ctx.lineCap = 'round';
-      const maxSeg = 0.12 * W; // skip leaps (between letters / walk wrap) so gaps stay clean
+      ctx.lineWidth = SCENE ? 1.8 : 2.4; ctx.lineCap = 'round';
       let prev = posAt(m, t);
       for (let j = 1; j <= trailN; j++) {
         const p = posAt(m, t - j * trailDt);
@@ -333,7 +572,7 @@ function frame(now) {
       ctx.globalAlpha = 1;
     }
     const p = posAt(m, t);
-    drawMouse(p.x, p.y, m.color, 4.5);
+    drawMouse(p.x, p.y, m.color, mouseR);
   }
   requestAnimationFrame(frame);
 }
@@ -341,17 +580,18 @@ requestAnimationFrame(frame);
 resize();
 
 // ---------- controls ----------
-function segWire(id, key) {
+function segWire(id, key, after) {
   const el = document.getElementById(id);
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     S[key] = b.dataset.v;
     [...el.children].forEach(c => c.classList.toggle('on', c === b));
-    rebuildCast(); updateStat();
+    if (after) after(b.dataset.v);
+    else { rebuildCast(); updateStat(); }
   });
 }
+segWire('scene', 'scene', v => loadScene(v));
 segWire('mech', 'mech');
-segWire('cmode', 'cmode');
 function slider(id, out, key, scale) {
   const el = document.getElementById(id), o = document.getElementById(out);
   el.addEventListener('input', () => {
@@ -366,8 +606,10 @@ slider('sY', 'oY', 'yellowPct');
 slider('sT', 'oT', 'trail');
 slider('sW', 'oW', 'noise', true);
 document.getElementById('word').addEventListener('change', e => {
+  if (SCENE) return;
   S.word = (e.target.value || 'CATNIP').toUpperCase();
-  G = sampleWord(S.word); rebuildCast(); updateStat();
+  G = buildWord([{ text: S.word }], 'band');
+  rebuildCast(); updateStat();
 });
 document.getElementById('squint').addEventListener('click', e => {
   S.squint = !S.squint;
@@ -379,20 +621,16 @@ document.getElementById('reseed').addEventListener('click', () => {
   rebuildCast();
 });
 
-// live legibility estimate: fraction of the tour inked by trails at any instant (~1 = legible).
-// Per style the ink budget differs; these are calibrated approximations, not gospel.
+// live word-legibility estimate (coverage ≈ 1 → legible)
 const covEl = document.getElementById('cov'), tagEl = document.getElementById('tag');
-function activeSignals() {
-  if (S.cmode === 'mono') return S.N;
-  let n = 0; for (let i = 0; i < S.N; i++) if (cast[i].role === 'signal') n++;
-  return n;
-}
 function updateStat() {
-  const L = Math.max(1, G.tour.length), trailMs = S.trail * 80, n = activeSignals();
+  const L = Math.max(1, G.tour.length), trailMs = S.trail * 80;
+  let n = 0;
+  for (let i = 0; i < S.N; i++) if (cast[i].role === 'signal') n++;
   let cov;
   if (S.mech === 'loop' || S.mech === 'crews') cov = n * trailMs * LOOP_SPEED;
   else if (S.mech === 'conga') cov = CONGA_SPAN * (n / S.N) + trailMs / (CONGA_SECS * 1000);
-  else cov = 0.7 * n * (trailMs / SCURRY_HOP_MS) / L; // scurry: hops overlap randomly
+  else cov = 0.7 * n * (trailMs / SCURRY_HOP_MS) / L;
   covEl.textContent = cov.toFixed(2) + '×';
   let label, color;
   if (cov < 0.5) { label = 'hidden'; color = '#5b6472'; }

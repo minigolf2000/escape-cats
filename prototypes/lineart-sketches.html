@@ -1,0 +1,253 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neon Line-Art Sketches</title>
+<style>
+  /* Committed single-theme: neon on near-black — these are lighting studies. */
+  html, body { margin: 0; background: #0a0b10; color: #aeb6c6;
+    font: 500 13px -apple-system, "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 430px; margin: 0 auto; padding: 18px 14px 60px; }
+  h1 { font: 800 19px -apple-system, system-ui, sans-serif; color: #f2f0fa; margin: 6px 2px 2px; }
+  .sub { color: #77808f; margin: 0 2px 18px; }
+  .frame { margin: 0 0 26px; }
+  .frame canvas { width: 100%; border-radius: 14px; display: block;
+    background: #0d0e15; border: 1px solid #1d2130; }
+  .cap { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 4px 0; }
+  .cap b { color: #ffd44d; font-size: 14px; letter-spacing: 0.06em; }
+  .cap span { color: #667; font-size: 11px; }
+</style>
+<div class="wrap">
+  <h1>Reveal scenes — neon line-art sketches</h1>
+  <p class="sub">5-color mock-ups: yellow always spells the code word; the other four colors
+    draw a scene <i>about</i> the word. These are lighting studies for what the mice would
+    eventually trace — not final art.</p>
+  <div class="frame"><canvas id="c1" width="780" height="1240"></canvas>
+    <div class="cap"><b>CATNIP</b><span>cat · plant · aroma · sparkles</span></div></div>
+  <div class="frame"><canvas id="c2" width="780" height="1240"></canvas>
+    <div class="cap"><b>SIX SIDED</b><span>tumbling dice · honeycomb · pips</span></div></div>
+  <div class="frame"><canvas id="c3" width="780" height="1240"></canvas>
+    <div class="cap"><b>ENIGMA</b><span>maze · keyhole · question marks · night</span></div></div>
+</div>
+<script>
+'use strict';
+// Each sketch is drawn at 2x (780x1240 for a 390x620 layout) for crisp neon.
+const C = { yellow: '#ffd44d', pink: '#ff6fa5', blue: '#5fb0ff', green: '#5fe0a0', purple: '#b48cff' };
+
+function setup(id) {
+  const cv = document.getElementById(id);
+  const x = cv.getContext('2d');
+  x.scale(2, 2);
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  return x;
+}
+// two-pass neon stroke: wide soft glow, then a bright core
+function neon(x, color, w, fn) {
+  x.save();
+  x.strokeStyle = color; x.fillStyle = color;
+  x.shadowColor = color;
+  x.globalAlpha = 0.55; x.shadowBlur = 16; x.lineWidth = (w || 2.4) + 1.6;
+  x.beginPath(); fn(x); x.stroke();
+  x.globalAlpha = 1; x.shadowBlur = 5; x.lineWidth = w || 2.4;
+  x.beginPath(); fn(x); x.stroke();
+  x.restore();
+}
+function neonText(x, color, size, text, cx, cy, spacing) {
+  x.save();
+  x.font = `900 ${size}px Arial, Helvetica, sans-serif`;
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  if (spacing !== undefined) x.letterSpacing = spacing + 'px';
+  x.strokeStyle = color; x.shadowColor = color;
+  x.globalAlpha = 0.55; x.shadowBlur = 18; x.lineWidth = 3.6;
+  x.strokeText(text, cx, cy);
+  x.globalAlpha = 1; x.shadowBlur = 6; x.lineWidth = 2;
+  x.strokeText(text, cx, cy);
+  x.restore();
+}
+function star4(x, cx, cy, r) { // 4-point sparkle
+  x.moveTo(cx, cy - r); x.quadraticCurveTo(cx, cy, cx + r, cy);
+  x.quadraticCurveTo(cx, cy, cx, cy + r); x.quadraticCurveTo(cx, cy, cx - r, cy);
+  x.quadraticCurveTo(cx, cy, cx, cy - r);
+}
+function hex(x, cx, cy, r, rot) {
+  for (let i = 0; i <= 6; i++) {
+    const a = (rot || 0) + i / 6 * Math.PI * 2;
+    const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+    i ? x.lineTo(px, py) : x.moveTo(px, py);
+  }
+}
+
+// ============================== 1 · CATNIP ==============================
+{
+  const x = setup('c1');
+  // GREEN — potted catnip, lower left, leaves drifting up past the word
+  neon(x, C.green, 2.4, x => { // pot
+    x.moveTo(42, 520); x.lineTo(112, 520); x.lineTo(104, 578); x.lineTo(50, 578); x.closePath();
+    x.moveTo(38, 512); x.lineTo(116, 512); x.lineTo(116, 520); x.moveTo(38, 512); x.lineTo(38, 520);
+  });
+  neon(x, C.green, 2.2, x => { // stems
+    x.moveTo(70, 512); x.bezierCurveTo(62, 460, 76, 420, 66, 380);
+    x.moveTo(84, 512); x.bezierCurveTo(92, 450, 80, 410, 96, 360);
+    x.moveTo(96, 512); x.bezierCurveTo(112, 470, 118, 430, 132, 402);
+  });
+  neon(x, C.green, 2, x => { // leaf pairs
+    const leaf = (px, py, a, s) => {
+      const dx = Math.cos(a) * s, dy = Math.sin(a) * s;
+      x.moveTo(px, py); x.quadraticCurveTo(px + dx - dy * 0.5, py + dy + dx * 0.5, px + dx * 1.7, py + dy * 1.7);
+      x.quadraticCurveTo(px + dx + dy * 0.5, py + dy - dx * 0.5, px, py);
+    };
+    leaf(66, 452, -2.6, 16); leaf(72, 430, -0.6, 16);
+    leaf(88, 470, -2.9, 14); leaf(86, 430, -0.4, 15);
+    leaf(66, 380, -2.2, 13); leaf(96, 360, -0.9, 15);
+    leaf(112, 448, -0.5, 13); leaf(132, 402, -0.7, 12);
+    leaf(150, 372, -0.9, 11); leaf(148, 376, -2.4, 10); // loose sprig near the word
+  });
+  // BLUE — aroma curls rising from the plant, looping around the word band
+  neon(x, C.blue, 2.2, x => {
+    x.moveTo(80, 356);
+    x.bezierCurveTo(60, 300, 120, 280, 108, 236);
+    x.bezierCurveTo(100, 208, 66, 214, 74, 238);
+    x.bezierCurveTo(80, 256, 106, 250, 104, 234);
+    x.moveTo(120, 340);
+    x.bezierCurveTo(150, 300, 130, 260, 170, 220);
+    x.bezierCurveTo(196, 194, 226, 210, 214, 232);
+    x.bezierCurveTo(206, 248, 184, 240, 190, 224);
+    x.moveTo(230, 130);
+    x.bezierCurveTo(270, 110, 300, 130, 292, 158);
+    x.bezierCurveTo(286, 178, 258, 172, 264, 154);
+  });
+  // PINK — the cat, lower right, tail sweeping under the word
+  neon(x, C.pink, 2.6, x => {
+    x.moveTo(272, 402); // left ear base -> up -> tip
+    x.lineTo(266, 372); x.lineTo(288, 386);
+    x.moveTo(320, 386); x.lineTo(340, 368); x.lineTo(338, 400);
+    // head outline
+    x.moveTo(266, 372); x.quadraticCurveTo(240, 404, 258, 432);
+    x.quadraticCurveTo(280, 452, 312, 446);
+    x.quadraticCurveTo(344, 436, 342, 402); // -> right ear base
+    // back + haunch
+    x.moveTo(258, 432); x.bezierCurveTo(230, 470, 232, 520, 250, 560);
+    x.moveTo(342, 410); x.bezierCurveTo(374, 452, 372, 520, 352, 560);
+    x.quadraticCurveTo(310, 578, 250, 560);
+    // front paws
+    x.moveTo(286, 560); x.lineTo(286, 522); x.moveTo(310, 562); x.lineTo(310, 524);
+  });
+  neon(x, C.pink, 2, x => { // face + whiskers + tail
+    x.moveTo(284, 410); x.quadraticCurveTo(290, 416, 296, 410); // closed eye L
+    x.moveTo(312, 410); x.quadraticCurveTo(318, 416, 324, 410); // closed eye R
+    x.moveTo(300, 424); x.lineTo(304, 430); x.lineTo(308, 424); // nose
+    x.moveTo(246, 420); x.lineTo(212, 414); x.moveTo(248, 430); x.lineTo(216, 434);
+    x.moveTo(356, 420); x.lineTo(388, 414); x.moveTo(354, 430); x.lineTo(384, 434);
+    // tail: sweeps left beneath the word
+    x.moveTo(250, 556); x.bezierCurveTo(200, 566, 160, 540, 150, 500);
+    x.bezierCurveTo(144, 474, 168, 462, 180, 478);
+    x.bezierCurveTo(188, 490, 174, 502, 164, 494);
+  });
+  // PURPLE — sparkles + a bold little mouse watching from the bottom
+  neon(x, C.purple, 1.8, x => {
+    star4(x, 60, 90, 10); star4(x, 130, 60, 6); star4(x, 330, 80, 9);
+    star4(x, 360, 160, 5); star4(x, 40, 220, 6); star4(x, 350, 300, 6);
+    star4(x, 205, 60, 5);
+  });
+  neon(x, C.purple, 2, x => { // mouse
+    x.moveTo(150, 596); x.quadraticCurveTo(162, 578, 184, 584);
+    x.quadraticCurveTo(200, 590, 196, 600);
+    x.moveTo(160, 582); x.quadraticCurveTo(156, 570, 168, 572); // ear
+    x.moveTo(196, 598); x.bezierCurveTo(216, 602, 222, 588, 234, 588); // tail
+  });
+  // YELLOW — the word (drawn last; in the game this is the crews' patrol)
+  neonText(x, C.yellow, 44, 'CATNIP', 195, 300, 5);
+}
+
+// ============================== 2 · SIX SIDED ==============================
+{
+  const x = setup('c2');
+  // GREEN — honeycomb corner + loose hexes (six sides, echoed everywhere)
+  neon(x, C.green, 2, x => {
+    hex(x, 52, 74, 26, 0.26); hex(x, 96, 100, 26, 0.26); hex(x, 52, 126, 26, 0.26);
+    hex(x, 96, 152, 26, 0.26); hex(x, 140, 74, 26, 0.26);
+  });
+  neon(x, C.green, 1.8, x => { hex(x, 330, 190, 18, 0.1); hex(x, 300, 560, 22, 0.4); hex(x, 60, 430, 14, 0.9); });
+  // PINK — the big d6 in the lower right
+  neon(x, C.pink, 2.6, x => {
+    // front face
+    x.moveTo(230, 430); x.lineTo(340, 430); x.lineTo(340, 540); x.lineTo(230, 540); x.closePath();
+    // top + side (perspective)
+    x.moveTo(230, 430); x.lineTo(266, 392); x.lineTo(372, 392); x.lineTo(340, 430);
+    x.moveTo(372, 392); x.lineTo(372, 502); x.lineTo(340, 540);
+  });
+  neon(x, C.pink, 2, x => { // pips: 5 front, 3 side, 2 top
+    const pip = (px, py, r) => { x.moveTo(px + r, py); x.arc(px, py, r, 0, 6.283); };
+    pip(255, 455, 7); pip(315, 455, 7); pip(285, 485, 7); pip(255, 515, 7); pip(315, 515, 7);
+    pip(358, 424, 5); pip(358, 452, 5); pip(358, 480, 5);
+    pip(285, 408, 5); pip(320, 408, 5);
+  });
+  // BLUE — a second die mid-tumble, upper right
+  neon(x, C.blue, 2.4, x => {
+    x.save(); x.translate(300, 120); x.rotate(0.45);
+    x.moveTo(-38, -38); x.lineTo(38, -38); x.lineTo(38, 38); x.lineTo(-38, 38); x.closePath();
+    x.moveTo(-38, -38); x.lineTo(-20, -58); x.lineTo(56, -58); x.lineTo(38, -38);
+    x.moveTo(56, -58); x.lineTo(56, 18); x.lineTo(38, 38);
+    x.restore();
+  });
+  neon(x, C.blue, 2, x => {
+    x.save(); x.translate(300, 120); x.rotate(0.45);
+    x.moveTo(6, 0); x.arc(0, 0, 6, 0, 6.283); // single pip
+    x.restore();
+  });
+  // PURPLE — tumble arcs + scattered pips falling like dice dots
+  neon(x, C.purple, 1.8, x => {
+    x.moveTo(220, 60); x.quadraticCurveTo(160, 90, 150, 150);
+    x.moveTo(238, 44); x.quadraticCurveTo(170, 74, 158, 140);
+  });
+  neon(x, C.purple, 1.8, x => {
+    const dot = (px, py, r) => { x.moveTo(px + r, py); x.arc(px, py, r, 0, 6.283); };
+    dot(120, 250, 4); dot(70, 330, 5); dot(340, 300, 4); dot(160, 560, 4); dot(60, 560, 5); dot(210, 590, 3);
+  });
+  // YELLOW — the word (space splits it into two crews-friendly words)
+  neonText(x, C.yellow, 38, 'SIX SIDED', 195, 300, 4);
+}
+
+// ============================== 3 · ENIGMA ==============================
+{
+  const x = setup('c3');
+  // BLUE — maze corner, top left (walls with gaps; unmistakably a maze)
+  neon(x, C.blue, 2.2, x => {
+    x.moveTo(30, 190); x.lineTo(30, 50) ; x.lineTo(190, 50);
+    x.moveTo(60, 190); x.lineTo(60, 80); x.lineTo(130, 80);
+    x.moveTo(160, 80); x.lineTo(190, 80); x.lineTo(190, 140);
+    x.moveTo(90, 190); x.lineTo(90, 110); x.lineTo(160, 110); x.lineTo(160, 170);
+    x.moveTo(120, 140); x.lineTo(120, 170); x.moveTo(30, 220); x.lineTo(120, 220);
+    x.moveTo(150, 200); x.lineTo(190, 200);
+  });
+  // GREEN — question marks drifting on the right
+  neon(x, C.green, 2.6, x => {
+    x.moveTo(280, 120); x.bezierCurveTo(280, 84, 336, 84, 336, 122);
+    x.bezierCurveTo(336, 150, 308, 148, 308, 178);
+    x.moveTo(308, 200) ; x.arc(308, 202, 2.4, 0, 6.283);
+  });
+  neon(x, C.green, 2, x => {
+    x.moveTo(346, 220); x.bezierCurveTo(346, 196, 382, 196, 382, 222);
+    x.bezierCurveTo(382, 240, 364, 238, 364, 258);
+    x.moveTo(364, 272); x.arc(364, 274, 2, 0, 6.283);
+    x.moveTo(238, 200); x.bezierCurveTo(238, 184, 262, 184, 262, 202);
+    x.bezierCurveTo(262, 214, 250, 212, 250, 226);
+    x.moveTo(250, 238); x.arc(250, 240, 1.8, 0, 6.283);
+  });
+  // PINK — glowing keyhole, the escape-room icon, front and center below the word
+  neon(x, C.pink, 2.8, x => {
+    x.moveTo(195 + 44, 452); x.arc(195, 452, 44, 0, 6.283);
+    x.moveTo(178, 484); x.lineTo(162, 566); x.lineTo(228, 566); x.lineTo(212, 484);
+  });
+  neon(x, C.pink, 2, x => { x.moveTo(195 + 58, 452); x.arc(195, 452, 58, -0.5, 3.6); });
+  // PURPLE — night sky + cat eyes peering through the keyhole (something is watching)
+  neon(x, C.purple, 1.8, x => {
+    star4(x, 60, 300, 6); star4(x, 120, 260, 4); star4(x, 300, 350, 5); star4(x, 60, 560, 5);
+    star4(x, 340, 60, 7); star4(x, 210, 100, 4);
+  });
+  neon(x, C.purple, 2.2, x => { // the eyes in the dark
+    x.moveTo(172, 448); x.quadraticCurveTo(180, 438, 188, 448); x.quadraticCurveTo(180, 458, 172, 448);
+    x.moveTo(202, 448); x.quadraticCurveTo(210, 438, 218, 448); x.quadraticCurveTo(210, 458, 202, 448);
+    x.moveTo(180, 445); x.lineTo(180, 451); x.moveTo(210, 445); x.lineTo(210, 451); // slit pupils
+  });
+  // YELLOW — the word
+  neonText(x, C.yellow, 44, 'ENIGMA', 195, 300, 5);
+}
+</script>

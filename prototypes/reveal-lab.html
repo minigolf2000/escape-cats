@@ -3,11 +3,10 @@
 <style>
   /* Deliberately single-theme: a dark observation room. This is a tuning instrument. */
   html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
-  #c { position: fixed; inset: 0 0 214px 0; width: 100%; height: calc(100% - 214px);
-       touch-action: none; transition: filter .25s; }
-  #c.squint { filter: blur(6px) saturate(1.2); }
+  #c { position: fixed; inset: 0 0 186px 0; width: 100%; height: calc(100% - 186px);
+       touch-action: none; }
   #panel {
-    position: fixed; left: 0; right: 0; bottom: 0; height: 214px;
+    position: fixed; left: 0; right: 0; bottom: 0; height: 186px;
     background: #181b22; border-top: 1px solid #262b36;
     font: 500 12px -apple-system, "Segoe UI", system-ui, sans-serif; color: #aeb6c6;
     padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;
@@ -24,11 +23,6 @@
   .sliders label { text-align: right; color: #77808f; font-size: 11px; }
   .sliders output { font-variant-numeric: tabular-nums; color: #cdd5e3; font-size: 11px; }
   input[type=range] { width: 100%; height: 22px; accent-color: #ffd44d; margin: 0; }
-  input[type=text] {
-    width: 100%; box-sizing: border-box; background: #232833; border: 1px solid #2e3542;
-    border-radius: 7px; color: #e8ecf4; padding: 6px 8px; font: 700 12px system-ui;
-    text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.6;
-  }
   .stat { font-size: 11px; color: #77808f; display: flex; align-items: center; gap: 6px; }
   .stat b { font-variant-numeric: tabular-nums; color: #cdd5e3; }
   .stat .tag { padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 10px; }
@@ -50,11 +44,9 @@
     <label>trail</label><input type="range" id="sT" min="0" max="60" value="35"><output id="oT">35</output>
     <label>noise</label><input type="range" id="sW" min="0" max="100" value="10"><output id="oW">10</output>
   </div>
-  <div class="stat">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
-  <div class="row mini">
-    <input type="text" id="word" value="" readonly>
-    <button class="tbtn" id="squint">squint</button>
-    <button class="tbtn" id="reseed">reseed</button>
+  <div class="row">
+    <div class="stat" style="flex:1">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
+    <button class="tbtn" id="reseed" style="flex:0 0 90px">reseed</button>
   </div>
 </div>
 <script>
@@ -76,7 +68,7 @@ function resize() {
 }
 addEventListener('resize', resize);
 
-const S = { scene: 'moon', N: 60, yellowPct: 30, trail: 35, noise: 0.10, seed: 7, squint: false };
+const S = { scene: 'moon', N: 60, yellowPct: 30, trail: 35, noise: 0.10, seed: 7 };
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -286,26 +278,33 @@ const SCENE_DEFS = {
     lines: [{ text: 'TO THE', cx: 195, cy: 262, size: 40 }, { text: 'MOON', cx: 195, cy: 322, size: 48 }],
     elements: [
       { color: 'blue', draw(x) {
+        // rocket's flight path arcing up to the moon
         x.moveTo(84, 396); x.bezierCurveTo(210, 350, 330, 300, 312, 152);
-        x.moveTo(326, 530); x.arc(310, 530, 16, 0, 6.283);
-        x.moveTo(341, 530); x.ellipse(310, 530, 31, 9, -0.32, 0, 6.283);
+        // BIG spanning orbit swoosh: bottom-left, over the top, down to the right
+        x.moveTo(22, 500); x.bezierCurveTo(70, 150, 300, 66, 374, 176);
+        // ringed planet
+        x.moveTo(326, 552); x.arc(310, 552, 15, 0, 6.283);
+        x.moveTo(340, 552); x.ellipse(310, 552, 30, 8, -0.32, 0, 6.283);
       } },
       { color: 'green', draw(x) {
         x.moveTo(94, 96); x.ellipse(70, 96, 24, 8, 0, 0, 6.283);
         x.moveTo(82, 90); x.arc(70, 90, 12, 3.14, 0);
         x.moveTo(60, 108); x.lineTo(56, 118); x.moveTo(70, 110); x.lineTo(70, 120);
         x.moveTo(80, 108); x.lineTo(84, 118);
-        x.moveTo(40, 606); x.arc(56, 606, 16, 3.14, 0);
-        x.arc(84, 598, 20, 3.14, 0); x.arc(112, 606, 13, 3.14, 0);
-        x.moveTo(202, 610); x.arc(214, 610, 12, 3.14, 0); x.arc(236, 604, 15, 3.14, 0);
-        x.arc(258, 610, 10, 3.14, 0);
+        // launch smoke rolled out to span the WHOLE bottom of the frame
+        x.moveTo(20, 606); x.arc(36, 606, 16, 3.14, 0); x.arc(64, 598, 20, 3.14, 0);
+        x.arc(92, 606, 13, 3.14, 0); x.arc(120, 600, 17, 3.14, 0); x.arc(150, 606, 12, 3.14, 0);
+        x.arc(180, 602, 16, 3.14, 0); x.arc(210, 608, 13, 3.14, 0); x.arc(240, 600, 18, 3.14, 0);
+        x.arc(272, 606, 12, 3.14, 0); x.arc(300, 602, 16, 3.14, 0); x.arc(332, 608, 13, 3.14, 0);
+        x.arc(360, 602, 15, 3.14, 0);
       } },
       { color: 'purple', draw(x) {
         x.moveTo(300, 62); x.quadraticCurveTo(374, 88, 350, 140);
         x.moveTo(300, 62); x.quadraticCurveTo(330, 96, 350, 140);
-        star4(x, 60, 200, 7); star4(x, 130, 70, 5); star4(x, 230, 110, 6);
-        star4(x, 356, 220, 5); star4(x, 40, 330, 5); star4(x, 350, 400, 6);
-        star4(x, 180, 160, 4);
+        // constellation line spanning the top width
+        x.moveTo(26, 158); x.lineTo(90, 104); x.lineTo(150, 152); x.lineTo(212, 100); x.lineTo(272, 150);
+        // a few free stars scattered wide
+        star4(x, 40, 300, 6); star4(x, 356, 250, 5); star4(x, 66, 470, 5); star4(x, 352, 430, 6);
       } },
       { color: 'pink', draw(x) {
         x.save(); x.translate(110, 470); x.rotate(-0.6);
@@ -327,9 +326,12 @@ const SCENE_DEFS = {
     lines: [{ text: 'SIX SIDED', cx: 195, cy: 290, size: 38 }],
     elements: [
       { color: 'green', draw(x) {
+        // honeycomb cluster top-left, continuing as a column spanning down the left edge
         hexPath(x, 52, 74, 26, 0.26); hexPath(x, 96, 100, 26, 0.26); hexPath(x, 52, 126, 26, 0.26);
         hexPath(x, 96, 152, 26, 0.26); hexPath(x, 140, 74, 26, 0.26);
-        hexPath(x, 330, 190, 18, 0.1); hexPath(x, 300, 560, 22, 0.4); hexPath(x, 60, 430, 14, 0.9);
+        hexPath(x, 60, 210, 22, 0.9); hexPath(x, 100, 250, 20, 0.4); hexPath(x, 56, 320, 22, 0.1);
+        hexPath(x, 92, 400, 20, 0.7); hexPath(x, 60, 500, 22, 0.3); hexPath(x, 300, 560, 22, 0.4);
+        hexPath(x, 330, 190, 18, 0.1);
       } },
       { color: 'pink', draw(x) {
         x.moveTo(230, 430); x.lineTo(340, 430); x.lineTo(340, 540); x.lineTo(230, 540); x.closePath();
@@ -347,12 +349,16 @@ const SCENE_DEFS = {
         x.moveTo(56, -58); x.lineTo(56, 18); x.lineTo(38, 38);
         x.moveTo(6, 0); x.arc(0, 0, 6, 0, 6.283);
         x.restore();
+        // big tumble arc: the die's flight path sweeping down to the other die
+        x.moveTo(300, 178); x.bezierCurveTo(372, 250, 250, 360, 296, 388);
       } },
       { color: 'purple', draw(x) {
-        x.moveTo(220, 60); x.quadraticCurveTo(160, 90, 150, 150);
-        x.moveTo(238, 44); x.quadraticCurveTo(170, 74, 158, 140);
+        // long motion streaks sweeping clear across the frame (dice in flight)
+        x.moveTo(372, 40); x.quadraticCurveTo(200, 175, 44, 250);
+        x.moveTo(384, 74); x.quadraticCurveTo(214, 205, 60, 300);
+        x.moveTo(356, 18); x.quadraticCurveTo(188, 150, 40, 205);
         const dot = (px, py, r) => { x.moveTo(px + r, py); x.arc(px, py, r, 0, 6.283); };
-        dot(120, 250, 4); dot(70, 330, 5); dot(340, 300, 4); dot(160, 560, 4); dot(60, 560, 5); dot(210, 590, 3);
+        dot(140, 330, 4); dot(340, 340, 4); dot(160, 470, 4); dot(120, 590, 5); dot(360, 470, 4); dot(220, 600, 3);
       } },
     ],
   },
@@ -389,7 +395,6 @@ function loadScene(key) {
       CREWS.push({ color: PALETTE[e.color], tour: compTour, len: compTour.length, kind: 'scenery' });
     }
   }
-  document.getElementById('word').value = def.lines.map(l => l.text).join(' ');
   rebuildCast(); updateStat();
 }
 
@@ -530,11 +535,6 @@ slider('sN', 'oN', 'N');
 slider('sY', 'oY', 'yellowPct');
 slider('sT', 'oT', 'trail');
 slider('sW', 'oW', 'noise', true);
-document.getElementById('squint').addEventListener('click', e => {
-  S.squint = !S.squint;
-  e.target.classList.toggle('on', S.squint);
-  cv.classList.toggle('squint', S.squint);
-});
 document.getElementById('reseed').addEventListener('click', () => {
   S.seed = (S.seed * 1103515245 + 12345) >>> 0;
   rebuildCast();

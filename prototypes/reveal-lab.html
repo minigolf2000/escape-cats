@@ -4,11 +4,11 @@
   /* Deliberately single-theme: a dark observation room, so the lights-out mode and
      glow reads are honest. This is a tuning instrument, not a document. */
   html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
-  #c { position: fixed; inset: 0 0 218px 0; width: 100%; height: calc(100% - 218px);
+  #c { position: fixed; inset: 0 0 240px 0; width: 100%; height: calc(100% - 240px);
        touch-action: none; transition: filter .25s; }
   #c.squint { filter: blur(6px) saturate(1.2); }
   #panel {
-    position: fixed; left: 0; right: 0; bottom: 0; height: 218px;
+    position: fixed; left: 0; right: 0; bottom: 0; height: 240px;
     background: #181b22; border-top: 1px solid #262b36;
     font: 500 12px -apple-system, "Segoe UI", system-ui, sans-serif; color: #aeb6c6;
     padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;
@@ -30,6 +30,9 @@
     border-radius: 7px; color: #e8ecf4; padding: 6px 8px; font: 700 12px system-ui;
     text-transform: uppercase; letter-spacing: 0.08em;
   }
+  .stat { font-size: 11px; color: #77808f; display: flex; align-items: center; gap: 6px; }
+  .stat b { font-variant-numeric: tabular-nums; color: #cdd5e3; }
+  .stat .tag { padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 10px; }
   .mini { display: flex; gap: 6px; }
   .mini > * { flex: 1; }
   .tbtn { padding: 6px 2px; border: 0; border-radius: 7px; background: #232833;
@@ -51,11 +54,12 @@
     <button data-v="dark">lights-out</button>
   </div>
   <div class="sliders">
-    <label>mice</label><input type="range" id="sN" min="1" max="60" value="18"><output id="oN">18</output>
+    <label>mice</label><input type="range" id="sN" min="1" max="60" value="24"><output id="oN">24</output>
     <label>yellow %</label><input type="range" id="sY" min="10" max="100" value="55"><output id="oY">55</output>
-    <label>trail</label><input type="range" id="sT" min="0" max="40" value="16"><output id="oT">16</output>
-    <label>noise</label><input type="range" id="sW" min="0" max="100" value="35"><output id="oW">35</output>
+    <label>trail</label><input type="range" id="sT" min="0" max="60" value="26"><output id="oT">26</output>
+    <label>noise</label><input type="range" id="sW" min="0" max="100" value="12"><output id="oW">12</output>
   </div>
+  <div class="stat">patrol legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
   <div class="row mini">
     <input type="text" id="word" value="CATNIP" maxlength="9">
     <input type="text" id="decoy" value="TUNA" maxlength="9">
@@ -81,7 +85,7 @@ addEventListener('resize', resize);
 
 const S = {
   mech: 'patrol', cmode: 'mono',
-  N: 18, yellowPct: 55, trail: 16, noise: 0.35,
+  N: 24, yellowPct: 55, trail: 26, noise: 0.12,
   word: 'CATNIP', decoy: 'TUNA', seed: 7, squint: false,
 };
 
@@ -122,7 +126,7 @@ function sampleWord(word) {
     x += widths[i] + gap;
   }
   const img = octx.getImageData(0, 0, oc.width, oc.height).data;
-  const pts = [], STEP = 7;
+  const pts = [], STEP = 6;
   for (let py = 0; py < oc.height; py += STEP) {
     for (let px = 0; px < oc.width; px += STEP) {
       if (img[(py * oc.width + px) * 4 + 3] > 128) {
@@ -139,7 +143,35 @@ function sampleWord(word) {
       if (img[(py * oc.width + px) * 4 + 3] <= 128) neg.push({ x: px, y: py, letter: -1 });
     }
   }
-  return { pts, neg, w: oc.width, h: oc.height, letters: word.length };
+  // ONE continuous tour through the whole word: nearest-neighbour thread within each
+  // letter (so the path traces the letterform), letters concatenated in reading order.
+  // Mice patrol this tour at evenly spaced phases; their trails ink it in.
+  const byLetter = [];
+  for (const p of pts) (byLetter[p.letter] = byLetter[p.letter] || []).push(p);
+  const tour = [];
+  const jumps = []; // indices in `tour` where a big letter-to-letter jump begins
+  for (let L = 0; L < word.length; L++) {
+    const lp = byLetter[L]; if (!lp || !lp.length) continue;
+    if (tour.length) jumps.push(tour.length - 1);
+    // start at the top-most point of the letter, then greedy nearest-neighbour
+    let s = 0;
+    for (let i = 1; i < lp.length; i++)
+      if (lp[i].y < lp[s].y - 1 || (Math.abs(lp[i].y - lp[s].y) <= 1 && lp[i].x < lp[s].x)) s = i;
+    const used = new Uint8Array(lp.length); used[s] = 1;
+    tour.push(lp[s]);
+    let cur = s;
+    for (let step = 1; step < lp.length; step++) {
+      let best = -1, bd = Infinity;
+      for (let j = 0; j < lp.length; j++) {
+        if (used[j]) continue;
+        const d = (lp[j].x - lp[cur].x) ** 2 + (lp[j].y - lp[cur].y) ** 2;
+        if (d < bd) { bd = d; best = j; }
+      }
+      used[best] = 1; tour.push(lp[best]); cur = best;
+    }
+  }
+  const jumpSet = new Set(jumps);
+  return { pts, neg, tour, jumpSet, w: oc.width, h: oc.height, letters: word.length };
 }
 let G = sampleWord(S.word), GD = sampleWord(S.decoy);
 
@@ -163,6 +195,8 @@ function wander(i, t, amp) {
 
 const PALETTE = { yellow: '#ffd44d', blue: '#6fa8ff', pink: '#ff7fa5', green: '#67d08a', purple: '#b39ddb' };
 const NOISE_COLORS = ['blue', 'green', 'purple'];
+// tour traversal speed (fraction of the whole word per ms). Legibility ≈ N × trail × this.
+const PATROL_SPEED = 2.2e-5;
 
 // ---------- per-mouse cast (pure function of seed + index + current settings) ----------
 function castMouse(i) {
@@ -234,13 +268,15 @@ function posAt(m, t) {
     return { x: h.x + w.x, y: h.y + w.y };
   }
   if (S.mech === 'patrol') {
-    const k = m.chain.length;
-    const u = ((t * 0.00007 * m.speed + m.phase) % 1 + 1) % 1;
-    const f = u * k, seg = Math.floor(f) % k, frac = f - Math.floor(f);
-    const a = mapPt(m.chain[seg], glyph), b = mapPt(m.chain[(seg + 1) % k], glyph);
-    const e = 0.5 - 0.5 * Math.cos(frac * Math.PI); // ease between waypoints
-    const w = wander(m.i, t, noiseAmp);
-    return { x: a.x + (b.x - a.x) * e + w.x, y: a.y + (b.y - a.y) * e + w.y };
+    const tour = glyph.tour, L = tour.length;
+    if (!L) return freePos(m, t);
+    // evenly spaced phase per active mouse; all mice traverse the whole word tour.
+    const off = (m.i % S.N) / S.N;
+    const u = ((t * PATROL_SPEED + off) % 1 + 1) % 1;
+    const fp = u * L, idx = Math.floor(fp) % L, frac = fp - Math.floor(fp);
+    const a = mapPt(tour[idx], glyph), b = mapPt(tour[(idx + 1) % L], glyph);
+    const w = wander(m.i, t, noiseAmp * 0.5);
+    return { x: a.x + (b.x - a.x) * frac + w.x, y: a.y + (b.y - a.y) * frac + w.y, seg: idx };
   }
   if (S.mech === 'negative') {
     const h = mapPt(m.negHome, G, 2.6); // spread the background fill vertically
@@ -297,15 +333,19 @@ function frame(now) {
   for (let i = 0; i < S.N; i++) {
     const m = cast[i];
     const hidden = dark > 0.5 && m.color !== PALETTE.yellow && S.cmode === 'dark';
-    // trails
+    // trails — the ink that actually draws the word
     if (trailN > 0 && !hidden) {
-      ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+      ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+      const maxSeg = 0.12 * W; // skip the leap between letters so gaps stay clean
       let prev = posAt(m, t);
       for (let j = 1; j <= trailN; j++) {
         const p = posAt(m, t - j * trailDt);
-        ctx.globalAlpha = 0.32 * (1 - j / trailN) * (1 - dark * 0.85);
-        ctx.strokeStyle = m.color;
-        ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+        const far = Math.abs(p.x - prev.x) > maxSeg || Math.abs(p.y - prev.y) > maxSeg;
+        if (!far) {
+          ctx.globalAlpha = 0.5 * (1 - j / trailN) * (1 - dark * 0.85);
+          ctx.strokeStyle = m.color;
+          ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+        }
         prev = p;
       }
       ctx.globalAlpha = 1;
@@ -360,6 +400,23 @@ slider('sN', 'oN', 'N');
 slider('sY', 'oY', 'yellowPct');
 slider('sT', 'oT', 'trail');
 slider('sW', 'oW', 'noise', true);
+
+// live legibility estimate for stroke patrol: coverage = mice × trail × traversal.
+// coverage ~1 means the trails ink the whole word once (the legible threshold).
+const covEl = document.getElementById('cov'), tagEl = document.getElementById('tag');
+function updateStat() {
+  const cov = S.N * S.trail * PATROL_SPEED * 80; // 80ms = trail sample spacing
+  covEl.textContent = cov.toFixed(2) + '×';
+  let label, color;
+  if (cov < 0.5) { label = 'hidden'; color = '#5b6472'; }
+  else if (cov < 0.85) { label = 'forming'; color = '#c9803a'; }
+  else if (cov < 2.2) { label = 'legible'; color = '#3fa46b'; }
+  else { label = 'saturated'; color = '#3d63c9'; }
+  tagEl.textContent = label;
+  tagEl.style.background = color; tagEl.style.color = '#fff';
+}
+['sN', 'sT'].forEach(id => document.getElementById(id).addEventListener('input', updateStat));
+updateStat();
 document.getElementById('word').addEventListener('change', e => {
   S.word = (e.target.value || 'CATNIP').toUpperCase();
   G = sampleWord(S.word); rebuildCast();

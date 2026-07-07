@@ -3,11 +3,11 @@
 <style>
   /* Deliberately single-theme: a dark observation room. This is a tuning instrument. */
   html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
-  #c { position: fixed; inset: 0 0 266px 0; width: 100%; height: calc(100% - 266px);
+  #c { position: fixed; inset: 0 0 214px 0; width: 100%; height: calc(100% - 214px);
        touch-action: none; transition: filter .25s; }
   #c.squint { filter: blur(6px) saturate(1.2); }
   #panel {
-    position: fixed; left: 0; right: 0; bottom: 0; height: 266px;
+    position: fixed; left: 0; right: 0; bottom: 0; height: 214px;
     background: #181b22; border-top: 1px solid #262b36;
     font: 500 12px -apple-system, "Segoe UI", system-ui, sans-serif; color: #aeb6c6;
     padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;
@@ -19,8 +19,7 @@
     flex: 1; padding: 6px 2px; border: 0; border-radius: 7px;
     background: #232833; color: #8d96a8; font: 600 11px -apple-system, system-ui, sans-serif;
   }
-  .seg button.on { background: #ffd44d; color: #241f0a; }
-  #scene button.on { background: #b48cff; color: #17102a; }
+  .seg button.on { background: #b48cff; color: #17102a; }
   .sliders { display: grid; grid-template-columns: 54px 1fr 30px; gap: 2px 8px; align-items: center; }
   .sliders label { text-align: right; color: #77808f; font-size: 11px; }
   .sliders output { font-variant-numeric: tabular-nums; color: #cdd5e3; font-size: 11px; }
@@ -28,9 +27,8 @@
   input[type=text] {
     width: 100%; box-sizing: border-box; background: #232833; border: 1px solid #2e3542;
     border-radius: 7px; color: #e8ecf4; padding: 6px 8px; font: 700 12px system-ui;
-    text-transform: uppercase; letter-spacing: 0.08em;
+    text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.6;
   }
-  input[type=text]:disabled { opacity: 0.45; }
   .stat { font-size: 11px; color: #77808f; display: flex; align-items: center; gap: 6px; }
   .stat b { font-variant-numeric: tabular-nums; color: #cdd5e3; }
   .stat .tag { padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 10px; }
@@ -43,34 +41,29 @@
 <canvas id="c"></canvas>
 <div id="panel">
   <div class="row seg" id="scene">
-    <button data-v="none" class="on">word only</button>
-    <button data-v="moon">to the moon</button>
+    <button data-v="moon" class="on">to the moon</button>
     <button data-v="dice">six sided</button>
   </div>
-  <div class="row seg" id="mech">
-    <button data-v="loop" class="on">loop</button>
-    <button data-v="crews">crews</button>
-    <button data-v="conga">conga</button>
-    <button data-v="scurry">scurry</button>
-  </div>
   <div class="sliders">
-    <label>mice</label><input type="range" id="sN" min="1" max="90" value="24"><output id="oN">24</output>
-    <label>word %</label><input type="range" id="sY" min="10" max="100" value="100"><output id="oY">100</output>
-    <label>trail</label><input type="range" id="sT" min="0" max="60" value="26"><output id="oT">26</output>
-    <label>noise</label><input type="range" id="sW" min="0" max="100" value="12"><output id="oW">12</output>
+    <label>mice</label><input type="range" id="sN" min="1" max="90" value="60"><output id="oN">60</output>
+    <label>word %</label><input type="range" id="sY" min="10" max="80" value="30"><output id="oY">30</output>
+    <label>trail</label><input type="range" id="sT" min="0" max="60" value="35"><output id="oT">35</output>
+    <label>noise</label><input type="range" id="sW" min="0" max="100" value="10"><output id="oW">10</output>
   </div>
   <div class="stat">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
   <div class="row mini">
-    <input type="text" id="word" value="CATNIP" maxlength="12">
+    <input type="text" id="word" value="" readonly>
     <button class="tbtn" id="squint">squint</button>
     <button class="tbtn" id="reseed">reseed</button>
   </div>
 </div>
 <script>
 'use strict';
-// ---------- Reveal Lab v3 — patrol styles + illustrated scenes ----------
-// The word (yellow) is patrolled in the chosen style; in scene mode the other four
-// colors each crew an element of a neon line-art illustration ABOUT the word.
+// ---------- Reveal Lab v4 — crews only, scenes only ----------
+// The committed design: every GEOMETRICALLY CONTINUOUS shape is a crew — each word
+// letter, the rocket, each star, each die pip. Mice never leave their shape (ping-pong
+// patrol, so open strokes have no wrap-around jump either). Yellow crews spell the
+// word; the other four colors crew the elements of a line-art scene about the word.
 // Positions stay a pure function of (seed, index, simTime).
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
@@ -83,11 +76,7 @@ function resize() {
 }
 addEventListener('resize', resize);
 
-const S = {
-  scene: 'none', mech: 'loop',
-  N: 24, yellowPct: 100, trail: 26, noise: 0.12,
-  word: 'CATNIP', seed: 7, squint: false,
-};
+const S = { scene: 'moon', N: 60, yellowPct: 30, trail: 35, noise: 0.10, seed: 7, squint: false };
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -99,7 +88,7 @@ function mulberry32(seed) {
   };
 }
 
-// ---------- glyph sampling (one line of text, em space) ----------
+// ---------- word sampling: one crew per letter ----------
 function sampleLine(word) {
   const oc = document.createElement('canvas');
   const octx = oc.getContext('2d');
@@ -129,19 +118,18 @@ function sampleLine(word) {
       }
     }
   }
-  // per-letter nearest-neighbour thread, letters concatenated
+  // per-letter nearest-neighbour thread -> one tour per letter
   const byLetter = [];
   for (const p of pts) (byLetter[p.letter] = byLetter[p.letter] || []).push(p);
-  const tour = [], letterRanges = [];
+  const letters = [];
   for (let L = 0; L < word.length; L++) {
     const lp = byLetter[L];
-    if (!lp || !lp.length) { letterRanges.push(null); continue; }
-    const start = tour.length;
+    if (!lp || !lp.length) continue;
     let s = 0;
     for (let i = 1; i < lp.length; i++)
       if (lp[i].y < lp[s].y - 1 || (Math.abs(lp[i].y - lp[s].y) <= 1 && lp[i].x < lp[s].x)) s = i;
     const used = new Uint8Array(lp.length); used[s] = 1;
-    tour.push(lp[s]);
+    const tour = [lp[s]];
     let cur = s;
     for (let step = 1; step < lp.length; step++) {
       let best = -1, bd = Infinity;
@@ -152,47 +140,12 @@ function sampleLine(word) {
       }
       used[best] = 1; tour.push(lp[best]); cur = best;
     }
-    letterRanges.push([start, tour.length]);
+    letters.push(tour);
   }
-  // adjacency for scurry
-  const R2 = (STEP * 1.7) ** 2;
-  const neighbors = pts.map(() => []);
-  for (let i = 0; i < pts.length; i++) {
-    for (let j = i + 1; j < pts.length; j++) {
-      const d = (pts[i].x - pts[j].x) ** 2 + (pts[i].y - pts[j].y) ** 2;
-      if (d <= R2) { neighbors[i].push(j); neighbors[j].push(i); }
-    }
-  }
-  return { pts, tour, letterRanges, neighbors, w: oc.width, h: oc.height };
+  return { letters, w: oc.width, h: oc.height };
 }
 
-// Build the word object. Band mode: one line, mapped to the mid-band at draw time.
-// Scene mode: lines placed at fixed spots in the 390x620 scene space.
-function buildWord(lines, mode) {
-  const G = { mode, pts: [], tour: [], letterRanges: [], neighbors: [], lines };
-  let letterOff = 0, ptOff = 0;
-  for (const ln of lines) {
-    const s = sampleLine(ln.text);
-    const scale = mode === 'scene' ? ln.size / 190 : 1;
-    const tf = p => mode === 'scene'
-      ? { x: ln.cx + (p.x - s.w / 2) * scale, y: ln.cy + (p.y - s.h / 2) * scale, letter: p.letter + letterOff }
-      : { x: p.x, y: p.y, letter: p.letter };
-    const mapped = s.pts.map(tf);
-    // tour entries reference the same coords; letterRanges shift by current tour length
-    const tourOff = G.tour.length;
-    for (const p of s.tour) G.tour.push(tf(p));
-    for (const r of s.letterRanges) G.letterRanges.push(r ? [r[0] + tourOff, r[1] + tourOff] : null);
-    for (let i = 0; i < s.neighbors.length; i++) G.neighbors.push(s.neighbors[i].map(n => n + ptOff));
-    G.pts.push(...mapped);
-    letterOff += ln.text.length; ptOff += s.pts.length;
-    if (mode !== 'scene') { G.w = s.w; G.h = s.h; }
-  }
-  G.validLetters = [];
-  for (let L = 0; L < G.letterRanges.length; L++) if (G.letterRanges[L]) G.validLetters.push(L);
-  return G;
-}
-
-// ---------- scene path tracer: canvas-like API that records sampled polylines ----------
+// ---------- scene path tracer (canvas-like API that records polylines) ----------
 function tracer() {
   const polys = [];
   let cur = null, tx = 0, ty = 0, rot = 0;
@@ -250,26 +203,70 @@ function tracer() {
   };
   return api;
 }
-function resample(polys, sp) { // even spacing along each polyline; subpath gaps preserved
+function resamplePoly(poly, sp) {
   const out = [];
-  for (const poly of polys) {
-    if (!poly.length) continue;
-    out.push(poly[0]);
-    let acc = 0;
-    for (let i = 1; i < poly.length; i++) {
-      const a = poly[i - 1], b = poly[i];
-      const d = Math.hypot(b.x - a.x, b.y - a.y);
-      if (d < 1e-6) continue;
-      let pos = 0;
-      while (acc + (d - pos) >= sp) {
-        pos += sp - acc; acc = 0;
-        out.push({ x: a.x + (b.x - a.x) * pos / d, y: a.y + (b.y - a.y) * pos / d });
-      }
-      acc += d - pos;
+  if (!poly.length) return out;
+  out.push(poly[0]);
+  let acc = 0;
+  for (let i = 1; i < poly.length; i++) {
+    const a = poly[i - 1], b = poly[i];
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    if (d < 1e-6) continue;
+    let pos = 0;
+    while (acc + (d - pos) >= sp) {
+      pos += sp - acc; acc = 0;
+      out.push({ x: a.x + (b.x - a.x) * pos / d, y: a.y + (b.y - a.y) * pos / d });
     }
+    acc += d - pos;
   }
+  out.push(poly[poly.length - 1]);
   return out;
 }
+// Group an element's subpaths into GEOMETRICALLY CONTINUOUS shapes: two subpaths join
+// if an endpoint of one sits within JOIN_R of any point of the other (fins touch the
+// rocket body, the crescent's two strokes share tips). Each component becomes one crew.
+const JOIN_R = 9;
+function components(polys) {
+  const n = polys.length;
+  const parent = [...Array(n).keys()];
+  const find = a => parent[a] === a ? a : (parent[a] = find(parent[a]));
+  const touch = (a, b) => {
+    const ends = [a[0], a[a.length - 1]];
+    for (const e of ends) for (const p of b)
+      if ((e.x - p.x) ** 2 + (e.y - p.y) ** 2 <= JOIN_R * JOIN_R) return true;
+    return false;
+  };
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++)
+    if (find(i) !== find(j) && (touch(polys[i], polys[j]) || touch(polys[j], polys[i])))
+      parent[find(j)] = find(i);
+  const groups = new Map();
+  for (let i = 0; i < n; i++) {
+    const r = find(i);
+    if (!groups.has(r)) groups.set(r, []);
+    groups.get(r).push(polys[i]);
+  }
+  // chain each component's subpaths end-to-nearest-end so patrol glides stay short
+  return [...groups.values()].map(g => {
+    const restList = [...g];
+    let chain = restList.shift();
+    const outPolys = [chain];
+    while (restList.length) {
+      const tail = outPolys[outPolys.length - 1];
+      const end = tail[tail.length - 1];
+      let bi = 0, brev = false, bd = Infinity;
+      restList.forEach((p, i) => {
+        const d0 = (p[0].x - end.x) ** 2 + (p[0].y - end.y) ** 2;
+        const d1 = (p[p.length - 1].x - end.x) ** 2 + (p[p.length - 1].y - end.y) ** 2;
+        if (d0 < bd) { bd = d0; bi = i; brev = false; }
+        if (d1 < bd) { bd = d1; bi = i; brev = true; }
+      });
+      const nxt = restList.splice(bi, 1)[0];
+      outPolys.push(brev ? [...nxt].reverse() : nxt);
+    }
+    return outPolys.flat();
+  });
+}
+
 function star4(x, cx, cy, r) {
   x.moveTo(cx, cy - r); x.quadraticCurveTo(cx, cy, cx + r, cy);
   x.quadraticCurveTo(cx, cy, cx, cy + r); x.quadraticCurveTo(cx, cy, cx - r, cy);
@@ -283,17 +280,17 @@ function hexPath(x, cx, cy, r, rot) {
   }
 }
 
-// ---------- the two scenes (geometry ported from the concept sketches) ----------
+// ---------- the two scenes ----------
 const SCENE_DEFS = {
   moon: {
     lines: [{ text: 'TO THE', cx: 195, cy: 262, size: 40 }, { text: 'MOON', cx: 195, cy: 322, size: 48 }],
     elements: [
-      { color: 'blue', draw(x) { // trajectory + Saturn
+      { color: 'blue', draw(x) {
         x.moveTo(84, 396); x.bezierCurveTo(210, 350, 330, 300, 312, 152);
         x.moveTo(326, 530); x.arc(310, 530, 16, 0, 6.283);
         x.moveTo(341, 530); x.ellipse(310, 530, 31, 9, -0.32, 0, 6.283);
       } },
-      { color: 'green', draw(x) { // UFO + launch smoke
+      { color: 'green', draw(x) {
         x.moveTo(94, 96); x.ellipse(70, 96, 24, 8, 0, 0, 6.283);
         x.moveTo(82, 90); x.arc(70, 90, 12, 3.14, 0);
         x.moveTo(60, 108); x.lineTo(56, 118); x.moveTo(70, 110); x.lineTo(70, 120);
@@ -303,14 +300,14 @@ const SCENE_DEFS = {
         x.moveTo(202, 610); x.arc(214, 610, 12, 3.14, 0); x.arc(236, 604, 15, 3.14, 0);
         x.arc(258, 610, 10, 3.14, 0);
       } },
-      { color: 'purple', draw(x) { // crescent + stars
+      { color: 'purple', draw(x) {
         x.moveTo(300, 62); x.quadraticCurveTo(374, 88, 350, 140);
         x.moveTo(300, 62); x.quadraticCurveTo(330, 96, 350, 140);
         star4(x, 60, 200, 7); star4(x, 130, 70, 5); star4(x, 230, 110, 6);
         star4(x, 356, 220, 5); star4(x, 40, 330, 5); star4(x, 350, 400, 6);
         star4(x, 180, 160, 4);
       } },
-      { color: 'pink', draw(x) { // the rocket
+      { color: 'pink', draw(x) {
         x.save(); x.translate(110, 470); x.rotate(-0.6);
         x.moveTo(-18, -30); x.quadraticCurveTo(-6, -66, 0, -70);
         x.quadraticCurveTo(6, -66, 18, -30);
@@ -329,12 +326,12 @@ const SCENE_DEFS = {
   dice: {
     lines: [{ text: 'SIX SIDED', cx: 195, cy: 290, size: 38 }],
     elements: [
-      { color: 'green', draw(x) { // honeycomb + loose hexes
+      { color: 'green', draw(x) {
         hexPath(x, 52, 74, 26, 0.26); hexPath(x, 96, 100, 26, 0.26); hexPath(x, 52, 126, 26, 0.26);
         hexPath(x, 96, 152, 26, 0.26); hexPath(x, 140, 74, 26, 0.26);
         hexPath(x, 330, 190, 18, 0.1); hexPath(x, 300, 560, 22, 0.4); hexPath(x, 60, 430, 14, 0.9);
       } },
-      { color: 'pink', draw(x) { // the big d6 + pips
+      { color: 'pink', draw(x) {
         x.moveTo(230, 430); x.lineTo(340, 430); x.lineTo(340, 540); x.lineTo(230, 540); x.closePath();
         x.moveTo(230, 430); x.lineTo(266, 392); x.lineTo(372, 392); x.lineTo(340, 430);
         x.moveTo(372, 392); x.lineTo(372, 502); x.lineTo(340, 540);
@@ -343,7 +340,7 @@ const SCENE_DEFS = {
         pip(358, 424, 5); pip(358, 452, 5); pip(358, 480, 5);
         pip(285, 408, 5); pip(320, 408, 5);
       } },
-      { color: 'blue', draw(x) { // tumbling die
+      { color: 'blue', draw(x) {
         x.save(); x.translate(300, 120); x.rotate(0.45);
         x.moveTo(-38, -38); x.lineTo(38, -38); x.lineTo(38, 38); x.lineTo(-38, 38); x.closePath();
         x.moveTo(-38, -38); x.lineTo(-20, -58); x.lineTo(56, -58); x.lineTo(38, -38);
@@ -351,7 +348,7 @@ const SCENE_DEFS = {
         x.moveTo(6, 0); x.arc(0, 0, 6, 0, 6.283);
         x.restore();
       } },
-      { color: 'purple', draw(x) { // tumble arcs + scattered pips
+      { color: 'purple', draw(x) {
         x.moveTo(220, 60); x.quadraticCurveTo(160, 90, 150, 150);
         x.moveTo(238, 44); x.quadraticCurveTo(170, 74, 158, 140);
         const dot = (px, py, r) => { x.moveTo(px + r, py); x.arc(px, py, r, 0, 6.283); };
@@ -362,54 +359,43 @@ const SCENE_DEFS = {
 };
 
 const PALETTE = { yellow: '#ffd44d', blue: '#5fb0ff', pink: '#ff6fa5', green: '#5fe0a0', purple: '#b48cff' };
-const NOISE_COLORS = ['blue', 'green', 'purple', 'pink'];
-const LOOP_SPEED = 2.2e-5;   // fraction of the word tour per ms
-const CONGA_SECS = 26;
-const CONGA_SPAN = 0.62;
-const SCURRY_HOP_MS = 190;
-const SCENE_PPMS = 0.004;    // scenery patrol speed, tour-points per ms
+const WORD_PPMS_FRAC = 2.2e-5; // fraction of the whole word's ink per ms (legibility formula input)
+const SCENE_PPMS = 0.004;      // scenery patrol speed, tour-points per ms
 
-let SCENE = null;
-let G = buildWord([{ text: S.word }], 'band');
-
+// CREWS: [{ color, tour(scene-space pts), len, kind: 'word'|'scenery' }]
+let CREWS = [], WORD_LEN = 0;
 function loadScene(key) {
   const def = SCENE_DEFS[key];
-  const input = document.getElementById('word');
-  if (!def) {
-    SCENE = null;
-    G = buildWord([{ text: S.word }], 'band');
-    input.disabled = false; input.value = S.word;
-  } else {
-    SCENE = {
-      elements: def.elements.map(e => {
-        const tr = tracer(); e.draw(tr);
-        const tour = resample(tr.polys, 6);
-        return { color: PALETTE[e.color], tour, len: tour.length };
-      }),
-    };
-    SCENE.totalLen = SCENE.elements.reduce((a, e) => a + e.len, 0);
-    G = buildWord(def.lines, 'scene');
-    input.disabled = true; input.value = def.lines.map(l => l.text).join(' ');
-    // sensible scene defaults on first entry: most mice go to the scenery
-    if (S.yellowPct === 100) {
-      S.yellowPct = 30;
-      document.getElementById('sY').value = 30;
-      document.getElementById('oY').textContent = 30;
+  CREWS = [];
+  // word letters -> one crew each, placed per line
+  WORD_LEN = 0;
+  for (const ln of def.lines) {
+    const s = sampleLine(ln.text);
+    const scale = ln.size / 190;
+    for (const letterTour of s.letters) {
+      const tour = letterTour.map(p => ({
+        x: ln.cx + (p.x - s.w / 2) * scale,
+        y: ln.cy + (p.y - s.h / 2) * scale,
+      }));
+      CREWS.push({ color: PALETTE.yellow, tour, len: tour.length, kind: 'word' });
+      WORD_LEN += tour.length;
     }
   }
+  // scenery elements -> connected components -> one crew each
+  for (const e of def.elements) {
+    const tr = tracer(); e.draw(tr);
+    const sampled = tr.polys.map(p => resamplePoly(p, 6)).filter(p => p.length > 1);
+    for (const compTour of components(sampled)) {
+      CREWS.push({ color: PALETTE[e.color], tour: compTour, len: compTour.length, kind: 'scenery' });
+    }
+  }
+  document.getElementById('word').value = def.lines.map(l => l.text).join(' ');
   rebuildCast(); updateStat();
 }
 
-// scene space (390x620) -> canvas
 function sceneMap(p) {
   const s = Math.min(W / 390, H / 620);
   return { x: (W - 390 * s) / 2 + p.x * s, y: (H - 620 * s) / 2 + p.y * s };
-}
-// word point -> canvas (band mode centers the single line mid-screen)
-function mapPt(p) {
-  if (G.mode === 'scene') return sceneMap(p);
-  const s = Math.min((W * 0.9) / G.w, (H * 0.24) / G.h);
-  return { x: W / 2 + (p.x - G.w / 2) * s, y: H * 0.5 + (p.y - G.h / 2) * s };
 }
 function wander(i, t, amp) {
   const a = i * 12.9898, b = i * 78.233;
@@ -419,113 +405,61 @@ function wander(i, t, amp) {
   };
 }
 
-// ---------- per-mouse cast ----------
-function castMouse(i) {
-  const rng = mulberry32(S.seed + i * 7919);
-  const m = { i, p01: rng(), speed: 0.7 + rng() * 0.6 };
-  if (SCENE) {
-    if (rng() * 100 < S.yellowPct) { m.role = 'signal'; m.color = PALETTE.yellow; }
-    else { // scenery crew, chosen ∝ element stroke length
-      let r = rng() * SCENE.totalLen, e = 0;
-      while (e < SCENE.elements.length - 1 && r > SCENE.elements[e].len) { r -= SCENE.elements[e].len; e++; }
-      m.role = 'scenery'; m.elem = e; m.color = SCENE.elements[e].color;
-    }
-  } else if (S.yellowPct >= 100) { m.role = 'signal'; m.color = '#e8d9b0'; }
-  else if (rng() * 100 < S.yellowPct) { m.role = 'signal'; m.color = PALETTE.yellow; }
-  else { m.role = 'noise'; m.color = PALETTE[NOISE_COLORS[Math.floor(rng() * NOISE_COLORS.length)]]; }
-
-  if (m.role === 'signal') {
-    m.crew = G.validLetters.length ? G.validLetters[i % G.validLetters.length] : 0;
-    const K = 40; // scurry walk
-    let cur = Math.floor(rng() * G.pts.length), prev = -1;
-    const seen = new Set([cur]);
-    m.walk = [];
-    for (let s = 0; s < K && G.pts.length; s++) {
-      m.walk.push(G.pts[cur]);
-      const nb = G.neighbors[cur];
-      if (!nb || !nb.length) break;
-      const fresh = nb.filter(n => !seen.has(n));
-      let next;
-      if (fresh.length) next = fresh[Math.floor(rng() * fresh.length)];
-      else {
-        next = nb[Math.floor(rng() * nb.length)];
-        if (next === prev && nb.length > 1) next = nb[(nb.indexOf(next) + 1) % nb.length];
-      }
-      seen.add(next); prev = cur; cur = next;
-    }
-  }
-  m.cx = 0.1 + rng() * 0.8; m.cy = 0.12 + rng() * 0.76;
-  m.rx = 0.06 + rng() * 0.16; m.ry = 0.05 + rng() * 0.13;
-  m.wob = 2 + Math.floor(rng() * 3);
-  return m;
-}
+// ---------- cast: every mouse belongs to exactly one crew, forever ----------
+// Deterministic greedy allocation: word mice fill letter crews round-robin; scenery
+// mice go to the scenery crew with the largest deficit vs its fair (length + pad)
+// share, so every pip and star gets staffed before big shapes get seconds.
 let cast = [];
 function rebuildCast() {
   cast = [];
-  for (let i = 0; i < 90; i++) cast.push(castMouse(i));
-  if (SCENE) { // evenly phase each element's crew along its strokes
-    SCENE.elements.forEach((el, e) => {
-      const members = cast.filter(m => m.role === 'scenery' && m.elem === e);
-      members.forEach((m, k) => { m.phaseE = k / Math.max(1, members.length); });
-    });
+  const wordCrews = [], scenCrews = [];
+  CREWS.forEach((c, idx) => (c.kind === 'word' ? wordCrews : scenCrews).push(idx));
+  const PAD = 14;
+  const weights = scenCrews.map(i => CREWS[i].len + PAD);
+  const wSum = weights.reduce((a, b) => a + b, 0) || 1;
+  const assigned = scenCrews.map(() => 0);
+  let wordOrdinal = 0, scenOrdinal = 0;
+  for (let i = 0; i < 90; i++) {
+    const rng = mulberry32(S.seed + i * 7919);
+    const m = { i, p01: rng() };
+    if (rng() * 100 < S.yellowPct && wordCrews.length) {
+      m.crew = wordCrews[wordOrdinal++ % wordCrews.length];
+    } else if (scenCrews.length) {
+      scenOrdinal++;
+      let bi = 0, bd = -Infinity;
+      for (let k = 0; k < scenCrews.length; k++) {
+        const deficit = scenOrdinal * (weights[k] / wSum) - assigned[k];
+        if (deficit > bd) { bd = deficit; bi = k; }
+      }
+      assigned[bi]++;
+      m.crew = scenCrews[bi];
+    } else m.crew = 0;
+    m.color = CREWS[m.crew].color;
+    cast.push(m);
   }
-}
-rebuildCast();
-
-function freePos(m, t) {
-  const tt = t * 0.00035 * m.speed + m.p01 * 1e3;
-  return {
-    x: (m.cx + Math.cos(tt) * m.rx) * W,
-    y: (m.cy + Math.sin(tt * m.wob) * m.ry) * H,
-  };
-}
-function interpTour(fp, lo, len) {
-  const idx = Math.floor(fp) % len, frac = fp - Math.floor(fp);
-  const a = mapPt(G.tour[lo + idx]), b = mapPt(G.tour[lo + (idx + 1) % len]);
-  return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
+  // even phases within each crew
+  const byCrew = new Map();
+  for (const m of cast) {
+    if (!byCrew.has(m.crew)) byCrew.set(m.crew, []);
+    byCrew.get(m.crew).push(m);
+  }
+  for (const members of byCrew.values())
+    members.forEach((m, k) => { m.phase = k / members.length; });
 }
 
-// where is mouse m at time t?
+// ping-pong along the crew's tour: covers open strokes with NO wrap-around jump
 function posAt(m, t) {
-  const noiseAmp = S.noise * 90;
-  if (m.role === 'noise') return freePos(m, t);
-  if (m.role === 'scenery') {
-    const el = SCENE.elements[m.elem], L2 = el.tour.length;
-    if (!L2) return freePos(m, t);
-    const u = ((t * SCENE_PPMS / L2 + m.phaseE) % 1 + 1) % 1;
-    const fp = u * L2, idx = Math.floor(fp) % L2, frac = fp - Math.floor(fp);
-    const a = sceneMap(el.tour[idx]), b = sceneMap(el.tour[(idx + 1) % L2]);
-    const w = wander(m.i, t, noiseAmp * 0.3);
-    return { x: a.x + (b.x - a.x) * frac + w.x, y: a.y + (b.y - a.y) * frac + w.y };
-  }
-  const L = G.tour.length;
-  if (!L) return freePos(m, t);
-  let p;
-  if (S.mech === 'loop') {
-    const u = ((t * LOOP_SPEED + m.i / S.N) % 1 + 1) % 1;
-    p = interpTour(u * L, 0, L);
-  } else if (S.mech === 'crews') {
-    const range = G.letterRanges[m.crew] || [0, L];
-    const len = range[1] - range[0];
-    const ptsPerMs = LOOP_SPEED * L;
-    const u = ((t * ptsPerMs / len + m.p01) % 1 + 1) % 1;
-    p = interpTour(u * len, range[0], len);
-  } else if (S.mech === 'conga') {
-    const ppms = L / (CONGA_SECS * 1000);
-    const gapPts = CONGA_SPAN * L / Math.max(1, S.N);
-    let fp = (t * ppms - m.i * gapPts) % L;
-    if (fp < 0) fp += L;
-    p = interpTour(fp, 0, L);
-  } else { // scurry
-    const K = m.walk.length;
-    if (!K) return freePos(m, t);
-    const f = ((t / SCURRY_HOP_MS + m.p01 * K) % K + K) % K;
-    const idx = Math.floor(f), frac = f - idx;
-    const a = mapPt(m.walk[idx]), b = mapPt(m.walk[(idx + 1) % K]);
-    p = { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
-  }
-  const w = wander(m.i, t, noiseAmp * 0.5);
-  return { x: p.x + w.x, y: p.y + w.y };
+  const crew = CREWS[m.crew];
+  const L = crew.len;
+  if (L < 2) { const p = sceneMap(crew.tour[0] || { x: 195, y: 310 }); return p; }
+  const ppms = crew.kind === 'word' ? WORD_PPMS_FRAC * WORD_LEN : SCENE_PPMS;
+  const cyc = 2 * (L - 1);
+  let f = ((t * ppms + m.phase * cyc) % cyc + cyc) % cyc;
+  if (f > L - 1) f = cyc - f; // the return leg
+  const idx = Math.min(L - 2, Math.floor(f)), frac = f - idx;
+  const a = sceneMap(crew.tour[idx]), b = sceneMap(crew.tour[idx + 1]);
+  const w = wander(m.i, t, S.noise * 90 * (crew.kind === 'word' ? 0.5 : 0.3));
+  return { x: a.x + (b.x - a.x) * frac + w.x, y: a.y + (b.y - a.y) * frac + w.y };
 }
 
 function drawMouse(x, y, color, r) {
@@ -550,14 +484,11 @@ function frame(now) {
   ctx.fillStyle = '#14171d'; ctx.fillRect(0, 0, W, H);
 
   const trailN = S.trail, trailDt = 80;
-  // A patrol step moves only a few px per 80ms; anything longer is a glide between
-  // disjoint strokes (letter gaps, star to star) and must not leave ink.
-  const maxSeg = 16;
-  const mouseR = SCENE ? 3.1 : 4.5;
+  const maxSeg = 16; // a real patrol step is a few px per 80ms; longer = glide, no ink
   for (let i = 0; i < S.N; i++) {
     const m = cast[i];
     if (trailN > 0) {
-      ctx.lineWidth = SCENE ? 1.8 : 2.4; ctx.lineCap = 'round';
+      ctx.lineWidth = 1.8; ctx.lineCap = 'round';
       let prev = posAt(m, t);
       for (let j = 1; j <= trailN; j++) {
         const p = posAt(m, t - j * trailDt);
@@ -572,7 +503,7 @@ function frame(now) {
       ctx.globalAlpha = 1;
     }
     const p = posAt(m, t);
-    drawMouse(p.x, p.y, m.color, mouseR);
+    drawMouse(p.x, p.y, m.color, 3.1);
   }
   requestAnimationFrame(frame);
 }
@@ -580,18 +511,12 @@ requestAnimationFrame(frame);
 resize();
 
 // ---------- controls ----------
-function segWire(id, key, after) {
-  const el = document.getElementById(id);
-  el.addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    S[key] = b.dataset.v;
-    [...el.children].forEach(c => c.classList.toggle('on', c === b));
-    if (after) after(b.dataset.v);
-    else { rebuildCast(); updateStat(); }
-  });
-}
-segWire('scene', 'scene', v => loadScene(v));
-segWire('mech', 'mech');
+document.getElementById('scene').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.scene = b.dataset.v;
+  [...document.getElementById('scene').children].forEach(c => c.classList.toggle('on', c === b));
+  loadScene(S.scene);
+});
 function slider(id, out, key, scale) {
   const el = document.getElementById(id), o = document.getElementById(out);
   el.addEventListener('input', () => {
@@ -605,12 +530,6 @@ slider('sN', 'oN', 'N');
 slider('sY', 'oY', 'yellowPct');
 slider('sT', 'oT', 'trail');
 slider('sW', 'oW', 'noise', true);
-document.getElementById('word').addEventListener('change', e => {
-  if (SCENE) return;
-  S.word = (e.target.value || 'CATNIP').toUpperCase();
-  G = buildWord([{ text: S.word }], 'band');
-  rebuildCast(); updateStat();
-});
 document.getElementById('squint').addEventListener('click', e => {
   S.squint = !S.squint;
   e.target.classList.toggle('on', S.squint);
@@ -621,16 +540,13 @@ document.getElementById('reseed').addEventListener('click', () => {
   rebuildCast();
 });
 
-// live word-legibility estimate (coverage ≈ 1 → legible)
+// live word-legibility estimate (coverage ≈ 1 → the trails ink the word once)
 const covEl = document.getElementById('cov'), tagEl = document.getElementById('tag');
 function updateStat() {
-  const L = Math.max(1, G.tour.length), trailMs = S.trail * 80;
+  const trailMs = S.trail * 80;
   let n = 0;
-  for (let i = 0; i < S.N; i++) if (cast[i].role === 'signal') n++;
-  let cov;
-  if (S.mech === 'loop' || S.mech === 'crews') cov = n * trailMs * LOOP_SPEED;
-  else if (S.mech === 'conga') cov = CONGA_SPAN * (n / S.N) + trailMs / (CONGA_SECS * 1000);
-  else cov = 0.7 * n * (trailMs / SCURRY_HOP_MS) / L;
+  for (let i = 0; i < S.N; i++) if (CREWS[cast[i].crew].kind === 'word') n++;
+  const cov = n * trailMs * WORD_PPMS_FRAC;
   covEl.textContent = cov.toFixed(2) + '×';
   let label, color;
   if (cov < 0.5) { label = 'hidden'; color = '#5b6472'; }
@@ -640,5 +556,5 @@ function updateStat() {
   tagEl.textContent = label;
   tagEl.style.background = color; tagEl.style.color = '#fff';
 }
-updateStat();
+loadScene('moon');
 </script>

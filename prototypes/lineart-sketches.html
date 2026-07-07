@@ -20,7 +20,7 @@
     draw a scene <i>about</i> the word. These are lighting studies for what the mice would
     eventually trace — not final art.</p>
   <div class="frame"><canvas id="c1" width="780" height="1240"></canvas>
-    <div class="cap"><b>CATNIP</b><span>cat · plant · aroma · sparkles</span></div></div>
+    <div class="cap"><b>TO THE MOON</b><span>rocket · crescent · orbit · little green visitors</span></div></div>
   <div class="frame"><canvas id="c2" width="780" height="1240"></canvas>
     <div class="cap"><b>SIX SIDED</b><span>tumbling dice · honeycomb · pips</span></div></div>
   <div class="frame"><canvas id="c3" width="780" height="1240"></canvas>
@@ -74,86 +74,65 @@ function hex(x, cx, cy, r, rot) {
   }
 }
 
-// ============================== 1 · CATNIP ==============================
+// ============================== 1 · TO THE MOON ==============================
 {
   const x = setup('c1');
-  // GREEN — potted catnip, lower left, leaves drifting up past the word
-  neon(x, C.green, 2.4, x => { // pot
-    x.moveTo(42, 520); x.lineTo(112, 520); x.lineTo(104, 578); x.lineTo(50, 578); x.closePath();
-    x.moveTo(38, 512); x.lineTo(116, 512); x.lineTo(116, 520); x.moveTo(38, 512); x.lineTo(38, 520);
-  });
-  neon(x, C.green, 2.2, x => { // stems
-    x.moveTo(70, 512); x.bezierCurveTo(62, 460, 76, 420, 66, 380);
-    x.moveTo(84, 512); x.bezierCurveTo(92, 450, 80, 410, 96, 360);
-    x.moveTo(96, 512); x.bezierCurveTo(112, 470, 118, 430, 132, 402);
-  });
-  neon(x, C.green, 2, x => { // leaf pairs
-    const leaf = (px, py, a, s) => {
-      const dx = Math.cos(a) * s, dy = Math.sin(a) * s;
-      x.moveTo(px, py); x.quadraticCurveTo(px + dx - dy * 0.5, py + dy + dx * 0.5, px + dx * 1.7, py + dy * 1.7);
-      x.quadraticCurveTo(px + dx + dy * 0.5, py + dy - dx * 0.5, px, py);
-    };
-    leaf(66, 452, -2.6, 16); leaf(72, 430, -0.6, 16);
-    leaf(88, 470, -2.9, 14); leaf(86, 430, -0.4, 15);
-    leaf(66, 380, -2.2, 13); leaf(96, 360, -0.9, 15);
-    leaf(112, 448, -0.5, 13); leaf(132, 402, -0.7, 12);
-    leaf(150, 372, -0.9, 11); leaf(148, 376, -2.4, 10); // loose sprig near the word
-  });
-  // BLUE — aroma curls rising from the plant, looping around the word band
+  // BLUE — dotted trajectory from the rocket up past the word to the moon, + a ringed planet
+  x.setLineDash([3, 10]);
   neon(x, C.blue, 2.2, x => {
-    x.moveTo(80, 356);
-    x.bezierCurveTo(60, 300, 120, 280, 108, 236);
-    x.bezierCurveTo(100, 208, 66, 214, 74, 238);
-    x.bezierCurveTo(80, 256, 106, 250, 104, 234);
-    x.moveTo(120, 340);
-    x.bezierCurveTo(150, 300, 130, 260, 170, 220);
-    x.bezierCurveTo(196, 194, 226, 210, 214, 232);
-    x.bezierCurveTo(206, 248, 184, 240, 190, 224);
-    x.moveTo(230, 130);
-    x.bezierCurveTo(270, 110, 300, 130, 292, 158);
-    x.bezierCurveTo(286, 178, 258, 172, 264, 154);
+    x.moveTo(84, 396); // from the rocket's nose...
+    x.bezierCurveTo(210, 350, 330, 300, 312, 152); // ...arcing past the word to the moon
   });
-  // PINK — the cat, lower right, tail sweeping under the word
-  neon(x, C.pink, 2.6, x => {
-    x.moveTo(272, 402); // left ear base -> up -> tip
-    x.lineTo(266, 372); x.lineTo(288, 386);
-    x.moveTo(320, 386); x.lineTo(340, 368); x.lineTo(338, 400);
-    // head outline
-    x.moveTo(266, 372); x.quadraticCurveTo(240, 404, 258, 432);
-    x.quadraticCurveTo(280, 452, 312, 446);
-    x.quadraticCurveTo(344, 436, 342, 402); // -> right ear base
-    // back + haunch
-    x.moveTo(258, 432); x.bezierCurveTo(230, 470, 232, 520, 250, 560);
-    x.moveTo(342, 410); x.bezierCurveTo(374, 452, 372, 520, 352, 560);
-    x.quadraticCurveTo(310, 578, 250, 560);
-    // front paws
-    x.moveTo(286, 560); x.lineTo(286, 522); x.moveTo(310, 562); x.lineTo(310, 524);
+  x.setLineDash([]);
+  neon(x, C.blue, 2, x => { // little Saturn, bottom right
+    x.moveTo(326, 530); x.arc(310, 530, 16, 0, 6.283);
+    x.moveTo(340, 524); x.ellipse(310, 530, 31, 9, -0.32, 0, 6.283);
   });
-  neon(x, C.pink, 2, x => { // face + whiskers + tail
-    x.moveTo(284, 410); x.quadraticCurveTo(290, 416, 296, 410); // closed eye L
-    x.moveTo(312, 410); x.quadraticCurveTo(318, 416, 324, 410); // closed eye R
-    x.moveTo(300, 424); x.lineTo(304, 430); x.lineTo(308, 424); // nose
-    x.moveTo(246, 420); x.lineTo(212, 414); x.moveTo(248, 430); x.lineTo(216, 434);
-    x.moveTo(356, 420); x.lineTo(388, 414); x.moveTo(354, 430); x.lineTo(384, 434);
-    // tail: sweeps left beneath the word
-    x.moveTo(250, 556); x.bezierCurveTo(200, 566, 160, 540, 150, 500);
-    x.bezierCurveTo(144, 474, 168, 462, 180, 478);
-    x.bezierCurveTo(188, 490, 174, 502, 164, 494);
+  // GREEN — a curious UFO up top + launch clouds at the bottom
+  neon(x, C.green, 2, x => { // saucer
+    x.moveTo(94, 96); x.ellipse(70, 96, 24, 8, 0, 0, 6.283);
+    x.moveTo(82, 90); x.arc(70, 90, 12, 3.14, 0);
+    x.moveTo(60, 108); x.lineTo(56, 118); x.moveTo(70, 110); x.lineTo(70, 120); x.moveTo(80, 108); x.lineTo(84, 118);
   });
-  // PURPLE — sparkles + a bold little mouse watching from the bottom
+  neon(x, C.green, 1.8, x => { // launch smoke rolling along the bottom
+    x.moveTo(30, 606); x.arc(56, 606, 16, 3.14, 0);
+    x.arc(84, 598, 20, 3.14, 0); x.arc(112, 606, 13, 3.14, 0);
+    x.moveTo(196, 610); x.arc(214, 610, 12, 3.14, 0); x.arc(236, 604, 15, 3.14, 0);
+    x.arc(258, 610, 10, 3.14, 0);
+  });
+  // PURPLE — the crescent moon itself, plus a scatter of stars
+  neon(x, C.purple, 2.6, x => { // crescent: two curves between shared tips
+    x.moveTo(300, 62);
+    x.quadraticCurveTo(374, 88, 350, 140);
+    x.moveTo(300, 62);
+    x.quadraticCurveTo(330, 96, 350, 140);
+  });
   neon(x, C.purple, 1.8, x => {
-    star4(x, 60, 90, 10); star4(x, 130, 60, 6); star4(x, 330, 80, 9);
-    star4(x, 360, 160, 5); star4(x, 40, 220, 6); star4(x, 350, 300, 6);
-    star4(x, 205, 60, 5);
+    star4(x, 60, 200, 7); star4(x, 130, 70, 5); star4(x, 230, 110, 6);
+    star4(x, 356, 220, 5); star4(x, 40, 330, 5); star4(x, 350, 400, 6);
+    star4(x, 180, 160, 4);
   });
-  neon(x, C.purple, 2, x => { // mouse
-    x.moveTo(150, 596); x.quadraticCurveTo(162, 578, 184, 584);
-    x.quadraticCurveTo(200, 590, 196, 600);
-    x.moveTo(160, 582); x.quadraticCurveTo(156, 570, 168, 572); // ear
-    x.moveTo(196, 598); x.bezierCurveTo(216, 602, 222, 588, 234, 588); // tail
+  // PINK — the rocket climbing out of the smoke, cat at the porthole
+  x.save(); x.translate(110, 470); x.rotate(-0.6);
+  neon(x, C.pink, 2.6, x => {
+    x.moveTo(-18, -30); x.quadraticCurveTo(-6, -66, 0, -70); // nose cone
+    x.quadraticCurveTo(6, -66, 18, -30);
+    x.moveTo(-18, -30); x.lineTo(-18, 26); x.lineTo(18, 26); x.lineTo(18, -30); // body
+    x.moveTo(-18, 8); x.lineTo(-33, 34); x.lineTo(-18, 26); // fins, clear of the flame
+    x.moveTo(18, 8); x.lineTo(33, 34); x.lineTo(18, 26);
   });
-  // YELLOW — the word (drawn last; in the game this is the crews' patrol)
-  neonText(x, C.yellow, 44, 'CATNIP', 195, 300, 5);
+  neon(x, C.pink, 2, x => { // porthole + cat ears peeking + flame
+    x.moveTo(11, -8); x.arc(0, -8, 11, 0, 6.283);
+    x.moveTo(-8, -16); x.lineTo(-6, -23); x.lineTo(-2, -18); // ear tips over the rim
+    x.moveTo(2, -18); x.lineTo(6, -23); x.lineTo(8, -16);
+    x.moveTo(-4, -8); x.lineTo(-4, -5); x.moveTo(4, -8); x.lineTo(4, -5); // sleepy eyes
+    x.moveTo(-7, 26); x.quadraticCurveTo(0, 46, 7, 26); // inner flame
+    x.moveTo(-12, 26); x.quadraticCurveTo(0, 72, 12, 26); // outer flame
+  });
+  x.restore();
+  // YELLOW — the word, stacked on two lines (spaces make natural break points)
+  neonText(x, C.yellow, 40, 'TO THE', 195, 262, 5);
+  neonText(x, C.yellow, 48, 'MOON', 195, 322, 6);
 }
 
 // ============================== 2 · SIX SIDED ==============================

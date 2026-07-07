@@ -173,14 +173,25 @@ function sampleWord(word) {
   const jumpSet = new Set(jumps);
   return { pts, neg, tour, jumpSet, w: oc.width, h: oc.height, letters: word.length };
 }
-let G = sampleWord(S.word), GD = sampleWord(S.decoy);
+// The signal word sits centred; the decoy gets its OWN region (upper band, smaller) so
+// the two words are spatially separate — the decoy becomes a real, distinct false answer
+// instead of overlapping mush.
+const SIGNAL_PLACE = { cx: 0.5, cy: 0.55, sc: 1.0 };
+const DECOY_PLACE = { cx: 0.5, cy: 0.26, sc: 0.82 };
+let G, GD;
+function reglyph() {
+  G = sampleWord(S.word); G.place = SIGNAL_PLACE;
+  GD = sampleWord(S.decoy); GD.place = DECOY_PLACE;
+}
+reglyph();
 
-// em space -> screen space (word band across the middle of the canvas)
+// em space -> screen space, placed per glyph's region
 function mapPt(p, glyph, spreadY) {
-  const s = Math.min((W * 0.9) / glyph.w, (H * 0.24) / glyph.h);
+  const pl = glyph.place || SIGNAL_PLACE;
+  const s = Math.min((W * 0.9) / glyph.w, (H * 0.24) / glyph.h) * pl.sc;
   return {
-    x: W / 2 + (p.x - glyph.w / 2) * s,
-    y: H * 0.5 + (p.y - glyph.h / 2) * s * (spreadY || 1),
+    x: W * pl.cx + (p.x - glyph.w / 2) * s,
+    y: H * pl.cy + (p.y - glyph.h / 2) * s * (spreadY || 1),
   };
 }
 
@@ -207,7 +218,7 @@ function castMouse(i) {
   else {
     const isYellow = rng() * 100 < S.yellowPct;
     if (isYellow) { m.role = 'signal'; m.color = PALETTE.yellow; }
-    else if (S.cmode === 'decoy' && rng() < 0.45) { m.role = 'decoy'; m.color = PALETTE.pink; }
+    else if (S.cmode === 'decoy' && rng() < 0.68) { m.role = 'decoy'; m.color = PALETTE.pink; }
     else { m.role = 'noise'; m.color = PALETTE[NOISE_COLORS[Math.floor(rng() * 3)]]; }
   }
   const glyph = m.role === 'decoy' ? GD : G;
@@ -256,6 +267,17 @@ function freePos(m, t) {
   };
 }
 
+// position of a mouse along its word's continuous tour (no noise) — the legible spine
+function tourPos(m, t, glyph) {
+  const tour = glyph.tour, L = tour.length;
+  if (!L) return freePos(m, t);
+  const off = (m.i % S.N) / S.N;
+  const u = ((t * PATROL_SPEED + off) % 1 + 1) % 1;
+  const fp = u * L, idx = Math.floor(fp) % L, frac = fp - Math.floor(fp);
+  const a = mapPt(tour[idx], glyph), b = mapPt(tour[(idx + 1) % L], glyph);
+  return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
+}
+
 // where is mouse m at time t? THE pure function under test.
 function posAt(m, t) {
   const noiseAmp = S.noise * 90;
@@ -268,27 +290,24 @@ function posAt(m, t) {
     return { x: h.x + w.x, y: h.y + w.y };
   }
   if (S.mech === 'patrol') {
-    const tour = glyph.tour, L = tour.length;
-    if (!L) return freePos(m, t);
-    // evenly spaced phase per active mouse; all mice traverse the whole word tour.
-    const off = (m.i % S.N) / S.N;
-    const u = ((t * PATROL_SPEED + off) % 1 + 1) % 1;
-    const fp = u * L, idx = Math.floor(fp) % L, frac = fp - Math.floor(fp);
-    const a = mapPt(tour[idx], glyph), b = mapPt(tour[(idx + 1) % L], glyph);
+    const p = tourPos(m, t, glyph);
     const w = wander(m.i, t, noiseAmp * 0.5);
-    return { x: a.x + (b.x - a.x) * frac + w.x, y: a.y + (b.y - a.y) * frac + w.y, seg: idx };
+    return { x: p.x + w.x, y: p.y + w.y };
   }
   if (S.mech === 'negative') {
     const h = mapPt(m.negHome, G, 2.6); // spread the background fill vertically
     const w = wander(m.i, t, 10 + noiseAmp * 0.4);
     return { x: h.x + w.x, y: h.y + w.y };
   }
-  // flash: free wander, blending onto the glyph during a periodic pulse
-  const P = 9000, WIN = 1700;
+  // flash: free wander, then blend onto the TOUR (not a single point) during a periodic
+  // pulse, so the peak assembles legible strokes — trails ink it in like patrol does.
+  // The plateau is held longer than the trail length so the strokes settle clean (no
+  // comet-streaks from the transition) before the mice disperse again.
+  const P = 9000, WIN = 3400;
   const ph = ((t % P) + P) % P;
   let s = 0;
-  if (ph < WIN) { const q = ph / WIN; s = q < 0.25 ? q / 0.25 : q > 0.75 ? (1 - q) / 0.25 : 1; s = s * s * (3 - 2 * s); }
-  const fp = freePos(m, t), gp = mapPt(m.home, glyph);
+  if (ph < WIN) { const q = ph / WIN; s = q < 0.16 ? q / 0.16 : q > 0.84 ? (1 - q) / 0.16 : 1; s = s * s * (3 - 2 * s); }
+  const fp = freePos(m, t), gp = tourPos(m, t, glyph);
   return { x: fp.x + (gp.x - fp.x) * s, y: fp.y + (gp.y - fp.y) * s };
 }
 
@@ -419,11 +438,11 @@ function updateStat() {
 updateStat();
 document.getElementById('word').addEventListener('change', e => {
   S.word = (e.target.value || 'CATNIP').toUpperCase();
-  G = sampleWord(S.word); rebuildCast();
+  G = sampleWord(S.word); G.place = SIGNAL_PLACE; rebuildCast();
 });
 document.getElementById('decoy').addEventListener('change', e => {
   S.decoy = (e.target.value || 'TUNA').toUpperCase();
-  GD = sampleWord(S.decoy); rebuildCast();
+  GD = sampleWord(S.decoy); GD.place = DECOY_PLACE; rebuildCast();
 });
 document.getElementById('squint').addEventListener('click', e => {
   S.squint = !S.squint;

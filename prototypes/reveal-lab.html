@@ -1,0 +1,380 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Reveal Lab</title>
+<style>
+  /* Deliberately single-theme: a dark observation room, so the lights-out mode and
+     glow reads are honest. This is a tuning instrument, not a document. */
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
+  #c { position: fixed; inset: 0 0 218px 0; width: 100%; height: calc(100% - 218px);
+       touch-action: none; transition: filter .25s; }
+  #c.squint { filter: blur(6px) saturate(1.2); }
+  #panel {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 218px;
+    background: #181b22; border-top: 1px solid #262b36;
+    font: 500 12px -apple-system, "Segoe UI", system-ui, sans-serif; color: #aeb6c6;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 6px; user-select: none;
+  }
+  .row { display: flex; gap: 6px; align-items: center; }
+  .seg { display: flex; gap: 4px; flex: 1; }
+  .seg button {
+    flex: 1; padding: 6px 2px; border: 0; border-radius: 7px; background: #23283340;
+    background: #232833; color: #8d96a8; font: 600 11px -apple-system, system-ui, sans-serif;
+  }
+  .seg button.on { background: #ffd44d; color: #241f0a; }
+  .sliders { display: grid; grid-template-columns: 54px 1fr 30px; gap: 2px 8px; align-items: center; }
+  .sliders label { text-align: right; color: #77808f; font-size: 11px; }
+  .sliders output { font-variant-numeric: tabular-nums; color: #cdd5e3; font-size: 11px; }
+  input[type=range] { width: 100%; height: 22px; accent-color: #ffd44d; margin: 0; }
+  input[type=text] {
+    width: 100%; box-sizing: border-box; background: #232833; border: 1px solid #2e3542;
+    border-radius: 7px; color: #e8ecf4; padding: 6px 8px; font: 700 12px system-ui;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .mini { display: flex; gap: 6px; }
+  .mini > * { flex: 1; }
+  .tbtn { padding: 6px 2px; border: 0; border-radius: 7px; background: #232833;
+          color: #8d96a8; font: 600 11px -apple-system, system-ui, sans-serif; }
+  .tbtn.on { background: #3d63c9; color: #eef2ff; }
+</style>
+<canvas id="c"></canvas>
+<div id="panel">
+  <div class="row seg" id="mech">
+    <button data-v="patrol" class="on">stroke patrol</button>
+    <button data-v="stipple">stipple</button>
+    <button data-v="negative">negative</button>
+    <button data-v="flash">flash</button>
+  </div>
+  <div class="row seg" id="cmode">
+    <button data-v="mono" class="on">mono</button>
+    <button data-v="camo">camouflage</button>
+    <button data-v="decoy">decoy word</button>
+    <button data-v="dark">lights-out</button>
+  </div>
+  <div class="sliders">
+    <label>mice</label><input type="range" id="sN" min="1" max="60" value="18"><output id="oN">18</output>
+    <label>yellow %</label><input type="range" id="sY" min="10" max="100" value="55"><output id="oY">55</output>
+    <label>trail</label><input type="range" id="sT" min="0" max="40" value="16"><output id="oT">16</output>
+    <label>noise</label><input type="range" id="sW" min="0" max="100" value="35"><output id="oW">35</output>
+  </div>
+  <div class="row mini">
+    <input type="text" id="word" value="CATNIP" maxlength="9">
+    <input type="text" id="decoy" value="TUNA" maxlength="9">
+    <button class="tbtn" id="squint">squint</button>
+    <button class="tbtn" id="reseed">reseed</button>
+  </div>
+</div>
+<script>
+'use strict';
+// ---------- Reveal Lab — N wandering mice must slowly spell a hidden word ----------
+// Positions are a pure function of (seed, mouseIndex, simTime): same constraint as
+// Hex Clicker's zero-traffic sync. Sliders change parameters, never accumulate state.
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0;
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 3);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+
+const S = {
+  mech: 'patrol', cmode: 'mono',
+  N: 18, yellowPct: 55, trail: 16, noise: 0.35,
+  word: 'CATNIP', decoy: 'TUNA', seed: 7, squint: false,
+};
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashString(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+// ---------- glyph sampling ----------
+// Renders a word offscreen, samples the letterforms into points tagged by letter.
+// Points live in "em space" (px of the offscreen canvas); mapped to screen at draw.
+function sampleWord(word) {
+  const oc = document.createElement('canvas');
+  const octx = oc.getContext('2d');
+  const FS = 190;
+  octx.font = `900 ${FS}px Arial, Helvetica, sans-serif`;
+  const widths = [...word].map(ch => octx.measureText(ch).width);
+  const gap = FS * 0.06;
+  const totalW = widths.reduce((a, b) => a + b + gap, 0);
+  oc.width = Math.ceil(totalW + 40); oc.height = Math.ceil(FS * 1.5);
+  octx.font = `900 ${FS}px Arial, Helvetica, sans-serif`;
+  octx.textBaseline = 'middle';
+  let x = 20;
+  const bounds = [];
+  for (let i = 0; i < word.length; i++) {
+    octx.fillText(word[i], x, oc.height / 2);
+    bounds.push([x, x + widths[i]]);
+    x += widths[i] + gap;
+  }
+  const img = octx.getImageData(0, 0, oc.width, oc.height).data;
+  const pts = [], STEP = 7;
+  for (let py = 0; py < oc.height; py += STEP) {
+    for (let px = 0; px < oc.width; px += STEP) {
+      if (img[(py * oc.width + px) * 4 + 3] > 128) {
+        let letter = 0;
+        for (let b = 0; b < bounds.length; b++) if (px >= bounds[b][0] - gap) letter = b;
+        pts.push({ x: px, y: py, letter });
+      }
+    }
+  }
+  // inverted samples (for negative space): background of the word's bounding region
+  const neg = [];
+  for (let py = 0; py < oc.height; py += STEP) {
+    for (let px = 0; px < oc.width; px += STEP) {
+      if (img[(py * oc.width + px) * 4 + 3] <= 128) neg.push({ x: px, y: py, letter: -1 });
+    }
+  }
+  return { pts, neg, w: oc.width, h: oc.height, letters: word.length };
+}
+let G = sampleWord(S.word), GD = sampleWord(S.decoy);
+
+// em space -> screen space (word band across the middle of the canvas)
+function mapPt(p, glyph, spreadY) {
+  const s = Math.min((W * 0.9) / glyph.w, (H * 0.24) / glyph.h);
+  return {
+    x: W / 2 + (p.x - glyph.w / 2) * s,
+    y: H * 0.5 + (p.y - glyph.h / 2) * s * (spreadY || 1),
+  };
+}
+
+// deterministic smooth wander (sum of incommensurate sines — no state)
+function wander(i, t, amp) {
+  const a = i * 12.9898, b = i * 78.233;
+  return {
+    x: amp * (Math.sin(t * 0.00051 + a) * 0.6 + Math.sin(t * 0.00113 + b) * 0.4),
+    y: amp * (Math.sin(t * 0.00047 + b * 1.7) * 0.6 + Math.sin(t * 0.00131 + a * 0.6) * 0.4),
+  };
+}
+
+const PALETTE = { yellow: '#ffd44d', blue: '#6fa8ff', pink: '#ff7fa5', green: '#67d08a', purple: '#b39ddb' };
+const NOISE_COLORS = ['blue', 'green', 'purple'];
+
+// ---------- per-mouse cast (pure function of seed + index + current settings) ----------
+function castMouse(i) {
+  const rng = mulberry32(S.seed + i * 7919);
+  const m = { i, phase: rng() * 1e6, speed: 0.7 + rng() * 0.6 };
+  // role & color
+  if (S.cmode === 'mono') { m.role = 'signal'; m.color = '#e8d9b0'; }
+  else {
+    const isYellow = rng() * 100 < S.yellowPct;
+    if (isYellow) { m.role = 'signal'; m.color = PALETTE.yellow; }
+    else if (S.cmode === 'decoy' && rng() < 0.45) { m.role = 'decoy'; m.color = PALETTE.pink; }
+    else { m.role = 'noise'; m.color = PALETTE[NOISE_COLORS[Math.floor(rng() * 3)]]; }
+  }
+  const glyph = m.role === 'decoy' ? GD : G;
+  const pts = glyph.pts;
+  if (!pts.length) { m.role = 'noise'; }
+  if (m.role !== 'noise') {
+    // letter chosen ∝ letter ink so fat letters get more mice
+    const anchor = pts[Math.floor(rng() * pts.length)];
+    m.letter = anchor.letter;
+    const mine = pts.filter(p => p.letter === m.letter);
+    // stipple home
+    m.home = mine[Math.floor(rng() * mine.length)] || anchor;
+    // patrol loop: greedy nearest-neighbour chain of k points within my letter
+    const k = Math.min(6, mine.length);
+    const chain = [mine[Math.floor(rng() * mine.length)] || anchor];
+    while (chain.length < k) {
+      const last = chain[chain.length - 1];
+      let best = null, bd = 1e9;
+      for (let n = 0; n < 12; n++) {
+        const cand = mine[Math.floor(rng() * mine.length)];
+        if (chain.includes(cand)) continue;
+        const d = (cand.x - last.x) ** 2 + (cand.y - last.y) ** 2;
+        if (d < bd) { bd = d; best = cand; }
+      }
+      chain.push(best || mine[Math.floor(rng() * mine.length)]);
+    }
+    m.chain = chain;
+  }
+  // negative-space home (background point), and free-wander center for noise/flash
+  m.negHome = G.neg[Math.floor(rng() * G.neg.length)] || { x: 0, y: 0 };
+  m.cx = 0.1 + rng() * 0.8; m.cy = 0.12 + rng() * 0.76;
+  m.rx = 0.06 + rng() * 0.16; m.ry = 0.05 + rng() * 0.13;
+  m.wob = 2 + Math.floor(rng() * 3);
+  return m;
+}
+let cast = [];
+function rebuildCast() { cast = []; for (let i = 0; i < 60; i++) cast.push(castMouse(i)); }
+rebuildCast();
+
+// free lissajous wander across the whole canvas (noise mice / flash base)
+function freePos(m, t) {
+  const tt = t * 0.00035 * m.speed + m.phase;
+  return {
+    x: (m.cx + Math.cos(tt) * m.rx) * W,
+    y: (m.cy + Math.sin(tt * m.wob) * m.ry) * H,
+  };
+}
+
+// where is mouse m at time t? THE pure function under test.
+function posAt(m, t) {
+  const noiseAmp = S.noise * 90;
+  if (m.role === 'noise') return freePos(m, t);
+  const glyph = m.role === 'decoy' ? GD : G;
+
+  if (S.mech === 'stipple') {
+    const h = mapPt(m.home, glyph);
+    const w = wander(m.i, t, 14 + noiseAmp);
+    return { x: h.x + w.x, y: h.y + w.y };
+  }
+  if (S.mech === 'patrol') {
+    const k = m.chain.length;
+    const u = ((t * 0.00007 * m.speed + m.phase) % 1 + 1) % 1;
+    const f = u * k, seg = Math.floor(f) % k, frac = f - Math.floor(f);
+    const a = mapPt(m.chain[seg], glyph), b = mapPt(m.chain[(seg + 1) % k], glyph);
+    const e = 0.5 - 0.5 * Math.cos(frac * Math.PI); // ease between waypoints
+    const w = wander(m.i, t, noiseAmp);
+    return { x: a.x + (b.x - a.x) * e + w.x, y: a.y + (b.y - a.y) * e + w.y };
+  }
+  if (S.mech === 'negative') {
+    const h = mapPt(m.negHome, G, 2.6); // spread the background fill vertically
+    const w = wander(m.i, t, 10 + noiseAmp * 0.4);
+    return { x: h.x + w.x, y: h.y + w.y };
+  }
+  // flash: free wander, blending onto the glyph during a periodic pulse
+  const P = 9000, WIN = 1700;
+  const ph = ((t % P) + P) % P;
+  let s = 0;
+  if (ph < WIN) { const q = ph / WIN; s = q < 0.25 ? q / 0.25 : q > 0.75 ? (1 - q) / 0.25 : 1; s = s * s * (3 - 2 * s); }
+  const fp = freePos(m, t), gp = mapPt(m.home, glyph);
+  return { x: fp.x + (gp.x - fp.x) * s, y: fp.y + (gp.y - fp.y) * s };
+}
+
+// lights-out cycle: dark for ~2.4s every 11s
+function darkness(t) {
+  const P = 11000, ph = ((t % P) + P) % P;
+  if (ph > 8000 && ph < 10400) {
+    const q = (ph - 8000) / 2400;
+    return q < 0.15 ? q / 0.15 : q > 0.85 ? (1 - q) / 0.15 : 1;
+  }
+  return 0;
+}
+
+function drawMouse(x, y, color, r, glow) {
+  if (glow) { ctx.shadowColor = color; ctx.shadowBlur = 12; }
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.ellipse(x, y, r * 1.25, r, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); // ears
+  ctx.arc(x - r * 0.7, y - r * 0.9, r * 0.45, 0, 6.28);
+  ctx.arc(x + r * 0.1, y - r * 1.0, r * 0.45, 0, 6.28);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = color; ctx.lineWidth = r * 0.28; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x + r * 1.2, y);
+  ctx.quadraticCurveTo(x + r * 2.1, y + r * 0.5, x + r * 2.6, y - r * 0.4); ctx.stroke();
+}
+
+// sim clock: accumulated so slider tweaks don't teleport mice (lab convenience;
+// the game version would use the raw synced clock)
+let simT = 0, last = performance.now();
+function frame(now) {
+  const dt = now - last; last = now;
+  simT += dt;
+  if (!W) resize();
+  const t = simT;
+  ctx.clearRect(0, 0, W, H);
+  const dark = S.cmode === 'dark' ? darkness(t) : 0;
+  // room
+  ctx.fillStyle = '#14171d'; ctx.fillRect(0, 0, W, H);
+
+  const trailN = S.trail, trailDt = 80;
+  for (let i = 0; i < S.N; i++) {
+    const m = cast[i];
+    const hidden = dark > 0.5 && m.color !== PALETTE.yellow && S.cmode === 'dark';
+    // trails
+    if (trailN > 0 && !hidden) {
+      ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+      let prev = posAt(m, t);
+      for (let j = 1; j <= trailN; j++) {
+        const p = posAt(m, t - j * trailDt);
+        ctx.globalAlpha = 0.32 * (1 - j / trailN) * (1 - dark * 0.85);
+        ctx.strokeStyle = m.color;
+        ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+        prev = p;
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (!hidden) {
+      const p = posAt(m, t);
+      const glow = dark > 0.5 && m.color === PALETTE.yellow;
+      ctx.globalAlpha = hidden ? 0 : 1;
+      drawMouse(p.x, p.y, m.color, 4.5, glow);
+      ctx.globalAlpha = 1;
+    }
+  }
+  // darkness overlay under yellow glow: draw after normal mice, then re-draw yellows glowing
+  if (dark > 0) {
+    ctx.fillStyle = `rgba(5,6,10,${0.88 * dark})`;
+    ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < S.N; i++) {
+      const m = cast[i];
+      if (m.color !== PALETTE.yellow) continue;
+      const p = posAt(m, t);
+      ctx.globalAlpha = dark;
+      drawMouse(p.x, p.y, m.color, 4.5, true);
+      ctx.globalAlpha = 1;
+    }
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+resize();
+
+// ---------- controls ----------
+function segWire(id, key) {
+  const el = document.getElementById(id);
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    S[key] = b.dataset.v;
+    [...el.children].forEach(c => c.classList.toggle('on', c === b));
+    rebuildCast();
+  });
+}
+segWire('mech', 'mech');
+segWire('cmode', 'cmode');
+function slider(id, out, key, scale) {
+  const el = document.getElementById(id), o = document.getElementById(out);
+  el.addEventListener('input', () => {
+    o.textContent = el.value;
+    S[key] = scale ? el.value / 100 : +el.value;
+    if (key === 'yellowPct') rebuildCast();
+  });
+}
+slider('sN', 'oN', 'N');
+slider('sY', 'oY', 'yellowPct');
+slider('sT', 'oT', 'trail');
+slider('sW', 'oW', 'noise', true);
+document.getElementById('word').addEventListener('change', e => {
+  S.word = (e.target.value || 'CATNIP').toUpperCase();
+  G = sampleWord(S.word); rebuildCast();
+});
+document.getElementById('decoy').addEventListener('change', e => {
+  S.decoy = (e.target.value || 'TUNA').toUpperCase();
+  GD = sampleWord(S.decoy); rebuildCast();
+});
+document.getElementById('squint').addEventListener('click', e => {
+  S.squint = !S.squint;
+  e.target.classList.toggle('on', S.squint);
+  cv.classList.toggle('squint', S.squint);
+});
+document.getElementById('reseed').addEventListener('click', () => {
+  S.seed = (S.seed * 1103515245 + 12345) >>> 0;
+  rebuildCast();
+});
+</script>

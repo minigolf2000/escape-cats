@@ -1,0 +1,540 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Goomba's Joy — Grid Lab</title>
+<style>
+  /* Committed neon line-art theme (see lineart-sketches.html), warm variant for Goomba. */
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0b10;
+    font: 500 13px -apple-system, "Segoe UI", system-ui, sans-serif; color: #aeb6c6;
+    -webkit-tap-highlight-color: transparent; }
+  #c { position: fixed; inset: 0; width: 100%; height: 100%; touch-action: none; }
+  .hide { display: none !important; }
+
+  #top { position: fixed; top: 0; left: 0; right: 0; padding: 8px 12px 0; box-sizing: border-box;
+    pointer-events: none; user-select: none; display: flex; flex-direction: column; gap: 6px; }
+  #top > * { pointer-events: auto; }
+  #titlerow { display: flex; align-items: center; justify-content: space-between; }
+  #lvlname { font: 800 15px -apple-system, system-ui, sans-serif; color: #ff9d4d;
+    text-shadow: 0 0 14px rgba(255,157,77,.4); }
+  #tabs { display: flex; gap: 5px; }
+  #tabs button { border: 1px solid #262b36; background: #171a21; color: #8d96a8;
+    font: 700 11px -apple-system, system-ui, sans-serif; border-radius: 7px; padding: 5px 9px; }
+  #tabs button.on { background: #ff9d4d; color: #2a1c0c; border-color: #ff9d4d; }
+  #joywrap { display: flex; align-items: center; gap: 8px; }
+  #joybar { flex: 1; height: 12px; background: #12151c; border: 1px solid #262b36;
+    border-radius: 7px; overflow: hidden; position: relative; }
+  #joyfill { position: absolute; inset: 0 100% 0 0; background: linear-gradient(90deg,#ffd44d,#ffb347);
+    box-shadow: 0 0 10px rgba(255,212,77,.5); transition: right .25s; }
+  #joytxt { font: 700 11px -apple-system, system-ui, sans-serif; color: #cdd5e3;
+    font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #joytxt b { color: #ffd44d; }
+
+  #hint { position: fixed; left: 12px; right: 12px; bottom: 122px; text-align: center;
+    font-size: 11px; color: #8a93a3; background: rgba(18,21,28,.85); border: 1px solid #232833;
+    border-radius: 9px; padding: 6px 10px; user-select: none; }
+  #banner { position: fixed; left: 50%; top: 40%; transform: translate(-50%,-50%);
+    background: #14171d; border: 1px solid #3a2f18; border-radius: 14px; padding: 16px 22px;
+    text-align: center; z-index: 8; }
+  #banner b { display: block; font: 800 17px -apple-system, system-ui, sans-serif;
+    color: #ffd44d; margin-bottom: 4px; }
+  #banner span { font-size: 12px; color: #8a93a3; }
+
+  #dock { position: fixed; left: 0; right: 0; bottom: 0; background: #12141b;
+    border-top: 1px solid #262b36; padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 8px; user-select: none; }
+  #tools { display: flex; gap: 8px; }
+  .tool { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: #171a21; border: 1px solid #262b36; border-radius: 11px; padding: 6px 2px 5px; }
+  .tool.on { border-color: #ff9d4d; box-shadow: 0 0 12px rgba(255,157,77,.18); }
+  .tool:disabled { opacity: .34; }
+  .tool canvas { width: 30px; height: 30px; }
+  .tool .nm { font: 700 9.5px -apple-system, system-ui, sans-serif; color: #b9c2d4; }
+  .tool .ct { font: 700 10px -apple-system, system-ui, sans-serif; color: #6b7484;
+    font-variant-numeric: tabular-nums; }
+  .tool.on .ct { color: #ff9d4d; }
+  #actions { display: flex; gap: 8px; }
+  #actions button { border: 0; border-radius: 10px; padding: 11px 0;
+    font: 800 13px -apple-system, system-ui, sans-serif; }
+  #go { flex: 1; background: #ffd44d; color: #2a230e; }
+  #clear { flex: 0 0 88px; background: #232833; color: #8d96a8; }
+  #stop { flex: 1; background: #232833; color: #cdd5e3; }
+</style>
+<canvas id="c"></canvas>
+<div id="top">
+  <div id="titlerow">
+    <div id="lvlname">First Steps</div>
+    <div id="tabs"></div>
+  </div>
+  <div id="joywrap">
+    <div id="joybar"><div id="joyfill"></div></div>
+    <div id="joytxt"></div>
+  </div>
+</div>
+<div id="hint"></div>
+<div id="banner" class="hide"><b></b><span></span></div>
+<div id="dock">
+  <div id="tools"></div>
+  <div id="actions">
+    <button id="go">▶ Let Goomba go</button>
+    <button id="clear">clear</button>
+    <button id="stop" class="hide">↺ back to planning</button>
+  </div>
+</div>
+<script>
+'use strict';
+// ============================================================================
+// Goomba's Joy — Grid Lab. A deterministic side-view auto-climber puzzle.
+// Goomba auto-walks and climbs any wall (salad-cat locomotion). You don't move
+// her — you place items that bend her path so she collects enough JOY to fill
+// the bar. Everything is a pure function of the level + your placements, so a
+// "ghost" can predict her whole route before you commit (and every phone in a
+// coop room would show the identical run).
+//
+// This is a feel prototype for movement + items. Nothing here is locked; see
+// prototypes/goomba-joy-design.md for the item catalog and open questions.
+// ============================================================================
+
+// ===== PURE SIM (no DOM) — identical to the headless-tuned sim =====
+const P = {
+  walk: 3.4, climb: 3.0, g: 26, air: 2.4, dt: 1 / 120, tcap: 40, endY: 1.1, h: 0.34,
+  RAMP_VX: 6.2, RAMP_VY: 8.5, SPRING_VY: 18.5, SPRING_VX: 2.0,
+};
+const keyOf = (x, y) => x + ',' + y;
+
+function parseLevel(meta) {
+  const rows = meta.map;
+  const H = rows.length, Wd = rows[0].length;
+  const solid = new Set(), joys = [];
+  let start = null;
+  for (let y = 0; y < H; y++) for (let x = 0; x < Wd; x++) {
+    const ch = rows[y][x];
+    if (ch === '#') solid.add(keyOf(x, y));
+    else if (ch === 'J') joys.push(keyOf(x, y));
+    else if (ch === 'S') start = { x, y };
+  }
+  return { cols: Wd, rows: H, solid, joys, start,
+           name: meta.name, need: meta.need, budget: meta.budget, hint: meta.hint };
+}
+
+function makeCtx(level, placed) {
+  const blocks = new Set(), signs = new Set(), ramps = new Set(), springs = new Set();
+  for (const [k, t] of placed) {
+    if (t === 'block') blocks.add(k);
+    else if (t === 'sign') signs.add(k);
+    else if (t === 'ramp') ramps.add(k);
+    else if (t === 'spring') springs.add(k);
+  }
+  const base = level.solid;
+  const solid = (cx, cy) => {
+    if (cx < 0 || cx >= level.cols || cy >= level.rows) return true;
+    if (cy < 0) return false;
+    const k = keyOf(cx, cy);
+    return base.has(k) || blocks.has(k);
+  };
+  return { solid, signs, ramps, springs, joyset: new Set(level.joys) };
+}
+
+function initState(level) {
+  const s = level.start;
+  return { x: s.x + 0.5, y: (s.y + 1) - P.h, vx: 0, vy: 0, facing: 1,
+           mode: 'WALK', joy: new Set(), lastSign: null, climbCol: 0, t: 0, done: false };
+}
+
+function stepSim(s, ctx) {
+  const { solid, signs, ramps, springs, joyset } = ctx;
+  const dt = P.dt; s.t += dt;
+  const cx = Math.floor(s.x), cy = Math.floor(s.y), k = keyOf(cx, cy);
+  if (joyset.has(k)) s.joy.add(k);
+  if (s.lastSign && k !== s.lastSign) s.lastSign = null;
+
+  if (s.mode === 'WALK') {
+    const belowRow = Math.floor(s.y + P.h + 0.02);
+    if (!solid(cx, belowRow)) { s.mode = 'AIR'; s.vx = s.facing * P.air; s.vy = 0; }
+    else {
+      s.y = belowRow - P.h;
+      if (springs.has(k)) { s.mode = 'AIR'; s.vx = s.facing * P.SPRING_VX; s.vy = -P.SPRING_VY; }
+      else if (ramps.has(k)) { s.mode = 'AIR'; s.vx = s.facing * P.RAMP_VX; s.vy = -P.RAMP_VY; }
+      else {
+        if (signs.has(k) && s.lastSign !== k) { s.facing *= -1; s.lastSign = k; }
+        const frontCol = Math.floor(s.x + s.facing * (P.h + 0.06));
+        if (solid(frontCol, Math.floor(s.y))) { s.mode = 'CLIMB'; s.climbCol = frontCol; }
+        else s.x += s.facing * P.walk * dt;
+      }
+    }
+  } else if (s.mode === 'CLIMB') {
+    const col = s.climbCol;
+    if (!solid(col, Math.floor(s.y))) {
+      s.x = col + 0.5; s.y = (Math.floor(s.y) + 1) - P.h; s.mode = 'WALK';
+    } else s.y -= P.climb * dt;
+  } else { // AIR
+    s.vy += P.g * dt; s.x += s.vx * dt; s.y += s.vy * dt;
+    const dir = s.vx >= 0 ? 1 : -1;
+    const frontCol = Math.floor(s.x + dir * P.h);
+    if (Math.abs(s.vx) > 0.1 && solid(frontCol, Math.floor(s.y))) {
+      s.facing = dir; s.climbCol = frontCol; s.x = frontCol - dir * (P.h + 0.02);
+      s.mode = 'CLIMB'; s.vy = 0;
+    } else {
+      const belowRow = Math.floor(s.y + P.h + 0.02);
+      if (s.vy > 0 && solid(Math.floor(s.x), belowRow)) {
+        s.y = belowRow - P.h; s.vy = 0; s.mode = 'WALK'; s.facing = dir;
+        const lk = keyOf(Math.floor(s.x), Math.floor(s.y));
+        if (springs.has(lk)) { s.mode = 'AIR'; s.vx = s.facing * P.SPRING_VX; s.vy = -P.SPRING_VY; }
+      }
+    }
+  }
+  if (s.y <= P.endY) s.done = true;
+  if (s.t > P.tcap) s.done = true;
+}
+
+function runGhost(level, placed) {
+  const ctx = makeCtx(level, placed);
+  const s = initState(level);
+  const path = [{ x: s.x, y: s.y }];
+  let i = 0; const cap = Math.floor(P.tcap / P.dt) + 20;
+  while (!s.done && i < cap) { stepSim(s, ctx); if (++i % 2 === 0) path.push({ x: s.x, y: s.y }); }
+  path.push({ x: s.x, y: s.y });
+  return { path, joy: s.joy, need: level.need, success: s.joy.size >= level.need };
+}
+
+const LEVELS = [
+  { name: 'First Steps', need: 3, budget: { spring: 1 },
+    hint: 'Goomba walks right and climbs any wall. She finds the two floor treats herself — place a spring to bounce her up to the third.',
+    map: [
+      '........','........','........','........','........','....J...',
+      '........','........','........','........','S..J..J.','########',
+    ] },
+  { name: 'Switchbacks', need: 4, budget: { spring: 1, sign: 1 },
+    hint: 'A sign flips the way she faces. Chain a spring and a sign to sweep her back across the room for every treat.',
+    map: [
+      '.........','.........','.........','J........','.........','.........',
+      '....J....','.........','.........','.........','.........','.........',
+      'S.J...J..','#########',
+    ] },
+];
+// ===== END PURE SIM =====
+
+// ---------- theme ----------
+const COL = { orange: '#ff9d4d', joy: '#ffd44d', wall: '#3a4a63',
+  spring: '#b48cff', sign: '#5fb0ff', ramp: '#5fe0a0', block: '#ff6fa5', ghost: '#ff9d4d' };
+const TOOLMETA = {
+  spring: { name: 'Spring',  color: COL.spring, needsGround: true },
+  sign:   { name: 'Sign',    color: COL.sign,   needsGround: true },
+  ramp:   { name: 'Ramp',    color: COL.ramp,   needsGround: true },
+  block:  { name: 'Block',   color: COL.block,  needsGround: false },
+};
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- canvas ----------
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, tile = 1, ox = 0, oy = 0;
+const TOPH = 70, BOTH = 120;
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 3);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  layout();
+}
+addEventListener('resize', resize);
+function layout() {
+  const availH = H - TOPH - BOTH;
+  tile = Math.min(W / level.cols, availH / level.rows);
+  ox = (W - level.cols * tile) / 2;
+  oy = TOPH + (availH - level.rows * tile) / 2;
+}
+const sX = x => ox + x * tile, sY = y => oy + y * tile;
+
+// ---------- neon stroke ----------
+function neon(color, w, fn) {
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.shadowColor = color;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.globalAlpha = 0.5; ctx.shadowBlur = 12; ctx.lineWidth = w + 1.4;
+  ctx.beginPath(); fn(ctx); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.shadowBlur = 4; ctx.lineWidth = w;
+  ctx.beginPath(); fn(ctx); ctx.stroke();
+  ctx.restore();
+}
+function star4(x, cx, cy, r) {
+  x.moveTo(cx, cy - r); x.quadraticCurveTo(cx, cy, cx + r, cy);
+  x.quadraticCurveTo(cx, cy, cx, cy + r); x.quadraticCurveTo(cx, cy, cx - r, cy);
+  x.quadraticCurveTo(cx, cy, cx, cy - r);
+}
+
+// ---------- item icon paths (unit box centered at 0,0, radius ~r) ----------
+function iconPath(x, t, r) {
+  if (t === 'spring') {
+    x.moveTo(-r * 0.6, r * 0.7); x.lineTo(r * 0.6, r * 0.7);
+    for (let i = 0; i < 3; i++) { const y = r * 0.5 - i * r * 0.42;
+      x.moveTo(-r * 0.5, y); x.lineTo(r * 0.5, y - r * 0.2); }
+    x.moveTo(-r * 0.6, -r * 0.7); x.lineTo(r * 0.6, -r * 0.7);
+    x.moveTo(0, -r * 0.7); x.lineTo(0, -r * 1.05); x.moveTo(-r * 0.3, -r * 0.95); x.lineTo(0, -r * 1.05); x.lineTo(r * 0.3, -r * 0.95);
+  } else if (t === 'sign') {
+    x.moveTo(0, r * 0.8); x.lineTo(0, -r * 0.2);
+    x.moveTo(-r * 0.75, -r * 0.55); x.lineTo(-r * 0.15, -r * 0.55); // left arrow
+    x.moveTo(-r * 0.55, -r * 0.75); x.lineTo(-r * 0.75, -r * 0.55); x.lineTo(-r * 0.55, -r * 0.35);
+    x.moveTo(r * 0.75, -r * 0.55); x.lineTo(r * 0.15, -r * 0.55); // right arrow
+    x.moveTo(r * 0.55, -r * 0.75); x.lineTo(r * 0.75, -r * 0.55); x.lineTo(r * 0.55, -r * 0.35);
+  } else if (t === 'ramp') {
+    x.moveTo(-r * 0.8, r * 0.6); x.lineTo(r * 0.8, r * 0.6); x.lineTo(r * 0.8, -r * 0.6); x.closePath();
+  } else { // block
+    x.moveTo(-r * 0.7, -r * 0.7); x.lineTo(r * 0.7, -r * 0.7); x.lineTo(r * 0.7, r * 0.7); x.lineTo(-r * 0.7, r * 0.7); x.closePath();
+    x.moveTo(-r * 0.7, -r * 0.2); x.lineTo(r * 0.7, -r * 0.2); x.moveTo(0, -r * 0.7); x.lineTo(0, r * 0.7);
+  }
+}
+
+// ---------- Goomba ----------
+function drawGoomba(px, py, face, r, blink) {
+  ctx.save(); ctx.translate(px, py); ctx.scale(face, 1);
+  neon(COL.orange, Math.max(1.4, r * 0.13), x => {
+    x.moveTo(-r * 0.5, r * 0.55);
+    x.bezierCurveTo(-r * 0.62, -r * 0.05, -r * 0.5, -r * 0.5, -r * 0.28, -r * 0.66);
+    x.lineTo(-r * 0.34, -r * 0.98); x.lineTo(-r * 0.08, -r * 0.78);
+    x.quadraticCurveTo(0, -r * 0.84, r * 0.08, -r * 0.78);
+    x.lineTo(r * 0.34, -r * 0.98); x.lineTo(r * 0.28, -r * 0.66);
+    x.bezierCurveTo(r * 0.5, -r * 0.5, r * 0.62, -r * 0.05, r * 0.5, r * 0.55);
+    x.closePath();
+    x.moveTo(r * 0.46, r * 0.4); x.quadraticCurveTo(r * 0.95, r * 0.15, r * 0.82, -r * 0.28);
+  });
+  if (blink) neon(COL.joy, Math.max(1.1, r * 0.09), x => {
+    x.moveTo(-r * 0.34, -r * 0.44); x.lineTo(-r * 0.16, -r * 0.44);
+    x.moveTo(r * 0.16, -r * 0.44); x.lineTo(r * 0.34, -r * 0.44);
+  });
+  else neon(COL.joy, Math.max(1.1, r * 0.09), x => {
+    x.moveTo(-r * 0.28, -r * 0.46); x.arc(-r * 0.25, -r * 0.46, r * 0.05, 0, 6.283);
+    x.moveTo(r * 0.28, -r * 0.46); x.arc(r * 0.25, -r * 0.46, r * 0.05, 0, 6.283);
+    x.moveTo(-r * 0.07, -r * 0.34); x.lineTo(0, -r * 0.28); x.lineTo(r * 0.07, -r * 0.34);
+  });
+  ctx.restore();
+}
+
+// ---------- game state ----------
+let levelIdx = 0, level, placed, ghost, appMode = 'edit', selTool = 'spring';
+let runState = null, runCtx = null, acc = 0, lastNow = 0;
+let blinkAt = 1600, blinking = 0;
+
+function loadLevel(i) {
+  levelIdx = i;
+  level = parseLevel(LEVELS[i]);
+  placed = new Map();
+  selTool = Object.keys(level.budget)[0];
+  appMode = 'edit'; runState = null;
+  layout(); recompute(); buildTools(); syncTabs();
+  document.getElementById('lvlname').textContent = level.name;
+  document.getElementById('hint').textContent = level.hint;
+  document.getElementById('banner').classList.add('hide');
+  document.getElementById('go').classList.remove('hide');
+  document.getElementById('clear').classList.remove('hide');
+  document.getElementById('stop').classList.add('hide');
+}
+function recompute() { ghost = runGhost(level, placed); updateJoy(); }
+function placedCount(t) { let n = 0; for (const v of placed.values()) if (v === t) n++; return n; }
+
+function updateJoy() {
+  const got = appMode === 'run' && runState ? runState.joy.size : ghost.joy.size;
+  const frac = Math.min(1, got / level.need);
+  document.getElementById('joyfill').style.right = (100 - frac * 100) + '%';
+  const txt = document.getElementById('joytxt');
+  if (appMode === 'run') txt.innerHTML = `<b>${got}</b> / ${level.need} joy`;
+  else txt.innerHTML = ghost.success
+    ? `<b>${got}</b> / ${level.need} — full! ▶`
+    : `she'll find <b>${got}</b> / ${level.need}`;
+}
+
+// ---------- tools palette ----------
+function buildTools() {
+  const box = document.getElementById('tools');
+  box.innerHTML = '';
+  for (const t of Object.keys(level.budget)) {
+    const b = document.createElement('button');
+    b.className = 'tool' + (t === selTool ? ' on' : '');
+    b.innerHTML = `<canvas width="60" height="60"></canvas><span class="nm">${TOOLMETA[t].name}</span><span class="ct"></span>`;
+    const cc = b.querySelector('canvas'), x = cc.getContext('2d');
+    x.scale(2, 2);
+    x.strokeStyle = TOOLMETA[t].color; x.shadowColor = TOOLMETA[t].color;
+    x.lineCap = 'round'; x.lineJoin = 'round';
+    x.globalAlpha = 0.5; x.shadowBlur = 6; x.lineWidth = 2.6;
+    x.beginPath(); iconPath(x, t, 9); x.translate(0, 0); x.stroke();
+    x.save(); x.setTransform(2, 0, 0, 2, 30, 30);
+    x.strokeStyle = TOOLMETA[t].color; x.shadowColor = TOOLMETA[t].color; x.lineCap = 'round'; x.lineJoin = 'round';
+    x.globalAlpha = 0.5; x.shadowBlur = 6; x.lineWidth = 2.6; x.beginPath(); iconPath(x, t, 9); x.stroke();
+    x.globalAlpha = 1; x.shadowBlur = 2; x.lineWidth = 1.8; x.beginPath(); iconPath(x, t, 9); x.stroke();
+    x.restore();
+    b.addEventListener('click', () => { if (appMode !== 'edit') return; selTool = t; buildTools(); });
+    box.appendChild(b);
+  }
+  refreshToolCounts();
+}
+function refreshToolCounts() {
+  const box = document.getElementById('tools');
+  [...box.children].forEach((b, i) => {
+    const t = Object.keys(level.budget)[i];
+    const left = level.budget[t] - placedCount(t);
+    b.querySelector('.ct').textContent = left + ' left';
+    b.disabled = appMode !== 'edit';
+    b.classList.toggle('on', t === selTool);
+  });
+}
+
+// ---------- tabs ----------
+function buildTabs() {
+  const box = document.getElementById('tabs');
+  box.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement('button');
+    b.textContent = i + 1;
+    b.addEventListener('click', () => loadLevel(i));
+    box.appendChild(b);
+  });
+}
+function syncTabs() {
+  [...document.getElementById('tabs').children].forEach((b, i) => b.classList.toggle('on', i === levelIdx));
+}
+
+// ---------- editing ----------
+cv.addEventListener('pointerdown', e => {
+  if (appMode !== 'edit') return;
+  const cx = Math.floor((e.clientX - ox) / tile), cy = Math.floor((e.clientY - oy) / tile);
+  if (cx < 0 || cx >= level.cols || cy < 0 || cy >= level.rows) return;
+  const k = keyOf(cx, cy);
+  if (placed.has(k)) { placed.delete(k); recompute(); refreshToolCounts(); return; }
+  if (level.solid.has(k) || level.joys.includes(k) || (level.start.x === cx && level.start.y === cy)) return;
+  const left = level.budget[selTool] - placedCount(selTool);
+  if (left <= 0) return;
+  if (TOOLMETA[selTool].needsGround) { // must sit on a surface
+    const belowSolid = level.solid.has(keyOf(cx, cy + 1)) || placed.get(keyOf(cx, cy + 1)) === 'block' || cy + 1 >= level.rows;
+    if (!belowSolid) { flashHint('place it on the floor or on a block'); return; }
+  }
+  placed.set(k, selTool); recompute(); refreshToolCounts();
+});
+let hintTimer = 0;
+function flashHint(msg) {
+  const h = document.getElementById('hint'), old = h.textContent;
+  h.textContent = msg; h.style.color = '#ff9d4d';
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => { h.textContent = level.hint; h.style.color = ''; }, 1600);
+}
+
+// ---------- run ----------
+document.getElementById('go').addEventListener('click', () => {
+  appMode = 'run'; runCtx = makeCtx(level, placed); runState = initState(level);
+  acc = 0; lastNow = performance.now();
+  document.getElementById('go').classList.add('hide');
+  document.getElementById('clear').classList.add('hide');
+  document.getElementById('stop').classList.remove('hide');
+  document.getElementById('banner').classList.add('hide');
+  refreshToolCounts();
+});
+document.getElementById('stop').addEventListener('click', () => backToEdit());
+document.getElementById('clear').addEventListener('click', () => { placed.clear(); recompute(); refreshToolCounts(); });
+function backToEdit() {
+  appMode = 'edit'; runState = null;
+  document.getElementById('go').classList.remove('hide');
+  document.getElementById('clear').classList.remove('hide');
+  document.getElementById('stop').classList.add('hide');
+  document.getElementById('banner').classList.add('hide');
+  recompute(); refreshToolCounts();
+}
+function finishRun() {
+  const ok = runState.joy.size >= level.need;
+  const b = document.getElementById('banner');
+  b.querySelector('b').textContent = ok ? 'Goomba is overjoyed! 🧡' : 'A happy nap — but not full';
+  b.querySelector('span').textContent = ok
+    ? (levelIdx < LEVELS.length - 1 ? 'Tap the next level, or replay.' : 'You filled her joy bar!')
+    : `she found ${runState.joy.size} of ${level.need} — tweak and try again`;
+  b.classList.remove('hide');
+}
+
+// ---------- render loop ----------
+function frame(now) {
+  const dt = Math.min(60, now - lastNow); lastNow = now;
+  blinkAt -= dt; if (blinkAt <= 0) { blinking = 130; blinkAt = 2400 + Math.random() * 2600; }
+  if (blinking > 0) blinking -= dt;
+
+  if (appMode === 'run' && runState && !runState.done) {
+    acc += dt / 1000;
+    let steps = 0;
+    while (acc >= P.dt && !runState.done && steps < 600) { stepSim(runState, runCtx); acc -= P.dt; steps++; }
+    updateJoy();
+    if (runState.done) finishRun();
+  }
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0a0b10'; ctx.fillRect(0, 0, W, H);
+
+  // solids: fill + neon edges facing empty
+  ctx.fillStyle = '#12151c';
+  for (const kkey of level.solid) {
+    const [x, y] = kkey.split(',').map(Number);
+    ctx.fillRect(sX(x), sY(y), tile + 0.5, tile + 0.5);
+  }
+  const isSolid = (x, y) => level.solid.has(keyOf(x, y)) || placed.get(keyOf(x, y)) === 'block';
+  neon(COL.wall, 1.4, x => {
+    for (const kkey of level.solid) {
+      const [gx, gy] = kkey.split(',').map(Number);
+      const X = sX(gx), Y = sY(gy);
+      if (!isSolid(gx, gy - 1)) { x.moveTo(X, Y); x.lineTo(X + tile, Y); }
+      if (!isSolid(gx, gy + 1)) { x.moveTo(X, Y + tile); x.lineTo(X + tile, Y + tile); }
+      if (!isSolid(gx - 1, gy)) { x.moveTo(X, Y); x.lineTo(X, Y + tile); }
+      if (!isSolid(gx + 1, gy)) { x.moveTo(X + tile, Y); x.lineTo(X + tile, Y + tile); }
+    }
+  });
+
+  // start mat
+  const st = level.start;
+  neon(COL.orange, 1.4, x => {
+    const X = sX(st.x + 0.5), Y = sY(st.y + 1) - 2;
+    x.moveTo(X - tile * 0.34, Y); x.quadraticCurveTo(X, Y + tile * 0.12, X + tile * 0.34, Y);
+  });
+
+  // ghost path (planning only)
+  if (appMode === 'edit' && ghost.path.length > 1) {
+    ctx.save();
+    ctx.setLineDash([4, 5]); ctx.lineWidth = 1.8; ctx.strokeStyle = COL.ghost;
+    ctx.globalAlpha = 0.5; ctx.shadowColor = COL.ghost; ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.moveTo(sX(ghost.path[0].x), sY(ghost.path[0].y));
+    for (const p of ghost.path) ctx.lineTo(sX(p.x), sY(p.y));
+    ctx.stroke(); ctx.restore();
+  }
+
+  // joys
+  const t = now;
+  const collected = appMode === 'run' && runState ? runState.joy : ghost.joy;
+  for (const jk of level.joys) {
+    const [x, y] = jk.split(',').map(Number);
+    const X = sX(x + 0.5), Y = sY(y + 0.5);
+    const got = collected.has(jk);
+    if (got && appMode === 'run') continue; // collected during run: vanish
+    const willGet = appMode === 'edit' && ghost.joy.has(jk);
+    const pulse = RM ? 1 : 0.85 + 0.15 * Math.sin(t * 0.005 + x + y);
+    if (willGet) {
+      ctx.save(); ctx.globalAlpha = 0.6; ctx.strokeStyle = COL.joy; ctx.shadowColor = COL.joy;
+      ctx.shadowBlur = 8; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(X, Y, tile * 0.42, 0, 6.283); ctx.stroke(); ctx.restore();
+    }
+    neon(COL.joy, 1.8, xx => star4(xx, X, Y, tile * 0.24 * pulse));
+  }
+
+  // placed items
+  for (const [pk, ty] of placed) {
+    const [x, y] = pk.split(',').map(Number);
+    const X = sX(x + 0.5), Y = sY(y + 0.5);
+    if (ty === 'block') { ctx.fillStyle = 'rgba(255,111,165,.10)'; ctx.fillRect(sX(x), sY(y), tile, tile); }
+    ctx.save(); ctx.translate(X, Y);
+    neon(TOOLMETA[ty].color, 1.7, xx => iconPath(xx, ty, tile * 0.34));
+    ctx.restore();
+  }
+
+  // Goomba
+  const gs = appMode === 'run' && runState ? runState : { x: st.x + 0.5, y: (st.y + 1) - P.h, facing: 1 };
+  drawGoomba(sX(gs.x), sY(gs.y), gs.facing, tile * 0.72, blinking > 0);
+
+  requestAnimationFrame(frame);
+}
+
+// ---------- boot ----------
+buildTabs();
+loadLevel(0);
+resize();
+requestAnimationFrame(frame);
+</script>

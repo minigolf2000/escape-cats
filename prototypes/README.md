@@ -13,6 +13,7 @@ in the monorepo.
 | `laser-dash.html` | **Laser Dash** | One-thumb endless runner — Hex chases the red dot down a neon street; tap to jump, tap again to double-jump, catch the laser dot for a frenzy. |
 | `salad-cat.html` | **Salad Cat** | Slingshot *the cat*: after landing he auto-runs right and climbs walls until something stops him. Eat every plant in 5 handcrafted levels. Twists: cucumbers end the run, catnip zoomies smash them, cushions bounce, boxes teleport. |
 | `hex-clicker-neon.html` | **Hex Clicker — Neon Lab** | Playable single-player skin of the coop clicker in the committed neon line-art theme. Currency is **neon mice**; mice climb onto the wall automatically on lifetime-mice milestones, Comet Trail upgrades ink the reveal, claw/whisker upgrades keep petting relevant, and a golden mouse (one slot per player seat) triggers escalating team Zoomies. No in-game end state — the word is read off the wall and given to a proctor in person. Locked vs open decisions live in [`hex-clicker-design.md`](./hex-clicker-design.md). |
+| `goomba-joy.html` | **Goomba's Joy — Grid Lab** | Deterministic side-view auto-climber puzzle. Goomba auto-walks and climbs walls (salad-cat locomotion) — you never move her, you **place items** (spring, sign; ramp/block in the sim) to bend her path so she collects enough **joy** to fill the bar. A dashed **ghost** predicts her whole route before you commit. Two tuned levels. Item catalog and open questions in [`goomba-joy-design.md`](./goomba-joy-design.md). |
 
 ## Playtesting
 

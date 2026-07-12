@@ -30,6 +30,8 @@ They also run fine by opening the file in any browser, or:
 npx serve prototypes
 ```
 
-Note: the HTML files intentionally omit `<!doctype>`/`<html>`/`<head>`/`<body>`
-wrapper tags because the artifact host injects its own document skeleton.
-Browsers render them fine standalone regardless.
+Note: each file starts with `<!doctype html>` (so it renders in standards
+mode when self-hosted on a static host, rather than quirks mode) but still
+omits the `<html>`/`<head>`/`<body>` wrapper tags, since the artifact host
+injects its own document skeleton. Browsers render them fine standalone
+either way.

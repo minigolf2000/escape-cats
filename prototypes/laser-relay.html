@@ -1,0 +1,524 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Laser Relay — Playtest Rig 🔦</title>
+<style>
+  :root {
+    --bg: #0b0c10; --panel: #14161d; --panel-hi: #1b1e28; --ink: #e8eaf0;
+    --muted: #8a90a2; --neon: #57e6c9; --neon-2: #ff5db1; --line: #262a36;
+    --slot: 96px; --phone: 78px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(90vw 60vh at 50% -10%, rgba(87,230,201,0.10), transparent 60%), var(--bg);
+    color: var(--ink); min-height: 100dvh;
+    font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 22px 20px 60px; -webkit-user-select: none; user-select: none;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h1 .glow { color: var(--neon); text-shadow: 0 0 18px rgba(87,230,201,0.45); }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .bar .grow { flex: 1 1 auto; }
+  button {
+    font: inherit; font-size: 13px; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; cursor: pointer;
+    transition: background .12s, border-color .12s, transform .08s;
+  }
+  button:hover { background: var(--panel-hi); border-color: var(--neon); }
+  button:active { transform: translateY(1px); }
+  button.ghost { background: transparent; }
+  select {
+    font: inherit; font-size: 13px; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px;
+  }
+
+  .puzzletitle { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 2px; }
+  .puzzletitle .name { font-size: 17px; font-weight: 700; }
+  .puzzletitle .count { color: var(--muted); font-size: 12px; }
+  .blurb { color: var(--muted); font-size: 13px; margin: 0 0 12px; min-height: 34px; }
+
+  .stage {
+    position: relative; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 18px; padding: 18px; overflow: hidden;
+  }
+  .table { position: relative; margin: 0 auto; }
+  .grid-lines { position: absolute; inset: 0; pointer-events: none; }
+  .slot-cell {
+    position: absolute; border: 1px dashed rgba(138,144,162,0.16); border-radius: 12px;
+  }
+  .beams { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+
+  .phone {
+    position: absolute; width: var(--phone); height: var(--phone);
+    border-radius: 13px; background: linear-gradient(180deg,#0f1117,#0c0e14);
+    border: 1px solid #2b3040; box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 0 0 3px #05070b;
+    cursor: grab; touch-action: none; transition: box-shadow .15s;
+  }
+  .phone .screen { position: absolute; inset: 6px; border-radius: 7px; background: #070a10; overflow: hidden; }
+  .phone.lit { box-shadow: 0 0 0 1px var(--litc,#57e6c9), 0 0 22px -2px var(--litc,#57e6c9), inset 0 0 0 3px #05070b; }
+  .phone.locked { cursor: default; }
+  .phone.dragging { cursor: grabbing; z-index: 40; box-shadow: 0 12px 26px rgba(0,0,0,0.55); }
+  .phone.lockflag::after {
+    content: "🔒"; position: absolute; top: -8px; right: -6px; font-size: 11px; opacity: .7;
+  }
+  .phone svg { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); }
+  .port { fill: #2c3242; }
+
+  .tray {
+    margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px;
+    min-height: 96px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .tray-label { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; align-self: flex-start; width: 100%; margin-bottom: 2px; }
+  .tray .slot-tray { position: relative; width: var(--slot); height: var(--slot); }
+
+  /* non-blocking win toast — keeps the solved beam visible and clickable */
+  .win {
+    position: absolute; top: 12px; left: 0; right: 0; display: none;
+    justify-content: center; text-align: center; pointer-events: none; z-index: 50;
+  }
+  .win.show { display: flex; }
+  .win .card {
+    pointer-events: auto; display: flex; align-items: center; gap: 14px;
+    background: rgba(20,22,29,0.92); border: 1px solid var(--neon); border-radius: 14px;
+    padding: 10px 16px; box-shadow: 0 8px 26px rgba(0,0,0,0.5);
+  }
+  .win .big { font-size: 22px; margin: 0; }
+  .win .msg { color: var(--neon); font-weight: 700; margin: 0; }
+
+  details.info { margin-top: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 4px 16px; }
+  details.info summary { cursor: pointer; padding: 12px 0; font-size: 14px; font-weight: 600; }
+  details.info p, details.info li { color: var(--muted); font-size: 13px; line-height: 1.55; }
+  details.info code { color: var(--ink); background: #0f1117; padding: 1px 5px; border-radius: 5px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 6px 0 10px; }
+  .legend .item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+  .legend .chip { width: 30px; height: 30px; border-radius: 7px; background: #070a10; border: 1px solid #2b3040; }
+</style>
+
+<div class="wrap">
+  <h1>Laser <span class="glow">Relay</span> <span style="font-size:20px">🔦</span></h1>
+  <p class="sub">Desktop playtest rig · each tile is one phone · drag to move, click to rotate</p>
+
+  <div class="bar">
+    <button id="prev" class="ghost">‹ Prev</button>
+    <select id="picker"></select>
+    <button id="next" class="ghost">Next ›</button>
+    <span class="grow"></span>
+    <button id="reset">↺ Reset</button>
+    <button id="peek">👁 Peek solution</button>
+  </div>
+
+  <div class="puzzletitle"><span class="name" id="pzname">—</span><span class="count" id="pzcount"></span></div>
+  <p class="blurb" id="pzblurb"></p>
+
+  <div class="stage">
+    <div class="table" id="table">
+      <div class="grid-lines" id="gridlines"></div>
+      <svg class="beams" id="beams"></svg>
+    </div>
+    <div class="tray" id="tray" hidden>
+      <div class="tray-label">Spare phones — drag onto the table</div>
+    </div>
+    <div class="win" id="win">
+      <div class="card">
+        <p class="big">🐾✨</p>
+        <p class="msg">Beam connected!</p>
+        <button id="winnext">Next puzzle ›</button>
+      </div>
+    </div>
+  </div>
+
+  <details class="info">
+    <summary>What am I looking at? (design notes)</summary>
+    <p>This is a <b>bird’s-eye playtest rig</b>. In the real game each of these tiles is a
+    <b>separate phone</b> and each player sees only their own screen — here you drive the whole
+    table so we can feel the puzzles fast.</p>
+    <div class="legend">
+      <div class="item"><span class="chip" id="lg-source"></span> Source — emits the beam</div>
+      <div class="item"><span class="chip" id="lg-receiver"></span> Target — must be hit (matching colour)</div>
+      <div class="item"><span class="chip" id="lg-corner"></span> Corner — bends the beam 90°</div>
+      <div class="item"><span class="chip" id="lg-straight"></span> Straight — carries it in a line</div>
+      <div class="item"><span class="chip" id="lg-mirror"></span> Mirror — reflects from any side</div>
+      <div class="item"><span class="chip" id="lg-splitter"></span> Splitter — straight + 90° at once</div>
+    </div>
+    <ul>
+      <li><b>Adjacency = the real hand-off.</b> Here the beam crosses wherever two phones sit
+      edge-to-edge. On real phones that physical alignment is what the “swipe the beam to your
+      neighbour” connect-gesture stands in for — the sim shows the goal state without the gesture friction.</li>
+      <li><b>Rotation is the core verb.</b> Clicking a phone rotates it 90° (on a real phone you’d
+      turn the device; we snap to 90° so compass noise never matters).</li>
+      <li><b>What we’re testing:</b> do the puzzles read? Is “rotate + arrange” satisfying, or fiddly?
+      Is the fork (two-player) moment fun? Poke at it and react.</li>
+    </ul>
+  </details>
+</div>
+
+<script type="module">
+'use strict';
+
+/* ===================== simulation core (mirrors sim-core.mjs) ===================== */
+const N = 0, E = 1, S = 2, W = 3;
+const DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0];
+const opp = d => (d + 2) & 3;
+const reflectSlash = d => (d === E ? N : d === N ? E : d === W ? S : W);
+const reflectBack = d => (d === E ? S : d === S ? E : d === W ? N : W);
+
+function tileExits(tile, enter) {
+  const r = ((tile.rot % 4) + 4) % 4;
+  switch (tile.type) {
+    case 'source': case 'receiver': return [];
+    case 'straight': {
+      const vertical = r % 2 === 0, beamVertical = enter === N || enter === S;
+      return vertical === beamVertical ? [enter] : [];
+    }
+    case 'mirror': { const slash = r % 2 === 0; return [slash ? reflectSlash(enter) : reflectBack(enter)]; }
+    case 'splitter': { const slash = r % 2 === 0; return [enter, slash ? reflectSlash(enter) : reflectBack(enter)]; }
+    case 'corner': {
+      const pair = [[N, E], [E, S], [S, W], [W, N]][r], entryEdge = opp(enter);
+      if (entryEdge === pair[0]) return [pair[1]];
+      if (entryEdge === pair[1]) return [pair[0]];
+      return [];
+    }
+  }
+  return [];
+}
+
+function simulate(board) {
+  const bySlot = new Map(), receivers = {};
+  for (const p of board.phones) {
+    if (p.x == null || p.y == null) continue;
+    bySlot.set(p.x + ',' + p.y, p);
+    if (p.type === 'receiver') receivers[p.id] = false;
+  }
+  const internal = [], cross = [], litSlots = new Set(), visited = new Set(), stack = [];
+  for (const p of bySlot.values()) if (p.type === 'source') stack.push({ x: p.x, y: p.y, emit: p.rot & 3, color: p.color });
+  while (stack.length) {
+    const b = stack.pop(), phone = bySlot.get(b.x + ',' + b.y);
+    if (!phone) continue;
+    litSlots.add(b.x + ',' + b.y);
+    let outs, entryEdge = null;
+    if (b.emit != null) outs = [b.emit];
+    else {
+      entryEdge = opp(b.enter);
+      if (phone.type === 'receiver') {
+        if (entryEdge === (phone.rot & 3) && phone.color === b.color) receivers[phone.id] = true;
+        internal.push({ x: b.x, y: b.y, from: entryEdge, to: 'C', color: b.color });
+        continue;
+      }
+      outs = tileExits(phone, b.enter);
+    }
+    for (const outDir of outs) {
+      internal.push({ x: b.x, y: b.y, from: b.emit != null ? 'C' : entryEdge, to: outDir, color: b.color });
+      const key = b.x + ',' + b.y + ',' + outDir;
+      if (visited.has(key)) continue;
+      visited.add(key);
+      const nx = b.x + DX[outDir], ny = b.y + DY[outDir], neighbour = bySlot.get(nx + ',' + ny);
+      const leak = nx < 0 || ny < 0 || nx >= board.cols || ny >= board.rows || !neighbour;
+      cross.push({ x: b.x, y: b.y, dir: outDir, color: b.color, leak });
+      if (!leak) stack.push({ x: nx, y: ny, enter: outDir, color: b.color });
+    }
+  }
+  const ids = Object.keys(receivers);
+  return { internal, cross, litSlots, receivers, win: ids.length > 0 && ids.every(id => receivers[id]) };
+}
+
+/* ===================== puzzles (mirrors sim-core.mjs) ===================== */
+const G = '#57e6c9', R = '#ff5d7e', B = '#5db8ff';
+const PUZZLES = [
+  { id:'first-light', name:'First Light', cols:3, rows:1,
+    blurb:'Slide the two phones together and aim the beam. Move + rotate — that’s the whole game.',
+    phones:[
+      { id:'src', type:'source', color:G, start:[0,0], rot:N, sol:[0,0], solRot:E },
+      { id:'rcv', type:'receiver', color:G, start:[2,0], rot:W, sol:[1,0], solRot:W },
+    ] },
+  { id:'corner', name:'Around the Corner', cols:3, rows:3,
+    blurb:'A single bend. Turn the corner phone so the beam wraps from the source to the target.',
+    phones:[
+      { id:'src', type:'source', color:G, start:[0,2], rot:E, sol:[0,2], solRot:N },
+      { id:'cor', type:'corner', start:[2,0], rot:0, sol:[0,1], solRot:1 },
+      { id:'rcv', type:'receiver', color:G, start:[2,2], rot:N, sol:[1,1], solRot:W },
+    ] },
+  { id:'switchback', name:'Switchback', cols:3, rows:2,
+    blurb:'Two corners make an S. Both must be placed and turned right for the beam to thread through.',
+    phones:[
+      { id:'src', type:'source', color:G, start:[0,1], rot:N, sol:[0,0], solRot:E },
+      { id:'c1', type:'corner', start:[2,0], rot:0, sol:[1,0], solRot:2 },
+      { id:'c2', type:'corner', start:[0,0], rot:0, sol:[1,1], solRot:0 },
+      { id:'rcv', type:'receiver', color:G, start:[2,1], rot:N, sol:[2,1], solRot:W },
+    ] },
+  { id:'detour', name:'The Long Way', cols:4, rows:3,
+    blurb:'Straights carry the beam in a line; corners turn it. One phone is a red herring — you won’t need it.',
+    phones:[
+      { id:'src', type:'source', color:G, start:[0,2], rot:E, sol:[0,2], solRot:N },
+      { id:'s1', type:'straight', start:[3,2], rot:1, sol:[0,1], solRot:0 },
+      { id:'c1', type:'corner', start:[3,0], rot:0, sol:[0,0], solRot:1 },
+      { id:'s2', type:'straight', start:[1,2], rot:0, sol:[1,0], solRot:1 },
+      { id:'c2', type:'corner', start:[2,2], rot:0, sol:[2,0], solRot:2 },
+      { id:'rcv', type:'receiver', color:G, start:[3,1], rot:N, sol:[2,1], solRot:N },
+      { id:'dec', type:'mirror', tray:true, rot:0, sol:null, solRot:0 },
+    ] },
+  { id:'fork', name:'Fork in the Road', cols:3, rows:3,
+    blurb:'A splitter sends the beam two ways at once. Light BOTH targets — the two-player moment.',
+    phones:[
+      { id:'src', type:'source', color:G, start:[0,0], rot:E, sol:[0,1], solRot:E },
+      { id:'spl', type:'splitter', start:[2,2], rot:1, sol:[1,1], solRot:0 },
+      { id:'rA', type:'receiver', color:G, start:[0,2], rot:N, sol:[2,1], solRot:W },
+      { id:'rB', type:'receiver', color:G, start:[2,0], rot:N, sol:[1,0], solRot:S },
+    ] },
+  { id:'two-colors', name:'Crossed Wires', cols:4, rows:3,
+    blurb:'Two colours, two targets. A red beam won’t satisfy a blue target — keep the chains straight.',
+    phones:[
+      { id:'sR', type:'source', color:R, start:[3,2], rot:N, sol:[1,0], solRot:E },
+      { id:'cR', type:'corner', start:[3,1], rot:0, sol:[2,0], solRot:2 },
+      { id:'rR', type:'receiver', color:R, start:[0,0], rot:N, sol:[2,1], solRot:N },
+      { id:'sB', type:'source', color:B, start:[0,2], rot:N, sol:[0,2], solRot:N },
+      { id:'cB', type:'corner', start:[3,0], rot:0, sol:[0,1], solRot:1 },
+      { id:'rB', type:'receiver', color:B, start:[1,2], rot:N, sol:[1,1], solRot:W },
+    ] },
+];
+
+/* ===================== tile glyphs (SVG, 100x100 viewBox) ===================== */
+const PORTS = `<circle class="port" cx="50" cy="4" r="4"/><circle class="port" cx="96" cy="50" r="4"/><circle class="port" cx="50" cy="96" r="4"/><circle class="port" cx="4" cy="50" r="4"/>`;
+function glyph(type, rot, color) {
+  const c = color || 'var(--neon)';
+  const rr = ((rot % 4) + 4) % 4;
+  const spin = `transform="rotate(${rr * 90} 50 50)"`;
+  let inner = '';
+  if (type === 'source') {
+    inner = `<g ${spin}><circle cx="50" cy="50" r="13" fill="${c}"/>
+      <path d="M50 34 L50 6 M50 6 L44 16 M50 6 L56 16" stroke="${c}" stroke-width="5" fill="none" stroke-linecap="round"/></g>`;
+  } else if (type === 'receiver') {
+    inner = `<g ${spin}><circle cx="50" cy="50" r="17" fill="none" stroke="${c}" stroke-width="5"/>
+      <circle cx="50" cy="50" r="6" fill="${c}"/>
+      <path d="M40 12 L60 12" stroke="${c}" stroke-width="5" stroke-linecap="round"/>
+      <path d="M50 33 L50 12" stroke="${c}" stroke-width="4" stroke-dasharray="3 4"/></g>`;
+  } else if (type === 'corner') {
+    inner = `<g ${spin}><path d="M50 6 L50 50 L94 50" fill="none" stroke="${c}" stroke-width="6"
+      stroke-linecap="round" stroke-linejoin="round"/></g>`;
+  } else if (type === 'straight') {
+    inner = `<g ${spin}><path d="M50 4 L50 96" stroke="${c}" stroke-width="6" stroke-linecap="round"/></g>`;
+  } else if (type === 'mirror') {
+    inner = `<g ${spin}><path d="M14 86 L86 14" stroke="${c}" stroke-width="6" stroke-linecap="round"/></g>`;
+  } else if (type === 'splitter') {
+    inner = `<g ${spin}><path d="M14 86 L86 14" stroke="${c}" stroke-width="6" stroke-linecap="round" stroke-dasharray="9 7"/>
+      <circle cx="50" cy="50" r="7" fill="none" stroke="${c}" stroke-width="4"/></g>`;
+  }
+  return `<svg viewBox="0 0 100 100">${PORTS}${inner}</svg>`;
+}
+
+/* ===================== rig state + rendering ===================== */
+const SLOT = 96, PHONE = 78, PAD = (SLOT - PHONE) / 2;
+const tableEl = document.getElementById('table');
+const gridEl = document.getElementById('gridlines');
+const beamsEl = document.getElementById('beams');
+const trayEl = document.getElementById('tray');
+const winEl = document.getElementById('win');
+const picker = document.getElementById('picker');
+const NS = 'http://www.w3.org/2000/svg';
+
+let pzIndex = 0, phones = [], cols = 3, rows = 3;
+
+PUZZLES.forEach((p, i) => { const o = document.createElement('option'); o.value = i; o.textContent = `${i + 1}. ${p.name}`; picker.appendChild(o); });
+
+function loadPuzzle(i, useSolution = false) {
+  pzIndex = (i + PUZZLES.length) % PUZZLES.length;
+  const pz = PUZZLES[pzIndex];
+  cols = pz.cols; rows = pz.rows;
+  phones = pz.phones.map(p => {
+    const placed = useSolution ? p.sol : (p.tray ? null : p.start);
+    return {
+      id: p.id, type: p.type, color: p.color || null,
+      rot: useSolution ? p.solRot : p.rot,
+      loc: placed ? { kind: 'table', x: placed[0], y: placed[1] } : { kind: 'tray' },
+      movable: true, rotatable: true, el: null,
+    };
+  });
+  document.getElementById('pzname').textContent = pz.name;
+  document.getElementById('pzcount').textContent = `Puzzle ${pzIndex + 1} of ${PUZZLES.length}`;
+  document.getElementById('pzblurb').textContent = pz.blurb;
+  picker.value = pzIndex;
+  winEl.classList.remove('show');
+  buildTable();
+  render();
+}
+
+function buildTable() {
+  // clear stale phone nodes from a previous puzzle load
+  [...tableEl.querySelectorAll('.phone'), ...trayEl.querySelectorAll('.phone')].forEach(n => n.remove());
+  tableEl.style.width = cols * SLOT + 'px';
+  tableEl.style.height = rows * SLOT + 'px';
+  beamsEl.setAttribute('viewBox', `0 0 ${cols * SLOT} ${rows * SLOT}`);
+  gridEl.innerHTML = '';
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const cell = document.createElement('div');
+    cell.className = 'slot-cell';
+    cell.style.left = x * SLOT + PAD + 'px'; cell.style.top = y * SLOT + PAD + 'px';
+    cell.style.width = PHONE + 'px'; cell.style.height = PHONE + 'px';
+    gridEl.appendChild(cell);
+  }
+  // tray slots
+  const spares = phones.filter(p => p.loc.kind === 'tray').length;
+  const trayCap = Math.max(spares, PUZZLES[pzIndex].phones.filter(p => p.tray).length);
+  trayEl.hidden = trayCap === 0;
+  [...trayEl.querySelectorAll('.slot-tray')].forEach(n => n.remove());
+  for (let i = 0; i < trayCap; i++) {
+    const s = document.createElement('div'); s.className = 'slot-tray'; s.dataset.tray = i;
+    trayEl.appendChild(s);
+  }
+}
+
+function slotPx(x, y) { return { left: x * SLOT + PAD, top: y * SLOT + PAD, cx: x * SLOT + SLOT / 2, cy: y * SLOT + SLOT / 2 }; }
+
+function render() {
+  // place phones
+  for (const p of phones) {
+    if (!p.el) {
+      const d = document.createElement('div');
+      d.className = 'phone'; d.dataset.id = p.id;
+      d.innerHTML = `<div class="screen"></div>`;
+      attachPointer(d, p);
+      p.el = d;
+    }
+    p.el.querySelector('.screen').innerHTML = glyph(p.type, p.rot, p.color);
+    if (p.color) p.el.style.setProperty('--litc', p.color);
+    if (p.loc.kind === 'table') {
+      const g = slotPx(p.loc.x, p.loc.y);
+      tableEl.appendChild(p.el);
+      p.el.style.left = g.left + 'px'; p.el.style.top = g.top + 'px';
+    } else {
+      // tray placement: first free tray slot
+      const used = phones.filter(q => q !== p && q.loc.kind === 'tray').map(q => q.loc.i);
+      let idx = p.loc.i;
+      if (idx == null) { idx = 0; while (used.includes(idx)) idx++; p.loc.i = idx; }
+      const slot = trayEl.querySelector(`.slot-tray[data-tray="${idx}"]`) || trayEl.querySelector('.slot-tray');
+      slot.appendChild(p.el);
+      p.el.style.left = PAD + 'px'; p.el.style.top = PAD + 'px';
+    }
+  }
+  drawBeams();
+}
+
+function drawBeams() {
+  const board = { cols, rows, phones: phones.filter(p => p.loc.kind === 'table').map(p => ({ id: p.id, type: p.type, color: p.color, rot: p.rot, x: p.loc.x, y: p.loc.y })) };
+  const res = simulate(board);
+  beamsEl.innerHTML = '';
+  const edgePt = (cx, cy, e) => e === 'C' ? { x: cx, y: cy } : { x: cx + DX[e] * PHONE / 2, y: cy + DY[e] * PHONE / 2 };
+  const line = (x1, y1, x2, y2, color, w, op = 1) => {
+    const l = document.createElementNS(NS, 'line');
+    l.setAttribute('x1', x1); l.setAttribute('y1', y1); l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+    l.setAttribute('stroke', color); l.setAttribute('stroke-width', w);
+    l.setAttribute('stroke-linecap', 'round'); l.setAttribute('opacity', op);
+    beamsEl.appendChild(l);
+  };
+  const seg = (x1, y1, x2, y2, color, leak) => {
+    line(x1, y1, x2, y2, color, 9, leak ? 0.10 : 0.22);   // glow
+    line(x1, y1, x2, y2, color, 3, leak ? 0.35 : 0.95);   // core
+  };
+  for (const s of res.internal) {
+    const g = slotPx(s.x, s.y);
+    const a = edgePt(g.cx, g.cy, s.from), b = edgePt(g.cx, g.cy, s.to);
+    seg(a.x, a.y, g.cx, g.cy, s.color, false);
+    seg(g.cx, g.cy, b.x, b.y, s.color, false);
+  }
+  for (const c of res.cross) {
+    const g = slotPx(c.x, c.y), from = edgePt(g.cx, g.cy, c.dir);
+    if (c.leak) {
+      const tx = from.x + DX[c.dir] * PAD * 1.4, ty = from.y + DY[c.dir] * PAD * 1.4;
+      seg(from.x, from.y, tx, ty, c.color, true);
+    } else {
+      const ng = slotPx(c.x + DX[c.dir], c.y + DY[c.dir]);
+      const to = edgePt(ng.cx, ng.cy, opp(c.dir));
+      seg(from.x, from.y, to.x, to.y, c.color, false);
+    }
+  }
+  // lit phones + receiver states
+  const litSet = res.litSlots;
+  for (const p of phones) {
+    p.el.classList.remove('lit');
+    if (p.loc.kind === 'table' && litSet.has(p.loc.x + ',' + p.loc.y)) p.el.classList.add('lit');
+    if (p.type === 'receiver') {
+      const ok = res.receivers[p.id];
+      p.el.style.setProperty('--litc', ok ? (p.color || G) : '#ff5d7e');
+      if (ok) p.el.classList.add('lit');
+    }
+  }
+  if (res.win) setTimeout(() => winEl.classList.add('show'), 260);
+  else winEl.classList.remove('show');
+}
+
+/* ===================== interaction: drag to move, click to rotate ===================== */
+// Window-level move/up listeners for the drag's lifetime — robust across DOM
+// reparenting and headless (pointer capture is unreliable for both).
+function attachPointer(el, p) {
+  el.addEventListener('pointerdown', e => {
+    if (!p.movable && !p.rotatable) return;
+    e.preventDefault();
+    const sx = e.clientX, sy = e.clientY;
+    const r = el.getBoundingClientRect();
+    const ox = e.clientX - r.left, oy = e.clientY - r.top;
+    let dragging = false;
+    const move = ev => {
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
+      if (!p.movable) return;
+      if (!dragging) { dragging = true; el.classList.add('dragging'); tableEl.appendChild(el); }
+      const tr = tableEl.getBoundingClientRect();
+      el.style.left = (ev.clientX - tr.left - ox) + 'px';
+      el.style.top = (ev.clientY - tr.top - oy) + 'px';
+    };
+    const up = ev => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (dragging) { el.classList.remove('dragging'); dropPhone(p, ev.clientX, ev.clientY); }
+      else if (p.rotatable) { p.rot = (p.rot + 1) & 3; render(); }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+}
+
+function dropPhone(p, clientX, clientY) {
+  // nearest table slot under cursor
+  const tr = tableEl.getBoundingClientRect();
+  const localX = clientX - tr.left, localY = clientY - tr.top;
+  let target = null;
+  if (localX >= -SLOT * 0.5 && localX <= cols * SLOT + SLOT * 0.5 && localY >= -SLOT * 0.5 && localY <= rows * SLOT + SLOT * 0.5) {
+    const gx = Math.max(0, Math.min(cols - 1, Math.floor(localX / SLOT)));
+    const gy = Math.max(0, Math.min(rows - 1, Math.floor(localY / SLOT)));
+    target = { kind: 'table', x: gx, y: gy };
+  } else {
+    // dropped over tray?
+    const trayR = trayEl.getBoundingClientRect();
+    if (!trayEl.hidden && clientY >= trayR.top && clientY <= trayR.bottom) target = { kind: 'tray' };
+  }
+  if (!target) { render(); return; }  // snap back
+  if (target.kind === 'table') {
+    const occ = phones.find(q => q !== p && q.loc.kind === 'table' && q.loc.x === target.x && q.loc.y === target.y);
+    if (occ) {
+      if (!occ.movable) { render(); return; }
+      occ.loc = { ...p.loc };            // swap
+    }
+    p.loc = { kind: 'table', x: target.x, y: target.y };
+  } else {
+    p.loc = { kind: 'tray', i: null };
+  }
+  render();
+}
+
+/* ===================== controls ===================== */
+document.getElementById('prev').onclick = () => loadPuzzle(pzIndex - 1);
+document.getElementById('next').onclick = () => loadPuzzle(pzIndex + 1);
+document.getElementById('winnext').onclick = () => loadPuzzle(pzIndex + 1);
+document.getElementById('reset').onclick = () => loadPuzzle(pzIndex);
+document.getElementById('peek').onclick = () => loadPuzzle(pzIndex, true);
+picker.onchange = e => loadPuzzle(+e.target.value);
+
+// legend chips
+for (const t of ['source', 'receiver', 'corner', 'straight', 'mirror', 'splitter']) {
+  document.getElementById('lg-' + t).innerHTML = glyph(t, t === 'source' ? E : 0, t === 'source' ? G : t === 'receiver' ? G : null);
+}
+
+loadPuzzle(0);
+</script>

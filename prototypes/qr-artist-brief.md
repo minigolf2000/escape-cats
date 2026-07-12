@@ -57,6 +57,16 @@ resolution — our tabby engraving test reduced to an unreadable mass.
   (our Hex poster's ears and whiskers) — free detail, no constraints.
 - Slight asymmetry and wobble are assets: they hide our error pixels.
 
+## Worked examples to copy
+
+`hexxygon-cats-sheet.png` shows two cat heads drawn exactly to this brief
+(sleepy linocut + alert pictogram, three flat inks on the template grid) and
+the codes they became — 98.3% pixel match each, linking to
+`https://hexxygon.com/mouse`. The finished codes are
+`hexxygon-cat-sleepy.png` / `hexxygon-cat-alert.png`. Note what survives:
+closed-eye curves, 1-cell whiskers, pupils, inner-ear notches. This is the
+fidelity an artist can expect from art that follows the rules above.
+
 ## Deliverable
 
 - Use `qr-art-template.svg` (the 41×41 grid with reserved cells marked).

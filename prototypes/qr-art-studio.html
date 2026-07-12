@@ -1,0 +1,2429 @@
+<!-- Escape Cats prototype: QR Art Studio.
+     Self-contained (engine inlined below) — zero dependencies, zero build.
+     Wrapper tags intentionally omitted: the artifact host injects its own
+     document skeleton; browsers render the file fine standalone. -->
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QR Art Studio</title>
+<style>
+  :root {
+    --ink: #0e1116;
+    --panel: #151b23;
+    --panel-2: #1a212b;
+    --line: #2a3240;
+    --text: #e8edf4;
+    --dim: #8b96a5;
+    --faint: #5c6675;
+    --accent: #e63946;
+    --accent-soft: rgba(230, 57, 70, 0.14);
+    --ok: #3fb27f;
+    --warn: #e0a83c;
+    --bad: #e05252;
+    --paper: #ffffff;   /* QR surfaces stay light in both themes */
+    --paper-line: #d8dde4;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: "Avenir Next", Avenir, Futura, "Segoe UI", system-ui, sans-serif;
+  }
+  :root[data-theme="light"] {
+    --ink: #eef0f3;
+    --panel: #f7f8fa;
+    --panel-2: #ffffff;
+    --line: #d5dae2;
+    --text: #1a2028;
+    --dim: #5c6675;
+    --faint: #98a1ad;
+    --accent-soft: rgba(230, 57, 70, 0.1);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --ink: #eef0f3;
+      --panel: #f7f8fa;
+      --panel-2: #ffffff;
+      --line: #d5dae2;
+      --text: #1a2028;
+      --dim: #5c6675;
+      --faint: #98a1ad;
+      --accent-soft: rgba(230, 57, 70, 0.1);
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.45;
+    padding: 14px clamp(10px, 2vw, 26px) 40px;
+  }
+  h1, h2 { margin: 0; text-wrap: balance; }
+  .masthead {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 4px 2px 14px;
+  }
+  .masthead h1 { font-size: 21px; font-weight: 600; letter-spacing: 0.02em; }
+  .masthead h1 .dot { color: var(--accent); }
+  .masthead .tag { color: var(--dim); font-size: 13px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    color: var(--faint);
+    text-transform: uppercase;
+  }
+  .workbench {
+    display: grid;
+    grid-template-columns: minmax(300px, 5fr) minmax(330px, 6fr) minmax(280px, 4fr);
+    gap: 12px;
+    align-items: start;
+  }
+  @media (max-width: 1080px) { .workbench { grid-template-columns: 1fr 1fr; } .col-c { grid-column: span 2; } }
+  @media (max-width: 720px) { .workbench { grid-template-columns: 1fr; } .col-c { grid-column: span 1; } }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .panel-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .panel-title h2 {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-weight: 600;
+  }
+  .panel-title .hint { font-size: 11.5px; color: var(--faint); }
+  .board {
+    background: var(--paper);
+    border: 1px solid var(--paper-line);
+    border-radius: 6px;
+    padding: 8px;
+    align-self: center;
+  }
+  canvas { display: block; image-rendering: pixelated; touch-action: none; }
+  .toolrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .toolrow .spacer { flex: 1; }
+  button, select, input[type="text"], input[type="number"] {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 10px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--dim); }
+  button:focus-visible, select:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    padding: 8px 18px;
+  }
+  button.primary:disabled { opacity: 0.6; cursor: wait; }
+  label.ctl { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--dim); }
+  label.ctl > select, label.ctl > input { width: 130px; }
+  label.chk { display: flex; gap: 7px; align-items: center; font-size: 12.5px; color: var(--dim); cursor: pointer; }
+  input[type="range"] { accent-color: var(--accent); width: 130px; }
+  input[type="checkbox"] { accent-color: var(--accent); }
+  .urlrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .urlrow input[type="text"] { flex: 1; min-width: 240px; padding: 8px 10px; }
+  .pill {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid;
+  }
+  .pill.ok { color: var(--ok); border-color: var(--ok); background: rgba(63, 178, 127, 0.12); }
+  .pill.warn { color: var(--warn); border-color: var(--warn); background: rgba(224, 168, 60, 0.12); }
+  .pill.bad { color: var(--bad); border-color: var(--bad); background: rgba(224, 82, 82, 0.12); }
+  .decoded {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--dim);
+    word-break: break-all;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 8px;
+  }
+  .meter { display: flex; flex-direction: column; gap: 7px; }
+  .meter .blockrow { display: grid; grid-template-columns: 52px 1fr 58px; gap: 8px; align-items: center; }
+  .meter .lbl, .meter .num { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .meter .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .meter .bar { display: flex; gap: 2px; height: 12px; }
+  .meter .seg { flex: 1; border-radius: 2px; background: var(--line); position: relative; }
+  .meter .seg.used { background: var(--warn); }
+  .meter .seg.hot { background: var(--bad); }
+  .meter .seg.cap { box-shadow: inset 0 0 0 1px var(--faint); }
+  .statline { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--faint); }
+  .legend .key { display: inline-flex; align-items: center; gap: 5px; }
+  .legend .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  details.about { color: var(--dim); font-size: 12.5px; max-width: 68ch; }
+  details.about summary { cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+  details.about p { margin: 8px 0; }
+  details.about code { font-family: var(--mono); font-size: 11px; color: var(--text); }
+  .dropzone.drag { outline: 2px dashed var(--accent); outline-offset: -4px; }
+  .footer { margin-top: 18px; color: var(--faint); font-size: 11.5px; font-family: var(--mono); }
+  @media (prefers-reduced-motion: no-preference) {
+    .pill { transition: background 0.2s, color 0.2s, border-color 0.2s; }
+  }
+</style>
+
+<header class="masthead">
+  <span class="eyebrow">Escape Cats · Prototype</span>
+  <h1>QR Art Studio<span class="dot">●</span></h1>
+  <span class="tag">design-QR workbench — the pixels are the art</span>
+</header>
+
+<div class="urlrow">
+  <input id="url" type="text" spellcheck="false" value="https://github.com/minigolf2000/cat-games" aria-label="Payload URL" />
+  <label class="ctl">v <select id="version"></select></label>
+  <label class="ctl">EC <select id="level">
+    <option value="L" selected>L 7%</option><option value="M">M 15%</option>
+    <option value="Q">Q 25%</option><option value="H">H 30%</option>
+  </select></label>
+  <button id="generate" class="primary">Generate</button>
+  <span id="pill" class="pill warn">—</span>
+</div>
+
+<div class="workbench">
+  <section class="panel col-a" id="targetPanel">
+    <div class="panel-title"><h2>Target</h2><span class="hint">paint what the pixels should become</span></div>
+    <div class="board dropzone" id="targetBoard"><canvas id="targetCanvas" aria-label="Target design canvas"></canvas></div>
+    <div class="toolrow" role="toolbar" aria-label="Brushes">
+      <button id="b-black" class="on" title="paint controlled black">⬛ black</button>
+      <button id="b-white" title="paint controlled white">⬜ white</button>
+      <button id="b-noise" title="release to noise — the free gray tone">▦ noise</button>
+      <button id="b-boost" title="raise priority of existing pixels">▲ priority</button>
+      <span class="spacer"></span>
+      <label class="ctl">size <select id="brushSize"><option>1</option><option selected>2</option><option>3</option></select></label>
+    </div>
+    <div class="toolrow">
+      <button id="p-cat">🐈‍⬛ cat</button>
+      <button id="p-face">🐱 face (poster)</button>
+      <button id="p-ink">🖤 ink cat</button>
+      <button id="p-tabby">🐯 tabby</button>
+      <button id="p-disc">● disc</button>
+      <button id="p-clear">clear to noise</button>
+      <span class="spacer"></span>
+      <button id="p-upload">upload image…</button>
+      <input id="file" type="file" accept="image/*" hidden />
+    </div>
+    <div class="toolrow" id="threshRow" hidden>
+      <label class="ctl">black ≤ <input id="tDark" type="range" min="0" max="255" value="110" /></label>
+      <label class="ctl">white ≥ <input id="tLight" type="range" min="0" max="255" value="150" /></label>
+      <label class="chk"><input id="tInvert" type="checkbox" /> invert</label>
+      <label class="ctl" title="solid shape: one silhouette + halo (photos, logos). line art: black/white strokes kept, hatched midtones become free noise, whisker-thin strokes rescued (ink drawings, engravings)">mode <select id="tMode">
+        <option value="solid" selected>solid shape</option>
+        <option value="lineart">line art</option>
+      </select></label>
+    </div>
+    <div class="legend">
+      <span class="key"><span class="sw" style="background:#111"></span>black target</span>
+      <span class="key"><span class="sw" style="background:#fff;border:1px solid var(--line)"></span>white target</span>
+      <span class="key"><span class="sw" style="background:repeating-conic-gradient(#9aa 0 25%,#dde 0 50%) 0 0/6px 6px"></span>noise (free)</span>
+      <span class="key"><span class="sw" style="background:var(--faint)"></span>function pattern (locked)</span>
+    </div>
+  </section>
+
+  <section class="panel col-b" id="resultPanel">
+    <div class="panel-title"><h2>Code</h2><span class="hint" id="resHint">click a module to hand-edit · shift-click clears</span></div>
+    <div class="board"><canvas id="qrCanvas" aria-label="Generated QR code"></canvas></div>
+    <div class="toolrow">
+      <label class="chk"><input id="ovMiss" type="checkbox" checked /> misses</label>
+      <label class="chk"><input id="ovFlip" type="checkbox" /> spent flips</label>
+      <label class="chk"><input id="ovEdit" type="checkbox" checked /> edits</label>
+      <label class="chk"><input id="ovGrid" type="checkbox" /> grid</label>
+      <span class="spacer"></span>
+      <button id="resolve" title="re-run the solver treating your edits as must-keep pixels">re-solve with edits</button>
+      <button id="clearEdits">clear edits</button>
+    </div>
+    <div class="decoded" id="decoded">—</div>
+    <div class="statline" id="cwInfo">hover a module to see its codeword — flips are priced per codeword, not per pixel</div>
+  </section>
+
+  <aside class="panel col-c" id="controls">
+    <div class="panel-title"><h2>Solver</h2><span class="hint" id="freedomHint"></span></div>
+    <label class="ctl">flip budget <input id="margin" type="range" min="0" max="100" value="50" /></label>
+    <label class="ctl">hard cap <input id="marginCap" type="range" min="0" max="100" value="80" /></label>
+    <label class="ctl">URL case play <select id="urlCase">
+      <option value="none">off</option>
+      <option value="schemehost" selected>scheme+host (safe)</option>
+      <option value="all">whole URL (check your server!)</option>
+    </select></label>
+    <label class="ctl"># fragment chars <input id="fragmentLen" type="number" min="0" max="40" value="0" /></label>
+    <label class="ctl">restarts <input id="seeds" type="number" min="1" max="64" value="16" /></label>
+    <label class="ctl">mask <select id="mask">
+      <option value="">auto (best of 8)</option>
+      <option>0</option><option>1</option><option>2</option><option>3</option>
+      <option>4</option><option>5</option><option>6</option><option>7</option>
+    </select></label>
+
+    <div class="panel-title"><h2>Error budget</h2><span class="hint">Reed-Solomon spend per block</span></div>
+    <div class="meter" id="meter"></div>
+    <div class="statline" id="matchStat">—</div>
+
+    <div class="panel-title"><h2>Export</h2><span class="hint"></span></div>
+    <div class="toolrow">
+      <label class="ctl">px/module <select id="exScale"><option>8</option><option selected>16</option><option>32</option></select></label>
+      <button id="exPng">PNG</button>
+      <button id="exSvg">SVG</button>
+    </div>
+
+    <details class="about">
+      <summary>How this works</summary>
+      <p>A QR code's pixels are one long codeword stream: your URL, then free
+      padding bytes, then Reed-Solomon check bytes derived from both. The
+      solver treats every padding bit (and, optionally, URL letter-case bits —
+      scheme and host are case-insensitive per RFC 3986) as a variable, and
+      pins your highest-priority pixels exactly by Gauss-Jordan elimination
+      over GF(2) — the QArt trick.</p>
+      <p>What the solver can't reach, the <em>flip budget</em> buys: modules
+      deliberately set wrong, grouped per codeword (a codeword is a 2×4-ish
+      blob — one flip pays for up to 8 pixels), spending at most the budget
+      slider's share of each block's correction capacity. The meter shows
+      exactly how much scanner headroom remains — that's your "will it still
+      scan" gauge. Noise cells cost nothing: uncontrolled entropy reads as a
+      mid-gray tone, so good designs use three tones, not two.</p>
+      <p>The decode check is a real one — format info, unmasking,
+      de-interleaving and Berlekamp-Massey error correction — the same
+      pipeline a scanner runs (engine verified against qrcode-generator and
+      jsQR). Still: scan a print with a couple of phones before shipping a
+      poster.</p>
+    </details>
+  </aside>
+</div>
+
+<p class="footer">escape cats · prototypes/qr-art-studio.html · engine: from-scratch QR encoder + RS decoder, versions 1–10, byte mode</p>
+<script>
+/*
+ * QR Art engine — from-scratch QR encoder + Reed-Solomon decoder + art optimizer.
+ *
+ * Supports QR versions 1-10 (21x21 .. 57x57 modules), byte-mode payloads.
+ * Three sources of artistic freedom, layered:
+ *   1. Free bytes: pad codewords after the terminator (ignored by every real
+ *      decoder) and/or an optional URL #fragment restricted to URL-safe chars.
+ *      A coordinate-descent solver picks their values so data AND the derived
+ *      error-correction modules match a target image (QArt-style linearity).
+ *   2. Mask search: all 8 masks scored against the target, best wins.
+ *   3. Error-budget flips: deliberately wrong modules, grouped per codeword,
+ *      spending at most `margin` of each block's Reed-Solomon correction
+ *      capacity, so the code still decodes with headroom to spare.
+ *
+ * Everything is verified by an independent decode path (validate) that reads
+ * format info, unmasks, deinterleaves and runs Berlekamp-Massey correction,
+ * reporting errors used per block — the "will it still scan" meter.
+ */
+(function (root, factory) {
+  if (typeof module === "object" && module.exports) module.exports = factory();
+  else root.QRArt = factory();
+})(typeof self !== "undefined" ? self : this, function () {
+  "use strict";
+
+  // ---------------- GF(256), polynomial 0x11D ----------------
+  const EXP = new Uint8Array(512);
+  const LOG = new Uint8Array(256);
+  (function () {
+    let x = 1;
+    for (let i = 0; i < 255; i++) {
+      EXP[i] = x;
+      LOG[x] = i;
+      x <<= 1;
+      if (x & 0x100) x ^= 0x11d;
+    }
+    for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  })();
+  function gmul(a, b) {
+    if (a === 0 || b === 0) return 0;
+    return EXP[LOG[a] + LOG[b]];
+  }
+  function ginv(a) {
+    return EXP[255 - LOG[a]];
+  }
+
+  const GEN_CACHE = {};
+  function genPoly(n) {
+    if (GEN_CACHE[n]) return GEN_CACHE[n];
+    let g = [1];
+    for (let i = 0; i < n; i++) {
+      const a = EXP[i];
+      const ng = new Array(g.length + 1).fill(0);
+      for (let j = 0; j < g.length; j++) {
+        ng[j] ^= g[j];
+        ng[j + 1] ^= gmul(g[j], a);
+      }
+      g = ng;
+    }
+    GEN_CACHE[n] = g;
+    return g;
+  }
+
+  // data: Uint8Array -> Uint8Array(ecLen) of RS check bytes
+  function rsEncode(data, ecLen) {
+    const gen = genPoly(ecLen);
+    const res = new Uint8Array(data.length + ecLen);
+    res.set(data);
+    for (let i = 0; i < data.length; i++) {
+      const f = res[i];
+      if (f === 0) continue;
+      const lf = LOG[f];
+      for (let j = 1; j <= ecLen; j++) {
+        if (gen[j] !== 0) res[i + j] ^= EXP[LOG[gen[j]] + lf];
+      }
+    }
+    return res.slice(data.length);
+  }
+
+  // Correct cw (data+ec bytes) in place. Returns {errors} or null if
+  // uncorrectable. Standard QR RS: roots alpha^0 .. alpha^(ecLen-1).
+  function rsCorrect(cw, ecLen) {
+    const n = cw.length;
+    const synd = new Array(ecLen);
+    let allZero = true;
+    for (let i = 0; i < ecLen; i++) {
+      let s = 0;
+      const a = EXP[i];
+      for (let j = 0; j < n; j++) s = gmul(s, a) ^ cw[j];
+      synd[i] = s;
+      if (s) allZero = false;
+    }
+    if (allZero) return { errors: 0 };
+
+    // Berlekamp-Massey
+    let C = new Uint8Array(ecLen + 1);
+    let B = new Uint8Array(ecLen + 1);
+    C[0] = 1;
+    B[0] = 1;
+    let L = 0, m = 1, b = 1;
+    for (let i = 0; i < ecLen; i++) {
+      let d = synd[i];
+      for (let j = 1; j <= L; j++) d ^= gmul(C[j], synd[i - j]);
+      if (d === 0) {
+        m++;
+      } else if (2 * L <= i) {
+        const T = C.slice();
+        const coef = gmul(d, ginv(b));
+        for (let j = 0; j + m <= ecLen; j++) C[j + m] ^= gmul(coef, B[j]);
+        L = i + 1 - L;
+        B = T;
+        b = d;
+        m = 1;
+      } else {
+        const coef = gmul(d, ginv(b));
+        for (let j = 0; j + m <= ecLen; j++) C[j + m] ^= gmul(coef, B[j]);
+        m++;
+      }
+    }
+    if (L > ecLen >> 1) return null;
+
+    // Chien search over valid degrees
+    const positions = []; // degree of erroneous term
+    for (let deg = 0; deg < n; deg++) {
+      const xinv = EXP[(255 - (deg % 255)) % 255]; // (alpha^deg)^-1
+      let s = 0;
+      let xp = 1;
+      for (let j = 0; j <= L; j++) {
+        s ^= gmul(C[j], xp);
+        xp = gmul(xp, xinv);
+      }
+      if (s === 0) positions.push(deg);
+    }
+    if (positions.length !== L) return null;
+
+    // Forney: omega = (synd * C) mod x^ecLen
+    const omega = new Uint8Array(ecLen);
+    for (let i = 0; i < ecLen; i++) {
+      let s = 0;
+      for (let j = 0; j <= Math.min(i, L); j++) s ^= gmul(C[j], synd[i - j]);
+      omega[i] = s;
+    }
+    for (const deg of positions) {
+      const x = EXP[deg % 255];
+      const xinv = ginv(x);
+      let num = 0, xp = 1;
+      for (let i = 0; i < ecLen; i++) {
+        num ^= gmul(omega[i], xp);
+        xp = gmul(xp, xinv);
+      }
+      // sigma'(x^-1): odd-degree terms
+      let den = 0;
+      xp = 1; // xinv^0
+      for (let j = 1; j <= L; j += 2) {
+        den ^= gmul(C[j], xp);
+        xp = gmul(xp, gmul(xinv, xinv));
+      }
+      if (den === 0) return null;
+      const mag = gmul(x, gmul(num, ginv(den)));
+      const idx = n - 1 - deg;
+      if (idx < 0 || idx >= n) return null;
+      cw[idx] ^= mag;
+    }
+    // verify
+    for (let i = 0; i < ecLen; i++) {
+      let s = 0;
+      const a = EXP[i];
+      for (let j = 0; j < n; j++) s = gmul(s, a) ^ cw[j];
+      if (s !== 0) return null;
+    }
+    return { errors: L };
+  }
+
+  // ---------------- Tables (versions 1-10) ----------------
+  // [numBlocks, totalCodewords, dataCodewords] groups, ISO/IEC 18004.
+  const EC_BLOCKS = {
+    1: { L: [[1, 26, 19]], M: [[1, 26, 16]], Q: [[1, 26, 13]], H: [[1, 26, 9]] },
+    2: { L: [[1, 44, 34]], M: [[1, 44, 28]], Q: [[1, 44, 22]], H: [[1, 44, 16]] },
+    3: { L: [[1, 70, 55]], M: [[1, 70, 44]], Q: [[2, 35, 17]], H: [[2, 35, 13]] },
+    4: { L: [[1, 100, 80]], M: [[2, 50, 32]], Q: [[2, 50, 24]], H: [[4, 25, 9]] },
+    5: { L: [[1, 134, 108]], M: [[2, 67, 43]], Q: [[2, 33, 15], [2, 34, 16]], H: [[2, 33, 11], [2, 34, 12]] },
+    6: { L: [[2, 86, 68]], M: [[4, 43, 27]], Q: [[4, 43, 19]], H: [[4, 43, 15]] },
+    7: { L: [[2, 98, 78]], M: [[4, 49, 31]], Q: [[2, 32, 14], [4, 33, 15]], H: [[4, 39, 13], [1, 40, 14]] },
+    8: { L: [[2, 121, 97]], M: [[2, 60, 38], [2, 61, 39]], Q: [[4, 40, 18], [2, 41, 19]], H: [[4, 40, 14], [2, 41, 15]] },
+    9: { L: [[2, 146, 116]], M: [[3, 58, 36], [2, 59, 37]], Q: [[4, 36, 16], [4, 37, 17]], H: [[4, 36, 12], [4, 37, 13]] },
+    10: { L: [[2, 86, 68], [2, 87, 69]], M: [[4, 69, 43], [1, 70, 44]], Q: [[6, 43, 19], [2, 44, 20]], H: [[6, 43, 15], [2, 44, 16]] },
+  };
+  const ALIGN = {
+    1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30],
+    6: [6, 34], 7: [6, 22, 38], 8: [6, 24, 42], 9: [6, 26, 46], 10: [6, 28, 50],
+  };
+  const REMAINDER_BITS = { 1: 0, 2: 7, 3: 7, 4: 7, 5: 7, 6: 7, 7: 0, 8: 0, 9: 0, 10: 0 };
+  const LEVELS = ["L", "M", "Q", "H"];
+  const LEVEL_BITS = { L: 1, M: 0, Q: 3, H: 2 };
+
+  function sizeOf(version) {
+    return 17 + 4 * version;
+  }
+
+  // ---------------- Masks ----------------
+  const MASKS = [
+    (r, c) => (r + c) % 2 === 0,
+    (r, c) => r % 2 === 0,
+    (r, c) => c % 3 === 0,
+    (r, c) => (r + c) % 3 === 0,
+    (r, c) => (((r / 2) | 0) + ((c / 3) | 0)) % 2 === 0,
+    (r, c) => ((r * c) % 2) + ((r * c) % 3) === 0,
+    (r, c) => (((r * c) % 2) + ((r * c) % 3)) % 2 === 0,
+    (r, c) => (((r * c) % 3) + ((r + c) % 2)) % 2 === 0,
+  ];
+
+  // ---------------- BCH format / version info ----------------
+  function bchDigit(d) {
+    let digit = 0;
+    while (d !== 0) {
+      digit++;
+      d >>>= 1;
+    }
+    return digit;
+  }
+  const G15 = 0x537, G15_MASK = 0x5412, G18 = 0x1f25;
+  function bchTypeInfo(data) {
+    let d = data << 10;
+    while (bchDigit(d) - bchDigit(G15) >= 0) d ^= G15 << (bchDigit(d) - bchDigit(G15));
+    return ((data << 10) | d) ^ G15_MASK;
+  }
+  function bchVersion(data) {
+    let d = data << 12;
+    while (bchDigit(d) - bchDigit(G18) >= 0) d ^= G18 << (bchDigit(d) - bchDigit(G18));
+    return (data << 12) | d;
+  }
+
+  // ---------------- Function patterns & layout ----------------
+  // Returns {size, func, base}: func[i]=1 where module is reserved (finders,
+  // separators, timing, alignment, format, version, dark module); base holds
+  // the dark/light value of those reserved modules (format filled per-mask
+  // later via placeFormat).
+  function functionPatterns(version) {
+    const size = sizeOf(version);
+    const func = new Uint8Array(size * size);
+    const base = new Uint8Array(size * size);
+    const set = (r, c, dark) => {
+      func[r * size + c] = 1;
+      base[r * size + c] = dark ? 1 : 0;
+    };
+    // finders + separators
+    const finder = (fr, fc) => {
+      for (let r = -1; r <= 7; r++) {
+        for (let c = -1; c <= 7; c++) {
+          const rr = fr + r, cc = fc + c;
+          if (rr < 0 || rr >= size || cc < 0 || cc >= size) continue;
+          const inRing = r >= 0 && r <= 6 && c >= 0 && c <= 6 &&
+            (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4));
+          set(rr, cc, inRing);
+        }
+      }
+    };
+    finder(0, 0);
+    finder(0, size - 7);
+    finder(size - 7, 0);
+    // alignment (before timing: some centers sit ON the timing lines and
+    // must still be drawn; skip only finder-overlapping centers)
+    const pos = ALIGN[version];
+    for (const r of pos) {
+      for (const c of pos) {
+        if (func[r * size + c]) continue; // overlaps finder area
+        for (let dr = -2; dr <= 2; dr++) {
+          for (let dc = -2; dc <= 2; dc++) {
+            set(r + dr, c + dc, Math.max(Math.abs(dr), Math.abs(dc)) !== 1);
+          }
+        }
+      }
+    }
+    // timing
+    for (let i = 8; i < size - 8; i++) {
+      if (!func[6 * size + i]) set(6, i, i % 2 === 0);
+      if (!func[i * size + 6]) set(i, 6, i % 2 === 0);
+    }
+    // format info areas (values set later) + dark module
+    for (let i = 0; i < 9; i++) {
+      if (i !== 6) {
+        if (!func[8 * size + i]) set(8, i, 0);
+        if (!func[i * size + 8]) set(i, 8, 0);
+      }
+    }
+    for (let i = 0; i < 8; i++) {
+      if (!func[8 * size + (size - 1 - i)]) set(8, size - 1 - i, 0);
+      if (!func[(size - 1 - i) * size + 8]) set(size - 1 - i, 8, 0);
+    }
+    set(size - 8, 8, 1); // dark module
+    // version info (v >= 7)
+    if (version >= 7) {
+      const bits = bchVersion(version);
+      for (let i = 0; i < 18; i++) {
+        const mod = ((bits >> i) & 1) === 1;
+        set((i / 3) | 0, (i % 3) + size - 11, mod);
+        set((i % 3) + size - 11, (i / 3) | 0, mod);
+      }
+    }
+    return { size, func, base };
+  }
+
+  // Write the 15 format bits for (level, mask) into matrix.
+  function placeFormat(matrix, size, level, mask) {
+    const bits = bchTypeInfo((LEVEL_BITS[level] << 3) | mask);
+    for (let i = 0; i < 15; i++) {
+      const mod = ((bits >> i) & 1) === 1 ? 1 : 0;
+      // vertical copy (col 8)
+      if (i < 6) matrix[i * size + 8] = mod;
+      else if (i < 8) matrix[(i + 1) * size + 8] = mod;
+      else matrix[(size - 15 + i) * size + 8] = mod;
+      // horizontal copy (row 8)
+      if (i < 8) matrix[8 * size + (size - 1 - i)] = mod;
+      else if (i < 9) matrix[8 * size + (15 - i - 1 + 1)] = mod;
+      else matrix[8 * size + (15 - i - 1)] = mod;
+    }
+    matrix[(size - 8) * size + 8] = 1;
+  }
+
+  // Positions of format modules (to lock them in editors).
+  function formatModuleIndices(size) {
+    const idx = new Set();
+    for (let i = 0; i < 15; i++) {
+      if (i < 6) idx.add(i * size + 8);
+      else if (i < 8) idx.add((i + 1) * size + 8);
+      else idx.add((size - 15 + i) * size + 8);
+      if (i < 8) idx.add(8 * size + (size - 1 - i));
+      else if (i < 9) idx.add(8 * size + (15 - i - 1 + 1));
+      else idx.add(8 * size + (15 - i - 1));
+    }
+    idx.add((size - 8) * size + 8);
+    return idx;
+  }
+
+  // ---------------- Interleave + placement metadata ----------------
+  function layout(version, level) {
+    const size = sizeOf(version);
+    const groups = EC_BLOCKS[version][level];
+    const blocks = [];
+    for (const [count, total, data] of groups) {
+      for (let i = 0; i < count; i++) blocks.push({ dataLen: data, ecLen: total - data, total });
+    }
+    const totalData = blocks.reduce((s, b) => s + b.dataLen, 0);
+    const totalCw = blocks.reduce((s, b) => s + b.total, 0);
+    const maxData = Math.max(...blocks.map((b) => b.dataLen));
+    const maxEc = Math.max(...blocks.map((b) => b.ecLen));
+
+    // interleaved codeword order -> {block, index, isEC}
+    const inter = [];
+    for (let i = 0; i < maxData; i++) {
+      for (let b = 0; b < blocks.length; b++) {
+        if (i < blocks[b].dataLen) inter.push({ block: b, index: i, isEC: false });
+      }
+    }
+    for (let i = 0; i < maxEc; i++) {
+      for (let b = 0; b < blocks.length; b++) {
+        if (i < blocks[b].ecLen) inter.push({ block: b, index: i, isEC: true });
+      }
+    }
+    // sequential data byte index -> interleaved codeword index
+    const seqToInter = new Int32Array(totalData);
+    // (block, ecIndex) -> interleaved codeword index
+    const ecToInter = blocks.map(() => new Int32Array(maxEc).fill(-1));
+    {
+      const starts = [];
+      let acc = 0;
+      for (const b of blocks) {
+        starts.push(acc);
+        acc += b.dataLen;
+      }
+      inter.forEach((cw, ci) => {
+        if (cw.isEC) ecToInter[cw.block][cw.index] = ci;
+        else seqToInter[starts[cw.block] + cw.index] = ci;
+      });
+    }
+
+    // zigzag placement: stream bit i -> module index
+    const fp = functionPatterns(version);
+    const totalBits = totalCw * 8 + REMAINDER_BITS[version];
+    const bitToModule = new Int32Array(totalBits).fill(-1);
+    const moduleToBit = new Int32Array(size * size).fill(-1);
+    {
+      let inc = -1, row = size - 1, bit = 0;
+      for (let col = size - 1; col > 0; col -= 2) {
+        if (col === 6) col -= 1;
+        for (;;) {
+          for (let c = 0; c < 2; c++) {
+            const cc = col - c;
+            if (!fp.func[row * size + cc]) {
+              if (bit < totalBits) {
+                bitToModule[bit] = row * size + cc;
+                moduleToBit[row * size + cc] = bit;
+              }
+              bit++;
+            }
+          }
+          row += inc;
+          if (row < 0 || row >= size) {
+            row -= inc;
+            inc = -inc;
+            break;
+          }
+        }
+      }
+    }
+    return {
+      version, level, size, blocks, totalData, totalCw,
+      inter, seqToInter, ecToInter, bitToModule, moduleToBit,
+      func: fp.func, base: fp.base,
+      remainderBits: REMAINDER_BITS[version],
+      formatModules: formatModuleIndices(size),
+    };
+  }
+
+  // ---------------- Payload building ----------------
+  function textToBytes(text) {
+    if (typeof TextEncoder !== "undefined") return new TextEncoder().encode(text);
+    return Uint8Array.from(Buffer.from(text, "utf8"));
+  }
+  function bytesToText(bytes) {
+    if (typeof TextDecoder !== "undefined") return new TextDecoder().decode(Uint8Array.from(bytes));
+    return Buffer.from(bytes).toString("utf8");
+  }
+
+  const FRAGMENT_ALPHABET = (() => {
+    let s = "";
+    for (let c = 65; c <= 90; c++) s += String.fromCharCode(c);
+    for (let c = 97; c <= 122; c++) s += String.fromCharCode(c);
+    for (let c = 48; c <= 57; c++) s += String.fromCharCode(c);
+    return s + "-._~";
+  })();
+
+  // Build the sequential data-codeword stream for `text` (byte mode), plus a
+  // freedom map: freedom[i] = 0 fixed | 1 free pad byte (any value) |
+  // 2 fragment char (FRAGMENT_ALPHABET). fragmentLen chars of text tail are
+  // marked free when markFragment is set (they must already be in text).
+  function buildData(text, version, level, opts = {}) {
+    const { fragmentLen = 0 } = opts;
+    const lay = layout(version, level);
+    const bytes = textToBytes(text);
+    const countBits = version < 10 ? 8 : 16;
+    const bitLen = 4 + countBits + bytes.length * 8;
+    const capacityBits = lay.totalData * 8;
+    if (bitLen + 4 > capacityBits) {
+      throw new Error(
+        `payload too long for v${version}-${level}: need ${Math.ceil((bitLen + 4) / 8)} of ${lay.totalData} data bytes`
+      );
+    }
+    const buf = new Uint8Array(lay.totalData);
+    const freedom = new Uint8Array(lay.totalData);
+    let bp = 0;
+    const putBits = (val, n) => {
+      for (let i = n - 1; i >= 0; i--) {
+        if ((val >> i) & 1) buf[bp >> 3] |= 0x80 >> (bp & 7);
+        bp++;
+      }
+    };
+    putBits(0b0100, 4);
+    putBits(bytes.length, countBits);
+    const fragStartByte = [];
+    for (let i = 0; i < bytes.length; i++) {
+      if (fragmentLen > 0 && i >= bytes.length - fragmentLen) fragStartByte.push(bp >> 3);
+      putBits(bytes[i], 8);
+    }
+    putBits(0, Math.min(4, capacityBits - bp)); // terminator
+    // header is byte-aligned after 4+8(+8) bits + terminator? Only if bp % 8 == 0.
+    // Byte mode with countBits=8: 4+8+8k+4 = 8k+16 — always aligned. countBits=16: also aligned.
+    if (bp % 8 !== 0) bp += 8 - (bp % 8); // zero bit padding (buf already 0)
+    const firstPad = bp >> 3;
+    for (let i = firstPad, alt = 0; i < lay.totalData; i++, alt ^= 1) {
+      buf[i] = alt === 0 ? 0xec : 0x11;
+      freedom[i] = 1;
+    }
+    // fragment chars are whole bytes only when countBits keeps them aligned —
+    // true for byte mode (header 12 or 20 bits => bytes start mid-bit)…
+    // Actually bytes start at bit 12 (v<10): NOT byte-aligned. Fragment bytes
+    // straddle codeword boundaries; handled at the bit level by the solver.
+    return { lay, bytes: buf, freedom, headerBits: 4 + countBits, textLen: bytes.length, fragmentLen };
+  }
+
+  // ---------------- Encoding ----------------
+  // data: sequential data codewords (Uint8Array totalData) -> final matrix.
+  function encodeFromData(lay, data, mask, level) {
+    const { size, blocks } = lay;
+    // split + RS per block
+    const cw = new Uint8Array(lay.totalCw);
+    {
+      let off = 0;
+      const dataArrs = [];
+      for (const b of blocks) {
+        dataArrs.push(data.slice(off, off + b.dataLen));
+        off += b.dataLen;
+      }
+      const ecArrs = dataArrs.map((d, i) => rsEncode(d, blocks[i].ecLen));
+      lay.inter.forEach((c, ci) => {
+        cw[ci] = c.isEC ? ecArrs[c.block][c.index] : dataArrs[c.block][c.index];
+      });
+    }
+    // place
+    const matrix = new Uint8Array(size * size);
+    matrix.set(lay.base);
+    const maskFn = MASKS[mask];
+    const totalBits = lay.totalCw * 8 + lay.remainderBits;
+    for (let bit = 0; bit < totalBits; bit++) {
+      const mi = lay.bitToModule[bit];
+      if (mi < 0) continue;
+      const r = (mi / size) | 0, c = mi % size;
+      let dark = bit < lay.totalCw * 8 ? (cw[bit >> 3] >> (7 - (bit & 7))) & 1 : 0;
+      if (maskFn(r, c)) dark ^= 1;
+      matrix[mi] = dark;
+    }
+    placeFormat(matrix, size, level, mask);
+    return matrix;
+  }
+
+  function encodeStandard(text, opts = {}) {
+    const version = opts.version || minVersionFor(text, opts.level || "M");
+    const level = opts.level || "M";
+    const built = buildData(text, version, level);
+    let best = null;
+    const masks = opts.mask != null ? [opts.mask] : [0, 1, 2, 3, 4, 5, 6, 7];
+    for (const m of masks) {
+      const matrix = encodeFromData(built.lay, built.bytes, m, level);
+      const score = penalty(matrix, built.lay.size);
+      if (!best || score < best.score) best = { matrix, mask: m, score };
+    }
+    return { matrix: best.matrix, size: built.lay.size, mask: best.mask, version, level, lay: built.lay };
+  }
+
+  function minVersionFor(text, level, extraFreeBytes = 0) {
+    const len = textToBytes(text).length;
+    for (let v = 1; v <= 10; v++) {
+      const lay = layout(v, level);
+      const countBits = v < 10 ? 8 : 16;
+      const needBits = 4 + countBits + len * 8 + 4;
+      if (Math.ceil(needBits / 8) + extraFreeBytes <= lay.totalData) return v;
+    }
+    throw new Error("payload too long for versions 1-10");
+  }
+
+  // ISO penalty (rule 1-4) — used only for standard codes' mask choice.
+  function penalty(matrix, size) {
+    let score = 0;
+    const at = (r, c) => matrix[r * size + c];
+    for (let axis = 0; axis < 2; axis++) {
+      for (let i = 0; i < size; i++) {
+        let run = 1;
+        let prev = axis ? at(0, i) : at(i, 0);
+        for (let j = 1; j < size; j++) {
+          const v = axis ? at(j, i) : at(i, j);
+          if (v === prev) {
+            run++;
+            if (j === size - 1 && run >= 5) score += 3 + run - 5;
+          } else {
+            if (run >= 5) score += 3 + run - 5;
+            run = 1;
+            prev = v;
+          }
+        }
+      }
+    }
+    for (let r = 0; r < size - 1; r++)
+      for (let c = 0; c < size - 1; c++) {
+        const v = at(r, c);
+        if (v === at(r, c + 1) && v === at(r + 1, c) && v === at(r + 1, c + 1)) score += 3;
+      }
+    const pat1 = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0];
+    const pat2 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+    for (let axis = 0; axis < 2; axis++) {
+      for (let i = 0; i < size; i++) {
+        for (let j = 0; j + 11 <= size; j++) {
+          let m1 = true, m2 = true;
+          for (let k = 0; k < 11; k++) {
+            const v = axis ? at(j + k, i) : at(i, j + k);
+            if (v !== pat1[k]) m1 = false;
+            if (v !== pat2[k]) m2 = false;
+          }
+          if (m1) score += 40;
+          if (m2) score += 40;
+        }
+      }
+    }
+    let dark = 0;
+    for (let i = 0; i < size * size; i++) dark += matrix[i];
+    const pct = (dark * 100) / (size * size);
+    score += Math.floor(Math.abs(pct - 50) / 5) * 10;
+    return score;
+  }
+
+  // ---------------- Validation (independent decode) ----------------
+  function readFormat(matrix, size) {
+    const cand = [];
+    // copy 1
+    let v1 = 0;
+    for (let i = 0; i < 15; i++) {
+      let mod;
+      if (i < 6) mod = matrix[i * size + 8];
+      else if (i < 8) mod = matrix[(i + 1) * size + 8];
+      else mod = matrix[(size - 15 + i) * size + 8];
+      v1 |= (mod & 1) << i;
+    }
+    cand.push(v1);
+    // copy 2
+    let v2 = 0;
+    for (let i = 0; i < 15; i++) {
+      let mod;
+      if (i < 8) mod = matrix[8 * size + (size - 1 - i)];
+      else if (i < 9) mod = matrix[8 * size + (15 - i - 1 + 1)];
+      else mod = matrix[8 * size + (15 - i - 1)];
+      v2 |= (mod & 1) << i;
+    }
+    cand.push(v2);
+    let best = null;
+    for (const raw of cand) {
+      for (let data = 0; data < 32; data++) {
+        const ref = bchTypeInfo(data);
+        let diff = 0, x = ref ^ raw;
+        while (x) {
+          diff += x & 1;
+          x >>= 1;
+        }
+        if (diff <= 3 && (!best || diff < best.diff)) {
+          const levelBits = (data >> 3) & 3;
+          const level = Object.keys(LEVEL_BITS).find((k) => LEVEL_BITS[k] === levelBits);
+          best = { level, mask: data & 7, diff };
+        }
+      }
+    }
+    return best;
+  }
+
+  // Full logical decode of a module matrix. Returns per-block error usage —
+  // the honest "how close is this to unscannable" report.
+  function validate(matrix, version, opts = {}) {
+    const size = sizeOf(version);
+    const fmt = readFormat(matrix, size);
+    if (!fmt) return { ok: false, reason: "format info unreadable" };
+    const level = opts.level || fmt.level;
+    const lay = layout(version, level);
+    const maskFn = MASKS[fmt.mask];
+    const cw = new Uint8Array(lay.totalCw);
+    for (let bit = 0; bit < lay.totalCw * 8; bit++) {
+      const mi = lay.bitToModule[bit];
+      if (mi < 0) continue;
+      const r = (mi / size) | 0, c = mi % size;
+      let v = matrix[mi];
+      if (maskFn(r, c)) v ^= 1;
+      if (v) cw[bit >> 3] |= 0x80 >> (bit & 7);
+    }
+    // deinterleave
+    const blockCw = lay.blocks.map((b) => new Uint8Array(b.total));
+    {
+      const dIdx = lay.blocks.map(() => 0);
+      lay.inter.forEach((c, ci) => {
+        blockCw[c.block][c.isEC ? lay.blocks[c.block].dataLen + c.index : c.index] = cw[ci];
+      });
+    }
+    const perBlock = [];
+    const data = [];
+    let ok = true;
+    for (let b = 0; b < lay.blocks.length; b++) {
+      const blk = lay.blocks[b];
+      const res = rsCorrect(blockCw[b], blk.ecLen);
+      const capacity = blk.ecLen >> 1;
+      if (!res) {
+        ok = false;
+        perBlock.push({ errors: capacity + 1, capacity, failed: true });
+      } else {
+        perBlock.push({ errors: res.errors, capacity });
+      }
+    }
+    if (!ok) return { ok, level, mask: fmt.mask, formatDamage: fmt.diff, perBlock, reason: "block unrecoverable" };
+    for (let b = 0; b < lay.blocks.length; b++) data.push(blockCw[b].slice(0, lay.blocks[b].dataLen));
+    const stream = new Uint8Array(lay.totalData);
+    {
+      let off = 0;
+      for (const d of data) {
+        stream.set(d, off);
+        off += d.length;
+      }
+    }
+    // parse segments
+    let bp = 0;
+    const readBits = (n) => {
+      let v = 0;
+      for (let i = 0; i < n; i++) {
+        v = (v << 1) | ((stream[bp >> 3] >> (7 - (bp & 7))) & 1);
+        bp++;
+      }
+      return v;
+    };
+    const totalBits = lay.totalData * 8;
+    let text = "";
+    parse: for (;;) {
+      if (bp + 4 > totalBits) break;
+      const mode = readBits(4);
+      if (mode === 0) break;
+      switch (mode) {
+        case 4: {
+          const n = readBits(version < 10 ? 8 : 16);
+          const bytes = [];
+          for (let i = 0; i < n; i++) bytes.push(readBits(8));
+          text += bytesToText(bytes);
+          break;
+        }
+        case 1: {
+          const n = readBits(version < 10 ? 10 : 12);
+          let i = 0;
+          while (i + 3 <= n) {
+            text += String(readBits(10)).padStart(3, "0");
+            i += 3;
+          }
+          if (n - i === 2) text += String(readBits(7)).padStart(2, "0");
+          else if (n - i === 1) text += String(readBits(4));
+          break;
+        }
+        case 2: {
+          const AL = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+          const n = readBits(version < 10 ? 9 : 11);
+          let i = 0;
+          while (i + 2 <= n) {
+            const v = readBits(11);
+            text += AL[(v / 45) | 0] + AL[v % 45];
+            i += 2;
+          }
+          if (n - i === 1) text += AL[readBits(6)];
+          break;
+        }
+        default:
+          break parse; // ECI etc. — not produced by this tool
+      }
+    }
+    const worst = perBlock.reduce((w, b) => Math.min(w, b.capacity > 0 ? (b.capacity - b.errors) / b.capacity : 1), 1);
+    return { ok: true, text, level, mask: fmt.mask, formatDamage: fmt.diff, perBlock, marginLeft: worst };
+  }
+
+  // ---------------- Art optimizer ----------------
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // The module set toggled by flipping one bit of one sequential-stream data
+  // byte: its own data module + the RS check modules it drags along (via
+  // linearity of Reed-Solomon over GF(2)).
+  function streamBitBasis(lay, byteIdx, bit) {
+    let b = 0, start = 0;
+    while (byteIdx >= start + lay.blocks[b].dataLen) {
+      start += lay.blocks[b].dataLen;
+      b++;
+    }
+    const blk = lay.blocks[b];
+    const unit = new Uint8Array(blk.dataLen);
+    unit[byteIdx - start] = 1 << (7 - bit); // MSB-first bit index
+    const ec = rsEncode(unit, blk.ecLen);
+    const mods = [];
+    const mi = lay.bitToModule[lay.seqToInter[byteIdx] * 8 + bit];
+    if (mi >= 0) mods.push(mi);
+    for (let e = 0; e < blk.ecLen; e++) {
+      if (ec[e] === 0) continue;
+      const eci = lay.ecToInter[b][e];
+      for (let k = 0; k < 8; k++) {
+        if ((ec[e] >> (7 - k)) & 1) {
+          const emi = lay.bitToModule[eci * 8 + k];
+          if (emi >= 0) mods.push(emi);
+        }
+      }
+    }
+    return Int32Array.from(mods);
+  }
+
+  const FRAG_CODES = Int32Array.from(FRAGMENT_ALPHABET, (ch) => ch.charCodeAt(0));
+
+  /*
+   * Exact GF(2) solver (the QArt trick). Each free bit's basis is a vector in
+   * GF(2)^(size^2): the set of modules it toggles (its own data module + the
+   * Reed-Solomon check modules it drags along). The reachable matrices form
+   * an affine space baseline ⊕ span(bases). We walk target modules in
+   * priority order and pin each one exactly while we still have rank:
+   * pick a basis vector that touches the module, use it to fix the module,
+   * eliminate that module from every other vector, retire the vector.
+   * Higher-priority pins are never disturbed by later ones.
+   */
+  function solveExact(size, matrix, vectors, target, order, solVars) {
+    const W = (size * size + 31) >> 5;
+    const pool = vectors;
+    let pinned = 0;
+    for (const mi of order) {
+      if (pool.length === 0) break;
+      const w = mi >> 5, b = mi & 31;
+      let pv = -1;
+      for (let k = 0; k < pool.length; k++) {
+        if ((pool[k].mod[w] >>> b) & 1) {
+          pv = k;
+          break;
+        }
+      }
+      if (pv < 0) continue; // out of reach — left for the flip pass
+      const pivot = pool[pv];
+      pool[pv] = pool[pool.length - 1];
+      pool.pop();
+      for (let k = 0; k < pool.length; k++) {
+        const v = pool[k];
+        if ((v.mod[w] >>> b) & 1) {
+          for (let x = 0; x < W; x++) v.mod[x] ^= pivot.mod[x];
+          for (let x = 0; x < v.vars.length; x++) v.vars[x] ^= pivot.vars[x];
+        }
+      }
+      if (matrix[mi] !== target[mi]) {
+        // apply pivot: toggle its modules, fold its variables into the solution
+        for (let x = 0; x < W; x++) {
+          let word = pivot.mod[x];
+          while (word) {
+            const t = word & -word;
+            matrix[(x << 5) + (31 - Math.clz32(t))] ^= 1;
+            word ^= t;
+          }
+        }
+        for (let x = 0; x < solVars.length; x++) solVars[x] ^= pivot.vars[x];
+      }
+      pinned++;
+    }
+    return pinned;
+  }
+
+  /*
+   * optimize(options):
+   *   text, version, level        payload + geometry
+   *   target Uint8Array(size^2)   1 dark, 0 light (only where weight > 0)
+   *   weight Uint8Array(size^2)   0 = don't care (noise welcome — it's a tone)
+   *   mask                        null = search all 8
+   *   margin                      fraction of RS capacity spendable on flips (default 0.5)
+   *   fragmentLen                 free #fragment chars appended (constrained alphabet)
+   *   seed, sweeps
+   * Returns matrix + full report.
+   */
+  function optimize(opts) {
+    const {
+      text, version, level,
+      target, weight,
+      mask = null, margin = 0.5,
+      marginCap = null, // hard per-block flip ceiling (default margin * 1.5)
+      fragmentLen = 0, seed = 1234, sweeps = 14,
+      urlCase = "none", // "none" | "schemehost" | "all" — letter-case bits as free variables
+    } = opts;
+    let fullText = text;
+    if (fragmentLen > 0) {
+      const rng0 = mulberry32(seed ^ 0x9e3779b9);
+      let frag = "";
+      for (let i = 0; i < fragmentLen; i++) frag += FRAGMENT_ALPHABET[(rng0() * FRAGMENT_ALPHABET.length) | 0];
+      fullText += (fullText.includes("#") ? "" : "#") + frag;
+    }
+    const built = buildData(fullText, version, level, { fragmentLen });
+    const lay = built.lay;
+    const size = lay.size;
+
+    // Free variables for the exact solver:
+    //  - pad bytes: fully free 8-bit variables
+    //  - URL letter-case bits (0x20): RFC 3986 scheme+host are
+    //    case-insensitive, so those letters' case bits are free — and they
+    //    live exactly in the otherwise-frozen URL region of the matrix
+    // Fragment chars (if any) are constrained to an alphabet and handled by
+    // greedy descent instead (byte-mode payload starts 12/20 bits in, so they
+    // straddle stream bytes anyway).
+    const bitBasisCache = new Map();
+    const basisFor = (byteIdx, bit) => {
+      const key = byteIdx * 8 + bit;
+      let v = bitBasisCache.get(key);
+      if (!v) {
+        v = streamBitBasis(lay, byteIdx, bit);
+        bitBasisCache.set(key, v);
+      }
+      return v;
+    };
+    const bases = [];
+    for (let byteIdx = 0; byteIdx < lay.totalData; byteIdx++) {
+      if (!built.freedom[byteIdx]) continue;
+      for (let bit = 0; bit < 8; bit++)
+        bases.push({ byte: byteIdx, bit, modules: basisFor(byteIdx, bit) });
+    }
+    if (urlCase !== "none") {
+      const payloadBytes = textToBytes(fullText);
+      let caseEnd = payloadBytes.length - fragmentLen;
+      if (urlCase === "schemehost") {
+        const s = fullText.indexOf("://");
+        const slash = s >= 0 ? fullText.indexOf("/", s + 3) : -1;
+        caseEnd = slash >= 0 ? slash : caseEnd;
+      }
+      for (let i = 0; i < caseEnd; i++) {
+        const ch = payloadBytes[i];
+        const isLetter = (ch >= 65 && ch <= 90) || (ch >= 97 && ch <= 122);
+        if (!isLetter) continue;
+        // payload byte i sits at stream bit headerBits + 8i; its 0x20 bit is
+        // 2 bits further in (MSB-first)
+        const abs = built.headerBits + 8 * i + 2;
+        bases.push({ byte: abs >> 3, bit: abs & 7, modules: basisFor(abs >> 3, abs & 7) });
+      }
+    }
+
+    // fragment char variables: char j occupies payload bits
+    // headerBits + (textLen - fragmentLen + j)*8 .. +8
+    const fragVars = [];
+    if (fragmentLen > 0) {
+      for (let j = 0; j < fragmentLen; j++) {
+        const startBit = built.headerBits + (built.textLen - fragmentLen + j) * 8;
+        // bit k of char -> stream byte startBit+k >> 3, bit (startBit+k)&7
+        const perBit = [];
+        for (let k = 0; k < 8; k++) {
+          const sb = (startBit + k) >> 3;
+          const bit = (startBit + k) & 7;
+          // basis for THAT stream bit: compute like freeBitBases for byte sb
+          perBit.push({ byte: sb, bit });
+        }
+        fragVars.push({ index: j, perBit });
+      }
+    }
+    const rng = mulberry32(seed);
+    const scratchParity = new Uint8Array(size * size);
+    const touched = new Int32Array(4096);
+
+    // priority order: highest weight first, seeded shuffle within ties
+    const order = [];
+    for (let i = 0; i < size * size; i++) if (weight[i] > 0) order.push(i);
+    {
+      const jitter = new Float64Array(size * size);
+      for (const i of order) jitter[i] = rng();
+      order.sort((a, b) => weight[b] - weight[a] || jitter[a] - jitter[b]);
+    }
+    const W = (size * size + 31) >> 5;
+    const nVars = bases.length;
+    const Vw = Math.max(1, (nVars + 31) >> 5);
+
+    function runForMask(m) {
+      const bytes = built.bytes.slice();
+      const matrix = encodeFromData(lay, bytes, m, level);
+
+      // fragment chars first (greedy descent over the constrained alphabet)
+      if (fragVars.length > 0) {
+        const matchGain = (mi) => {
+          const w = weight[mi];
+          if (w === 0) return 0;
+          return matrix[mi] === target[mi] ? -w : +w;
+        };
+        const evalToggle = (lists, commit) => {
+          let n = 0;
+          for (const list of lists) {
+            for (let i = 0; i < list.length; i++) {
+              const mi = list[i];
+              if (scratchParity[mi] === 0) touched[n++] = mi;
+              scratchParity[mi] ^= 1;
+            }
+          }
+          let gain = 0;
+          for (let i = 0; i < n; i++) {
+            const mi = touched[i];
+            if (scratchParity[mi]) {
+              gain += matchGain(mi);
+              if (commit) matrix[mi] ^= 1;
+            }
+            scratchParity[mi] = 0;
+          }
+          return gain;
+        };
+        for (let sweep = 0; sweep < sweeps; sweep++) {
+          let improved = false;
+          for (const fv of fragVars) {
+            let cur = 0;
+            for (let k = 0; k < 8; k++) {
+              const { byte, bit } = fv.perBit[k];
+              cur = (cur << 1) | ((bytes[byte] >> (7 - bit)) & 1);
+            }
+            let bestVal = cur, bestGain = 0;
+            for (let ci = 0; ci < FRAG_CODES.length; ci++) {
+              const v = FRAG_CODES[ci];
+              if (v === cur) continue;
+              const diff = v ^ cur;
+              const lists = [];
+              for (let k = 0; k < 8; k++)
+                if ((diff >> (7 - k)) & 1) lists.push(basisFor(fv.perBit[k].byte, fv.perBit[k].bit));
+              const g = evalToggle(lists, false);
+              if (g > bestGain) {
+                bestGain = g;
+                bestVal = v;
+              }
+            }
+            if (bestVal !== cur) {
+              const diff = bestVal ^ cur;
+              const lists = [];
+              for (let k = 0; k < 8; k++) {
+                if ((diff >> (7 - k)) & 1) {
+                  lists.push(basisFor(fv.perBit[k].byte, fv.perBit[k].bit));
+                  bytes[fv.perBit[k].byte] ^= 1 << (7 - fv.perBit[k].bit);
+                }
+              }
+              evalToggle(lists, true);
+              improved = true;
+            }
+          }
+          if (!improved) break;
+        }
+      }
+
+      // exact solver over the fully-free pad bits
+      const vectors = bases.map((bs, vi) => {
+        const mod = new Uint32Array(W);
+        for (let i = 0; i < bs.modules.length; i++) {
+          const mi = bs.modules[i];
+          mod[mi >> 5] ^= 1 << (mi & 31);
+        }
+        const vars = new Uint32Array(Vw);
+        vars[vi >> 5] |= 1 << (vi & 31);
+        return { mod, vars };
+      });
+      const solVars = new Uint32Array(Vw);
+      const pinned = solveExact(size, matrix, vectors, target, order, solVars);
+      for (let vi = 0; vi < nVars; vi++) {
+        if ((solVars[vi >> 5] >>> (vi & 31)) & 1) bytes[bases[vi].byte] ^= 1 << (7 - bases[vi].bit);
+      }
+
+      let score = 0, total = 0;
+      for (let i = 0; i < size * size; i++) {
+        if (weight[i] === 0) continue;
+        total += weight[i];
+        if (matrix[i] === target[i]) score += weight[i];
+      }
+      return { matrix, bytes, score, total, mask: m, pinned };
+    }
+
+    const maskList = mask != null ? [mask] : [0, 1, 2, 3, 4, 5, 6, 7];
+    let best = null;
+    for (const m of maskList) {
+      const r = runForMask(m);
+      if (!best || r.score > best.score) best = r;
+    }
+
+    // ---- EC flip budget ----
+    const { matrix, bytes } = best;
+    const flips = [];
+    const blockUsed = lay.blocks.map(() => 0);
+    const allowance = lay.blocks.map((b) => Math.floor((b.ecLen >> 1) * margin));
+    // group mismatches by interleaved codeword
+    const cwMis = new Map();
+    for (let bit = 0; bit < lay.totalCw * 8; bit++) {
+      const mi = lay.bitToModule[bit];
+      if (mi < 0) continue;
+      if (weight[mi] === 0) continue;
+      if (matrix[mi] === target[mi]) continue;
+      const cwIdx = bit >> 3;
+      if (!cwMis.has(cwIdx)) cwMis.set(cwIdx, { gain: 0, mods: [] });
+      const e = cwMis.get(cwIdx);
+      e.gain += weight[mi];
+      e.mods.push(mi);
+    }
+    const ranked = [...cwMis.entries()].sort((a, b) => b[1].gain - a[1].gain);
+    // Two passes: uniform allowance first; then blocks whose bytes were all
+    // free rarely need flips, so dirty blocks (the ones stuck with the fixed
+    // URL codewords) may borrow a little deeper, up to a hard cap.
+    const capFrac = Math.min(1, marginCap != null ? marginCap : margin * 1.5);
+    const hardCap = lay.blocks.map((b) => Math.floor((b.ecLen >> 1) * capFrac));
+    const taken = new Set();
+    for (const cap of [allowance, hardCap]) {
+      for (const [cwIdx, e] of ranked) {
+        if (taken.has(cwIdx)) continue;
+        const blk = lay.inter[cwIdx].block;
+        if (blockUsed[blk] >= cap[blk]) continue;
+        taken.add(cwIdx);
+        blockUsed[blk]++;
+        for (const mi of e.mods) {
+          matrix[mi] ^= 1;
+          flips.push(mi);
+        }
+      }
+    }
+    // remainder bits (v2-6 have 7) belong to no codeword — decoders never
+    // read them, so they are free pixels.
+    for (let bit = lay.totalCw * 8; bit < lay.totalCw * 8 + lay.remainderBits; bit++) {
+      const mi = lay.bitToModule[bit];
+      if (mi >= 0 && weight[mi] > 0 && matrix[mi] !== target[mi]) matrix[mi] ^= 1;
+    }
+
+    let score = 0, total = 0, misses = 0;
+    for (let i = 0; i < size * size; i++) {
+      if (weight[i] === 0) continue;
+      total += weight[i];
+      if (matrix[i] === target[i]) score += weight[i];
+      else misses++;
+    }
+    return {
+      matrix, size, version, level,
+      mask: best.mask, bytes, flips,
+      pinned: best.pinned,
+      text: fullText,
+      blockUsed, allowance,
+      capacity: lay.blocks.map((b) => b.ecLen >> 1),
+      score, total, misses,
+      lay,
+    };
+  }
+
+  // ---------------- Rendering ----------------
+  function toSVG(matrix, version, opts = {}) {
+    const { scale = 8, quiet = 4, dark = "#000", light = "#fff" } = opts;
+    const size = sizeOf(version);
+    const dim = (size + quiet * 2) * scale;
+    let path = "";
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (matrix[r * size + c]) path += `M${(c + quiet) * scale} ${(r + quiet) * scale}h${scale}v${scale}h-${scale}z`;
+      }
+    }
+    return (
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dim} ${dim}" width="${dim}" height="${dim}">` +
+      `<rect width="${dim}" height="${dim}" fill="${light}"/><path d="${path}" fill="${dark}"/></svg>`
+    );
+  }
+
+  function toRGBA(matrix, version, opts = {}) {
+    const { scale = 8, quiet = 4, dark = [0, 0, 0], light = [255, 255, 255] } = opts;
+    const size = sizeOf(version);
+    const dim = (size + quiet * 2) * scale;
+    const data = new Uint8ClampedArray(dim * dim * 4);
+    for (let y = 0; y < dim; y++) {
+      for (let x = 0; x < dim; x++) {
+        const r = ((y / scale) | 0) - quiet;
+        const c = ((x / scale) | 0) - quiet;
+        const isDark = r >= 0 && r < size && c >= 0 && c < size && matrix[r * size + c] === 1;
+        const col = isDark ? dark : light;
+        const o = (y * dim + x) * 4;
+        data[o] = col[0];
+        data[o + 1] = col[1];
+        data[o + 2] = col[2];
+        data[o + 3] = 255;
+      }
+    }
+    return { data, width: dim, height: dim };
+  }
+
+  function ascii(matrix, version) {
+    const size = sizeOf(version);
+    let out = "";
+    for (let r = 0; r < size; r++) {
+      let line = "";
+      for (let c = 0; c < size; c++) line += matrix[r * size + c] ? "██" : "  ";
+      out += line + "\n";
+    }
+    return out;
+  }
+
+  return {
+    EXP, LOG, gmul, rsEncode, rsCorrect,
+    EC_BLOCKS, ALIGN, LEVELS, MASKS, sizeOf,
+    functionPatterns, layout, buildData, encodeFromData, encodeStandard,
+    minVersionFor, penalty, validate, readFormat,
+    optimize, FRAGMENT_ALPHABET,
+    toSVG, toRGBA, ascii,
+    mulberry32,
+  };
+});
+</script>
+<script>
+window.QR_PRESET_IMGS = {
+  ink: "data:image/png;base64,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",
+  tabby: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIUAAAB+CAYAAAAKj9LmAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAAKqBJREFUeAHtnQe0pVV1x/8wMyIgAiYamjAKCMaoiGgsUQfsJjYscVkfRY1ZGlASTVSYB5Ykdk1ilgVmMOpKYiMxGsvAjGg0SA1JVPpQBwSHMoWpvNxfzvmvs7/vft8tr7/nnLXOuu/d+5Vz9t5n97OPtKPtaNJDOn15p9/Z6Vt20o42Gxt42aXTF+ZO29DpWzV1bddO37/T36odbVY1CGGPTj+q0z/e6ed1+t2dfnunH6eEuIWaurZzpz9zKl+wow3ewAMs/E2d/upO36/TF3X6gty3dfpIpx/U6Ss7/Uedvl1T0+7UjjajDTGxe6cf3+k3d/qmTr+v0+/t9HuUEHRv/g4iWNfpRyut6Klqe2lHm7GGqHhCp5+rgvj1nX5xp7+904/s9N/o9DOUiGVMiUgepKltO6THDDRW+b6dPqrEDeAAIP2iTn+mEue4nxIX4fNkJaIxUexYyfOswR2e1elXdPpmJYK4VQnxKJh1sYA+AaHAQXYQxTxrrPp9lCwK9AJEBeYl3AFLY1G+pt4gEsQIHGUHUcyjBsLRHSCALUrIhUt8VUmM9PMV7alEDPOSKGxeQf2/Lk6z3ZSURnwNcAcQi/5wVqc/cMBnQAR3aRqJYqo1TZAPYLC7Hxq+Z5KrlVbM1tzHNL8aSP9Ep7+q0++vBAs4xZeUdIj1Az4HvePaTj9C86DBEZCXmFzI0fWh8/+vlDx2rKTHK7HJRZofjbnADWxKWmR8XkmhHIZTPkAJThDHnBYfTPrQTr9JaTJjoW/P3Q4ZzC2I5CqlFQRX2VVzV8SgJ3xNiQiiyDhTiWs+XAmxg85v3hAFptdSJcAAFICzUUlsMMEVSkTAJDfk3+kAb22nL1PiHgBkKr13k9lA8gGdfqGKOBzLf39FBSZwSMzMQecFDHBtz3miwOmCWIALIEexywnoIGdZLYgJgAQ3OSH/DnGYqwBIlDNEDwAcluVOZ2Nc6AxYGMzD3MGL4adKcY2TlEQnhA9x7DLg8xFFt2geWB9YGThpAMBypYmg1AJA3LSwUjgGdvtLlcQFRAMHgZt4pdnfP1PEwbuYyy65M05W7u65M57DlDgbCI8EQUd8Qvj4Gu7MvxPcYuUP6q7eS9Nskk6V9WFLAqB+UWnVj+X/oXyifb/b6U/r9DcqrQS08tcoWSlv6fTnKwEO4C/p9Ccqrbp3dvrPlcTRZDbYOfBYED6R/3t3+u/lsTPuA8PcGOtvKRHLAlUJFmJ+W57bKhVkLsjP+6dOf4kSh+w3rnnREB/vUBIdx6g6MQDHCoOTrFZhs3AVVhasFXb7YCWWe6WKaKHDSViZh2hwFlxvjAERBttn5e+Zx3lyfvYl+T14Es3yN+X5bA99rKWjS308v2Mkjz/+znNQRnfrM86d87jmhZsbZJ2uJAYIC9c5EkhhhSFC0DtgqQYYwCeMfJoS8YC0NyiJECulPHeNUlBpX/XmeDuryvohAJRYxJUTWSCA9So6UF0MDNO5F+6AFYUOdWXtd+aHmNxH/UUhRLNcRZzOC6LYlj/rK5oV+hdKXIHQ8OXqXnkAD8XNOgcIBZFXq9j/m/L/VmJ3UlH8ICi4yTPze+AAK1U4AOJns6oEORndiiRiIq7ysfw3Cvju6t9s1lsXmfNEAVIgBhD9ifx/bEwYRNsCYWXBBZxYslaFSADkinwdq54VNqqifI3le62Mch0c4CpV2T8cYLIJoIlLwMHgXqzyr4d38v5lSsQ9iLK8e74+mrfAZc4SBbIUscFKXKneKwNl8lQlHYOVDdAepqJv2AoB2KxAez4RAQSZNqlqqdyt4h+Z7m7EswgQH3GVw5ngaIMo9/+fK6kSHTXBkYCzh+ZoY1IgjVUKF+gV/HHmsgNlj1UiCACKo8eJKGbNF+ZnQxismqWqco2Z7HCsl+Z5jKgkx5go+G4QogDxK1X0Jyu2cMNBRM+sbVayWL2HDnEfQINbsNoAAAGl61UFPkQAMUAUEAcxlps080SBvoLoQDQiOiLrh3shSvtZTBDU4/Mc4Y7n5PnPC6KIFgjm6f0GvA8kY7+jRyBDWX1wiHUqia2RaxyZ34Uf43ZND/I3qtlCgbNBqPg2bmn4ne/wc/TiFvz2DCXCgGPgC4FA5gVR0B6hJEKw+x8w4D0A9ZcqiaxYIFgor+z0v1XJLbCcBWDLlAhwraaeINBZcLjhSItRUJCGeQuXWKKq1RGvwVrCHwJHaeMa9v6ykE7K72FxwX36+TZmfXOCyDBKFqsMRCN6MOkgJhBuU7RphW7p8dtkcwj8JyATP8sXVEQEVsaK/NvJqhJM7E7hh2tA7CikC1pgAae4RMW5N6rxO+xmTQOhq5QmhUPqgD7Xo2xieeAetpXBNjY7rRxyH5uBzntBEIjCLF6qJC7uC79fnMdMql0v89cZ3PSfKSXQLMrPPVhpMXm32IUqRLFU84QonAtAZ4L97GwIwynu/E38YVRJnvKsa5TEBB3LxAQzHkSDuPX5OVv7XOsMKJTFuHHHBAEXuU4JaRc1jKmePuDkIhRyCOJYFWuL50MAKNuHqzjbBuW2s7pFojCbJ0I6jK1tN3WMTD4w//3sTn+XxmeSMqZLlfwBWC8/UO94hu/ZoiqiQRhEAMKI2SD+mnQbRMYpShww7u2ggfyltWdDrK/P12GBbNRweRiztkEUrHADEyBimp2l4QmDFWLiQIH9qJKe0WYJDEIUjM3ZUOMhLAjiiXlMVg5Z/evCXH2tdYK2lEPmFC2WrRlOC/J9m/Kzpzx1YKqpDsDfqMQyP9PptykBhRD5J9WfMBbma5Z0+uuU4iXfVJLd6Bogc7ype2NhjE9Ttyt+kMb4nqxE8DQ71BgPBPE5JWT6txf1eA+iCV3KKQHgBnPUGfCIuuvCuOdscwyEOAQs/3FKrJZV0I9jAHDkLE4pWCnAAsCTGb9AdsN9zlRvncKKnjlA/B5uhRhDfJya/4aDYLrCRaL4vCHDwVyPHsUIHOdiVRXLPfI7rtYcdnHH5m1v0ZzCPkc7R0E0YTQ5ZAAePorxIHtQcQIH+201K4axM344G4lBV6qbMOxY43nPVSIKiBkuZvGJeDomz3Ukw4NuhRMOw4Zim6Asgvcphc5ZCKs0DxxXbihWzlcAAEweDoLSBSBRwFCoolbNyiHnMQaEenXYN0TG6mRFxUBUP70ixlbaOkj5vhJRwxE2tlyzstOfk3/H0QQS78hzxwmFb+Onec6bQl+fx71SRdlk/CisMZdiT01Dmw5NFoBD/ayaDyqtyk8rpaThuYRgcPpsC/dANG/J9/RqAA5CIJXvtUr5krDs6zRYY/7e2GviapLZzi3lutX5vW3jocEhKSzyJCVlm9Q7dKp/VeIKu+RreB/IBiY35G5lk3diyXixABMiz/NibwyIJb/BmrgtkW35u1ElIMVoKZ/vVQIWq6UpKZb/8VngEEMuO7fykRqfJcFYrMQ26S08EwJ6hppd2PZo4leAU2DmIi5+ouSU+hOVqKm5CtfavMYK2kslnb9pjBDMYZoH2y6h8FEVVvkvKi5gnDUU33KW0WlKeRV49WzLY/u/Qkk7rxOGEbFECaCw9qtUdSoNQxjoARDZTxvuhaNh7RytdqJAxLAIzldCNuz+MUrEdJWqYmuFunWE3fMzYnLQfQ3znfPxD1b9qBJ3QEkDUEwcwCxXIhoQSoY2qxWlDaBAMHAKlFLkMVZMzE+IAOYeVnL0WdgD+UsNThy8Fwup7jMYy+94dh7HppZxICYRMyQdG3FNaXnmFHXkLszvPyb3UaX6FXH8zPFlao+XzIlmokBhWpn/Z8IQAAAGEEvUvPocPMJ+hwXfrcFXPfehvaOw/lzNhOF4itk1Y/pYHtNSVZHP+C9Tt3vb5rKdVauUCAqrarf8rJeqWzmFAA9rgNfOoQOro9RNoHC0/TSHm/MqAJizsOAMrDwTSRtLttcR7gJbBtBbNDhh8D4UOwjKgaX47NX5+StV9Ba4GcohQK9bP3XCggsh7hBbF6tKYBtUYhXO14y+kC15Pv2cZtwPZ4hE5S0EczY4hpy0A4eVju4AkIg12J+PrG4yP1EyvZpgly9X2UPhVT6InkAizr6qZmdxP3Ie3wCEekIezz1hjOf1eQeZUXvmsaGL1H0Y+Fm8q+2whjmyMA5X/9Y0Fu49SnNU6YQrmP3ZS4cCyWYYAIjeAOC+p+qkN6oaKsY8W5GvQSYjv1cqlw5Wb70BYgCAEGDcmAN3WKIE2H3zODerpOjXRUi9Q+SH5PE5WTmu6HUqQaxYkcacgvd/WINxi2NrY9+qwTYUzbrmAFFcIQAeRc4mGv09Kqn+UWljBUMUEBas1tv7ISTYO2wepMBKf6V25HHP/yoBH0CajZuF75p/+3j+7Yr8HU61jT2eG0WE8nij/GduS8Mc7s7fwWGWKYnNQWM3LJy4scgwmnOubyuZ9bQ1TD7cyySYgCQSawAO5qoRtjn/Rv7CleF7CAxgRkBCHJ9Uc2p/3BPCPXHFMZaYNv8IFXOQdxys3l5VxvQNldXK57Iw1pgDgRglQIbS+UCV/aeDtvtnWESdCjN5Wryck9kAtgM8dQUSxQ857LIEIKTunga49fwFHFaIkjpR1GWus71Q0kCWtxDAWSKiAawTf6z/IJ4+lsd2rnrrFax+I6Ze95L375t/i8653VTyQ9zvr2pwbKfadRARXGeTmsXXpLWpzOLxRuKHq5s9uhQgHANugXsX+76+e6ppD+pBSrrFHymxz+35uiNUddsTc4Ar2OqI38f/DWAanIbk4Kfk8fG8LyiFx+su983hfnwL5+exXJ4/HTpfm68D6SyC31fyijrEbgL+byVr6IcZJr+jlCqwd37et5U4V5wjfx+o4tib9Y1V1hY8qnMNuAFcYdAgFuz/O0oEQouFPaIih74AsURCi8mwVgYRFTuH3xFXt+bnQqj1aC1zOkNJNJ6maq2JQ/Iz4Wj75Oful8fiTczO0dwY/t+cv/OelttU3eHetPl5zqXo1eVrkzweG7JbySS+4UAWnVUIcupb/qOi5+YyQ2bDIDCWS+B3ormIDQjCVsW9YQxENPdWyYmIRMf3IOsElWJwN4X5cv+1+XeIkajq7aqKR0Qpe1/QIW5RuwXEmEY1h/wVADSuyPpk/kFlslzjTT+9uAUIxFnk6vcAFQXycfl9IPsOldA01zslPzbk/C9U9o3Uq8rgpv5rFQWSd8W0wmVqNyMh1u/kTyyvm2tzYFw482x17BaeHfNOFqrsSR1Vc5BvzpmlALopgRVEoEvAWj1RkEfQa1S9d3lx3TOUkHSBEiG5BCMyGTkNEI/Lz0LTdw3L2FjBuL9ZwVHRdNupdp9XPKYkiBtRO8vm2sV5fjfmca9XUaKjr4YGAbhSP2M5pGG8rvhfF5EoxOdpjiTfABhWcZ2dG0AvVlpJd4bvliitnraA01h+3oiSwmWnFVwBYLI10bkGtmgW9BkjYujHGqz6Lc+E5UPoTYiLDYSPqhRXebaqkeJRFe5lLmTREcdSV7qxpOownXSzdKoUFJCxWM2AwxyEug9WQRrA83bAA9WOTBB5kFJSDdzgiHzft5Q0d1aOcyucX+F2X37PtvA/IgSZXq875QJoMfGHe7+oJBJXq1gsTQ1Es7UQon1Pni/OtaY9tYxxcf77epUTf8xxGIv3uPx7p3+301+o6twQH3drktpUEYWR15TZxcpGpsNJWH0AG6cVCHqqkhnZiyi8SejflIBk2QqXwQn2AiViOTD/ZrMPs/cHSu50uIy5UVM5ZMb1PCVzFivA5h4WwmXqTRCO+hJTIcHmKyp7SNfn792cR4IOAwFh1poQQfRnlbK3UFyfk9+NmYpeZYcbsDq8Ns5Z2ZDHeBjrjifXWoCq6yUEydlco25FE0SwSlgt6Bto5d5jYYcQ8p4oZNyZHs25bSqixsVbD1H7ooDAvBPsCRou6GQdoV7vy/WrGMtSlTpcttCASdzXEYueIFas90AMMdF4o5rris26FjcBReRiccRd41GLrifQgFwUK+IRWBe75ediPmJxwGkgBpAH0WzLz8G/ALs+W917PZ16vz0/m6hrkxVh+c0YyMUYJr6A6IDI4QpR97CyyvPshHpCGM8KlZ35jOkd+f31MDniJ+pdTWb3rGxNbmdMRWx4kHmjejunXMrIle943ogSQGPxd5BsbmRnFSsMAgKREXgAn3jLwfn72/L9o2o26fbM96BvHKvBVyLv/S81F2uB1SMqfAaIzVW4l7kEyD1exRV/T/iNDsdYruL3mDO70Zv2kIIw+/5Bzi/V7aNwOUGcN5EY8Cg2peLVtfC4qx0ExOCXC4pIxcS7Nf8+qm6gQijn5PGdp8F9AbwDJMPWWe1YE/fLc4Fg7HewDoCIQGl2Xc9IEPSrVSr/ka+KOR+9v3OWKKIrGQBcoVJWAMTAxnEykYsJ4CAIRATKZxMxAAjrJXTL5BgcirmRvAuWHu356KkECfW8xxjcWq/BN/fGssmO0J6RPy9VEXX85vpdXgBvV9mHsiHDjcBczCkZVdIxTBT35nHO+tT/OlEgOgAqq439D169yMu/UYkQLsqfIKtJ9zARjSqxZlYQ7JgVvUXdCpdFQFv29L4qeZ84svav/e5QetyM3K+56EoUhz7ohnkjGper7BZzpT+evylfw1hRvPFv4ASMkVMI5Lkq6Yvr1V3VeFa2Jp0CJKMnoHGDPFsaTIrVAEJcDX+tmvd5rMm/R1vfWxNZMXCDiDiA7lqWrNZdGsbp0H5TziREZ3f4BvXnFvWkIm9WYlyjKvUods3PeYCqR1ECIxxk++TvP6RuRZg5OQONd0CA+2oOtCaiMNtHJuJHIDQN+3T0D26CxVBPaY/eTMveenMeBHKc1WUx4NxIuMComokCLuPNP+tUzbB2JjbPXq/+LmXXv/QqBskH5XvqgTPefaaKeGTs71RSglFAIZR6DibPh3uZuwGnOVNbs40ovGHGji32VpK/YE26LXLqhJm2Kjg291xm0M4dH+3IymNTTtQZ4CjoMneE9zRxC+4BqTiPQOCJ6h33iEQBYo9Ut5/D+kyswuNSA/azOEoLMe2pUlT+GypEPGf0CVobUcAFkJEQw4gSa/eRzr0sCyuKaN9NlWBojk04nQ53NNq/d3TDsiEEgIyoIrrYVPBkTf7dBVK490AlIoPjXKXe5RNifKKJyBgzVtItLXNlYWCyH5Lf87F8rTdp18syz5n9H21EwYR8bMJG9U+s2RZ+d3zEB9KxQgAciIu5EKxAuMoWlYxp7lmltMren39vq3OB8rtc1Qr/cDcQy0olm6pN4YQoRlRNLOL9cC5zKe6FUFyHPHYIkh1x+FLQE1aougu9Dss5VUKxjSiaJtcmLlhtK9W84de5ByAMwMCy4SALcwegJ+f7ATQAv0elcJqRYOKsj8kEZbMZE9BJPf2yr5uywPgfBRnCgFN+RIlQuHav0O3TQBTeqGK5wGGvUxWeENtLNYeyrprc3P26rwUJxDiYMKsAVl7f3VXnJiiIpNDBJezRNAIj4PfO3f/vl+9BJPTKBBumNoTjJvXMcofQF6o5k3un/P0JKiatTymEyEdVTUq6WnOsoj9svAkwTfKT1QtCV6oEzHDyRFmJDL5R/bmLA15YFHCKJSpHTgFwVmHdpARJ++d3thFePWWvV3Ox+nUqiAXJrHYitI9VM6dBJ3p9vs/OK8QMHKq+VQIuNue2DULBUUtuQiDsj0ljAoI0QsprVFY/3MHOJAePbtZghOFEV+sT5+V3QSggl5VnhRXAQnS39njusK5kpyJC5KerWA8guFfiD3oLVg46DBxst/C8KI4hsn6JPrOmseoAMKKjbSOwvZIgOWrl9Yl7b4gdM5EwXHbZUUQ/G0L4oKoJrw6jO3QOoaBLrMnj/ER+by/x4U1Dg9YX9xlqjHV/DdeYp0sw0nbKz7BIYcH0yst0ctFCzQIvJwNgFVqzdw5EHdht5YSbZLETUy3PmTBKGGba6fk55G0YYBDAf+brHXhC9sbI6r0qVk+sqmOAm2jqKYFtpQOamsshvVgT9yHEXftWMNFN9sh97/wuPnFsoXSDhyVqz36btgZlIhOx5Z0DgRhZpe7d0kzKx0U5YaZpiyEdYKBs2Q3upNp4VqgPiqV7e6BU9nASjHMeBiJkmZJFgWcwhuHPVREvjCUS9aClA9yc0jfRhuPNXI9+ex4/+gkcDt3De3KxpIAB2V5v0ziJYjKoiIkbWVvDc9nh9OdK+YQxVgGBkG/wQ6UVeb1SGtoNSsVHv6Bu1sgKxvP490qp95vVPQ9WDcizl7A+xjEVRC3IYyKYdmC+hlwNCMPOtF3yb+/u9Ffn63n2S/J4t4TnL1Jh22Phe3PGQdLkbH3UYQUhH5n/jwlDO+e/WYQ35O8uURF3DsINnaI3UaIAEEuU8gYX5MHwTCZh08t5lbE5Dc/cAAo/Nl/7z+r2GDpY9F6l7K1tap6LEb4oP8sZXW3N+Z4GdFNDFKE0PyNfSx4EhIKFszn/TtQSq+LRqkY0r1MKxF2vKrE0NRbWB5RM0mgK35Dvp7ONAe6FruU0Q79vuwpnsigcmiBoE3V84HljZe9T+95ZQm0N4HpF2IaHe8DGSVT9AyUZ6d/5jX0eWBLb1HzaMGMhvvEwpbLKKGsg7qPq5iwKz96u3o17L1dKKnZhNuI1H1ZC2MNV5RT1Z7tEQr/Gtf+jhMg98xwRfQfld8cqOdtq16/OYzHc78pjZk8q4toVjgcZx4QaA1+h7uqzUbH0Su1VVN0eQ/QCB7GM9KhFw877nTZsJfJCFetmotywqRhJHHubxYK+MmylGYgOLotyDZdgkcSsNOZnpdkeWpeJAhdX5d8gALv48b98Mo/F54j0HNN4AcaD/1iJ3cXd2CDnB0orlWtQhs7Pg8NUfHDL8+y3wFL4phJnuCuMEbYMB4ATWDTFvR1O4+cZKLkfUYlUTrTxjqcrbSkYNM7gPSJvVfeZ7IwV5De5y511ToNTYu1gWTxGhQMgQsby39fk781BDBNgtTiPG1xglUDcOAC/lceGw3CTihiaUGMQDlM3rQ4mgjjB+rB1US+w2sv55Oyj9aqakb1OG/Yhc0dpgJUwjuYibHerf+yG37EW2vwTIOd1Ssk7EMwGldQ7VjviDv0K55Qr+Zj4zUWb9LTYzGl9kjNjgdudraQTAUsW4Kfyu/ZW4KrjAR7mGtSGdbFFVWcJKwRFEC4CIKFUm00QySoNfoKvzcCtDdcvUFkhECecAbN1srhDU4NLkHCM9fMktXMNAP5XSpxxS8s1tmyi7mRFHSSyEWmxEhH+hxLnXJX/7qcDtTUIygv0aCXCxDUA18Ky+46SAr1mWKIAEISeoTrk3pc6/VH5JU5scWkgiIb8y6/ml6FwvUtJH0BTt5XQJvchhn9UCmOPqarVI06QjwDLuY3WZaa6sXpJzsGqQBxGE5L3460l9rGm4V5bO7YKnAT0UKW5/kRptxyfwO8gJUKEEBDDl6mk+k2kQRwQJg4+iOO1eQw8/5hhH4SHbpkSIUBxEAGEQtLMm1XOKEf5Q7ewjIS1x7T9GKG8We3RVABsZc2HodjHYNE0E4332mMaz2V3jKTpDFbGjqXC4nHijzdCozT7PJN1+ZnEP05Smv+uKrrTZDbrN4wFUxin11A72EEmq2O1kpKzNnRrypa3Vl6inAX5yK/oEXSsBFnatEOdjnwmm8kHsEV/vkUXgI31oe6vboLpl3A7nsZ70aHgVswXdn9wy7WMCT8LMh3kYylADLDwa1WFHeYlYnip0gkAcJHXaGrT7oAXMBwYFgAaRaueOgd1QxDeFd1PCQNoo+rOTQDhcA00Yu/TiPfxHQEp9kUgmpDDKGKwuuOUYgP4JFaqBLnIx3hQfhfXLlaVMOxad/xgvIQBME/MsHCWVRvyIIz983iBRSxxFLPQ+IRjIKa8XbKefjijzcmoEele+SDEIuRVal/tsQMAOMP+qiIJ4O6Z3wVi4UbR5+Gw+Lr8m+MWVkb5HiXP9aOcYcV16DNHqLBLgIw4I5KJglXf2j9Mi0Vf7YiDSH5D7StvvzwHu/zJ4mbRXaJSeJ554Untd+bJjDRWMRZEJAiXOwSpIBdZ1HQmR1uH1cIVWFUAzvqCTS2QdqgSoEBokynrBB0AN6JUgOQDDdcyJtizuQvcBocOgMePYhveSboum9yvLcjXL1M5mchpfjwb4mDjUx2pEOVSlcAfsLggP8s1wUeUuB7ze7lmWaUaFwWzNw8A4wBx/Ut0BIfKByWIujhZlp9zTO6LVdy1ABQg4UqPx0c7QefQPA4+Ucws3hwW9/WsRsQPQN6c78fLB2eCpWPSrlJavcjwXk4qiAHkoQs4kcb1Ol2M3il/TeZ3PZMbGMBxrYTHWpt4ZS/Icz1AsyDTKjqp4r7FU/Jvb9BwRy20dW+no4MUNG5r7wBmRGVvhkWPnVTEIZaqsOLoGb1eVcIwsYCQN6nsx3DtcK4l7HyA2jkFyEIMfU+lnDL6gXfH92twoa+pKOHA9ngV3ea7Sg4lYHBw/h4Cw/GHgoqiv59mzuqq1GKKSLxJ6dS98zQ+7tCr26Rzwq73hWzJ7x1RkdM+riEeQ4WXEG7zZJVd7WPhd5CPFg9h4TuBy0Bg6COIKUxFOMdiNVsrvHfv/A7ug9M0mZ9NDa6HDmOu64IoRrA3NDvWAcGcpbIH5dl5/JjpJ+R3T6viycuQv02cAOCS6NHmcp5IB/lYEawI+y9g+WRa4Qux6QlAAFhMgLkgX+P0+Ptqz0V8EOIHqIiaWNIQJJySn/15Je/obj1gY4/qIG3n/K5RFY+rCWLn8EwnBK1U4XDeGOT6FDiYWIzb8nyO0jSm3DFAWNYwB65MJmG4+iz7TgGej7GGc8E9zlFR1Fh5n1MRNWtqz7s3X/93SkjBP7Bf7hep5HZcopIjwYqcyP5MWzmMydaUg083qUoQNDuw4HxfUreybD2OxoKA49yTx/lETQNhMCEAVgfudHUrbgAJlnuaks5gc9MV7sZUdBBECavbASaXNeLvs5UUVessx6iInugPiQ43V6/x1sFhvYlc/walVb8hPJt34uyqI5F5flTlAN+m3WCfU7FkIDgICwJ3EvSUipK2XMmp7lYSYd8okJirP1NzFV7+vylf4zPCANxF+TuCUegJ71NS3CynT1U5MHZ7wzP9tw+XXaJkjeB38N7Ofu51Ww6nqiDZNSdYbG3Iw/LwXtj6uFig9dwML96zNXxdrqGa08nbNr/GVdWvZHIT0tuu51kQAKwWpKFDtHlIQb7FCpo7CtmGfA+AwTyFYE7M3c9B59hX5XjJrSqxBp6xWsXxdVZ+lguouAySE1YwP0GIzxTdPV/vBKDXqXp8tXe79Wt+X9TlGA+E3ebE2iO/5+maohMImw4aqXebhSiDd2pwgvDezYhoV6RlVTFpgHeF2o9/Aok4yohOYtvbVfx+ldN9CFvj8DkxvA9x8uR8L2wcywSn11Ilt/mD8nz4bZmqDiz7QZbn59mDCrFdoyQiUP4uyeOhuyTRQg0fuON6H/nteQOTXntOHBaf9AYQDlf7OeF8x4S9cwk2vU6DEQXU/kWVyCnfIf9BEmwZ7oD9vkG9t+6hXwC0EVUTXm7PvzGuxUps2L/7KEqQDaAhELgMROQAm/dWQCy/qW4WHx1px+ZrV6lwkMgFnYQ8XiQ1nX4wTM2tSW1QYj3nsr5KR5WAg1//FxpcfHi1rlIiEHvxWNkolLeq5CE23Q838Q7rETVnQIEc8gKeqKJo0lHGjsxzc/kgngOrdl4H4zhdzXWx6s2r325xZP1ylSq+EOh4yw1BfIeqe2EOU3NrUlusm9CEbFd2RY6i6ffaZtdGVCTdwB1wnYO87+fnkpcJ5xlVN2FgiWCng7zjWsbH/xDpU1T1UcSSSM7jcFobc8EziaiAKJZqfEVKzUVAJgQ+kfIAPGe5umFrJXxGuIXt6uvUjFgGdqsGP8WnLkLQV1zky1Xr+A1E44tAUYtV8UwQALmNIHz/H6passBcAkJo0tqZB+LMO9IRP0s0fmXNvomJKHtNtS2A0WolveU9moH4h9lXU7nCiXbXdAJRTQe7u1qMHUquQtuPIHzmxadU5TJtRyn5GCuHplkIEMW7NfNVYbwxOc6D+TFOiHsytiwM3Vg1MWAz2b0Xd4EI4BZo9EZoL5Hhjvx9nqpy2H4MAHk/lWwsGogHyC4TYOvA+sVMt3rBF+94n5HwuX0UbdbHZHIMul3ZyH3HNyAKrAxc2SCrH0HYp3C6qqvLRc4hAMTCuSpmIjrRNfmaURV2PO2yuqW5LmhMWIJzD1pJZ1IbKwoFcKo8mSCW8C+sHi0f/WKpkvmGngELPyVfgwgbUe99Fs7+emT+jNd5dxaE4N1pEBthb4hirWZ3Tet4Prznc4hmoEGJ5CFMlEs4wFT/HiX1OUpIWKTqkU72kUAQrHoskX4cy0cajKpKyNxDVheEdkd4BkSxROWYqtlMFPUFOkx5pQk3K2EuTgogJ6LIQNmXKyH6UarKaN71fCURRcTvR0r7G7gHu/7LSggic9mKVVsDUNcr7VBfoSpiUSC/rXRCUK/s5DHN3saiujR/Wud5mtJmoM2aphZPqBkvh+Be4gsgPSay1nWAjfnTtbpZuWfl6y9T8j72O8YBPeMVqh5mHzkSsYnlqrrr65xia56zYwqzRaegwSkOVImB+NjLaUvitYLZVCR9UHEBIkAQnMbxk80D3Otamc41WK3mYytjZ/Ww6+yValZC1+ZxXFX7rU4UfIeYQduHo7GJ9yGqHkM13Y33wt0QHfgrPP5pP2rSaWDjVTBx66Ir2ORzHKH+vLZdYPH7fkQZg1tXtPwOMUAUdeJqIgp7CWHPo0qcjuAY/hEH6aazgYuT1BxTmjYLJKaDjXc7OrL/zUqpYlAyE0DB83ldTAZEna+CqKYxeBy9mg+ox3t5UMPvEAW6xqPV7bRakO+J72dVflrJ2nm6EjF8PY+VvRgvULvLOpYUmKyNOjwDomzjUtPmXAMpD1PvQ2IH0SdAPv4AVh5cwwVGvJcCU/AMTczkhajgEvHAuNjvze9oeg8EZV/FlapyF5/WU+dcBOLquZT+G2J5kZI/BHZ/iAbfUd/WHINpgtG0WiA0xwMm6t52oi3E8Yb8TBcVxeJYpvErs3ZL9yIslFiI+1I1iytEDoBvU4SbupNsQTic5GgVNs7KPVPl+CrmjRU3aIZ3vcHNmk4p9tya3PZT1qA+JrteEyOKSBxMwkVM8X8AtLbkmUE6z2MH2LU9nsH4EWVteR4QLKnyKKrDECfzuETlXPVYDdiZ5U6jg5sRgR0P8hyXaSqlNO2cAsp2ts9Uurgn0n3C79YJXMP3aPEQVz+zt97r+Q3eOgmXRZd6Zn42yCMCe7iGEyW2eJaqmxN6E9NemsYGGyRbmFW9qmFQ3sXlKrozRTjbJuEaCOcyTTzo5y2U1jnoiBi8seeq97kg9ca9+CWcsBPP+HD63zINXth1UprtY5RBdkDBDr2VDwpFIx9R0tL7KYsTcYBNV9+u4e9p6+gckSt488/jNHjUleuOzs+6QWXRAecvZxxMJHlnqOaXMIBYxQ1b+bpO/7FKOjwUG0vzOMYRP4ldMIGnanYfTjKZchmfCPmnL1Q5QRERAjca63MvhAScXJTWx1qZwLgfcx6uQ1hgwlXsBmltiGNSH1Ip4umGzPMmG2Ic7OZerVLIE8L6M6VCYbOZKCazQWDkYuA/eb0SbGj9CIKGLvdGpY3FB6l4U912ys9hcW7VLG7INTTuB6gcMmuZinZcT/uHiLy7a2wWdAi3zc8xnu49JCiu79Bw5iicAUcfHAZuE0/+8XaCUc2xw17coGg0cTuFnFqPYkp6HRtoyB5qIgxvBRwE+MMi6zZ1nyBwvMrxj3EM9Xtd4bbfe23xIDZB7jCZ3BDFXeE5cZvAXyopsiOao1wXOfhZlXJCEADxFBRTJ8b+qbpzD0EMZtwP1U4Y3HOrmvMrvCWvKbubrXRo9L8I156lspvrivD8VaoSifeKsPJvahlbDFado8Q9X6wkSgbVWfZS84YqFtPjVXapTXte5mQ02+o+sM2Fu/wbppajft5dhdmGxt22TXFT/v40pdW3TFXkOIWPEHrdA+gscJDjJN1zVTK7neJvU4/xLlVxQLFSR/IcGB/EFGtwmb1foxLjQXS6PPSgrY0o1mqOHRo3bAPg7K/wvk2QQC4mJrA390QPnolhVMlN7pqZoyrONZD+LJUi7jGWAUBjvILVhqJ2QG1cPsfch8agH70sv9uHynuFMtbH57E7awszHcSx0QjH32c0fMAqEkVMOr5Egx9NNScbiAfwrPjDVA1HxwCQ60KMKhFDVK4cjvfO8ridP4b+WbVwgFiy0IXVmsZ1hKrymr/J+SQjrOm4Cm/6wWR/vUqJAteiGJbNmyiYuzOtfJLgtDqqZqLBUndp+R6CQW6D9P1argNAo0r5Dk01qZyFfoaG2xuxU8t3MdrJJ9skozjk70WauKzHUQghI54ckEQUuXLNr21z/cxephwIeLrSRuSmxr0oef1OFx5Pg0DIBa1zoMlo6GH4g1zSgCgwus+U1ZqYb23BBH8fb4MoVimJtgdqcpt1GXOf12liWxcnpf0frVftWDg+Y2cAAAAASUVORK5CYII=",
+};
+</script>
+<script>
+/* QR Art Studio app — drives the QRArt engine inlined above. */
+(function () {
+  "use strict";
+  const E = window.QRArt;
+  const $ = (id) => document.getElementById(id);
+
+  const state = {
+    version: 6,
+    level: "L",
+    target: null,
+    weight: null,
+    source: "cat", // cat | upload | paint
+    uploadImg: null,
+    res: null,
+    edits: new Map(),
+    brush: "black",
+    running: false,
+  };
+
+  // ---------- cat preset (the tuned Hex silhouette) ----------
+  function paintCat(version) {
+    const S = E.sizeOf(version);
+    const fp = E.functionPatterns(version);
+    const p = {
+      cx: 0.49, cy: 0.55, rx: 0.295, ry: 0.235,
+      earTipY: 0.155, earSpread: 0.72, earInner: 0.22, earOuter: 0.98,
+      eyeY: -0.12, eyeX: 0.46, eyeRx: 0.165, eyeRy: 0.10,
+      chinTopY: 0.42, chestBottom: 0.985, chestHalfW: 0.16, chinHalfW: 0.045,
+      halo: 2.7, haloIn: 1.5, edgeBand: 2.2,
+      wEye: 25, wEdge: 6, wHaloIn: 6, wHaloOut: 4, wChest: 4, wFill: 3, wFillLow: 4,
+    };
+    const cx = p.cx * S, cy = p.cy * S, rx = p.rx * S, ry = p.ry * S;
+    const inEllipse = (r, c, ecy, ecx, ery, erx) => {
+      const dy = (r + 0.5 - ecy) / ery, dx = (c + 0.5 - ecx) / erx;
+      return dy * dy + dx * dx <= 1;
+    };
+    const sgn = (px, py, ax, ay, bx, by) => (px - bx) * (ay - by) - (ax - bx) * (py - by);
+    const inTri = (r, c, A, B, C) => {
+      const px = c + 0.5, py = r + 0.5;
+      const d1 = sgn(px, py, A[0], A[1], B[0], B[1]);
+      const d2 = sgn(px, py, B[0], B[1], C[0], C[1]);
+      const d3 = sgn(px, py, C[0], C[1], A[0], A[1]);
+      return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+    };
+    const ears = [-1, 1].map((s) => [
+      [cx + s * p.earInner * rx, cy - ry * 0.72],
+      [cx + s * p.earOuter * rx, cy - ry * 0.12],
+      [cx + s * p.earSpread * rx, p.earTipY * S],
+    ]);
+    const silhouette = (r, c) => {
+      if (inEllipse(r, c, cy, cx, ry, rx)) return true;
+      for (const e of ears) if (inTri(r, c, e[0], e[1], e[2])) return true;
+      return false;
+    };
+    const chinTop = cy + p.chinTopY * ry, chestBot = p.chestBottom * S;
+    const chest = (r, c) => {
+      const y = r + 0.5;
+      if (y < chinTop || y > chestBot) return false;
+      const t = (y - chinTop) / (chestBot - chinTop);
+      const half = (p.chinHalfW + (p.chestHalfW - p.chinHalfW) * Math.pow(t, 0.8)) * S;
+      return Math.abs(c + 0.5 - cx) <= half;
+    };
+    const eyes = [-1, 1].map((s) => ({
+      cy: cy + p.eyeY * ry * 2.2, cx: cx + s * p.eyeX * rx,
+      ry: Math.max(1.4, p.eyeRy * rx * 2.2), rx: Math.max(1.9, p.eyeRx * rx * 2.2),
+    }));
+    const sil = new Uint8Array(S * S), che = new Uint8Array(S * S);
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) {
+        if (silhouette(r, c)) sil[r * S + c] = 1;
+        if (chest(r, c)) che[r * S + c] = 1;
+      }
+    const fig = new Uint8Array(S * S);
+    for (let i = 0; i < S * S; i++) fig[i] = sil[i] && !che[i] ? 1 : 0;
+    const distTo = (set) => {
+      const pts = [];
+      for (let r = 0; r < S; r++) for (let c = 0; c < S; c++) if (set[r * S + c]) pts.push([r, c]);
+      const d = new Float32Array(S * S).fill(1e9);
+      for (let r = 0; r < S; r++)
+        for (let c = 0; c < S; c++) {
+          const i = r * S + c;
+          if (set[i]) { d[i] = 0; continue; }
+          let m = 1e9;
+          for (const [pr, pc] of pts) {
+            const dd = (pr - r) * (pr - r) + (pc - c) * (pc - c);
+            if (dd < m) m = dd;
+          }
+          d[i] = Math.sqrt(m);
+        }
+      return d;
+    };
+    const union = new Uint8Array(S * S);
+    for (let i = 0; i < S * S; i++) union[i] = sil[i] | che[i];
+    const dOut = distTo(union);
+    const notFig = new Uint8Array(S * S);
+    for (let i = 0; i < S * S; i++) notFig[i] = fig[i] ? 0 : 1;
+    const dIn = distTo(notFig);
+    const target = new Uint8Array(S * S), weight = new Uint8Array(S * S);
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) {
+        const i = r * S + c;
+        if (fp.func[i]) continue;
+        let done = false;
+        for (const e of eyes) {
+          if (fig[i] && inEllipse(r, c, e.cy, e.cx, e.ry, e.rx)) {
+            const pupil = Math.abs(r + 0.5 - e.cy) < 1.0 && Math.abs(c + 0.5 - e.cx) < 1.0;
+            target[i] = pupil ? 1 : 0;
+            weight[i] = p.wEye;
+            done = true;
+            break;
+          }
+        }
+        if (done) continue;
+        if (che[i]) { target[i] = 0; weight[i] = p.wChest; continue; }
+        if (fig[i]) {
+          target[i] = 1;
+          const low = r + 0.5 > cy + p.eyeY * ry * 2.2 + 1.5;
+          weight[i] = dIn[i] <= p.edgeBand ? p.wEdge : low ? p.wFillLow : p.wFill;
+          continue;
+        }
+        if (dOut[i] <= p.halo) {
+          target[i] = 0;
+          weight[i] = dOut[i] <= p.haloIn ? p.wHaloIn : p.wHaloOut;
+        }
+      }
+    return { target, weight };
+  }
+
+  // face-only preset for poster compositions (ears/whiskers drawn OUTSIDE
+  // the code) — matches prototypes/hex-poster.svg
+  function paintFace(version) {
+    const S = E.sizeOf(version);
+    const fp = E.functionPatterns(version);
+    const p = {
+      eyeCy: 0.40, eyeDx: 0.215, eyeRx: 0.145, eyeRy: 0.105,
+      pupilW: 1.0, pupilH: 1.6,
+      noseCy: 0.645, noseW: 3.6, noseH: 2.8,
+      muzzleCy: 0.695, muzzleRx: 0.125, muzzleRy: 0.075,
+      haloEye: 1.6, haloNose: 1.4,
+      wIris: 8, wHalo: 6, wNose: 7, wChin: 5, wGlint: 9,
+    };
+    const cx = 0.5 * S;
+    const target = new Uint8Array(S * S), weight = new Uint8Array(S * S);
+    const eyeCenters = [-1, 1].map((s) => ({ y: p.eyeCy * S, x: cx + s * p.eyeDx * S }));
+    const rx = p.eyeRx * S, ry = p.eyeRy * S;
+    const inAlmond = (r, c, e) => {
+      const dy = (r + 0.5 - e.y) / ry, dx = (c + 0.5 - e.x) / rx;
+      return dy * dy + dx * dx <= 1;
+    };
+    const noseY = p.noseCy * S;
+    const inNose = (r, c) => {
+      const dy = r + 0.5 - noseY;
+      if (dy < -p.noseH / 2 || dy > p.noseH / 2) return false;
+      const t = (dy + p.noseH / 2) / p.noseH;
+      return Math.abs(c + 0.5 - cx) <= (p.noseW / 2) * (1 - 0.75 * t);
+    };
+    const inMuzzle = (r, c) => {
+      const dy = (r + 0.5 - p.muzzleCy * S) / (p.muzzleRy * S);
+      const dx = (c + 0.5 - cx) / (p.muzzleRx * S);
+      return dy * dy + dx * dx <= 1;
+    };
+    const near = (r, c, pred, lim) => {
+      for (let dr = -4; dr <= 4; dr++)
+        for (let dc = -4; dc <= 4; dc++)
+          if (pred(r + dr, c + dc) && Math.hypot(dr, dc) <= lim) return true;
+      return false;
+    };
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) {
+        const i = r * S + c;
+        if (fp.func[i]) continue;
+        let done = false;
+        for (const e of eyeCenters) {
+          if (inAlmond(r, c, e)) {
+            const gr = Math.round(e.y - ry * 0.62), gc = Math.round(e.x - rx * 0.62);
+            const glint = r >= gr && r < gr + 2 && c >= gc && c < gc + 2;
+            target[i] = glint ? 0 : 1;
+            weight[i] = glint ? p.wGlint : p.wIris;
+            done = true;
+            break;
+          }
+        }
+        if (done) continue;
+        if (inNose(r, c)) { target[i] = 1; weight[i] = p.wNose; continue; }
+        if (inMuzzle(r, c)) { target[i] = 0; weight[i] = p.wChin; continue; }
+        let h = false;
+        for (const e of eyeCenters) if (near(r, c, (rr, cc) => inAlmond(rr, cc, e), p.haloEye)) h = true;
+        if (h || near(r, c, inNose, p.haloNose)) { target[i] = 0; weight[i] = p.wHalo; }
+      }
+    return { target, weight };
+  }
+
+  function paintDisc(version) {
+    const S = E.sizeOf(version);
+    const fp = E.functionPatterns(version);
+    const target = new Uint8Array(S * S), weight = new Uint8Array(S * S);
+    const cx = S / 2, cy = S / 2, R = S * 0.22;
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) {
+        const i = r * S + c;
+        if (fp.func[i]) continue;
+        const d = Math.hypot(r + 0.5 - cy, c + 0.5 - cx);
+        if (d < R) { target[i] = 1; weight[i] = d > R - 2 ? 6 : 3; }
+        else if (d < R + 2.5) { target[i] = 0; weight[i] = 5; }
+      }
+    return { target, weight };
+  }
+
+  // ---------- state helpers ----------
+  const size = () => E.sizeOf(state.version);
+  function setPreset(name) {
+    state.source = name;
+    const S = size();
+    if (name === "cat") ({ target: state.target, weight: state.weight } = paintCat(state.version));
+    else if (name === "face") ({ target: state.target, weight: state.weight } = paintFace(state.version));
+    else if (name === "disc") ({ target: state.target, weight: state.weight } = paintDisc(state.version));
+    else {
+      state.target = new Uint8Array(S * S);
+      state.weight = new Uint8Array(S * S);
+      state.source = "paint";
+    }
+    $("threshRow").hidden = name !== "upload";
+    renderTarget();
+  }
+
+  function resampleToSize(oldT, oldW, oldS, S) {
+    const t = new Uint8Array(S * S), w = new Uint8Array(S * S);
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) {
+        const or = Math.min(oldS - 1, (r * oldS / S) | 0);
+        const oc = Math.min(oldS - 1, (c * oldS / S) | 0);
+        t[r * S + c] = oldT[or * oldS + oc];
+        w[r * S + c] = oldW[or * oldS + oc];
+      }
+    const fp = E.functionPatterns(state.version);
+    for (let i = 0; i < S * S; i++) if (fp.func[i]) w[i] = 0;
+    return { t, w };
+  }
+
+  // ---------- target canvas ----------
+  const tCan = $("targetCanvas"), tCtx = tCan.getContext("2d");
+  const qCan = $("qrCanvas"), qCtx = qCan.getContext("2d");
+  const DPR = Math.min(2, window.devicePixelRatio || 1);
+  function cellPx(forSize) {
+    const avail = Math.min(440, Math.max(280, (window.innerWidth - 80) / 2.6));
+    return Math.max(6, Math.floor(avail / forSize));
+  }
+  function sizeCanvas(canvas, S, px) {
+    canvas.width = S * px * DPR;
+    canvas.height = S * px * DPR;
+    canvas.style.width = S * px + "px";
+    canvas.style.height = S * px + "px";
+  }
+
+  function renderTarget() {
+    const S = size(), px = cellPx(S);
+    sizeCanvas(tCan, S, px);
+    const g = tCtx;
+    g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const fp = E.functionPatterns(state.version);
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) {
+        const i = r * S + c, x = c * px, y = r * px;
+        if (fp.func[i]) {
+          g.fillStyle = fp.base[i] ? "#40495a" : "#dde2ea";
+          g.fillRect(x, y, px, px);
+          continue;
+        }
+        if (state.weight[i] === 0) {
+          // free noise tone: light checker
+          g.fillStyle = "#eef1f5";
+          g.fillRect(x, y, px, px);
+          g.fillStyle = "#dbe1e9";
+          const h = Math.ceil(px / 2);
+          g.fillRect(x, y, h, h);
+          g.fillRect(x + h, y + h, px - h, px - h);
+          continue;
+        }
+        g.fillStyle = state.target[i] ? "#101418" : "#ffffff";
+        g.fillRect(x, y, px, px);
+        if (!state.target[i]) {
+          g.strokeStyle = "#e6eaef";
+          g.strokeRect(x + 0.5, y + 0.5, px - 1, px - 1);
+        }
+        if (state.weight[i] >= 6) {
+          g.fillStyle = "#e63946";
+          g.fillRect(x + px - 3, y, 3, 3);
+        }
+      }
+  }
+
+  // painting
+  let painting = false, lastCell = null;
+  function cellFromEvent(canvas, ev) {
+    const rect = canvas.getBoundingClientRect();
+    const S = size();
+    const px = rect.width / S;
+    const c = Math.floor((ev.clientX - rect.left) / px);
+    const r = Math.floor((ev.clientY - rect.top) / px);
+    if (r < 0 || c < 0 || r >= S || c >= S) return null;
+    return { r, c };
+  }
+  function applyBrush(r, c) {
+    const S = size();
+    const fp = E.functionPatterns(state.version);
+    const bs = Number($("brushSize").value);
+    for (let dr = 0; dr < bs; dr++)
+      for (let dc = 0; dc < bs; dc++) {
+        const rr = r + dr - ((bs / 2) | 0), cc = c + dc - ((bs / 2) | 0);
+        if (rr < 0 || cc < 0 || rr >= S || cc >= S) continue;
+        const i = rr * S + cc;
+        if (fp.func[i]) continue;
+        if (state.brush === "black") { state.target[i] = 1; state.weight[i] = Math.max(4, state.weight[i]); }
+        else if (state.brush === "white") { state.target[i] = 0; state.weight[i] = Math.max(4, state.weight[i]); }
+        else if (state.brush === "noise") { state.weight[i] = 0; }
+        else if (state.brush === "boost" && state.weight[i] > 0) state.weight[i] = Math.min(30, state.weight[i] + 4);
+      }
+    state.source = "paint";
+  }
+  tCan.addEventListener("pointerdown", (ev) => {
+    painting = true;
+    tCan.setPointerCapture(ev.pointerId);
+    const cell = cellFromEvent(tCan, ev);
+    if (cell) { applyBrush(cell.r, cell.c); lastCell = cell; renderTarget(); }
+    ev.preventDefault();
+  });
+  tCan.addEventListener("pointermove", (ev) => {
+    if (!painting) return;
+    const cell = cellFromEvent(tCan, ev);
+    if (!cell) return;
+    if (lastCell) {
+      const steps = Math.max(Math.abs(cell.r - lastCell.r), Math.abs(cell.c - lastCell.c), 1);
+      for (let s = 1; s <= steps; s++)
+        applyBrush(
+          Math.round(lastCell.r + ((cell.r - lastCell.r) * s) / steps),
+          Math.round(lastCell.c + ((cell.c - lastCell.c) * s) / steps)
+        );
+    } else applyBrush(cell.r, cell.c);
+    lastCell = cell;
+    renderTarget();
+  });
+  const stopPaint = () => { painting = false; lastCell = null; };
+  tCan.addEventListener("pointerup", stopPaint);
+  tCan.addEventListener("pointercancel", stopPaint);
+
+  // ---------- upload ----------
+  function rasterizeUpload() {
+    if (!state.uploadImg) return;
+    const S = size(), R = 4; // subsample so thin strokes stay measurable
+    const off = document.createElement("canvas");
+    off.width = S * R; off.height = S * R;
+    const g = off.getContext("2d");
+    g.fillStyle = "#fff";
+    g.fillRect(0, 0, S * R, S * R);
+    const img = state.uploadImg;
+    const rect = state.cropRect || [0, 0, 1, 1];
+    const sx = rect[0] * img.width, sy = rect[1] * img.height;
+    const sw = (rect[2] - rect[0]) * img.width, sh = (rect[3] - rect[1]) * img.height;
+    const fit = Math.min((S * R) / sw, (S * R) / sh); // contain, white-padded
+    const dw = sw * fit, dh = sh * fit;
+    g.drawImage(img, sx, sy, sw, sh, (S * R - dw) / 2, (S * R - dh) / 2, dw, dh);
+    const data = g.getImageData(0, 0, S * R, S * R).data;
+    const inv = $("tInvert").checked;
+    const N = S * S;
+    const mean = new Float32Array(N), mn = new Float32Array(N).fill(255), mx = new Float32Array(N);
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) {
+        const i = r * S + c;
+        let acc = 0;
+        for (let dy = 0; dy < R; dy++)
+          for (let dx = 0; dx < R; dx++) {
+            const o = ((r * R + dy) * S * R + c * R + dx) * 4;
+            let v = 0.2126 * data[o] + 0.7152 * data[o + 1] + 0.0722 * data[o + 2];
+            if (inv) v = 255 - v;
+            acc += v;
+            if (v < mn[i]) mn[i] = v;
+            if (v > mx[i]) mx[i] = v;
+          }
+        mean[i] = acc / (R * R);
+      }
+    const dark = Number($("tDark").value), light = Number($("tLight").value);
+    const fp = E.functionPatterns(state.version);
+    state.target = new Uint8Array(N);
+    state.weight = new Uint8Array(N);
+    if ($("tMode").value === "solid") stylize(mean, dark, light, fp, S);
+    else triTone(mean, mn, mx, dark, light, fp, S);
+    state.source = "upload";
+    renderTarget();
+  }
+
+  // line-art mode: dark strokes → black, paper → white near the ink,
+  // hatched midtones → free noise. Whisker-thin strokes are rescued via the
+  // per-cell min/max, speckles dropped, tone boundaries and high-contrast
+  // detail get priority.
+  function triTone(mean, mn, mx, dark, light, fp, S) {
+    const N = S * S, minCells = 3, halo = 2.6;
+    const tone = new Int8Array(N); // 1 black, -1 white, 0 noise
+    for (let i = 0; i < N; i++) {
+      if (fp.func[i]) continue;
+      if (mean[i] <= dark) tone[i] = 1;
+      else if (mean[i] >= light) tone[i] = -1;
+      else if (mean[i] >= light - 25 && mn[i] <= dark * 0.7) tone[i] = 1;
+      else if (mean[i] <= dark + 25 && mx[i] >= 235) tone[i] = -1;
+    }
+    // despeckle, 8-connected so diagonal whisker chains survive
+    const seen = new Uint8Array(N), stack = new Int32Array(N);
+    for (let s0 = 0; s0 < N; s0++) {
+      if (tone[s0] === 0 || seen[s0]) continue;
+      const t = tone[s0];
+      let top = 0;
+      stack[top++] = s0;
+      seen[s0] = 1;
+      const cells = [];
+      while (top > 0) {
+        const i = stack[--top];
+        cells.push(i);
+        const r = (i / S) | 0, c = i % S;
+        for (let dr = -1; dr <= 1; dr++)
+          for (let dc = -1; dc <= 1; dc++) {
+            const rr = r + dr, cc = c + dc;
+            if ((dr === 0 && dc === 0) || rr < 0 || cc < 0 || rr >= S || cc >= S) continue;
+            const j = rr * S + cc;
+            if (tone[j] === t && !seen[j]) {
+              seen[j] = 1;
+              stack[top++] = j;
+            }
+          }
+      }
+      if (cells.length < minCells) for (const i of cells) tone[i] = 0;
+    }
+    // release white far from any ink — only a halo band is worth paying for
+    {
+      const d = new Float32Array(N).fill(1e9);
+      for (let i = 0; i < N; i++) if (tone[i] === 1) d[i] = 0;
+      const relax = (i, j, w) => {
+        if (d[j] + w < d[i]) d[i] = d[j] + w;
+      };
+      for (let r = 0; r < S; r++)
+        for (let c = 0; c < S; c++) {
+          const i = r * S + c;
+          if (c > 0) relax(i, i - 1, 1);
+          if (r > 0) relax(i, i - S, 1);
+          if (r > 0 && c > 0) relax(i, i - S - 1, 1.414);
+          if (r > 0 && c < S - 1) relax(i, i - S + 1, 1.414);
+        }
+      for (let r = S - 1; r >= 0; r--)
+        for (let c = S - 1; c >= 0; c--) {
+          const i = r * S + c;
+          if (c < S - 1) relax(i, i + 1, 1);
+          if (r < S - 1) relax(i, i + S, 1);
+          if (r < S - 1 && c < S - 1) relax(i, i + S + 1, 1.414);
+          if (r < S - 1 && c > 0) relax(i, i + S - 1, 1.414);
+        }
+      for (let i = 0; i < N; i++) if (tone[i] === -1 && d[i] > halo) tone[i] = 0;
+    }
+    for (let i = 0; i < N; i++) {
+      if (tone[i] === 0) continue;
+      state.target[i] = tone[i] === 1 ? 1 : 0;
+      state.weight[i] = mx[i] - mn[i] > 140 ? 7 : 4; // high-contrast detail first
+    }
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) {
+        const i = r * S + c;
+        if (tone[i] === 0) continue;
+        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const rr = r + dr, cc = c + dc;
+          if (rr < 0 || cc < 0 || rr >= S || cc >= S) continue;
+          if (tone[rr * S + cc] === -tone[i]) {
+            state.weight[i] = Math.max(state.weight[i], 6);
+            break;
+          }
+        }
+      }
+  }
+
+  // baked art presets: the two cat artworks, embedded as data URIs
+  const ART_PRESETS = {
+    ink: { version: 6, dark: 100, light: 185, rect: [0, 0, 1, 0.78] },
+    tabby: { version: 8, dark: 85, light: 190, rect: [0.08, 0.02, 0.95, 0.70] },
+  };
+  function loadArtPreset(key) {
+    const p = ART_PRESETS[key];
+    const im = new Image();
+    im.onload = () => {
+      state.uploadImg = im;
+      state.cropRect = p.rect;
+      state.version = p.version;
+      $("version").value = String(p.version);
+      state.level = "L"; // line art wants maximum free bytes, not flip budget
+      $("level").value = "L";
+      $("tDark").value = p.dark;
+      $("tLight").value = p.light;
+      $("tMode").value = "lineart";
+      $("tInvert").checked = false;
+      $("threshRow").hidden = false;
+      state.res = null;
+      state.edits.clear();
+      rasterizeUpload();
+      updateFreedomHint();
+    };
+    im.src = window.QR_PRESET_IMGS[key];
+  }
+
+  // photo → poster-style pixel art: keep the biggest shape, scrub speckles,
+  // carve bright details (eyes!) back out, and derive tiered priorities —
+  // crisp silhouette edge + white halo matter, deep interior tolerates noise.
+  function stylize(lumas, dark, light, fp, S) {
+    const N = S * S;
+    let mask = new Uint8Array(N);
+    for (let i = 0; i < N; i++) mask[i] = lumas[i] <= dark ? 1 : 0;
+    const largest = (m) => {
+      const seen = new Uint8Array(N), out = new Uint8Array(N);
+      let bestCells = [];
+      const stack = new Int32Array(N);
+      for (let s0 = 0; s0 < N; s0++) {
+        if (!m[s0] || seen[s0]) continue;
+        let top = 0;
+        stack[top++] = s0;
+        seen[s0] = 1;
+        const cells = [];
+        while (top > 0) {
+          const i = stack[--top];
+          cells.push(i);
+          const r = (i / S) | 0, c = i % S;
+          for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const rr = r + dr, cc = c + dc;
+            if (rr < 0 || cc < 0 || rr >= S || cc >= S) continue;
+            const j = rr * S + cc;
+            if (m[j] && !seen[j]) {
+              seen[j] = 1;
+              stack[top++] = j;
+            }
+          }
+        }
+        if (cells.length > bestCells.length) bestCells = cells;
+      }
+      for (const i of bestCells) out[i] = 1;
+      return out;
+    };
+    const morph = (m, grow) => {
+      const out = new Uint8Array(N);
+      for (let r = 0; r < S; r++)
+        for (let c = 0; c < S; c++) {
+          let v = grow ? 0 : 1;
+          for (let dr = -1; dr <= 1; dr++)
+            for (let dc = -1; dc <= 1; dc++) {
+              const rr = r + dr, cc = c + dc;
+              const inb = rr >= 0 && cc >= 0 && rr < S && cc < S;
+              const mv = inb ? m[rr * S + cc] : 0;
+              if (grow) v |= mv;
+              else v &= mv;
+            }
+          out[r * S + c] = v;
+        }
+      return out;
+    };
+    mask = largest(mask);
+    mask = morph(morph(mask, true), false);   // close pinholes
+    mask = morph(morph(mask, false), true);   // shave speckle arms
+    mask = largest(mask);
+    // chamfer distance from a seed set
+    const chamfer = (seedIsSet) => {
+      const d = new Float32Array(N).fill(1e9);
+      for (let i = 0; i < N; i++) if (!!mask[i] === seedIsSet) d[i] = 0;
+      const relax = (i, j, w) => {
+        if (d[j] + w < d[i]) d[i] = d[j] + w;
+      };
+      for (let r = 0; r < S; r++)
+        for (let c = 0; c < S; c++) {
+          const i = r * S + c;
+          if (c > 0) relax(i, i - 1, 1);
+          if (r > 0) relax(i, i - S, 1);
+          if (r > 0 && c > 0) relax(i, i - S - 1, 1.414);
+          if (r > 0 && c < S - 1) relax(i, i - S + 1, 1.414);
+        }
+      for (let r = S - 1; r >= 0; r--)
+        for (let c = S - 1; c >= 0; c--) {
+          const i = r * S + c;
+          if (c < S - 1) relax(i, i + 1, 1);
+          if (r < S - 1) relax(i, i + S, 1);
+          if (r < S - 1 && c < S - 1) relax(i, i + S + 1, 1.414);
+          if (r < S - 1 && c > 0) relax(i, i + S - 1, 1.414);
+        }
+      return d;
+    };
+    const dIn = chamfer(false);  // depth inside the figure
+    const dOut = chamfer(true);  // distance outside the figure
+    for (let i = 0; i < N; i++) {
+      if (fp.func[i]) continue;
+      if (mask[i]) {
+        if (lumas[i] >= light) { state.target[i] = 0; state.weight[i] = 6; } // carved detail
+        else { state.target[i] = 1; state.weight[i] = dIn[i] <= 2 ? 6 : 3; }
+      } else if (dOut[i] <= 1.6) { state.target[i] = 0; state.weight[i] = 6; }
+      else if (dOut[i] <= 2.8) { state.target[i] = 0; state.weight[i] = 4; }
+    }
+  }
+  $("p-upload").addEventListener("click", () => $("file").click());
+  $("file").addEventListener("change", (ev) => loadImageFile(ev.target.files[0]));
+  function loadImageFile(file) {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      state.uploadImg = img;
+      state.cropRect = [0, 0, 1, 1];
+      $("threshRow").hidden = false;
+      rasterizeUpload();
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  }
+  const board = $("targetBoard");
+  board.addEventListener("dragover", (ev) => { ev.preventDefault(); board.classList.add("drag"); });
+  board.addEventListener("dragleave", () => board.classList.remove("drag"));
+  board.addEventListener("drop", (ev) => {
+    ev.preventDefault();
+    board.classList.remove("drag");
+    loadImageFile(ev.dataTransfer.files[0]);
+  });
+  for (const id of ["tDark", "tLight", "tInvert", "tMode"]) $(id).addEventListener("input", rasterizeUpload);
+
+  // ---------- generate ----------
+  function params() {
+    return {
+      text: $("url").value.trim(),
+      version: state.version,
+      level: state.level,
+      target: state.target,
+      weight: state.weight,
+      margin: Number($("margin").value) / 100,
+      marginCap: Number($("marginCap").value) / 100,
+      urlCase: $("urlCase").value,
+      fragmentLen: Math.max(0, Number($("fragmentLen").value) || 0),
+      mask: $("mask").value === "" ? null : Number($("mask").value),
+    };
+  }
+  function updateFreedomHint() {
+    const p = params();
+    try {
+      const frag = p.fragmentLen > 0 ? "#" + "x".repeat(p.fragmentLen) : "";
+      const built = E.buildData(p.text + frag, p.version, p.level);
+      let free = 0;
+      for (let i = 0; i < built.freedom.length; i++) if (built.freedom[i]) free++;
+      $("freedomHint").textContent = `${free} free pad bytes`;
+      return true;
+    } catch (e) {
+      let need = "";
+      try { need = " — needs v" + E.minVersionFor(p.text, p.level); } catch (e2) { need = " — too long even for v10"; }
+      $("freedomHint").textContent = "URL too long" + need;
+      return false;
+    }
+  }
+  async function generate() {
+    if (state.running) return;
+    if (!updateFreedomHint()) { setPill("bad", "PAYLOAD TOO LONG"); return; }
+    state.running = true;
+    const btn = $("generate");
+    btn.disabled = true;
+    const p = params();
+    const seeds = Math.max(1, Math.min(64, Number($("seeds").value) || 16));
+    let best = null;
+    for (let seed = 1; seed <= seeds; seed++) {
+      btn.textContent = `solving ${seed}/${seeds}`;
+      await new Promise((res) => setTimeout(res, 0));
+      try {
+        const r = E.optimize(Object.assign({}, p, { seed }));
+        if (!best || r.score > best.score) best = r;
+      } catch (e) {
+        setPill("bad", "ERROR");
+        $("decoded").textContent = String(e.message || e);
+        btn.disabled = false;
+        btn.textContent = "Generate";
+        state.running = false;
+        return;
+      }
+    }
+    state.res = best;
+    state.edits.clear();
+    btn.disabled = false;
+    btn.textContent = "Generate";
+    state.running = false;
+    $("matchStat").textContent =
+      `match ${(100 * best.score / best.total).toFixed(1)}% · ${best.misses} misses · ` +
+      `${best.pinned} pixels pinned exactly · mask ${best.mask}`;
+    renderResult();
+    revalidate();
+  }
+  $("generate").addEventListener("click", generate);
+
+  // ---------- result rendering + edits ----------
+  function effectiveMatrix() {
+    const m = state.res.matrix.slice();
+    for (const [i, v] of state.edits) m[i] = v;
+    return m;
+  }
+  let hoverCw = -1;
+  function renderResult() {
+    if (!state.res) return;
+    const S = state.res.size, px = cellPx(S);
+    sizeCanvas(qCan, S, px);
+    const g = qCtx;
+    g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const m = effectiveMatrix();
+    g.fillStyle = "#ffffff";
+    g.fillRect(0, 0, S * px, S * px);
+    g.fillStyle = "#000000";
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) if (m[r * S + c]) g.fillRect(c * px, r * px, px, px);
+    if ($("ovGrid").checked) {
+      g.strokeStyle = "rgba(120,140,170,0.18)";
+      g.lineWidth = 1;
+      for (let k = 0; k <= S; k++) {
+        g.beginPath(); g.moveTo(k * px + 0.5, 0); g.lineTo(k * px + 0.5, S * px); g.stroke();
+        g.beginPath(); g.moveTo(0, k * px + 0.5); g.lineTo(S * px, k * px + 0.5); g.stroke();
+      }
+    }
+    const dot = (i, color, ring) => {
+      const r = (i / S) | 0, c = i % S;
+      g.strokeStyle = color;
+      g.lineWidth = 2;
+      if (ring) g.strokeRect(c * px + 1.5, r * px + 1.5, px - 3, px - 3);
+      else {
+        g.fillStyle = color;
+        g.beginPath();
+        g.arc(c * px + px / 2, r * px + px / 2, Math.max(2, px / 5), 0, 7);
+        g.fill();
+      }
+    };
+    if ($("ovMiss").checked) {
+      for (let i = 0; i < S * S; i++)
+        if (state.weight[i] > 0 && m[i] !== state.target[i]) dot(i, "#e63946", false);
+    }
+    if ($("ovFlip").checked) for (const i of state.res.flips) dot(i, "#e0a83c", true);
+    if ($("ovEdit").checked) for (const i of state.edits.keys()) dot(i, "#4da3ff", true);
+    if (hoverCw >= 0) {
+      g.strokeStyle = "#e63946";
+      g.lineWidth = 2;
+      const lay = state.res.lay;
+      for (let b = hoverCw * 8; b < hoverCw * 8 + 8; b++) {
+        const mi = lay.bitToModule[b];
+        if (mi < 0) continue;
+        const r = (mi / S) | 0, c = mi % S;
+        g.strokeRect(c * px + 1, r * px + 1, px - 2, px - 2);
+      }
+    }
+  }
+  qCan.addEventListener("pointermove", (ev) => {
+    if (!state.res) return;
+    const cell = cellFromEvent(qCan, ev);
+    const lay = state.res.lay;
+    let text = "hover a module to see its codeword — flips are priced per codeword, not per pixel";
+    let cw = -1;
+    if (cell) {
+      const i = cell.r * state.res.size + cell.c;
+      const bit = lay.moduleToBit[i];
+      if (lay.func[i]) text = `(${cell.r},${cell.c}) function pattern — locked, scanners navigate by these`;
+      else if (bit < 0 || bit >= lay.totalCw * 8) text = `(${cell.r},${cell.c}) remainder bit — free, no codeword`;
+      else {
+        cw = bit >> 3;
+        const info = lay.inter[cw];
+        text = `(${cell.r},${cell.c}) codeword ${cw} · block ${info.block + 1} · ${info.isEC ? "error-correction" : "data"} · flip cost 1 of block budget`;
+      }
+    }
+    $("cwInfo").textContent = text;
+    if (cw !== hoverCw) { hoverCw = cw; renderResult(); }
+  });
+  qCan.addEventListener("pointerleave", () => { hoverCw = -1; renderResult(); $("cwInfo").textContent = "hover a module to see its codeword — flips are priced per codeword, not per pixel"; });
+  qCan.addEventListener("pointerdown", (ev) => {
+    if (!state.res) return;
+    const cell = cellFromEvent(qCan, ev);
+    if (!cell) return;
+    const S = state.res.size, i = cell.r * S + cell.c;
+    const lay = state.res.lay;
+    if (lay.func[i] || lay.formatModules.has(i)) {
+      $("resHint").textContent = "that module is locked (function/format pattern)";
+      setTimeout(() => ($("resHint").textContent = "click a module to hand-edit · shift-click clears"), 1600);
+      return;
+    }
+    if (ev.shiftKey) state.edits.delete(i);
+    else if (state.edits.has(i)) state.edits.delete(i);
+    else state.edits.set(i, state.res.matrix[i] ^ 1);
+    renderResult();
+    revalidate();
+    ev.preventDefault();
+  });
+
+  // ---------- validation + meter ----------
+  function setPill(cls, text) {
+    const pill = $("pill");
+    pill.className = "pill " + cls;
+    pill.textContent = text;
+  }
+  function revalidate() {
+    if (!state.res) return;
+    const m = effectiveMatrix();
+    const val = E.validate(m, state.version);
+    const url = $("url").value.trim();
+    const want = url.toLowerCase();
+    const gotRaw = val.ok ? val.text : "";
+    const got = gotRaw.toLowerCase();
+    const textOk = val.ok && (params().fragmentLen > 0 ? got.startsWith(want) : got === want || got.startsWith(want + "#"));
+    $("decoded").textContent = val.ok ? `decodes → ${gotRaw}` : `does not decode (${val.reason || "unrecoverable"})`;
+    let headroom = Infinity;
+    if (val.perBlock) for (const b of val.perBlock) headroom = Math.min(headroom, b.capacity - b.errors);
+    if (!val.ok || !textOk) setPill("bad", "WON'T SCAN");
+    else if (headroom <= 1) setPill("warn", `TIGHT · ${headroom}cw headroom`);
+    else setPill("ok", `SCANS · ${headroom}cw headroom`);
+    // meter
+    const meter = $("meter");
+    meter.textContent = "";
+    if (val.perBlock) {
+      const capFrac = Number($("marginCap").value) / 100;
+      val.perBlock.forEach((b, bi) => {
+        const row = document.createElement("div");
+        row.className = "blockrow";
+        const lbl = document.createElement("span");
+        lbl.className = "lbl";
+        lbl.textContent = `block ${bi + 1}`;
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        const cap = Math.max(1, b.capacity);
+        const capMark = Math.floor(cap * capFrac);
+        for (let s = 0; s < cap; s++) {
+          const seg = document.createElement("span");
+          seg.className = "seg" + (s < b.errors ? (s >= capMark ? " hot" : " used") : "") + (s === capMark ? " cap" : "");
+          bar.appendChild(seg);
+        }
+        const num = document.createElement("span");
+        num.className = "num";
+        num.textContent = `${b.errors}/${b.capacity}`;
+        row.append(lbl, bar, num);
+        meter.appendChild(row);
+      });
+    }
+  }
+
+  $("resolve").addEventListener("click", () => {
+    if (!state.res || state.edits.size === 0) return generate();
+    for (const [i, v] of state.edits) {
+      state.target[i] = v;
+      state.weight[i] = 30;
+    }
+    state.edits.clear();
+    renderTarget();
+    generate();
+  });
+  $("clearEdits").addEventListener("click", () => {
+    state.edits.clear();
+    renderResult();
+    revalidate();
+  });
+  for (const id of ["ovMiss", "ovFlip", "ovEdit", "ovGrid"]) $(id).addEventListener("input", renderResult);
+
+  // ---------- export ----------
+  function download(name, blob) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  $("exPng").addEventListener("click", () => {
+    if (!state.res) return;
+    const scale = Number($("exScale").value), quiet = 4;
+    const m = effectiveMatrix();
+    const S = state.res.size, dim = (S + quiet * 2) * scale;
+    const off = document.createElement("canvas");
+    off.width = dim; off.height = dim;
+    const g = off.getContext("2d");
+    g.fillStyle = "#fff";
+    g.fillRect(0, 0, dim, dim);
+    g.fillStyle = "#000";
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++)
+        if (m[r * S + c]) g.fillRect((c + quiet) * scale, (r + quiet) * scale, scale, scale);
+    off.toBlob((blob) => download("qr-art.png", blob));
+  });
+  $("exSvg").addEventListener("click", () => {
+    if (!state.res) return;
+    const svg = E.toSVG(effectiveMatrix(), state.version, { scale: Number($("exScale").value), quiet: 4 });
+    download("qr-art.svg", new Blob([svg], { type: "image/svg+xml" }));
+  });
+
+  // ---------- top controls ----------
+  const vSel = $("version");
+  for (let v = 1; v <= 10; v++) {
+    const o = document.createElement("option");
+    o.value = v;
+    o.textContent = `${v} (${E.sizeOf(v)}px)`;
+    if (v === 6) o.selected = true;
+    vSel.appendChild(o);
+  }
+  vSel.addEventListener("input", () => {
+    const oldS = size(), oldT = state.target, oldW = state.weight;
+    state.version = Number(vSel.value);
+    if (state.source === "cat" || state.source === "face") setPreset(state.source);
+    else if (state.source === "upload" && state.uploadImg) rasterizeUpload();
+    else {
+      const { t, w } = resampleToSize(oldT, oldW, oldS, size());
+      state.target = t;
+      state.weight = w;
+      renderTarget();
+    }
+    state.res = null;
+    state.edits.clear();
+    updateFreedomHint();
+  });
+  $("level").addEventListener("input", () => {
+    state.level = $("level").value;
+    updateFreedomHint();
+  });
+  $("url").addEventListener("input", updateFreedomHint);
+  for (const id of ["margin", "marginCap", "urlCase", "fragmentLen", "seeds", "mask"]) {
+    $(id).addEventListener("input", updateFreedomHint);
+  }
+  const brushes = { "b-black": "black", "b-white": "white", "b-noise": "noise", "b-boost": "boost" };
+  for (const [id, name] of Object.entries(brushes)) {
+    $(id).addEventListener("click", () => {
+      state.brush = name;
+      for (const other of Object.keys(brushes)) $(other).classList.toggle("on", other === id);
+    });
+  }
+  $("p-cat").addEventListener("click", () => setPreset("cat"));
+  $("p-face").addEventListener("click", () => setPreset("face"));
+  $("p-ink").addEventListener("click", () => loadArtPreset("ink"));
+  $("p-tabby").addEventListener("click", () => loadArtPreset("tabby"));
+  $("p-disc").addEventListener("click", () => setPreset("disc"));
+  $("p-clear").addEventListener("click", () => setPreset("clear"));
+  window.addEventListener("resize", () => { renderTarget(); renderResult(); });
+
+  // ---------- boot ----------
+  setPreset("cat");
+  updateFreedomHint();
+  generate();
+})();
+</script>

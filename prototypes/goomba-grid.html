@@ -1,0 +1,412 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Goomba Grid</title>
+<style>
+  :root { --paper: #ead9b5; --ink: #4a3623; --wall: #6b5138; --floor: #f6ecd4; --accent: #d97742; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--paper); overflow: hidden;
+    font-family: ui-rounded, "Comic Sans MS", system-ui, sans-serif; color: var(--ink);
+    -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  #app { height: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 8px); box-sizing: border-box; }
+  #hud { width: 100%; max-width: 440px; display: flex; align-items: center; justify-content: space-between; padding-top: 8px; }
+  #hud .name { font-weight: 800; font-size: 17px; }
+  #hud .sub { font-size: 12px; opacity: .75; }
+  #hud button { font-size: 18px; background: none; border: none; padding: 4px 8px; color: var(--ink); }
+  #dots { display: flex; gap: 5px; align-items: center; }
+  #dots span { width: 9px; height: 9px; border-radius: 50%; background: rgba(74,54,35,.25); }
+  #dots span.done { background: #7aa860; }
+  #dots span.cur { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #board { display: grid; touch-action: manipulation; background: var(--wall); border-radius: 12px;
+    padding: 4px; gap: 2px; box-shadow: 0 4px 0 rgba(74,54,35,.3); }
+  .cell { display: flex; align-items: center; justify-content: center; border-radius: 4px; position: relative;
+    background: var(--floor); overflow: hidden; }
+  .cell.wall { background: var(--wall); box-shadow: inset 0 -3px 0 rgba(0,0,0,.18); }
+  .cell.visited { background: #efe0bd; }
+  .cell .em { line-height: 1; pointer-events: none; }
+  .cell .arrow { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--accent); font-weight: 900; pointer-events: none; }
+  .cell.hint-pulse { animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { background: #ffe9b0; } }
+  #cat { position: absolute; display: flex; align-items: center; justify-content: center;
+    transition: left .32s linear, top .32s linear; pointer-events: none; z-index: 3; }
+  #cat.zoom { transition-duration: .16s; filter: drop-shadow(0 0 6px #8ee08a); }
+  #cat .face { position: absolute; font-weight: 900; color: var(--accent); font-size: 11px; }
+  #boardWrap { position: relative; }
+  #controls { width: 100%; max-width: 440px; display: flex; gap: 8px; align-items: stretch; }
+  #palette { display: flex; gap: 6px; flex: 1; }
+  #palette button { flex: 1; font-size: 22px; border-radius: 12px; border: 2px solid rgba(74,54,35,.25);
+    background: var(--floor); color: var(--accent); font-weight: 900; padding: 8px 0; }
+  #palette button.sel { border-color: var(--accent); background: #ffe9c9; }
+  #palette button:disabled { opacity: .35; }
+  #go { min-width: 92px; font-size: 17px; font-weight: 800; border: none; border-radius: 12px;
+    background: var(--accent); color: #fff; box-shadow: 0 3px 0 #a8532b; }
+  #go:active { transform: translateY(2px); box-shadow: none; }
+  #meta { width: 100%; max-width: 440px; display: flex; justify-content: space-between; font-size: 13px; opacity: .85; }
+  #hintbar { width: 100%; max-width: 440px; text-align: center; font-size: 13px; font-style: italic; opacity: .8; min-height: 17px; }
+  .overlay { position: fixed; inset: 0; background: rgba(74,54,35,.45); display: flex; align-items: center;
+    justify-content: center; z-index: 10; }
+  .card { background: var(--floor); border-radius: 16px; padding: 20px 24px; max-width: 320px; width: 84%;
+    text-align: center; box-shadow: 0 6px 0 rgba(74,54,35,.35); }
+  .card h2 { margin: 0 0 6px; font-size: 22px; }
+  .card p { margin: 6px 0; font-size: 14px; }
+  .card button { margin-top: 10px; font-size: 16px; font-weight: 800; border: none; border-radius: 10px;
+    background: var(--accent); color: #fff; padding: 10px 22px; box-shadow: 0 3px 0 #a8532b; }
+  .card button.ghost { background: none; color: var(--ink); box-shadow: none; text-decoration: underline; font-weight: 600; }
+  .stars { font-size: 26px; letter-spacing: 4px; }
+  textarea { width: 100%; box-sizing: border-box; font-family: ui-monospace, monospace; font-size: 15px;
+    line-height: 1.15; height: 200px; border-radius: 8px; border: 2px solid rgba(74,54,35,.3); background: #fffaf0; }
+  .legend { text-align: left; font-size: 12.5px; line-height: 1.5; }
+  .row2 { display: flex; gap: 8px; justify-content: center; align-items: center; }
+  input[type=number] { width: 56px; font-size: 15px; border-radius: 8px; border: 2px solid rgba(74,54,35,.3); padding: 4px; background: #fffaf0; }
+</style>
+
+<div id="app">
+  <div id="hud">
+    <button id="helpBtn">❓</button>
+    <div style="text-align:center">
+      <div class="name" id="lvName">—</div>
+      <div class="sub" id="dots"></div>
+    </div>
+    <button id="editBtn">✏️</button>
+  </div>
+  <div id="boardWrap"><div id="board"></div><div id="cat"><span id="catEm">🐱</span><span class="face" id="catFace">▲</span></div></div>
+  <div id="meta"><span id="arrowsLeft"></span><span id="treatCount"></span><span id="parLabel"></span></div>
+  <div id="controls">
+    <div id="palette">
+      <button data-d="0">↑</button><button data-d="1">→</button><button data-d="2">↓</button><button data-d="3">←</button>
+    </div>
+    <button id="go">GO</button>
+  </div>
+  <div id="hintbar"></div>
+</div>
+
+<script>
+'use strict';
+// ---------- Goomba Grid — the puzzle distilled: Goomba walks a 100% predictable
+// ---------- pattern (forward, else right, else left, else back). You place a
+// ---------- limited number of arrows to route him to dinner. Levels are ASCII
+// ---------- text (tap ✏️) — the "level editor" is a textarea on purpose.
+// Tiles: # wall · . floor · >v<^ Goomba+facing · B bowl (win) · t treat
+//        c cucumber (scare = lose, zoomies smash it) · n catnip (6 ticks of zoomies)
+//        x paper wall (smash only while zooming) · 1/2 box teleport pairs · ~ water
+
+const ZOOM_TICKS = 6;
+const DIRS = [[-1,0],[0,1],[1,0],[0,-1]]; // N E S W
+const DCH = { '^':0, '>':1, 'v':2, '<':3 };
+const ACH = ['↑','→','↓','←'];
+const FACE = ['▲','▶','▼','◀'];
+const EMOJI = { t:'🐟', c:'🥒', n:'🌿', x:'🧻', B:'🥣', '~':'🫧', '1':'📦', '2':'📦' };
+
+// 5 handcrafted levels. Every one is machine-verified: unsolvable with 0 arrows,
+// solvable within budget with ALL treats. par = fewest arrows a brute-force solver needed.
+const LEVELS = [
+  { name: '1 · Breakfast', arrows: 1, par: 1,
+    hint: 'blocked? he tries RIGHT, then left, then back. Tap ↑→↓← then tap a floor tile.',
+    grid: `
+#########
+#>......#
+#.......#
+#..###..#
+#..#B#..#
+#..#.#..#
+#..#.#..#
+#.......#
+#...t...#
+#.......#
+#########` },
+  { name: '2 · Treat Sweep', arrows: 2, par: 1,
+    hint: 'he loops forever unless you break the loop — after the treats.',
+    grid: `
+#########
+#>....t.#
+#.#####.#
+#.....#.#
+#.###.#.#
+#.#B..#.#
+#.#####.#
+#......t#
+#########` },
+  { name: '3 · Cucumber Alley', arrows: 2, par: 1,
+    hint: 'cucumbers scare cats. Scared cats do not finish dinner.',
+    grid: `
+#########
+#>...c..#
+#.##.##.#
+#.#..t#.#
+#.#.#.#.#
+#.#.#.#.#
+#.#t#B#.#
+#.#####.#
+#.......#
+#########` },
+  { name: '4 · Zoomies', arrows: 2, par: 1,
+    hint: 'catnip = 6 steps of zoomies. Zoomies shred paper walls 🧻.',
+    grid: `
+#########
+#>.....n#
+#.#####.#
+#.#B.xt.#
+#.#####.#
+#.#..n#.#
+#.#.###.#
+#.#.....#
+#.###.###
+#.......#
+#########` },
+  { name: '5 · Box Fort', arrows: 3, par: 1,
+    hint: 'if he fits, he sits — boxes teleport. Zoomies smash cucumbers too.',
+    grid: `
+#########
+#>.....1#
+#.##.####
+#.#t.cB##
+#.#.#####
+#.#.n.###
+#.###t###
+#.##..###
+#1.t....#
+#########` },
+];
+
+let lvIndex = 0, unlocked = 0;
+let level, grid, rows, cols, boxes;   // static-ish level data (grid mutates during run)
+let cat, arrows, running, timer, seen, ticks, visited, over;
+let selDir = null;
+
+const $ = id => document.getElementById(id);
+const board = $('board'), catEl = $('cat');
+
+function parseGrid(text) {
+  const g = text.trim().split('\n').map(r => r.split(''));
+  let start = null, facing = 1;
+  const bx = {};
+  for (let r = 0; r < g.length; r++) for (let c = 0; c < g[r].length; c++) {
+    const ch = g[r][c];
+    if (ch in DCH) { start = [r, c]; facing = DCH[ch]; g[r][c] = '.'; }
+    if (ch >= '1' && ch <= '3') (bx[ch] = bx[ch] || []).push([r, c]);
+  }
+  return { g, start, facing, bx };
+}
+
+function loadLevel(i, customLevel) {
+  lvIndex = i;
+  level = customLevel || LEVELS[i];
+  const p = parseGrid(level.grid);
+  grid = p.g; boxes = p.bx;
+  rows = grid.length; cols = grid[0].length;
+  cat = { r: p.start[0], c: p.start[1], f: p.facing, zoom: 0, treats: 0,
+          start: p.start.slice(), f0: p.facing };
+  arrows = new Map(); running = false; over = null; seen = new Set(); ticks = 0;
+  visited = new Set(); selDir = null;
+  clearInterval(timer);
+  buildBoard();
+  renderAll();
+  $('hintbar').textContent = level.hint || '';
+}
+
+function resetRun(keepArrows) {
+  const keep = keepArrows ? new Map(arrows) : new Map();
+  loadLevel(lvIndex, level === LEVELS[lvIndex] ? null : level);
+  arrows = keep;
+  renderAll();
+}
+
+function buildBoard() {
+  board.innerHTML = '';
+  const chromeH = 210; // hud + controls estimate
+  const size = Math.floor(Math.min((Math.min(window.innerWidth, 460) - 24) / cols,
+                                   (window.innerHeight - chromeH) / rows));
+  board.style.gridTemplateColumns = `repeat(${cols}, ${size}px)`;
+  board.style.gridTemplateRows = `repeat(${rows}, ${size}px)`;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const d = document.createElement('div');
+    d.className = 'cell'; d.dataset.rc = r + ',' + c;
+    d.style.fontSize = Math.floor(size * .62) + 'px';
+    d.addEventListener('pointerdown', () => tapCell(r, c));
+    board.appendChild(d);
+  }
+  catEl.style.width = catEl.style.height = size + 'px';
+  $('catEm').style.fontSize = Math.floor(size * .7) + 'px';
+  board._size = size;
+}
+
+function renderAll() {
+  const size = board._size;
+  for (const d of board.children) {
+    const [r, c] = d.dataset.rc.split(',').map(Number);
+    const ch = grid[r][c];
+    d.className = 'cell' + (ch === '#' ? ' wall' : '') + (visited.has(r + ',' + c) ? ' visited' : '');
+    let html = '';
+    if (EMOJI[ch]) html = `<span class="em">${EMOJI[ch]}</span>`;
+    const a = arrows.get(r + ',' + c);
+    if (a !== undefined) html += `<span class="arrow" style="font-size:${Math.floor(size*.7)}px">${ACH[a]}</span>`;
+    d.innerHTML = html;
+  }
+  positionCat(false);
+  $('lvName').textContent = level.name;
+  $('arrowsLeft').textContent = '✏️ arrows left: ' + (level.arrows - arrows.size);
+  const total = level.grid.split('t').length - 1;
+  $('treatCount').textContent = '🐟 ' + cat.treats + '/' + total;
+  $('parLabel').textContent = 'par ' + (level.par || '?');
+  $('go').textContent = running ? '⏸' : (ticks > 0 ? '▶' : 'GO');
+  $('dots').innerHTML = '';
+  LEVELS.forEach((_, i) => {
+    const s = document.createElement('span');
+    if (i < unlocked) s.className = 'done';
+    if (i === lvIndex) s.className += ' cur';
+    s.style.cursor = 'pointer';
+    s.addEventListener('pointerdown', () => i <= unlocked && loadLevel(i));
+    $('dots').appendChild(s);
+  });
+  for (const b of $('palette').children) {
+    b.classList.toggle('sel', +b.dataset.d === selDir);
+    b.disabled = arrows.size >= level.arrows && selDir !== +b.dataset.d;
+  }
+}
+
+function positionCat(animate) {
+  const size = board._size, gap = 2, pad = 4;
+  catEl.style.left = (pad + cat.c * (size + gap)) + 'px';
+  catEl.style.top = (pad + cat.r * (size + gap)) + 'px';
+  $('catFace').textContent = FACE[cat.f];
+  const off = Math.floor(size * .36);
+  const pos = [[-off,0],[0,off],[off,0],[0,-off]][cat.f];
+  $('catFace').style.transform = `translate(${pos[1]}px, ${pos[0]}px)`;
+  catEl.classList.toggle('zoom', cat.zoom > 0);
+}
+
+// ---------- the sim (identical semantics to the verified solver) ----------
+function blocked(r, c) {
+  const ch = (grid[r] || [])[c];
+  if (ch === undefined || ch === '#' || ch === '~') return true;
+  if (ch === 'x') return cat.zoom <= 0;
+  return false;
+}
+
+function tick() {
+  ticks++;
+  const key = cat.r + ',' + cat.c + ',' + cat.f + ',' + cat.zoom + ',' + grid.flat().join('');
+  if (seen.has(key) || ticks > 400) return end('bored');
+  seen.add(key);
+  const a = arrows.get(cat.r + ',' + cat.c);
+  if (a !== undefined) cat.f = a;
+  let moved = false;
+  for (const d of [cat.f, (cat.f + 1) % 4, (cat.f + 3) % 4, (cat.f + 2) % 4]) {
+    const rr = cat.r + DIRS[d][0], cc = cat.c + DIRS[d][1];
+    if (blocked(rr, cc)) continue;
+    cat.f = d; cat.r = rr; cat.c = cc; moved = true; break;
+  }
+  if (!moved) return end('bored');
+  if (cat.zoom > 0) cat.zoom--;
+  visited.add(cat.r + ',' + cat.c);
+  const ch = grid[cat.r][cat.c];
+  if (ch === 'x') grid[cat.r][cat.c] = '.';
+  else if (ch === 't') { cat.treats++; grid[cat.r][cat.c] = '.'; }
+  else if (ch === 'c') {
+    if (cat.zoom > 0) grid[cat.r][cat.c] = '.';
+    else return end('scared');
+  }
+  else if (ch === 'n') { grid[cat.r][cat.c] = '.'; cat.zoom = ZOOM_TICKS; }
+  else if (ch >= '1' && ch <= '3') {
+    const other = boxes[ch].find(([pr, pc]) => pr !== cat.r || pc !== cat.c);
+    if (other) { cat.r = other[0]; cat.c = other[1]; }
+  }
+  else if (ch === 'B') return end('won');
+  renderAll();
+  clearInterval(timer);
+  timer = setInterval(tick, cat.zoom > 0 ? 170 : 340);
+}
+
+function end(kind) {
+  running = false; over = kind; clearInterval(timer);
+  renderAll();
+  const total = level.grid.split('t').length - 1;
+  if (kind === 'won') {
+    if (level === LEVELS[lvIndex]) unlocked = Math.max(unlocked, lvIndex + 1);
+    const stars = total ? '⭐'.repeat(cat.treats) + '·'.repeat(total - cat.treats) : '⭐';
+    const parNote = arrows.size <= (level.par || 99) ? ' · par!' : '';
+    showCard('😻 Dinner!', `<div class="stars">${stars}</div><p>${cat.treats}/${total} treats · ${arrows.size} arrows${parNote}</p>`,
+      lvIndex + 1 < LEVELS.length && level === LEVELS[lvIndex]
+        ? [['Next level ➜', () => loadLevel(lvIndex + 1)], ['replay', () => resetRun(true), true]]
+        : [['Replay', () => resetRun(true)]]);
+  } else if (kind === 'scared') {
+    showCard('🙀 CUCUMBER!', '<p>Goomba noped out of the entire level.</p>',
+      [['Try again', () => resetRun(true)]]);
+  } else {
+    showCard('😾 Goomba got bored', '<p>He was walking in circles. Change your arrows and try again.</p>',
+      [['Try again', () => resetRun(true)]]);
+  }
+}
+
+function showCard(title, bodyHtml, buttons) {
+  const ov = document.createElement('div'); ov.className = 'overlay';
+  const card = document.createElement('div'); card.className = 'card';
+  card.innerHTML = `<h2>${title}</h2>${bodyHtml}`;
+  for (const [label, fn, ghost] of buttons) {
+    const b = document.createElement('button');
+    if (ghost) b.className = 'ghost';
+    b.textContent = label;
+    b.addEventListener('pointerdown', e => { e.stopPropagation(); if (fn() !== 'keep') ov.remove(); });
+    card.appendChild(b);
+  }
+  ov.appendChild(card); document.body.appendChild(ov);
+  return ov;
+}
+
+// ---------- input ----------
+function tapCell(r, c) {
+  if (over) return;
+  const key = r + ',' + c;
+  if (arrows.has(key)) { arrows.delete(key); seen.clear(); renderAll(); return; }
+  if (selDir === null) return;
+  if (arrows.size >= level.arrows) return;
+  if (grid[r][c] !== '.' && grid[r][c] !== 't') return;
+  if (r === cat.r && c === cat.c && !running && ticks === 0) return; // not under his paws at start
+  arrows.set(key, selDir); seen.clear(); renderAll();
+}
+
+for (const b of $('palette').children)
+  b.addEventListener('pointerdown', () => { selDir = selDir === +b.dataset.d ? null : +b.dataset.d; renderAll(); });
+
+$('go').addEventListener('pointerdown', () => {
+  if (over) { resetRun(true); return; }
+  running = !running;
+  clearInterval(timer);
+  if (running) timer = setInterval(tick, 340);
+  renderAll();
+});
+
+$('helpBtn').addEventListener('pointerdown', () => {
+  showCard('How Goomba walks', `<div class="legend">
+    🐱 Goomba always walks <b>forward</b>. Blocked? He tries <b>right</b>, then <b>left</b>, then turns back. That's it — 100% predictable.<br><br>
+    ↑→↓← place a limited number of arrows to steer him.<br>
+    🥣 dinner = win &nbsp;·&nbsp; 🐟 treats = stars<br>
+    🥒 cucumber = instant nope (lose)<br>
+    🌿 catnip = ${ZOOM_TICKS} steps of <b>zoomies</b><br>
+    🧻 paper wall — shredded only during zoomies<br>
+    🥒 during zoomies — smashed, not scary<br>
+    📦 box — if he fits he sits… then pops out of the twin box<br><br>
+    Tap a placed arrow to remove it. You can place arrows <i>while he runs</i>.</div>`,
+    [['Got it', () => {}]]);
+});
+
+$('editBtn').addEventListener('pointerdown', () => {
+  const ov = showCard('Level editor', `<p style="font-size:12.5px">Levels are just text — edit &amp; apply. <br>
+    <span style="opacity:.7"># wall · . floor · &gt;v&lt;^ Goomba · B bowl · t treat · c cuke · n nip · x paper · 1/2 boxes</span></p>
+    <textarea id="lvText"></textarea>
+    <div class="row2"><label>arrows <input type="number" id="lvArrows" min="0" max="9"></label></div>`,
+    [['Apply & play', () => {
+      const text = $('lvText').value, n = +$('lvArrows').value || 1;
+      try {
+        const p = parseGrid(text);
+        if (!p.start) throw 0;
+        loadLevel(lvIndex, { name: 'custom · ' + LEVELS[lvIndex].name.split('·')[1].trim(),
+          arrows: n, par: null, hint: 'custom level — good luck', grid: '\n' + text.trim() });
+      } catch (e) { alert('Needs a rectangular grid with one of > v < ^ as Goomba.'); return 'keep'; }
+    }], ['copy level text', () => navigator.clipboard && navigator.clipboard.writeText($('lvText').value), true]]);
+  ov.querySelector('#lvText').value = level.grid.trim();
+  ov.querySelector('#lvArrows').value = level.arrows;
+});
+
+window.addEventListener('resize', () => { buildBoard(); renderAll(); });
+loadLevel(0);
+</script>

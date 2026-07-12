@@ -79,6 +79,51 @@ The engine was cross-validated in development: matrix-identical to
 error injection, and every generated/flipped/hand-edited artifact re-decoded
 with `jsQR` (including the exported PNGs).
 
+## URL length is the biggest lever there is
+
+Every payload byte you save is 8 fully-free solver bits *and* one less frozen
+codeword sprinkled through the matrix. Measured on the cat target (same
+settings, best of 24 restarts):
+
+| URL | v6-L 41px | v5-L 37px | v4-L 33px |
+| --- | --- | --- | --- |
+| 41 chars (this repo) | 96.2%, 42 misses | 98.9%, 9 misses | 92.7%, 48 misses |
+| 18 chars (`https://hexcat.dev`) | **100%, 0 misses** | **100%, 0 misses** | **100%, 0 misses** |
+| 14 chars (`https://hex.gg`) | 100%, 0 misses | 100%, 0 flips needed | 100%, 0 misses |
+
+A short domain moves you from "budget fight plus hand-polish" into "the whole
+design solves exactly", including at the chunky poster-grade sizes the Disney
+codes use. If you're buying a domain for this: every character counts, and
+`https://` (8 chars) is part of the bill — keep it anyway, bare hostnames
+don't reliably open as URLs on all scanners.
+
+## Decorating outside the code
+
+The posters' second trick is compositional: the character's ears/hat live
+*outside* the symbol, so the code itself only has to carry the face.
+[`hex-poster.svg`](./hex-poster.svg) / [`.png`](./hex-poster.png) do this for
+Hex: green field, white rounded card (its padding doubles as the quiet zone),
+black ear triangles tucked behind the card, white whisker strokes on the
+field, and inside the code just eyes/nose/muzzle. Two color notes that keep
+it scannable: "dark" modules don't have to be black — the iris modules render
+as dark emerald (scanners only need contrast against white, so keep any
+module color's luminance low) — and everything outside the quiet zone is
+fair game for any color. The studio's **face (poster)** preset is this
+target; the composed poster re-scans with jsQR at full and half resolution.
+
+## Photo → pixel art, programmatically
+
+The studio's upload path has a **poster-style cleanup** toggle that does the
+mechanical 80%: threshold, keep the largest connected shape (speckle noise
+gone), morphological close/open (pinholes filled, one-module arms shaved),
+carve bright details like eyes back out of the figure, then derive the tier
+map automatically — crisp edge band and white halo weighted high, deep
+interior low, ground released to noise. What stays human (or LLM) judgment
+is the remaining 20%: choosing the crop, simplifying a shape until it reads
+at 41 pixels, deciding which features deserve the pin budget, and placing
+the figure against the finder squares. That's taste, not math — it's also
+exactly the part that makes these read as *drawn*.
+
 ## Answering the workflow question
 
 Yes — codes like the posters are an *iterative, human process*, and the tool

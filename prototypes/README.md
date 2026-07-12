@@ -18,7 +18,7 @@ One non-game tool lives here too:
 
 | File | Tool | What it does |
 | --- | --- | --- |
-| `qr-art-studio.html` | **QR Art Studio** | Design-QR workbench in the Japanese poster style — paint a three-tone target (black / white / free noise), a GF(2) solver pins pixels via free padding + URL-case bits, an error-correction flip budget buys the stragglers, then hand-edit modules with a live per-block "will it still scan" meter. Ships with the Hex silhouette preset; `cat-qr.png`/`.svg` are its output. Technique notes in [`qr-art-notes.md`](./qr-art-notes.md). |
+| `qr-art-studio.html` | **QR Art Studio** | Design-QR workbench in the Japanese poster style — paint a three-tone target (black / white / free noise), a GF(2) solver pins pixels via free padding + URL-case bits, an error-correction flip budget buys the stragglers, then hand-edit modules with a live per-block "will it still scan" meter. Ships with Hex presets (full silhouette + poster face) and a poster-style photo cleanup for uploads; `cat-qr.*` and `hex-poster.*` (ears outside the code, green eyes) are its output. Technique notes in [`qr-art-notes.md`](./qr-art-notes.md). |
 
 ## Playtesting
 

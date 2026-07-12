@@ -223,7 +223,8 @@
       <label class="ctl">size <select id="brushSize"><option>1</option><option selected>2</option><option>3</option></select></label>
     </div>
     <div class="toolrow">
-      <button id="p-cat">🐈‍⬛ cat preset</button>
+      <button id="p-cat">🐈‍⬛ cat</button>
+      <button id="p-face">🐱 face (poster)</button>
       <button id="p-disc">● disc</button>
       <button id="p-clear">clear to noise</button>
       <span class="spacer"></span>
@@ -234,6 +235,7 @@
       <label class="ctl">black ≤ <input id="tDark" type="range" min="0" max="255" value="110" /></label>
       <label class="ctl">white ≥ <input id="tLight" type="range" min="0" max="255" value="150" /></label>
       <label class="chk"><input id="tInvert" type="checkbox" /> invert</label>
+      <label class="chk" title="keep the largest shape, clean speckles, add a white halo and tiered priorities automatically"><input id="tStylize" type="checkbox" checked /> poster-style cleanup</label>
     </div>
     <div class="legend">
       <span class="key"><span class="sw" style="background:#111"></span>black target</span>
@@ -1606,6 +1608,70 @@
     return { target, weight };
   }
 
+  // face-only preset for poster compositions (ears/whiskers drawn OUTSIDE
+  // the code) — matches prototypes/hex-poster.svg
+  function paintFace(version) {
+    const S = E.sizeOf(version);
+    const fp = E.functionPatterns(version);
+    const p = {
+      eyeCy: 0.40, eyeDx: 0.215, eyeRx: 0.145, eyeRy: 0.105,
+      pupilW: 1.0, pupilH: 1.6,
+      noseCy: 0.645, noseW: 3.6, noseH: 2.8,
+      muzzleCy: 0.695, muzzleRx: 0.125, muzzleRy: 0.075,
+      haloEye: 1.6, haloNose: 1.4,
+      wIris: 8, wHalo: 6, wNose: 7, wChin: 5, wGlint: 9,
+    };
+    const cx = 0.5 * S;
+    const target = new Uint8Array(S * S), weight = new Uint8Array(S * S);
+    const eyeCenters = [-1, 1].map((s) => ({ y: p.eyeCy * S, x: cx + s * p.eyeDx * S }));
+    const rx = p.eyeRx * S, ry = p.eyeRy * S;
+    const inAlmond = (r, c, e) => {
+      const dy = (r + 0.5 - e.y) / ry, dx = (c + 0.5 - e.x) / rx;
+      return dy * dy + dx * dx <= 1;
+    };
+    const noseY = p.noseCy * S;
+    const inNose = (r, c) => {
+      const dy = r + 0.5 - noseY;
+      if (dy < -p.noseH / 2 || dy > p.noseH / 2) return false;
+      const t = (dy + p.noseH / 2) / p.noseH;
+      return Math.abs(c + 0.5 - cx) <= (p.noseW / 2) * (1 - 0.75 * t);
+    };
+    const inMuzzle = (r, c) => {
+      const dy = (r + 0.5 - p.muzzleCy * S) / (p.muzzleRy * S);
+      const dx = (c + 0.5 - cx) / (p.muzzleRx * S);
+      return dy * dy + dx * dx <= 1;
+    };
+    const near = (r, c, pred, lim) => {
+      for (let dr = -4; dr <= 4; dr++)
+        for (let dc = -4; dc <= 4; dc++)
+          if (pred(r + dr, c + dc) && Math.hypot(dr, dc) <= lim) return true;
+      return false;
+    };
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) {
+        const i = r * S + c;
+        if (fp.func[i]) continue;
+        let done = false;
+        for (const e of eyeCenters) {
+          if (inAlmond(r, c, e)) {
+            const gr = Math.round(e.y - ry * 0.62), gc = Math.round(e.x - rx * 0.62);
+            const glint = r >= gr && r < gr + 2 && c >= gc && c < gc + 2;
+            target[i] = glint ? 0 : 1;
+            weight[i] = glint ? p.wGlint : p.wIris;
+            done = true;
+            break;
+          }
+        }
+        if (done) continue;
+        if (inNose(r, c)) { target[i] = 1; weight[i] = p.wNose; continue; }
+        if (inMuzzle(r, c)) { target[i] = 0; weight[i] = p.wChin; continue; }
+        let h = false;
+        for (const e of eyeCenters) if (near(r, c, (rr, cc) => inAlmond(rr, cc, e), p.haloEye)) h = true;
+        if (h || near(r, c, inNose, p.haloNose)) { target[i] = 0; weight[i] = p.wHalo; }
+      }
+    return { target, weight };
+  }
+
   function paintDisc(version) {
     const S = E.sizeOf(version);
     const fp = E.functionPatterns(version);
@@ -1628,6 +1694,7 @@
     state.source = name;
     const S = size();
     if (name === "cat") ({ target: state.target, weight: state.weight } = paintCat(state.version));
+    else if (name === "face") ({ target: state.target, weight: state.weight } = paintFace(state.version));
     else if (name === "disc") ({ target: state.target, weight: state.weight } = paintDisc(state.version));
     else {
       state.target = new Uint8Array(S * S);
@@ -1777,15 +1844,115 @@
     const fp = E.functionPatterns(state.version);
     state.target = new Uint8Array(S * S);
     state.weight = new Uint8Array(S * S);
+    const lumas = new Float32Array(S * S);
     for (let i = 0; i < S * S; i++) {
-      if (fp.func[i]) continue;
       let luma = 0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2];
-      if (inv) luma = 255 - luma;
-      if (luma <= dark) { state.target[i] = 1; state.weight[i] = 4; }
-      else if (luma >= light) { state.target[i] = 0; state.weight[i] = 4; }
+      lumas[i] = inv ? 255 - luma : luma;
+    }
+    if ($("tStylize").checked) stylize(lumas, dark, light, fp, S);
+    else {
+      for (let i = 0; i < S * S; i++) {
+        if (fp.func[i]) continue;
+        if (lumas[i] <= dark) { state.target[i] = 1; state.weight[i] = 4; }
+        else if (lumas[i] >= light) { state.target[i] = 0; state.weight[i] = 4; }
+      }
     }
     state.source = "upload";
     renderTarget();
+  }
+
+  // photo → poster-style pixel art: keep the biggest shape, scrub speckles,
+  // carve bright details (eyes!) back out, and derive tiered priorities —
+  // crisp silhouette edge + white halo matter, deep interior tolerates noise.
+  function stylize(lumas, dark, light, fp, S) {
+    const N = S * S;
+    let mask = new Uint8Array(N);
+    for (let i = 0; i < N; i++) mask[i] = lumas[i] <= dark ? 1 : 0;
+    const largest = (m) => {
+      const seen = new Uint8Array(N), out = new Uint8Array(N);
+      let bestCells = [];
+      const stack = new Int32Array(N);
+      for (let s0 = 0; s0 < N; s0++) {
+        if (!m[s0] || seen[s0]) continue;
+        let top = 0;
+        stack[top++] = s0;
+        seen[s0] = 1;
+        const cells = [];
+        while (top > 0) {
+          const i = stack[--top];
+          cells.push(i);
+          const r = (i / S) | 0, c = i % S;
+          for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const rr = r + dr, cc = c + dc;
+            if (rr < 0 || cc < 0 || rr >= S || cc >= S) continue;
+            const j = rr * S + cc;
+            if (m[j] && !seen[j]) {
+              seen[j] = 1;
+              stack[top++] = j;
+            }
+          }
+        }
+        if (cells.length > bestCells.length) bestCells = cells;
+      }
+      for (const i of bestCells) out[i] = 1;
+      return out;
+    };
+    const morph = (m, grow) => {
+      const out = new Uint8Array(N);
+      for (let r = 0; r < S; r++)
+        for (let c = 0; c < S; c++) {
+          let v = grow ? 0 : 1;
+          for (let dr = -1; dr <= 1; dr++)
+            for (let dc = -1; dc <= 1; dc++) {
+              const rr = r + dr, cc = c + dc;
+              const inb = rr >= 0 && cc >= 0 && rr < S && cc < S;
+              const mv = inb ? m[rr * S + cc] : 0;
+              if (grow) v |= mv;
+              else v &= mv;
+            }
+          out[r * S + c] = v;
+        }
+      return out;
+    };
+    mask = largest(mask);
+    mask = morph(morph(mask, true), false);   // close pinholes
+    mask = morph(morph(mask, false), true);   // shave speckle arms
+    mask = largest(mask);
+    // chamfer distance from a seed set
+    const chamfer = (seedIsSet) => {
+      const d = new Float32Array(N).fill(1e9);
+      for (let i = 0; i < N; i++) if (!!mask[i] === seedIsSet) d[i] = 0;
+      const relax = (i, j, w) => {
+        if (d[j] + w < d[i]) d[i] = d[j] + w;
+      };
+      for (let r = 0; r < S; r++)
+        for (let c = 0; c < S; c++) {
+          const i = r * S + c;
+          if (c > 0) relax(i, i - 1, 1);
+          if (r > 0) relax(i, i - S, 1);
+          if (r > 0 && c > 0) relax(i, i - S - 1, 1.414);
+          if (r > 0 && c < S - 1) relax(i, i - S + 1, 1.414);
+        }
+      for (let r = S - 1; r >= 0; r--)
+        for (let c = S - 1; c >= 0; c--) {
+          const i = r * S + c;
+          if (c < S - 1) relax(i, i + 1, 1);
+          if (r < S - 1) relax(i, i + S, 1);
+          if (r < S - 1 && c < S - 1) relax(i, i + S + 1, 1.414);
+          if (r < S - 1 && c > 0) relax(i, i + S - 1, 1.414);
+        }
+      return d;
+    };
+    const dIn = chamfer(false);  // depth inside the figure
+    const dOut = chamfer(true);  // distance outside the figure
+    for (let i = 0; i < N; i++) {
+      if (fp.func[i]) continue;
+      if (mask[i]) {
+        if (lumas[i] >= light) { state.target[i] = 0; state.weight[i] = 6; } // carved detail
+        else { state.target[i] = 1; state.weight[i] = dIn[i] <= 2 ? 6 : 3; }
+      } else if (dOut[i] <= 1.6) { state.target[i] = 0; state.weight[i] = 6; }
+      else if (dOut[i] <= 2.8) { state.target[i] = 0; state.weight[i] = 4; }
+    }
   }
   $("p-upload").addEventListener("click", () => $("file").click());
   $("file").addEventListener("change", (ev) => loadImageFile(ev.target.files[0]));
@@ -1809,7 +1976,7 @@
     board.classList.remove("drag");
     loadImageFile(ev.dataTransfer.files[0]);
   });
-  for (const id of ["tDark", "tLight", "tInvert"]) $(id).addEventListener("input", rasterizeUpload);
+  for (const id of ["tDark", "tLight", "tInvert", "tStylize"]) $(id).addEventListener("input", rasterizeUpload);
 
   // ---------- generate ----------
   function params() {
@@ -2085,7 +2252,7 @@
   vSel.addEventListener("input", () => {
     const oldS = size(), oldT = state.target, oldW = state.weight;
     state.version = Number(vSel.value);
-    if (state.source === "cat") setPreset("cat");
+    if (state.source === "cat" || state.source === "face") setPreset(state.source);
     else if (state.source === "upload" && state.uploadImg) rasterizeUpload();
     else {
       const { t, w } = resampleToSize(oldT, oldW, oldS, size());
@@ -2113,6 +2280,7 @@
     });
   }
   $("p-cat").addEventListener("click", () => setPreset("cat"));
+  $("p-face").addEventListener("click", () => setPreset("face"));
   $("p-disc").addEventListener("click", () => setPreset("disc"));
   $("p-clear").addEventListener("click", () => setPreset("clear"));
   window.addEventListener("resize", () => { renderTarget(); renderResult(); });

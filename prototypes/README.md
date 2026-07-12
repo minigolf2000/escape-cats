@@ -30,8 +30,18 @@ They also run fine by opening the file in any browser, or:
 npx serve prototypes
 ```
 
-Note: each file starts with `<!doctype html>` (so it renders in standards
-mode when self-hosted on a static host, rather than quirks mode) but still
-omits the `<html>`/`<head>`/`<body>` wrapper tags, since the artifact host
-injects its own document skeleton. Browsers render them fine standalone
-either way.
+Note: each game file starts with `<!doctype html>` (so it renders in
+standards mode when self-hosted on a static host, rather than quirks mode)
+but still omits the `<html>`/`<head>`/`<body>` wrapper tags, since the
+artifact host injects its own document skeleton. Browsers render them fine
+standalone either way. (`index.html` is a full document — it's the deployed
+landing menu, not a prototype.)
+
+## Deploying
+
+This folder deploys as a static site with no build step. On Vercel: import
+the repo, set **Root Directory** to `prototypes` and **Framework Preset** to
+**Other**. `index.html` is the landing menu; `vercel.json` sets
+`X-Robots-Tag: noindex` on every path so the site stays out of search
+results (it's unlisted, not password-protected — obscurity of the URL is the
+only gate for now).

@@ -124,6 +124,26 @@ at 41 pixels, deciding which features deserve the pin budget, and placing
 the figure against the finder squares. That's taste, not math — it's also
 exactly the part that makes these read as *drawn*.
 
+## Which art styles survive module resolution
+
+Two more source artworks are baked in as presets ([`ink-cat.png`](./ink-cat.png),
+[`tabby-cat.png`](./tabby-cat.png), head-cropped; loaded through the studio's
+**line art** mode — tri-tone with despeckling and whisker-stroke rescue).
+What they taught us:
+
+- **Bold ink/flat art translates beautifully.** The scratchy ink cat reads
+  at v6/41px ([`ink-cat-qr.png`](./ink-cat-qr.png)) — big black masses, white
+  eye shapes, and a style whose own chaos absorbs solver misses as
+  "scratchiness".
+- **Engraving/hatching art doesn't.** The tabby's identity lives in fine
+  tonal gradients; at 41-49px the hatching correctly becomes the free noise
+  tone, but the face reduces to a suggested dark mass (full-body is pure
+  mud — crop to the head, always). A silhouette treatment loses the stripes
+  AND the face. The real fix is a redraw into bold three-tone shapes —
+  that's the human-taste layer again, not a threshold to tune.
+- **Full body vs head:** at poster-code sizes you get roughly 30×30 usable
+  modules of art; a face needs most of them. Crop first.
+
 ## Answering the workflow question
 
 Yes — codes like the posters are an *iterative, human process*, and the tool

@@ -74,7 +74,7 @@ fidelity an artist can expect from art that follows the rules above.
   free static tone). No anti-aliasing, no gradients, no other colors.
 - PNG at 410px+ (10× the grid) or the SVG itself. Nothing drawn on
   reserved cells.
-- We'll run it through `qr-art-studio.html` and send back the scanning
+- We'll run it through `qr-studio.html` and send back the scanning
   code within minutes; expect one round of "nudge this feature a cell"
   notes. With a short URL (see notes doc) the transfer is essentially
   lossless — our three grammar demos hit 98.5-99.9% pixel match.

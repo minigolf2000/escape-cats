@@ -18,7 +18,7 @@ One non-game tool lives here too:
 
 | File | Tool | What it does |
 | --- | --- | --- |
-| `qr-art-studio.html` | **QR Art Studio** | Live QR pixel painter — paint black/white/noise directly on a working code; a GF(2) solver honors your pixels in paint order (~6ms/solve), an error-correction budget absorbs stragglers, and a background pass retries every EC level × mask to keep more of your paint legal. Over-budget pixels are annotated, never blocked; the code always scans. Imports, cat presets, and `cat-qr.*` / `hex-poster.*` / `ink-cat-qr.png` outputs as before. Notes in [`qr-art-notes.md`](./qr-art-notes.md). |
+| `qr-studio.html` | **QR Studio** | Live QR pixel painter — paint black/white/noise directly on a working code; a GF(2) solver honors your pixels in paint order (~4ms/solve), an error-correction budget absorbs stragglers, and a background pass retries every EC level × mask to keep more of your paint legal. Over-budget pixels are annotated, never blocked; the code always scans. Hover fades noise to read your art; **Randomize** samples a fresh noise field (2^k equivalent states) with the art untouched; drawings save into the URL hash. Cat presets, image import, and `cat-qr.*` / `hex-poster.*` outputs. Notes in [`qr-art-notes.md`](./qr-art-notes.md). |
 
 ## Playtesting
 

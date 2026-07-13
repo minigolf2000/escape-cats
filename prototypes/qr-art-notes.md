@@ -144,6 +144,21 @@ What they taught us:
 - **Full body vs head:** at poster-code sizes you get roughly 30×30 usable
   modules of art; a face needs most of them. Crop first.
 
+## v2: the live painter
+
+The workbench became a single live canvas: black/white pixels are promises,
+noise is surrendered, and the code re-solves under the brush (~6ms per
+solve; paint-order priority, so earlier strokes pin first and any failures
+surface at the cursor). Over-budget paint is annotated red, never blocked —
+which also means **the rendered code always scans**; illegal paint just
+isn\'t honored. On idle (350ms) a background pass tries all 4 EC levels x 8
+masks (~110ms total) and adopts a config per `ADOPT_POLICY` in the app
+source: adopt when it satisfies more paint, or pre-emptively when headroom
+is nearly gone and the alternative buys meaningfully more. Because
+feasibility depends only on the current pixels (never the path taken),
+lazier policies lose nothing permanently — the policy only tunes meter
+rhythm versus noise-field stability.
+
 ## Answering the workflow question
 
 Yes — codes like the posters are an *iterative, human process*, and the tool

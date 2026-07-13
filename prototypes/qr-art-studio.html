@@ -78,6 +78,12 @@
   label.chk { display: flex; gap: 7px; align-items: center; font-size: 12.5px; color: var(--dim); cursor: pointer; }
   input[type="range"] { accent-color: var(--accent); width: 108px; }
   input[type="checkbox"] { accent-color: var(--accent); }
+  .sizerow { display: flex; align-items: center; gap: 6px; }
+  .sizelabel { font-size: 12.5px; color: var(--dim); margin-right: 2px; }
+  .sizebtn { flex: none; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .sizebtn i { display: block; background: var(--dim); border-radius: 1px; }
+  .sizebtn.on { border-color: var(--accent); }
+  .sizebtn.on i { background: var(--accent); }
   .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
   .meter { display: flex; flex-direction: column; gap: 7px; }
   .meter .blockrow { display: grid; grid-template-columns: 44px 1fr 46px; gap: 8px; align-items: center; }
@@ -87,9 +93,26 @@
   .meter .seg { flex: 1; border-radius: 2px; background: var(--line); }
   .meter .seg.used { background: var(--warn); }
   .meter .seg.hot { background: var(--bad); }
-  .decoded { font-family: var(--mono); font-size: 11px; color: var(--dim); word-break: break-all; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
   .statline { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  /* link field: one control that is the editable destination when focused and
+     the exact scanned readback when idle */
+  .linkfield { background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; cursor: text; }
+  .linkfield:focus-within { border-color: var(--accent); }
+  .linkfield.bad { border-color: var(--bad); }
+  .lf-line { display: flex; align-items: baseline; gap: 8px; }
+  .lf-badge { flex: none; font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .linkfield[data-mode="edit"] .lf-badge { color: var(--accent); border-color: var(--accent); }
+  .linkfield.bad .lf-badge { color: var(--bad); border-color: var(--bad); }
+  .lf-preview, .lf-input { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.4; word-break: break-all; padding: 1px 0; margin: 0; border: 0; background: none; }
+  .lf-preview { text-align: left; color: var(--dim); cursor: text; }
+  .lf-preview .recased { color: var(--accent); font-weight: 700; }
+  .lf-input { color: var(--text); width: 100%; }
+  .lf-input:focus { outline: none; }
+  .linkfield[data-mode="preview"] .lf-input { display: none; }
+  .linkfield[data-mode="edit"] .lf-preview { display: none; }
+  .lf-caption { font-size: 10.5px; color: var(--faint); }
   .toolrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .importbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 7px; padding: 8px 10px; margin-bottom: 8px; }
   details.about { color: var(--dim); font-size: 12.5px; }
   details.about summary { cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
   details.about p { margin: 8px 0; }
@@ -101,16 +124,29 @@
 <header class="masthead">
   <span class="eyebrow">Escape Cats · Prototype</span>
   <h1>QR Art Studio<span class="dot">●</span></h1>
-  <span class="tag">live painter — every pixel you paint is a promise; noise is free</span>
 </header>
 
 <div class="urlrow">
-  <input id="url" type="text" spellcheck="false" value="http://hexxygon.com/neon" aria-label="Link the code opens" />
   <label class="ctl">canvas <select id="version">
-    <option value="4">33 px</option><option value="5">37 px</option>
-    <option value="6" selected>41 px</option><option value="7">45 px</option>
-    <option value="8">49 px</option>
+    <option value="2">v2 · 25 px</option>
+    <option value="3">v3 · 29 px</option>
+    <option value="4">v4 · 33 px</option>
+    <option value="5">v5 · 37 px</option>
+    <option value="6" selected>v6 · 41 px</option>
+    <option value="7">v7 · 45 px</option>
+    <option value="8">v8 · 49 px</option>
   </select></label>
+  <label class="ctl">start from <select id="startFrom">
+    <option value="" selected>—</option>
+    <option value="blank">blank canvas</option>
+    <option value="cat">🐈‍⬛ Hex silhouette</option>
+    <option value="face">🐱 face (poster)</option>
+    <option value="ink">🖤 ink cat</option>
+    <option value="tabby">🐯 tabby</option>
+    <option value="upload">📄 import image…</option>
+  </select></label>
+  <input id="file" type="file" accept="image/*" hidden />
+  <span style="flex:1"></span>
   <span id="pill" class="pill ok">—</span>
 </div>
 
@@ -122,49 +158,53 @@
       <button id="b-white"><span class="swatch" style="background:#fff;border:1px solid var(--line)"></span>white — must be light</button>
       <button id="b-noise"><span class="swatch" style="background:repeating-conic-gradient(#9aa 0 25%,#dde 0 50%) 0 0/8px 8px"></span>noise — release (eraser)</button>
     </div>
-    <label class="ctl">size <select id="brushSize"><option>1</option><option selected>2</option><option>3</option></select></label>
+    <div class="sizerow" role="radiogroup" aria-label="Brush size">
+      <span class="sizelabel">size</span>
+      <button class="sizebtn" data-size="1" title="1 px  ( [ )" aria-label="1 pixel"><i style="width:4px;height:4px"></i></button>
+      <button class="sizebtn on" data-size="2" title="2 px" aria-label="2 pixels"><i style="width:8px;height:8px"></i></button>
+      <button class="sizebtn" data-size="3" title="3 px  ( ] )" aria-label="3 pixels"><i style="width:12px;height:12px"></i></button>
+    </div>
     <div class="toolrow">
       <button id="undo" title="undo stroke (Ctrl+Z)">↩ undo</button>
       <button id="clear">clear</button>
     </div>
-    <div class="panel-title"><h2>Start from</h2></div>
-    <div class="toolcol">
-      <button id="p-cat">🐈‍⬛ Hex silhouette</button>
-      <button id="p-face">🐱 face (poster)</button>
-      <button id="p-ink">🖤 ink cat</button>
-      <button id="p-tabby">🐯 tabby</button>
-      <button id="p-upload">📄 import image…</button>
-      <input id="file" type="file" accept="image/*" hidden />
-    </div>
-    <div class="toolcol" id="threshRow" hidden>
-      <label class="ctl">black ≤ <input id="tDark" type="range" min="0" max="255" value="110" /></label>
-      <label class="ctl">white ≥ <input id="tLight" type="range" min="0" max="255" value="150" /></label>
-      <label class="chk"><input id="tInvert" type="checkbox" /> invert</label>
+  </aside>
+
+  <section class="panel" id="center">
+    <div class="importbar" id="threshRow" hidden>
+      <span class="hint">Import tuning</span>
       <label class="ctl">mode <select id="tMode">
         <option value="solid" selected>solid shape</option>
         <option value="lineart">line art</option>
       </select></label>
-      <span class="hint">re-importing replaces brush strokes</span>
+      <label class="ctl">black ≤ <input id="tDark" type="range" min="0" max="255" value="110" /></label>
+      <label class="ctl">white ≥ <input id="tLight" type="range" min="0" max="255" value="150" /></label>
+      <label class="chk"><input id="tInvert" type="checkbox" /> invert</label>
+      <button id="importDone">✓ done</button>
     </div>
-  </aside>
-
-  <section class="panel" id="center">
     <div class="board dropzone" id="boardWrap"><canvas id="paint" aria-label="QR painting canvas"></canvas></div>
     <div class="toolrow">
-      <label class="chk"><input id="showPaint" type="checkbox" checked /> tint my paint</label>
       <label class="chk"><input id="showGrid" type="checkbox" /> grid</label>
-      <span class="hint" id="tip">paint directly on the live code — the static reshuffles itself around your pixels</span>
+      <span class="hint" id="tip">hover the canvas to focus on your art · move away to preview the real code</span>
     </div>
   </section>
 
   <aside class="panel" id="status">
+    <div class="panel-title"><h2>Link</h2><span class="hint">tap to edit · idle shows the scan</span></div>
+    <div class="linkfield" id="linkField" data-mode="preview">
+      <div class="lf-line">
+        <span class="lf-badge" id="lfBadge">reads</span>
+        <button type="button" class="lf-preview" id="linkPreview" aria-label="The link a scanner reads — activate to edit the destination">—</button>
+        <input id="url" class="lf-input" type="text" spellcheck="false" autocomplete="off" value="http://hexxygon.com/neon" aria-label="Destination link the code opens" />
+      </div>
+      <div class="lf-caption" id="linkCaption">what a phone reads back · click to edit</div>
+    </div>
     <div class="panel-title"><h2>Code health</h2></div>
-    <div class="decoded" id="decoded">—</div>
     <div class="meter" id="meter"></div>
     <div class="statline" id="autoline">—</div>
-    <div class="panel-title"><h2>Export</h2></div>
+    <div class="panel-title"><h2>Export</h2><span class="hint">pixels per module</span></div>
     <div class="toolrow">
-      <label class="ctl">px <select id="exScale"><option>8</option><option selected>16</option><option>32</option></select></label>
+      <label class="ctl" title="how many image pixels each QR module becomes — bigger = larger file, same code">px/module <select id="exScale"><option>8</option><option selected>16</option><option>32</option></select></label>
       <button id="exPng">PNG</button>
       <button id="exSvg">SVG</button>
     </div>
@@ -188,8 +228,6 @@
     </details>
   </aside>
 </div>
-
-<p class="footer">escape cats · prototypes/qr-art-studio.html · from-scratch QR engine, versions 1–10 · the code always scans</p>
 <script>
 /*
  * QR Art engine — from-scratch QR encoder + Reed-Solomon decoder + art optimizer.
@@ -1511,6 +1549,7 @@ window.QR_PRESET_IMGS = {
     seq: null,  // Int32Array paint stamp, -1 unpainted
     counter: 0,
     brush: "black",
+    brushSize: 2,
     cfg: { level: "L", mask: 0 },
     preps: {},
     res: null,
@@ -1520,6 +1559,7 @@ window.QR_PRESET_IMGS = {
     undoStack: [],
     strokeRec: null,
     fp: null,
+    focusMode: false, // true while cursor is over the canvas (drawing view)
   };
   const size = () => E.sizeOf(state.version);
 
@@ -1570,9 +1610,13 @@ window.QR_PRESET_IMGS = {
   }
 
   // ---------- solve loop ----------
-  let solving = false, dirty = false, idleTimer = null;
-  function requestSolve() {
+  let solving = false, dirty = false, idleTimer = null, pendingDeep = false;
+  // deep=true → search the full config space right away (skip the idle wait).
+  // Use it for wholesale changes (templates, version/URL) where the current
+  // mask/level is likely wrong; incremental strokes use the lazy idle path.
+  function requestSolve(deep) {
     dirty = true;
+    if (deep) pendingDeep = true;
     if (!solving) pump();
   }
   function pump() {
@@ -1594,9 +1638,23 @@ window.QR_PRESET_IMGS = {
       if (dirty) pump();
       else {
         clearTimeout(idleTimer);
-        idleTimer = setTimeout(deepSearch, ADOPT_POLICY.idleMs);
+        if (pendingDeep) {
+          pendingDeep = false;
+          deepSearch();
+        } else idleTimer = setTimeout(deepSearch, ADOPT_POLICY.idleMs);
       }
     });
+  }
+  // build the basis vectors for every EC level ahead of time, one per idle
+  // tick, so the first deep search never pays first-time construction
+  function primePreps() {
+    const levels = ["L", "M", "Q", "H"];
+    let i = 0;
+    const step = () => {
+      if (i < levels.length && !solving) prep(levels[i]);
+      if (++i < levels.length) setTimeout(step, 60);
+    };
+    setTimeout(step, 60);
   }
   function deepSearch() {
     if (solving || dirty) return;
@@ -1626,7 +1684,10 @@ window.QR_PRESET_IMGS = {
             best = { res: r, level, mask: m };
         }
       }
-      if (li < levels.length) setTimeout(step, 0);
+      // early exit: once every painted pixel is honored with comfortable
+      // headroom, stop — no need to keep trying larger error-correction levels
+      const goodEnough = best.res.unsatisfied.length === 0 && best.res.headroom > ADOPT_POLICY.preemptAt;
+      if (li < levels.length && !goodEnough) setTimeout(step, 0);
       else {
         const adopt =
           best.res.unsatisfied.length < cur.unsatisfied.length ||
@@ -1676,8 +1737,12 @@ window.QR_PRESET_IMGS = {
     const g = ctx;
     g.setTransform(DPR, 0, 0, DPR, 0, 0);
     const m = state.res ? state.res.matrix : null;
-    const unsat = state.res ? new Set(state.res.unsatisfied) : new Set();
-    const tintOn = $("showPaint").checked;
+    // Two views, toggled by whether the cursor is over the canvas:
+    //  focus (over)  — your painted pixels solid + blue-tinted, noise faded
+    //                  back so you can read your art while drawing;
+    //  holistic (away) — the true black/white code, exactly as it exports.
+    const focus = state.focusMode;
+    const unsat = m && focus ? new Set(state.res.unsatisfied) : null;
     for (let r = 0; r < S; r++)
       for (let c = 0; c < S; c++) {
         const i = r * S + c, x = c * px, y = r * px;
@@ -1685,16 +1750,27 @@ window.QR_PRESET_IMGS = {
         if (m) dark = m[i] === 1;
         else if (state.fp.func[i]) dark = state.fp.base[i] === 1;
         else dark = state.tone[i] === 1;
-        g.fillStyle = dark ? "#0d1117" : "#ffffff";
-        g.fillRect(x, y, px, px);
+        if (!focus) {
+          g.fillStyle = dark ? "#0d1117" : "#ffffff";
+          g.fillRect(x, y, px, px);
+          continue;
+        }
         if (state.fp.func[i]) {
+          g.fillStyle = dark ? "#0d1117" : "#ffffff";
+          g.fillRect(x, y, px, px);
           g.fillStyle = dark ? "rgba(122,144,182,0.28)" : "rgba(122,144,182,0.16)";
           g.fillRect(x, y, px, px);
-        } else if (tintOn && state.tone[i] > 0) {
-          g.fillStyle = "rgba(77,163,255,0.20)";
+        } else if (state.tone[i] > 0) {
+          g.fillStyle = dark ? "#0d1117" : "#ffffff";
+          g.fillRect(x, y, px, px);
+          g.fillStyle = "rgba(77,163,255,0.22)";
+          g.fillRect(x, y, px, px);
+        } else {
+          // noise: faded low-contrast wash, out of the way
+          g.fillStyle = dark ? "#d8dee8" : "#f6f8fb";
           g.fillRect(x, y, px, px);
         }
-        if (unsat.has(i)) {
+        if (unsat && unsat.has(i)) {
           g.strokeStyle = "#e63946";
           g.lineWidth = 2;
           g.strokeRect(x + 1.5, y + 1.5, px - 3, px - 3);
@@ -1715,21 +1791,63 @@ window.QR_PRESET_IMGS = {
     pill.className = "pill " + cls;
     pill.textContent = text;
   }
+
+  // ---------- link field: editable destination ⇄ scanned readback ----------
+  const linkField = $("linkField");
+  const linkPreview = $("linkPreview");
+  const linkBadge = $("lfBadge");
+  const linkCaption = $("linkCaption");
+  const escHtml = (ch) => (ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : ch);
+  function renderLink() {
+    if (linkField.dataset.mode === "edit") return; // never clobber while typing
+    const res = state.res;
+    if (!res) {
+      linkField.classList.add("bad");
+      linkBadge.textContent = "—";
+      linkPreview.textContent = state.url;
+      linkCaption.textContent = "this link won't fit — shorten it or grow the canvas";
+      return;
+    }
+    linkField.classList.remove("bad");
+    linkBadge.textContent = "reads";
+    linkCaption.textContent = "what a phone reads back · click to edit";
+    const val = E.validate(res.matrix, state.version);
+    const decoded = val && val.ok ? val.text : state.url;
+    const canon = state.url;
+    // highlight scheme/host letters the solver recased — same link, remixed
+    let html = "";
+    for (let i = 0; i < decoded.length; i++) {
+      const ch = decoded[i];
+      if (i < canon.length && ch !== canon[i] && ch.toLowerCase() === canon[i].toLowerCase())
+        html += `<span class="recased">${escHtml(ch)}</span>`;
+      else html += escHtml(ch);
+    }
+    linkPreview.innerHTML = html;
+  }
+  function enterLinkEdit() {
+    linkField.dataset.mode = "edit";
+    linkBadge.textContent = "opens";
+    linkCaption.textContent = "the link your code opens · click away to preview the scan";
+    const url = $("url");
+    url.value = state.url;
+    url.focus();
+    url.select();
+  }
+  linkPreview.addEventListener("click", enterLinkEdit);
   function updateStatus() {
     const res = state.res;
     if (!res) {
       setPill("bad", "LINK TOO LONG FOR CANVAS");
-      $("decoded").textContent = "pick a bigger canvas or shorten the link";
       $("meter").textContent = "";
       $("autoline").textContent = "—";
+      renderLink();
       return;
     }
     const unsat = res.unsatisfied.length;
     if (unsat > 0) setPill("warn", `${unsat} PIXEL${unsat > 1 ? "S" : ""} CAN'T COMPLY`);
     else if (res.headroom <= 1) setPill("warn", `HOLDS · ${res.headroom} spare`);
     else setPill("ok", `ALL PAINT HOLDS · ${res.headroom} spare`);
-    const val = E.validate(res.matrix, state.version);
-    $("decoded").textContent = val.ok ? `scans → ${val.text}` : "internal check failed (please report)";
+    renderLink();
     const meter = $("meter");
     meter.textContent = "";
     res.blockUsed.forEach((used, bi) => {
@@ -1771,7 +1889,7 @@ window.QR_PRESET_IMGS = {
   }
   function applyBrush(r, c) {
     const S = size();
-    const bs = Number($("brushSize").value);
+    const bs = state.brushSize;
     const tone = state.brush === "black" ? 1 : state.brush === "white" ? 2 : 0;
     let any = false, blocked = false;
     for (let dr = 0; dr < bs; dr++)
@@ -1797,8 +1915,17 @@ window.QR_PRESET_IMGS = {
       tip.textContent = "paint directly on the live code — the static reshuffles itself around your pixels";
     }, 2200);
   }
+  function setFocusMode(on) {
+    if (state.focusMode === on) return;
+    state.focusMode = on;
+    render();
+  }
+  can.addEventListener("pointerenter", () => setFocusMode(true));
+  can.addEventListener("pointerleave", () => { if (!painting) setFocusMode(false); });
   can.addEventListener("pointerdown", (ev) => {
     painting = true;
+    setFocusMode(true);
+    if (!$("threshRow").hidden) $("threshRow").hidden = true; // committing to hand-paint
     state.strokeRec = [];
     can.setPointerCapture(ev.pointerId);
     const cell = cellFromEvent(ev);
@@ -1824,7 +1951,7 @@ window.QR_PRESET_IMGS = {
     lastCell = cell;
     if (any) requestSolve();
   });
-  const endStroke = () => {
+  const endStroke = (ev) => {
     painting = false;
     lastCell = null;
     if (state.strokeRec && state.strokeRec.length > 0) {
@@ -1832,6 +1959,12 @@ window.QR_PRESET_IMGS = {
       if (state.undoStack.length > 64) state.undoStack.shift();
     }
     state.strokeRec = null;
+    // if the pen lifted outside the canvas, drop back to the holistic view
+    if (ev) {
+      const rect = can.getBoundingClientRect();
+      const out = ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom;
+      if (out) setFocusMode(false);
+    }
   };
   can.addEventListener("pointerup", endStroke);
   can.addEventListener("pointercancel", endStroke);
@@ -1871,7 +2004,7 @@ window.QR_PRESET_IMGS = {
       if (weight[i] > 0) paintCell(i, target[i] ? 1 : 2);
     state.undoStack.push(state.strokeRec);
     state.strokeRec = null;
-    requestSolve();
+    requestSolve(true); // wholesale change — find the best config immediately
   }
 
   // (painters ported from the workbench: Hex silhouette + poster face)
@@ -2277,19 +2410,16 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     im.src = window.QR_PRESET_IMGS[key];
   }
 
-  $("p-cat").addEventListener("click", () => {
-    $("threshRow").hidden = true;
-    const r = paintCat(state.version);
-    applyAsPaint(r.target, r.weight);
+  $("startFrom").addEventListener("change", (ev) => {
+    const v = ev.target.value;
+    ev.target.value = ""; // action menu — snap back to the neutral label
+    if (v === "blank") $("clear").click();
+    else if (v === "cat") { $("threshRow").hidden = true; const r = paintCat(state.version); applyAsPaint(r.target, r.weight); }
+    else if (v === "face") { $("threshRow").hidden = true; const r = paintFace(state.version); applyAsPaint(r.target, r.weight); }
+    else if (v === "ink") loadArtPreset("ink");
+    else if (v === "tabby") loadArtPreset("tabby");
+    else if (v === "upload") $("file").click();
   });
-  $("p-face").addEventListener("click", () => {
-    $("threshRow").hidden = true;
-    const r = paintFace(state.version);
-    applyAsPaint(r.target, r.weight);
-  });
-  $("p-ink").addEventListener("click", () => loadArtPreset("ink"));
-  $("p-tabby").addEventListener("click", () => loadArtPreset("tabby"));
-  $("p-upload").addEventListener("click", () => $("file").click());
   $("file").addEventListener("change", (ev) => loadImageFile(ev.target.files[0]));
   function loadImageFile(file) {
     if (!file) return;
@@ -2341,18 +2471,35 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
       state.undoStack = [];
     } else initCanvasState();
     invalidatePreps();
-    requestSolve();
+    requestSolve(true); // new geometry — re-pick the config now
+    primePreps();
   }
   $("version").addEventListener("input", () => setVersion(Number($("version").value)));
   let urlTimer = null;
+  function commitUrl() {
+    const v = $("url").value.trim();
+    if (v === state.url || v === "") return;
+    state.url = v;
+    invalidatePreps();
+    state.cfg = { level: "L", mask: state.cfg.mask };
+    requestSolve(true); // new payload — reprice the whole field now
+    primePreps();
+  }
   $("url").addEventListener("input", () => {
     clearTimeout(urlTimer);
-    urlTimer = setTimeout(() => {
-      state.url = $("url").value.trim();
-      invalidatePreps();
-      state.cfg = { level: "L", mask: state.cfg.mask };
-      requestSolve();
-    }, 400);
+    urlTimer = setTimeout(commitUrl, 400);
+  });
+  $("url").addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      $("url").blur();
+    }
+  });
+  $("url").addEventListener("blur", () => {
+    clearTimeout(urlTimer);
+    commitUrl();
+    linkField.dataset.mode = "preview";
+    renderLink();
   });
   const brushes = { "b-black": "black", "b-white": "white", "b-noise": "noise" };
   for (const [id, name] of Object.entries(brushes)) {
@@ -2361,7 +2508,24 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
       for (const o of Object.keys(brushes)) $(o).classList.toggle("on", o === id);
     });
   }
-  for (const id of ["showPaint", "showGrid"]) $(id).addEventListener("input", render);
+  const sizeBtns = [...document.querySelectorAll(".sizebtn")];
+  function setBrushSize(n) {
+    state.brushSize = Math.max(1, Math.min(3, n));
+    sizeBtns.forEach((b) => b.classList.toggle("on", Number(b.dataset.size) === state.brushSize));
+  }
+  sizeBtns.forEach((b) => b.addEventListener("click", () => setBrushSize(Number(b.dataset.size))));
+  window.addEventListener("keydown", (ev) => {
+    if (ev.target && (ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT")) return;
+    if (ev.key === "[") setBrushSize(state.brushSize - 1);
+    else if (ev.key === "]") setBrushSize(state.brushSize + 1);
+    else if (ev.key === "b") $("b-black").click();
+    else if (ev.key === "w") $("b-white").click();
+    else if (ev.key === "n") $("b-noise").click();
+  });
+  // import tuning is a transient step: Done commits it; the first manual
+  // brush stroke also dismisses it
+  $("importDone").addEventListener("click", () => { $("threshRow").hidden = true; });
+  $("showGrid").addEventListener("input", render);
   window.addEventListener("resize", render);
 
   // ---------- export ----------
@@ -2415,5 +2579,6 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   // ---------- boot ----------
   initCanvasState();
   requestSolve();
+  primePreps();
 })();
 </script>

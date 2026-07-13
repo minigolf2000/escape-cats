@@ -18,7 +18,7 @@ One non-game tool lives here too:
 
 | File | Tool | What it does |
 | --- | --- | --- |
-| `qr-art-studio.html` | **QR Art Studio** | Design-QR workbench in the Japanese poster style — paint a three-tone target (black / white / free noise), a GF(2) solver pins pixels via free padding + URL-case bits, an error-correction flip budget buys the stragglers, then hand-edit modules with a live per-block "will it still scan" meter. Ships with cat art presets (Hex silhouette + poster face, ink cat, tabby) and solid-shape / line-art cleanup modes for uploads; `cat-qr.*`, `hex-poster.*` and `ink-cat-qr.png` are its output. Technique notes in [`qr-art-notes.md`](./qr-art-notes.md). |
+| `qr-art-studio.html` | **QR Art Studio** | Live QR pixel painter — paint black/white/noise directly on a working code; a GF(2) solver honors your pixels in paint order (~6ms/solve), an error-correction budget absorbs stragglers, and a background pass retries every EC level × mask to keep more of your paint legal. Over-budget pixels are annotated, never blocked; the code always scans. Imports, cat presets, and `cat-qr.*` / `hex-poster.*` / `ink-cat-qr.png` outputs as before. Notes in [`qr-art-notes.md`](./qr-art-notes.md). |
 
 ## Playtesting
 

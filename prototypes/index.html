@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Escape Cats — Prototypes 🐾</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --panel: #14161d;
+      --panel-hi: #1b1e28;
+      --ink: #e8eaf0;
+      --muted: #8a90a2;
+      --neon: #57e6c9;
+      --neon-2: #ff5db1;
+      --line: #262a36;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background:
+        radial-gradient(90vw 60vh at 50% -10%, rgba(87,230,201,0.10), transparent 60%),
+        var(--bg);
+      color: var(--ink);
+      font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100dvh;
+      padding: max(28px, env(safe-area-inset-top)) 20px 48px;
+    }
+    .wrap { max-width: 620px; margin: 0 auto; }
+    header { margin-bottom: 26px; }
+    h1 {
+      font-size: 30px; line-height: 1.1; margin: 0 0 6px;
+      letter-spacing: -0.01em;
+    }
+    h1 .glow { color: var(--neon); text-shadow: 0 0 18px rgba(87,230,201,0.45); }
+    .sub { color: var(--muted); font-size: 14px; margin: 0; }
+    .tag {
+      display: inline-block; margin-top: 12px; padding: 3px 10px;
+      font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--neon-2); border: 1px solid rgba(255,93,177,0.35);
+      border-radius: 999px; background: rgba(255,93,177,0.06);
+    }
+    h2 {
+      font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin: 30px 0 12px; font-weight: 600;
+    }
+    .grid { display: grid; gap: 12px; }
+    a.card {
+      display: flex; align-items: center; gap: 14px;
+      padding: 15px 16px; text-decoration: none; color: inherit;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    a.card:hover, a.card:focus-visible {
+      background: var(--panel-hi); border-color: var(--neon);
+      transform: translateY(-1px); outline: none;
+    }
+    .emoji {
+      flex: none; width: 44px; height: 44px; border-radius: 12px;
+      display: grid; place-items: center; font-size: 22px;
+      background: #0f1117; border: 1px solid var(--line);
+    }
+    .meta { min-width: 0; }
+    .name { font-size: 16px; font-weight: 600; margin: 0; }
+    .desc { font-size: 13px; color: var(--muted); margin: 2px 0 0; }
+    .chev { flex: none; margin-left: auto; color: var(--muted); font-size: 18px; }
+    footer { margin-top: 34px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    footer code { color: var(--ink); background: #0f1117; padding: 1px 5px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Escape&nbsp;Cats <span class="glow">Prototypes</span> 🐾</h1>
+      <p class="sub">Single-player, mobile-first experiments. Best on a phone in portrait.</p>
+      <span class="tag">Private · work in progress</span>
+    </header>
+
+    <h2>Games</h2>
+    <div class="grid">
+      <a class="card" href="stack-cats.html">
+        <span class="emoji">🐈</span>
+        <span class="meta"><p class="name">Stack Cats</p><p class="desc">Tap-timing tower stacker.</p></span>
+        <span class="chev">›</span>
+      </a>
+      <a class="card" href="yarn-flick.html">
+        <span class="emoji">🧶</span>
+        <span class="meta"><p class="name">Yarn Flick</p><p class="desc">Drag-and-release slingshot.</p></span>
+        <span class="chev">›</span>
+      </a>
+      <a class="card" href="laser-dash.html">
+        <span class="emoji">⚡</span>
+        <span class="meta"><p class="name">Laser Dash</p><p class="desc">One-thumb endless runner.</p></span>
+        <span class="chev">›</span>
+      </a>
+      <a class="card" href="salad-cat.html">
+        <span class="emoji">🥗</span>
+        <span class="meta"><p class="name">Salad Cat</p><p class="desc">Slingshot the cat through 5 levels.</p></span>
+        <span class="chev">›</span>
+      </a>
+      <a class="card" href="hex-clicker-neon.html">
+        <span class="emoji">🐭</span>
+        <span class="meta"><p class="name">Hex Clicker · Neon Lab</p><p class="desc">Cooperative clicker in the neon line-art skin.</p></span>
+        <span class="chev">›</span>
+      </a>
+    </div>
+
+    <h2>Labs &amp; tools</h2>
+    <div class="grid">
+      <a class="card" href="reveal-lab.html">
+        <span class="emoji">🌙</span>
+        <span class="meta"><p class="name">Reveal Lab</p><p class="desc">Neon line-art code-word reveal experiment.</p></span>
+        <span class="chev">›</span>
+      </a>
+      <a class="card" href="lineart-sketches.html">
+        <span class="emoji">✏️</span>
+        <span class="meta"><p class="name">Line-art Sketches</p><p class="desc">Concept art sketches.</p></span>
+        <span class="chev">›</span>
+      </a>
+      <a class="card" href="qr-art-studio.html">
+        <span class="emoji">🔳</span>
+        <span class="meta"><p class="name">QR Art Studio</p><p class="desc">Design-QR workbench (poster style).</p></span>
+        <span class="chev">›</span>
+      </a>
+    </div>
+
+    <footer>
+      Not linked publicly &mdash; served with <code>X-Robots-Tag: noindex</code> so it stays out of search.
+    </footer>
+  </div>
+</body>
+</html>

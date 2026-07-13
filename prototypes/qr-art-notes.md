@@ -1,6 +1,6 @@
 # QR art notes 🐈‍⬛
 
-Companion notes for [`qr-art-studio.html`](./qr-art-studio.html) — how the
+Companion notes for [`qr-studio.html`](./qr-studio.html) — how the
 Disney-poster style of QR art actually works, and what the studio does about
 it. The committed [`cat-qr.png`](./cat-qr.png) / [`cat-qr.svg`](./cat-qr.svg)
 were generated with the studio's cat preset (v6, EC level L, flip budget 50%,

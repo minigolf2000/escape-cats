@@ -80,12 +80,10 @@
   label.chk { display: flex; gap: 7px; align-items: center; font-size: 12.5px; color: var(--dim); cursor: pointer; }
   input[type="range"] { accent-color: var(--accent); width: 108px; }
   input[type="checkbox"] { accent-color: var(--accent); }
-  .sizerow { display: flex; align-items: center; gap: 6px; }
-  .sizelabel { font-size: 12.5px; color: var(--dim); margin-right: 2px; }
-  .sizebtn { flex: none; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
-  .sizebtn i { display: block; background: var(--dim); border-radius: 1px; }
-  .sizebtn.on { border-color: var(--accent); }
+  .sizebtn i { display: inline-block; vertical-align: middle; margin-right: 8px; background: var(--dim); border-radius: 1px; }
+  .sizebtn.on { border-color: var(--accent); color: var(--accent); }
   .sizebtn.on i { background: var(--accent); }
+  .key { color: var(--faint); }
   .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
   .meter { display: flex; flex-direction: column; gap: 7px; }
   .meter .blockrow { display: grid; grid-template-columns: 44px 1fr 46px; gap: 8px; align-items: center; }
@@ -173,6 +171,8 @@
     <option value="6" selected>v6 · 41 px</option>
     <option value="7">v7 · 45 px</option>
     <option value="8">v8 · 49 px</option>
+    <option value="9">v9 · 53 px</option>
+    <option value="10">v10 · 57 px</option>
   </select></label>
   <span class="presets">
     <span class="lbl">start from</span>
@@ -186,19 +186,30 @@
   </span>
 </div>
 
+<div class="importbar" id="threshRow" hidden>
+  <span class="hint">Import tuning</span>
+  <label class="ctl">mode <select id="tMode">
+    <option value="solid" selected>solid shape</option>
+    <option value="lineart">line art</option>
+  </select></label>
+  <label class="ctl">black ≤ <input id="tDark" type="range" min="0" max="255" value="110" /></label>
+  <label class="ctl">white ≥ <input id="tLight" type="range" min="0" max="255" value="150" /></label>
+  <label class="chk"><input id="tInvert" type="checkbox" /> invert</label>
+  <button id="importDone">✓ done</button>
+</div>
+
 <div class="workbench">
   <aside class="panel" id="tools">
     <div class="panel-title"><h2>Brush</h2></div>
     <div class="toolcol" role="toolbar" aria-label="Brushes">
-      <button id="b-black" class="on" data-tip="black paint  ·  B"><span class="swatch" style="background:#101418"></span>black</button>
-      <button id="b-white" data-tip="white paint  ·  W"><span class="swatch" style="background:#fff;border:1px solid var(--line)"></span>white</button>
-      <button id="b-noise" data-tip="hand back to the code  ·  E"><span class="swatch" style="background:repeating-conic-gradient(#9aa 0 25%,#dde 0 50%) 0 0/8px 8px"></span>eraser</button>
+      <button id="b-black" class="on"><span class="swatch" style="background:#101418"></span>black <span class="key">(B)</span></button>
+      <button id="b-white"><span class="swatch" style="background:#fff;border:1px solid var(--line)"></span>white <span class="key">(W)</span></button>
+      <button id="b-noise"><span class="swatch" style="background:repeating-conic-gradient(#9aa 0 25%,#dde 0 50%) 0 0/8px 8px"></span>eraser <span class="key">(E)</span></button>
     </div>
-    <div class="sizerow" role="radiogroup" aria-label="Brush size">
-      <span class="sizelabel">size</span>
-      <button class="sizebtn" data-size="1" data-tip="1 px  ·  key 1  /  [" aria-label="1 pixel"><i style="width:4px;height:4px"></i></button>
-      <button class="sizebtn on" data-size="2" data-tip="2 px  ·  key 2" aria-label="2 pixels"><i style="width:8px;height:8px"></i></button>
-      <button class="sizebtn" data-size="3" data-tip="3 px  ·  key 3  /  ]" aria-label="3 pixels"><i style="width:12px;height:12px"></i></button>
+    <div class="toolcol" role="radiogroup" aria-label="Brush size">
+      <button class="sizebtn" data-size="1" aria-label="1 by 1"><i style="width:4px;height:4px"></i>1×1 <span class="key">(1)</span></button>
+      <button class="sizebtn on" data-size="2" aria-label="2 by 2"><i style="width:8px;height:8px"></i>2×2 <span class="key">(2)</span></button>
+      <button class="sizebtn" data-size="3" aria-label="3 by 3"><i style="width:12px;height:12px"></i>3×3 <span class="key">(3)</span></button>
     </div>
     <div class="toolrow">
       <button id="undo" data-tip="undo stroke  ⌃Z">↩ undo</button>
@@ -206,17 +217,6 @@
   </aside>
 
   <section id="center">
-    <div class="importbar" id="threshRow" hidden>
-      <span class="hint">Import tuning</span>
-      <label class="ctl">mode <select id="tMode">
-        <option value="solid" selected>solid shape</option>
-        <option value="lineart">line art</option>
-      </select></label>
-      <label class="ctl">black ≤ <input id="tDark" type="range" min="0" max="255" value="110" /></label>
-      <label class="ctl">white ≥ <input id="tLight" type="range" min="0" max="255" value="150" /></label>
-      <label class="chk" data-tip="use for light-on-dark sources"><input id="tInvert" type="checkbox" /> invert</label>
-      <button id="importDone">✓ done</button>
-    </div>
     <div class="board dropzone" id="boardWrap"><canvas id="paint" aria-label="QR painting canvas"></canvas></div>
     <div class="viewopts">
       <label class="chk"><input id="showGrid" type="checkbox" /> Show grid</label>
@@ -2474,7 +2474,7 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   // baked image presets — embedded data URIs run through the import pipeline
   const ART_PRESETS = {
     tux: { version: 6, dark: 95, light: 175, inv: false, rect: [0, 0, 1, 1] },
-    mario: { version: 8, dark: 90, light: 175, inv: true, rect: [0.23, 0.02, 0.77, 0.98] },
+    mario: { version: 9, dark: 90, light: 175, inv: true, rect: [0.23, 0.02, 0.77, 0.98] },
   };
   function loadArtPreset(key) {
     const p = ART_PRESETS[key];

@@ -45,14 +45,8 @@
     padding: 14px clamp(10px, 2vw, 26px) 40px;
   }
   h1, h2 { margin: 0; text-wrap: balance; }
-  .masthead { display: flex; align-items: baseline; gap: 14px; padding: 4px 2px 12px; }
+  .masthead { padding: 4px 2px 12px; }
   .wordmark { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--dim); margin: 0; }
-  .savestate { font-family: var(--mono); font-size: 11px; letter-spacing: 0.03em; color: var(--faint); display: inline-flex; align-items: center; gap: 6px; }
-  .savestate::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
-  .savestate.saving { color: var(--dim); }
-  .savestate.saving::before { background: var(--warn); }
-  .savestate.err { color: var(--bad); }
-  .savestate.err::before { background: var(--bad); }
   .eyebrow { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; color: var(--faint); text-transform: uppercase; }
   .urlrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
   .urlrow input[type="text"] { flex: 1; min-width: 240px; padding: 8px 10px; }
@@ -113,6 +107,7 @@
   #exScale { width: 46px; padding: 6px 2px 6px 6px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .expgroup #exPng { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; }
   #copyLink { width: 100%; text-align: center; }
+  .savenote { display: block; text-align: center; font-size: 10.5px; color: var(--faint); margin-top: -2px; }
   details.about { color: var(--dim); font-size: 12.5px; }
   details.about summary { cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
   details.about p { margin: 8px 0; }
@@ -151,7 +146,6 @@
 
 <header class="masthead">
   <h1 class="wordmark">QR STUDIO</h1>
-  <span class="savestate" id="saveState" data-tip="autosaved in this browser · Copy link makes a shareable URL">saved locally</span>
 </header>
 
 <div class="topbar">
@@ -247,6 +241,7 @@
         <button id="exSvg">SVG</button>
       </div>
       <button id="copyLink">🔗 copy link</button>
+      <span class="savenote" id="saveNote" hidden>saved changes to localStorage</span>
     </section>
   </div>
 </div>
@@ -1970,6 +1965,8 @@ window.QR_PRESET_IMGS = {
       `auto: EC ${state.cfg.level} · mask ${state.cfg.mask} · ` +
       `${prep(state.cfg.level).bases.length} free bits · solve ${state.lastSolveMs.toFixed(1)}ms`;
     scheduleSave();
+    const note = document.getElementById("saveNote");
+    if (note) { let drawn = false; for (let i = 0; i < state.tone.length; i++) if (state.tone[i] > 0) { drawn = true; break; } note.hidden = !drawn; }
   }
 
   // ---------- pointer painting ----------
@@ -2062,6 +2059,17 @@ window.QR_PRESET_IMGS = {
   function undo() {
     const rec = state.undoStack.pop();
     if (!rec) return;
+    if (rec.resize) { // whole-grid snapshot from a canvas-size change
+      state.version = rec.version;
+      $("version").value = String(rec.version);
+      state.fp = E.functionPatterns(rec.version);
+      state.tone = rec.tone;
+      state.seq = rec.seq;
+      invalidatePreps();
+      requestSolve(true);
+      primePreps();
+      return;
+    }
     for (let k = rec.length - 1; k >= 0; k--) {
       const { i, t, s } = rec[k];
       state.tone[i] = t;
@@ -2547,7 +2555,13 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
 
   // ---------- top controls ----------
   function setVersion(v, resample = true) {
-    const oldS = size(), oldTone = state.tone, oldSeq = state.seq, oldFp = state.fp;
+    const oldS = size(), oldTone = state.tone, oldSeq = state.seq, oldFp = state.fp, oldV = state.version;
+    // snapshot the whole grid so a canvas-size change is undoable like any
+    // other action (undo() restores this version + art wholesale)
+    if (oldTone) {
+      state.undoStack.push({ resize: true, version: oldV, tone: oldTone.slice(), seq: oldSeq.slice() });
+      if (state.undoStack.length > 64) state.undoStack.shift();
+    }
     state.version = v;
     $("version").value = String(v);
     const S = size();
@@ -2566,8 +2580,11 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
         }
       state.tone = tone;
       state.seq = seq;
-      state.undoStack = [];
-    } else initCanvasState();
+    } else {
+      state.tone = new Int8Array(S * S);
+      state.seq = new Int32Array(S * S).fill(-1);
+      state.counter = 0;
+    }
     invalidatePreps();
     requestSolve(true); // new geometry — re-pick the config now
     primePreps();
@@ -2787,23 +2804,11 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   // the Copy-link button — there's no server to trade for a short id, so a
   // shareable link must carry the whole drawing.
   const SAVE_KEY = "qr-studio-drawing";
-  let saveTimer = null, lastSaved = null;
-  function setSaveState(s) {
-    const el = document.getElementById("saveState");
-    if (!el) return;
-    el.classList.toggle("saving", s === "saving");
-    el.classList.toggle("err", s === "err");
-    el.textContent = s === "saving" ? "saving…" : s === "err" ? "not saved" : "saved locally";
-  }
+  let saveTimer = null;
   function scheduleSave() {
-    setSaveState("saving");
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      let enc; try { enc = encodeState(); } catch (e) { return; }
-      try {
-        if (enc !== lastSaved) { localStorage.setItem(SAVE_KEY, enc); lastSaved = enc; }
-        setSaveState("saved");
-      } catch (e) { setSaveState("err"); }
+      try { localStorage.setItem(SAVE_KEY, encodeState()); } catch (e) { /* best-effort */ }
     }, 250);
   }
   $("copyLink").addEventListener("click", async () => {

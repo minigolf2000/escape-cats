@@ -2792,9 +2792,10 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   };
 
   // ---------- save / restore in the URL hash ----------
-  // The whole drawing is (version, url, case, noise seed, tone grid). The grid
-  // is run-length encoded — art is mostly long noise runs — then base64url'd
-  // into location.hash, so the page's own address is the save file.
+  // The whole drawing is (version, url, case, seeds, solved config, tone
+  // grid). The grid is run-length encoded — art is mostly long noise runs —
+  // then base64url'd into location.hash, so the page's own address is the
+  // save file.
   const b64urlEnc = (u8) => {
     let s = "";
     for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
@@ -2806,12 +2807,19 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
     return u8;
   };
+  const pushU32 = (a, x) => a.push(x & 255, (x >> 8) & 255, (x >> 16) & 255, (x >> 24) & 255);
+  const readU32 = (b, o) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
   function encodeState() {
     const S = size();
     const urlBytes = new TextEncoder().encode(state.url);
-    const out = [1, state.version, state.urlCase === "none" ? 0 : 1];
-    const ns = state.noiseSeed >>> 0;
-    out.push(ns & 255, (ns >> 8) & 255, (ns >> 16) & 255, (ns >> 24) & 255);
+    const out = [2, state.version, state.urlCase === "none" ? 0 : 1];
+    pushU32(out, state.noiseSeed);
+    // fmt 2: also carry the solved config + flip seed so a restored page
+    // paints the saver's exact pixels on its very first frame — without
+    // them, boot solves at the default config and the idle deep search
+    // re-renders a different noise field moments later (visible flicker)
+    out.push(E.LEVELS.indexOf(state.cfg.level), state.cfg.mask);
+    pushU32(out, state.flipSeed);
     out.push(urlBytes.length & 255, (urlBytes.length >> 8) & 255);
     for (const b of urlBytes) out.push(b);
     let i = 0;
@@ -2826,13 +2834,20 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   }
   function decodeState(str) {
     const b = b64urlDec(str);
-    if (b[0] !== 1) return false;
+    const fmt = b[0];
+    if (fmt !== 1 && fmt !== 2) return false;
     let o = 1;
     const version = b[o++];
     if (version < 2 || version > 10) return false;
     const urlCase = b[o++] ? "schemehost" : "none";
-    const ns = (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
+    const ns = readU32(b, o);
     o += 4;
+    let cfg = null, flipSeed = 0;
+    if (fmt >= 2) {
+      cfg = { level: E.LEVELS[b[o++]] || "L", mask: b[o++] & 7 };
+      flipSeed = readU32(b, o);
+      o += 4;
+    }
     const ulen = b[o] | (b[o + 1] << 8);
     o += 2;
     const url = new TextDecoder().decode(b.slice(o, o + ulen));
@@ -2852,7 +2867,9 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     $("version").value = String(version);
     state.urlCase = urlCase;
     $("caseInsensitive").checked = urlCase !== "none";
-    state.noiseSeed = ns || 1;
+    state.noiseSeed = ns; // exact — 0 is the canonical field, keep it so
+    state.flipSeed = flipSeed;
+    if (cfg) state.cfg = cfg; // first solve starts at the saver's config
     state.url = url;
     state.fp = E.functionPatterns(version);
     state.tone = tone;

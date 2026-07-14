@@ -133,10 +133,16 @@
   .presets button { padding: 5px 10px; }
   .rightcol { display: flex; flex-direction: column; gap: 12px; }
   .linkpanel { display: flex; flex-direction: column; gap: 8px; }
-  .lf-input { width: 100%; font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
-  .lf-input:focus { outline: none; border-color: var(--accent); }
-  .linkpanel.scan .lf-input { color: var(--dim); }
-  .linkpanel.bad .lf-input { border-color: var(--bad); }
+  .lf-input, .lf-preview { width: 100%; font-family: var(--mono); font-size: 13px; line-height: 1.4; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+  .lf-input { color: var(--text); background: var(--panel-2); }
+  .lf-input:focus, .lf-preview:focus { outline: none; border-color: var(--accent); }
+  /* idle readback: a styled box (not the raw input) so the solver-recased
+     scheme/host letters can be flagged red one character at a time */
+  .lf-preview { display: block; text-align: left; color: var(--dim); background: var(--panel-2); word-break: break-all; cursor: text; }
+  .lf-preview .recased { color: var(--accent); font-weight: 700; }
+  .linkpanel.scan .lf-input { display: none; }
+  .linkpanel:not(.scan) .lf-preview { display: none; }
+  .linkpanel.bad .lf-input, .linkpanel.bad .lf-preview { border-color: var(--bad); }
   .health { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
   .health.ok { color: var(--ok); } .health.warn { color: var(--warn); } .health.bad { color: var(--bad); }
   .health.clickable { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
@@ -166,7 +172,7 @@
     <button id="p-cat" data-tip="Hex, upright silhouette">🐈‍⬛ Hex</button>
     <button id="p-tux" data-tip="tuxedo pixel cat">😺 cat</button>
     <button id="p-mario" data-tip="it's-a him">🍄 Mario</button>
-    <button id="p-face" data-tip="face only — ears go outside the code">🐱 face</button>
+    <button id="p-pika" data-tip="Pikachu — big ears, big eyes">⚡ pika</button>
     <button id="p-upload" data-tip="turn any image into paint">📄 import…</button>
     <input id="file" type="file" accept="image/*" hidden />
   </span>
@@ -198,7 +204,7 @@
       <button class="sizebtn" data-size="3" aria-label="3 by 3"><i style="width:12px;height:12px"></i>3×3 <span class="key">(3)</span></button>
     </div>
     <div class="toolrow">
-      <button id="undo" data-tip="undo stroke  ⌃Z">↩ undo</button>
+      <button id="undo">undo <span class="key">(⌃Z)</span></button>
     </div>
     <span class="hint">arrow keys nudge the whole drawing</span>
   </aside>
@@ -219,6 +225,7 @@
   <div class="rightcol">
     <section class="linkpanel scan" id="linkPanel">
       <input id="url" class="lf-input" type="text" spellcheck="false" autocomplete="off" value="http://hexxygon.com/neon" aria-label="Text the code encodes (defaults to a URL)" />
+      <button type="button" id="linkPreview" class="lf-preview" aria-label="The link a scanner reads — activate to edit the destination">http://hexxygon.com/neon</button>
       <label class="chk"><input id="caseInsensitive" type="checkbox" checked /> case-insensitive</label>
     </section>
 
@@ -906,9 +913,9 @@
     const data = [];
     let ok = true;
     for (let b = 0; b < lay.blocks.length; b++) {
-      const blk = lay.blocks[b];
-      const res = rsCorrect(blockCw[b], blk.ecLen);
-      const capacity = blk.ecLen >> 1;
+      const block = lay.blocks[b];
+      const res = rsCorrect(blockCw[b], block.ecLen);
+      const capacity = block.ecLen >> 1;
       if (!res) {
         ok = false;
         perBlock.push({ errors: capacity + 1, capacity, failed: true });
@@ -1002,14 +1009,14 @@
       start += lay.blocks[b].dataLen;
       b++;
     }
-    const blk = lay.blocks[b];
-    const unit = new Uint8Array(blk.dataLen);
+    const block = lay.blocks[b];
+    const unit = new Uint8Array(block.dataLen);
     unit[byteIdx - start] = 1 << (7 - bit); // MSB-first bit index
-    const ec = rsEncode(unit, blk.ecLen);
+    const ec = rsEncode(unit, block.ecLen);
     const mods = [];
     const mi = lay.bitToModule[lay.seqToInter[byteIdx] * 8 + bit];
     if (mi >= 0) mods.push(mi);
-    for (let e = 0; e < blk.ecLen; e++) {
+    for (let e = 0; e < block.ecLen; e++) {
       if (ec[e] === 0) continue;
       const eci = lay.ecToInter[b][e];
       for (let k = 0; k < 8; k++) {
@@ -1317,10 +1324,10 @@
     for (const cap of [allowance, hardCap]) {
       for (const [cwIdx, e] of ranked) {
         if (taken.has(cwIdx)) continue;
-        const blk = lay.inter[cwIdx].block;
-        if (blockUsed[blk] >= cap[blk]) continue;
+        const block = lay.inter[cwIdx].block;
+        if (blockUsed[block] >= cap[block]) continue;
         taken.add(cwIdx);
-        blockUsed[blk]++;
+        blockUsed[block]++;
         for (const mi of e.mods) {
           matrix[mi] ^= 1;
           flips.push(mi);
@@ -1481,10 +1488,10 @@
     for (const cap of [allowance, hardCap]) {
       for (const [cwIdx, e] of ranked) {
         if (taken.has(cwIdx)) continue;
-        const blk = lay.inter[cwIdx].block;
-        if (blockUsed[blk] >= cap[blk]) continue;
+        const block = lay.inter[cwIdx].block;
+        if (blockUsed[block] >= cap[block]) continue;
         taken.add(cwIdx);
-        blockUsed[blk]++;
+        blockUsed[block]++;
         for (const mi of e.mods) {
           matrix[mi] ^= 1;
           flips.push(mi);
@@ -1894,21 +1901,41 @@ window.QR_PRESET_IMGS = {
     h.textContent = text;
   }
 
-  // ---------- link field: one input — canonical while editing, scanned readback while idle ----------
-  const urlEl = $("url"), linkPanel = $("linkPanel");
+  // ---------- link field: raw input while editing, styled readback while idle ----------
+  const urlEl = $("url"), linkPanel = $("linkPanel"), linkPreview = $("linkPreview");
   let editingUrl = false;
+  const escHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   function renderLink() {
     if (editingUrl) return; // don't clobber the field while it's being typed
     const res = state.res;
     if (!res) {
       linkPanel.classList.add("bad");
       urlEl.value = state.url;
+      linkPreview.textContent = state.url;
       return;
     }
     linkPanel.classList.remove("bad");
     const val = E.validate(res.matrix, state.version);
-    urlEl.value = val && val.ok ? val.text : state.url; // the exact scanned string
+    const decoded = val && val.ok ? val.text : state.url; // the exact scanned string
+    urlEl.value = decoded;
+    // flag scheme/host letters the solver recased — same link, remixed case —
+    // one character at a time, which the readback box can style but a raw
+    // <input> can't
+    const canon = state.url;
+    let html = "";
+    for (let i = 0; i < decoded.length; i++) {
+      const ch = decoded[i];
+      if (i < canon.length && ch !== canon[i] && ch.toLowerCase() === canon[i].toLowerCase())
+        html += `<span class="recased">${escHtml(ch)}</span>`;
+      else html += escHtml(ch);
+    }
+    linkPreview.innerHTML = html;
   }
+  function enterLinkEdit() {
+    linkPanel.classList.remove("scan"); // reveal the input so it can take focus
+    urlEl.focus();
+  }
+  linkPreview.addEventListener("click", enterLinkEdit);
   urlEl.addEventListener("focus", () => {
     editingUrl = true;
     linkPanel.classList.remove("scan");
@@ -1946,7 +1973,7 @@ window.QR_PRESET_IMGS = {
       row.className = "blockrow";
       const lbl = document.createElement("span");
       lbl.className = "lbl";
-      lbl.textContent = `blk ${bi + 1}`;
+      lbl.textContent = `block ${bi + 1}`;
       const bar = document.createElement("div");
       bar.className = "bar";
       const hot = Math.floor(capacity * 0.8);
@@ -2219,64 +2246,102 @@ function paintCat(version) {
       }
     return { target, weight };
   }
-function paintFace(version) {
+// front-facing Pikachu: light (white) face + black-tipped ears, thin black
+// outline, two big black eyes with a glint, nose, mouth, and cheek rings.
+// 1-bit only — the cheeks' orange is dropped, so they read as black rings.
+function paintPika(version) {
     const S = E.sizeOf(version);
     const fp = E.functionPatterns(version);
-    const p = {
-      eyeCy: 0.40, eyeDx: 0.215, eyeRx: 0.145, eyeRy: 0.105,
-      pupilW: 1.0, pupilH: 1.6,
-      noseCy: 0.645, noseW: 3.6, noseH: 2.8,
-      muzzleCy: 0.695, muzzleRx: 0.125, muzzleRy: 0.075,
-      haloEye: 1.6, haloNose: 1.4,
-      wIris: 8, wHalo: 6, wNose: 7, wChin: 5, wGlint: 9,
-    };
     const cx = 0.5 * S;
-    const target = new Uint8Array(S * S), weight = new Uint8Array(S * S);
-    const eyeCenters = [-1, 1].map((s) => ({ y: p.eyeCy * S, x: cx + s * p.eyeDx * S }));
-    const rx = p.eyeRx * S, ry = p.eyeRy * S;
-    const inAlmond = (r, c, e) => {
-      const dy = (r + 0.5 - e.y) / ry, dx = (c + 0.5 - e.x) / rx;
+    // normalized geometry (fractions of the canvas); y grows downward
+    const p = {
+      headCy: 0.63, headRx: 0.30, headRy: 0.255,
+      earSpread: 0.30, earInnerX: 0.07, earOuterX: 0.25, earBaseY: 0.44, earTipY: 0.09,
+      earTipCutY: 0.27,
+      eyeCy: 0.585, eyeDx: 0.155, eyeR: 0.058,
+      noseCy: 0.665, noseR: 0.9,
+      mouthCy: 0.745, mouthRx: 0.055, mouthRy: 0.038,
+      cheekCy: 0.715, cheekDx: 0.225, cheekR: 0.052, cheekInner: 0.026,
+      edgeBand: 1.7,
+      wEye: 22, wGlint: 24, wEarTip: 12, wOutline: 9, wNose: 10, wMouth: 9, wCheek: 8, wFill: 3,
+    };
+    const inEllipse = (r, c, ecy, ecx, ery, erx) => {
+      const dy = (r + 0.5 - ecy) / ery, dx = (c + 0.5 - ecx) / erx;
       return dy * dy + dx * dx <= 1;
     };
+    const sgn = (px, py, ax, ay, bx, by) => (px - bx) * (ay - by) - (ax - bx) * (py - by);
+    const inTri = (r, c, A, B, C) => {
+      const px = c + 0.5, py = r + 0.5;
+      const d1 = sgn(px, py, A[0], A[1], B[0], B[1]);
+      const d2 = sgn(px, py, B[0], B[1], C[0], C[1]);
+      const d3 = sgn(px, py, C[0], C[1], A[0], A[1]);
+      return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+    };
+    // two ears: inner base, outer base, tip (apex) — mirrored across center
+    const ears = [-1, 1].map((s) => [
+      [cx + s * p.earInnerX * S, p.earBaseY * S],
+      [cx + s * p.earOuterX * S, (p.earBaseY - 0.03) * S],
+      [cx + s * p.earSpread * S, p.earTipY * S],
+    ]);
+    const headCy = p.headCy * S, headRx = p.headRx * S, headRy = p.headRy * S;
+    const inEar = (r, c) => { for (const e of ears) if (inTri(r, c, e[0], e[1], e[2])) return true; return false; };
+    const sil = (r, c) => inEllipse(r, c, headCy, cx, headRy, headRx) || inEar(r, c);
+    const earTipCut = p.earTipCutY * S;
+    const eyes = [-1, 1].map((s) => ({ y: p.eyeCy * S, x: cx + s * p.eyeDx * S, r: p.eyeR * S }));
+    const cheeks = [-1, 1].map((s) => ({ y: p.cheekCy * S, x: cx + s * p.cheekDx * S }));
     const noseY = p.noseCy * S;
-    const inNose = (r, c) => {
-      const dy = r + 0.5 - noseY;
-      if (dy < -p.noseH / 2 || dy > p.noseH / 2) return false;
-      const t = (dy + p.noseH / 2) / p.noseH;
-      return Math.abs(c + 0.5 - cx) <= (p.noseW / 2) * (1 - 0.75 * t);
-    };
-    const inMuzzle = (r, c) => {
-      const dy = (r + 0.5 - p.muzzleCy * S) / (p.muzzleRy * S);
-      const dx = (c + 0.5 - cx) / (p.muzzleRx * S);
-      return dy * dy + dx * dx <= 1;
-    };
-    const near = (r, c, pred, lim) => {
-      for (let dr = -4; dr <= 4; dr++)
-        for (let dc = -4; dc <= 4; dc++)
-          if (pred(r + dr, c + dc) && Math.hypot(dr, dc) <= lim) return true;
+    // is any cell within `lim` outside the silhouette — i.e. am I on the rim
+    const nearOutside = (r, c, lim) => {
+      const k = Math.ceil(lim);
+      for (let dr = -k; dr <= k; dr++)
+        for (let dc = -k; dc <= k; dc++)
+          if (dr * dr + dc * dc <= lim * lim && !sil(r + dr, c + dc)) return true;
       return false;
     };
+    const target = new Uint8Array(S * S), weight = new Uint8Array(S * S);
     for (let r = 0; r < S; r++)
       for (let c = 0; c < S; c++) {
         const i = r * S + c;
         if (fp.func[i]) continue;
+        // eyes — black discs with a small white glint
         let done = false;
-        for (const e of eyeCenters) {
-          if (inAlmond(r, c, e)) {
-            const gr = Math.round(e.y - ry * 0.62), gc = Math.round(e.x - rx * 0.62);
-            const glint = r >= gr && r < gr + 2 && c >= gc && c < gc + 2;
+        for (const e of eyes) {
+          const dy = r + 0.5 - e.y, dx = c + 0.5 - e.x;
+          if (dy * dy + dx * dx <= e.r * e.r) {
+            const gy = r + 0.5 - (e.y - e.r * 0.45), gx = c + 0.5 - (e.x - e.r * 0.45);
+            const glint = gy * gy + gx * gx <= (e.r * 0.34) * (e.r * 0.34);
             target[i] = glint ? 0 : 1;
-            weight[i] = glint ? p.wGlint : p.wIris;
+            weight[i] = glint ? p.wGlint : p.wEye;
             done = true;
             break;
           }
         }
         if (done) continue;
-        if (inNose(r, c)) { target[i] = 1; weight[i] = p.wNose; continue; }
-        if (inMuzzle(r, c)) { target[i] = 0; weight[i] = p.wChin; continue; }
-        let h = false;
-        for (const e of eyeCenters) if (near(r, c, (rr, cc) => inAlmond(rr, cc, e), p.haloEye)) h = true;
-        if (h || near(r, c, inNose, p.haloNose)) { target[i] = 0; weight[i] = p.wHalo; }
+        // nose — tiny black dot
+        {
+          const dy = r + 0.5 - noseY, dx = c + 0.5 - cx;
+          if (dy * dy + dx * dx <= p.noseR * p.noseR) { target[i] = 1; weight[i] = p.wNose; continue; }
+        }
+        // mouth — small black open smile
+        if (inEllipse(r, c, p.mouthCy * S, cx, p.mouthRy * S, p.mouthRx * S)) {
+          target[i] = 1; weight[i] = p.wMouth; continue;
+        }
+        // cheeks — black rings (orange dropped)
+        {
+          let hit = false;
+          for (const ch of cheeks) {
+            const d = Math.hypot(r + 0.5 - ch.y, c + 0.5 - ch.x);
+            if (d <= p.cheekR * S && d >= p.cheekInner * S) { target[i] = 1; weight[i] = p.wCheek; hit = true; break; }
+          }
+          if (hit) continue;
+        }
+        // ear tips — solid black over the top of each ear
+        if (inEar(r, c) && r + 0.5 <= earTipCut) { target[i] = 1; weight[i] = p.wEarTip; continue; }
+        // face body — black rim, white fill inside
+        if (sil(r, c)) {
+          if (nearOutside(r, c, p.edgeBand)) { target[i] = 1; weight[i] = p.wOutline; }
+          else { target[i] = 0; weight[i] = p.wFill; }
+        }
       }
     return { target, weight };
   }
@@ -2494,9 +2559,6 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   }
 
 
-  // front-facing 1-bit cat face: black head + pointy ears with white rims,
-  // white outline, two big white eyes with pupils, white muzzle + nose
-
   // baked image presets — embedded data URIs run through the import pipeline
   const ART_PRESETS = {
     tux: { version: 6, dark: 95, light: 175, inv: false, rect: [0, 0, 1, 1] },
@@ -2524,7 +2586,7 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   $("p-cat").addEventListener("click", () => procPreset(paintCat));
   $("p-tux").addEventListener("click", () => loadArtPreset("tux"));
   $("p-mario").addEventListener("click", () => loadArtPreset("mario"));
-  $("p-face").addEventListener("click", () => procPreset(paintFace));
+  $("p-pika").addEventListener("click", () => procPreset(paintPika));
   $("p-upload").addEventListener("click", () => $("file").click());
   $("file").addEventListener("change", (ev) => loadImageFile(ev.target.files[0]));
   function loadImageFile(file) {

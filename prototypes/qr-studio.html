@@ -4,7 +4,7 @@
      The <!doctype> keeps standards mode on static hosts; wrapper tags are
      omitted because the artifact host injects its own document skeleton. -->
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>QR Art Studio</title>
+<title>QR Studio</title>
 <style>
   :root {
     --ink: #0e1116;
@@ -96,21 +96,6 @@
   .statline { font-family: var(--mono); font-size: 11px; color: var(--faint); }
   /* link field: one control that is the editable destination when focused and
      the exact scanned readback when idle */
-  .linkfield { background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; cursor: text; }
-  .linkfield:focus-within { border-color: var(--accent); }
-  .linkfield.bad { border-color: var(--bad); }
-  .lf-line { display: flex; align-items: baseline; gap: 8px; }
-  .lf-badge { flex: none; font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
-  .linkfield[data-mode="edit"] .lf-badge { color: var(--accent); border-color: var(--accent); }
-  .linkfield.bad .lf-badge { color: var(--bad); border-color: var(--bad); }
-  .lf-preview, .lf-input { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.4; word-break: break-all; padding: 1px 0; margin: 0; border: 0; background: none; }
-  .lf-preview { text-align: left; color: var(--dim); cursor: text; }
-  .lf-preview .recased { color: var(--accent); font-weight: 700; }
-  .lf-input { color: var(--text); width: 100%; }
-  .lf-input:focus { outline: none; }
-  .linkfield[data-mode="preview"] .lf-input { display: none; }
-  .linkfield[data-mode="edit"] .lf-preview { display: none; }
-  .lf-caption { font-size: 10.5px; color: var(--faint); }
   .toolrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .importbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 7px; padding: 8px 10px; margin-bottom: 8px; }
   /* keep the import bar's space reserved so the canvas never jumps; hidden
@@ -146,11 +131,11 @@
   .presets .lbl { font-size: 12.5px; color: var(--dim); margin-right: 1px; }
   .presets button { padding: 5px 10px; }
   .rightcol { display: flex; flex-direction: column; gap: 12px; }
-  .linkpanel { padding: 10px 12px; gap: 6px; }
-  .lf-input { width: 100%; font-family: var(--mono); font-size: 13px; color: var(--text); background: none; border: 0; padding: 2px 0; }
-  .lf-input:focus { outline: none; }
+  .linkpanel { display: flex; flex-direction: column; gap: 8px; }
+  .lf-input { width: 100%; font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+  .lf-input:focus { outline: none; border-color: var(--accent); }
   .linkpanel.scan .lf-input { color: var(--dim); }
-  .linkpanel.bad { border-color: var(--bad); }
+  .linkpanel.bad .lf-input { border-color: var(--bad); }
   .health { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
   .health.ok { color: var(--ok); } .health.warn { color: var(--warn); } .health.bad { color: var(--bad); }
   .health.clickable { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
@@ -214,6 +199,7 @@
     <div class="toolrow">
       <button id="undo" data-tip="undo stroke  ⌃Z">↩ undo</button>
     </div>
+    <span class="hint">arrow keys nudge the whole drawing</span>
   </aside>
 
   <section id="center">
@@ -226,12 +212,11 @@
         <option value="warm">warm</option>
         <option value="mono">mono</option>
       </select></label>
-      <span class="hint">arrow keys nudge the whole drawing</span>
     </div>
   </section>
 
   <div class="rightcol">
-    <section class="panel linkpanel scan" id="linkPanel">
+    <section class="linkpanel scan" id="linkPanel">
       <input id="url" class="lf-input" type="text" spellcheck="false" autocomplete="off" value="http://hexxygon.com/neon" aria-label="Text the code encodes (defaults to a URL)" />
       <label class="chk"><input id="caseInsensitive" type="checkbox" checked /> case-insensitive</label>
     </section>
@@ -2695,12 +2680,12 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     for (let r = 0; r < S; r++)
       for (let c = 0; c < S; c++)
         if (m[r * S + c]) g.fillRect((c + quiet) * scale, (r + quiet) * scale, scale, scale);
-    off.toBlob((blob) => download("qr-art.png", blob));
+    off.toBlob((blob) => download(`qr-${dim}.png`, blob));
   });
   $("exSvg").addEventListener("click", () => {
     if (!state.res) return;
     const svg = E.toSVG(state.res.matrix, state.version, { scale: Number($("exScale").value), quiet: 4 });
-    download("qr-art.svg", new Blob([svg], { type: "image/svg+xml" }));
+    download("qr.svg", new Blob([svg], { type: "image/svg+xml" }));
   });
 
   // test hook (harmless in production; used by the headless drive)

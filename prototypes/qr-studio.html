@@ -115,6 +115,15 @@
   .lf-caption { font-size: 10.5px; color: var(--faint); }
   .toolrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .importbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 7px; padding: 8px 10px; margin-bottom: 8px; }
+  /* keep the import bar's space reserved so the canvas never jumps; hidden
+     just makes it invisible (and non-interactive) rather than unmounting */
+  #threshRow[hidden] { display: flex !important; visibility: hidden; }
+  #threshRow[hidden] * { pointer-events: none; }
+  /* export: scale dropdown fused to the PNG button; copy-link fixed width */
+  .expgroup { display: inline-flex; }
+  #exScale { width: 46px; padding: 6px 2px 6px 6px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .expgroup #exPng { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; }
+  #copyLink { width: 100%; text-align: center; }
   details.about { color: var(--dim); font-size: 12.5px; }
   details.about summary { cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
   details.about p { margin: 8px 0; }
@@ -223,41 +232,29 @@
   <div class="rightcol">
     <section class="panel linkpanel scan" id="linkPanel">
       <input id="url" class="lf-input" type="text" spellcheck="false" autocomplete="off" value="http://hexxygon.com/neon" aria-label="Text the code encodes (defaults to a URL)" />
-      <label class="chk" data-tip="if capitalization doesn't matter, let the solver remix it for more art freedom"><input id="caseInsensitive" type="checkbox" checked /> case-insensitive</label>
+      <label class="chk"><input id="caseInsensitive" type="checkbox" checked /> case-insensitive</label>
     </section>
 
     <section class="panel">
       <h2 class="health ok" id="healthTitle">—</h2>
       <div class="meter" id="meter"></div>
       <div class="statline" id="autoline">—</div>
-      <button id="randomize" data-tip="try a different noise pattern — your art is untouched  ·  R">🎲 randomize noise</button>
+      <button id="randomize">🎲 randomize noise</button>
       <div class="freedomline" id="freedomLine"></div>
     </section>
 
     <section class="panel">
       <div class="panel-title"><h2>Export</h2></div>
       <div class="toolrow">
-        <label class="ctl" data-tip="output scale — same code, bigger file">scale <select id="exScale">
-          <option value="8">1×</option><option value="16" selected>2×</option><option value="24">3×</option>
-        </select></label>
-        <button id="exPng">PNG</button>
+        <span class="expgroup">
+          <select id="exScale">
+            <option value="8">1×</option><option value="16" selected>2×</option><option value="24">3×</option>
+          </select><button id="exPng">PNG</button>
+        </span>
         <button id="exSvg">SVG</button>
       </div>
-      <button id="copyLink" data-tip="copies a link that reopens this exact drawing">🔗 copy link</button>
+      <button id="copyLink">🔗 copy link</button>
     </section>
-
-    <details class="about">
-      <summary>How this works</summary>
-      <p>Black and white pixels are promises the code keeps; the rest is
-      noise it fills however it likes. A solver pins your pixels exactly into
-      the code's spare bits, then spends a little of its Reed-Solomon error
-      budget on any it can't place — those show red, and the meter shows the
-      spare budget left. The code always scans; it just stops honoring pixels
-      it has no room for.</p>
-      <p>Any leftover freedom is pure noise: <b>Randomize</b> samples a fresh
-      pattern with your art untouched. Paint less and there's more freedom;
-      paint more and it shrinks toward one forced answer.</p>
-    </details>
   </div>
 </div>
 <script>

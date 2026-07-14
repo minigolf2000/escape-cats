@@ -226,6 +226,7 @@
         <option value="warm">warm</option>
         <option value="mono">mono</option>
       </select></label>
+      <span class="hint">arrow keys nudge the whole drawing</span>
     </div>
   </section>
 
@@ -1675,11 +1676,36 @@ window.QR_PRESET_IMGS = {
   function buildOrderTarget() {
     const S = size();
     const cells = [];
-    for (let i = 0; i < S * S; i++) if (state.tone[i] > 0) cells.push(i);
+    // skip function-pattern cells: paint can slide "under" a finder/timing
+    // pattern during a move and be preserved, but it never constrains the code
+    for (let i = 0; i < S * S; i++) if (state.tone[i] > 0 && !state.fp.func[i]) cells.push(i);
     cells.sort((a, b) => state.seq[a] - state.seq[b]); // oldest paint pins first
     const target = new Uint8Array(S * S);
     for (const i of cells) target[i] = state.tone[i] === 1 ? 1 : 0;
     return { order: cells, target };
+  }
+  // move the whole drawing by (dx, dy) modules; cells shifted off the grid
+  // are dropped, cells under function patterns are kept but ignored by solve
+  function moveArt(dx, dy) {
+    const S = size();
+    const nt = new Int8Array(S * S), ns = new Int32Array(S * S).fill(-1);
+    for (let r = 0; r < S; r++)
+      for (let c = 0; c < S; c++) {
+        const sr = r - dy, sc = c - dx;
+        if (sr >= 0 && sc >= 0 && sr < S && sc < S) {
+          nt[r * S + c] = state.tone[sr * S + sc];
+          ns[r * S + c] = state.seq[sr * S + sc];
+        }
+      }
+    const rec = [];
+    for (let i = 0; i < S * S; i++)
+      if (nt[i] !== state.tone[i] || ns[i] !== state.seq[i]) rec.push({ i, t: state.tone[i], s: state.seq[i] });
+    if (!rec.length) return;
+    state.tone = nt;
+    state.seq = ns;
+    state.undoStack.push(rec);
+    if (state.undoStack.length > 64) state.undoStack.shift();
+    requestSolve();
   }
 
   // ---------- solve loop ----------
@@ -2602,7 +2628,14 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (ev.target && (ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT")) return;
     const k = ev.key.toLowerCase();
-    if (k === "[") setBrushSize(state.brushSize - 1);
+    // arrow keys nudge the whole drawing 1 module (Move-tool convention);
+    // Shift jumps 5
+    const step = ev.shiftKey ? 5 : 1;
+    if (ev.key === "ArrowLeft") moveArt(-step, 0);
+    else if (ev.key === "ArrowRight") moveArt(step, 0);
+    else if (ev.key === "ArrowUp") moveArt(0, -step);
+    else if (ev.key === "ArrowDown") moveArt(0, step);
+    else if (k === "[") setBrushSize(state.brushSize - 1);
     else if (k === "]") setBrushSize(state.brushSize + 1);
     else if (k === "1") setBrushSize(1);
     else if (k === "2") setBrushSize(2);

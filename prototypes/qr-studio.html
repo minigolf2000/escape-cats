@@ -45,8 +45,14 @@
     padding: 14px clamp(10px, 2vw, 26px) 40px;
   }
   h1, h2 { margin: 0; text-wrap: balance; }
-  .masthead { padding: 4px 2px 12px; }
+  .masthead { display: flex; align-items: baseline; gap: 14px; padding: 4px 2px 12px; }
   .wordmark { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--dim); margin: 0; }
+  .savestate { font-family: var(--mono); font-size: 11px; letter-spacing: 0.03em; color: var(--faint); display: inline-flex; align-items: center; gap: 6px; }
+  .savestate::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .savestate.saving { color: var(--dim); }
+  .savestate.saving::before { background: var(--warn); }
+  .savestate.err { color: var(--bad); }
+  .savestate.err::before { background: var(--bad); }
   .eyebrow { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; color: var(--faint); text-transform: uppercase; }
   .urlrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
   .urlrow input[type="text"] { flex: 1; min-width: 240px; padding: 8px 10px; }
@@ -145,6 +151,7 @@
 
 <header class="masthead">
   <h1 class="wordmark">QR STUDIO</h1>
+  <span class="savestate" id="saveState" data-tip="autosaved in this browser · Copy link makes a shareable URL">saved locally</span>
 </header>
 
 <div class="topbar">
@@ -2780,11 +2787,23 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   // the Copy-link button — there's no server to trade for a short id, so a
   // shareable link must carry the whole drawing.
   const SAVE_KEY = "qr-studio-drawing";
-  let saveTimer = null;
+  let saveTimer = null, lastSaved = null;
+  function setSaveState(s) {
+    const el = document.getElementById("saveState");
+    if (!el) return;
+    el.classList.toggle("saving", s === "saving");
+    el.classList.toggle("err", s === "err");
+    el.textContent = s === "saving" ? "saving…" : s === "err" ? "not saved" : "saved locally";
+  }
   function scheduleSave() {
+    setSaveState("saving");
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      try { localStorage.setItem(SAVE_KEY, encodeState()); } catch (e) { /* best-effort */ }
+      let enc; try { enc = encodeState(); } catch (e) { return; }
+      try {
+        if (enc !== lastSaved) { localStorage.setItem(SAVE_KEY, enc); lastSaved = enc; }
+        setSaveState("saved");
+      } catch (e) { setSaveState("err"); }
     }, 250);
   }
   $("copyLink").addEventListener("click", async () => {

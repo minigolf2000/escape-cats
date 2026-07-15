@@ -1,0 +1,22 @@
+<!--
+  Hex the cat — "faithful sticker" direction. Source of truth for Figma sync:
+  edit in Figma, export SVG, paste the result over this file (and the copy
+  inlined in hex-clicker.html's #catWrap), keeping these element ids so the
+  JS animation hooks in hex-clicker.html keep working:
+    #head        — main silhouette + keyline (fill + stroke)
+    #eyeLeft/#eyeRight       — negative-space eye shapes (blink scales these)
+    #irisLeft/#irisRight     — iris dots
+    #mouth, #whiskers        — static features
+  A raw Figma export won't carry these ids unless the layers are named
+  exactly this way — if a fresh export drops them, re-add the id="..."
+  attributes below by hand before wiring it back into hex-clicker.html.
+-->
+<svg id="hexCat" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path id="head" d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z" fill="#111114" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round"/>
+<path id="eyeLeft" d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="#F4F4F2"/>
+<path id="eyeRight" d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="#F4F4F2"/>
+<path id="irisLeft" d="M68 128C72.4183 128 76 124.418 76 120C76 115.582 72.4183 112 68 112C63.5817 112 60 115.582 60 120C60 124.418 63.5817 128 68 128Z" fill="#4AA63C"/>
+<path id="irisRight" d="M135 131C139.418 131 143 127.418 143 123C143 118.582 139.418 115 135 115C130.582 115 127 118.582 127 123C127 127.418 130.582 131 135 131Z" fill="#4AA63C"/>
+<path id="mouth" d="M87 160C95 158.667 99 154.333 99 147C99 154.333 103 158.667 111 160" stroke="#F4F4F2" stroke-width="2.4" stroke-linecap="round"/>
+<path id="whiskers" d="M80 143L34 134M80 149H32M80 155L34 164M120 143L166 134M120 149H168M120 155L166 164" stroke="#F4F4F2" stroke-width="2.2" stroke-linecap="round"/>
+</svg>

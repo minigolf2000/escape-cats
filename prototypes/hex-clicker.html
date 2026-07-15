@@ -6,12 +6,12 @@
 
   A deliberately faithful Cookie Clicker clone reskinned as the Escape Cats
   neon line-art world: pet Hex the cat, she bats a neon mouse toy, you collect
-  NEON MICE (the currency). Spend them on buildings that auto-generate
+  MICE (the currency). Spend them on buildings that auto-generate
   mice. Classic mechanics: geometric cost curve (x1.15 per copy), per-building
   mice-per-second, big-number formatting, golden mouse bonuses, one-off
   UPGRADES with declarative unlock/effect, localStorage autosave.
 
-  THE TWIST: buying the Catnap Study upgrade (gated on the lab's reveal) puts
+  THE TWIST: buying the Catnap Hypnalysis upgrade (gated on the lab's reveal) puts
   Hex to sleep and flips the game into a NIGHT PHASE. The reveal wall from
   reveal-lab.html renders behind her: wall mice (a pure function of lifetime
   mice earned) patrol the TO THE MOON scene, and Comet Trails upgrades grow
@@ -26,7 +26,7 @@
   multiplayer app (apps/hex-clicker) + packages/shared/balance.ts later.
 
   Design decisions this honors (see hex-clicker-design.md): neon line-art skin,
-  currency = neon mice, clicking stays relevant, golden mouse = the fun spike.
+  currency = mice, clicking stays relevant, golden mouse = the fun spike.
   Multiplayer / reveal-wall / eras are intentionally NOT here yet — v1 is about
   finding the core clicker fun.
 -->
@@ -103,23 +103,29 @@
      stage that now runs edge-to-edge, so a tap "on" the score still lands on
      the cat underneath. Nothing left inside #hud is interactive (the menu
      button was removed earlier), so blanket pointer-events:none is safe. */
-  /* Cookie Clicker's signature readout: one centered line reading "N neon
-     mice", with "per second: X" tucked under it. #count and #unit are inline
-     so they share a baseline as a single sentence rather than stacking. */
+  /* Cookie Clicker's signature readout, in our own units: one centered line
+     reading "N 🐭", with "per second: X" tucked under it. The shop rows say
+     "2.5/s" instead — terse there because it's a column competing with a name
+     and a price, verbose here because this line has the room and reads as a
+     sentence. #count and the coin are inline so they share a baseline rather
+     than stacking. */
   #hud {
     position: fixed; top: 0; left: 0; right: 0; z-index: 6; pointer-events: none;
     padding: max(12px, env(safe-area-inset-top)) 14px 6px;
     display: flex; align-items: flex-start; justify-content: center;
   }
   #bank { min-width: 0; text-align: center; }
-  #count, #unit {
+  #count {
     display: inline-block; vertical-align: baseline;
     color: var(--title-color); text-shadow: var(--title-shadow);
-  }
-  #count {
     font: 700 32px var(--ui-font); font-variant-numeric: tabular-nums; line-height: 1.1;
   }
-  #unit { font: 700 17px var(--ui-font); margin-left: 6px; }
+  /* Same coin as the shop rows (see currencyIconSVG()) — set once at boot,
+     never rewritten by refreshHud(), since it's static art next to a live
+     number, not part of the number itself. Sits AFTER the count, standing in
+     for the word "mice" rather than prefixing the number like a currency sign. */
+  #countIcon { display: inline-block; vertical-align: middle; margin-left: 7px; margin-bottom: 4px; }
+  #countIcon .coin { display: block; width: 28px; height: auto; }
   #cps {
     font: 400 13px var(--ui-font); color: var(--title-color);
     text-shadow: var(--title-shadow); opacity: .92;
@@ -149,13 +155,24 @@
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     touch-action: manipulation; cursor: pointer;
   }
-  /* Three nested layers, one transform each, because they animate on wildly
+  /* Four nested layers, one transform each, because they animate on wildly
      different clocks and CSS can't run two durations on one property:
+       #catMotion — purr + dream twitch (JS, per-frame, NO transition)
        #catPose   — the night zoom-out (slow, one-shot, 1.8s)
        #catBreath — sleeping breath (slow loop, night only)
        #hexCat    — pet squash (fast, .1s, fires constantly)
      Flattening these into one element makes every pet squash inherit the
-     1.8s night easing and feel broken. */
+     1.8s night easing and feel broken.
+
+     #catMotion sits OUTSIDE #catPose on purpose. Its moves are measured in real
+     screen px, and #catPose's night transform scales everything under it to
+     .25 — so a 3px dream twitch nested inside would render as 0.75px and read
+     as nothing. It also carries no transition of its own: purr runs at ~14Hz,
+     and any easing at all would smear a 69ms oscillation into a flat line. */
+  #catMotion {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%;
+  }
   #catPose {
     display: flex; align-items: center; justify-content: center;
     width: 100%; height: 100%;
@@ -178,7 +195,12 @@
   #catWrap.squash #hexCat { transform: scale(.93); }
   #catWrap.frenzy #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
   #catWrap.frenzy #hexCat #head { stroke: #ffd44d; }
-  #catWrap.frenzy #hexCat #irisLeft, #catWrap.frenzy #hexCat #irisRight { fill: #ffe98a; }
+  /* Frenzy lights up the IRIS (#eyeLeft/#eyeRight), leaving the pupil black.
+     This used to target #irisLeft/#irisRight, which was right back when those
+     were the green iris dots — after the eye coloring flipped (green iris,
+     black pupil) the same rule was recoloring her PUPILS pale yellow, which
+     read as a yellow slit floating in a green eye instead of eyes lighting up. */
+  #catWrap.frenzy #hexCat #eyeLeft, #catWrap.frenzy #hexCat #eyeRight { fill: #ffe98a; }
   #hexCat #eyeLeft, #hexCat #eyeRight {
     transform-box: fill-box; transform-origin: center; transition: transform .06s;
   }
@@ -195,12 +217,19 @@
   #hexCat #irisLeft, #hexCat #irisRight {
     transform-box: fill-box; transform-origin: center; transition: transform .12s ease-out;
   }
-  /* whisker twitch (JS-driven, sleeping only) */
+  /* whiskers: twitch while asleep, fan forward at prey while awake (JS-driven) */
   #hexCat #whiskers {
     transform-box: fill-box; transform-origin: center; transition: transform .18s ease-in-out;
   }
+  /* Jaw (chatter, yawn). Origin is TOP center, not center: the mouth hangs off
+     the muzzle, so scaling it should drop the jaw downward rather than grow it
+     symmetrically through her chin. No transition — chatter is ~11Hz and JS
+     already eases the yawn, so any smoothing here only fights both. */
+  #hexCat #mouth {
+    transform-box: fill-box; transform-origin: center top;
+  }
 
-  /* ---- Night phase (post–Catnap Study): Hex sleeps, the wall wakes ----
+  /* ---- Night phase (post–Catnap Hypnalysis): Hex sleeps, the wall wakes ----
      Colors/fonts come from the body.night var block at the top — the whole
      Cookie Clicker skin falls away on one class. Only structural/motion
      changes live here.
@@ -213,15 +242,27 @@
      real screen px and doesn't get quartered by the scale. #stage is exactly
      100vh (both #hud and #dock are position:fixed, so #stage is body's only
      in-flow child), which is what makes 50vh mean "the bottom edge". */
-  body.night #catPose { transform: translateY(calc(50vh - 104px)) scale(.25); }
+  /* The zoom WAITS for the yawn (IDLE.yawn / YAWN_MS = 1300ms), then pulls
+     back. Without the delay both start on the same frame and the yawn is
+     simply never seen: the zoom is ease-OUT, so it's ~40% shrunk within 300ms,
+     and by peak gape she's a thumbnail. Ordering them turns the phase change
+     into a beat — she yawns herself to sleep, THEN the camera leaves her for
+     the wall. Delay only on the night rule, so waking (dev preset back to day)
+     still snaps back immediately. Keep in sync with YAWN_MS. */
+  body.night #catPose {
+    transform: translateY(calc(50vh - 104px)) scale(.25);
+    transition-delay: 1.3s;
+  }
   body.night #hexCat { filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
   #hexCat.asleep #eyeLeft, #hexCat.asleep #eyeRight { transform: scaleY(.07); }
 
   /* ---- Sleeping: subdued signs of life ----
      Breath is the only always-on one; it's what separates "asleep" from
      "paused". 4s cycle, ~3% — deliberately below conscious notice. Held off
-     until the zoom-out lands so the two moves don't overlap. */
-  body.night #catBreath { animation: breathe 4s ease-in-out 1.8s infinite; }
+     until the zoom-out lands so the two moves don't overlap: that's now the
+     yawn (1.3s) PLUS the zoom (1.8s), hence 3.1s. Three timings in a row, each
+     waiting on the last — yawn, then zoom, then breathe. */
+  body.night #catBreath { animation: breathe 4s ease-in-out 3.1s infinite; }
   @keyframes breathe {
     0%, 100% { transform: scale(1) translateY(0); }
     50%      { transform: scale(1.03) translateY(-1.5px); }
@@ -252,13 +293,30 @@
     z-index: 3; will-change: transform, opacity;
   }
 
-  /* golden mouse */
+  /* golden mouse — art injected by spawnGold(): the gilded mouse by day, the
+     saucer at night (.saucer below, which resizes the box). Nothing downstream
+     hardcodes these dimensions; moveGold() measures the element instead. */
   #golden {
     position: absolute; width: 62px; height: 62px; display: none; place-items: center;
-    font-size: 34px; cursor: pointer; filter: drop-shadow(0 0 14px rgba(255,212,77,.85));
+    cursor: pointer; filter: drop-shadow(0 0 14px rgba(255,212,77,.85));
     animation: goldPulse 1.1s ease-in-out infinite; z-index: 5;
   }
+  #golden svg { width: 100%; height: auto; display: block; }
   @keyframes goldPulse { 0%,100% { transform: scale(1) rotate(-6deg); } 50% { transform: scale(1.14) rotate(6deg); } }
+
+  /* Bigger than the day mouse's 62 because the saucer is a wider silhouette and
+     carries a pilot who has to stay legible — moveGold() measures the element,
+     so this number is free to change here alone.
+
+     It also gets its own idle. goldPulse's ±6deg tumble and 1.14 punch-in read
+     as a plush toy being squeezed: right for a mouse, wrong for a machine. A
+     saucer should hover — so it banks half as far, bobs instead of scaling, and
+     takes longer to do it. Same glow, different physics. */
+  #golden.saucer { width: 78px; height: 78px; animation: saucerHover 2.6s ease-in-out infinite; }
+  @keyframes saucerHover {
+    0%,100% { transform: translateY(2px) rotate(-3deg); }
+    50%     { transform: translateY(-3px) rotate(3deg); }
+  }
 
   #buff {
     position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
@@ -273,11 +331,19 @@
      floats over Hex instead of resizing the stage. The handle is always the
      bottom bar; the body grows upward out of it. Identical day and night —
      only the tint changes. Still hides entirely when there's nothing to sell.
-     Translucent + blurred so it reads as floating glass, not a second page. */
+
+     NO background of its own: the stage (Hex, the rays, the night wall) shows
+     straight through the transparent rows. It used to paint --panel-bg, which
+     is the same striped gradient as the page — so it looked like the page
+     showing through while actually being an opaque coat in front of it, and
+     making .item transparent appeared to do nothing. The blur stays: it's what
+     keeps row text legible over whatever art it's floating on. The wood rails
+     (.shopHead / .shopDivider / #trayHandle) keep their own fills, so the
+     Cookie Clicker framing survives. */
   #dock {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
     display: none; flex-direction: column;
-    background: var(--panel-bg); backdrop-filter: blur(10px);
+    background: transparent; backdrop-filter: blur(10px);
     border-top: 1px solid var(--line);
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -298,13 +364,6 @@
   #trayHandle .right { display: flex; align-items: center; gap: 8px; }
   #trayHandle .chev { font-size: 10px; transition: transform .18s; }
   #dock.open #trayHandle .chev { transform: rotate(180deg); }
-  /* the only cue that something's buyable while the tray is shut. One class,
-     one rule flips it — no specificity contest with the open-state rules. */
-  #trayDot {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--gold);
-    box-shadow: 0 0 8px rgba(255,212,77,.8); opacity: 0; transition: opacity .2s;
-  }
-  #dock.buyable:not(.open) #trayDot { opacity: 1; }
 
   /* The body caps itself rather than each list capping independently —
      otherwise the upgrade strip stacks on the building list and the two
@@ -315,11 +374,15 @@
   }
   #dock.open #trayBody { display: flex; }
 
-  /* CC's big centered "Store" plaque, sat on its own wooden rail. */
+  /* CC's big centered "Store" plaque, sat on its own wooden rail. Doubles as a
+     close affordance: it's only ever on screen while the tray is open (it lives
+     inside #trayBody), so a click can only collapse the tray — same action as
+     tapping the handle, a second target up top where the thumb already is. */
   .shopHead {
     flex: none;
     display: flex; align-items: center; justify-content: center; padding: 7px 12px 6px;
     background: var(--wood), var(--panel-bg);
+    border: 0; width: 100%; cursor: pointer;
     border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
   }
@@ -328,10 +391,20 @@
     text-shadow: var(--title-shadow);
   }
 
-  /* Header and list travel together — a "BUILDINGS" label over nothing but a
+  /* Divider and list travel together — a "BUILDINGS" label over nothing but a
      ??? teaser is chrome, not a choice. Section waits for a real building. */
   #buildingSec { flex: 1 1 auto; min-height: 0; display: none; }
   #buildingSec.show { display: flex; flex-direction: column; }
+
+  /* Between Upgrades and Buildings: no label, just the wood-grain rail that
+     used to sit under "Buildings" text — the row content below already says
+     which section it is. */
+  .shopDivider {
+    flex: none; height: 6px;
+    background: var(--wood), var(--panel-bg);
+    border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
+  }
 
   #shop { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 0 4px; }
   #shop::-webkit-scrollbar { width: 0; }
@@ -341,32 +414,57 @@
      Affordable rows brighten rather than getting a neon glow. */
   .item {
     display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
-    background: rgba(0,0,0,.16); border: none; border-bottom: 1px solid var(--line);
+    background: transparent; border: none; border-bottom: 1px solid var(--line);
     padding: 8px 12px; color: var(--muted); cursor: not-allowed;
     transition: background .1s, opacity .15s; opacity: .5;
   }
-  .item.can { cursor: pointer; opacity: 1; background: rgba(255,255,255,.05); }
+  /* Resting rows stay transparent so the page background shows through the
+     tray; .can:active keeps a background because that's tap feedback, not
+     the row's resting look. */
+  .item.can { cursor: pointer; opacity: 1; }
   .item.can:active { background: rgba(255,255,255,.11); }
   .item .icon {
     flex: none; width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center;
     font-size: 21px; background: var(--icon-bg); border: 1px solid var(--line);
   }
   .item.can .icon { border-color: var(--line-hi); }
+  /* Cookie Clicker's own store-row placement (verified against its live DOM:
+     name flows first, price flows right under it in the same column, and only
+     the owned count is pulled out to its own corner) — name top-left, price
+     bottom-left, quantity on the right. */
   .item .body { flex: 1 1 auto; min-width: 0; }
+  /* Building rows only: name and its per-second rate share one line, the rate
+     pushed to the line's own right edge — this is where the blurb used to
+     read ("Grows mice in glowing rows"), now retired (see refreshShop()'s
+     comment for why) and replaced by the one number worth keeping. Upgrade
+     rows skip this — they have no rate, so .nm sits bare above .fx. */
+  .item .titleRow { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .item .nm {
     font: 700 13.5px var(--ui-font); color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.45);
   }
+  .item .rate {
+    flex: none; font: 700 11px var(--ui-font); color: var(--muted);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
   .item .fx { font: 400 11px var(--ui-font); color: var(--muted); margin-top: 1px; }
-  .item .buy { flex: none; text-align: right; }
   .item .cost {
+    display: flex; align-items: center; gap: 4px;
     font: 700 14px var(--ui-font); color: var(--cost-ok);
     text-shadow: 0 1px 1px rgba(0,0,0,.5);
     font-variant-numeric: tabular-nums; white-space: nowrap;
+    margin-top: 2px;
   }
   .item .cost.no { color: var(--cost-no); }
+  /* The coin's fill is a literal `fill="var(--neon)"` baked into the SVG
+     markup at creation, not `currentColor` — so .cost.no flipping this div's
+     text color red can never touch it. See currencyIconSVG()'s comment. */
+  .item .cost .coin { flex: none; width: 18px; height: auto; display: block; }
+  /* Quantity owned — its own corner, not stacked with price, sized to read at
+     a glance like CC's big count rather than a label next to a label. */
   .item .own {
-    font: 700 16px var(--ui-font); color: var(--dim); text-shadow: 0 1px 1px rgba(0,0,0,.45);
-    font-variant-numeric: tabular-nums; margin-top: 1px;
+    flex: none; align-self: center; min-width: 30px; text-align: right;
+    font: 800 26px var(--ui-font); color: var(--dim); text-shadow: 0 1px 1px rgba(0,0,0,.45);
+    font-variant-numeric: tabular-nums;
   }
   .item.can .own { color: var(--ink); }
 
@@ -381,8 +479,7 @@
   .item.locked { cursor: default; opacity: .4; }
   .item.locked .lockedNm { display: block; }
   .item.locked .icLocked { display: block; }
-  .item.locked .nm,
-  .item.locked .fx,
+  .item.locked .titleRow,
   .item.locked .ic,
   .item.locked .own { display: none; }
 
@@ -390,7 +487,7 @@
      list is short; buying removes the row) ---- */
   #upgradeSec { flex: none; display: none; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
   #upgradeSec.show { display: block; }
-  #upgrades { max-height: 22vh; overflow-y: auto; padding: 2px 0 0; }
+  #upgrades { max-height: 11vh; overflow-y: auto; padding: 2px 0 0; }
   #upgrades::-webkit-scrollbar { width: 0; }
   .item.up { padding: 6px 12px; }
   .item.up .icon { width: 30px; height: 30px; font-size: 16px; border-radius: 9px; }
@@ -399,8 +496,9 @@
 
 <div id="hud">
   <div id="bank">
-    <div id="count">0</div>
-    <div id="unit">neon mice</div>
+    <!-- The coin REPLACES the word "mice", so it carries the unit's meaning and
+         needs the label the text used to provide (its inner svg is aria-hidden). -->
+    <div id="count">0</div><span id="countIcon" role="img" aria-label="mice"></span>
     <div id="cps">per second: <b>0</b></div>
   </div>
 </div>
@@ -412,20 +510,22 @@
   <canvas id="wall"></canvas>
   <!-- Inlined from hex-cat.svg — keep in sync with that file (see its header comment). -->
   <div id="catWrap" role="button" aria-label="Pet Hex">
-   <div id="catPose"><div id="catBreath">
+   <div id="catMotion"><div id="catPose"><div id="catBreath">
     <svg id="hexCat" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path id="head" d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z" fill="#111114" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round"/>
-      <path id="eyeLeft" d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="#F4F4F2"/>
-      <path id="eyeRight" d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="#F4F4F2"/>
-      <path id="irisLeft" d="M68 128C72.4183 128 76 124.418 76 120C76 115.582 72.4183 112 68 112C63.5817 112 60 115.582 60 120C60 124.418 63.5817 128 68 128Z" fill="#4AA63C"/>
-      <path id="irisRight" d="M135 131C139.418 131 143 127.418 143 123C143 118.582 139.418 115 135 115C130.582 115 127 118.582 127 123C127 127.418 130.582 131 135 131Z" fill="#4AA63C"/>
+      <path id="eyeLeft" d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="#65C256"/>
+      <path id="eyeRight" d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="#65C256"/>
+      <path id="irisLeft" d="M68 128C72.4183 128 76 124.418 76 120C76 115.582 72.4183 112 68 112C63.5817 112 60 115.582 60 120C60 124.418 63.5817 128 68 128Z" fill="#0a0b10"/>
+      <path id="irisRight" d="M135 131C139.418 131 143 127.418 143 123C143 118.582 139.418 115 135 115C130.582 115 127 118.582 127 123C127 127.418 130.582 131 135 131Z" fill="#0a0b10"/>
       <path id="mouth" d="M87 160C95 158.667 99 154.333 99 147C99 154.333 103 158.667 111 160" stroke="#F4F4F2" stroke-width="2.4" stroke-linecap="round"/>
       <path id="whiskers" d="M80 143L34 134M80 149H32M80 155L34 164M120 143L166 134M120 149H168M120 155L166 164" stroke="#F4F4F2" stroke-width="2.2" stroke-linecap="round"/>
     </svg>
-   </div></div>
+   </div></div></div>
   </div>
   <div id="buff"></div>
-  <div id="golden" role="button" aria-label="Golden mouse">🐭</div>
+  <!-- Empty: spawnGold() fills this with the gilded mouse (day) or the saucer
+       (night). aria-label is set alongside the art, so it names what's shown. -->
+  <div id="golden" role="button" aria-label="Golden mouse"></div>
   <!-- No prose on the stage, ever — not onboarding, not the legibility payoff.
        The mystery IS the mechanic; the wall becoming readable is its own
        signal. (The design doc's "gentle one-time shimmer" is still unbuilt;
@@ -439,19 +539,17 @@
        way around, which is what "first child" would have given us. -->
   <div id="trayBody">
     <div id="upgradeSec">
-      <div class="shopHead"><span class="lab">Upgrades</span></div>
+      <button type="button" class="shopHead" aria-controls="trayBody"><span class="lab">Upgrades</span></button>
       <div id="upgrades"></div>
     </div>
     <div id="buildingSec">
-      <div class="shopHead">
-        <span class="lab">Buildings</span>
-      </div>
+      <div class="shopDivider"></div>
       <div id="shop"></div>
     </div>
   </div>
   <button id="trayHandle" aria-expanded="true" aria-controls="trayBody">
     <span>Shop</span>
-    <span class="right"><span id="trayDot"></span><span class="chev">▲</span></span>
+    <span class="right"><span class="chev">▲</span></span>
   </button>
 </div>
 
@@ -468,11 +566,11 @@ const GROWTH = 1.15;
 const BUILDINGS = [
   { id: "robocat", name: "Robo-Cat",        icon: "🤖", base: 15,     mps: 0.1, blurb: "Hunts mice on its own" },
   { id: "shopper", name: "Amazon Shopper",  icon: "📦", base: 40,     mps: 0.4, blurb: "Just orders them by the dozen" },
-  { id: "farm",    name: "Neon Mouse Farm", icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
+  { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
   { id: "quarry",  name: "Mouse Quarry",    icon: "⛏️", base: 1100,   mps: 8,   blurb: "Mines mice from raw hex" },
-  { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces neon mice" },
+  { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces mice" },
   { id: "lab",     name: "Schrödinger Lab",  icon: "🔬", base: 130000, mps: 260, blurb: "Synthesizes mice from theory" },
-  // Night buildings — hidden until Catnap Study flips the phase, then they enter
+  // Night buildings — hidden until Catnap Hypnalysis flips the phase, then they enter
   // through the same reveal/tease flow. Deliberately dwarf day production (the
   // lab earns ~2 mps per 1K cost; these earn ~8) so phase two has its own
   // ladder without resetting the day economy. Numbers are GUESSES to iterate;
@@ -482,7 +580,7 @@ const BUILDINGS = [
   { id: "fractal",    name: "Fractal Engine",       icon: "❄️", base: 60e6,   mps: 550000, night: true, blurb: "Every mouse is made of mice" },
   { id: "antimatter", name: "Antimatter Condenser", icon: "⚛️", base: 750e6,  mps: 7e6,   night: true, blurb: "Condenses mice out of nothing" },
 ];
-const CLICK_BASE = 1;           // neon mice per pet before bonuses
+const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
 const SAVE_KEY = "hexclicker.v1";
 
@@ -528,7 +626,7 @@ const UPGRADES = [
     cost: 4800, unlock: { owned: ["shopper", 25] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
 
-  // --- Neon Mouse Farm ---
+  // --- Mouse Farm ---
   { key: "farm1", name: "Hydroponic Rows", icon: "💧",
     cost: 1000, unlock: { owned: ["farm", 5] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
@@ -603,7 +701,7 @@ const UPGRADES = [
     ] },
 
   // --- Bespoke ---
-  { key: "milk", name: "Saucer of Neon Milk", icon: "🥛",
+  { key: "milk", name: "Saucer of Milk", icon: "🥛",
     cost: 50000, unlock: { total: 40000 },
     effect: { type: "globalPct", pct: 5 } },
   { key: "magnet", name: "Mouse Magnet", icon: "🧲",
@@ -614,14 +712,14 @@ const UPGRADES = [
     effect: { type: "globalPct", pct: 10 } },
 
   // --- THE TWIST + night chain ---
-  // Catnap Study unlocks at the lab's own reveal moment (total >= lab base),
+  // Catnap Hypnalysis unlocks at the lab's own reveal moment (total >= lab base),
   // so the two arrive as a pair: the lab appears, and so does the strange
   // upgrade. Buying it flips the night phase permanently (it derives from
   // game.bought, so saves restore it for free).
-  { key: "catnap", name: "Catnap Study", icon: "💤",
+  { key: "catnap", name: "Catnap Hypnalysis", icon: "💤",
     cost: 250000, unlock: { total: 130000 },
     effect: { type: "night" },
-    fx: "Hex drifts off — night falls" },
+    fx: "What is Hex dreaming about?" },
   // Comet Trails: the reveal's ink. Five tiers, each +7 trail segments (35
   // total = the lab's tuned default). Chained so exactly one shows at a time.
   // Costs are GUESSES against the night economy.
@@ -812,7 +910,7 @@ function effectText(u) {
 function oneEffectText(e) {
   switch (e.type) {
     case "buildingMult": return `${buildingName(e.building)} is ${e.mult === 2 ? "twice" : "×" + e.mult} as good`;
-    case "globalPct":    return `+${e.pct}% neon mice per second`;
+    case "globalPct":    return `+${e.pct}% mice per second`;
     case "clickFlat":    return `+${fmt(e.add)} per pet`;
     case "clickShare":   return `+${e.pct}% of your /s per pet`;
     case "clickMult":    return `Petting is ×${e.mult} stronger`;
@@ -825,10 +923,14 @@ function oneEffectText(e) {
 }
 
 // ---------------------------------------------------------------------------
-// NUMBER FORMATTING (Cookie-Clicker style short scale)
+// NUMBER FORMATTING — full numbers, comma-grouped
 // ---------------------------------------------------------------------------
-const UNITS = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc"];
-
+// Deliberately NOT Cookie Clicker's short scale ("1.10K", "12.0M"). Counting
+// real mice is the joke; "1.10K mice" reads as a spreadsheet, "1,103" reads as
+// a hoard. One formatter feeds the bank, prices, rates and effect text, so the
+// convention has to be the same everywhere — a "12,345" counter above a
+// "1.10K" price is just two number systems in one screen.
+//
 // A trailing ".0" means the fraction did not survive rounding — drop it. This is
 // Cookie Clicker's Beautify test (`Math.floor(fixed) != fixed`, main.js:270)
 // stated directly: decide from the ROUNDED value, never the raw one. Testing the
@@ -839,18 +941,17 @@ const dropDeadZeros = s => s.replace(/\.0+$/, "");
 function fmt(n, floats = 1) {
   const neg = n < 0;
   n = Math.abs(n);
-  let out;
-  if (n < 1000) {
-    // toFixed carries for free: 9.96 -> "10.0" -> "10". CC needs an explicit
-    // `if (fixed == val+1) val++` for this, because it floors before rounding.
-    out = n >= 10 ? Math.floor(n).toString() : dropDeadZeros(n.toFixed(floats));
-  } else {
-    let u = 0;
-    while (n >= 1000 && u < UNITS.length - 1) { n /= 1000; u++; }
-    // Suffixed values keep their zeros: "1.00K" holds a stable width while the
-    // bank ticks. CC's own decimal rule is likewise gated to |val| < 1000.
-    out = (n < 10 ? n.toFixed(2) : n < 100 ? n.toFixed(1) : Math.floor(n).toString()) + UNITS[u];
-  }
+  // Under 10, the fraction is the whole signal (clickGain 1.002, a 0.5/s rate),
+  // so it keeps its decimals and skips grouping — there's nothing to group.
+  // At 10+ the integer part is the signal and the fraction is noise on a number
+  // that's ticking many times a second anyway.
+  //
+  // toLocaleString (not a hand-rolled regex) so the grouping is the platform's:
+  // it also keeps working past 2^53, where the value is already an approximation
+  // and manual string surgery on "1e+21" would silently produce garbage.
+  const out = n < 10
+    ? dropDeadZeros(n.toFixed(floats))
+    : Math.floor(n).toLocaleString("en-US");
   return neg && out !== "0" ? "-" + out : out;
 }
 
@@ -858,7 +959,7 @@ function fmt(n, floats = 1) {
 // DOM refs
 // ---------------------------------------------------------------------------
 const $ = s => document.querySelector(s);
-const countEl = $("#count"), cpsEl = $("#cps"), shopEl = $("#shop"), stageEl = $("#stage");
+const countEl = $("#count"), countIconEl = $("#countIcon"), cpsEl = $("#cps"), shopEl = $("#shop"), stageEl = $("#stage");
 const goldenEl = $("#golden"), buffEl = $("#buff");
 const upgradesEl = $("#upgrades"), upgradeSecEl = $("#upgradeSec");
 const buildingSecEl = $("#buildingSec"), dockEl = $("#dock");
@@ -871,21 +972,17 @@ function syncDock() {
     upgradeSecEl.classList.contains("show") || buildingSecEl.classList.contains("show"));
 }
 
-trayHandleEl.addEventListener("click", () => {
-  const open = dockEl.classList.toggle("open");
+// Two things can drive the tray: the bottom handle (toggles) and the Upgrades
+// header (only reachable while open, so it always collapses). Both route here so
+// the handle's aria-expanded stays the source of truth wherever the click came
+// from.
+function setTrayOpen(open) {
+  dockEl.classList.toggle("open", open);
   trayHandleEl.setAttribute("aria-expanded", open ? "true" : "false");
-});
-
-// With the tray shut you can't see prices, so the handle carries one dot that
-// lights when anything inside is affordable. Each list reports its own half.
-// The dot's own show/hide (incl. hiding while open) is pure CSS off
-// #dock.buyable. No change-cache: classList.toggle(token, force) is spec'd to
-// return without running its update steps when the token is already in the
-// requested state, so a redundant call costs nothing and mutates nothing.
-let anyBuyBld = false, anyBuyUp = false;
-function syncTrayDot() {
-  dockEl.classList.toggle("buyable", anyBuyBld || anyBuyUp);
 }
+trayHandleEl.addEventListener("click", () => setTrayOpen(!dockEl.classList.contains("open")));
+upgradeSecEl.querySelector(".shopHead").addEventListener("click", () => setTrayOpen(false));
+
 
 // ---------------------------------------------------------------------------
 // SHOP RENDER
@@ -904,16 +1001,19 @@ function buildShop() {
       `<div class="icon"><span class="ic">${b.icon}</span><span class="icLocked">?</span></div>
        <div class="body">
          <div class="lockedNm">???</div>
-         <div class="nm">${b.name}</div>
-         <div class="fx"></div>
+         <div class="titleRow">
+           <div class="nm">${b.name}</div>
+           <div class="rate"></div>
+         </div>
+         <div class="cost">${currencyIconSVG()}<span class="costNum"></span></div>
        </div>
-       <div class="buy"><div class="cost"></div><div class="own">0</div></div>`;
+       <div class="own">0</div>`;
     el.addEventListener("click", () => buy(i));
     shopEl.appendChild(el);
     return {
       el, can: null, locked: null, gone: null, ownN: null,
-      fx: el.querySelector(".fx"), cost: el.querySelector(".cost"),
-      own: el.querySelector(".own"),
+      rate: el.querySelector(".rate"), cost: el.querySelector(".cost"),
+      costNum: el.querySelector(".costNum"), own: el.querySelector(".own"),
     };
   });
 }
@@ -936,7 +1036,7 @@ function isRevealed(b, s) {
 const TEASE_WINDOW = 1;
 
 function refreshShop() {
-  let lockedRun = 0, anyRevealed = false, buyable = false;
+  let lockedRun = 0, anyRevealed = false;
   for (let i = 0; i < BUILDINGS.length; i++) {
     const b = BUILDINGS[i], r = shopRows[i], owned = game.owned[b.id];
 
@@ -954,7 +1054,6 @@ function refreshShop() {
 
     const price = costOf(b, owned);
     const affordable = revealed && game.mice >= price;
-    if (affordable) buyable = true;
 
     const locked = !revealed;
     // captured before the toggle below overwrites r.locked — the text depends
@@ -972,17 +1071,19 @@ function refreshShop() {
     // with the strings they already held, and these rows sit inside a
     // backdrop-filter'd #dock, where invalidating content forces the blur to
     // re-composite. Only the affordability class runs per tick.
-    // A ??? row shows its price and nothing else — CSS hides the name, blurb
+    // A ??? row shows its price and nothing else — CSS hides the name, rate
     // and owned count, so there's nothing to write.
     if (textStale) {
       r.ownN = owned;
-      r.cost.textContent = fmt(price);
+      r.costNum.textContent = fmt(price);
       if (revealed) {
         r.own.textContent = owned;
         const each = b.mps, mine = each * owned;
-        r.fx.textContent = mine > 0
-          ? `${fmt(mine)}/s · ${b.blurb}`
-          : `+${fmt(each)}/s each · ${b.blurb}`;
+        // Blurb (b.blurb) is intentionally not shown — CC's own building
+        // descriptions are tooltip-only, reachable by a hover this game
+        // doesn't have (mobile-first), so there's no honest way to surface
+        // them here. The rate is the one number worth keeping visible.
+        r.rate.textContent = mine > 0 ? `${fmt(mine)}/s` : `+${fmt(each)}/s each`;
       }
     }
     r.cost.classList.toggle("no", !affordable);
@@ -992,7 +1093,6 @@ function refreshShop() {
   // once and stays. Unguarded: both of these are idempotent class toggles.
   buildingSecEl.classList.toggle("show", anyRevealed);
   syncDock();
-  anyBuyBld = buyable; syncTrayDot();
 }
 
 function buy(i) {
@@ -1033,8 +1133,11 @@ function refreshUpgrades() {
       // only ever wrote the same string back and implied the cost could change.
       el.innerHTML =
         `<div class="icon">${u.icon}</div>
-         <div class="body"><div class="nm">${u.name}</div><div class="fx">${effectText(u)}</div></div>
-         <div class="buy"><div class="cost">${fmt(u.cost)}</div></div>`;
+         <div class="body">
+           <div class="nm">${u.name}</div>
+           <div class="fx">${effectText(u)}</div>
+           <div class="cost">${currencyIconSVG()}<span class="costNum">${fmt(u.cost)}</span></div>
+         </div>`;
       el.addEventListener("click", () => buyUpgrade(u.key));
       upgradesEl.appendChild(el);
       upRows.set(u.key, { el, cost: el.querySelector(".cost") });
@@ -1043,15 +1146,12 @@ function refreshUpgrades() {
     syncDock();
   }
 
-  let buyable = false;
   for (const u of shown) {
     const r = upRows.get(u.key);
     const affordable = game.mice >= u.cost;
-    if (affordable) buyable = true;
     r.el.classList.toggle("can", affordable);
     r.cost.classList.toggle("no", !affordable);
   }
-  anyBuyUp = buyable; syncTrayDot();
 }
 
 function buyUpgrade(key) {
@@ -1073,7 +1173,8 @@ function buyUpgrade(key) {
 // The <b> is created once in the markup (which reads "per second: 0", CC's
 // exact phrasing) and only its text is rewritten — innerHTML here meant an
 // HTML parse and a destroyed/recreated <b> 12x/sec plus once per pet, from
-// boot, in both phases, forever.
+// boot, in both phases, forever. The label is static text OUTSIDE the <b> for
+// exactly that reason: it never changes, so it never needs to be written.
 const cpsValEl = cpsEl.querySelector("b");
 function refreshHud() {
   countEl.textContent = fmt(game.mice);
@@ -1107,16 +1208,52 @@ function floatNum(x, y, text) {
 const MOUSE_COLORS = { yellow: '#ffd44d', blue: '#5fb0ff', pink: '#ff6fa5', green: '#5fe0a0', purple: '#b48cff' };
 const MOUSE_COLOR_LIST = Object.values(MOUSE_COLORS);
 
+// The canonical mouse geometry, in a 54x28 box facing right. Named here rather
+// than inlined into mouseSVG because there are now THREE renderers of this same
+// animal — the click-pop particle, the golden mouse (goldenMouseSVG), and the
+// night wall (drawWallMouse, which re-expresses these very numbers as canvas
+// path calls). Anything that draws a mouse builds from these, so a tweak to the
+// silhouette lands everywhere at once instead of in two places out of three.
+const MOUSE_TAIL_D = "M12 17 C4 21 2 10 8 7";
+const MOUSE_BODY_D = "M51 16 C46 8 37 4 27 5 C16 6 10 10 10 16 C10 21 17 24 27 24 C37 24 47 21 51 16 Z";
+const MOUSE_EAR = { cx: 33, cy: 7, r: 4.6 };
+const MOUSE_EYE = { cx: 42, cy: 12, r: 1.8 };
+const MOUSE_KEYLINE = "#f4f4f2";
+
+// The mouse as SVG markup. `fill` is any paint — a flat hex for the click-pops,
+// a gradient url() for the golden one. `k` scales the keyline: the golden mouse
+// draws its copy shrunk inside a saucer dome, where a 1.0 keyline would thin
+// out to a hairline, so it asks for a heavier one to compensate.
+const mouseParts = (fill, k = 1) =>
+  `<path d="${MOUSE_TAIL_D}" fill="none" stroke="${fill}" stroke-width="${2.6 * k}" stroke-linecap="round"/>
+   <path d="${MOUSE_BODY_D}" fill="${fill}" stroke="${MOUSE_KEYLINE}" stroke-width="${2 * k}" stroke-linejoin="round"/>
+   <circle cx="${MOUSE_EAR.cx}" cy="${MOUSE_EAR.cy}" r="${MOUSE_EAR.r}" fill="${fill}" stroke="${MOUSE_KEYLINE}" stroke-width="${2 * k}"/>
+   <circle cx="${MOUSE_EYE.cx}" cy="${MOUSE_EYE.cy}" r="${MOUSE_EYE.r}" fill="#0a0b10"/>`;
+
+// Currency icon — the mouse-shaped coin next to every price. Checked Cookie
+// Clicker's own live DOM for how they handle this: .price::before is a fixed
+// 16x16 cookie sprite with NO ".disabled" variant anywhere in their CSS —
+// only the price NUMBER'S color flips green/red on affordability, the icon
+// never does. Same rule here: one constant color (--neon, the UI's existing
+// teal accent — unclaimed by both day's green/red cost colors and night's
+// gold/brown ones, so it can't be misread as an afford/can't-afford cue), and
+// it's a literal `fill`, not `currentColor`, so .cost's color toggle can
+// never touch it even by accident.
+//
+// Cropped to the head (nose/ear/eye), not the full 54x28 body — tested both at
+// real size (~15-18px CSS): the full silhouette's tail-to-nose taper is too
+// thin a shape to survive that small and just reads as a flat pill, where
+// CC's cookie stays legible that tiny because it's already roughly circular.
+// The head crop is closer to square, and its ear-ring + eye dot give it two
+// distinguishing marks at a glance, the way the cookie's choc-chip flecks do.
+const currencyIconSVG = () =>
+  `<svg class="coin" viewBox="21 1 30 26" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${mouseParts("var(--neon)")}</svg>`;
+
 // Per-click particle: a plush mouse pops out of the tap, arcs under gravity,
 // spins, fades — Cookie Clicker's flying-cookie feedback, retoyed. Body keeps
 // the sticker-style white keyline so it reads as the same art family as Hex.
 const mouseSVG = c =>
-  `<svg viewBox="0 0 54 28" xmlns="http://www.w3.org/2000/svg">
-     <path d="M12 17 C4 21 2 10 8 7" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/>
-     <path d="M51 16 C46 8 37 4 27 5 C16 6 10 10 10 16 C10 21 17 24 27 24 C37 24 47 21 51 16 Z" fill="${c}" stroke="#f4f4f2" stroke-width="2" stroke-linejoin="round"/>
-     <circle cx="33" cy="7" r="4.6" fill="${c}" stroke="#f4f4f2" stroke-width="2"/>
-     <circle cx="42" cy="12" r="1.8" fill="#0a0b10"/>
-   </svg>`;
+  `<svg viewBox="0 0 54 28" xmlns="http://www.w3.org/2000/svg">${mouseParts(c)}</svg>`;
 
 // Sized to match the wall mice's actual rendered footprint (drawWallMouse at
 // r=3.1), not Hex's own .25 zoom ratio — those are two independent shrinks
@@ -1168,22 +1305,125 @@ function updatePops(dt) {
 }
 
 let squash = 0; // 0..1 pet animation
+// Petting streak. Feeds two idle animations (the purr, and the slow blink she
+// gives you for a sustained streak), so it lives here at the one place a pet is
+// known — updateCat only ever reads it. Wall-clock, not frame count: the streak
+// is about how you're touching her, which shouldn't change with framerate.
+let lastPetAt = -1e9, petStreak = 0, slowBlinkStart = -1;
 function pet(clientX, clientY) {
   const gain = clickGain();
   game.mice += gain; game.total += gain; game.clicks++;
   squash = 1;
+
+  const now = performance.now();
+  // A gap longer than the window means you stopped petting and started again —
+  // that's a new streak, not a continuation.
+  if (now - lastPetAt > PET_STREAK_WINDOW_MS) petStreak = 0;
+  petStreak++; lastPetAt = now;
+  // Earned, not periodic: she only offers the slow blink after you've kept it
+  // up. Streak resets on spend so it has to be earned again, and it can't
+  // interrupt one already running (slowBlinkStart < 0), or a tap-storm would
+  // restart it every frame and the lids would never actually open.
+  if (IDLE.slowBlink && petStreak >= PET_STREAK_NEEDED && slowBlinkStart < 0 && !nightActive()) {
+    slowBlinkStart = now;
+    petStreak = 0;
+  }
+
   const rect = stageEl.getBoundingClientRect();
   floatNum(clientX - rect.left, clientY - rect.top, "+" + fmt(gain));
   spawnMousePop(clientX - rect.left, clientY - rect.top);
   refreshHud();
 }
 
-const catEl = $("#catWrap"), hexCatEl = $("#hexCat");
+const catEl = $("#catWrap"), hexCatEl = $("#hexCat"), catMotionEl = $("#catMotion");
 const irisLeftEl = $("#irisLeft"), irisRightEl = $("#irisRight");
-const whiskersEl = $("#whiskers");
+const eyeLeftEl = $("#eyeLeft"), eyeRightEl = $("#eyeRight");
+const whiskersEl = $("#whiskers"), mouthEl = $("#mouth");
 catEl.addEventListener("pointerdown", e => { e.preventDefault(); pet(e.clientX, e.clientY); }, { passive: false });
 
 // ---------------------------------------------------------------------------
+// The golden mouse's art. Was the 🐭 emoji, which put a stray third-party glyph
+// next to our own hand-drawn mice — the one thing on the stage not in the game's
+// art family. Cookie Clicker is the precedent worth copying here, but precisely:
+// its golden cookie is NOT the big cookie recolored, nor the click particle —
+// all three are separate assets (perfectCookie.png, an icons.png tile, and
+// goldCookie.png). What they share is that a golden cookie is unmistakably a
+// COOKIE. So: same rule, same animal — our exact mouse silhouette, gilded.
+//
+// Gold is a gradient rather than a flat fill because flat #ffd44d reads as "the
+// yellow mouse" (a real click-pop color, MOUSE_COLORS.yellow) instead of "metal".
+// The light-to-dark ramp plus the gleam is what sells it as a different material
+// rather than a fifth palette entry.
+// Day: the mouse, gilded. Same 54x28 box as the click-pop, so it sits in the
+// same art family at a glance — only the material differs.
+const goldenMouseSVG = () =>
+  `<svg viewBox="0 0 54 28" xmlns="http://www.w3.org/2000/svg">
+     <defs>
+       <linearGradient id="gmBody" x1="0" y1="0" x2="0" y2="1">
+         <stop offset="0" stop-color="#fff6c4"/><stop offset=".45" stop-color="#ffd44d"/><stop offset="1" stop-color="#c98a12"/>
+       </linearGradient>
+     </defs>
+     ${mouseParts("url(#gmBody)")}
+     <!-- Specular gleam. Confined to the upper-REAR flank (x<26): the ear is a
+          circle at x 28.4-37.6, and a highlight long enough to reach past that
+          reads as a scratch across the face rather than light on a curve. -->
+     <path d="M14 14 C16 11 20 9.4 25 9" fill="none" stroke="#fffbe6" stroke-width="1.7" stroke-linecap="round" opacity=".8"/>
+   </svg>`;
+
+// Night: same mouse, now piloting. The saucer is night-mode-only, so it's built
+// from the same gold the night UI already uses and the pilot is the SHARED
+// silhouette (mouseParts) scaled down — not a redraw, so it can't drift from the
+// mice on the wall below it.
+//
+// The pilot drives every other number here. It has to stay READABLE as our mouse
+// inside a 78px box, which sets its scale; the dome then has to be big enough to
+// contain it, and the hull wide enough to look like it's carrying the dome. So
+// the dome is deliberately huge relative to a real flying saucer — a screen-
+// accurate thin canopy would shrink the pilot to an unrecognizable speck, which
+// would defeat the whole point of the redesign.
+const SAUCER_MOUSE_SCALE = 0.58;
+const SAUCER_DOME_R = 19, SAUCER_DOME_BASE = 32, SAUCER_CX = 32;
+// The pilot is centered on its INK, not on its 54x28 box. The art doesn't fill
+// that box — it spans x 2..51 (tail tip to nose) and y 2.4..24 (ear top to
+// belly), so the box center (27,14) sits low and right of the drawing's actual
+// middle. Centering by the box parked the tail outside the dome's left rim while
+// leaving dead space on the right; these are that true visual center.
+const SAUCER_PILOT_CX = 26.5, SAUCER_PILOT_CY = 13.2;
+const goldenSaucerSVG = () => {
+  // Cockpit center: above the dome's own center, since the dome's lower half is
+  // swallowed by the hull and only the top reads as open space.
+  const cy = 24;
+  const tx = SAUCER_CX - SAUCER_PILOT_CX * SAUCER_MOUSE_SCALE, ty = cy - SAUCER_PILOT_CY * SAUCER_MOUSE_SCALE;
+  return `<svg viewBox="0 0 64 54" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="gsBody" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff6c4"/><stop offset=".45" stop-color="#ffd44d"/><stop offset="1" stop-color="#c98a12"/>
+      </linearGradient>
+      <linearGradient id="gsHull" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffe9a3"/><stop offset=".5" stop-color="#eab52c"/><stop offset="1" stop-color="#a8730d"/>
+      </linearGradient>
+      <linearGradient id="gsBeam" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff3b0" stop-opacity=".5"/><stop offset="1" stop-color="#ffd44d" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="M24 42 L16 54 L48 54 L40 42 Z" fill="url(#gsBeam)"/>
+    <g transform="translate(${tx.toFixed(2)},${ty.toFixed(2)}) scale(${SAUCER_MOUSE_SCALE})">
+      ${mouseParts("url(#gsBody)", 1.6)}
+    </g>
+    <!-- Canopy, drawn OVER the pilot. Kept near-clear (.14) on purpose: an
+         opaque enough tint to read as "glass" also greys out the gold behind it,
+         and the pilot is the one thing here that must survive. The rim keyline
+         and the top sheen do the work of saying "glass" instead. -->
+    <path d="M${SAUCER_CX - SAUCER_DOME_R} ${SAUCER_DOME_BASE} A${SAUCER_DOME_R} ${SAUCER_DOME_R} 0 0 1 ${SAUCER_CX + SAUCER_DOME_R} ${SAUCER_DOME_BASE} Z"
+          fill="#cfeaff" fill-opacity=".14" stroke="${MOUSE_KEYLINE}" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M20 26 C22 19 27 15 33 14.4" fill="none" stroke="#fffbe6" stroke-width="1.9" stroke-linecap="round" opacity=".7"/>
+    <ellipse cx="${SAUCER_CX}" cy="37" rx="31" ry="6.2" fill="url(#gsHull)" stroke="${MOUSE_KEYLINE}" stroke-width="1.8"/>
+    <circle cx="12" cy="37.5" r="1.8" fill="#fffbe6"/>
+    <circle cx="32" cy="39.4" r="1.8" fill="#fffbe6"/>
+    <circle cx="52" cy="37.5" r="1.8" fill="#fffbe6"/>
+  </svg>`;
+};
+
 // GOLDEN MOUSE — the fun spike. Spawns every ~40–90s, drifts, must be tapped
 // before it escapes. Two outcomes (mirrors Cookie Clicker's golden cookies):
 //   Click Frenzy → click power ×7 for 7s
@@ -1197,6 +1437,7 @@ const CLICK_BUFF_MS = 7000;     // ...for 7s
 const GOLD_MULT = 7;            // Zoomies: cps x7...
 const ZOOM_MS = 12000;          // ...for 12s
 const FRENZY_CHANCE = 0.7;      // P(Click Frenzy); the rest are Zoomies
+const GOLD_MARGIN = 10;         // px of stage edge the golden won't drift past
 const GOLD_MIN_S = 40, GOLD_MAX_S = 90;              // spawn window
 const GOLD_MEAN_S = (GOLD_MIN_S + GOLD_MAX_S) / 2;   // the sim's mean gap
 let goldTimer = 0, goldActive = false, goldLifeLeft = 0, goldVx = 0, goldVy = 0, goldX = 0, goldY = 0;
@@ -1208,6 +1449,14 @@ scheduleGold();
 function spawnGold() {
   goldActive = true;
   goldLifeLeft = 9; // seconds on screen
+  // Art is chosen per spawn, not once at boot: night unlocks mid-session, and a
+  // golden that's already drifting when it flips would otherwise keep the wrong
+  // vehicle until the next one. Per-spawn is also the only moment it can change
+  // without visibly swapping under the player's cursor.
+  const saucer = nightActive();
+  goldenEl.classList.toggle("saucer", saucer);
+  goldenEl.innerHTML = saucer ? goldenSaucerSVG() : goldenMouseSVG();
+  goldenEl.setAttribute("aria-label", saucer ? "Golden mouse in a flying saucer" : "Golden mouse");
   const w = stageEl.clientWidth, h = stageEl.clientHeight;
   goldX = 40 + Math.random() * (w - 120);
   goldY = 40 + Math.random() * (h - 160);
@@ -1221,8 +1470,14 @@ function moveGold(dt) {
   if (goldLifeLeft <= 0) { despawnGold(); return; }
   const w = stageEl.clientWidth, h = stageEl.clientHeight;
   goldX += goldVx * dt; goldY += goldVy * dt;
-  if (goldX < 10 || goldX > w - 72) { goldVx *= -1; goldX = Math.max(10, Math.min(w - 72, goldX)); }
-  if (goldY < 10 || goldY > h - 72) { goldVy *= -1; goldY = Math.max(10, Math.min(h - 72, goldY)); }
+  // Bounce off a MARGIN-inset box measured from the element's real size rather
+  // than the old hardcoded 72 (which was 62 + margin, silently assuming the day
+  // mouse). The night saucer is a different size, and offsetWidth ignores the
+  // hover animation's transform, so this stays stable frame to frame.
+  const gw = goldenEl.offsetWidth, gh = goldenEl.offsetHeight;
+  const maxX = Math.max(GOLD_MARGIN, w - gw - GOLD_MARGIN), maxY = Math.max(GOLD_MARGIN, h - gh - GOLD_MARGIN);
+  if (goldX < GOLD_MARGIN || goldX > maxX) { goldVx *= -1; goldX = Math.max(GOLD_MARGIN, Math.min(maxX, goldX)); }
+  if (goldY < GOLD_MARGIN || goldY > maxY) { goldVy *= -1; goldY = Math.max(GOLD_MARGIN, Math.min(maxY, goldY)); }
   goldenEl.style.left = goldX + "px"; goldenEl.style.top = goldY + "px";
   goldenEl.style.opacity = goldLifeLeft < 2 ? (goldLifeLeft / 2).toFixed(2) : "1";
 }
@@ -1739,6 +1994,55 @@ function syncPhase() {
 // classes/state on it per frame (squash bounce, blink, frenzy recolor).
 // ---------------------------------------------------------------------------
 const IRIS_LOOK = 4; // svg user-units the iris can travel off-center before it'd clip the socket
+// Pupil width — independent of the eyelid squash below, and on its own axis
+// (X, not Y) so a blink never resets it. Real cats rest with a vertical slit
+// and round out when aroused; a golden mouse on screen is the one thing this
+// game has to be excited about, so it's the trigger. `#irisLeft`/`#irisRight`
+// are the pupils, not the iris — see hex-cat.svg's header comment for why the
+// ids still say "iris" after the coloring flipped.
+const PUPIL_SLIT = 0.22;  // resting
+const PUPIL_ROUND = 1;    // dilated
+
+// ---------------------------------------------------------------------------
+// IDLE ANIMATIONS — one flag each, all independent. These are cat behaviours
+// picked to hang off game state that already exists, so none of them invent a
+// new mechanic. Flip any to false to cut it; nothing else reads these, so a
+// single word here is the whole removal.
+// ---------------------------------------------------------------------------
+const IDLE = {
+  chatter: true,          // jaw quivers at a golden mouse she can't reach
+  whiskersForward: true,  // whiskers fan toward that same golden mouse
+  slowBlink: true,        // the "I trust you" blink, earned by a petting streak
+  gazeDrift: true,        // eyes wander when there's nothing to look at
+  purr: true,             // rumble while she's being petted
+  yawn: true,             // one big yawn as she drops into the night phase
+  dreamTwitch: true,      // rare whole-head jerk while dreaming
+};
+
+const SLOW_BLINK_MS = 1100;
+const PET_STREAK_NEEDED = 6;      // pets, within...
+const PET_STREAK_WINDOW_MS = 1200; // ...this gap of each other, or it resets
+const PURR_MS = 900;              // purr keeps going this long after the last pet
+const YAWN_MS = 1300;
+
+const smoothstep = x => x * x * (3 - 2 * x);
+const clamp01 = x => Math.min(1, Math.max(0, x));
+
+// Lid 1 (wide) -> ~shut -> 1, with a deliberate HOLD at the bottom. The hold is
+// the entire difference between a slow blink and a long blink: a cat's slow
+// blink is a held gesture, not a slow motion. Without it this just reads as
+// lag.
+function slowBlinkLid(p) {
+  const CLOSE = 0.30, HOLD = 0.34;
+  if (p < CLOSE) return 1 - 0.95 * smoothstep(p / CLOSE);
+  if (p < CLOSE + HOLD) return 0.05;
+  return 0.05 + 0.95 * smoothstep((p - CLOSE - HOLD) / (1 - CLOSE - HOLD));
+}
+// Yawn: one 0->1->0 arc driving lids shut and jaw open together, peaking
+// midway. Same envelope for both so the squeeze and the gape can't desync.
+const yawnEnv = p => Math.sin(Math.PI * clamp01(p));
+
+let wasAsleep = null, yawnStart = -1;
 function updateCat(t) {
   catEl.classList.toggle("squash", squash > 0.15);
   if (squash > 0) squash = Math.max(0, squash - 0.08);
@@ -1747,9 +2051,46 @@ function updateCat(t) {
   catEl.classList.toggle("frenzy", frenzy);
 
   const asleep = nightActive();
-  // asleep at night — the .asleep class owns the eyes, so never fight it
-  const blink = !asleep && Math.sin(t / 1400) > 0.985;
+
+  // Yawn fires on the day->night EDGE: she yawns herself to sleep, which is the
+  // one story beat this game has. Edge-detected here rather than fired from the
+  // Catnap purchase because night can also arrive by loading a save or a dev
+  // preset jump — and `wasAsleep` starting null means the very first frame
+  // establishes the baseline instead of yawning at you on boot.
+  if (wasAsleep !== null && asleep && !wasAsleep && IDLE.yawn) yawnStart = t;
+  wasAsleep = asleep;
+
+  // --- Lid overrides: the yawn and the slow blink -------------------------
+  // Both need a CONTINUOUS lid value, which .blink/.asleep can't express —
+  // they're binary classes. So they take the lids by writing an inline
+  // transform (which beats a class rule outright) and hand them back by
+  // clearing it. #eyeLeft/#eyeRight's own .06s transition just smooths the
+  // handoff at each end. Yawn outranks slow blink: it only happens once, and
+  // it's the phase change.
+  let lidOverride = null, yawnP = -1;
+  if (yawnStart >= 0) {
+    yawnP = (t - yawnStart) / YAWN_MS;
+    if (yawnP >= 1) { yawnStart = -1; yawnP = -1; }
+    else lidOverride = 1 - 0.93 * yawnEnv(yawnP);
+  }
+  if (lidOverride === null && slowBlinkStart >= 0) {
+    const p = (t - slowBlinkStart) / SLOW_BLINK_MS;
+    if (p >= 1) slowBlinkStart = -1;
+    else lidOverride = slowBlinkLid(p);
+  }
+  const lidBusy = lidOverride !== null;
+
+  // asleep at night — the .asleep class owns the eyelids, so never fight it.
+  // Suppressed while a lid override is running too, or the class would snap the
+  // lids the instant the override let go.
+  const blink = !asleep && !lidBusy && Math.sin(t / 1400) > 0.985;
   hexCatEl.classList.toggle("blink", blink);
+
+  const lidT = lidBusy ? `scaleY(${lidOverride.toFixed(3)})` : "";
+  if (eyeLeftEl.style.transform !== lidT) {
+    eyeLeftEl.style.transform = lidT;
+    eyeRightEl.style.transform = lidT;
+  }
 
   // Iris: look toward the golden mouse by day; shut with the lids at night.
   // Owned entirely by JS (not a CSS class) because it has to combine a
@@ -1757,10 +2098,15 @@ function updateCat(t) {
   // .asleep — an inline transform always wins over a class rule's transform,
   // so splitting this across CSS classes + JS would just fight itself.
   let lookX = 0, lookY = 0, irisScaleY = 1;
-  if (asleep) {
-    // REM: the lids stay shut but the eyes rove underneath, and the slit
-    // swells a hair. Deliberately thematic — she's dreaming the wall you're
-    // watching. Two out-of-phase sines so it never reads as a clean loop.
+  if (lidBusy) {
+    // The pupil has to ride the lid down, or it sits there full-size behind a
+    // shut eye — the exact bug this block's comment already warns about.
+    irisScaleY = Math.max(lidOverride, 0.05);
+  } else if (asleep) {
+    // REM: the lids stay shut but the eyes rove underneath, and the eyelid
+    // gap swells a hair. Deliberately thematic — she's dreaming the wall
+    // you're watching. Two out-of-phase sines so it never reads as a clean
+    // loop.
     irisScaleY = 0.07 + 0.045 * (0.5 + 0.5 * Math.sin(t / 2600));
     lookX = 1.6 * Math.sin(t / 3100) + 0.7 * Math.sin(t / 1130);
   } else if (blink) {
@@ -1771,31 +2117,114 @@ function updateCat(t) {
     const mag = Math.hypot(dx, dy) || 1;
     lookX = (dx / mag) * IRIS_LOOK;
     lookY = (dy / mag) * IRIS_LOOK;
+  } else if (IDLE.gazeDrift) {
+    // Nothing to look at, so she looks at nothing in particular. Without this
+    // she stares dead ahead for the ~40-90s between goldens, which is most of
+    // the game. Sines are MULTIPLIED, not added: one sine is a metronome
+    // sweeping at constant speed, but the product stalls near either factor's
+    // zero-crossing, so she drifts, dwells, drifts — closer to looking at
+    // things than scanning for them.
+    lookX = IRIS_LOOK * 0.5 * Math.sin(t / 2300) * Math.sin(t / 5700);
+    lookY = IRIS_LOOK * 0.3 * Math.sin(t / 3300) * Math.sin(t / 7100);
   }
-  const irisTransform = `translate(${lookX}px, ${lookY}px) scaleY(${irisScaleY})`;
+  // Dilated only while awake AND a golden is actually out there — not during
+  // sleep even if a saucer is drifting past, matching the branch above where
+  // asleep never looks toward it either. #irisLeft/#irisRight's own CSS
+  // transition (.12s ease-out) is what makes this a dilate rather than a snap.
+  const pupilScaleX = (!asleep && goldActive) ? PUPIL_ROUND : PUPIL_SLIT;
+  const irisTransform = `translate(${lookX}px, ${lookY}px) scale(${pupilScaleX}, ${irisScaleY})`;
   irisLeftEl.style.transform = irisTransform;
   irisRightEl.style.transform = irisTransform;
 
-  updateWhiskerTwitch(t, asleep);
+  // --- Jaw: yawn, else chatter -------------------------------------------
+  // "Alert" = awake with a golden actually on screen. It drives the chatter and
+  // the whisker fan, and it's the same condition the pupil dilation above uses
+  // — one idea (prey is out there), three tells.
+  const alert = !asleep && goldActive;
+  let mouthScaleY = 1, mouthScaleX = 1;
+  if (yawnP >= 0) {
+    // Ceiling of 2.2 is geometric, not taste: the mouth is a 13-unit lip line
+    // topped at y=147 and scaled from its own top edge, while the head's inner
+    // chin sits at ~182 — so anything past ~2.4 stretches the jaw straight
+    // through her face and hangs it outside the silhouette. Measured, not
+    // guessed (mouth.getBBox() vs head.getBBox()); re-measure if the art moves.
+    // X widens too, because a gape is wide — scaling Y alone just draws a
+    // longer squiggle, not an open mouth.
+    mouthScaleY = 1 + 1.2 * yawnEnv(yawnP);
+    mouthScaleX = 1 + 0.5 * yawnEnv(yawnP);
+  } else if (IDLE.chatter && alert && !lidBusy) {
+    // The "ekekek" chatter at prey behind glass — here, a golden mouse drifting
+    // past a cat who is a head and can do nothing about it. ~11Hz: fast enough
+    // to read as a quiver, slow enough to survive a 60fps sample (above ~15Hz
+    // it aliases into a blur).
+    mouthScaleY = 1 + 0.5 * (0.5 + 0.5 * Math.sin(t / 14));
+  }
+  const mouthT = (mouthScaleY === 1 && mouthScaleX === 1)
+    ? "" : `scale(${mouthScaleX.toFixed(3)}, ${mouthScaleY.toFixed(3)})`;
+  if (mouthEl.style.transform !== mouthT) mouthEl.style.transform = mouthT;
+
+  // --- Whole-head micro-motion (#catMotion) ------------------------------
+  // Purr keeps running briefly after the last pet, so a steady petting rhythm
+  // reads as one continuous rumble rather than restarting on every tap.
+  const purring = IDLE.purr && !asleep && (t - lastPetAt) < PURR_MS;
+  // ~14Hz. A real purr is ~25Hz, which is past what 60fps can show — this is
+  // the fastest rumble that still renders as motion instead of aliasing.
+  const purrY = purring ? 0.8 * Math.sin(t / 11) : 0;
+  const dreamY = dreamTwitchOffset(t, asleep);
+  const motionT = (purrY || dreamY) ? `translateY(${(purrY + dreamY).toFixed(2)}px)` : "";
+  if (catMotionEl.style.transform !== motionT) catMotionEl.style.transform = motionT;
+
+  updateWhiskers(t, asleep, alert);
 }
 
-// Whisker twitch: a single flick every ~5-11s while asleep. Cats do this
-// chasing something in a dream. Scheduled rather than sine-driven so it stays
-// irregular — a periodic twitch reads as a machine, not an animal.
+// Dream twitch: a single whole-head jerk every ~9-20s while asleep, the
+// paw-running dream. Deliberately rarer and bigger than the whisker twitch so
+// the two read as one animal at two intensities rather than a shared tic.
+// Scheduled, not sine-driven, for the same reason as the whiskers.
+let dreamAt = 0, dreamUntil = 0, dreamDir = 1;
+const DREAM_MS = 220;
+function dreamTwitchOffset(t, asleep) {
+  if (!asleep || !IDLE.dreamTwitch) { dreamAt = 0; return 0; }
+  if (!dreamAt) dreamAt = t + 6000 + Math.random() * 9000;
+  if (t >= dreamAt) {
+    dreamUntil = t + DREAM_MS;
+    dreamDir = Math.random() < 0.5 ? -1 : 1;
+    dreamAt = t + 9000 + Math.random() * 11000;
+  }
+  if (t >= dreamUntil) return 0;
+  // One damped bounce over the twitch's life, not a loop — a twitch is a single
+  // event that dies out, so amplitude has to decay to zero by the end or it
+  // would cut off mid-motion.
+  const p = 1 - (dreamUntil - t) / DREAM_MS;
+  return dreamDir * 3.2 * Math.sin(p * Math.PI * 2) * (1 - p);
+}
+
+// Whiskers have two behaviours and one element, so they get one owner:
+//   asleep — a single flick every ~5-11s, chasing something in a dream.
+//            Scheduled rather than sine-driven so it stays irregular; a
+//            periodic twitch reads as a machine, not an animal.
+//   awake  — fanned forward whenever prey is on screen (`alert`).
+// They're mutually exclusive by construction (you can't be alert while asleep),
+// which is why one function can hand back a single transform without blending.
 let twitchAt = 0, twitchUntil = 0, twitchDir = 1;
-function updateWhiskerTwitch(t, asleep) {
+function updateWhiskers(t, asleep, alert) {
+  let w = "";
   if (!asleep) {
-    if (whiskersEl.style.transform) whiskersEl.style.transform = "";
     twitchAt = 0;
-    return;
+    // Fanned forward at prey. A scale, not a rotate, and not per-whisker: all
+    // six whiskers are one <path>, so they can only ever move together — the
+    // same constraint that rules out independent ear flicks on this art.
+    if (IDLE.whiskersForward && alert) w = "scale(1.07, 1.12)";
+  } else {
+    if (!twitchAt) twitchAt = t + 4000 + Math.random() * 6000;
+    if (t >= twitchAt) {
+      twitchUntil = t + 320;
+      twitchDir = Math.random() < 0.5 ? -1 : 1;
+      twitchAt = t + 5000 + Math.random() * 6000;
+    }
+    if (t < twitchUntil) w = `rotate(${twitchDir * 1.6}deg)`;
   }
-  if (!twitchAt) twitchAt = t + 4000 + Math.random() * 6000;
-  if (t >= twitchAt) {
-    twitchUntil = t + 320;
-    twitchDir = Math.random() < 0.5 ? -1 : 1;
-    twitchAt = t + 5000 + Math.random() * 6000;
-  }
-  whiskersEl.style.transform = t < twitchUntil ? `rotate(${twitchDir * 1.6}deg)` : "";
+  if (whiskersEl.style.transform !== w) whiskersEl.style.transform = w;
 }
 
 // ---------------------------------------------------------------------------
@@ -2119,6 +2548,7 @@ buildShop();
 dockEl.classList.add("open"); // opens by default; tray state is UI, not saved
 syncPhase(); // saves restore the phase for free
 initDev();
+countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refreshHud()'s job
 refreshHud();
 refreshShop();
 refreshUpgrades();

@@ -6,10 +6,19 @@
 
   A deliberately faithful Cookie Clicker clone reskinned as the Escape Cats
   neon line-art world: pet Hex the cat, she bats a neon mouse toy, you collect
-  NEON MICE (the currency). Spend them on five buildings that auto-generate
+  NEON MICE (the currency). Spend them on buildings that auto-generate
   mice. Classic mechanics: geometric cost curve (x1.15 per copy), per-building
-  mice-per-second, bulk buy, big-number formatting, golden mouse bonuses,
-  localStorage autosave.
+  mice-per-second, big-number formatting, golden mouse bonuses, one-off
+  UPGRADES with declarative unlock/effect, localStorage autosave.
+
+  THE TWIST: buying the Catnap Study upgrade (gated on the lab's reveal) puts
+  Hex to sleep and flips the game into a NIGHT PHASE. The reveal wall from
+  reveal-lab.html renders behind her: wall mice (a pure function of lifetime
+  mice earned) patrol the TO THE MOON scene, and Comet Trails upgrades grow
+  the glowing trails that ink the word. Word% is a hardcoded constant, noise
+  is locked to zero. Night buildings dwarf day production; day buildings and
+  mps carry over. End state per the design doc: the word is read off the wall
+  to a human proctor — no win screen.
 
   Why raw HTML: this is a prototype (see prototypes/README.md). Zero deps, zero
   build, edit-and-refresh. The economy lives in one plain `game` object and the
@@ -22,72 +31,225 @@
   finding the core clicker fun.
 -->
 <style>
+  /* ---- THEME ----
+     Every themeable surface reads a var; DAY is the default in :root and NIGHT
+     overrides the same names on body.night. Component rules below never
+     hardcode a color, so the Catnap flip restyles the entire game without a
+     parallel set of `body.night .whatever` rules for each widget.
+
+     Day is a deliberate Cookie Clicker pastiche — blue striped wallpaper,
+     wooden framing, serif type, green/red price signalling. That's the joke
+     AND the setup: it reads as a cozy, familiar idle game, so when Catnap
+     Study strips it away to the bare dark dream, the contrast is the reveal.
+     Fonts are system stacks (Georgia) rather than Cookie Clicker's actual
+     webfonts — the prototype stays zero-dependency and file:// friendly. */
   :root {
-    --bg: #0a0b10;
-    --panel: #12141b;
-    --panel-hi: #171a21;
-    --line: #262b36;
-    --line-hi: #2f6b4f;
+    --gold: #ffd44d;
+    --neon: #57e6c9;
+
+    --ui-font: Georgia, "Times New Roman", serif;
+    --page-bg:
+      radial-gradient(58vh 58vh at 50% 44%, rgba(150,205,255,.34), rgba(90,160,220,.10) 45%, transparent 70%),
+      repeating-linear-gradient(90deg, #2e6699 0 26px, #295c8b 26px 52px);
+    --panel-bg: repeating-linear-gradient(90deg, #24537d 0 26px, #204a70 26px 52px);
+    --wood: linear-gradient(#b07c45, #855427 42%, #5e3a1a);
+    --wood-line: #3d240f;
+    --ink: #f6f1e6;
+    --muted: #cbbda4;
+    --dim: #a1917a;
+    --line: rgba(0,0,0,.34);
+    --line-hi: rgba(255,255,255,.22);
+    --icon-bg: rgba(0,0,0,.26);
+    --cost-ok: #7fe37f;
+    --cost-no: #e2645e;
+    --title-color: #fff;
+    --title-shadow: 0 2px 0 rgba(0,0,0,.5), 0 0 14px rgba(0,0,0,.45);
+  }
+  body.night {
+    --ui-font: -apple-system, "Segoe UI", system-ui, sans-serif;
+    --page-bg:
+      radial-gradient(90vw 55vh at 50% 12%, rgba(180,140,255,0.07), transparent 62%),
+      #06070c;
+    --panel-bg: rgba(9,11,18,.93);
+    --wood: none;
+    --wood-line: #262b36;
     --ink: #b9c2d4;
     --muted: #77808f;
     --dim: #545d6c;
-    --gold: #ffd44d;
-    --neon: #57e6c9;
-    --neon-2: #ff5db1;
+    --line: #262b36;
+    --line-hi: #2f6b4f;
+    --icon-bg: #171a21;
+    --cost-ok: var(--gold);
+    --cost-no: #6b5535;
+    --title-color: var(--gold);
+    --title-shadow: 0 0 18px rgba(255,212,77,.4);
   }
   * { box-sizing: border-box; }
   html, body {
-    margin: 0; height: 100%; overflow: hidden; background: var(--bg);
-    font: 500 13px -apple-system, "Segoe UI", system-ui, sans-serif; color: var(--ink);
+    margin: 0; height: 100%; overflow: hidden;
+    font: 500 13px var(--ui-font); color: var(--ink);
     -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
   }
   body {
-    background:
-      radial-gradient(90vw 55vh at 50% 12%, rgba(87,230,201,0.08), transparent 62%),
-      var(--bg);
+    background: var(--page-bg);
     display: flex; flex-direction: column;
   }
 
-  /* ---- HUD ---- */
+  /* ---- HUD ----
+     An overlay, not a flow element — same reasoning as the shop tray. Before
+     this, #hud sat above #stage in flex flow, so the score/mps readout ate a
+     real ~70px strip that never registered a pet tap (it was never part of
+     #catWrap at all). Fixed + pointer-events:none makes it float on top of a
+     stage that now runs edge-to-edge, so a tap "on" the score still lands on
+     the cat underneath. Nothing left inside #hud is interactive (the menu
+     button was removed earlier), so blanket pointer-events:none is safe. */
+  /* Cookie Clicker's signature readout: one centered line reading "N neon
+     mice", with "per second: X" tucked under it. #count and #unit are inline
+     so they share a baseline as a single sentence rather than stacking. */
   #hud {
-    flex: none; padding: max(12px, env(safe-area-inset-top)) 14px 6px;
-    display: flex; align-items: flex-start; justify-content: space-between;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 6; pointer-events: none;
+    padding: max(12px, env(safe-area-inset-top)) 14px 6px;
+    display: flex; align-items: flex-start; justify-content: center;
   }
-  #bank { min-width: 0; }
+  #bank { min-width: 0; text-align: center; }
+  #count, #unit {
+    display: inline-block; vertical-align: baseline;
+    color: var(--title-color); text-shadow: var(--title-shadow);
+  }
   #count {
-    font: 800 30px -apple-system, system-ui, sans-serif; color: var(--gold);
-    font-variant-numeric: tabular-nums; text-shadow: 0 0 18px rgba(255,212,77,.4); line-height: 1;
+    font: 700 32px var(--ui-font); font-variant-numeric: tabular-nums; line-height: 1.1;
   }
-  #unit {
-    font: 700 9px -apple-system, system-ui, sans-serif; letter-spacing: .18em;
-    text-transform: uppercase; color: #8a7a3a; margin-top: 3px;
+  #unit { font: 700 17px var(--ui-font); margin-left: 6px; }
+  #cps {
+    font: 400 13px var(--ui-font); color: var(--title-color);
+    text-shadow: var(--title-shadow); opacity: .92;
+    margin-top: 1px; font-variant-numeric: tabular-nums;
   }
-  #cps { font-size: 11px; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
-  #cps b { color: var(--neon); font-weight: 700; }
-  #menuBtn {
-    flex: none; border: 1px solid var(--line); background: var(--panel-hi); color: var(--dim);
-    font: 700 15px system-ui; border-radius: 9px; width: 34px; height: 34px; cursor: pointer;
-  }
+  #cps b { font-weight: 700; }
 
   /* ---- Play area ---- */
   #stage { flex: 1 1 auto; position: relative; min-height: 0; }
-  #hex { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; cursor: pointer; }
-  #hint {
-    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
-    color: var(--dim); font-size: 11px; letter-spacing: .04em; pointer-events: none;
-    transition: opacity .4s; text-align: center;
+  /* Cookie Clicker's slowly-turning sunburst behind the cookie. Masked to a
+     soft disc so the spokes fade out before the screen edge instead of
+     ending in a hard circle. Day only — hidden at night the same way #wall is
+     shown at night (the theme vars are for colors; a display toggle doesn't
+     need to round-trip through one). */
+  #rays {
+    position: absolute; top: 44%; left: 50%; width: 190vmax; height: 190vmax;
+    margin: -95vmax 0 0 -95vmax; pointer-events: none; display: block;
+    background: repeating-conic-gradient(from 0deg,
+      rgba(255,255,255,.115) 0deg 5deg, transparent 5deg 11deg);
+    -webkit-mask-image: radial-gradient(circle at center, #000 0 14%, transparent 34%);
+    mask-image: radial-gradient(circle at center, #000 0 14%, transparent 34%);
+    animation: raySpin 90s linear infinite;
   }
+  @keyframes raySpin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { #rays { animation: none; } }
+  #catWrap {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    touch-action: manipulation; cursor: pointer;
+  }
+  /* Three nested layers, one transform each, because they animate on wildly
+     different clocks and CSS can't run two durations on one property:
+       #catPose   — the night zoom-out (slow, one-shot, 1.8s)
+       #catBreath — sleeping breath (slow loop, night only)
+       #hexCat    — pet squash (fast, .1s, fires constantly)
+     Flattening these into one element makes every pet squash inherit the
+     1.8s night easing and feel broken. */
+  #catPose {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%;
+    transition: transform 1.8s cubic-bezier(.22, .61, .36, 1);
+  }
+  /* width/height:100% is load-bearing, not decoration: #hexCat sizes itself
+     with `width: min(62%, 340px)`, and that 62% resolves against whatever its
+     containing block is. Let this layer shrink-wrap and it collapses to the
+     SVG's intrinsic 200px, silently rendering Hex at ~1/3 scale. */
+  #catBreath {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%;
+  }
+  #hexCat {
+    width: min(62%, 340px); height: auto; max-height: 94%;
+    /* day: sitting in the sunburst, so a warm white bloom like CC's cookie */
+    filter: drop-shadow(0 3px 10px rgba(0,0,0,.45)) drop-shadow(0 0 30px rgba(200,235,255,.45));
+    transition: transform .1s ease-out;
+  }
+  #catWrap.squash #hexCat { transform: scale(.93); }
+  #catWrap.frenzy #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
+  #catWrap.frenzy #hexCat #head { stroke: #ffd44d; }
+  #catWrap.frenzy #hexCat #irisLeft, #catWrap.frenzy #hexCat #irisRight { fill: #ffe98a; }
+  #hexCat #eyeLeft, #hexCat #eyeRight {
+    transform-box: fill-box; transform-origin: center; transition: transform .06s;
+  }
+  #hexCat.blink #eyeLeft, #hexCat.blink #eyeRight { transform: scaleY(.14); }
+  /* Iris transform is JS-owned (updateCat), not class-driven like the lids —
+     it has to combine a look-direction translate with the same blink/asleep
+     squash the lids get, and CSS can't compose an inline transform with a
+     class rule's transform (one wins outright). This is also the fix for a
+     regression from the pre-SVG canvas cat: that version drew one neon
+     ellipse per eye, so squashing it for a blink squashed the whole eye. This
+     SVG cat draws the white socket and the iris as two separate shapes, and
+     only the socket was ever wired to blink/asleep — the iris sat there
+     full-size the entire time, which reads as a stuck-open eye asleep. */
+  #hexCat #irisLeft, #hexCat #irisRight {
+    transform-box: fill-box; transform-origin: center; transition: transform .12s ease-out;
+  }
+  /* whisker twitch (JS-driven, sleeping only) */
+  #hexCat #whiskers {
+    transform-box: fill-box; transform-origin: center; transition: transform .18s ease-in-out;
+  }
+
+  /* ---- Night phase (post–Catnap Study): Hex sleeps, the wall wakes ----
+     Colors/fonts come from the body.night var block at the top — the whole
+     Cookie Clicker skin falls away on one class. Only structural/motion
+     changes live here.
+     .asleep sits after .blink so its eye rule wins the specificity tie. */
+  /* THE ZOOM-OUT. Hex glides down and shrinks to a quarter size, which reads
+     as the camera pulling back to take in the whole wall. Done as transform
+     (not width/align-items) so it's one smooth GPU-composited move — the old
+     version snapped, because align-items and width can't tween a flex reflow.
+     translateY is applied AFTER scale in the matrix, so the distance is in
+     real screen px and doesn't get quartered by the scale. #stage is exactly
+     100vh (both #hud and #dock are position:fixed, so #stage is body's only
+     in-flow child), which is what makes 50vh mean "the bottom edge". */
+  body.night #catPose { transform: translateY(calc(50vh - 104px)) scale(.25); }
+  body.night #hexCat { filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
+  #hexCat.asleep #eyeLeft, #hexCat.asleep #eyeRight { transform: scaleY(.07); }
+
+  /* ---- Sleeping: subdued signs of life ----
+     Breath is the only always-on one; it's what separates "asleep" from
+     "paused". 4s cycle, ~3% — deliberately below conscious notice. Held off
+     until the zoom-out lands so the two moves don't overlap. */
+  body.night #catBreath { animation: breathe 4s ease-in-out 1.8s infinite; }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1) translateY(0); }
+    50%      { transform: scale(1.03) translateY(-1.5px); }
+  }
+  #wall { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
+  body.night #wall { display: block; }
+  body.night #rays { display: none; }
 
   /* floating +N numbers */
   .float {
-    position: absolute; pointer-events: none; font: 800 15px -apple-system, system-ui, sans-serif;
-    color: var(--gold); text-shadow: 0 0 10px rgba(255,212,77,.5); font-variant-numeric: tabular-nums;
+    position: absolute; pointer-events: none; font: 700 17px var(--ui-font);
+    color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.75), 0 0 10px rgba(0,0,0,.5);
+    font-variant-numeric: tabular-nums;
     animation: floatUp .9s ease-out forwards; white-space: nowrap;
   }
+  body.night .float { color: var(--gold); text-shadow: 0 0 10px rgba(255,212,77,.5); }
   @keyframes floatUp {
     0% { opacity: 0; transform: translate(-50%,-4px) scale(.7); }
     18% { opacity: 1; transform: translate(-50%,-14px) scale(1); }
     100% { opacity: 0; transform: translate(-50%,-64px) scale(1); }
+  }
+
+  /* per-click mouse particles (Cookie Clicker's flying cookie, but a toy mouse).
+     JS drives x/y/rot through the main loop; transform+opacity only, so each
+     particle stays on the compositor and never triggers layout. */
+  .mousePop {
+    position: absolute; left: 0; top: 0; width: 36px; pointer-events: none;
+    z-index: 3; will-change: transform, opacity;
   }
 
   /* golden mouse */
@@ -103,119 +265,194 @@
     background: #2a230e; border: 1px solid #6b5a1e; color: var(--gold); display: none;
     font: 800 12px system-ui; letter-spacing: .05em; padding: 6px 14px; border-radius: 999px;
     text-shadow: 0 0 10px rgba(255,212,77,.6); font-variant-numeric: tabular-nums; z-index: 4;
+    pointer-events: none;
   }
 
-  /* ---- Shop dock ---- */
+  /* ---- Shop tray ----
+     An OVERLAY, not a flow element: fixed to the bottom edge, so opening it
+     floats over Hex instead of resizing the stage. The handle is always the
+     bottom bar; the body grows upward out of it. Identical day and night —
+     only the tint changes. Still hides entirely when there's nothing to sell.
+     Translucent + blurred so it reads as floating glass, not a second page. */
   #dock {
-    flex: none; background: var(--panel); border-top: 1px solid var(--line);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    display: none; flex-direction: column;
+    background: var(--panel-bg); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
     padding-bottom: env(safe-area-inset-bottom);
   }
-  #shopHead {
-    display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 4px;
-  }
-  #shopHead .lab {
-    font: 700 9.5px system-ui; letter-spacing: .16em; text-transform: uppercase; color: var(--dim);
-  }
-  #buyToggle { display: flex; gap: 4px; }
-  #buyToggle button {
-    border: 1px solid var(--line); background: var(--panel-hi); color: var(--muted);
-    font: 700 11px system-ui; border-radius: 7px; padding: 4px 9px; cursor: pointer; min-width: 34px;
-  }
-  #buyToggle button.on { border-color: var(--neon); color: var(--neon); background: rgba(87,230,201,.08); }
+  #dock.show { display: flex; }
 
-  #shop { max-height: 46vh; overflow-y: auto; padding: 2px 10px 10px; }
+  /* Cookie Clicker frames every panel in wood. The handle doubles as that
+     frame: at night --wood resolves to `none` and the background-color
+     underneath shows through, so the same element reads as a plain bar. */
+  #trayHandle {
+    flex: none; width: 100%; display: flex; align-items: center;
+    justify-content: space-between; padding: 10px 14px; cursor: pointer;
+    background: var(--wood), var(--panel-bg);
+    border: 0; border-top: 1px solid var(--wood-line);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
+    color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.5);
+    font: 700 11px var(--ui-font); letter-spacing: .14em; text-transform: uppercase;
+  }
+  #trayHandle .right { display: flex; align-items: center; gap: 8px; }
+  #trayHandle .chev { font-size: 10px; transition: transform .18s; }
+  #dock.open #trayHandle .chev { transform: rotate(180deg); }
+  /* the only cue that something's buyable while the tray is shut. One class,
+     one rule flips it — no specificity contest with the open-state rules. */
+  #trayDot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--gold);
+    box-shadow: 0 0 8px rgba(255,212,77,.8); opacity: 0; transition: opacity .2s;
+  }
+  #dock.buyable:not(.open) #trayDot { opacity: 1; }
+
+  /* The body caps itself rather than each list capping independently —
+     otherwise the upgrade strip stacks on the building list and the two
+     together fill the screen. Shop absorbs whatever's left. */
+  #trayBody {
+    flex: 1 1 auto; min-height: 0; max-height: 56vh;
+    display: none; flex-direction: column;
+  }
+  #dock.open #trayBody { display: flex; }
+
+  /* CC's big centered "Store" plaque, sat on its own wooden rail. */
+  .shopHead {
+    flex: none;
+    display: flex; align-items: center; justify-content: center; padding: 7px 12px 6px;
+    background: var(--wood), var(--panel-bg);
+    border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
+  }
+  .shopHead .lab {
+    font: 700 15px var(--ui-font); letter-spacing: .02em; color: var(--title-color);
+    text-shadow: var(--title-shadow);
+  }
+
+  /* Header and list travel together — a "BUILDINGS" label over nothing but a
+     ??? teaser is chrome, not a choice. Section waits for a real building. */
+  #buildingSec { flex: 1 1 auto; min-height: 0; display: none; }
+  #buildingSec.show { display: flex; flex-direction: column; }
+
+  #shop { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 0 4px; }
   #shop::-webkit-scrollbar { width: 0; }
+  /* CC store rows: a dark inset strip, a framed icon, name over effect, and
+     the price right-aligned — green when you can afford it, red when you
+     can't. That red/green is the whole readout in CC; it survives here.
+     Affordable rows brighten rather than getting a neon glow. */
   .item {
     display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
-    background: var(--panel-hi); border: 1px solid var(--line); border-radius: 12px;
-    padding: 9px 11px; margin-top: 7px; color: var(--muted); cursor: not-allowed;
-    transition: border-color .1s, box-shadow .1s, opacity .15s; opacity: .55;
+    background: rgba(0,0,0,.16); border: none; border-bottom: 1px solid var(--line);
+    padding: 8px 12px; color: var(--muted); cursor: not-allowed;
+    transition: background .1s, opacity .15s; opacity: .5;
   }
-  .item.can { cursor: pointer; opacity: 1; border-color: var(--line-hi); box-shadow: 0 0 14px rgba(95,224,160,.1); }
-  .item.can:active { transform: scale(.985); }
+  .item.can { cursor: pointer; opacity: 1; background: rgba(255,255,255,.05); }
+  .item.can:active { background: rgba(255,255,255,.11); }
   .item .icon {
-    flex: none; width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center;
-    font-size: 23px; background: var(--bg); border: 1px solid var(--line);
+    flex: none; width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center;
+    font-size: 21px; background: var(--icon-bg); border: 1px solid var(--line);
   }
   .item.can .icon { border-color: var(--line-hi); }
   .item .body { flex: 1 1 auto; min-width: 0; }
-  .item .nm { font: 700 13px system-ui; color: var(--ink); }
-  .item .fx { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
-  .item .locked { font-size: 10.5px; color: var(--dim); font-style: italic; }
+  .item .nm {
+    font: 700 13.5px var(--ui-font); color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.45);
+  }
+  .item .fx { font: 400 11px var(--ui-font); color: var(--muted); margin-top: 1px; }
   .item .buy { flex: none; text-align: right; }
   .item .cost {
-    font: 700 13px system-ui; color: var(--gold); font-variant-numeric: tabular-nums; white-space: nowrap;
+    font: 700 14px var(--ui-font); color: var(--cost-ok);
+    text-shadow: 0 1px 1px rgba(0,0,0,.5);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
   }
-  .item.can .cost { text-shadow: 0 0 10px rgba(255,212,77,.35); }
-  .item .cost.no { color: #6b5535; }
+  .item .cost.no { color: var(--cost-no); }
   .item .own {
-    font: 800 15px system-ui; color: var(--dim); font-variant-numeric: tabular-nums; margin-top: 2px;
+    font: 700 16px var(--ui-font); color: var(--dim); text-shadow: 0 1px 1px rgba(0,0,0,.45);
+    font-variant-numeric: tabular-nums; margin-top: 1px;
   }
   .item.can .own { color: var(--ink); }
-  .item .qty { font-size: 9px; color: var(--dim); letter-spacing: .1em; }
 
-  /* ---- Menu sheet ---- */
-  #sheet {
-    position: fixed; inset: 0; background: rgba(4,5,8,.72); display: none; z-index: 20;
-    align-items: center; justify-content: center; padding: 24px;
-  }
-  #sheet .card {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
-    padding: 20px; width: 100%; max-width: 320px;
-  }
-  #sheet h2 { margin: 0 0 4px; font-size: 17px; color: var(--ink); }
-  #sheet p { margin: 0 0 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
-  #sheet .stat { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-top: 1px solid var(--line); }
-  #sheet .stat span:last-child { color: var(--ink); font-variant-numeric: tabular-nums; }
-  #sheet .btns { display: flex; gap: 8px; margin-top: 16px; }
-  #sheet button {
-    flex: 1; border: 1px solid var(--line); background: var(--panel-hi); color: var(--ink);
-    font: 700 12px system-ui; border-radius: 9px; padding: 10px; cursor: pointer;
-  }
-  #sheet button.danger { border-color: #6b2f2f; color: #ff8a8a; }
+  /* ---- Locked / teased building rows ----
+     .gone  = past the tease window; not on the shelf at all.
+     .locked = the one ??? teaser; price shows, everything else is masked.
+     Swapping visibility in CSS means refreshShop() never writes text for a
+     teased row, and the real name can't flash before the class lands. */
+  .item.gone { display: none; }
+  .item .lockedNm { display: none; font: 700 13.5px var(--ui-font); color: var(--dim); letter-spacing: .14em; }
+  .item .icLocked { display: none; color: var(--dim); font-weight: 800; }
+  .item.locked { cursor: default; opacity: .4; }
+  .item.locked .lockedNm { display: block; }
+  .item.locked .icLocked { display: block; }
+  .item.locked .nm,
+  .item.locked .fx,
+  .item.locked .ic,
+  .item.locked .own { display: none; }
+
+  /* ---- Upgrades strip (only unlocked-and-unbought ones exist here, so the
+     list is short; buying removes the row) ---- */
+  #upgradeSec { flex: none; display: none; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  #upgradeSec.show { display: block; }
+  #upgrades { max-height: 22vh; overflow-y: auto; padding: 2px 0 0; }
+  #upgrades::-webkit-scrollbar { width: 0; }
+  .item.up { padding: 6px 12px; }
+  .item.up .icon { width: 30px; height: 30px; font-size: 16px; border-radius: 9px; }
+  .item.up .nm { font-size: 12.5px; }
 </style>
 
 <div id="hud">
   <div id="bank">
     <div id="count">0</div>
     <div id="unit">neon mice</div>
-    <div id="cps"><b>0</b> per second</div>
+    <div id="cps">per second: <b>0</b></div>
   </div>
-  <button id="menuBtn" aria-label="Menu">⚙</button>
 </div>
 
 <div id="stage">
-  <canvas id="hex"></canvas>
+  <!-- day-only sunburst (Cookie Clicker's spinning rays); sits under everything -->
+  <div id="rays"></div>
+  <!-- night-phase reveal wall (ported from reveal-lab.html); sits under everything -->
+  <canvas id="wall"></canvas>
+  <!-- Inlined from hex-cat.svg — keep in sync with that file (see its header comment). -->
+  <div id="catWrap" role="button" aria-label="Pet Hex">
+   <div id="catPose"><div id="catBreath">
+    <svg id="hexCat" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path id="head" d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z" fill="#111114" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round"/>
+      <path id="eyeLeft" d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="#F4F4F2"/>
+      <path id="eyeRight" d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="#F4F4F2"/>
+      <path id="irisLeft" d="M68 128C72.4183 128 76 124.418 76 120C76 115.582 72.4183 112 68 112C63.5817 112 60 115.582 60 120C60 124.418 63.5817 128 68 128Z" fill="#4AA63C"/>
+      <path id="irisRight" d="M135 131C139.418 131 143 127.418 143 123C143 118.582 139.418 115 135 115C130.582 115 127 118.582 127 123C127 127.418 130.582 131 135 131Z" fill="#4AA63C"/>
+      <path id="mouth" d="M87 160C95 158.667 99 154.333 99 147C99 154.333 103 158.667 111 160" stroke="#F4F4F2" stroke-width="2.4" stroke-linecap="round"/>
+      <path id="whiskers" d="M80 143L34 134M80 149H32M80 155L34 164M120 143L166 134M120 149H168M120 155L166 164" stroke="#F4F4F2" stroke-width="2.2" stroke-linecap="round"/>
+    </svg>
+   </div></div>
+  </div>
   <div id="buff"></div>
   <div id="golden" role="button" aria-label="Golden mouse">🐭</div>
-  <div id="hint">tap Hex to collect neon mice</div>
+  <!-- No prose on the stage, ever — not onboarding, not the legibility payoff.
+       The mystery IS the mechanic; the wall becoming readable is its own
+       signal. (The design doc's "gentle one-time shimmer" is still unbuilt;
+       when it lands it wants a visual cue here, never a sentence.) -->
 </div>
 
 <div id="dock">
-  <div id="shopHead">
-    <span class="lab">Buildings</span>
-    <div id="buyToggle">
-      <button data-n="1" class="on">×1</button>
-      <button data-n="10">×10</button>
-      <button data-n="100">×100</button>
+  <!-- trayBody BEFORE trayHandle in DOM: #dock is a bottom-anchored column
+       flexbox, so the handle (last child) always sits at the true bottom
+       edge, and the body unfurls upward above it when opened — not the other
+       way around, which is what "first child" would have given us. -->
+  <div id="trayBody">
+    <div id="upgradeSec">
+      <div class="shopHead"><span class="lab">Upgrades</span></div>
+      <div id="upgrades"></div>
+    </div>
+    <div id="buildingSec">
+      <div class="shopHead">
+        <span class="lab">Buildings</span>
+      </div>
+      <div id="shop"></div>
     </div>
   </div>
-  <div id="shop"></div>
-</div>
-
-<div id="sheet">
-  <div class="card">
-    <h2>Hex Clicker</h2>
-    <p>v1 prototype. Progress autosaves to this browser.</p>
-    <div class="stat"><span>Neon mice per second</span><span id="s_cps">0</span></div>
-    <div class="stat"><span>Total mice earned</span><span id="s_total">0</span></div>
-    <div class="stat"><span>Times petted</span><span id="s_clicks">0</span></div>
-    <div class="stat"><span>Golden mice caught</span><span id="s_gold">0</span></div>
-    <div class="btns">
-      <button id="closeBtn">Close</button>
-      <button id="resetBtn" class="danger">Reset</button>
-    </div>
-  </div>
+  <button id="trayHandle" aria-expanded="true" aria-controls="trayBody">
+    <span>Shop</span>
+    <span class="right"><span id="trayDot"></span><span class="chev">▲</span></span>
+  </button>
 </div>
 
 <script>
@@ -229,15 +466,181 @@
 // ---------------------------------------------------------------------------
 const GROWTH = 1.15;
 const BUILDINGS = [
-  { id: "robocat", name: "Robot Cat",       icon: "🤖", base: 15,     mps: 0.1, blurb: "Hunts mice on its own." },
-  { id: "farm",    name: "Neon Mouse Farm", icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows." },
-  { id: "quarry",  name: "Mouse Quarry",    icon: "⛏️", base: 1100,   mps: 8,   blurb: "Mines mice from raw hex." },
-  { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces neon mice." },
-  { id: "lab",     name: "Science Lab",     icon: "🔬", base: 130000, mps: 260, blurb: "Synthesizes mice from theory." },
+  { id: "robocat", name: "Robo-Cat",        icon: "🤖", base: 15,     mps: 0.1, blurb: "Hunts mice on its own" },
+  { id: "shopper", name: "Amazon Shopper",  icon: "📦", base: 40,     mps: 0.4, blurb: "Just orders them by the dozen" },
+  { id: "farm",    name: "Neon Mouse Farm", icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
+  { id: "quarry",  name: "Mouse Quarry",    icon: "⛏️", base: 1100,   mps: 8,   blurb: "Mines mice from raw hex" },
+  { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces neon mice" },
+  { id: "lab",     name: "Schrödinger Lab",  icon: "🔬", base: 130000, mps: 260, blurb: "Synthesizes mice from theory" },
+  // Night buildings — hidden until Catnap Study flips the phase, then they enter
+  // through the same reveal/tease flow. Deliberately dwarf day production (the
+  // lab earns ~2 mps per 1K cost; these earn ~8) so phase two has its own
+  // ladder without resetting the day economy. Numbers are GUESSES to iterate;
+  // spacing mirrors the day curve (~x12 cost, ~x13 mps per tier).
+  { id: "portal",     name: "Portal",               icon: "🌀", base: 400000, mps: 3000,  night: true, blurb: "Mice pour through from elsewhere" },
+  { id: "timemachine",name: "Time Machine",         icon: "⏳", base: 5e6,    mps: 40000, night: true, blurb: "Imports mice from last Tuesday" },
+  { id: "fractal",    name: "Fractal Engine",       icon: "❄️", base: 60e6,   mps: 550000, night: true, blurb: "Every mouse is made of mice" },
+  { id: "antimatter", name: "Antimatter Condenser", icon: "⚛️", base: 750e6,  mps: 7e6,   night: true, blurb: "Condenses mice out of nothing" },
 ];
 const CLICK_BASE = 1;           // neon mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
 const SAVE_KEY = "hexclicker.v1";
+
+// ---------------------------------------------------------------------------
+// UPGRADES — a flat authored list, no tier table. Cookie Clicker's tier system
+// exists to compress a 20-buildings x 15-tiers cross-product; ours is 4x2, so
+// there's nothing to compress and every field is written out longhand.
+//
+//   unlock: what makes it appear. Sticky once met. Kinds, all AND-ed:
+//     owned: [buildingId, n]   total: n (lifetime mice)
+//     clicks: n                golden: n (golden mice caught)
+//     requires: "key"          (must own that upgrade)
+//   effect: what it does. Folded into `mods` by recalc():
+//     buildingMult  building, mult   — that building only
+//     globalPct     pct              — all buildings, additive with each other
+//     clickFlat     add              — flat mice per pet
+//     clickShare    pct              — + % of your /s per pet
+//     clickMult     mult             — multiplies the whole pet
+//     goldenFreq    mult             — golden mice spawn this much sooner
+//     trail         add              — night wall trail segments (the reveal ink)
+//     night         (no fields)      — THE phase flip; handled in buyUpgrade
+//   fx: optional flavor override; otherwise derived from effect (see effectText).
+//
+// Thresholds and costs below are GUESSES — nothing here is playtested, and a
+// 10-minute run is short enough that a threshold set too high is dead content
+// you never see. Tune against a real playthrough. The lab has no upgrades on
+// purpose: you don't own enough of it, late enough, for one to land.
+// ---------------------------------------------------------------------------
+const UPGRADES = [
+  // --- Robo-Cat ---
+  { key: "robocat1", name: "Carbide Claws", icon: "🦾",
+    cost: 200, unlock: { owned: ["robocat", 10] },
+    effect: { type: "buildingMult", building: "robocat", mult: 2 } },
+  { key: "robocat2", name: "Predictive Targeting", icon: "🎯",
+    cost: 2000, unlock: { owned: ["robocat", 40] },
+    effect: { type: "buildingMult", building: "robocat", mult: 2 } },
+
+  // --- Amazon Shopper ---
+  { key: "shopper1", name: "Prime Membership", icon: "🚚",
+    cost: 400, unlock: { owned: ["shopper", 5] },
+    effect: { type: "buildingMult", building: "shopper", mult: 2 } },
+  { key: "shopper2", name: "Subscribe & Save", icon: "🔁",
+    cost: 4800, unlock: { owned: ["shopper", 25] },
+    effect: { type: "buildingMult", building: "shopper", mult: 2 } },
+
+  // --- Neon Mouse Farm ---
+  { key: "farm1", name: "Hydroponic Rows", icon: "💧",
+    cost: 1000, unlock: { owned: ["farm", 5] },
+    effect: { type: "buildingMult", building: "farm", mult: 2 } },
+  { key: "farm2", name: "Splice-Grown Mice", icon: "🧬",
+    cost: 12000, unlock: { owned: ["farm", 25] },
+    effect: { type: "buildingMult", building: "farm", mult: 2 } },
+
+  // --- Mouse Quarry ---
+  { key: "quarry1", name: "Diamond Drill Bits", icon: "💎",
+    cost: 11000, unlock: { owned: ["quarry", 5] },
+    effect: { type: "buildingMult", building: "quarry", mult: 2 } },
+  { key: "quarry2", name: "Seismic Charges", icon: "💥",
+    cost: 130000, unlock: { owned: ["quarry", 20] },
+    effect: { type: "buildingMult", building: "quarry", mult: 2 } },
+
+  // --- Mouse Factory ---
+  { key: "factory1", name: "Second Shift", icon: "🌙",
+    cost: 120000, unlock: { owned: ["factory", 4] },
+    effect: { type: "buildingMult", building: "factory", mult: 2 } },
+  { key: "factory2", name: "Assembly Line 9", icon: "⚙️",
+    cost: 1.4e6, unlock: { owned: ["factory", 15] },
+    effect: { type: "buildingMult", building: "factory", mult: 2 } },
+
+  // --- Petting ---
+  { key: "whiskers", name: "Sensitive Whiskers", icon: "🐈",
+    cost: 100, unlock: { total: 200 },
+    effect: { type: "clickFlat", add: 1 } },
+  { key: "clawsharp", name: "Cat Brush", icon: "🪮",
+    cost: 5000, unlock: { clicks: 100 },
+    effect: { type: "clickFlat", add: 5 } },
+  { key: "staticfur", name: "Static Fur", icon: "⚡",
+    cost: 20000, unlock: { requires: "whiskers", total: 20000 },
+    effect: { type: "clickShare", pct: 2 } },
+  { key: "pounce", name: "Pounce Reflex", icon: "🐾",
+    cost: 100000, unlock: { clicks: 400 },
+    effect: { type: "clickMult", mult: 2 } },
+  { key: "churu", name: "Churu-coated Pets", icon: "🍦",
+    cost: 1.5e6, unlock: { clicks: 700 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "Hex would do anything for churu" },
+  { key: "jailgoomba", name: "Jail Goomba", icon: "🚔",
+    cost: 15e6, unlock: { clicks: 1200 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "Goomba can't steal pets from jail" },
+
+  // --- Cross-building synergies ---
+  // Cookie Clicker's GrandmaSynergy pattern: the cheapest building takes a job
+  // somewhere else, and the name is the punchline. Its real design job is
+  // RE-RELEVANCE — the 1.15^n cost curve outruns Robo-Cat's 0.1 mps and kills
+  // it; these drag it back into play. Robo-Cat and Farm are the only viable
+  // subjects: a synergy only changes behavior when its term dwarfs the
+  // subject's own mps, and Quarry (8 mps) / Factory (47) are too productive
+  // for that. Both effects read game.owned, which is why buy() must recalc().
+  // No `fx` on either row, deliberately: fx REPLACES the derived effect text,
+  // and for a synergy the climbing number is the mechanic — "+0.5 per pet for
+  // every Robo-Cat" has to be legible. The brief's blurbs have nowhere to live
+  // until a row carries flavor and mechanics as separate fields.
+  { key: "assistedpounce", name: "Assisted Pounce", icon: "🤝",
+    cost: 25000,
+    unlock: { owned: ["robocat", 25] },
+    effect: { type: "clickPerBuilding", per: "robocat", add: 0.5 } },
+  // Deliberately breaks CC's GrandmaSynergy price rule (host base x50 = 6.5M
+  // here, vs our priciest existing upgrade at 1.4M) — that rule assumes you
+  // own ~15 of the host, we unlock at 1. 300k is anchored to "you just spent
+  // 130k on a Lab". UNPLAYTESTED, tune it.
+  { key: "thesissubjects", name: "Thesis Subjects", icon: "🎓",
+    cost: 300000,
+    unlock: { owned: [["lab", 1], ["robocat", 25]] },
+    effect: [
+      { type: "buildingMult",  building: "robocat", mult: 2 },
+      { type: "crossBuilding", building: "lab", per: "robocat", pct: 1 },
+    ] },
+
+  // --- Bespoke ---
+  { key: "milk", name: "Saucer of Neon Milk", icon: "🥛",
+    cost: 50000, unlock: { total: 40000 },
+    effect: { type: "globalPct", pct: 5 } },
+  { key: "magnet", name: "Mouse Magnet", icon: "🧲",
+    cost: 30000, unlock: { golden: 2 },
+    effect: { type: "goldenFreq", mult: 1.5 } },
+  { key: "focus", name: "Hex's Undivided Focus", icon: "👁️",
+    cost: 250000, unlock: { total: 200000 },
+    effect: { type: "globalPct", pct: 10 } },
+
+  // --- THE TWIST + night chain ---
+  // Catnap Study unlocks at the lab's own reveal moment (total >= lab base),
+  // so the two arrive as a pair: the lab appears, and so does the strange
+  // upgrade. Buying it flips the night phase permanently (it derives from
+  // game.bought, so saves restore it for free).
+  { key: "catnap", name: "Catnap Study", icon: "💤",
+    cost: 250000, unlock: { total: 130000 },
+    effect: { type: "night" },
+    fx: "Hex drifts off — night falls" },
+  // Comet Trails: the reveal's ink. Five tiers, each +7 trail segments (35
+  // total = the lab's tuned default). Chained so exactly one shows at a time.
+  // Costs are GUESSES against the night economy.
+  { key: "comet1", name: "Comet Trails", icon: "☄️",
+    cost: 400000, unlock: { requires: "catnap" },
+    effect: { type: "trail", add: 7 } },
+  { key: "comet2", name: "Comet Trails II", icon: "☄️",
+    cost: 1.2e6, unlock: { requires: "comet1" },
+    effect: { type: "trail", add: 7 } },
+  { key: "comet3", name: "Comet Trails III", icon: "☄️",
+    cost: 3.5e6, unlock: { requires: "comet2" },
+    effect: { type: "trail", add: 7 } },
+  { key: "comet4", name: "Comet Trails IV", icon: "☄️",
+    cost: 9e6, unlock: { requires: "comet3" },
+    effect: { type: "trail", add: 7 } },
+  { key: "comet5", name: "Comet Trails V", icon: "☄️",
+    cost: 22e6, unlock: { requires: "comet4" },
+    effect: { type: "trail", add: 7 } },
+];
 
 // ---------------------------------------------------------------------------
 // STATE
@@ -248,9 +651,13 @@ const game = {
   clicks: 0,
   goldCaught: 0,
   owned: {},        // id -> count
-  buyN: 1,
-  buffUntil: 0,     // timestamp ms while a frenzy is active
-  buffMult: 1,
+  bought: {},       // upgrade key -> 1 once purchased
+  unlocked: {},     // upgrade key -> 1 once revealed (sticky; never re-hides)
+  // Deadlines only — the multipliers are constants (GOLD_MULT / CLICK_BUFF_MULT),
+  // so a buff is entirely described by "until when". Storing the mult too meant
+  // a per-frame reset writing a value nothing could observe.
+  buffUntil: 0,      // timestamp ms while a cps (Zoomies) buff is active
+  clickBuffUntil: 0, // timestamp ms while a click (Click Frenzy) buff is active
 };
 BUILDINGS.forEach(b => game.owned[b.id] = 0);
 
@@ -262,6 +669,7 @@ function save() {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       mice: game.mice, total: game.total, clicks: game.clicks,
       goldCaught: game.goldCaught, owned: game.owned,
+      bought: game.bought, unlocked: game.unlocked,
     }));
   } catch (e) {}
 }
@@ -274,6 +682,12 @@ function load() {
     game.clicks = +s.clicks || 0;
     game.goldCaught = +s.goldCaught || 0;
     BUILDINGS.forEach(b => game.owned[b.id] = (s.owned && +s.owned[b.id]) || 0);
+    // Keyed by string, not index, so reordering/inserting upgrades can't corrupt
+    // a save. Unknown keys (renamed or removed while tuning) are simply dropped.
+    UPGRADES.forEach(u => {
+      if (s.bought && s.bought[u.key]) game.bought[u.key] = 1;
+      if (s.unlocked && s.unlocked[u.key]) game.unlocked[u.key] = 1;
+    });
   } catch (e) {}
 }
 
@@ -281,30 +695,163 @@ function load() {
 // ECONOMY HELPERS
 // ---------------------------------------------------------------------------
 function costOf(b, owned) { return Math.ceil(b.base * Math.pow(GROWTH, owned)); }
-// Cost of buying `n` copies starting from `owned` (geometric series).
-function bulkCost(b, owned, n) {
-  let total = 0;
-  for (let i = 0; i < n; i++) total += costOf(b, owned + i);
-  return total;
+
+// Every bought upgrade is folded into `mods` here, and nothing else in the game
+// ever asks "do I own upgrade X?" — that's the one structural thing worth
+// copying from Cookie Clicker by NOT copying it (it checks Game.Has('...') by
+// name from inside every building's cps, and pays for it in duplication).
+// Recomputed on buy/load only, never per frame.
+// Pure fold over an arbitrary (bought, owned) state, so the pacing simulator
+// in the dev tools can price hypothetical futures with the REAL rules instead
+// of a copy that drifts. recalc() is the thin live-game binding.
+function foldMods(bought, owned) {
+  const m = { building: {}, globalMult: 1, clickFlat: CLICK_BASE,
+              clickShare: CLICK_CPS_SHARE, clickMult: 1, goldenFreq: 1, trail: 0 };
+  BUILDINGS.forEach(b => m.building[b.id] = 1);
+  let globalPct = 0;
+  for (const u of UPGRADES) {
+    if (!bought[u.key]) continue;
+    // `effect` is one object OR an array of them — synergies are inherently
+    // dual (Robo-Cats x2 AND Lab +1%/Robo-Cat). [].concat normalises both.
+    for (const e of [].concat(u.effect)) {
+      if (e.type === "buildingMult") m.building[e.building] *= e.mult;
+      else if (e.type === "globalPct") globalPct += e.pct;
+      else if (e.type === "clickFlat") m.clickFlat += e.add;
+      else if (e.type === "clickShare") m.clickShare += e.pct / 100;
+      else if (e.type === "clickMult") m.clickMult *= e.mult;
+      else if (e.type === "goldenFreq") m.goldenFreq *= e.mult;
+      else if (e.type === "trail") m.trail += e.add;
+      // The two owned-dependent effects. One-directional by design (Cookie
+      // Clicker's GrandmaSynergy, not its symmetric SynergyUpgrade): the host
+      // gains per subject owned, never the reverse. Both re-derive from
+      // owned on every recalc, so neither is ever persisted.
+      else if (e.type === "crossBuilding") m.building[e.building] *= (1 + (e.pct / 100) * owned[e.per]);
+      else if (e.type === "clickPerBuilding") m.clickFlat += e.add * owned[e.per];
+    }
+  }
+  m.globalMult = 1 + globalPct / 100;
+  return m;
 }
-function baseCps() {
+// Seeded from the fold itself rather than a hand-written literal — the zero
+// state is `foldMods` with nothing bought, so there's exactly one definition
+// of what a mods object contains. (Declaration-hoisted, so calling foldMods
+// here is fine; scheduleGold() reads mods.goldenFreq before boot's recalc.)
+const mods = foldMods({}, game.owned);
+function recalc() { Object.assign(mods, foldMods(game.bought, game.owned)); }
+
+// The night phase is a pure function of the save — no separate flag to persist.
+// Derived from the table (which upgrade DECLARES `type: "night"`) rather than
+// hardcoding its key: the file's rule is that nothing asks "do I own upgrade
+// X?" by name, and this was the last place that did. Array, not a single key,
+// so splitting the twist across two upgrades stays a table-only edit.
+const NIGHT_KEYS = UPGRADES.filter(u => [].concat(u.effect).some(e => e.type === "night")).map(u => u.key);
+function nightOf(bought) { return NIGHT_KEYS.some(k => bought[k]); }
+function nightActive() { return nightOf(game.bought); }
+
+// Order of operations mirrors Cookie Clicker's: per-building multipliers apply
+// inside the per-building term, the global multiplier applies to the SUM, and
+// timed buffs sit outside everything.
+// Parameterised over (mods, owned) for the same reason foldMods is: that order
+// of operations IS the economy, and the simulator used to re-state it by hand.
+// baseCps()/clickGain() are the thin live-game bindings.
+function baseCpsWith(m, owned) {
   let s = 0;
-  for (const b of BUILDINGS) s += b.mps * game.owned[b.id];
-  return s;
+  for (const b of BUILDINGS) s += b.mps * owned[b.id] * m.building[b.id];
+  return s * m.globalMult;
 }
-function currentBuff() { return performance.now() < game.buffUntil ? game.buffMult : 1; }
-function cps() { return baseCps() * currentBuff(); }
-function clickGain() { return (CLICK_BASE + baseCps() * CLICK_CPS_SHARE) * currentBuff(); }
+// Pre-buff click value: flat + a share of income, times the click multiplier.
+function clickBaseWith(m, owned) {
+  return (m.clickFlat + baseCpsWith(m, owned) * m.clickShare) * m.clickMult;
+}
+function baseCps() { return baseCpsWith(mods, game.owned); }
+function currentCpsBuff() { return performance.now() < game.buffUntil ? GOLD_MULT : 1; }
+function currentClickBuff() { return performance.now() < game.clickBuffUntil ? CLICK_BUFF_MULT : 1; }
+function cps() { return baseCps() * currentCpsBuff(); }
+function clickGain() {
+  // DEV.teamMult is 1 outside ?debug — simulates the 4-player room this game
+  // actually ships for, since solo dev testing can't reproduce "four people
+  // tapping" any other way.
+  return clickBaseWith(mods, game.owned)
+    * currentCpsBuff() * currentClickBuff() * DEV.teamMult;
+}
+
+// ---------------------------------------------------------------------------
+// UPGRADE UNLOCK / TEXT
+// ---------------------------------------------------------------------------
+// Pure predicate against any game-shaped state (the simulator passes its own);
+// isUnlocked() adds the live game's stickiness on top.
+// `unlock.owned` is one [id, n] pair OR an array of them (AND-ed). Sniffing
+// the first element's type keeps every existing single-pair row working.
+// Shared with unlockText() so the fiddly bit has one definition.
+const ownedPairs = c => (typeof c.owned[0] === "string" ? [c.owned] : c.owned);
+function unlockMet(u, s) {
+  const c = u.unlock;
+  if (c.owned) {
+    for (const [id, n] of ownedPairs(c)) if (s.owned[id] < n) return false;
+  }
+  if (c.total != null && s.total < c.total) return false;
+  if (c.clicks != null && s.clicks < c.clicks) return false;
+  if (c.golden != null && s.goldCaught < c.golden) return false;
+  if (c.requires && !s.bought[c.requires]) return false;
+  return true;
+}
+function isUnlocked(u) {
+  if (game.unlocked[u.key]) return true;   // sticky
+  if (!unlockMet(u, game)) return false;
+  game.unlocked[u.key] = 1;
+  return true;
+}
+
+const buildingName = id => (BUILDINGS.find(b => b.id === id) || { name: id }).name;
+// Must map over the array form, not read `.type` off it — an array's .type is
+// undefined, which would hit `default` and render a blank effect line.
+function effectText(u) {
+  if (u.fx) return u.fx;
+  return [].concat(u.effect).map(oneEffectText).filter(Boolean).join(" · ");
+}
+function oneEffectText(e) {
+  switch (e.type) {
+    case "buildingMult": return `${buildingName(e.building)} is ${e.mult === 2 ? "twice" : "×" + e.mult} as good`;
+    case "globalPct":    return `+${e.pct}% neon mice per second`;
+    case "clickFlat":    return `+${fmt(e.add)} per pet`;
+    case "clickShare":   return `+${e.pct}% of your /s per pet`;
+    case "clickMult":    return `Petting is ×${e.mult} stronger`;
+    case "goldenFreq":   return `Golden mice appear ×${e.mult} as often`;
+    case "trail":        return `Wall mice trail longer comet tails`;
+    case "crossBuilding": return `${buildingName(e.building)} gains +${e.pct}% per ${buildingName(e.per)}`;
+    case "clickPerBuilding": return `+${fmt(e.add)} per pet for every ${buildingName(e.per)}`;
+    default:             return "";
+  }
+}
 
 // ---------------------------------------------------------------------------
 // NUMBER FORMATTING (Cookie-Clicker style short scale)
 // ---------------------------------------------------------------------------
 const UNITS = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc"];
-function fmt(n) {
-  if (n < 1000) return (n < 10 && n % 1 !== 0) ? n.toFixed(1) : Math.floor(n).toString();
-  let u = 0;
-  while (n >= 1000 && u < UNITS.length - 1) { n /= 1000; u++; }
-  return (n < 10 ? n.toFixed(2) : n < 100 ? n.toFixed(1) : Math.floor(n).toString()) + UNITS[u];
+
+// A trailing ".0" means the fraction did not survive rounding — drop it. This is
+// Cookie Clicker's Beautify test (`Math.floor(fixed) != fixed`, main.js:270)
+// stated directly: decide from the ROUNDED value, never the raw one. Testing the
+// raw value is what turned every "+1" into "+1.0" the moment a single Robo-Cat
+// made clickGain 1.002.
+const dropDeadZeros = s => s.replace(/\.0+$/, "");
+
+function fmt(n, floats = 1) {
+  const neg = n < 0;
+  n = Math.abs(n);
+  let out;
+  if (n < 1000) {
+    // toFixed carries for free: 9.96 -> "10.0" -> "10". CC needs an explicit
+    // `if (fixed == val+1) val++` for this, because it floors before rounding.
+    out = n >= 10 ? Math.floor(n).toString() : dropDeadZeros(n.toFixed(floats));
+  } else {
+    let u = 0;
+    while (n >= 1000 && u < UNITS.length - 1) { n /= 1000; u++; }
+    // Suffixed values keep their zeros: "1.00K" holds a stable width while the
+    // bank ticks. CC's own decimal rule is likewise gated to |val| < 1000.
+    out = (n < 10 ? n.toFixed(2) : n < 100 ? n.toFixed(1) : Math.floor(n).toString()) + UNITS[u];
+  }
+  return neg && out !== "0" ? "-" + out : out;
 }
 
 // ---------------------------------------------------------------------------
@@ -312,7 +859,33 @@ function fmt(n) {
 // ---------------------------------------------------------------------------
 const $ = s => document.querySelector(s);
 const countEl = $("#count"), cpsEl = $("#cps"), shopEl = $("#shop"), stageEl = $("#stage");
-const goldenEl = $("#golden"), buffEl = $("#buff"), hintEl = $("#hint");
+const goldenEl = $("#golden"), buffEl = $("#buff");
+const upgradesEl = $("#upgrades"), upgradeSecEl = $("#upgradeSec");
+const buildingSecEl = $("#buildingSec"), dockEl = $("#dock");
+const trayHandleEl = $("#trayHandle");
+
+// Neither section knows about the other, so the dock's own visibility is
+// resolved here from both. Called only when a section actually flips.
+function syncDock() {
+  dockEl.classList.toggle("show",
+    upgradeSecEl.classList.contains("show") || buildingSecEl.classList.contains("show"));
+}
+
+trayHandleEl.addEventListener("click", () => {
+  const open = dockEl.classList.toggle("open");
+  trayHandleEl.setAttribute("aria-expanded", open ? "true" : "false");
+});
+
+// With the tray shut you can't see prices, so the handle carries one dot that
+// lights when anything inside is affordable. Each list reports its own half.
+// The dot's own show/hide (incl. hiding while open) is pure CSS off
+// #dock.buyable. No change-cache: classList.toggle(token, force) is spec'd to
+// return without running its update steps when the token is already in the
+// requested state, so a redundant call costs nothing and mutates nothing.
+let anyBuyBld = false, anyBuyUp = false;
+function syncTrayDot() {
+  dockEl.classList.toggle("buyable", anyBuyBld || anyBuyUp);
+}
 
 // ---------------------------------------------------------------------------
 // SHOP RENDER
@@ -323,75 +896,188 @@ function buildShop() {
   shopRows = BUILDINGS.map((b, i) => {
     const el = document.createElement("button");
     el.className = "item";
+    // Both the ??? and the real name live in the DOM permanently; the row's
+    // `locked` class picks which one shows. Lifted from Cookie Clicker's
+    // product row, where the per-frame loop writes only className and never
+    // touches text. Price is deliberately NOT masked — it's the tease.
     el.innerHTML =
-      `<div class="icon">${b.icon}</div>
-       <div class="body"><div class="nm">${b.name}</div><div class="fx"></div></div>
-       <div class="buy"><div class="cost"></div><div class="own">0</div><div class="qty"></div></div>`;
+      `<div class="icon"><span class="ic">${b.icon}</span><span class="icLocked">?</span></div>
+       <div class="body">
+         <div class="lockedNm">???</div>
+         <div class="nm">${b.name}</div>
+         <div class="fx"></div>
+       </div>
+       <div class="buy"><div class="cost"></div><div class="own">0</div></div>`;
     el.addEventListener("click", () => buy(i));
     shopEl.appendChild(el);
     return {
-      el, can: null,
+      el, can: null, locked: null, gone: null, ownN: null,
       fx: el.querySelector(".fx"), cost: el.querySelector(".cost"),
-      own: el.querySelector(".own"), qty: el.querySelector(".qty"),
+      own: el.querySelector(".own"),
     };
   });
 }
 
-// A building is visible once you could plausibly afford the previous tier
-// (revealed if you own the previous one OR have >= half its base cost).
-function isRevealed(i) {
-  if (i === 0) return true;
-  const prev = BUILDINGS[i - 1];
-  return game.owned[prev.id] > 0 || game.total >= prev.base * 0.5;
+// Cookie Clicker's rule, verbatim in spirit: a building reveals the moment your
+// LIFETIME mice have ever reached its own base price. Keyed to its own cost, not
+// the previous building's — so no i===0 special case. Naturally sticky, because
+// game.total only ever grows; spending never re-hides what you've earned your way
+// into knowing. `owned > 0` is just a guard for loading a save.
+// Takes (building, state) rather than an index into the live game, so the
+// pacing simulator can ask the real question about its own hypothetical state
+// instead of keeping a copy of this rule that drifts.
+function isRevealed(b, s) {
+  return s.total >= b.base || s.owned[b.id] > 0;
 }
 
+// Cookie Clicker shows 2 teasers past your frontier (`lastLocked > 2`); we show
+// 1. With five buildings, 2 would put a permanent ??? on the lab for most of a
+// run — a visible ceiling, which is the opposite of the trick.
+const TEASE_WINDOW = 1;
+
 function refreshShop() {
-  const n = game.buyN;
+  let lockedRun = 0, anyRevealed = false, buyable = false;
   for (let i = 0; i < BUILDINGS.length; i++) {
     const b = BUILDINGS[i], r = shopRows[i], owned = game.owned[b.id];
-    const revealed = isRevealed(i);
-    const price = bulkCost(b, owned, n);
-    const affordable = revealed && game.mice >= price;
 
-    if (r.can !== affordable) { r.el.classList.toggle("can", affordable); r.can = affordable; }
-    r.own.textContent = owned;
-    r.qty.textContent = n > 1 ? "×" + n : "";
-
-    if (!revealed) {
-      r.fx.className = "locked";
-      r.fx.textContent = "??? — keep collecting";
-      r.cost.textContent = "🔒";
-      r.cost.classList.remove("no");
-    } else {
-      r.fx.className = "fx";
-      const each = b.mps;
-      const mine = each * owned;
-      r.fx.textContent = mine > 0
-        ? `${fmt(mine)}/s · ${b.blurb}`
-        : `+${fmt(each)}/s each · ${b.blurb}`;
-      r.cost.textContent = fmt(price);
-      r.cost.classList.toggle("no", !affordable);
+    // Night buildings don't exist during the day — no row, no tease, and no
+    // effect on the day list's lockedRun counting.
+    if (b.night && !nightActive()) {
+      if (r.gone !== true) { r.el.classList.add("gone"); r.gone = true; }
+      continue;
     }
+
+    const revealed = isRevealed(b, game);
+
+    if (revealed) { anyRevealed = true; lockedRun = 0; } else lockedRun++;
+    const gone = lockedRun > TEASE_WINDOW;
+
+    const price = costOf(b, owned);
+    const affordable = revealed && game.mice >= price;
+    if (affordable) buyable = true;
+
+    const locked = !revealed;
+    // captured before the toggle below overwrites r.locked — the text depends
+    // on `revealed` too, and revealed flips on `total` with owned unchanged
+    const textStale = r.ownN !== owned || r.locked !== locked;
+
+    if (r.gone !== gone) { r.el.classList.toggle("gone", gone); r.gone = gone; }
+    if (gone) continue;
+    if (r.locked !== locked) { r.el.classList.toggle("locked", locked); r.locked = locked; }
+    if (r.can !== affordable) { r.el.classList.toggle("can", affordable); r.can = affordable; }
+
+    // Every string below is a pure function of (owned, revealed), both of
+    // which change only on a buy or a reveal — so they're written on change,
+    // not on every 12fps tick. Unguarded this re-wrote ~360 text nodes/sec
+    // with the strings they already held, and these rows sit inside a
+    // backdrop-filter'd #dock, where invalidating content forces the blur to
+    // re-composite. Only the affordability class runs per tick.
+    // A ??? row shows its price and nothing else — CSS hides the name, blurb
+    // and owned count, so there's nothing to write.
+    if (textStale) {
+      r.ownN = owned;
+      r.cost.textContent = fmt(price);
+      if (revealed) {
+        r.own.textContent = owned;
+        const each = b.mps, mine = each * owned;
+        r.fx.textContent = mine > 0
+          ? `${fmt(mine)}/s · ${b.blurb}`
+          : `+${fmt(each)}/s each · ${b.blurb}`;
+      }
+    }
+    r.cost.classList.toggle("no", !affordable);
   }
+
+  // Revealed is keyed to lifetime mice, which only grows — so this flips on
+  // once and stays. Unguarded: both of these are idempotent class toggles.
+  buildingSecEl.classList.toggle("show", anyRevealed);
+  syncDock();
+  anyBuyBld = buyable; syncTrayDot();
 }
 
 function buy(i) {
   const b = BUILDINGS[i];
-  if (!isRevealed(i)) return;
-  const n = game.buyN;
-  const price = bulkCost(b, game.owned[b.id], n);
+  if (!isRevealed(b, game)) return;
+  const price = costOf(b, game.owned[b.id]);
   if (game.mice < price) return;
   game.mice -= price;
-  game.owned[b.id] += n;
-  refreshHud(); refreshShop(); save();
+  game.owned[b.id] += 1;
+  // REQUIRED, not defensive: the synergy effects (crossBuilding,
+  // clickPerBuilding) read game.owned, so their multipliers are only correct
+  // as of the last recalc(). Omit this and the bonus silently freezes at
+  // whatever it was when you bought the upgrade — buying more Robo-Cats does
+  // nothing, and the game looks entirely fine while the number is wrong.
+  recalc();
+  refreshHud(); refreshShop(); refreshUpgrades(); save();
+}
+
+// ---------------------------------------------------------------------------
+// UPGRADE SHOP — rows are rebuilt only when the visible SET changes (an unlock
+// or a purchase), not per frame; affordability restyles in place.
+// ---------------------------------------------------------------------------
+let upRows = new Map(); // key -> {el, can, cost}
+let upSig = "";
+function refreshUpgrades() {
+  const shown = UPGRADES.filter(u => !game.bought[u.key] && isUnlocked(u));
+  const sig = shown.map(u => u.key).join(",");
+
+  if (sig !== upSig) {
+    upSig = sig;
+    upgradesEl.innerHTML = "";
+    upRows = new Map();
+    for (const u of shown) {
+      const el = document.createElement("button");
+      el.className = "item up";
+      // u.cost is a table constant, so the price is rendered once here rather
+      // than rewritten through the affordability change-detector below — which
+      // only ever wrote the same string back and implied the cost could change.
+      el.innerHTML =
+        `<div class="icon">${u.icon}</div>
+         <div class="body"><div class="nm">${u.name}</div><div class="fx">${effectText(u)}</div></div>
+         <div class="buy"><div class="cost">${fmt(u.cost)}</div></div>`;
+      el.addEventListener("click", () => buyUpgrade(u.key));
+      upgradesEl.appendChild(el);
+      upRows.set(u.key, { el, cost: el.querySelector(".cost") });
+    }
+    upgradeSecEl.classList.toggle("show", shown.length > 0);
+    syncDock();
+  }
+
+  let buyable = false;
+  for (const u of shown) {
+    const r = upRows.get(u.key);
+    const affordable = game.mice >= u.cost;
+    if (affordable) buyable = true;
+    r.el.classList.toggle("can", affordable);
+    r.cost.classList.toggle("no", !affordable);
+  }
+  anyBuyUp = buyable; syncTrayDot();
+}
+
+function buyUpgrade(key) {
+  const u = UPGRADES.find(x => x.key === key);
+  if (!u || game.bought[u.key] || !isUnlocked(u) || game.mice < u.cost) return;
+  game.mice -= u.cost;
+  game.bought[u.key] = 1;
+  recalc();
+  // Normalised defensively: night upgrades are singular today, so `.type`
+  // happens to work — but it silently reads undefined the day one is authored
+  // as an array, and the phase flip would just never fire.
+  syncPhase(); // no special-casing the night effect — phase follows the fold
+  refreshHud(); refreshShop(); refreshUpgrades(); save();
 }
 
 // ---------------------------------------------------------------------------
 // HUD
 // ---------------------------------------------------------------------------
+// The <b> is created once in the markup (which reads "per second: 0", CC's
+// exact phrasing) and only its text is rewritten — innerHTML here meant an
+// HTML parse and a destroyed/recreated <b> 12x/sec plus once per pet, from
+// boot, in both phases, forever.
+const cpsValEl = cpsEl.querySelector("b");
 function refreshHud() {
   countEl.textContent = fmt(game.mice);
-  cpsEl.innerHTML = `<b>${fmt(cps())}</b> per second`;
+  cpsValEl.textContent = fmt(cps());
 }
 
 // ---------------------------------------------------------------------------
@@ -405,6 +1091,82 @@ function floatNum(x, y, text) {
   f.addEventListener("animationend", () => f.remove());
 }
 
+// ONE mouse design, shared by the click-pop particle and the night wall (see
+// drawWallMouse) — was two separate systems (a plush-toy SVG here, a plain
+// ellipse there) with two separate palettes; unified to a single shape and a
+// single color table. The wall's usage is fixed-per-role (yellow always
+// spells the word; each scenery element hardcodes one of the other four —
+// see MOON_SCENE), so these are canonical hex values, not a random draw;
+// click-pops draw from the same table uniformly at random for cosmetic
+// variety. Chosen over the previous click-only "toy bin photo" palette
+// because it reuses the game's existing accents instead of adding new hues:
+// yellow == --gold (also the golden-mouse bonus's color), green sits close to
+// --neon (the core UI teal). The two palettes were already near-identical —
+// this just resolves the small deltas (a bluer green, a warmer pink) toward
+// whichever hex already has a job to do elsewhere in the game.
+const MOUSE_COLORS = { yellow: '#ffd44d', blue: '#5fb0ff', pink: '#ff6fa5', green: '#5fe0a0', purple: '#b48cff' };
+const MOUSE_COLOR_LIST = Object.values(MOUSE_COLORS);
+
+// Per-click particle: a plush mouse pops out of the tap, arcs under gravity,
+// spins, fades — Cookie Clicker's flying-cookie feedback, retoyed. Body keeps
+// the sticker-style white keyline so it reads as the same art family as Hex.
+const mouseSVG = c =>
+  `<svg viewBox="0 0 54 28" xmlns="http://www.w3.org/2000/svg">
+     <path d="M12 17 C4 21 2 10 8 7" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/>
+     <path d="M51 16 C46 8 37 4 27 5 C16 6 10 10 10 16 C10 21 17 24 27 24 C37 24 47 21 51 16 Z" fill="${c}" stroke="#f4f4f2" stroke-width="2" stroke-linejoin="round"/>
+     <circle cx="33" cy="7" r="4.6" fill="${c}" stroke="#f4f4f2" stroke-width="2"/>
+     <circle cx="42" cy="12" r="1.8" fill="#0a0b10"/>
+   </svg>`;
+
+// Sized to match the wall mice's actual rendered footprint (drawWallMouse at
+// r=3.1), not Hex's own .25 zoom ratio — those are two independent shrinks
+// (a CSS transform on a 200-unit SVG vs. a hand-scaled canvas redraw with its
+// own approximated stroke widths), so they don't come out equal by
+// coincidence. Measured directly: the wall mouse is ~15.2x7.2 CSS px; this
+// particle's native (unscaled) art is ~31x14.4 CSS px tight-bbox — ratio
+// ~0.49-0.50 either dimension. If drawWallMouse's r or its stroke-width
+// approximations change, re-measure rather than assume this still holds.
+const NIGHT_POP_SCALE = 0.5;
+
+const pops = [];
+const POP_MAX = 40; // hard cap so a frenzy tap-storm can't flood the DOM on mobile
+function spawnMousePop(x, y) {
+  if (pops.length >= POP_MAX) pops.shift().el.remove();
+  const el = document.createElement("div");
+  el.className = "mousePop";
+  el.innerHTML = mouseSVG(MOUSE_COLOR_LIST[(Math.random() * MOUSE_COLOR_LIST.length) | 0]);
+  stageEl.appendChild(el);
+  const dir = Math.random() < 0.5 ? -1 : 1; // flip the art to face its direction of travel
+  pops.push({
+    el, x, y,
+    vx: dir * (30 + Math.random() * 100),
+    vy: -(160 + Math.random() * 200),
+    rot: (Math.random() - 0.5) * 40,
+    vr: (Math.random() - 0.5) * 420,
+    life: 0.9,
+    flip: dir,
+  });
+}
+function updatePops(dt) {
+  // Read once per frame, not per particle — nightActive() re-derives from
+  // game.bought every call, and there can be up to POP_MAX of these.
+  const nightScale = nightActive() ? NIGHT_POP_SCALE : 1;
+  for (let i = pops.length - 1; i >= 0; i--) {
+    const p = pops[i];
+    p.life -= dt;
+    if (p.life <= 0) { p.el.remove(); pops.splice(i, 1); continue; }
+    p.vy += 980 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.rot += p.vr * dt;
+    p.el.style.opacity = Math.min(1, p.life / 0.35);
+    // translate positions the (unscaled) box's center at (x,y); scale then
+    // shrinks around that same center (the element's default transform-
+    // origin), so the shrink doesn't need its own offset correction.
+    p.el.style.transform =
+      `translate(${p.x - 18}px, ${p.y - 14}px) rotate(${p.rot}deg) scale(${p.flip * nightScale}, ${nightScale})`;
+  }
+}
+
 let squash = 0; // 0..1 pet animation
 function pet(clientX, clientY) {
   const gain = clickGain();
@@ -412,21 +1174,35 @@ function pet(clientX, clientY) {
   squash = 1;
   const rect = stageEl.getBoundingClientRect();
   floatNum(clientX - rect.left, clientY - rect.top, "+" + fmt(gain));
-  if (hintEl.style.opacity !== "0") hintEl.style.opacity = "0";
+  spawnMousePop(clientX - rect.left, clientY - rect.top);
   refreshHud();
 }
 
-const hexEl = $("#hex");
-hexEl.addEventListener("pointerdown", e => { e.preventDefault(); pet(e.clientX, e.clientY); }, { passive: false });
+const catEl = $("#catWrap"), hexCatEl = $("#hexCat");
+const irisLeftEl = $("#irisLeft"), irisRightEl = $("#irisRight");
+const whiskersEl = $("#whiskers");
+catEl.addEventListener("pointerdown", e => { e.preventDefault(); pet(e.clientX, e.clientY); }, { passive: false });
 
 // ---------------------------------------------------------------------------
 // GOLDEN MOUSE — the fun spike. Spawns every ~40–90s, drifts, must be tapped
-// before it escapes. Two outcomes (Cookie-Clicker "Lucky" vs "Frenzy"):
-//   Lucky   → lump sum ( ~13% of bank + 13s of income, min 25 )
-//   Frenzy  → cps ×7 for 12s
+// before it escapes. Two outcomes (mirrors Cookie Clicker's golden cookies):
+//   Click Frenzy → click power ×7 for 7s
+//   Zoomies      → cps ×7 for 12s
 // ---------------------------------------------------------------------------
+// All five knobs named, because the pacing simulator reads them too — they
+// were previously spelled out a third time inside its rate model, so retuning
+// Zoomies here would have left the sim reporting a confidently wrong timeline.
+const CLICK_BUFF_MULT = 7;      // Click Frenzy: pets x7...
+const CLICK_BUFF_MS = 7000;     // ...for 7s
+const GOLD_MULT = 7;            // Zoomies: cps x7...
+const ZOOM_MS = 12000;          // ...for 12s
+const FRENZY_CHANCE = 0.7;      // P(Click Frenzy); the rest are Zoomies
+const GOLD_MIN_S = 40, GOLD_MAX_S = 90;              // spawn window
+const GOLD_MEAN_S = (GOLD_MIN_S + GOLD_MAX_S) / 2;   // the sim's mean gap
 let goldTimer = 0, goldActive = false, goldLifeLeft = 0, goldVx = 0, goldVy = 0, goldX = 0, goldY = 0;
-function scheduleGold() { goldTimer = 40 + Math.random() * 50; } // seconds
+function scheduleGold() {
+  goldTimer = (GOLD_MIN_S + Math.random() * (GOLD_MAX_S - GOLD_MIN_S)) / mods.goldenFreq; // seconds
+}
 scheduleGold();
 
 function spawnGold() {
@@ -459,120 +1235,567 @@ goldenEl.addEventListener("pointerdown", e => {
   if (!goldActive) return;
   game.goldCaught++;
   const rect = stageEl.getBoundingClientRect();
-  if (Math.random() < 0.7) {
-    const gain = Math.max(25, Math.floor(game.mice * 0.13 + cps() * 13));
-    game.mice += gain; game.total += gain;
-    floatNum(goldX - rect.left + 30, goldY - rect.top + 20, "🍀 +" + fmt(gain));
-    showBuff("🍀 Lucky!  +" + fmt(gain), 1.6);
+  if (Math.random() < FRENZY_CHANCE) {
+    game.clickBuffUntil = performance.now() + CLICK_BUFF_MS;
+    floatNum(goldX - rect.left + 30, goldY - rect.top + 20, "👆 ×" + CLICK_BUFF_MULT);
   } else {
-    game.buffMult = 7; game.buffUntil = performance.now() + 12000;
-    showBuff("⚡ ZOOMIES ×7", 0); // buff pill managed by frenzy countdown below
+    game.buffUntil = performance.now() + ZOOM_MS;
   }
   despawnGold(); refreshHud(); save();
 }, { passive: false });
 
-let buffMsgUntil = 0;
-function showBuff(text, seconds) {
-  buffEl.textContent = text; buffEl.style.display = "block";
-  buffMsgUntil = seconds > 0 ? performance.now() + seconds * 1000 : 0;
-}
-
 // ---------------------------------------------------------------------------
-// HEX + CAT rendering — two-pass neon strokes (soft glow + bright core).
+// NIGHT WALL — the reveal, ported from reveal-lab.html (moon scene only; the
+// dice scene is concept-art per the design doc). Everything is a pure function
+// of (seed, mouse index, time): no wall state to save. Lab knobs map to game
+// state — mice N = f(lifetime total) via the locked geometric accumulator,
+// word% = hardcoded constant, noise = locked 0 (wander() dropped entirely),
+// trail = mods.trail from Comet Trails.
 // ---------------------------------------------------------------------------
-const cv = hexEl, ctx = cv.getContext("2d");
-let W = 0, H = 0, DPR = 1;
-function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
-  W = stageEl.clientWidth; H = stageEl.clientHeight;
-  cv.width = W * DPR; cv.height = H * DPR;
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+const WALL = {
+  seed: 7,          // multiplayer will derive this from the room; constant here
+  wordPct: 30,      // hardcoded by design — tune against playtests
+  maxMice: 90,      // the lab's full cast
+  mouseBase: 130000, // first wall mouse climbs on at the night threshold
+  mouseR: 1.09,      // per-mouse geometric step on lifetime total — a GUESS
+  trailDt: 80,
+};
+// Locked formula shape: mouse k climbs on when lifetime total ever crossed
+// mouseBase * mouseR^(k-1). Monotonic in total, so spending never undoes it.
+// Takes the total as a parameter so the pacing simulator can ask about
+// hypothetical futures; live callers pass game.total.
+function wallMiceFor(total) {
+  if (total < WALL.mouseBase) return 0;
+  return Math.min(WALL.maxMice,
+    1 + Math.floor(Math.log(total / WALL.mouseBase) / Math.log(WALL.mouseR)));
 }
-window.addEventListener("resize", resize);
+function wallMiceCount() { return wallMiceFor(game.total); }
 
-// neon stroke helper: draw path fn twice (glow, then crisp core)
-function neon(color, coreWidth, glow, pathFn) {
-  ctx.save();
-  ctx.lineJoin = "round"; ctx.lineCap = "round";
-  ctx.strokeStyle = color; ctx.shadowColor = color;
-  ctx.globalAlpha = 0.5; ctx.shadowBlur = glow; ctx.lineWidth = coreWidth * 2.2;
-  pathFn(); ctx.stroke();
-  ctx.globalAlpha = 1; ctx.shadowBlur = glow * 0.5; ctx.lineWidth = coreWidth;
-  ctx.strokeStyle = "#eafff9"; pathFn(); ctx.stroke();
-  ctx.restore();
+// "The word is legible" as a checkable economy state: every Comet Trail bought
+// AND lifetime total at this threshold (= the `legible` dev preset, ~68 of 90
+// wall mice). The wall renders as a pure function of (total, trail), so this
+// pair IS legibility — there's no separate ink meter to simulate.
+// TRAIL_FULL sums the table instead of naming the last upgrade in the chain:
+// `comet5` only meant "all of them" because the rows happen to chain via
+// `requires`, so adding a comet6 or reordering would have made the simulator
+// declare legibility one tier early and report a confidently wrong time.
+const LEGIBLE_TOTAL = 4.5e7;
+const TRAIL_FULL = UPGRADES.flatMap(u => [].concat(u.effect))
+  .filter(e => e.type === "trail").reduce((a, e) => a + e.add, 0);
+function isLegible(s) {
+  return foldMods(s.bought, s.owned).trail >= TRAIL_FULL && s.total >= LEGIBLE_TOTAL;
 }
 
-function drawHex(t) {
-  ctx.clearRect(0, 0, W, H);
-  const cx = W / 2, cy = H / 2;
-  const bounce = squash;                     // 1 right after a pet, decays
-  const scale = 1 - bounce * 0.06 + Math.sin(t / 1200) * 0.008;
-  const R = Math.min(W, H) * 0.30 * scale;
-  const frenzy = currentBuff() > 1;
-  const hexColor = frenzy ? "#ffd44d" : "#57e6c9";
+// Colors come from the shared MOUSE_COLORS table (see spawnMousePop) — the
+// wall used to keep its own separate palette object; deleted in favor of one
+// source of truth. Usage here is fixed-per-role, not random: see loadWallScene.
+const WORD_PPMS_FRAC = 2.2e-5; // fraction of the word's ink per ms (legibility input)
+const SCENE_PPMS = 0.004;      // scenery patrol speed, tour-points per ms
 
-  // hexagon (flat-top)
-  ctx.save();
-  ctx.translate(cx, cy);
-  neon(hexColor, 4, 22 + (frenzy ? 14 : 0), () => {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = Math.PI / 180 * (60 * i - 30);
-      const x = Math.cos(a) * R, y = Math.sin(a) * R;
-      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-    }
-    ctx.closePath();
-  });
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
-  // ears (little triangles poking above two top vertices)
-  const earColor = hexColor;
-  const ex = R * 0.5, ey = -R * 0.72;
-  [-1, 1].forEach(s => {
-    neon(earColor, 3.2, 14, () => {
-      ctx.beginPath();
-      ctx.moveTo(s * (ex - R * 0.16), ey + R * 0.18);
-      ctx.lineTo(s * (ex + R * 0.02), ey - R * 0.20);
-      ctx.lineTo(s * (ex + R * 0.20), ey + R * 0.12);
-    });
-  });
-
-  // eyes — blink occasionally; widen during frenzy
-  const blink = (Math.sin(t / 1400) > 0.985) ? 0.12 : 1;
-  const eyeY = -R * 0.10, eyeDX = R * 0.34, eyeR = R * 0.12 * (frenzy ? 1.25 : 1);
-  [-1, 1].forEach(s => {
-    neon("#57e6c9", 3, 12, () => {
-      ctx.beginPath();
-      ctx.ellipse(s * eyeDX, eyeY, eyeR * 0.72, eyeR * blink, 0, 0, Math.PI * 2);
-    });
-  });
-
-  // nose + mouth (a soft neon 'w')
-  neon("#ff5db1", 3, 12, () => {
-    ctx.beginPath();
-    ctx.moveTo(0, R * 0.12); ctx.lineTo(-R * 0.06, R * 0.20); ctx.lineTo(0, R * 0.16);
-    ctx.lineTo(R * 0.06, R * 0.20); ctx.lineTo(0, R * 0.12);
-  });
-  neon("#ff5db1", 2.4, 9, () => {
-    ctx.beginPath();
-    ctx.moveTo(0, R * 0.20); ctx.lineTo(0, R * 0.30);
-    ctx.moveTo(0, R * 0.30); ctx.quadraticCurveTo(-R * 0.10, R * 0.40, -R * 0.20, R * 0.34);
-    ctx.moveTo(0, R * 0.30); ctx.quadraticCurveTo(R * 0.10, R * 0.40, R * 0.20, R * 0.34);
-  });
-
-  // whiskers
-  neon("#9fe9d9", 1.8, 7, () => {
-    ctx.beginPath();
-    [-1, 1].forEach(s => {
-      for (let k = -1; k <= 1; k++) {
-        ctx.moveTo(s * R * 0.16, R * 0.22 + k * R * 0.07);
-        ctx.lineTo(s * R * 0.62, R * 0.16 + k * R * 0.12);
+// word sampling: one crew per letter
+function sampleLine(word) {
+  const oc = document.createElement('canvas');
+  const octx = oc.getContext('2d');
+  const FS = 190;
+  octx.font = `900 ${FS}px Arial, Helvetica, sans-serif`;
+  const widths = [...word].map(ch => octx.measureText(ch).width);
+  const gap = FS * 0.06;
+  const totalW = widths.reduce((a, b) => a + b + gap, 0);
+  oc.width = Math.ceil(totalW + 40); oc.height = Math.ceil(FS * 1.5);
+  octx.font = `900 ${FS}px Arial, Helvetica, sans-serif`;
+  octx.textBaseline = 'middle';
+  let x = 20;
+  const bounds = [];
+  for (let i = 0; i < word.length; i++) {
+    octx.fillText(word[i], x, oc.height / 2);
+    bounds.push([x, x + widths[i]]);
+    x += widths[i] + gap;
+  }
+  const img = octx.getImageData(0, 0, oc.width, oc.height).data;
+  const pts = [], STEP = 6;
+  for (let py = 0; py < oc.height; py += STEP) {
+    for (let px = 0; px < oc.width; px += STEP) {
+      if (img[(py * oc.width + px) * 4 + 3] > 128) {
+        let letter = 0;
+        for (let b = 0; b < bounds.length; b++) if (px >= bounds[b][0] - gap) letter = b;
+        pts.push({ x: px, y: py, letter });
       }
-    });
-  });
-  ctx.restore();
+    }
+  }
+  const byLetter = [];
+  for (const p of pts) (byLetter[p.letter] = byLetter[p.letter] || []).push(p);
+  const letters = [];
+  for (let L = 0; L < word.length; L++) {
+    const lp = byLetter[L];
+    if (!lp || !lp.length) continue;
+    let s = 0;
+    for (let i = 1; i < lp.length; i++)
+      if (lp[i].y < lp[s].y - 1 || (Math.abs(lp[i].y - lp[s].y) <= 1 && lp[i].x < lp[s].x)) s = i;
+    const used = new Uint8Array(lp.length); used[s] = 1;
+    const tour = [lp[s]];
+    let cur = s;
+    for (let step = 1; step < lp.length; step++) {
+      let best = -1, bd = Infinity;
+      for (let j = 0; j < lp.length; j++) {
+        if (used[j]) continue;
+        const d = (lp[j].x - lp[cur].x) ** 2 + (lp[j].y - lp[cur].y) ** 2;
+        if (d < bd) { bd = d; best = j; }
+      }
+      used[best] = 1; tour.push(lp[best]); cur = best;
+    }
+    letters.push(tour);
+  }
+  return { letters, w: oc.width, h: oc.height };
+}
 
-  // decay squash
+// scene path tracer (canvas-like API that records polylines)
+function tracer() {
+  const polys = [];
+  let cur = null, tx = 0, ty = 0, rot = 0;
+  const stack = [];
+  const T = (x, y) => {
+    const c = Math.cos(rot), s = Math.sin(rot);
+    return { x: tx + x * c - y * s, y: ty + x * s + y * c };
+  };
+  const api = {
+    polys,
+    save() { stack.push([tx, ty, rot]); },
+    restore() { [tx, ty, rot] = stack.pop(); },
+    translate(x, y) { const p = T(x, y); tx = p.x; ty = p.y; },
+    rotate(a) { rot += a; },
+    moveTo(x, y) { cur = [T(x, y)]; polys.push(cur); },
+    lineTo(x, y) { cur ? cur.push(T(x, y)) : api.moveTo(x, y); },
+    quadraticCurveTo(cx, cy, x, y) {
+      const p0 = cur[cur.length - 1], p1 = T(cx, cy), p2 = T(x, y);
+      for (let i = 1; i <= 12; i++) {
+        const u = i / 12, v = 1 - u;
+        cur.push({ x: v * v * p0.x + 2 * v * u * p1.x + u * u * p2.x,
+                   y: v * v * p0.y + 2 * v * u * p1.y + u * u * p2.y });
+      }
+    },
+    bezierCurveTo(ax, ay, bx, by, x, y) {
+      const p0 = cur[cur.length - 1], p1 = T(ax, ay), p2 = T(bx, by), p3 = T(x, y);
+      for (let i = 1; i <= 16; i++) {
+        const u = i / 16, v = 1 - u;
+        cur.push({ x: v ** 3 * p0.x + 3 * v * v * u * p1.x + 3 * v * u * u * p2.x + u ** 3 * p3.x,
+                   y: v ** 3 * p0.y + 3 * v * v * u * p1.y + 3 * v * u * u * p2.y + u ** 3 * p3.y });
+      }
+    },
+    arc(cx, cy, r, a0, a1, ccw) {
+      let d = a1 - a0;
+      if (ccw && d > 0) d -= Math.PI * 2;
+      if (!ccw && d < 0) d += Math.PI * 2;
+      const n = Math.max(6, Math.ceil(Math.abs(d) * r / 5));
+      for (let i = 0; i <= n; i++) {
+        const a = a0 + d * i / n;
+        api.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      }
+    },
+    ellipse(cx, cy, rx, ry, rota, a0, a1, ccw) {
+      let d = a1 - a0;
+      if (ccw && d > 0) d -= Math.PI * 2;
+      if (!ccw && d < 0) d += Math.PI * 2;
+      const n = Math.max(8, Math.ceil(Math.abs(d) * Math.max(rx, ry) / 5));
+      const cr = Math.cos(rota || 0), sr = Math.sin(rota || 0);
+      for (let i = 0; i <= n; i++) {
+        const a = a0 + d * i / n, ex = Math.cos(a) * rx, ey = Math.sin(a) * ry;
+        api.lineTo(cx + ex * cr - ey * sr, cy + ex * sr + ey * cr);
+      }
+    },
+  };
+  return api;
+}
+function resamplePoly(poly, sp) {
+  const out = [];
+  if (!poly.length) return out;
+  out.push(poly[0]);
+  let acc = 0;
+  for (let i = 1; i < poly.length; i++) {
+    const a = poly[i - 1], b = poly[i];
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    if (d < 1e-6) continue;
+    let pos = 0;
+    while (acc + (d - pos) >= sp) {
+      pos += sp - acc; acc = 0;
+      out.push({ x: a.x + (b.x - a.x) * pos / d, y: a.y + (b.y - a.y) * pos / d });
+    }
+    acc += d - pos;
+  }
+  out.push(poly[poly.length - 1]);
+  return out;
+}
+// Group subpaths into geometrically continuous shapes; each becomes one crew.
+const JOIN_R = 9;
+function components(polys) {
+  const n = polys.length;
+  const parent = [...Array(n).keys()];
+  const find = a => parent[a] === a ? a : (parent[a] = find(parent[a]));
+  const touch = (a, b) => {
+    const ends = [a[0], a[a.length - 1]];
+    for (const e of ends) for (const p of b)
+      if ((e.x - p.x) ** 2 + (e.y - p.y) ** 2 <= JOIN_R * JOIN_R) return true;
+    return false;
+  };
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++)
+    if (find(i) !== find(j) && (touch(polys[i], polys[j]) || touch(polys[j], polys[i])))
+      parent[find(j)] = find(i);
+  const groups = new Map();
+  for (let i = 0; i < n; i++) {
+    const r = find(i);
+    if (!groups.has(r)) groups.set(r, []);
+    groups.get(r).push(polys[i]);
+  }
+  return [...groups.values()].map(g => {
+    const restList = [...g];
+    let chain = restList.shift();
+    const outPolys = [chain];
+    while (restList.length) {
+      const tail = outPolys[outPolys.length - 1];
+      const end = tail[tail.length - 1];
+      let bi = 0, brev = false, bd = Infinity;
+      restList.forEach((p, i) => {
+        const d0 = (p[0].x - end.x) ** 2 + (p[0].y - end.y) ** 2;
+        const d1 = (p[p.length - 1].x - end.x) ** 2 + (p[p.length - 1].y - end.y) ** 2;
+        if (d0 < bd) { bd = d0; bi = i; brev = false; }
+        if (d1 < bd) { bd = d1; bi = i; brev = true; }
+      });
+      const nxt = restList.splice(bi, 1)[0];
+      outPolys.push(brev ? [...nxt].reverse() : nxt);
+    }
+    return outPolys.flat();
+  });
+}
+function star4(x, cx, cy, r) {
+  x.moveTo(cx, cy - r); x.quadraticCurveTo(cx, cy, cx + r, cy);
+  x.quadraticCurveTo(cx, cy, cx, cy + r); x.quadraticCurveTo(cx, cy, cx - r, cy);
+  x.quadraticCurveTo(cx, cy, cx, cy - r);
+}
+
+// TO THE MOON — the committed scene (see hex-clicker-design.md)
+const MOON_SCENE = {
+  lines: [{ text: 'TO THE', cx: 195, cy: 262, size: 40 }, { text: 'MOON', cx: 195, cy: 322, size: 48 }],
+  elements: [
+    { color: 'blue', draw(x) {
+      x.moveTo(84, 396); x.bezierCurveTo(210, 350, 330, 300, 312, 152);
+      x.moveTo(22, 500); x.bezierCurveTo(70, 150, 300, 66, 374, 176);
+      x.moveTo(326, 552); x.arc(310, 552, 15, 0, 6.283);
+      x.moveTo(340, 552); x.ellipse(310, 552, 30, 8, -0.32, 0, 6.283);
+    } },
+    // Green = the UFO only (saucer, dome, tractor beams). The launch smoke
+    // that used to roll across the whole bottom of the frame is gone — it was
+    // the single biggest crew, so it soaked up scenery mice that now spread
+    // across the remaining shapes instead.
+    { color: 'green', draw(x) {
+      x.moveTo(94, 96); x.ellipse(70, 96, 24, 8, 0, 0, 6.283);
+      x.moveTo(82, 90); x.arc(70, 90, 12, 3.14, 0);
+      x.moveTo(60, 108); x.lineTo(56, 118); x.moveTo(70, 110); x.lineTo(70, 120);
+      x.moveTo(80, 108); x.lineTo(84, 118);
+    } },
+    { color: 'purple', draw(x) {
+      x.moveTo(300, 62); x.quadraticCurveTo(374, 88, 350, 140);
+      x.moveTo(300, 62); x.quadraticCurveTo(330, 96, 350, 140);
+      x.moveTo(26, 158); x.lineTo(90, 104); x.lineTo(150, 152); x.lineTo(212, 100); x.lineTo(272, 150);
+      star4(x, 40, 300, 6); star4(x, 356, 250, 5); star4(x, 66, 470, 5); star4(x, 352, 430, 6);
+    } },
+    { color: 'pink', draw(x) {
+      x.save(); x.translate(110, 470); x.rotate(-0.6);
+      x.moveTo(-18, -30); x.quadraticCurveTo(-6, -66, 0, -70);
+      x.quadraticCurveTo(6, -66, 18, -30);
+      x.moveTo(-18, -30); x.lineTo(-18, 26); x.lineTo(18, 26); x.lineTo(18, -30);
+      x.moveTo(-18, 8); x.lineTo(-33, 34); x.lineTo(-18, 26);
+      x.moveTo(18, 8); x.lineTo(33, 34); x.lineTo(18, 26);
+      x.moveTo(11, -8); x.arc(0, -8, 11, 0, 6.283);
+      x.moveTo(-8, -16); x.lineTo(-6, -23); x.lineTo(-2, -18);
+      x.moveTo(2, -18); x.lineTo(6, -23); x.lineTo(8, -16);
+      x.moveTo(-7, 26); x.quadraticCurveTo(0, 46, 7, 26);
+      x.moveTo(-12, 26); x.quadraticCurveTo(0, 72, 12, 26);
+      x.restore();
+    } },
+  ],
+};
+
+const wallCv = $("#wall"), wctx = wallCv.getContext('2d');
+let wW = 0, wH = 0;
+// Scene->screen mapping is constant between resizes, so it's computed here
+// rather than inside wallSceneMap — that ran ~400k times/sec at full night
+// state (90 mice x 36 samples x 2 endpoints x 60fps), redoing the same
+// Math.min and divisions every time.
+let wallScale = 1, wallOffX = 0, wallOffY = 0;
+function resizeWall() {
+  const dpr = Math.min(devicePixelRatio || 1, 3);
+  wW = wallCv.clientWidth; wH = wallCv.clientHeight;
+  wallCv.width = Math.round(wW * dpr); wallCv.height = Math.round(wH * dpr);
+  wctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  wallScale = Math.min(wW / 390, wH / 620);
+  wallOffX = (wW - 390 * wallScale) / 2;
+  wallOffY = (wH - 620 * wallScale) / 2;
+}
+window.addEventListener('resize', () => { if (nightActive()) resizeWall(); });
+
+let WALL_CREWS = [], WALL_WORD_LEN = 0, wallCast = [];
+function loadWallScene() {
+  WALL_CREWS = []; WALL_WORD_LEN = 0;
+  for (const ln of MOON_SCENE.lines) {
+    const s = sampleLine(ln.text);
+    const scale = ln.size / 190;
+    for (const letterTour of s.letters) {
+      const tour = letterTour.map(p => ({
+        x: ln.cx + (p.x - s.w / 2) * scale,
+        y: ln.cy + (p.y - s.h / 2) * scale,
+      }));
+      WALL_CREWS.push({ color: MOUSE_COLORS.yellow, tour, len: tour.length, kind: 'word' });
+      WALL_WORD_LEN += tour.length;
+    }
+  }
+  for (const e of MOON_SCENE.elements) {
+    const tr = tracer(); e.draw(tr);
+    const sampled = tr.polys.map(p => resamplePoly(p, 6)).filter(p => p.length > 1);
+    for (const compTour of components(sampled)) {
+      WALL_CREWS.push({ color: MOUSE_COLORS[e.color], tour: compTour, len: compTour.length, kind: 'scenery' });
+    }
+  }
+  rebuildWallCast();
+}
+
+// Fixed 90-mouse cast; wallMiceCount() just draws the first N. Word% and seed
+// are constants, so the cast never rebuilds after night begins.
+function rebuildWallCast() {
+  wallCast = [];
+  const wordCrews = [], scenCrews = [];
+  WALL_CREWS.forEach((c, idx) => (c.kind === 'word' ? wordCrews : scenCrews).push(idx));
+  const PAD = 14;
+  const weights = scenCrews.map(i => WALL_CREWS[i].len + PAD);
+  const wSum = weights.reduce((a, b) => a + b, 0) || 1;
+  const assigned = scenCrews.map(() => 0);
+  let wordOrdinal = 0, scenOrdinal = 0;
+  for (let i = 0; i < WALL.maxMice; i++) {
+    const rng = mulberry32(WALL.seed + i * 7919);
+    const m = { i, p01: rng() };
+    if (rng() * 100 < WALL.wordPct && wordCrews.length) {
+      m.crew = wordCrews[wordOrdinal++ % wordCrews.length];
+    } else if (scenCrews.length) {
+      scenOrdinal++;
+      let bi = 0, bd = -Infinity;
+      for (let k = 0; k < scenCrews.length; k++) {
+        const deficit = scenOrdinal * (weights[k] / wSum) - assigned[k];
+        if (deficit > bd) { bd = deficit; bi = k; }
+      }
+      assigned[bi]++;
+      m.crew = scenCrews[bi];
+    } else m.crew = 0;
+    m.color = WALL_CREWS[m.crew].color;
+    wallCast.push(m);
+  }
+  const byCrew = new Map();
+  for (const m of wallCast) {
+    if (!byCrew.has(m.crew)) byCrew.set(m.crew, []);
+    byCrew.get(m.crew).push(m);
+  }
+  for (const members of byCrew.values())
+    members.forEach((m, k) => { m.phase = k / members.length; });
+}
+
+// ping-pong along the crew's tour; noise is locked to 0 so no wander term.
+// Writes into a caller-supplied point rather than allocating: this runs ~200k
+// times/sec at full night state and every caller reads .x/.y immediately and
+// never retains the result, so the ~600k short-lived {x,y} per second were
+// pure GC pressure — the thing that shows up as periodic frame drops on a
+// phone rather than a uniformly lower framerate. Lerp in scene space, map to
+// screen once at the end (was mapping both endpoints, then lerping).
+function wallPosAt(m, t, out) {
+  const crew = WALL_CREWS[m.crew];
+  const L = crew.len;
+  let sx, sy;
+  if (L < 2) {
+    const p0 = crew.tour[0] || { x: 195, y: 310 };
+    sx = p0.x; sy = p0.y;
+  } else {
+    const ppms = crew.kind === 'word' ? WORD_PPMS_FRAC * WALL_WORD_LEN : SCENE_PPMS;
+    const cyc = 2 * (L - 1);
+    let f = ((t * ppms + m.phase * cyc) % cyc + cyc) % cyc;
+    if (f > L - 1) f = cyc - f;
+    const idx = Math.min(L - 2, Math.floor(f)), frac = f - idx;
+    const a = crew.tour[idx], b = crew.tour[idx + 1];
+    sx = a.x + (b.x - a.x) * frac;
+    sy = a.y + (b.y - a.y) * frac;
+  }
+  out.x = wallOffX + sx * wallScale;
+  out.y = wallOffY + sy * wallScale;
+  return out;
+}
+// Same silhouette as mouseSVG (the click-pop particle) — body blob with a
+// white keyline, one ear, a dark eye dot, a curled tail — reproduced here as
+// canvas path calls by scaling/translating mouseSVG's own 54x28 coordinate
+// space, point for point, so the two can't visually drift apart. `r` plays
+// the same role it did in the old shape (roughly the body's vertical half-
+// size), so existing call sites don't need retuning.
+function drawWallMouse(x, y, color, r) {
+  const s = r / 10, cx = 30.5, cy = 14;
+  const P = (px, py) => [x + (px - cx) * s, y + (py - cy) * s];
+  const seg = (c1x, c1y, c2x, c2y, ex, ey) => {
+    const [a, b] = P(c1x, c1y), [c, d] = P(c2x, c2y), [e, f] = P(ex, ey);
+    wctx.bezierCurveTo(a, b, c, d, e, f);
+  };
+
+  // tail — a curled stroke off the rear
+  const [tx0, ty0] = P(12, 17);
+  wctx.strokeStyle = color; wctx.lineWidth = r * 0.16; wctx.lineCap = 'round';
+  wctx.beginPath(); wctx.moveTo(tx0, ty0);
+  seg(4, 21, 2, 10, 8, 7);
+  wctx.stroke();
+
+  // body
+  const [bx0, by0] = P(51, 16);
+  wctx.beginPath(); wctx.moveTo(bx0, by0);
+  seg(46, 8, 37, 4, 27, 5);
+  seg(16, 6, 10, 10, 10, 16);
+  seg(10, 21, 17, 24, 27, 24);
+  seg(37, 24, 47, 21, 51, 16);
+  wctx.closePath();
+  wctx.fillStyle = color; wctx.fill();
+  wctx.strokeStyle = '#f4f4f2'; wctx.lineWidth = r * 0.14; wctx.stroke();
+
+  // ear
+  const [ex, ey] = P(33, 7);
+  wctx.beginPath(); wctx.arc(ex, ey, 4.6 * s, 0, 6.283);
+  wctx.fillStyle = color; wctx.fill();
+  wctx.strokeStyle = '#f4f4f2'; wctx.lineWidth = r * 0.14; wctx.stroke();
+
+  // eye
+  const [ix, iy] = P(42, 12);
+  wctx.beginPath(); wctx.arc(ix, iy, 1.8 * s, 0, 6.283);
+  wctx.fillStyle = '#0a0b10'; wctx.fill();
+}
+
+// Reused scratch points for the per-frame position math (see wallPosAt).
+const wallHead = { x: 0, y: 0 }, wallScratch = { x: 0, y: 0 };
+function drawWall(now) {
+  if (!wW) resizeWall();
+  wctx.clearRect(0, 0, wW, wH);
+  const N = wallMiceCount();
+  if (!N || !WALL_CREWS.length) return;
+  const trailN = mods.trail, maxSeg = 16;
+  // Invariant across every mouse and segment — set once per frame, not per
+  // segment (that was ~189k redundant assignments/sec at full state).
+  wctx.lineWidth = 1.8; wctx.lineCap = 'round';
+  for (let i = 0; i < N; i++) {
+    const m = wallCast[i];
+    // head position: computed once and reused for both the trail's first
+    // sample and the mouse itself (drawWall used to compute it twice).
+    wallPosAt(m, now, wallHead);
+    if (trailN > 0) {
+      wctx.strokeStyle = m.color; // invariant across this mouse's segments
+      let px = wallHead.x, py = wallHead.y;
+      for (let j = 1; j <= trailN; j++) {
+        const p = wallPosAt(m, now - j * WALL.trailDt, wallScratch);
+        const far = Math.abs(p.x - px) > maxSeg || Math.abs(p.y - py) > maxSeg;
+        if (!far) {
+          wctx.globalAlpha = 0.5 * (1 - j / trailN);
+          wctx.beginPath(); wctx.moveTo(px, py); wctx.lineTo(p.x, p.y); wctx.stroke();
+        }
+        px = p.x; py = p.y;
+      }
+      wctx.globalAlpha = 1;
+    }
+    drawWallMouse(wallHead.x, wallHead.y, m.color, 3.1);
+  }
+  // NOTE: legibility detection lived here — cov = (word mice) x (trail ms) x
+  // WORD_PPMS_FRAC, crossing 0.85 — and existed only to print the proctor
+  // line. Removed with the text rather than left as dead code. The wall
+  // simply becoming readable is the signal now. Re-add the same formula if
+  // the design doc's "gentle one-time shimmer" gets built.
+}
+
+let nightInited = false;
+// Phase is a PROJECTION of folded state, not an event: every caller just
+// re-asserts it and this figures out the rest. Replaces an enterNight() that
+// mutated the DOM from inside the buy path plus a hand-written devExitNight()
+// inverse that had already drifted to a partial copy. Idempotent and cheap —
+// safe to call after any state change, forward or backward.
+function syncPhase() {
+  const night = nightActive();
+  document.body.classList.toggle('night', night);
+  hexCatEl.classList.toggle('asleep', night);
+  // one-way latch: the scene is expensive to build and never needs rebuilding
+  if (night && !nightInited) {
+    nightInited = true;
+    loadWallScene();
+    resizeWall();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// CAT rendering — the SVG (#hexCat) is static markup; this just toggles
+// classes/state on it per frame (squash bounce, blink, frenzy recolor).
+// ---------------------------------------------------------------------------
+const IRIS_LOOK = 4; // svg user-units the iris can travel off-center before it'd clip the socket
+function updateCat(t) {
+  catEl.classList.toggle("squash", squash > 0.15);
   if (squash > 0) squash = Math.max(0, squash - 0.08);
+
+  const frenzy = currentCpsBuff() > 1 || currentClickBuff() > 1;
+  catEl.classList.toggle("frenzy", frenzy);
+
+  const asleep = nightActive();
+  // asleep at night — the .asleep class owns the eyes, so never fight it
+  const blink = !asleep && Math.sin(t / 1400) > 0.985;
+  hexCatEl.classList.toggle("blink", blink);
+
+  // Iris: look toward the golden mouse by day; shut with the lids at night.
+  // Owned entirely by JS (not a CSS class) because it has to combine a
+  // look-direction translate with the same squash the lids get via .blink/
+  // .asleep — an inline transform always wins over a class rule's transform,
+  // so splitting this across CSS classes + JS would just fight itself.
+  let lookX = 0, lookY = 0, irisScaleY = 1;
+  if (asleep) {
+    // REM: the lids stay shut but the eyes rove underneath, and the slit
+    // swells a hair. Deliberately thematic — she's dreaming the wall you're
+    // watching. Two out-of-phase sines so it never reads as a clean loop.
+    irisScaleY = 0.07 + 0.045 * (0.5 + 0.5 * Math.sin(t / 2600));
+    lookX = 1.6 * Math.sin(t / 3100) + 0.7 * Math.sin(t / 1130);
+  } else if (blink) {
+    irisScaleY = 0.14;
+  } else if (goldActive) {
+    const cx = stageEl.clientWidth / 2, cy = stageEl.clientHeight / 2;
+    const dx = (goldX + 31) - cx, dy = (goldY + 31) - cy; // golden mouse's own center, stage-relative
+    const mag = Math.hypot(dx, dy) || 1;
+    lookX = (dx / mag) * IRIS_LOOK;
+    lookY = (dy / mag) * IRIS_LOOK;
+  }
+  const irisTransform = `translate(${lookX}px, ${lookY}px) scaleY(${irisScaleY})`;
+  irisLeftEl.style.transform = irisTransform;
+  irisRightEl.style.transform = irisTransform;
+
+  updateWhiskerTwitch(t, asleep);
+}
+
+// Whisker twitch: a single flick every ~5-11s while asleep. Cats do this
+// chasing something in a dream. Scheduled rather than sine-driven so it stays
+// irregular — a periodic twitch reads as a machine, not an animal.
+let twitchAt = 0, twitchUntil = 0, twitchDir = 1;
+function updateWhiskerTwitch(t, asleep) {
+  if (!asleep) {
+    if (whiskersEl.style.transform) whiskersEl.style.transform = "";
+    twitchAt = 0;
+    return;
+  }
+  if (!twitchAt) twitchAt = t + 4000 + Math.random() * 6000;
+  if (t >= twitchAt) {
+    twitchUntil = t + 320;
+    twitchDir = Math.random() < 0.5 ? -1 : 1;
+    twitchAt = t + 5000 + Math.random() * 6000;
+  }
+  whiskersEl.style.transform = t < twitchUntil ? `rotate(${twitchDir * 1.6}deg)` : "";
 }
 
 // ---------------------------------------------------------------------------
@@ -582,30 +1805,33 @@ let last = performance.now(), hudTick = 0, saveTick = 0;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
 
-  // income
-  const inc = cps() * dt;
+  // income (DEV.speed is 1 outside ?debug — a pure pass-through)
+  const inc = cps() * dt * DEV.speed;
   if (inc > 0) { game.mice += inc; game.total += inc; }
 
-  // frenzy pill countdown
-  if (game.buffUntil > now) {
-    const left = ((game.buffUntil - now) / 1000);
-    buffEl.textContent = "⚡ ZOOMIES ×7 · " + left.toFixed(1) + "s";
+  // buff pill countdown — click buff takes priority display if both are somehow active
+  if (game.clickBuffUntil > now) {
+    const left = ((game.clickBuffUntil - now) / 1000);
+    buffEl.textContent = "👆 CLICK FRENZY ×" + CLICK_BUFF_MULT + " · " + left.toFixed(1) + "s";
     buffEl.style.display = "block";
-  } else if (buffMsgUntil > now) {
-    // a transient Lucky message is showing
-  } else if (buffEl.style.display === "block" && game.buffUntil <= now && buffMsgUntil <= now) {
+  } else if (game.buffUntil > now) {
+    const left = ((game.buffUntil - now) / 1000);
+    buffEl.textContent = "⚡ ZOOMIES ×" + GOLD_MULT + " · " + left.toFixed(1) + "s";
+    buffEl.style.display = "block";
+  } else if (buffEl.style.display === "block") {
     buffEl.style.display = "none";
   }
-  if (game.buffUntil <= now) game.buffMult = 1;
 
   moveGold(dt);
-  if (!goldActive) { goldTimer -= dt; if (goldTimer <= 0) spawnGold(); }
+  if (!goldActive) { goldTimer -= dt * DEV.speed; if (goldTimer <= 0) spawnGold(); }
 
-  drawHex(now);
+  updateCat(now);
+  updatePops(dt);
+  if (nightActive()) drawWall(now);
 
   // throttle HUD/shop updates to ~12fps (cheap, avoids layout thrash)
   hudTick += dt;
-  if (hudTick > 0.08) { hudTick = 0; refreshHud(); refreshShop(); }
+  if (hudTick > 0.08) { hudTick = 0; refreshHud(); refreshShop(); refreshUpgrades(); }
 
   saveTick += dt;
   if (saveTick > 8) { saveTick = 0; save(); }
@@ -613,49 +1839,288 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// ---------------------------------------------------------------------------
-// MENU / RESET
-// ---------------------------------------------------------------------------
-const sheet = $("#sheet");
-$("#menuBtn").addEventListener("click", () => {
-  $("#s_cps").textContent = fmt(cps());
-  $("#s_total").textContent = fmt(game.total);
-  $("#s_clicks").textContent = fmt(game.clicks);
-  $("#s_gold").textContent = fmt(game.goldCaught);
-  sheet.style.display = "flex";
-});
-$("#closeBtn").addEventListener("click", () => sheet.style.display = "none");
-sheet.addEventListener("click", e => { if (e.target === sheet) sheet.style.display = "none"; });
-$("#resetBtn").addEventListener("click", () => {
-  if (!confirm("Reset all progress? This can't be undone.")) return;
-  localStorage.removeItem(SAVE_KEY);
-  game.mice = 0; game.total = 0; game.clicks = 0; game.goldCaught = 0;
-  BUILDINGS.forEach(b => game.owned[b.id] = 0);
-  game.buffUntil = 0; game.buffMult = 1;
-  sheet.style.display = "none";
-  refreshHud(); refreshShop();
-});
-
-// buy amount toggle
-document.querySelectorAll("#buyToggle button").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("#buyToggle button").forEach(b => b.classList.remove("on"));
-    btn.classList.add("on");
-    game.buyN = +btn.dataset.n;
-    refreshShop();
-  });
-});
-
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 window.addEventListener("pagehide", save);
+
+// ---------------------------------------------------------------------------
+// DEV TOOLS — open the game with ?debug (or #debug) to get a floating panel:
+// time-scale (accelerates income + golden cadence, never click feel), grant
+// buttons (pay into mice AND total, like real earning), and state presets for
+// jumping around the pacing curve. Presets can go BACKWARD, which real play
+// never does — syncPhase() handles that for free by re-deriving the phase
+// rather than needing a hand-written inverse of the forward transition.
+// ---------------------------------------------------------------------------
+const DEV = { speed: 1, teamMult: 1 };
+const DEV_PRESETS = {
+  "fresh":    { total: 0, mice: 0, clicks: 0 },
+  "early":    { total: 600, mice: 350, clicks: 60,
+                owned: { robocat: 5, shopper: 3 } },
+  "midday":   { total: 30000, mice: 12000, clicks: 220,
+                owned: { robocat: 18, shopper: 12, farm: 8, quarry: 3 } },
+  "pre-night":{ total: 140000, mice: 320000, clicks: 420,
+                owned: { robocat: 25, shopper: 18, farm: 14, quarry: 9, factory: 4, lab: 1 } },
+  "night":    { total: 450000, mice: 900000, clicks: 550, golden: 3,
+                owned: { robocat: 25, shopper: 18, farm: 14, quarry: 9, factory: 5, lab: 2 },
+                bought: ["catnap"] },
+  "legible":  { total: LEGIBLE_TOTAL, mice: 6e6, clicks: 1000, golden: 6,
+                owned: { robocat: 25, shopper: 18, farm: 14, quarry: 9, factory: 5, lab: 2, portal: 12, timemachine: 4 },
+                bought: ["catnap", "comet1", "comet2", "comet3", "comet4", "comet5"] },
+};
+function devApply(name) {
+  const p = DEV_PRESETS[name];
+  game.mice = p.mice || 0; game.total = p.total || 0;
+  game.clicks = p.clicks || 0; game.goldCaught = p.golden || 0;
+  game.owned = {}; BUILDINGS.forEach(b => game.owned[b.id] = (p.owned && p.owned[b.id]) || 0);
+  game.bought = {}; (p.bought || []).forEach(k => game.bought[k] = 1);
+  game.unlocked = {}; // sticky unlocks re-derive from the new state
+  game.buffUntil = 0; game.clickBuffUntil = 0;
+  recalc();
+  syncPhase();
+  refreshHud(); refreshShop(); refreshUpgrades(); save();
+}
+// Human-readable unlock condition, for the dev content dump. Mirrors the
+// AND-ed checks in isUnlocked() — keep the two in sync.
+function unlockText(u) {
+  const c = u.unlock, parts = [];
+  if (c.owned) {
+    for (const [id, n] of ownedPairs(c)) parts.push(`own ${n}x ${buildingName(id)}`);
+  }
+  if (c.total != null) parts.push(`${fmt(c.total)} lifetime`);
+  if (c.clicks != null) parts.push(`${c.clicks} pets`);
+  if (c.golden != null) parts.push(`${c.golden} golden`);
+  if (c.requires) {
+    const r = UPGRADES.find(x => x.key === c.requires);
+    parts.push(`after ${r ? r.name : c.requires}`);
+  }
+  return parts.join(" + ") || "always";
+}
+
+// The full content table. Regenerated on each open so the state column
+// (owned counts / bought / locked) reflects the moment you looked.
+function devContentHTML() {
+  const bRows = BUILDINGS.map(b => {
+    const owned = game.owned[b.id] || 0;
+    const state = b.night && !nightActive() ? "night-only" : (owned ? `owned ${owned}` : "—");
+    return `<tr><td>${b.icon} ${b.name}</td><td class="n">${fmt(b.base)}</td><td class="n">${b.mps}</td>
+            <td>${b.night ? "night" : "day"}</td><td class="s">${state}</td></tr>`;
+  }).join("");
+  const uRows = UPGRADES.map(u => {
+    const state = game.bought[u.key] ? "BOUGHT" : (isUnlocked(u) ? "available" : "locked");
+    return `<tr class="${game.bought[u.key] ? "done" : ""}"><td>${u.icon} ${u.name}</td>
+            <td class="n">${fmt(u.cost)}</td><td>${unlockText(u)}</td>
+            <td>${effectText(u)}</td><td class="s">${state}</td></tr>`;
+  }).join("");
+  return `<h4>Buildings (${BUILDINGS.length})</h4>
+    <table><thead><tr><th>name</th><th>base</th><th>mps</th><th>phase</th><th>state</th></tr></thead>
+    <tbody>${bRows}</tbody></table>
+    <h4>Upgrades (${UPGRADES.length})</h4>
+    <table><thead><tr><th>name</th><th>cost</th><th>unlock</th><th>effect</th><th>state</th></tr></thead>
+    <tbody>${uRows}</tbody></table>`;
+}
+
+// ---------------------------------------------------------------------------
+// PACING SIMULATOR — answers "how long is the game right now?" without playing
+// it. A greedy bot plays the REAL rules (foldMods / unlockMet / costOf /
+// wallMiceFor are shared, not copied — if the economy changes, the sim follows)
+// at a fixed pets/sec and reports a timestamped milestone timeline up to
+// legibility (isLegible: comet5 + LEGIBLE_TOTAL).
+//
+// What it models:
+//   - income integrated at 0.25s steps; petting at a steady `pps` pets/sec
+//   - golden mice as expected value: mean interval 65s / goldenFreq, 70%
+//     Click Frenzy x7 for 7s, 30% Zoomies x7 for 12s, folded in as
+//     steady-state rate multipliers. Assumes EVERY golden gets caught —
+//     right for a motivated team of four, generous for solo.
+//   - purchases: story items (night / trail effects) bought on sight — they're
+//     the goal, motivated players don't optimize past them. Growth items picked
+//     by minimizing (time-to-afford + payback), the standard clicker-bot
+//     heuristic; while saving for a story item, a growth detour is only allowed
+//     if it pays for itself before the story item would otherwise arrive.
+// What it does NOT model: buff timing luck, human hesitation, shop discovery,
+// tapping fatigue. Read the output as the floor set by the economy, not a
+// prediction of a real team's clock — playtests calibrate the gap.
+// ---------------------------------------------------------------------------
+function simulateRun(opts = {}) {
+  const pps = opts.pps != null ? opts.pps : 3;
+  const useGold = opts.goldens !== false;
+  const capS = opts.cap || 3600, dt = 0.25;
+  const s = { mice: 0, total: 0, clicks: 0, goldCaught: 0, owned: {}, bought: {} };
+  BUILDINGS.forEach(b => s.owned[b.id] = 0);
+  const events = [];
+  let t = 0, earnedPet = 0, earnedCps = 0, goldAcc = 0, lastWall = 0, legibleAt = null;
+
+  const buyableB = b => (!b.night || nightOf(s.bought)) && isRevealed(b, s);
+  const isStory = u => [].concat(u.effect).some(e => e.type === "night" || e.type === "trail");
+
+  // Steady-state earn rates for an arbitrary hypothetical (bought, owned).
+  // Composition comes from baseCpsWith/clickBaseWith — the same functions the
+  // live game runs — so only the buff model below is the sim's own.
+  const rates = (bought, owned) => {
+    const m = foldMods(bought, owned);
+    const base = baseCpsWith(m, owned);
+    const I = GOLD_MEAN_S / m.goldenFreq;                   // mean spawn gap
+    // Timed buffs as steady-state uptime EV, standing in for currentCpsBuff()/
+    // currentClickBuff(), which the sim can't call (they read wall-clock).
+    const gCps = useGold ? 1 + (GOLD_MULT - 1) * (ZOOM_MS / 1000) * (1 - FRENZY_CHANCE) / I : 1;
+    const gClk = useGold ? 1 + (CLICK_BUFF_MULT - 1) * (CLICK_BUFF_MS / 1000) * FRENZY_CHANCE / I : 1;
+    const pet = pps * clickBaseWith(m, owned) * gClk;
+    return { cps: base * gCps, pet, all: base * gCps + pet, I };
+  };
+  const log = ev => events.push({ t, ev, total: s.total, rate: rates(s.bought, s.owned).all });
+
+  while (t < capS) {
+    const r = rates(s.bought, s.owned);
+    s.mice += r.all * dt; s.total += r.all * dt;
+    earnedCps += r.cps * dt; earnedPet += r.pet * dt;
+    s.clicks += pps * dt;
+    if (useGold) { goldAcc += dt / r.I; s.goldCaught = Math.floor(goldAcc); }
+    t += dt;
+
+    // Story purchases first; remember the gap if one is pending but unaffordable.
+    let goalGap = 0;
+    for (const u of UPGRADES) {
+      if (s.bought[u.key] || !isStory(u) || !unlockMet(u, s)) continue;
+      if (s.mice >= u.cost) { s.mice -= u.cost; s.bought[u.key] = 1; log(`★ ${u.name}`); }
+      else goalGap = Math.max(goalGap, u.cost - s.mice);
+    }
+
+    // Growth purchases: repeatedly take the best-scoring affordable option.
+    for (let guard = 0; guard < 40; guard++) {
+      const r0 = rates(s.bought, s.owned);
+      let best = null;
+      for (const b of BUILDINGS) {
+        if (!buyableB(b)) continue;
+        const cost = costOf(b, s.owned[b.id]);
+        s.owned[b.id]++; const gain = rates(s.bought, s.owned).all - r0.all; s.owned[b.id]--;
+        if (gain <= 0) continue;
+        const score = Math.max(0, (cost - s.mice) / r0.all) + cost / gain;
+        if (!best || score < best.score) best = { cost, score, pay: cost / gain,
+          buy: () => { s.owned[b.id]++; if (s.owned[b.id] === 1) log(`first ${b.name}`); } };
+      }
+      for (const u of UPGRADES) {
+        if (s.bought[u.key] || isStory(u) || !unlockMet(u, s)) continue;
+        s.bought[u.key] = 1; const gain = rates(s.bought, s.owned).all - r0.all; delete s.bought[u.key];
+        if (gain <= 0) continue;  // e.g. click upgrades at pps=0
+        const score = Math.max(0, (u.cost - s.mice) / r0.all) + u.cost / gain;
+        if (!best || score < best.score) best = { cost: u.cost, score, pay: u.cost / gain,
+          buy: () => { s.bought[u.key] = 1; log(`upgrade ${u.name}`); } };
+      }
+      if (!best || s.mice < best.cost) break;
+      if (goalGap > 0 && best.pay > goalGap / r0.all) break;  // saving for the story
+      s.mice -= best.cost; best.buy();
+    }
+
+    const w = wallMiceFor(s.total);
+    if (w > lastWall && (w === 1 || Math.floor(w / 15) > Math.floor(lastWall / 15))) log(`wall: ${w} mice`);
+    lastWall = Math.max(lastWall, w);
+
+    if (isLegible(s)) { legibleAt = t; log("WORD LEGIBLE"); break; }
+  }
+  const petPct = (earnedPet + earnedCps) > 0 ? 100 * earnedPet / (earnedPet + earnedCps) : 0;
+  return { events, legibleAt, capS, capped: legibleAt == null, petPct, pps, useGold, end: s };
+}
+
+const simMMSS = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+function simHTML(r) {
+  const rows = r.events.map(e =>
+    `<tr><td class="n">${simMMSS(e.t)}</td><td>${e.ev}</td><td class="n">${fmt(e.total)}</td><td class="n">${fmt(e.rate)}/s</td></tr>`).join("");
+  const head = r.capped
+    ? `word NOT legible within ${simMMSS(r.capS)} — economy stalls short`
+    : `word legible at <b style="color:var(--gold)">${simMMSS(r.legibleAt)}</b>`;
+  return `<h4>pacing sim — ${r.pps} pets/s · goldens ${r.useGold ? "all caught" : "off"}</h4>
+    <div style="margin:4px 0 8px;color:#aeb6c6;">${head} · petting earned ${r.petPct.toFixed(0)}% of lifetime mice</div>
+    <table><thead><tr><th>t</th><th>event</th><th>lifetime</th><th>rate</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function initDev() {
+  if (!/debug/.test(location.search + location.hash)) return;
+  const st = document.createElement("style");
+  st.textContent = `
+    #devbar { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 10px; z-index: 40;
+      background: rgba(6,8,12,.88); border: 1px solid #2a3140; border-radius: 10px; padding: 7px 8px;
+      display: flex; flex-direction: column; gap: 5px; font: 600 10px ui-monospace, monospace; color: #77808f;
+      max-width: 200px; }
+    #devbar .r { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+    #devbar button { border: 1px solid #333c4e; background: #171c26; color: #aeb6c6;
+      border-radius: 6px; padding: 3px 7px; font: inherit; cursor: pointer; }
+    #devbar button.on { border-color: var(--neon); color: var(--neon); }
+    #devbar summary { cursor: pointer; color: #aeb6c6; list-style: none; padding: 1px 0; }
+    #devbar summary::-webkit-details-marker { display: none; }
+    #devbar summary::before { content: "▸ "; }
+    #devList[open] summary::before { content: "▾ "; }
+    /* Fixed, not in-flow: the table is far wider than the 200px bar, so it
+       floats as its own centered panel instead of blowing out the layout. */
+    #devContent {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: min(760px, 94vw); max-height: 82vh; overflow: auto; z-index: 41;
+      background: #090c12; border: 1px solid #2a3140; border-radius: 10px; padding: 12px 14px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.7);
+    }
+    #devContent h4 { margin: 10px 0 5px; color: var(--gold); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    #devContent h4:first-child { margin-top: 0; }
+    #devContent table { border-collapse: collapse; width: 100%; }
+    #devContent th, #devContent td { text-align: left; padding: 3px 7px; border-bottom: 1px solid #1b2130; vertical-align: top; }
+    #devContent th { color: var(--neon); font-weight: 600; position: sticky; top: 0; background: #090c12; }
+    #devContent td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--gold); white-space: nowrap; }
+    #devContent td.s { color: #6f7a8c; white-space: nowrap; }
+    #devContent tr.done td { opacity: .45; }`;
+  document.head.appendChild(st);
+  const bar = document.createElement("div");
+  bar.id = "devbar";
+  bar.innerHTML =
+    `<div class="r">speed <button data-sp="1" class="on">×1</button><button data-sp="10">×10</button><button data-sp="50">×50</button></div>
+     <div class="r">team <button data-team="1" class="on">×1</button><button data-team="4">×4</button></div>
+     <div class="r">grant <button data-g="1e4">+10K</button><button data-g="1e6">+1M</button><button data-g="1e8">+100M</button></div>
+     <div class="r">jump ${Object.keys(DEV_PRESETS).map(k => `<button data-p="${k}">${k}</button>`).join("")}</div>
+     <div class="r">sim <button data-sim="0">idle</button><button data-sim="3">solo 3/s</button><button data-sim="10">team 10/s</button></div>
+     <details id="devList"><summary>all content</summary><div id="devContent"></div></details>`;
+  document.body.appendChild(bar);
+  const list = bar.querySelector("#devList"), content = bar.querySelector("#devContent");
+  // `toggle` fires as a queued task, so a sim click that opens the panel and
+  // then writes results would get clobbered by this handler. pendingPane lets
+  // the sim hand its HTML across that async gap; default stays the content dump.
+  let pendingPane = null;
+  list.addEventListener("toggle", () => {
+    if (!list.open) return;
+    content.innerHTML = pendingPane || devContentHTML();
+    pendingPane = null;
+  });
+  bar.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.sp) {
+      DEV.speed = +b.dataset.sp;
+      bar.querySelectorAll("[data-sp]").forEach(x => x.classList.toggle("on", x === b));
+    } else if (b.dataset.team) {
+      // Simulates a 4-player room: every pet counts as 4 (see clickGain).
+      // Doesn't touch cps/buildings — this is purely "what does tapping feel
+      // like with a team behind it," not a balance change.
+      DEV.teamMult = +b.dataset.team;
+      bar.querySelectorAll("[data-team]").forEach(x => x.classList.toggle("on", x === b));
+    } else if (b.dataset.g) {
+      const n = +b.dataset.g;
+      game.mice += n; game.total += n; // grants earn, they don't counterfeit
+      refreshHud(); refreshShop(); refreshUpgrades();
+    } else if (b.dataset.sim != null) {
+      pendingPane = simHTML(simulateRun({ pps: +b.dataset.sim }));
+      if (list.open) { content.innerHTML = pendingPane; pendingPane = null; }
+      else list.open = true;
+    } else if (b.dataset.p) {
+      devApply(b.dataset.p);
+    }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // BOOT
 // ---------------------------------------------------------------------------
 load();
-resize();
+recalc();
 buildShop();
+dockEl.classList.add("open"); // opens by default; tray state is UI, not saved
+syncPhase(); // saves restore the phase for free
+initDev();
 refreshHud();
 refreshShop();
+refreshUpgrades();
 requestAnimationFrame(frame);
 </script>

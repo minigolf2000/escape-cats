@@ -7,6 +7,13 @@ it can sit at the root of a domain.
 dependencies, and no server. This is the game's canonical home (it used to live
 at `prototypes/hex-clicker.html`); edit it here.
 
+Also hosted from this root (each a self-contained, zero-dependency file, so
+they cost nothing to keep here and ride along on the same deploy):
+
+- `qr-studio.html` — the QR Art Studio tool, reachable at `/qr-studio.html`.
+  Its companion notes are in `qr-art-notes.md`.
+- `hex-clicker-synergy-brief.md` — implementation notes for the game.
+
 ## Deploying on Vercel
 
 This folder is the deploy root, so the game serves at the domain root (`/`),
@@ -20,5 +27,5 @@ not `/hex/`:
 
 `vercel.json` sets `X-Robots-Tag: noindex, nofollow` on every path, so the
 site stays out of search results while it's a private work in progress. The
-site is unlisted, not locked — the URL (and this folder's only file) is
-reachable by anyone who has it. Remove that header block to allow indexing.
+site is unlisted, not locked — every file in this folder is reachable by
+anyone who guesses its URL. Remove that header block to allow indexing.

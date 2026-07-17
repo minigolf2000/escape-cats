@@ -89,6 +89,14 @@
     margin: 0; height: 100%; overflow: hidden;
     font: 500 13px var(--ui-font); color: var(--ink);
     -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+    /* Kiosk lockdown: this is a proctored, locked-in escape-room game, so the
+       browser's ambient gestures are noise. `overscroll-behavior: none` kills
+       Android pull-to-refresh and the rubber-band bounce at the document edge
+       (inner scrollers re-enable their own with `contain`, below), and
+       `-webkit-touch-callout: none` stops iOS's long-press copy/share popover
+       mid-tap. Pinch/double-tap zoom is already gone via the viewport's
+       user-scalable=no; text selection via user-select above. */
+    overscroll-behavior: none; -webkit-touch-callout: none;
   }
   body {
     background: var(--page-bg);
@@ -368,11 +376,33 @@
   /* The body caps itself rather than each list capping independently —
      otherwise the upgrade strip stacks on the building list and the two
      together fill the screen. Shop absorbs whatever's left. */
+  /* Open/close is animated, so the body stays in the DOM and flexes at all
+     times (display can't transition) — collapsed it's max-height:0 + clipped,
+     so it takes no space and can't be tapped (pointer-events:none). Opening
+     grows it back up to its cap while the content rises and fades in, reading
+     as the tray unfurling upward out of the handle. Easing is asymmetric:
+     a soft, slightly-overshooting ease-out on the way open, a quicker ease-in
+     on the way closed — the standard bottom-sheet feel. */
   #trayBody {
-    flex: 1 1 auto; min-height: 0; max-height: 56vh;
-    display: none; flex-direction: column;
+    flex: 1 1 auto; min-height: 0;
+    display: flex; flex-direction: column;
+    max-height: 0; overflow: hidden;
+    opacity: 0; transform: translateY(6px); pointer-events: none;
+    transition: max-height .2s cubic-bezier(.4,0,1,1),
+                opacity .15s ease-in,
+                transform .2s cubic-bezier(.4,0,1,1);
   }
-  #dock.open #trayBody { display: flex; }
+  #dock.open #trayBody {
+    max-height: 56vh;
+    opacity: 1; transform: translateY(0); pointer-events: auto;
+    transition: max-height .32s cubic-bezier(.16,1,.3,1),
+                opacity .24s ease-out,
+                transform .32s cubic-bezier(.16,1,.3,1);
+  }
+  /* Respect the same motion preference the rays already honor: snap, no slide. */
+  @media (prefers-reduced-motion: reduce) {
+    #trayBody, #dock.open #trayBody { transition: none; }
+  }
 
   /* CC's big centered "Store" plaque, sat on its own wooden rail. Doubles as a
      close affordance: it's only ever on screen while the tray is open (it lives
@@ -406,7 +436,9 @@
     box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
   }
 
-  #shop { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 0 4px; }
+  /* `overscroll-behavior: contain` so scrolling past the end of the building
+     list stops here instead of bubbling into a document-level pull-refresh. */
+  #shop { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 0 4px; }
   #shop::-webkit-scrollbar { width: 0; }
   /* CC store rows: a dark inset strip, a framed icon, name over effect, and
      the price right-aligned — green when you can afford it, red when you
@@ -487,7 +519,7 @@
      list is short; buying removes the row) ---- */
   #upgradeSec { flex: none; display: none; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
   #upgradeSec.show { display: block; }
-  #upgrades { max-height: 11vh; overflow-y: auto; padding: 2px 0 0; }
+  #upgrades { max-height: 11vh; overflow-y: auto; overscroll-behavior: contain; padding: 2px 0 0; }
   #upgrades::-webkit-scrollbar { width: 0; }
   .item.up { padding: 6px 12px; }
   .item.up .icon { width: 30px; height: 30px; font-size: 16px; border-radius: 9px; }
@@ -982,6 +1014,12 @@ function setTrayOpen(open) {
 }
 trayHandleEl.addEventListener("click", () => setTrayOpen(!dockEl.classList.contains("open")));
 upgradeSecEl.querySelector(".shopHead").addEventListener("click", () => setTrayOpen(false));
+
+// Kiosk lockdown (see the html,body CSS note): swallow the long-press context
+// menu so a held tap on Hex or a shop row never raises the browser's callout.
+// This is a locked-in, proctored game — there's no in-game use for right-click
+// or the copy/share menu, so blocking it document-wide is safe.
+window.addEventListener("contextmenu", e => e.preventDefault());
 
 
 // ---------------------------------------------------------------------------

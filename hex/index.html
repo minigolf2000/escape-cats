@@ -1513,6 +1513,15 @@ function spawnGold() {
   goldY = 40 + Math.random() * (h - 160);
   const ang = Math.random() * Math.PI * 2, sp = 22 + Math.random() * 18;
   goldVx = Math.cos(ang) * sp; goldVy = Math.sin(ang) * sp;
+  // Position BEFORE revealing. moveGold() writes left/top too, but it runs
+  // before the spawn check in the frame loop, so it can't touch this spawn
+  // until the next frame — without seeding them here the element paints one
+  // frame at the previous golden's spot (or 0,0 on the first spawn) and then
+  // jumps. opacity is already reset by despawnGold(); set it here too so spawn
+  // fully defines the visible state rather than trusting that cleanup.
+  goldenEl.style.left = goldX + "px";
+  goldenEl.style.top = goldY + "px";
+  goldenEl.style.opacity = "1";
   goldenEl.style.display = "grid";
 }
 function moveGold(dt) {
@@ -2065,7 +2074,7 @@ const IDLE = {
   whiskersForward: true,  // whiskers fan toward that same golden mouse
   slowBlink: true,        // the "I trust you" blink, earned by a petting streak
   gazeDrift: true,        // eyes wander when there's nothing to look at
-  purr: true,             // rumble while she's being petted
+  purr: false,            // rumble while she's being petted
   yawn: true,             // one big yawn as she drops into the night phase
   dreamTwitch: true,      // rare whole-head jerk while dreaming
 };

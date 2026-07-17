@@ -582,6 +582,14 @@ const BUILDINGS = [
 ];
 const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
+// Global income compression. The BUILDINGS mps column mirrors Cookie Clicker's
+// first buildings, whose pacing targets a weeks-long IDLE game; this is a
+// frantic ~10-min co-op for a team of 4. INCOME_SCALE multiplies all passive
+// income (and, via clickShare, the pet-share term with it — so the click/idle
+// balance is preserved) to land the run at: medium team (~8 pets/s) ≈ 10 min,
+// good team mashing (~16 pets/s) ≈ 7 min. One dial, tune against playtests.
+// Applied in baseCpsWith so the in-file pacing simulator sees it for free.
+const INCOME_SCALE = 3.5;
 const SAVE_KEY = "hexclicker.v1";
 
 // ---------------------------------------------------------------------------
@@ -716,8 +724,13 @@ const UPGRADES = [
   // so the two arrive as a pair: the lab appears, and so does the strange
   // upgrade. Buying it flips the night phase permanently (it derives from
   // game.bought, so saves restore it for free).
+  // Cost trimmed 250k -> 160k: it unlocks at 130k lifetime but you're spending
+  // mice on buildings, so a 250k bank was a ~90s dead wait right before the
+  // twist. 160k lands it just past affordability when it reveals, killing the
+  // one remaining lull. Unlock stays at 130k so it still arrives paired with
+  // the Lab.
   { key: "catnap", name: "Catnap Hypnalysis", icon: "💤",
-    cost: 250000, unlock: { total: 130000 },
+    cost: 160000, unlock: { total: 130000 },
     effect: { type: "night" },
     fx: "What is Hex dreaming about?" },
   // Comet Trails: the reveal's ink. Five tiers, each +7 trail segments (35
@@ -855,7 +868,7 @@ function nightActive() { return nightOf(game.bought); }
 function baseCpsWith(m, owned) {
   let s = 0;
   for (const b of BUILDINGS) s += b.mps * owned[b.id] * m.building[b.id];
-  return s * m.globalMult;
+  return s * m.globalMult * INCOME_SCALE;
 }
 // Pre-buff click value: flat + a share of income, times the click multiplier.
 function clickBaseWith(m, owned) {

@@ -2,12 +2,12 @@
 
 Implementation brief for two upgrades: **Assisted Pounce** and **Thesis Subjects**.
 Self-contained — you don't need the thread this came from. Target file:
-[`hex-clicker.html`](./hex-clicker.html) (single file, no build step, open it in a
+[`index.html`](./index.html) (this game; single file, no build step, open it in a
 browser).
 
 ## Context
 
-`hex-clicker.html` has ~15 upgrades driven by a flat `UPGRADES` table and a typed
+`index.html` has ~15 upgrades driven by a flat `UPGRADES` table and a typed
 effect union (`buildingMult`, `globalPct`, `clickFlat`, `clickShare`, `clickMult`,
 `goldenFreq`, `trail`, `night`), folded into a `mods` object by `recalc()`.
 
@@ -134,7 +134,7 @@ use `robocat` or `farm` as the subject**, or be authored knowingly as flavor.
 
 ---
 
-## 3. Changes — all in `hex-clicker.html`
+## 3. Changes — all in `index.html`
 
 **a. `buy()`** — add `recalc()` before the refresh calls. (§1)
 

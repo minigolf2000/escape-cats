@@ -379,24 +379,23 @@
   /* Open/close is animated, so the body stays in the DOM and flexes at all
      times (display can't transition) — collapsed it's max-height:0 + clipped,
      so it takes no space and can't be tapped (pointer-events:none). Opening
-     grows it back up to its cap while the content rises and fades in, reading
-     as the tray unfurling upward out of the handle. Easing is asymmetric:
+     grows it back up to its cap while the content rises, reading as the tray
+     unfurling upward out of the handle — a purely positional move, no fade.
+     Easing is asymmetric:
      a soft, slightly-overshooting ease-out on the way open, a quicker ease-in
      on the way closed — the standard bottom-sheet feel. */
   #trayBody {
     flex: 1 1 auto; min-height: 0;
     display: flex; flex-direction: column;
     max-height: 0; overflow: hidden;
-    opacity: 0; transform: translateY(6px); pointer-events: none;
+    transform: translateY(6px); pointer-events: none;
     transition: max-height .2s cubic-bezier(.4,0,1,1),
-                opacity .15s ease-in,
                 transform .2s cubic-bezier(.4,0,1,1);
   }
   #dock.open #trayBody {
     max-height: 56vh;
-    opacity: 1; transform: translateY(0); pointer-events: auto;
+    transform: translateY(0); pointer-events: auto;
     transition: max-height .32s cubic-bezier(.16,1,.3,1),
-                opacity .24s ease-out,
                 transform .32s cubic-bezier(.16,1,.3,1);
   }
   /* Respect the same motion preference the rays already honor: snap, no slide. */

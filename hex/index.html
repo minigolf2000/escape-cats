@@ -595,7 +595,6 @@
 // ---------------------------------------------------------------------------
 const GROWTH = 1.15;
 const BUILDINGS = [
-  { id: "robocat", name: "Robo-Cat",        icon: "🤖", base: 15,     mps: 0.1, blurb: "Hunts mice on its own" },
   { id: "shopper", name: "Mouse Subscription", icon: "📦", base: 40,     mps: 0.4, blurb: "Just orders them by the dozen" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
   { id: "quarry",  name: "Mouse Quarry",    icon: "⛏️", base: 1100,   mps: 8,   blurb: "Mines mice from raw hex" },
@@ -607,9 +606,9 @@ const BUILDINGS = [
   // ladder without resetting the day economy. Numbers are GUESSES to iterate;
   // spacing mirrors the day curve (~x12 cost, ~x13 mps per tier).
   { id: "portal",     name: "Dimensional Mouse Hole", icon: "🌀", base: 400000, mps: 3000,  night: true, blurb: "Mice pour through from elsewhere" },
-  { id: "timemachine",name: "Time Machine",         icon: "⏳", base: 5e6,    mps: 40000, night: true, blurb: "Imports mice from last Tuesday" },
-  { id: "fractal",    name: "Fractal Engine",       icon: "❄️", base: 60e6,   mps: 550000, night: true, blurb: "Every mouse is made of mice" },
-  { id: "antimatter", name: "Antimatter Condenser", icon: "⚛️", base: 750e6,  mps: 7e6,   night: true, blurb: "Condenses mice out of nothing" },
+  { id: "timemachine",name: "Chrono Cattelite Courier", icon: "🛰️", base: 5e6,    mps: 40000, night: true, blurb: "Beams mice down from last Tuesday" },
+  { id: "fractal",    name: "Constellation Cattery",    icon: "🌌", base: 60e6,   mps: 550000, night: true, blurb: "Every star is a cat, every cat a colony" },
+  { id: "antimatter", name: "Singularity Scratcher",    icon: "🕳️", base: 750e6,  mps: 7e6,   night: true, blurb: "A post so dense it pulls mice from the void" },
 ];
 const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
@@ -650,14 +649,6 @@ const SAVE_KEY = "hexclicker.v1";
 // purpose: you don't own enough of it, late enough, for one to land.
 // ---------------------------------------------------------------------------
 const UPGRADES = [
-  // --- Robo-Cat ---
-  { key: "robocat1", name: "Carbide Claws", icon: "🦾",
-    cost: 200, unlock: { owned: ["robocat", 10] },
-    effect: { type: "buildingMult", building: "robocat", mult: 2 } },
-  { key: "robocat2", name: "Predictive Targeting", icon: "🎯",
-    cost: 2000, unlock: { owned: ["robocat", 40] },
-    effect: { type: "buildingMult", building: "robocat", mult: 2 } },
-
   // --- Mouse Subscription ---
   { key: "shopper1", name: "2-Day Shipping", icon: "🚚",
     cost: 400, unlock: { owned: ["shopper", 5] },
@@ -707,10 +698,10 @@ const UPGRADES = [
     cost: 1.5e6, unlock: { clicks: 700 },
     effect: { type: "clickMult", mult: 2 },
     fx: "Hex would do anything for churu" },
-  { key: "jailgoomba", name: "Lock Goomba in Jail", icon: "🚔",
+  { key: "jailgoomba", name: "Lock Goomba in Cardboard Castle", icon: "🚔",
     cost: 15e6, unlock: { clicks: 1200 },
     effect: { type: "clickMult", mult: 2 },
-    fx: "Goomba can't steal pets from jail" },
+    fx: "Goomba can't steal pets from the cardboard castle" },
   // Cardboard pair: the Box is the classic cheap ambush spot; the Castle is its
   // upgrade, so it `requires` the Box before it unlocks. Both are plain ×2 pets.
   { key: "cardboardbox", name: "Cardboard Box", icon: "📦",
@@ -738,32 +729,16 @@ const UPGRADES = [
     fx: "Pet the bitey one without consequence" },
 
   // --- Cross-building synergies ---
-  // Cookie Clicker's GrandmaSynergy pattern: the cheapest building takes a job
-  // somewhere else, and the name is the punchline. Its real design job is
-  // RE-RELEVANCE — the 1.15^n cost curve outruns Robo-Cat's 0.1 mps and kills
-  // it; these drag it back into play. Robo-Cat and Farm are the only viable
-  // subjects: a synergy only changes behavior when its term dwarfs the
-  // subject's own mps, and Quarry (8 mps) / Factory (47) are too productive
-  // for that. Both effects read game.owned, which is why buy() must recalc().
-  // No `fx` on either row, deliberately: fx REPLACES the derived effect text,
-  // and for a synergy the climbing number is the mechanic — "+0.5 per pet for
-  // every Robo-Cat" has to be legible. The brief's blurbs have nowhere to live
-  // until a row carries flavor and mechanics as separate fields.
-  { key: "assistedpounce", name: "Assisted Pounce", icon: "🤝",
-    cost: 25000,
-    unlock: { owned: ["robocat", 25] },
-    effect: { type: "clickPerBuilding", per: "robocat", add: 0.5 } },
-  // Deliberately breaks CC's GrandmaSynergy price rule (host base x50 = 6.5M
-  // here, vs our priciest existing upgrade at 1.4M) — that rule assumes you
-  // own ~15 of the host, we unlock at 1. 300k is anchored to "you just spent
-  // 130k on a Lab". UNPLAYTESTED, tune it.
-  { key: "thesissubjects", name: "Thesis Subjects", icon: "🎓",
-    cost: 300000,
-    unlock: { owned: [["lab", 1], ["robocat", 25]] },
-    effect: [
-      { type: "buildingMult",  building: "robocat", mult: 2 },
-      { type: "crossBuilding", building: "lab", per: "robocat", pct: 1 },
-    ] },
+  // (None right now.) Assisted Pounce and Thesis Subjects lived here — both used
+  // Robo-Cat as the synergy subject (Cookie Clicker's GrandmaSynergy pattern:
+  // the cheapest building takes a job elsewhere and the name is the punchline).
+  // They were removed with Robo-Cat. The machinery survives for a future
+  // re-authoring against a new subject: the `clickPerBuilding` and
+  // `crossBuilding` effect types (see foldMods/effectText), and buy()'s recalc()
+  // that keeps their game.owned-dependent multipliers live. A synergy only
+  // changes behavior when its term dwarfs the subject's own mps, so the subject
+  // must be a cheap, low-mps building (Mouse Subscription 0.4 or Mouse Farm 1),
+  // never Quarry/Factory. See hex-clicker-synergy-brief.md (now historical).
 
   // --- Bespoke ---
   { key: "milk", name: "Saucer of Milk", icon: "🥛",
@@ -2375,16 +2350,16 @@ const DEV = { speed: 1, teamMult: 1 };
 const DEV_PRESETS = {
   "fresh":    { total: 0, mice: 0, clicks: 0 },
   "early":    { total: 600, mice: 350, clicks: 60,
-                owned: { robocat: 5, shopper: 3 } },
+                owned: { shopper: 5, farm: 3 } },
   "midday":   { total: 30000, mice: 12000, clicks: 220,
-                owned: { robocat: 18, shopper: 12, farm: 8, quarry: 3 } },
+                owned: { shopper: 18, farm: 8, quarry: 3 } },
   "pre-night":{ total: 140000, mice: 320000, clicks: 420,
-                owned: { robocat: 25, shopper: 18, farm: 14, quarry: 9, factory: 4, lab: 1 } },
+                owned: { shopper: 25, farm: 14, quarry: 9, factory: 4, lab: 1 } },
   "night":    { total: 450000, mice: 900000, clicks: 550, golden: 3,
-                owned: { robocat: 25, shopper: 18, farm: 14, quarry: 9, factory: 5, lab: 2 },
+                owned: { shopper: 25, farm: 14, quarry: 9, factory: 5, lab: 2 },
                 bought: ["catnap"] },
   "legible":  { total: LEGIBLE_TOTAL, mice: 6e6, clicks: 1000, golden: 6,
-                owned: { robocat: 25, shopper: 18, farm: 14, quarry: 9, factory: 5, lab: 2, portal: 12, timemachine: 4 },
+                owned: { shopper: 25, farm: 14, quarry: 9, factory: 5, lab: 2, portal: 12, timemachine: 4 },
                 bought: ["catnap", "comet1", "comet2", "comet3", "comet4", "comet5"] },
 };
 function devApply(name) {

@@ -639,6 +639,7 @@ const SAVE_KEY = "hexclicker.v1";
 //     clickShare    pct              — + % of your /s per pet
 //     clickMult     mult             — multiplies the whole pet
 //     goldenFreq    mult             — golden mice spawn this much sooner
+//     goldenLife    add              — golden mice stay on screen this many more seconds
 //     trail         add              — night wall trail segments (the reveal ink)
 //     night         (no fields)      — THE phase flip; handled in buyUpgrade
 //   fx: optional flavor override; otherwise derived from effect (see effectText).
@@ -720,6 +721,21 @@ const UPGRADES = [
     cost: 8e6, unlock: { requires: "cardboardbox", clicks: 1000 },
     effect: { type: "clickMult", mult: 2 },
     fx: "A fortress of flaps — every corner a fresh pounce" },
+  // More ×2 petting. Costs/unlocks are placeholders — parked in the petting
+  // ladder in ascending order so they don't all reveal at once; NOT tuned yet.
+  { key: "scratchpost", name: "Scratching Post", icon: "🪵",
+    cost: 3000, unlock: { clicks: 80 },
+    effect: { type: "clickMult", mult: 2 } },
+  { key: "scratchpost2", name: "Reinforced Scratching Post", icon: "🪢",
+    cost: 40000, unlock: { requires: "scratchpost", clicks: 250 },
+    effect: { type: "clickMult", mult: 2 } },
+  { key: "chinscritch", name: "Chin Scritch", icon: "😌",
+    cost: 3e6, unlock: { clicks: 900 },
+    effect: { type: "clickMult", mult: 2 } },
+  { key: "ovenmitts", name: "Oven Mitts", icon: "🧤",
+    cost: 40e6, unlock: { clicks: 1500 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "Pet the bitey one without consequence" },
 
   // --- Cross-building synergies ---
   // Cookie Clicker's GrandmaSynergy pattern: the cheapest building takes a job
@@ -756,6 +772,11 @@ const UPGRADES = [
   { key: "magnet", name: "Mouse Magnet", icon: "🧲",
     cost: 30000, unlock: { golden: 2 },
     effect: { type: "goldenFreq", mult: 1.5 } },
+  // Golden mice linger longer on screen (duration, not frequency). Placeholder
+  // cost; unlock nods at the name — catch six goldens first.
+  { key: "lucky6", name: "Lucky Number 6", icon: "🍀",
+    cost: 60000, unlock: { golden: 6 },
+    effect: { type: "goldenLife", add: 6 } },
   { key: "focus", name: "Hex's Undivided Focus", icon: "👁️",
     cost: 250000, unlock: { total: 200000 },
     effect: { type: "globalPct", pct: 10 } },
@@ -858,7 +879,7 @@ function costOf(b, owned) { return Math.ceil(b.base * Math.pow(GROWTH, owned)); 
 // of a copy that drifts. recalc() is the thin live-game binding.
 function foldMods(bought, owned) {
   const m = { building: {}, globalMult: 1, clickFlat: CLICK_BASE,
-              clickShare: CLICK_CPS_SHARE, clickMult: 1, goldenFreq: 1, trail: 0 };
+              clickShare: CLICK_CPS_SHARE, clickMult: 1, goldenFreq: 1, goldenLife: 0, trail: 0 };
   BUILDINGS.forEach(b => m.building[b.id] = 1);
   let globalPct = 0;
   for (const u of UPGRADES) {
@@ -872,6 +893,7 @@ function foldMods(bought, owned) {
       else if (e.type === "clickShare") m.clickShare += e.pct / 100;
       else if (e.type === "clickMult") m.clickMult *= e.mult;
       else if (e.type === "goldenFreq") m.goldenFreq *= e.mult;
+      else if (e.type === "goldenLife") m.goldenLife += e.add;
       else if (e.type === "trail") m.trail += e.add;
       // The two owned-dependent effects. One-directional by design (Cookie
       // Clicker's GrandmaSynergy, not its symmetric SynergyUpgrade): the host
@@ -969,6 +991,7 @@ function oneEffectText(e) {
     case "clickShare":   return `+${e.pct}% of your /s per pet`;
     case "clickMult":    return `Petting is ×${e.mult} stronger`;
     case "goldenFreq":   return `Golden mice appear ×${e.mult} as often`;
+    case "goldenLife":   return `Golden mice linger +${e.add}s longer`;
     case "trail":        return `Wall mice trail longer comet tails`;
     case "crossBuilding": return `${buildingName(e.building)} gains +${e.pct}% per ${buildingName(e.per)}`;
     case "clickPerBuilding": return `+${fmt(e.add)} per pet for every ${buildingName(e.per)}`;
@@ -1508,7 +1531,7 @@ scheduleGold();
 
 function spawnGold() {
   goldActive = true;
-  goldLifeLeft = 9; // seconds on screen
+  goldLifeLeft = 9 + mods.goldenLife; // seconds on screen (Lucky Number 6 extends this)
   // Art is chosen per spawn, not once at boot: night unlocks mid-session, and a
   // golden that's already drifting when it flips would otherwise keep the wrong
   // vehicle until the next one. Per-spawn is also the only moment it can change

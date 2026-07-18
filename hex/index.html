@@ -159,9 +159,12 @@
   }
   @keyframes raySpin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { #rays { animation: none; } }
+  /* Not clickable itself — just the centering flexbox. Petting hit-tests
+     against #hexCat's actual painted shapes (see its rule below), not this
+     full-stage box, so a tap in the empty space around Hex (or between her
+     ears) doesn't count as a pet. */
   #catWrap {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    touch-action: manipulation; cursor: pointer;
   }
   /* Four nested layers, one transform each, because they animate on wildly
      different clocks and CSS can't run two durations on one property:
@@ -194,12 +197,22 @@
     display: flex; align-items: center; justify-content: center;
     width: 100%; height: 100%;
   }
+  /* pointer-events:none on the root svg is load-bearing, not decoration: an
+     inline <svg> hit-tests its own bounding box by default (unlike its
+     graphics children, which default to visiblePainted), so without this a
+     tap in the gap between Hex's ears — inside the viewBox but on no
+     path — would still count as a pet. none is inherited, so every child
+     shape below re-enables auto (== visiblePainted for SVG content) to get
+     real per-shape hit-testing back; cursor/touch-action move down with it,
+     since they're meaningless on an element excluded from hit-testing. */
   #hexCat {
     width: min(62%, 340px); height: auto; max-height: 94%;
+    pointer-events: none;
     /* day: sitting in the sunburst, so a warm white bloom like CC's cookie */
     filter: drop-shadow(0 3px 10px rgba(0,0,0,.45)) drop-shadow(0 0 30px rgba(200,235,255,.45));
     transition: transform .1s ease-out;
   }
+  #hexCat > * { pointer-events: auto; cursor: pointer; touch-action: manipulation; }
   #catWrap.squash #hexCat { transform: scale(.93); }
   #catWrap.frenzy #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
   #catWrap.frenzy #hexCat #head { stroke: #ffd44d; }
@@ -326,10 +339,16 @@
     50%     { transform: translateY(-3px) rotate(3deg); }
   }
 
+  /* top clears #hud (score + per-second line): same top-pad formula #hud uses
+     for its own padding-top, plus #hud's content+bottom-pad height (~62px)
+     and a small gap, so the pill sits just under the score instead of behind
+     it — #buff is absolute against #stage, which starts flush with #hud. */
   #buff {
-    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    position: absolute; top: calc(max(12px, env(safe-area-inset-top)) + 70px);
+    left: 50%; transform: translateX(-50%);
     background: #2a230e; border: 1px solid #6b5a1e; color: var(--gold); display: none;
     font: 800 12px system-ui; letter-spacing: .05em; padding: 6px 14px; border-radius: 999px;
+    white-space: nowrap;
     text-shadow: 0 0 10px rgba(255,212,77,.6); font-variant-numeric: tabular-nums; z-index: 4;
     pointer-events: none;
   }
@@ -360,9 +379,13 @@
   /* Cookie Clicker frames every panel in wood. The handle doubles as that
      frame: at night --wood resolves to `none` and the background-color
      underneath shows through, so the same element reads as a plain bar. */
+  /* appearance:none + border-radius:0: it's a bare <button>, and mobile
+     Safari's default control chrome rounds its corners — squares it back off
+     to match the rest of the wood-rail framing. */
   #trayHandle {
     flex: none; width: 100%; display: flex; align-items: center;
     justify-content: space-between; padding: 10px 14px; cursor: pointer;
+    -webkit-appearance: none; appearance: none; border-radius: 0;
     background: var(--wood), var(--panel-bg);
     border: 0; border-top: 1px solid var(--wood-line);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
@@ -410,6 +433,7 @@
   .shopHead {
     flex: none;
     display: flex; align-items: center; justify-content: center; padding: 7px 12px 6px;
+    -webkit-appearance: none; appearance: none; border-radius: 0;
     background: var(--wood), var(--panel-bg);
     border: 0; width: 100%; cursor: pointer;
     border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
@@ -464,11 +488,10 @@
      the owned count is pulled out to its own corner) — name top-left, price
      bottom-left, quantity on the right. */
   .item .body { flex: 1 1 auto; min-width: 0; }
-  /* Building rows only: name and its per-second rate share one line, the rate
-     pushed to the line's own right edge — this is where the blurb used to
-     read ("Grows mice in glowing rows"), now retired (see refreshShop()'s
-     comment for why) and replaced by the one number worth keeping. Upgrade
-     rows skip this — they have no rate, so .nm sits bare above .fx. */
+  /* Building rows: name and its per-second rate share one line, the rate
+     pushed to the line's own right edge; the blurb ("Grows mice in glowing
+     rows") reads on its own line below, in the same .fx slot upgrade rows use
+     for effect text. Upgrade rows have no rate, so their .nm sits bare above .fx. */
   .item .titleRow { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .item .nm {
     font: 700 13.5px var(--ui-font); color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.45);
@@ -512,6 +535,7 @@
   .item.locked .icLocked { display: block; }
   .item.locked .titleRow,
   .item.locked .ic,
+  .item.locked .fx,
   .item.locked .own { display: none; }
 
   /* ---- Upgrades strip (only unlocked-and-unbought ones exist here, so the
@@ -540,9 +564,9 @@
   <!-- night-phase reveal wall (ported from reveal-lab.html); sits under everything -->
   <canvas id="wall"></canvas>
   <!-- Inlined from hex-cat.svg — keep in sync with that file (see its header comment). -->
-  <div id="catWrap" role="button" aria-label="Pet Hex">
+  <div id="catWrap">
    <div id="catMotion"><div id="catPose"><div id="catBreath">
-    <svg id="hexCat" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg id="hexCat" role="button" aria-label="Pet Hex" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path id="head" d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z" fill="#111114" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round"/>
       <path id="eyeLeft" d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="#65C256"/>
       <path id="eyeRight" d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="#65C256"/>
@@ -595,11 +619,11 @@
 // ---------------------------------------------------------------------------
 const GROWTH = 1.15;
 const BUILDINGS = [
-  { id: "shopper", name: "Mouse Subscription", icon: "📦", base: 40,     mps: 0.4, blurb: "Just orders them by the dozen" },
+  { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 40,     mps: 0.4, blurb: "Gets a mouse every 2.5 seconds" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
   { id: "quarry",  name: "Mouse Quarry",    icon: "⛏️", base: 1100,   mps: 8,   blurb: "Mines mice from raw hex" },
   { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces mice" },
-  { id: "lab",     name: "Schrödinger Lab",  icon: "🔬", base: 130000, mps: 260, blurb: "Synthesizes mice from theory" },
+  { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 260, blurb: "Synthesizes mice from theory" },
   // Night buildings — hidden until Catnap Hypnalysis flips the phase, then they enter
   // through the same reveal/tease flow. Deliberately dwarf day production (the
   // lab earns ~2 mps per 1K cost; these earn ~8) so phase two has its own
@@ -727,6 +751,18 @@ const UPGRADES = [
     cost: 40e6, unlock: { clicks: 1500 },
     effect: { type: "clickMult", mult: 2 },
     fx: "Pet the bitey one without consequence" },
+  { key: "cattree", name: "Cat Tree", icon: "🌳",
+    cost: 60e6, unlock: { clicks: 1800 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "Claims the tallest perch in the house" },
+  { key: "windowperch", name: "Window Perch", icon: "🪟",
+    cost: 90e6, unlock: { clicks: 2200 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "Prime real estate for judging the birds outside" },
+  { key: "dryfood", name: "Dry Food", icon: "🥣",
+    cost: 120e6, unlock: { clicks: 2600 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "Her midday snack, kibble by kibble" },
 
   // --- Cross-building synergies ---
   // (None right now.) Assisted Pounce and Thesis Subjects lived here — both used
@@ -1063,6 +1099,7 @@ function buildShop() {
            <div class="nm">${b.name}</div>
            <div class="rate"></div>
          </div>
+         <div class="fx">${b.blurb}</div>
          <div class="cost">${currencyIconSVG()}<span class="costNum"></span></div>
        </div>
        <div class="own">0</div>`;
@@ -1129,18 +1166,14 @@ function refreshShop() {
     // with the strings they already held, and these rows sit inside a
     // backdrop-filter'd #dock, where invalidating content forces the blur to
     // re-composite. Only the affordability class runs per tick.
-    // A ??? row shows its price and nothing else — CSS hides the name, rate
-    // and owned count, so there's nothing to write.
+    // A ??? row shows its price and nothing else — CSS hides the name, rate,
+    // blurb and owned count, so there's nothing to write.
     if (textStale) {
       r.ownN = owned;
       r.costNum.textContent = fmt(price);
       if (revealed) {
         r.own.textContent = owned;
         const each = b.mps, mine = each * owned;
-        // Blurb (b.blurb) is intentionally not shown — CC's own building
-        // descriptions are tooltip-only, reachable by a hover this game
-        // doesn't have (mobile-first), so there's no honest way to surface
-        // them here. The rate is the one number worth keeping visible.
         r.rate.textContent = mine > 0 ? `${fmt(mine)}/s` : `+${fmt(each)}/s each`;
       }
     }
@@ -1397,7 +1430,11 @@ const catEl = $("#catWrap"), hexCatEl = $("#hexCat"), catMotionEl = $("#catMotio
 const irisLeftEl = $("#irisLeft"), irisRightEl = $("#irisRight");
 const eyeLeftEl = $("#eyeLeft"), eyeRightEl = $("#eyeRight");
 const whiskersEl = $("#whiskers"), mouthEl = $("#mouth");
-catEl.addEventListener("pointerdown", e => { e.preventDefault(); pet(e.clientX, e.clientY); }, { passive: false });
+// Listener lives on the svg, not #catWrap: hit-testing an SVG shape element
+// defaults to its painted area (fill/stroke), not its bounding box, so this
+// alone makes petting require an actual tap on Hex's silhouette — same as
+// clicking the cookie in Cookie Clicker, not just anywhere on the stage.
+hexCatEl.addEventListener("pointerdown", e => { e.preventDefault(); pet(e.clientX, e.clientY); }, { passive: false });
 
 // ---------------------------------------------------------------------------
 // The golden mouse's art. Was the 🐭 emoji, which put a stray third-party glyph
@@ -2536,6 +2573,10 @@ function initDev() {
       background: rgba(6,8,12,.88); border: 1px solid #2a3140; border-radius: 10px; padding: 7px 8px;
       display: flex; flex-direction: column; gap: 5px; font: 600 10px ui-monospace, monospace; color: #77808f;
       max-width: 200px; }
+    /* Widened + made scrollable only while the buildings/upgrades details is
+       open, so that section stays part of the same panel instead of a
+       separate overlay that can end up covering its own dismiss control. */
+    #devbar.wide { max-width: min(760px, 94vw); max-height: 82vh; overflow-y: auto; }
     #devbar .r { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
     #devbar button { border: 1px solid #333c4e; background: #171c26; color: #aeb6c6;
       border-radius: 6px; padding: 3px 7px; font: inherit; cursor: pointer; }
@@ -2544,14 +2585,7 @@ function initDev() {
     #devbar summary::-webkit-details-marker { display: none; }
     #devbar summary::before { content: "▸ "; }
     #devList[open] summary::before { content: "▾ "; }
-    /* Fixed, not in-flow: the table is far wider than the 200px bar, so it
-       floats as its own centered panel instead of blowing out the layout. */
-    #devContent {
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: min(760px, 94vw); max-height: 82vh; overflow: auto; z-index: 41;
-      background: #090c12; border: 1px solid #2a3140; border-radius: 10px; padding: 12px 14px;
-      box-shadow: 0 18px 60px rgba(0,0,0,.7);
-    }
+    #devContent { margin-top: 4px; overflow-x: auto; }
     #devContent h4 { margin: 10px 0 5px; color: var(--gold); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
     #devContent h4:first-child { margin-top: 0; }
     #devContent table { border-collapse: collapse; width: 100%; }
@@ -2569,7 +2603,7 @@ function initDev() {
      <div class="r">grant <button data-g="1e4">+10K</button><button data-g="1e6">+1M</button><button data-g="1e8">+100M</button></div>
      <div class="r">jump ${Object.keys(DEV_PRESETS).map(k => `<button data-p="${k}">${k}</button>`).join("")}</div>
      <div class="r">sim <button data-sim="0">idle</button><button data-sim="3">solo 3/s</button><button data-sim="10">team 10/s</button></div>
-     <details id="devList"><summary>all content</summary><div id="devContent"></div></details>`;
+     <details id="devList"><summary>buildings &amp; upgrades</summary><div id="devContent"></div></details>`;
   document.body.appendChild(bar);
   const list = bar.querySelector("#devList"), content = bar.querySelector("#devContent");
   // `toggle` fires as a queued task, so a sim click that opens the panel and
@@ -2577,6 +2611,7 @@ function initDev() {
   // the sim hand its HTML across that async gap; default stays the content dump.
   let pendingPane = null;
   list.addEventListener("toggle", () => {
+    bar.classList.toggle("wide", list.open);
     if (!list.open) return;
     content.innerHTML = pendingPane || devContentHTML();
     pendingPane = null;

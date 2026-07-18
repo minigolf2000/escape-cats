@@ -1,0 +1,658 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>Band Snap</title>
+<style>
+  :root {
+    --bg: #0b0c10;
+    --panel: #14161d;
+    --panel-hi: #1b1e28;
+    --ink: #e8eaf0;
+    --muted: #8a90a2;
+    --teal: #57e6c9;
+    --pink: #ff5db1;
+    --amber: #ffb454;
+    --line: #262a36;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--bg); }
+  body {
+    color: var(--ink);
+    font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  #game { position: fixed; inset: 0; touch-action: none; }
+  #flash {
+    position: fixed; inset: 0; pointer-events: none; background: var(--pink);
+    opacity: 0; transition: opacity 260ms ease-out; z-index: 3;
+  }
+  #flash.on { opacity: 0.22; transition: none; }
+
+  /* ---- HUD ---- */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 4;
+    display: flex; gap: 8px; justify-content: center;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 0;
+    pointer-events: none; visibility: hidden;
+  }
+  #hud .stat {
+    background: rgba(20,22,29,0.82); border: 1px solid var(--line); border-radius: 12px;
+    padding: 6px 12px; text-align: center; min-width: 74px;
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  }
+  #hud .stat b {
+    display: block; font-size: 18px; font-variant-numeric: tabular-nums;
+    color: var(--teal); letter-spacing: 0.02em;
+  }
+  #hud .stat span {
+    font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+  }
+  #hud .stat.combo b { color: var(--pink); }
+
+  /* ---- overlay cards (start / calibrate) ---- */
+  #overlay {
+    position: fixed; inset: 0; z-index: 5; display: grid; place-items: center;
+    padding: 20px; background: rgba(11,12,16,0.72);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  #overlay.hidden { display: none; }
+  .card {
+    width: min(420px, 100%); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 20px; padding: 26px 22px calc(22px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 14px; text-align: center;
+  }
+  .card[hidden], button[hidden] { display: none; }
+  .card h1 { margin: 0; font-size: 30px; letter-spacing: -0.01em; text-wrap: balance; }
+  .card h1 .glow { color: var(--teal); text-shadow: 0 0 18px rgba(87,230,201,0.45); }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; text-wrap: pretty; }
+  .card p strong { color: var(--ink); font-weight: 600; }
+  .steps { display: flex; flex-direction: column; gap: 8px; text-align: left; margin: 2px 0; }
+  .steps div {
+    display: flex; gap: 10px; align-items: baseline; font-size: 14px; color: var(--ink);
+    background: var(--panel-hi); border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px;
+  }
+  .steps b { color: var(--pink); font-variant-numeric: tabular-nums; flex: none; }
+  button.big {
+    appearance: none; border: none; cursor: pointer; border-radius: 14px;
+    padding: 15px 18px; font: 600 16px/1.2 inherit; color: #06231d;
+    background: var(--teal); box-shadow: 0 0 22px rgba(87,230,201,0.35);
+  }
+  button.big:active { transform: translateY(1px); }
+  button.big:focus-visible, button.ghost:focus-visible, #debugBtn:focus-visible {
+    outline: 2px solid var(--pink); outline-offset: 2px;
+  }
+  button.ghost {
+    appearance: none; cursor: pointer; border-radius: 14px; padding: 12px 18px;
+    font: 500 14px/1.2 inherit; color: var(--muted);
+    background: transparent; border: 1px solid var(--line);
+  }
+  .status { font-size: 12px; color: var(--muted); min-height: 1.2em; }
+  .status.bad { color: var(--amber); }
+
+  /* calibration meter */
+  #calMeter {
+    font-variant-numeric: tabular-nums; font-size: 52px; font-weight: 700;
+    color: var(--pink); text-shadow: 0 0 24px rgba(255,93,177,0.4); line-height: 1;
+  }
+  #calMeter small { font-size: 16px; font-weight: 500; color: var(--muted); }
+  #calBar { height: 8px; border-radius: 999px; background: var(--panel-hi); overflow: hidden; }
+  #calBar i { display: block; height: 100%; width: 0%; background: var(--pink); border-radius: 999px; }
+
+  /* ---- debug drawer ---- */
+  #debugBtn {
+    position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 6;
+    width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--line);
+    background: rgba(20,22,29,0.85); color: var(--ink); font-size: 19px; cursor: pointer;
+  }
+  #debug {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 7;
+    max-height: 78dvh; overflow-y: auto; overscroll-behavior: contain;
+    background: rgba(14,16,21,0.97); border-top: 1px solid var(--line);
+    border-radius: 18px 18px 0 0;
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    transform: translateY(105%); transition: transform 200ms ease;
+  }
+  #debug.open { transform: translateY(0); }
+  @media (prefers-reduced-motion: reduce) {
+    #debug { transition: none; }
+    #flash { transition: none; }
+  }
+  #debug h3 {
+    margin: 0 0 8px; font: 600 11px/1 inherit; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #debug h3 button { font-size: 16px; background: none; border: none; color: var(--muted); cursor: pointer; }
+  #dbgStatus { color: var(--teal); margin-bottom: 6px; word-break: break-word; }
+  #dbgLive { color: var(--ink); margin-bottom: 8px; white-space: pre; overflow-x: auto; }
+  #wave { width: 100%; height: 92px; display: block; background: #0f1117; border: 1px solid var(--line); border-radius: 10px; }
+  .knobs { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+  .knobs label { display: grid; grid-template-columns: 118px 1fr 52px; gap: 8px; align-items: center; color: var(--muted); }
+  .knobs output { text-align: right; color: var(--ink); }
+  .knobs input[type="range"] { width: 100%; accent-color: var(--teal); margin: 0; }
+  .knobs .check { grid-template-columns: 118px auto 1fr; }
+  .dbgRow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .dbgRow button {
+    flex: 1 1 auto; appearance: none; cursor: pointer; border-radius: 10px; padding: 9px 10px;
+    font: 600 12px/1 inherit; color: var(--ink); background: var(--panel-hi); border: 1px solid var(--line);
+  }
+  #dbgLog { list-style: none; margin: 0; padding: 0; color: var(--muted); }
+  #dbgLog li { padding: 2px 0; border-top: 1px dashed var(--line); }
+  #dbgLog li.snap { color: var(--teal); }
+  #dbgLog li.miss { color: var(--amber); }
+</style>
+
+<canvas id="game"></canvas>
+<div id="flash"></div>
+
+<div id="hud" aria-hidden="true">
+  <div class="stat"><b id="hAlt">0.0</b><span>alt&nbsp;m</span></div>
+  <div class="stat"><b id="hBest">0.0</b><span>best&nbsp;m</span></div>
+  <div class="stat"><b id="hSnaps">0</b><span>snaps</span></div>
+  <div class="stat combo"><b id="hCombo">0</b><span>combo</span></div>
+</div>
+
+<div id="overlay">
+  <!-- start card -->
+  <div class="card" id="startCard">
+    <h1>Band <span class="glow">Snap</span> 🐈</h1>
+    <p>Snap a silly band against the screen to trampoline the cat. The phone <strong>feels</strong> the snap — no touch needed.</p>
+    <div class="steps">
+      <div><b>1</b><span>Wrap a silly band around the phone, over the screen.</span></div>
+      <div><b>2</b><span>Hold the phone in your hand (not on a table).</span></div>
+      <div><b>3</b><span>Pull the band back… and let it snap!</span></div>
+    </div>
+    <button class="big" id="btnStart">Enable motion &amp; calibrate</button>
+    <button class="ghost" id="btnSkip">Skip calibration — use defaults</button>
+    <div class="status" id="startStatus"></div>
+  </div>
+
+  <!-- calibration card -->
+  <div class="card" id="calCard" hidden>
+    <h1>Calibrate <span class="glow">your band</span></h1>
+    <p id="calPrompt">Get ready…</p>
+    <div id="calMeter">0.0<small> m/s²</small></div>
+    <div id="calBar"><i></i></div>
+    <div class="status" id="calStatus"></div>
+    <button class="big" id="btnCalPlay" hidden>Use this &amp; play</button>
+    <button class="ghost" id="btnCalAgain" hidden>Snap again</button>
+  </div>
+</div>
+
+<button id="debugBtn" aria-label="Toggle tuning panel">🔧</button>
+<div id="debug">
+  <h3>Snap tuning <button id="btnDbgClose" aria-label="Close tuning panel">✕</button></h3>
+  <div id="dbgStatus">motion: not started</div>
+  <div id="dbgLive">–</div>
+  <canvas id="wave"></canvas>
+  <div class="knobs">
+    <label>threshold m/s² <input type="range" id="kThresh" min="4" max="30" step="0.5"><output id="oThresh"></output></label>
+    <label>debounce ms <input type="range" id="kDeb" min="150" max="900" step="25"><output id="oDeb"></output></label>
+    <label class="check">z-dominance gate <input type="checkbox" id="kRatioOn"><span></span></label>
+    <label>z/lateral ratio <input type="range" id="kRatio" min="1" max="3" step="0.1"><output id="oRatio"></output></label>
+  </div>
+  <div class="dbgRow">
+    <button id="btnRecal">Recalibrate</button>
+    <button id="btnSim">Simulate snap</button>
+    <button id="btnCopy">Copy report</button>
+    <button id="btnReset">Reset tuning</button>
+  </div>
+  <ul id="dbgLog"></ul>
+</div>
+
+<script>
+'use strict';
+// ---------- Band Snap — snap a silly band on the screen, trampoline the cat ----------
+// Detection: the band is non-conductive so the touchscreen never sees it; the snap
+// shows up as a short spike on devicemotion, dominantly on z (perpendicular to the
+// glass). Threshold + z-dominance + debounce = one yes/no event per snap.
+
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- tuning config (persisted) ----------
+const DEFAULTS = { threshold: 12, debounceMs: 400, ratio: 1.4, ratioOn: true };
+const CFG_KEY = 'bandSnap.tuning.v1';
+let cfg = { ...DEFAULTS };
+try { Object.assign(cfg, JSON.parse(localStorage.getItem(CFG_KEY) || '{}')); } catch (e) {}
+function saveCfg() { try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch (e) {} }
+
+// ---------- motion engine ----------
+const motion = {
+  state: 'idle',     // idle | listening | denied | unavailable | nodata
+  source: null,      // 'linear' (e.acceleration) | 'gravity-hp' (high-passed fallback)
+  rateHz: 0,
+  events: 0,
+  lastT: 0,
+  peak5s: 0, peak5sAt: 0,
+  calPeak: null,     // peak captured by the last calibration
+};
+const grav = { x: 0, y: 0, z: 0 };            // EMA gravity estimate for the fallback path
+const buf = [];                                // ring buffer for the waveform, {t, z, lat}
+const BUF_MS = 4000;
+let lastSnapAt = -1e9, lastMissAt = -1e9, snapPeakUntil = 0;
+const log = [];                                // newest first, {t, kind, text}
+
+let framed = false;
+try { framed = window.self !== window.top; } catch (e) { framed = true; }
+
+function onMotion(e) {
+  const now = performance.now();
+  motion.events++;
+  if (motion.lastT) {
+    const dt = now - motion.lastT;
+    if (dt > 1 && dt < 500) motion.rateHz = motion.rateHz ? motion.rateHz * 0.95 + (1000 / dt) * 0.05 : 1000 / dt;
+  }
+  motion.lastT = now;
+
+  let x, y, z;
+  const a = e.acceleration;
+  if (a && (a.x != null || a.y != null || a.z != null)) {
+    motion.source = 'linear';
+    x = a.x || 0; y = a.y || 0; z = a.z || 0;
+  } else {
+    const g = e.accelerationIncludingGravity;
+    if (!g || (g.x == null && g.y == null && g.z == null)) return;
+    motion.source = 'gravity-hp';
+    grav.x = grav.x * 0.85 + (g.x || 0) * 0.15;
+    grav.y = grav.y * 0.85 + (g.y || 0) * 0.15;
+    grav.z = grav.z * 0.85 + (g.z || 0) * 0.15;
+    x = (g.x || 0) - grav.x; y = (g.y || 0) - grav.y; z = (g.z || 0) - grav.z;
+  }
+
+  const zAbs = Math.abs(z);
+  const lat = Math.hypot(x, y);
+  live.x = x; live.y = y; live.z = z; live.lat = lat;
+
+  buf.push({ t: now, z: zAbs, lat });
+  while (buf.length && buf[0].t < now - BUF_MS) buf.shift();
+
+  if (zAbs > motion.peak5s || now - motion.peak5sAt > 5000) { motion.peak5s = zAbs; motion.peak5sAt = now; }
+
+  if (screenState === 'calibrate') { calSample(now, zAbs); return; }
+  detect(now, zAbs, lat);
+}
+
+function detect(now, zAbs, lat) {
+  if (now < snapPeakUntil) {                   // ring-down window: keep updating the logged peak
+    if (log[0] && log[0].kind === 'snap' && zAbs > log[0].peak) {
+      log[0].peak = zAbs; log[0].text = snapText(log[0]); renderLog();
+    }
+    return;
+  }
+  if (now - lastSnapAt < cfg.debounceMs) return;
+  if (zAbs >= cfg.threshold) {
+    if (cfg.ratioOn && zAbs < lat * cfg.ratio) {
+      if (now - lastMissAt > 400) { lastMissAt = now; addLog('miss', `rejected: lateral (z ${zAbs.toFixed(1)} vs lat ${lat.toFixed(1)})`); }
+      return;
+    }
+    lastSnapAt = now; snapPeakUntil = now + 150;
+    addLog('snap', '', { peak: zAbs, lat });
+    log[0].text = snapText(log[0]); renderLog();
+    onSnap(false);
+  } else if (zAbs >= cfg.threshold * 0.6 && now - lastMissAt > 500) {
+    lastMissAt = now;
+    addLog('miss', `below threshold: z ${zAbs.toFixed(1)} (need ${cfg.threshold})`);
+  }
+}
+const snapText = e => `SNAP  peak ${e.peak.toFixed(1)} m/s²  lat ${e.lat.toFixed(1)}`;
+
+async function requestMotion() {
+  if (!('DeviceMotionEvent' in window)) { motion.state = 'unavailable'; return motion.state; }
+  try {
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      const r = await DeviceMotionEvent.requestPermission();     // iOS ≥13, needs a user gesture
+      if (r !== 'granted') { motion.state = 'denied'; return motion.state; }
+    }
+  } catch (e) { motion.state = 'denied'; return motion.state; }
+  window.addEventListener('devicemotion', onMotion);
+  motion.state = 'listening';
+  setTimeout(() => { if (motion.events === 0) motion.state = 'nodata'; }, 2500);
+  return motion.state;
+}
+
+// ---------- calibration ----------
+// settle (ignore the button-tap jolt) -> armed (wait for a spike) -> capture (grab
+// the peak over 600ms) -> done (threshold = 55% of peak, clamped).
+const CAL_FLOOR = 6;
+let cal = null;
+function startCalibration() {
+  cal = { phase: 'settle', t0: performance.now(), peak: 0, end: 0 };
+  $('calPrompt').textContent = 'Get ready…';
+  $('calStatus').textContent = ''; $('calStatus').className = 'status';
+  $('btnCalPlay').hidden = true; $('btnCalAgain').hidden = true;
+  $('startCard').hidden = true; $('calCard').hidden = false;
+  $('overlay').classList.remove('hidden');
+  screenState = 'calibrate';
+}
+function calSample(now, zAbs) {
+  if (!cal) return;
+  if (cal.phase === 'settle') {
+    if (now - cal.t0 > 700) { cal.phase = 'armed'; $('calPrompt').textContent = 'Pull the band back… SNAP IT! 🫰'; }
+  } else if (cal.phase === 'armed') {
+    if (zAbs > CAL_FLOOR) { cal.phase = 'capture'; cal.peak = zAbs; cal.end = now + 600; }
+  } else if (cal.phase === 'capture') {
+    cal.peak = Math.max(cal.peak, zAbs);
+    if (now > cal.end) {
+      motion.calPeak = cal.peak;
+      cfg.threshold = clamp(Math.round(cal.peak * 0.55 * 2) / 2, 5, 28);
+      saveCfg(); syncKnobs();
+      cal.phase = 'done';
+      $('calPrompt').textContent = `Felt it! Peak ${cal.peak.toFixed(1)} m/s² → threshold ${cfg.threshold}`;
+      const s = $('calStatus');
+      if (cal.peak < 9) { s.textContent = 'Weak snap — loose silly band? Threshold set low; expect a few false triggers from taps.'; s.className = 'status bad'; }
+      else { s.textContent = 'Strong, clean snap. Nice band.'; s.className = 'status'; }
+      $('btnCalPlay').hidden = false; $('btnCalAgain').hidden = false;
+      addLog('snap', `calibrated: peak ${cal.peak.toFixed(1)} → threshold ${cfg.threshold}`);
+    }
+  }
+}
+
+// ---------- game ----------
+const cv = $('game'), ctx = cv.getContext('2d');
+let W = 0, H = 0;
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+let screenState = 'start';                     // start | calibrate | play
+const live = { x: 0, y: 0, z: 0, lat: 0 };
+const cat = { y: 0, vy: 0, resting: true, squash: 0, spin: 0 };
+let cam = 0, snaps = 0, combo = 0, bestAlt = 0, curAlt = 0, tGlobal = 0;
+const M = () => H * 0.12;                      // px per displayed "metre"
+const stars = [];
+for (let i = 0; i < 90; i++) {
+  stars.push({ x: (i * 0.618 % 1), y: i * 137, r: 0.8 + (i * 7 % 10) / 7, tw: i % 7 });
+}
+const parts = [];                              // particles: {x, y, vx, vy, life, kind, txt}
+
+function onSnap(simulated) {
+  if (screenState !== 'play') return;
+  snaps++;
+  if (cat.resting || cat.y < H * 0.02) {       // ground launch
+    combo = 1;
+    cat.vy = 1.55 * H; cat.resting = false;
+  } else {                                     // mid-air boost — chain snaps to climb
+    combo++;
+    cat.vy = Math.min(Math.max(cat.vy, 0) + 1.05 * H, 3.4 * H);
+  }
+  cat.squash = 1; cat.spin = (Math.sin(snaps * 3.7) > 0 ? 1 : -1) * 6;
+  burst(); if (simulated) addLog('snap', 'SNAP (simulated)');
+  if (navigator.vibrate) navigator.vibrate(40);
+  if (!reduceMotion) {
+    const f = $('flash'); f.classList.add('on');
+    requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on')));
+  }
+}
+function burst() {
+  const gy = H * 0.82, sy = cat.resting ? gy : gy - (cat.y - cam);
+  parts.push({ x: W / 2, y: sy - 30, vx: 0, vy: -60, life: 0.9, kind: 'txt', txt: 'SNAP!' });
+  if (reduceMotion) return;
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    parts.push({ x: W / 2, y: sy, vx: Math.cos(a) * 180, vy: Math.sin(a) * 180 - 60, life: 0.55, kind: 'dot' });
+  }
+}
+
+function step(dt) {
+  tGlobal += dt;
+  if (!cat.resting) {
+    const G = 3.2 * H;
+    cat.vy -= G * dt;
+    cat.y += cat.vy * dt;
+    if (cat.y <= 0 && cat.vy < 0) {
+      if (Math.abs(cat.vy) > 0.35 * H) { cat.vy = -cat.vy * 0.38; cat.y = 0; cat.squash = 1; }
+      else { cat.y = 0; cat.vy = 0; cat.resting = true; combo = 0; }
+    }
+  }
+  curAlt = Math.max(0, cat.y / M());
+  bestAlt = Math.max(bestAlt, curAlt);
+  const camTarget = Math.max(0, cat.y - H * 0.38);
+  cam += (camTarget - cam) * Math.min(1, dt * 8);
+  cat.squash = Math.max(0, cat.squash - dt * 4);
+  cat.spin *= Math.pow(0.02, dt);
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 500 * dt;
+    if (p.kind === 'txt') p.vy = -60;
+    if (p.life <= 0) parts.splice(i, 1);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  const gy = H * 0.82;
+
+  // sky: stars with parallax, altitude rings every 5 m
+  ctx.save();
+  for (const s of stars) {
+    const sy = ((s.y - cam * 0.4) % (H * 1.2) + H * 1.2) % (H * 1.2) - H * 0.1;
+    const a = 0.25 + 0.2 * Math.sin(tGlobal * 2 + s.tw);
+    ctx.fillStyle = `rgba(138,144,162,${a.toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(s.x * W, sy, s.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left';
+  for (let m = 5; m <= 200; m += 5) {
+    const sy = gy - (m * M() - cam);
+    if (sy < -20 || sy > H) continue;
+    ctx.strokeStyle = 'rgba(87,230,201,0.12)'; ctx.setLineDash([4, 8]);
+    ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(W, sy); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(87,230,201,0.4)'; ctx.fillText(m + ' m', 8, sy - 4);
+  }
+  ctx.restore();
+
+  // trampoline (screen-space at the ground line, sinks with camera)
+  const ty = gy + cam;
+  if (ty < H + 60) {
+    const sag = cat.resting ? Math.sin(tGlobal * 3) * 1.5 : cat.squash * 14;
+    ctx.strokeStyle = '#57e6c9'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(87,230,201,0.6)'; ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.22, ty);
+    ctx.quadraticCurveTo(W * 0.5, ty + sag * 2, W * 0.78, ty);
+    ctx.stroke();
+    ctx.shadowBlur = 0; ctx.lineWidth = 2; ctx.strokeStyle = '#262a36';
+    for (const lx of [0.26, 0.74]) {
+      ctx.beginPath(); ctx.moveTo(W * lx, ty + 2); ctx.lineTo(W * lx - (lx < 0.5 ? 14 : -14), ty + 34); ctx.stroke();
+    }
+  }
+
+  drawCat(W / 2, gy - (cat.y - cam), cat.squash);
+
+  // particles
+  for (const p of parts) {
+    if (p.kind === 'dot') {
+      ctx.fillStyle = `rgba(255,93,177,${Math.max(0, p.life / 0.55).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillStyle = `rgba(255,93,177,${Math.max(0, p.life / 0.9).toFixed(3)})`;
+      ctx.font = '700 26px ui-rounded, system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(p.txt, p.x, p.y);
+    }
+  }
+}
+
+function drawCat(x, y, squash) {
+  const s = clamp(H / 700, 0.8, 1.6);          // scale with screen
+  const sq = 1 - squash * 0.25, sw = 1 + squash * 0.3;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate((cat.spin * Math.PI) / 180);
+  ctx.scale(sw * s, sq * s);
+  ctx.strokeStyle = '#ff5db1'; ctx.fillStyle = '#0b0c10';
+  ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.shadowColor = 'rgba(255,93,177,0.55)'; ctx.shadowBlur = 10;
+  // body
+  ctx.beginPath(); ctx.ellipse(0, -16, 22, 18, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // ears
+  ctx.beginPath(); ctx.moveTo(-16, -26); ctx.lineTo(-13, -40); ctx.lineTo(-5, -31); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(16, -26); ctx.lineTo(13, -40); ctx.lineTo(5, -31); ctx.closePath(); ctx.fill(); ctx.stroke();
+  // tail
+  ctx.beginPath(); ctx.moveTo(20, -8);
+  ctx.quadraticCurveTo(34, -4 - (cat.resting ? Math.sin(tGlobal * 2) * 4 : 14), 32, -26);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  // face
+  const flying = !cat.resting && Math.abs(cat.vy) > H * 0.3;
+  ctx.beginPath();
+  if (flying) {
+    ctx.arc(-7, -18, 2.6, 0, Math.PI * 2); ctx.moveTo(9.6, -18); ctx.arc(7, -18, 2.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff5db1'; ctx.fill();
+  }
+  else {
+    ctx.strokeStyle = '#ff5db1';
+    ctx.moveTo(-10, -18); ctx.quadraticCurveTo(-7, -21, -4, -18);
+    ctx.moveTo(4, -18); ctx.quadraticCurveTo(7, -21, 10, -18);
+    ctx.stroke();
+  }
+  ctx.beginPath();                              // whiskers
+  ctx.moveTo(-12, -12); ctx.lineTo(-24, -14); ctx.moveTo(-12, -9); ctx.lineTo(-23, -8);
+  ctx.moveTo(12, -12); ctx.lineTo(24, -14); ctx.moveTo(12, -9); ctx.lineTo(23, -8);
+  ctx.lineWidth = 1.4; ctx.stroke();
+  if (flying) {                                 // little open mouth
+    ctx.beginPath(); ctx.arc(0, -11, 2.5, 0, Math.PI * 2); ctx.lineWidth = 2; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ---------- debug UI ----------
+const waveCv = $('wave'), waveCtx = waveCv.getContext('2d');
+function addLog(kind, text, extra) {
+  log.unshift({ t: new Date(), kind, text, ...(extra || {}) });
+  if (log.length > 30) log.pop();
+  renderLog();
+}
+function renderLog() {
+  $('dbgLog').innerHTML = log.slice(0, 8).map(e =>
+    `<li class="${e.kind}">${e.t.toTimeString().slice(0, 8)}  ${e.text}</li>`).join('');
+}
+function syncKnobs() {
+  $('kThresh').value = cfg.threshold; $('oThresh').textContent = cfg.threshold;
+  $('kDeb').value = cfg.debounceMs; $('oDeb').textContent = cfg.debounceMs;
+  $('kRatio').value = cfg.ratio; $('oRatio').textContent = cfg.ratio.toFixed(1);
+  $('kRatioOn').checked = cfg.ratioOn;
+}
+syncKnobs();
+$('kThresh').oninput = e => { cfg.threshold = +e.target.value; $('oThresh').textContent = cfg.threshold; saveCfg(); };
+$('kDeb').oninput = e => { cfg.debounceMs = +e.target.value; $('oDeb').textContent = cfg.debounceMs; saveCfg(); };
+$('kRatio').oninput = e => { cfg.ratio = +e.target.value; $('oRatio').textContent = cfg.ratio.toFixed(1); saveCfg(); };
+$('kRatioOn').onchange = e => { cfg.ratioOn = e.target.checked; saveCfg(); };
+
+function drawWave() {
+  const w = waveCv.clientWidth, h = waveCv.clientHeight;
+  if (waveCv.width !== w * 2) { waveCv.width = w * 2; waveCv.height = h * 2; }
+  const c = waveCtx;
+  c.setTransform(2, 0, 0, 2, 0, 0);
+  c.clearRect(0, 0, w, h);
+  const now = performance.now();
+  let yMax = Math.max(24, cfg.threshold * 1.5);
+  for (const s of buf) yMax = Math.max(yMax, s.z * 1.1);
+  const tx = t => w - ((now - t) / BUF_MS) * w;
+  const ty = v => h - (v / yMax) * (h - 8) - 2;
+  // threshold line
+  c.strokeStyle = 'rgba(255,93,177,0.7)'; c.lineWidth = 1; c.setLineDash([4, 4]);
+  c.beginPath(); c.moveTo(0, ty(cfg.threshold)); c.lineTo(w, ty(cfg.threshold)); c.stroke();
+  c.setLineDash([]);
+  // lateral (dim) then |z| (bright)
+  for (const [key, style] of [['lat', 'rgba(138,144,162,0.5)'], ['z', '#57e6c9']]) {
+    c.strokeStyle = style; c.lineWidth = key === 'z' ? 1.6 : 1;
+    c.beginPath();
+    let started = false;
+    for (const s of buf) {
+      const px = tx(s.t), py = ty(s[key]);
+      if (!started) { c.moveTo(px, py); started = true; } else c.lineTo(px, py);
+    }
+    c.stroke();
+  }
+  c.fillStyle = 'rgba(138,144,162,0.8)'; c.font = '9px ui-monospace, monospace';
+  c.fillText(yMax.toFixed(0) + ' m/s²', 4, 10);
+}
+
+function dbgTick() {
+  const stateTxt = { idle: 'not started', listening: 'listening ✓', denied: 'PERMISSION DENIED', unavailable: 'NO MOTION API', nodata: 'no events (desktop? blocked iframe?)' }[motion.state];
+  $('dbgStatus').textContent =
+    `motion: ${stateTxt} · src: ${motion.source || '–'} · ${motion.rateHz ? motion.rateHz.toFixed(0) + ' Hz' : '– Hz'}` +
+    ` · https: ${window.isSecureContext ? '✓' : '✗'} · iframe: ${framed ? '✓' : '✗'}`;
+  $('dbgLive').textContent =
+    `x ${live.x.toFixed(1).padStart(6)}  y ${live.y.toFixed(1).padStart(6)}  z ${live.z.toFixed(1).padStart(6)}\n` +
+    `|z| vs lat: ${Math.abs(live.z).toFixed(1)} / ${live.lat.toFixed(1)}   peak(5s): ${motion.peak5s.toFixed(1)}` +
+    (motion.calPeak ? `   cal peak: ${motion.calPeak.toFixed(1)}` : '');
+  drawWave();
+}
+
+$('debugBtn').onclick = () => $('debug').classList.toggle('open');
+$('btnDbgClose').onclick = () => $('debug').classList.remove('open');
+$('btnRecal').onclick = () => { $('debug').classList.remove('open'); startCalibration(); };
+$('btnSim').onclick = () => {
+  const now = performance.now();
+  buf.push({ t: now, z: 16, lat: 3 });          // draw the fake spike on the waveform too
+  if (screenState === 'calibrate') { calSample(now, 16); calSample(now + 1, 16); }
+  else onSnap(true);
+};
+$('btnReset').onclick = () => { cfg = { ...DEFAULTS }; saveCfg(); syncKnobs(); addLog('miss', 'tuning reset to defaults'); };
+$('btnCopy').onclick = async () => {
+  const report = {
+    ua: navigator.userAgent, secure: window.isSecureContext, iframe: framed,
+    motion: { state: motion.state, source: motion.source, rateHz: +motion.rateHz.toFixed(1), calPeak: motion.calPeak },
+    cfg,
+    log: log.slice(0, 20).map(e => `${e.t.toTimeString().slice(0, 8)} [${e.kind}] ${e.text}`),
+  };
+  const txt = JSON.stringify(report, null, 2);
+  try { await navigator.clipboard.writeText(txt); $('btnCopy').textContent = 'Copied ✓'; }
+  catch (e) { console.log(txt); $('btnCopy').textContent = 'See console'; }
+  setTimeout(() => { $('btnCopy').textContent = 'Copy report'; }, 1500);
+};
+window.addEventListener('keydown', e => { if (e.key === 's') $('btnSim').click(); });
+
+// ---------- screen flow ----------
+function startPlay() {
+  $('overlay').classList.add('hidden');
+  $('hud').style.visibility = 'visible';
+  screenState = 'play';
+}
+$('btnStart').onclick = async () => {
+  const s = $('startStatus');
+  s.textContent = ''; s.className = 'status';
+  const r = await requestMotion();
+  if (r === 'listening') { startCalibration(); return; }
+  s.className = 'status bad';
+  if (r === 'denied') s.textContent = 'Motion permission denied. Reload and allow, or check Settings → Safari → Motion & Orientation Access.';
+  else s.textContent = 'No motion sensors here — use “Skip” and the 🔧 Simulate button to try the game anyway.';
+};
+$('btnSkip').onclick = async () => { await requestMotion(); startPlay(); };
+$('btnCalPlay').onclick = startPlay;
+$('btnCalAgain').onclick = startCalibration;
+
+// ---------- main loop ----------
+let lastFrame = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastFrame) / 1000);
+  lastFrame = now;
+  step(dt); draw();
+  $('hAlt').textContent = curAlt.toFixed(1);
+  $('hBest').textContent = bestAlt.toFixed(1);
+  $('hSnaps').textContent = snaps;
+  $('hCombo').textContent = combo;
+  if ($('debug').classList.contains('open')) dbgTick();
+  if (screenState === 'calibrate' && cal) {
+    calSample(now, 0);                          // keeps settle/capture timers moving with no sensor data
+    const shown = cal.phase === 'done' ? cal.peak : (cal.phase === 'capture' ? cal.peak : Math.abs(live.z));
+    $('calMeter').innerHTML = `${shown.toFixed(1)}<small> m/s²</small>`;
+    $('calBar').firstElementChild.style.width = clamp((shown / 30) * 100, 0, 100) + '%';
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>

@@ -596,7 +596,7 @@
 const GROWTH = 1.15;
 const BUILDINGS = [
   { id: "robocat", name: "Robo-Cat",        icon: "🤖", base: 15,     mps: 0.1, blurb: "Hunts mice on its own" },
-  { id: "shopper", name: "Amazon Shopper",  icon: "📦", base: 40,     mps: 0.4, blurb: "Just orders them by the dozen" },
+  { id: "shopper", name: "Mouse Subscription", icon: "📦", base: 40,     mps: 0.4, blurb: "Just orders them by the dozen" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
   { id: "quarry",  name: "Mouse Quarry",    icon: "⛏️", base: 1100,   mps: 8,   blurb: "Mines mice from raw hex" },
   { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces mice" },
@@ -606,7 +606,7 @@ const BUILDINGS = [
   // lab earns ~2 mps per 1K cost; these earn ~8) so phase two has its own
   // ladder without resetting the day economy. Numbers are GUESSES to iterate;
   // spacing mirrors the day curve (~x12 cost, ~x13 mps per tier).
-  { id: "portal",     name: "Portal",               icon: "🌀", base: 400000, mps: 3000,  night: true, blurb: "Mice pour through from elsewhere" },
+  { id: "portal",     name: "Dimensional Mouse Hole", icon: "🌀", base: 400000, mps: 3000,  night: true, blurb: "Mice pour through from elsewhere" },
   { id: "timemachine",name: "Time Machine",         icon: "⏳", base: 5e6,    mps: 40000, night: true, blurb: "Imports mice from last Tuesday" },
   { id: "fractal",    name: "Fractal Engine",       icon: "❄️", base: 60e6,   mps: 550000, night: true, blurb: "Every mouse is made of mice" },
   { id: "antimatter", name: "Antimatter Condenser", icon: "⚛️", base: 750e6,  mps: 7e6,   night: true, blurb: "Condenses mice out of nothing" },
@@ -657,8 +657,8 @@ const UPGRADES = [
     cost: 2000, unlock: { owned: ["robocat", 40] },
     effect: { type: "buildingMult", building: "robocat", mult: 2 } },
 
-  // --- Amazon Shopper ---
-  { key: "shopper1", name: "Prime Membership", icon: "🚚",
+  // --- Mouse Subscription ---
+  { key: "shopper1", name: "2-Day Shipping", icon: "🚚",
     cost: 400, unlock: { owned: ["shopper", 5] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
   { key: "shopper2", name: "Subscribe & Save", icon: "🔁",
@@ -706,10 +706,20 @@ const UPGRADES = [
     cost: 1.5e6, unlock: { clicks: 700 },
     effect: { type: "clickMult", mult: 2 },
     fx: "Hex would do anything for churu" },
-  { key: "jailgoomba", name: "Jail Goomba", icon: "🚔",
+  { key: "jailgoomba", name: "Lock Goomba in Jail", icon: "🚔",
     cost: 15e6, unlock: { clicks: 1200 },
     effect: { type: "clickMult", mult: 2 },
     fx: "Goomba can't steal pets from jail" },
+  // Cardboard pair: the Box is the classic cheap ambush spot; the Castle is its
+  // upgrade, so it `requires` the Box before it unlocks. Both are plain ×2 pets.
+  { key: "cardboardbox", name: "Cardboard Box", icon: "📦",
+    cost: 300000, unlock: { clicks: 550 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "The ultimate ambush spot — no mouse expects the box" },
+  { key: "cardboardcastle", name: "Cardboard Castle", icon: "🏰",
+    cost: 8e6, unlock: { requires: "cardboardbox", clicks: 1000 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "A fortress of flaps — every corner a fresh pounce" },
 
   // --- Cross-building synergies ---
   // Cookie Clicker's GrandmaSynergy pattern: the cheapest building takes a job

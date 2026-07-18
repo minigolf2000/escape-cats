@@ -13,9 +13,11 @@
 
   THE TWIST: buying the Catnap Hypnalysis upgrade (gated on the lab's reveal) puts
   Hex to sleep and flips the game into a NIGHT PHASE. The reveal wall from
-  reveal-lab.html renders behind her: wall mice (a pure function of lifetime
-  mice earned) patrol the TO THE MOON scene, and Comet Trails upgrades grow
-  the glowing trails that ink the word. Word% is a hardcoded constant, noise
+  reveal-lab.html renders behind her: researching Counting Mice makes the first
+  wall mice appear (their count is a pure function of lifetime mice earned) to
+  patrol the TO THE MOON scene, and the sleep-stage upgrades (Deep Sleep, REM
+  Sleep, Lucid Dreaming) grow the glowing dream-trails that ink the word — Hex's
+  imagination getting more vivid. Word% is a hardcoded constant, noise
   is locked to zero. Night buildings dwarf day production; day buildings and
   mps carry over. End state per the design doc: the word is read off the wall
   to a human proctor — no win screen.
@@ -325,15 +327,21 @@
   #golden svg { width: 100%; height: auto; display: block; }
   @keyframes goldPulse { 0%,100% { transform: scale(1) rotate(-6deg); } 50% { transform: scale(1.14) rotate(6deg); } }
 
-  /* Bigger than the day mouse's 62 because the saucer is a wider silhouette and
-     carries a pilot who has to stay legible — moveGold() measures the element,
-     so this number is free to change here alone.
+  /* Sized so the PILOT reads at the same scale as the wall mice it's flying
+     among, not as its own bigger creature — night is a pulled-back camera, so
+     the golden mouse belongs at that same distance. The pilot is the shared
+     silhouette at SAUCER_MOUSE_SCALE 0.58 inside a 64-wide viewBox; a wall mouse
+     is ~15.2px wide (drawWallMouse r=3.1), and measuring the rendered pilot puts
+     the box at ~36 to match it. moveGold() measures the element, so shrinking
+     the box just moves the whole saucer to that scale, pilot and all. (Tradeoff:
+     a ~36px tap target is on the small side — bump this if it plays as too
+     fiddly to catch.)
 
      It also gets its own idle. goldPulse's ±6deg tumble and 1.14 punch-in read
      as a plush toy being squeezed: right for a mouse, wrong for a machine. A
      saucer should hover — so it banks half as far, bobs instead of scaling, and
      takes longer to do it. Same glow, different physics. */
-  #golden.saucer { width: 78px; height: 78px; animation: saucerHover 2.6s ease-in-out infinite; }
+  #golden.saucer { width: 36px; height: 36px; animation: saucerHover 2.6s ease-in-out infinite; }
   @keyframes saucerHover {
     0%,100% { transform: translateY(2px) rotate(-3deg); }
     50%     { transform: translateY(-3px) rotate(3deg); }
@@ -460,8 +468,13 @@
   }
 
   /* `overscroll-behavior: contain` so scrolling past the end of the building
-     list stops here instead of bubbling into a document-level pull-refresh. */
-  #shop { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 0 4px; }
+     list stops here instead of bubbling into a document-level pull-refresh.
+     max-height caps the list at ~3 rows (a row is ~57px): the day list runs to
+     4 buildings, so this trims it one tile shorter and lets the rest scroll.
+     The partial 4th row peeking under the cap is the scroll affordance, since
+     the scrollbar itself is hidden below. Fewer rows than the cap just size to
+     content (no scroll), so early game is unaffected. */
+  #shop { flex: 1 1 auto; min-height: 0; max-height: 190px; overflow-y: auto; overscroll-behavior: contain; padding: 2px 0 4px; }
   #shop::-webkit-scrollbar { width: 0; }
   /* CC store rows: a dark inset strip, a framed icon, name over effect, and
      the price right-aligned — green when you can afford it, red when you
@@ -488,19 +501,29 @@
      the owned count is pulled out to its own corner) — name top-left, price
      bottom-left, quantity on the right. */
   .item .body { flex: 1 1 auto; min-width: 0; }
-  /* Building rows: name and its per-second rate share one line, the rate
-     pushed to the line's own right edge; the blurb ("Grows mice in glowing
-     rows") reads on its own line below, in the same .fx slot upgrade rows use
-     for effect text. Upgrade rows have no rate, so their .nm sits bare above .fx. */
-  .item .titleRow { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  /* Building rows: the name sits alone on the top line; its per-second rate is
+     NOT here — it's pulled out to the right column (.right) so it can sit on the
+     same baseline as the big owned count, reading as a pair (how many × how much
+     each). The blurb ("Grows mice in glowing rows") reads on its own line below
+     (the same .fx slot upgrade rows use for effect text) UNTIL you own one, then
+     it's hidden — see .item.bought. Upgrade rows have no rate, so .nm sits bare. */
+  .item .titleRow { display: flex; align-items: baseline; gap: 8px; }
   .item .nm {
     font: 700 13.5px var(--ui-font); color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.45);
   }
   .item .rate {
-    flex: none; font: 700 11px var(--ui-font); color: var(--muted);
+    flex: none; display: inline-flex; align-items: center; gap: 3px;
+    font: 700 11px var(--ui-font); color: var(--muted);
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
+  /* Same mouse coin as .cost, shrunk down — without it "12/s" reads as a bare
+     number with no unit; this is the unit. */
+  .item .rate .coin { flex: none; width: 12px; height: auto; display: block; }
   .item .fx { font: 400 11px var(--ui-font); color: var(--muted); margin-top: 1px; }
+  /* Building blurb is a pre-purchase tease: once you own one, the row drops the
+     description and keeps just name + rate + price. Upgrade rows never get the
+     .bought class, so their .fx (effect text) is untouched. */
+  .item.bought .fx { display: none; }
   .item .cost {
     display: flex; align-items: center; gap: 4px;
     font: 700 14px var(--ui-font); color: var(--cost-ok);
@@ -513,10 +536,15 @@
      markup at creation, not `currentColor` — so .cost.no flipping this div's
      text color red can never touch it. See currencyIconSVG()'s comment. */
   .item .cost .coin { flex: none; width: 18px; height: auto; display: block; }
+  /* Right column: the per-second rate sitting at the foot of the big owned
+     count, baseline-aligned, so the two read as one "output" pair (how many you
+     own × how much each makes) instead of the rate floating up by the name.
+     Vertically centered in the row by .item's own align-items:center. */
+  .item .right { flex: none; display: flex; align-items: baseline; gap: 7px; }
   /* Quantity owned — its own corner, not stacked with price, sized to read at
      a glance like CC's big count rather than a label next to a label. */
   .item .own {
-    flex: none; align-self: center; min-width: 30px; text-align: right;
+    flex: none; min-width: 30px; text-align: right;
     font: 800 26px var(--ui-font); color: var(--dim); text-shadow: 0 1px 1px rgba(0,0,0,.45);
     font-variant-numeric: tabular-nums;
   }
@@ -536,7 +564,7 @@
   .item.locked .titleRow,
   .item.locked .ic,
   .item.locked .fx,
-  .item.locked .own { display: none; }
+  .item.locked .right { display: none; }
 
   /* ---- Upgrades strip (only unlocked-and-unbought ones exist here, so the
      list is short; buying removes the row) ---- */
@@ -621,7 +649,6 @@ const GROWTH = 1.15;
 const BUILDINGS = [
   { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 40,     mps: 0.4, blurb: "Gets a mouse every 2.5 seconds" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
-  { id: "quarry",  name: "Mouse Quarry",    icon: "⛏️", base: 1100,   mps: 8,   blurb: "Mines mice from raw hex" },
   { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces mice" },
   { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 260, blurb: "Synthesizes mice from theory" },
   // Night buildings — hidden until Catnap Hypnalysis flips the phase, then they enter
@@ -680,30 +707,102 @@ const UPGRADES = [
   { key: "shopper2", name: "Subscribe & Save", icon: "🔁",
     cost: 4800, unlock: { owned: ["shopper", 25] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
+  // The subscription line's later tiers break from the flat ×2: each one cuts
+  // deeper into the supply chain, so the mice-per-dollar gain grows. Liquidation
+  // pallets (bulk, still through a middleman) → ×3; importing straight from the
+  // factory (no middleman at all) → ×4, the deepest cut in the line.
+  { key: "shopper3", name: "Wholesale Liquidation Pallets", icon: "🏷️",
+    cost: 55000, unlock: { owned: ["shopper", 50] },
+    effect: { type: "buildingMult", building: "shopper", mult: 3 } },
+  { key: "shopper4", name: "Import Direct from Manufacturer", icon: "🚢",
+    cost: 650000, unlock: { owned: ["shopper", 100] },
+    effect: { type: "buildingMult", building: "shopper", mult: 4 } },
 
   // --- Mouse Farm ---
-  { key: "farm1", name: "Hydroponic Rows", icon: "💧",
+  // The day-game workhorse now that the Quarry is gone: a long ladder (base 100
+  // to the Factory's 12000 is a wide gap with no building between them) so the
+  // Farm carries that whole stretch on upgrades instead. Multipliers escalate
+  // as the tech gets sillier — ×2 mechanical tweaks, ×3 precision/premium, ×4
+  // full automation. Costs/thresholds are GUESSES, ascending so they reveal in
+  // sequence rather than all at once. (Splice-Grown Mice used to live here; it
+  // moved to the lab tier below, now gated behind Schrödinger's Lab.)
+  { key: "farmplow", name: "Sisal Scratching Plows", icon: "🧶",
     cost: 1000, unlock: { owned: ["farm", 5] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
-  { key: "farm2", name: "Splice-Grown Mice", icon: "🧬",
-    cost: 12000, unlock: { owned: ["farm", 25] },
+  { key: "farmfeliway", name: "Feliway Sprinklers", icon: "💨",
+    cost: 8000, unlock: { owned: ["farm", 15] },
+    effect: { type: "buildingMult", building: "farm", mult: 2 },
+    fx: "Calm mice grow twice as plump" },
+  { key: "farmtractor", name: "Zoomie Tractors", icon: "🚜",
+    cost: 45000, unlock: { owned: ["farm", 30] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
-
-  // --- Mouse Quarry ---
-  { key: "quarry1", name: "Diamond Drill Bits", icon: "💎",
-    cost: 11000, unlock: { owned: ["quarry", 5] },
-    effect: { type: "buildingMult", building: "quarry", mult: 2 } },
-  { key: "quarry2", name: "Seismic Charges", icon: "💥",
-    cost: 130000, unlock: { owned: ["quarry", 20] },
-    effect: { type: "buildingMult", building: "quarry", mult: 2 } },
+  { key: "farmlaser", name: "Laser-Guided Planters", icon: "🎯",
+    cost: 250000, unlock: { owned: ["farm", 50] },
+    effect: { type: "buildingMult", building: "farm", mult: 3 } },
+  { key: "farmchuru", name: "Churu Hydroponics", icon: "🍦",
+    cost: 1.2e6, unlock: { owned: ["farm", 75] },
+    effect: { type: "buildingMult", building: "farm", mult: 3 },
+    fx: "Mice raised on nothing but churu-enriched mist" },
+  { key: "farmdrone", name: "Autonomous Insect Swatter Drones", icon: "🚁",
+    cost: 6e6, unlock: { owned: ["farm", 100] },
+    effect: { type: "buildingMult", building: "farm", mult: 4 },
+    fx: "Not one pest survives to touch the crop" },
 
   // --- Mouse Factory ---
-  { key: "factory1", name: "Second Shift", icon: "🌙",
-    cost: 120000, unlock: { owned: ["factory", 4] },
+  // Same escalating ladder as the Farm (×2 mechanical → ×3 fancier → ×4 finale),
+  // all cat-toy-flavoured factory kit. Costs/thresholds are GUESSES, ascending.
+  { key: "factory1", name: "Sisal Conveyor Tracks", icon: "🧵",
+    cost: 120000, unlock: { owned: ["factory", 5] },
     effect: { type: "buildingMult", building: "factory", mult: 2 } },
-  { key: "factory2", name: "Assembly Line 9", icon: "⚙️",
-    cost: 1.4e6, unlock: { owned: ["factory", 15] },
-    effect: { type: "buildingMult", building: "factory", mult: 2 } },
+  { key: "factory2", name: "Laser Chaser Assembly Belt", icon: "🔴",
+    cost: 800000, unlock: { owned: ["factory", 12] },
+    effect: { type: "buildingMult", building: "factory", mult: 2 },
+    fx: "The belt runs wherever the red dot leads" },
+  { key: "factory3", name: "LED Weaving Looms", icon: "💡",
+    cost: 4e6, unlock: { owned: ["factory", 20] },
+    effect: { type: "buildingMult", building: "factory", mult: 3 } },
+  { key: "factory4", name: "Pneumatic Crinkle Packagers", icon: "🎁",
+    cost: 20e6, unlock: { owned: ["factory", 35] },
+    effect: { type: "buildingMult", building: "factory", mult: 3 },
+    fx: "Every mouse sealed with a satisfying crinkle" },
+  { key: "factory5", name: "Bioluminescent Dip Vats", icon: "🪼",
+    cost: 90e6, unlock: { owned: ["factory", 50] },
+    effect: { type: "buildingMult", building: "factory", mult: 4 },
+    fx: "Dipped to a soft glow — easy to count in the dark" },
+
+  // --- Schrödinger's Lab — fantastical cross-building tier ---
+  // The Lab gets NO upgrades that boost itself. Instead, owning it unlocks a
+  // tier of theory-powered boosts to the OTHER day buildings — "synthesizes
+  // mice from theory" made literal. Each is AND-gated on owning the Lab plus a
+  // modest count of its target building, so it reveals as a late-day power
+  // spike once you've committed to the Lab (which appears alongside the twist).
+  // ×3 across the board, fantastical flavour. Costs are GUESSES.
+  { key: "farm2", name: "Splice-Grown Mice", icon: "🧬",
+    cost: 3e6, unlock: { owned: [["farm", 25], ["lab", 1]] },
+    effect: { type: "buildingMult", building: "farm", mult: 3 },
+    fx: "Grown from a strand of theoretical mouse" },
+  { key: "labparcels", name: "2 Second Shipping", icon: "🚀",
+    cost: 3e6, unlock: { owned: [["shopper", 25], ["lab", 1]] },
+    effect: { type: "buildingMult", building: "shopper", mult: 3 },
+    fx: "The lab folds the route flat — the box lands before you order" },
+  { key: "labfactory", name: "Superposition Assembly Line", icon: "⚛️",
+    cost: 5e6, unlock: { owned: [["factory", 10], ["lab", 1]] },
+    effect: { type: "buildingMult", building: "factory", mult: 3 },
+    fx: "The line runs every configuration at once" },
+  // A factory that makes factories: a SELF-synergy (crossBuilding with per ==
+  // building), so each Mouse Factory you own makes every Mouse Factory +5%
+  // better. Total factory output becomes ~quadratic in count — a snowball that
+  // rewards going wide. The only crossBuilding in the game; buy()'s recalc keeps
+  // its owned-dependent term live. +5% is a GUESS tuned for a realistic ~15-25
+  // factories (×1.75-2.25); watch it in the pacing sim if factory counts drift.
+  { key: "factoryfactory", name: "Factory Factory", icon: "🪆",
+    cost: 6e6, unlock: { owned: [["factory", 15], ["lab", 1]] },
+    effect: { type: "crossBuilding", building: "factory", per: "factory", pct: 5 },
+    fx: "Every factory tools up the next — the more you run, the better each one" },
+  { key: "labobserver", name: "The Observer Effect", icon: "🔭",
+    cost: 8e6, unlock: { owned: [["lab", 2]] },
+    effect: { type: "globalPct", pct: 15 },
+    fx: "Watched closely, every mouse multiplies out of politeness" },
 
   // --- Petting ---
   { key: "whiskers", name: "Sensitive Whiskers", icon: "🐈",
@@ -718,10 +817,6 @@ const UPGRADES = [
   { key: "pounce", name: "Pounce Reflex", icon: "🐾",
     cost: 100000, unlock: { clicks: 400 },
     effect: { type: "clickMult", mult: 2 } },
-  { key: "churu", name: "Churu-coated Pets", icon: "🍦",
-    cost: 1.5e6, unlock: { clicks: 700 },
-    effect: { type: "clickMult", mult: 2 },
-    fx: "Hex would do anything for churu" },
   { key: "jailgoomba", name: "Lock Goomba in Cardboard Castle", icon: "🚔",
     cost: 15e6, unlock: { clicks: 1200 },
     effect: { type: "clickMult", mult: 2 },
@@ -774,7 +869,7 @@ const UPGRADES = [
   // that keeps their game.owned-dependent multipliers live. A synergy only
   // changes behavior when its term dwarfs the subject's own mps, so the subject
   // must be a cheap, low-mps building (Mouse Subscription 0.4 or Mouse Farm 1),
-  // never Quarry/Factory. See hex-clicker-synergy-brief.md (now historical).
+  // never the Factory. See hex-clicker-synergy-brief.md (now historical).
 
   // --- Bespoke ---
   { key: "milk", name: "Saucer of Milk", icon: "🥛",
@@ -806,24 +901,30 @@ const UPGRADES = [
     cost: 160000, unlock: { total: 130000 },
     effect: { type: "night" },
     fx: "What is Hex dreaming about?" },
-  // Comet Trails: the reveal's ink. Five tiers, each +7 trail segments (35
-  // total = the lab's tuned default). Chained so exactly one shows at a time.
+  // Counting Mice: the night's FIRST research. It doesn't ink anything — it flips
+  // the wall mice on (type: "countMice" → mods.countMice → wallMiceCount), so the
+  // dream mice literally begin appearing the moment you buy it. Everything below
+  // chains behind it, so the whole reveal sits downstream of this one purchase.
+  { key: "countingmice", name: "Counting Mice", icon: "💭",
+    cost: 300000, unlock: { requires: "catnap" },
+    effect: { type: "countMice" },
+    fx: "One mouse, two mice… they spill onto the wall" },
+  // The reveal's ink: three sleep stages, each a deeper/wilder dream that draws
+  // longer dream-trails (Deep Sleep 8 → REM 12 → Lucid 15 = 35, the wall's tuned
+  // fullness). Chained so exactly one shows at a time; all three = legible.
   // Costs are GUESSES against the night economy.
-  { key: "comet1", name: "Comet Trails", icon: "☄️",
-    cost: 400000, unlock: { requires: "catnap" },
-    effect: { type: "trail", add: 7 } },
-  { key: "comet2", name: "Comet Trails II", icon: "☄️",
-    cost: 1.2e6, unlock: { requires: "comet1" },
-    effect: { type: "trail", add: 7 } },
-  { key: "comet3", name: "Comet Trails III", icon: "☄️",
-    cost: 3.5e6, unlock: { requires: "comet2" },
-    effect: { type: "trail", add: 7 } },
-  { key: "comet4", name: "Comet Trails IV", icon: "☄️",
-    cost: 9e6, unlock: { requires: "comet3" },
-    effect: { type: "trail", add: 7 } },
-  { key: "comet5", name: "Comet Trails V", icon: "☄️",
-    cost: 22e6, unlock: { requires: "comet4" },
-    effect: { type: "trail", add: 7 } },
+  { key: "deepsleep", name: "Deep Sleep", icon: "😴",
+    cost: 1e6, unlock: { requires: "countingmice" },
+    effect: { type: "trail", add: 8 },
+    fx: "Her dream settles — the mice leave faint streaks" },
+  { key: "remsleep", name: "REM Sleep", icon: "👀",
+    cost: 4e6, unlock: { requires: "deepsleep" },
+    effect: { type: "trail", add: 12 },
+    fx: "Eyes darting; the mice race and blur behind them" },
+  { key: "luciddreaming", name: "Lucid Dreaming", icon: "🌀",
+    cost: 12e6, unlock: { requires: "remsleep" },
+    effect: { type: "trail", add: 15 },
+    fx: "She takes the wheel — the mice streak wherever she wills" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -890,7 +991,8 @@ function costOf(b, owned) { return Math.ceil(b.base * Math.pow(GROWTH, owned)); 
 // of a copy that drifts. recalc() is the thin live-game binding.
 function foldMods(bought, owned) {
   const m = { building: {}, globalMult: 1, clickFlat: CLICK_BASE,
-              clickShare: CLICK_CPS_SHARE, clickMult: 1, goldenFreq: 1, goldenLife: 0, trail: 0 };
+              clickShare: CLICK_CPS_SHARE, clickMult: 1, goldenFreq: 1, goldenLife: 0,
+              trail: 0, countMice: 0 };
   BUILDINGS.forEach(b => m.building[b.id] = 1);
   let globalPct = 0;
   for (const u of UPGRADES) {
@@ -906,6 +1008,9 @@ function foldMods(bought, owned) {
       else if (e.type === "goldenFreq") m.goldenFreq *= e.mult;
       else if (e.type === "goldenLife") m.goldenLife += e.add;
       else if (e.type === "trail") m.trail += e.add;
+      // Pure toggle: Counting Mice flips the wall mice on. Folded as a mod (not
+      // read by name anywhere) so the same rule feeds the live wall and the sim.
+      else if (e.type === "countMice") m.countMice = 1;
       // The two owned-dependent effects. One-directional by design (Cookie
       // Clicker's GrandmaSynergy, not its symmetric SynergyUpgrade): the host
       // gains per subject owned, never the reverse. Both re-derive from
@@ -1003,7 +1108,8 @@ function oneEffectText(e) {
     case "clickMult":    return `Petting is ×${e.mult} stronger`;
     case "goldenFreq":   return `Golden mice appear ×${e.mult} as often`;
     case "goldenLife":   return `Golden mice linger +${e.add}s longer`;
-    case "trail":        return `Wall mice trail longer comet tails`;
+    case "trail":        return `Dream mice leave longer trails`;
+    case "countMice":    return `The first mice appear on the wall`;
     case "crossBuilding": return `${buildingName(e.building)} gains +${e.pct}% per ${buildingName(e.per)}`;
     case "clickPerBuilding": return `+${fmt(e.add)} per pet for every ${buildingName(e.per)}`;
     default:             return "";
@@ -1097,16 +1203,15 @@ function buildShop() {
          <div class="lockedNm">???</div>
          <div class="titleRow">
            <div class="nm">${b.name}</div>
-           <div class="rate"></div>
          </div>
          <div class="fx">${b.blurb}</div>
          <div class="cost">${currencyIconSVG()}<span class="costNum"></span></div>
        </div>
-       <div class="own">0</div>`;
+       <div class="right"><div class="rate"></div><div class="own">0</div></div>`;
     el.addEventListener("click", () => buy(i));
     shopEl.appendChild(el);
     return {
-      el, can: null, locked: null, gone: null, ownN: null,
+      el, can: null, locked: null, gone: null, ownN: null, bought: null,
       rate: el.querySelector(".rate"), cost: el.querySelector(".cost"),
       costNum: el.querySelector(".costNum"), own: el.querySelector(".own"),
     };
@@ -1159,6 +1264,11 @@ function refreshShop() {
     if (gone) continue;
     if (r.locked !== locked) { r.el.classList.toggle("locked", locked); r.locked = locked; }
     if (r.can !== affordable) { r.el.classList.toggle("can", affordable); r.can = affordable; }
+    // Blurb is a pre-purchase tease only: the moment you own one, CSS hides
+    // .fx (see .item.bought). Buildings can't be sold, so this flips once 0->1
+    // and stays; guarded like the others so it's not a per-tick class write.
+    const bought = owned > 0;
+    if (r.bought !== bought) { r.el.classList.toggle("bought", bought); r.bought = bought; }
 
     // Every string below is a pure function of (owned, revealed), both of
     // which change only on a buy or a reveal — so they're written on change,
@@ -1174,7 +1284,9 @@ function refreshShop() {
       if (revealed) {
         r.own.textContent = owned;
         const each = b.mps, mine = each * owned;
-        r.rate.textContent = mine > 0 ? `${fmt(mine)}/s` : `+${fmt(each)}/s each`;
+        r.rate.innerHTML = mine > 0
+          ? `${currencyIconSVG()}${fmt(mine)}/s`
+          : `+${currencyIconSVG()}${fmt(each)}/s each`;
       }
     }
     r.cost.classList.toggle("no", !affordable);
@@ -1609,7 +1721,8 @@ goldenEl.addEventListener("pointerdown", e => {
 // of (seed, mouse index, time): no wall state to save. Lab knobs map to game
 // state — mice N = f(lifetime total) via the locked geometric accumulator,
 // word% = hardcoded constant, noise = locked 0 (wander() dropped entirely),
-// trail = mods.trail from Comet Trails.
+// trail = mods.trail from the sleep-stage upgrades, and whether ANY mice show
+// at all is gated on mods.countMice (the Counting Mice research).
 // ---------------------------------------------------------------------------
 const WALL = {
   seed: 7,          // multiplayer will derive this from the room; constant here
@@ -1628,21 +1741,28 @@ function wallMiceFor(total) {
   return Math.min(WALL.maxMice,
     1 + Math.floor(Math.log(total / WALL.mouseBase) / Math.log(WALL.mouseR)));
 }
-function wallMiceCount() { return wallMiceFor(game.total); }
+// Live count is gated on the Counting Mice research: no mice appear on the wall
+// until it's bought, even once lifetime total is past mouseBase. wallMiceFor
+// stays pure (total -> count) for the sim's milestone log; the gate lives here.
+function wallMiceCount() { return mods.countMice ? wallMiceFor(game.total) : 0; }
 
-// "The word is legible" as a checkable economy state: every Comet Trail bought
-// AND lifetime total at this threshold (= the `legible` dev preset, ~68 of 90
-// wall mice). The wall renders as a pure function of (total, trail), so this
-// pair IS legibility — there's no separate ink meter to simulate.
+// "The word is legible" as a checkable economy state: the mice turned on
+// (Counting Mice), every trail stage bought, AND lifetime total at this
+// threshold (= the `legible` dev preset, ~68 of 90 wall mice). The wall renders
+// as a pure function of (total, trail, countMice), so this trio IS legibility —
+// there's no separate ink meter to simulate.
 // TRAIL_FULL sums the table instead of naming the last upgrade in the chain:
-// `comet5` only meant "all of them" because the rows happen to chain via
-// `requires`, so adding a comet6 or reordering would have made the simulator
-// declare legibility one tier early and report a confidently wrong time.
+// naming `luciddreaming` would only mean "all of them" because the rows happen
+// to chain via `requires`, so adding a stage or reordering would have made the
+// simulator declare legibility early and report a confidently wrong time.
+// countMice is checked explicitly too (not left implied by the chain) — no
+// mice, no word, no matter how full the trails would be.
 const LEGIBLE_TOTAL = 4.5e7;
 const TRAIL_FULL = UPGRADES.flatMap(u => [].concat(u.effect))
   .filter(e => e.type === "trail").reduce((a, e) => a + e.add, 0);
 function isLegible(s) {
-  return foldMods(s.bought, s.owned).trail >= TRAIL_FULL && s.total >= LEGIBLE_TOTAL;
+  const m = foldMods(s.bought, s.owned);
+  return m.countMice && m.trail >= TRAIL_FULL && s.total >= LEGIBLE_TOTAL;
 }
 
 // Colors come from the shared MOUSE_COLORS table (see spawnMousePop) — the
@@ -2389,15 +2509,15 @@ const DEV_PRESETS = {
   "early":    { total: 600, mice: 350, clicks: 60,
                 owned: { shopper: 5, farm: 3 } },
   "midday":   { total: 30000, mice: 12000, clicks: 220,
-                owned: { shopper: 18, farm: 8, quarry: 3 } },
+                owned: { shopper: 18, farm: 20 } },
   "pre-night":{ total: 140000, mice: 320000, clicks: 420,
-                owned: { shopper: 25, farm: 14, quarry: 9, factory: 4, lab: 1 } },
+                owned: { shopper: 25, farm: 40, factory: 4, lab: 1 } },
   "night":    { total: 450000, mice: 900000, clicks: 550, golden: 3,
-                owned: { shopper: 25, farm: 14, quarry: 9, factory: 5, lab: 2 },
+                owned: { shopper: 25, farm: 40, factory: 5, lab: 2 },
                 bought: ["catnap"] },
   "legible":  { total: LEGIBLE_TOTAL, mice: 6e6, clicks: 1000, golden: 6,
-                owned: { shopper: 25, farm: 14, quarry: 9, factory: 5, lab: 2, portal: 12, timemachine: 4 },
-                bought: ["catnap", "comet1", "comet2", "comet3", "comet4", "comet5"] },
+                owned: { shopper: 25, farm: 40, factory: 5, lab: 2, portal: 12, timemachine: 4 },
+                bought: ["catnap", "countingmice", "deepsleep", "remsleep", "luciddreaming"] },
 };
 function devApply(name) {
   const p = DEV_PRESETS[name];
@@ -2456,7 +2576,7 @@ function devContentHTML() {
 // it. A greedy bot plays the REAL rules (foldMods / unlockMet / costOf /
 // wallMiceFor are shared, not copied — if the economy changes, the sim follows)
 // at a fixed pets/sec and reports a timestamped milestone timeline up to
-// legibility (isLegible: comet5 + LEGIBLE_TOTAL).
+// legibility (isLegible: Counting Mice + all trail stages + LEGIBLE_TOTAL).
 //
 // What it models:
 //   - income integrated at 0.25s steps; petting at a steady `pps` pets/sec
@@ -2483,7 +2603,7 @@ function simulateRun(opts = {}) {
   let t = 0, earnedPet = 0, earnedCps = 0, goldAcc = 0, lastWall = 0, legibleAt = null;
 
   const buyableB = b => (!b.night || nightOf(s.bought)) && isRevealed(b, s);
-  const isStory = u => [].concat(u.effect).some(e => e.type === "night" || e.type === "trail");
+  const isStory = u => [].concat(u.effect).some(e => e.type === "night" || e.type === "trail" || e.type === "countMice");
 
   // Steady-state earn rates for an arbitrary hypothetical (bought, owned).
   // Composition comes from baseCpsWith/clickBaseWith — the same functions the

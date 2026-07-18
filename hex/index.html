@@ -294,6 +294,31 @@
   body.night #wall { display: block; }
   body.night #rays { display: none; }
 
+  /* ---- Night starfield ----
+     A backdrop that says "night" the moment the room goes dark, independent of
+     the wall mice. Dots are % positioned so they scale with the stage (no resize
+     hook needed). Hidden by default; fades in as the camera pulls back — the
+     1.3s delay matches the yawn (YAWN_MS) so the sky "comes out" during the zoom,
+     not before Hex has closed her eyes. */
+  #stars { position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    opacity: 0; transition: opacity 1.6s ease-in 1.3s; }
+  body.night #stars { opacity: 1; }
+  /* Each star: a pale dot that breathes between its base opacity (--o) and a
+     dim floor, on its own staggered clock (--dur/--delay) so the field shimmers
+     instead of pulsing in unison. Colour is a cool white so it reads as sky and
+     never competes with the neon mice. */
+  #stars i { position: absolute; display: block; border-radius: 50%;
+    background: #dfe9ff; box-shadow: 0 0 3px rgba(200,220,255,.5);
+    animation: twinkle var(--dur) ease-in-out var(--delay) infinite; }
+  @keyframes twinkle { 0%, 100% { opacity: var(--o); } 50% { opacity: calc(var(--o) * .28); } }
+  @media (prefers-reduced-motion: reduce) { #stars i { animation: none; } }
+
+  /* Cutscene input trap — see the #cutsceneVeil markup. Transparent so the
+     transition plays through it; .on flips on the pointer capture that locks
+     the whole screen. z-index clears the dock (10) and hud (6). */
+  #cutsceneVeil { position: fixed; inset: 0; z-index: 30; display: none; pointer-events: none; }
+  #cutsceneVeil.on { display: block; pointer-events: auto; }
+
   /* floating +N numbers */
   .float {
     position: absolute; pointer-events: none; font: 700 17px var(--ui-font);
@@ -589,6 +614,10 @@
 <div id="stage">
   <!-- day-only sunburst (Cookie Clicker's spinning rays); sits under everything -->
   <div id="rays"></div>
+  <!-- night sky: a static, gently twinkling starfield (built by makeStars),
+       behind the wall. Signals nighttime on its own; a distinct element from the
+       neon wall mice, which draw on the #wall canvas on top of this. -->
+  <div id="stars"></div>
   <!-- night-phase reveal wall (ported from reveal-lab.html); sits under everything -->
   <canvas id="wall"></canvas>
   <!-- Inlined from hex-cat.svg — keep in sync with that file (see its header comment). -->
@@ -636,6 +665,11 @@
   </button>
 </div>
 
+<!-- Input trap for the night-transition cutscene: transparent (the beat plays
+     through it), but while .on it eats every tap so nothing is selectable. Sits
+     above the dock so even the shop handle is locked. -->
+<div id="cutsceneVeil"></div>
+
 <script>
 "use strict";
 
@@ -650,17 +684,31 @@ const BUILDINGS = [
   { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 40,     mps: 0.4, blurb: "Gets a mouse every 2.5 seconds" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
   { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces mice" },
+  // The one day building that keeps producing after the night reset (see
+  // baseCpsWith) — the design's "the Lab is still present" in the dream. In
+  // practice it's rarely stocked: it reveals at 130k right as Catnap unlocks, so
+  // teams flip to night before buying many. So night does NOT lean on it — the
+  // seed dream-holes below are the real bootstrap. (Making the Lab worth stocking
+  // pre-twist — revealing it earlier — is a live follow-up, not done here.)
   { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 260, blurb: "Synthesizes mice from theory" },
-  // Night buildings — hidden until Catnap Hypnalysis flips the phase, then they enter
-  // through the same reveal/tease flow. Deliberately dwarf day production (the
-  // lab earns ~2 mps per 1K cost; these earn ~8) so phase two has its own
-  // ladder without resetting the day economy. Numbers are GUESSES to iterate;
-  // spacing mirrors the day curve (~x12 cost, ~x13 mps per tier).
-  { id: "portal",     name: "Dimensional Mouse Hole", icon: "🌀", base: 400000, mps: 3000,  night: true, blurb: "Mice pour through from elsewhere" },
-  { id: "timemachine",name: "Chrono Cattelite Courier", icon: "🛰️", base: 5e6,    mps: 40000, night: true, blurb: "Beams mice down from last Tuesday" },
-  { id: "fractal",    name: "Constellation Cattery",    icon: "🌌", base: 60e6,   mps: 550000, night: true, blurb: "Every star is a cat, every cat a colony" },
-  { id: "antimatter", name: "Singularity Scratcher",    icon: "🕳️", base: 750e6,  mps: 7e6,   night: true, blurb: "A post so dense it pulls mice from the void" },
+  // Night buildings — hidden until Catnap flips the phase, then revealed by the same
+  // lifetime>=base rule. A SELF-CONTAINED ramp, not a topping on day income: after
+  // the reset income is night-only, bootstrapped by NIGHT_SEED_COUNT free Portals.
+  // Ratios are held near the DAY curve (~0.014 mps/base) so night ramps over a
+  // ~3-min sprint instead of exploding in seconds; every tier reveals before
+  // legibility (LEGIBLE_TOTAL 45M) so none is dead content. Tuned against the sim.
+  { id: "portal",     name: "Dimensional Mouse Hole", icon: "🌀", base: 10000,  mps: 160,    night: true, blurb: "Mice pour through from elsewhere" },
+  { id: "timemachine",name: "Chrono Cattelite Courier", icon: "🛰️", base: 150000, mps: 2100,   night: true, blurb: "Beams mice down from last Tuesday" },
+  { id: "fractal",    name: "Constellation Cattery",    icon: "🌌", base: 2e6,    mps: 27000,  night: true, blurb: "Every star is a cat, every cat a colony" },
+  { id: "antimatter", name: "Singularity Scratcher",    icon: "🕳️", base: 26e6,   mps: 375000, night: true, blurb: "A post so dense it pulls mice from the void" },
 ];
+// Night seed: the moment you fall asleep, a few dream-holes open on their own, so
+// night ALWAYS has a bootstrap income. Without it night deadlocks at zero — day
+// buildings idle, petting earns nothing, and teams almost never own a Lab (the
+// twist fires before anyone banks one). Granted on the day->night flip, matched
+// in both the live buy and the pacing sim. Keyed to the first night building.
+const NIGHT_SEED_ID = BUILDINGS.find(b => b.night).id;
+const NIGHT_SEED_COUNT = 3;
 const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
 // Global income compression. The BUILDINGS mps column mirrors Cookie Clicker's
@@ -878,11 +926,16 @@ const UPGRADES = [
   { key: "magnet", name: "Mouse Magnet", icon: "🧲",
     cost: 30000, unlock: { golden: 2 },
     effect: { type: "goldenFreq", mult: 1.5 } },
-  // Golden mice linger longer on screen (duration, not frequency). Placeholder
-  // cost; unlock nods at the name — catch six goldens first.
-  { key: "lucky6", name: "Lucky Number 6", icon: "🍀",
-    cost: 60000, unlock: { golden: 6 },
-    effect: { type: "goldenLife", add: 6 } },
+  // A night economy spike: a clean ×6 to ALL mouse generation (globalMult, so it
+  // multiplies the whole stack rather than adding to the +% sum). Triple-six
+  // theme carried by the name, the ×6, and the six-goldens gate. Gated on the
+  // night phase; cost is a GUESS — it wants to land as a mid-night power spike
+  // once night buildings are online, and it's the natural bridge if day
+  // buildings disappear at night. Retune against the day-buildings decision.
+  { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
+    cost: 2e6, unlock: { requires: "catnap", golden: 6 },
+    effect: { type: "globalMult", mult: 6 },
+    fx: "A run of pure luck — every mouse, sixfold" },
   { key: "focus", name: "Hex's Undivided Focus", icon: "👁️",
     cost: 250000, unlock: { total: 200000 },
     effect: { type: "globalPct", pct: 10 } },
@@ -992,9 +1045,9 @@ function costOf(b, owned) { return Math.ceil(b.base * Math.pow(GROWTH, owned)); 
 function foldMods(bought, owned) {
   const m = { building: {}, globalMult: 1, clickFlat: CLICK_BASE,
               clickShare: CLICK_CPS_SHARE, clickMult: 1, goldenFreq: 1, goldenLife: 0,
-              trail: 0, countMice: 0 };
+              trail: 0, countMice: 0, night: 0 };
   BUILDINGS.forEach(b => m.building[b.id] = 1);
-  let globalPct = 0;
+  let globalPct = 0, globalMul = 1;
   for (const u of UPGRADES) {
     if (!bought[u.key]) continue;
     // `effect` is one object OR an array of them — synergies are inherently
@@ -1002,6 +1055,10 @@ function foldMods(bought, owned) {
     for (const e of [].concat(u.effect)) {
       if (e.type === "buildingMult") m.building[e.building] *= e.mult;
       else if (e.type === "globalPct") globalPct += e.pct;
+      // Multiplicative global (Lucky Number 6's clean x6), kept separate from the
+      // additive globalPct so it multiplies the whole stack instead of blending
+      // into the +% sum — an honest "x6", not "+500% added to Milk/Focus".
+      else if (e.type === "globalMult") globalMul *= e.mult;
       else if (e.type === "clickFlat") m.clickFlat += e.add;
       else if (e.type === "clickShare") m.clickShare += e.pct / 100;
       else if (e.type === "clickMult") m.clickMult *= e.mult;
@@ -1011,6 +1068,10 @@ function foldMods(bought, owned) {
       // Pure toggle: Counting Mice flips the wall mice on. Folded as a mod (not
       // read by name anywhere) so the same rule feeds the live wall and the sim.
       else if (e.type === "countMice") m.countMice = 1;
+      // The twist as a folded mod too, so baseCpsWith (which only gets m + owned,
+      // not bought) can enforce the dream reset. Agrees with nightOf/nightActive
+      // — both derive from the same `night` effect type.
+      else if (e.type === "night") m.night = 1;
       // The two owned-dependent effects. One-directional by design (Cookie
       // Clicker's GrandmaSynergy, not its symmetric SynergyUpgrade): the host
       // gains per subject owned, never the reverse. Both re-derive from
@@ -1019,7 +1080,7 @@ function foldMods(bought, owned) {
       else if (e.type === "clickPerBuilding") m.clickFlat += e.add * owned[e.per];
     }
   }
-  m.globalMult = 1 + globalPct / 100;
+  m.globalMult = (1 + globalPct / 100) * globalMul;
   return m;
 }
 // Seeded from the fold itself rather than a hand-written literal — the zero
@@ -1046,7 +1107,14 @@ function nightActive() { return nightOf(game.bought); }
 // baseCps()/clickGain() are the thin live-game bindings.
 function baseCpsWith(m, owned) {
   let s = 0;
-  for (const b of BUILDINGS) s += b.mps * owned[b.id] * m.building[b.id];
+  for (const b of BUILDINGS) {
+    // Dream reset: at night the daytime mouse-industry stops earning. Only the
+    // Lab (which caused the dream) and the surreal night buildings still run —
+    // so a day building's carried-over count sits idle until you wake. Night
+    // buildings can't be owned in daylight, so no reverse guard is needed.
+    if (m.night && !b.night && b.id !== "lab") continue;
+    s += b.mps * owned[b.id] * m.building[b.id];
+  }
   return s * m.globalMult * INCOME_SCALE;
 }
 // Pre-buff click value: flat + a share of income, times the click multiplier.
@@ -1103,6 +1171,7 @@ function oneEffectText(e) {
   switch (e.type) {
     case "buildingMult": return `${buildingName(e.building)} is ${e.mult === 2 ? "twice" : "×" + e.mult} as good`;
     case "globalPct":    return `+${e.pct}% mice per second`;
+    case "globalMult":   return `×${e.mult} mice per second`;
     case "clickFlat":    return `+${fmt(e.add)} per pet`;
     case "clickShare":   return `+${e.pct}% of your /s per pet`;
     case "clickMult":    return `Petting is ×${e.mult} stronger`;
@@ -1158,6 +1227,7 @@ const goldenEl = $("#golden"), buffEl = $("#buff");
 const upgradesEl = $("#upgrades"), upgradeSecEl = $("#upgradeSec");
 const buildingSecEl = $("#buildingSec"), dockEl = $("#dock");
 const trayHandleEl = $("#trayHandle");
+const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 
 // Neither section knows about the other, so the dock's own visibility is
 // resolved here from both. Called only when a section actually flips.
@@ -1243,6 +1313,13 @@ function refreshShop() {
     // Night buildings don't exist during the day — no row, no tease, and no
     // effect on the day list's lockedRun counting.
     if (b.night && !nightActive()) {
+      if (r.gone !== true) { r.el.classList.add("gone"); r.gone = true; }
+      continue;
+    }
+    // Mirror at night: the day mouse-industry vanishes from the shelf (the Lab
+    // persists into the dream). Same `gone` skip, so these rows also drop out of
+    // the tease counting once night falls.
+    if (!b.night && b.id !== "lab" && nightActive()) {
       if (r.gone !== true) { r.el.classList.add("gone"); r.gone = true; }
       continue;
     }
@@ -1360,6 +1437,7 @@ function refreshUpgrades() {
 function buyUpgrade(key) {
   const u = UPGRADES.find(x => x.key === key);
   if (!u || game.bought[u.key] || !isUnlocked(u) || game.mice < u.cost) return;
+  const nightBefore = nightActive();
   game.mice -= u.cost;
   game.bought[u.key] = 1;
   recalc();
@@ -1367,6 +1445,14 @@ function buyUpgrade(key) {
   // happens to work — but it silently reads undefined the day one is authored
   // as an array, and the phase flip would just never fire.
   syncPhase(); // no special-casing the night effect — phase follows the fold
+  // The twist just fired LIVE (a real purchase flipped day->night, not a load or
+  // a dev preset — those call syncPhase directly). Take the screen for the beat,
+  // and open the seed dream-holes so night has an income to start from.
+  if (!nightBefore && nightActive()) {
+    game.owned[NIGHT_SEED_ID] += NIGHT_SEED_COUNT;
+    recalc();
+    runNightCutscene();
+  }
   refreshHud(); refreshShop(); refreshUpgrades(); save();
 }
 
@@ -1513,7 +1599,35 @@ let squash = 0; // 0..1 pet animation
 // known — updateCat only ever reads it. Wall-clock, not frame count: the streak
 // is about how you're touching her, which shouldn't change with framerate.
 let lastPetAt = -1e9, petStreak = 0, slowBlinkStart = -1;
+// Night-poke state: how many times you've prodded the sleeping cat in quick
+// succession, so a fifth insistent tap can escalate from "Zzz" to a grumble.
+let lastPokeAt = -1e9, nightPokes = 0;
+const NIGHT_GRUMBLE_POKES = 5;
 function pet(clientX, clientY) {
+  const rect = stageEl.getBoundingClientRect();
+  const x = clientX - rect.left, y = clientY - rect.top;
+
+  // Night: Hex is asleep and petting is no longer a mechanic. Rather than mint
+  // mice she gives a diegetic sleepy reaction — a small stir + a rising "Zzz",
+  // with NO "+N" and NO mice. The absence of the number the player has floated
+  // all day is the real signal ("that did nothing"); the stir just says asleep,
+  // not misfired. Keep prodding and she grumbles. No nudge toward the wall —
+  // the reveal earns the eye on its own.
+  if (nightActive()) {
+    const now = performance.now();
+    if (now - lastPokeAt > PET_STREAK_WINDOW_MS) nightPokes = 0;
+    nightPokes++; lastPokeAt = now;
+    if (nightPokes >= NIGHT_GRUMBLE_POKES) {
+      squash = 1;                       // a bigger, annoyed stir (longer bounce)
+      floatNum(x, y, "grr…");
+      nightPokes = 0;                   // reset so a sustained tap-storm re-grumbles
+    } else {
+      squash = 0.6;                     // a gentle half-stir
+      floatNum(x, y, "Zzz");
+    }
+    return;                             // no mice, no mouse-pop, no HUD write
+  }
+
   const gain = clickGain();
   game.mice += gain; game.total += gain; game.clicks++;
   squash = 1;
@@ -1532,9 +1646,8 @@ function pet(clientX, clientY) {
     petStreak = 0;
   }
 
-  const rect = stageEl.getBoundingClientRect();
-  floatNum(clientX - rect.left, clientY - rect.top, "+" + fmt(gain));
-  spawnMousePop(clientX - rect.left, clientY - rect.top);
+  floatNum(x, y, "+" + fmt(gain));
+  spawnMousePop(x, y);
   refreshHud();
 }
 
@@ -1655,7 +1768,7 @@ scheduleGold();
 
 function spawnGold() {
   goldActive = true;
-  goldLifeLeft = 9 + mods.goldenLife; // seconds on screen (Lucky Number 6 extends this)
+  goldLifeLeft = 9 + mods.goldenLife; // seconds on screen (goldenLife upgrades extend this)
   // Art is chosen per spawn, not once at boot: night unlocks mid-session, and a
   // golden that's already drifting when it flips would otherwise keep the wrong
   // vehicle until the next one. Per-spawn is also the only moment it can change
@@ -2208,9 +2321,55 @@ function syncPhase() {
   // one-way latch: the scene is expensive to build and never needs rebuilding
   if (night && !nightInited) {
     nightInited = true;
+    makeStars();
     loadWallScene();
     resizeWall();
   }
+}
+
+// Starfield, built once when night first falls (from the latch above). Seeded so
+// the sky is stable across reloads/reconnects rather than reshuffling each time —
+// decorative, so it needn't match other clients, but a fixed layout reads calmer.
+// % positions + px sizes so it scales with the stage without a resize hook.
+function makeStars() {
+  if (starsEl.childElementCount) return;   // idempotent — the latch only fires once, but be safe
+  const rnd = mulberry32(0x5741 ^ WALL.seed);
+  const N = 54, frag = document.createDocumentFragment();
+  for (let i = 0; i < N; i++) {
+    const s = document.createElement("i");
+    const size = (0.8 + rnd() * 1.9).toFixed(2);      // 0.8–2.7px
+    s.style.left = (rnd() * 100).toFixed(2) + "%";
+    s.style.top = (rnd() * 100).toFixed(2) + "%";
+    s.style.width = s.style.height = size + "px";
+    s.style.setProperty("--o", (0.35 + rnd() * 0.5).toFixed(2));   // base brightness 0.35–0.85
+    s.style.setProperty("--dur", (2.4 + rnd() * 3.6).toFixed(2) + "s"); // slow, varied twinkle
+    s.style.setProperty("--delay", (-rnd() * 6).toFixed(2) + "s");  // negative → mid-cycle at start, no unison flash-on
+    frag.appendChild(s);
+  }
+  starsEl.appendChild(frag);
+}
+
+// The night-transition CUTSCENE. Fired once, only on the live day->night edge (a
+// player buying the twist) — never on load/reconnect or a dev preset, so a
+// returning player drops straight into night without replaying the beat. It
+// takes the screen: the shop slides shut, a transparent veil locks ALL input
+// (petting included), the existing yawn->zoom->reveal plays, then input frees and
+// the shop returns to exactly where the player had it.
+let cutsceneLock = false;
+function runNightCutscene() {
+  if (cutsceneLock) return;
+  cutsceneLock = true;
+  const wasOpen = dockEl.classList.contains("open");
+  setTrayOpen(false);                 // recede the shop so everyone sees the reveal
+  cutsceneVeilEl.classList.add("on"); // nothing selectable while the beat plays
+  // Duration read here (not a top-level const) so it can reference YAWN_MS, which
+  // is declared further down. Kept in sync with the CSS: YAWN_MS (1300) + the
+  // #catPose zoom (1800ms) = the moment the camera settles.
+  setTimeout(() => {
+    cutsceneVeilEl.classList.remove("on");
+    setTrayOpen(wasOpen);             // restore the player's own layout
+    cutsceneLock = false;
+  }, YAWN_MS + 1800);
 }
 
 // ---------------------------------------------------------------------------
@@ -2602,7 +2761,15 @@ function simulateRun(opts = {}) {
   const events = [];
   let t = 0, earnedPet = 0, earnedCps = 0, goldAcc = 0, lastWall = 0, legibleAt = null;
 
-  const buyableB = b => (!b.night || nightOf(s.bought)) && isRevealed(b, s);
+  // Buyable only if it's productive in the current phase: night buildings need
+  // night; the day mouse-industry (non-Lab day buildings) is dead once night
+  // falls, so the bot stops buying it then — mirrors the shop hiding those rows.
+  const buyableB = b => {
+    const night = nightOf(s.bought);
+    if (b.night) return night && isRevealed(b, s);
+    if (b.id !== "lab" && night) return false;
+    return isRevealed(b, s);
+  };
   const isStory = u => [].concat(u.effect).some(e => e.type === "night" || e.type === "trail" || e.type === "countMice");
 
   // Steady-state earn rates for an arbitrary hypothetical (bought, owned).
@@ -2616,7 +2783,9 @@ function simulateRun(opts = {}) {
     // currentClickBuff(), which the sim can't call (they read wall-clock).
     const gCps = useGold ? 1 + (GOLD_MULT - 1) * (ZOOM_MS / 1000) * (1 - FRENZY_CHANCE) / I : 1;
     const gClk = useGold ? 1 + (CLICK_BUFF_MULT - 1) * (CLICK_BUFF_MS / 1000) * FRENZY_CHANCE / I : 1;
-    const pet = pps * clickBaseWith(m, owned) * gClk;
+    // Petting earns nothing at night (the sleepy reaction is not a mechanic), so
+    // the pet term drops to zero once the twist fires — matches pet()'s gate.
+    const pet = nightOf(bought) ? 0 : pps * clickBaseWith(m, owned) * gClk;
     return { cps: base * gCps, pet, all: base * gCps + pet, I };
   };
   const log = ev => events.push({ t, ev, total: s.total, rate: rates(s.bought, s.owned).all });
@@ -2633,7 +2802,11 @@ function simulateRun(opts = {}) {
     let goalGap = 0;
     for (const u of UPGRADES) {
       if (s.bought[u.key] || !isStory(u) || !unlockMet(u, s)) continue;
-      if (s.mice >= u.cost) { s.mice -= u.cost; s.bought[u.key] = 1; log(`★ ${u.name}`); }
+      if (s.mice >= u.cost) {
+        s.mice -= u.cost; s.bought[u.key] = 1; log(`★ ${u.name}`);
+        // Match the live seed: the twist opens a few dream-holes to bootstrap night.
+        if ([].concat(u.effect).some(e => e.type === "night")) s.owned[NIGHT_SEED_ID] += NIGHT_SEED_COUNT;
+      }
       else goalGap = Math.max(goalGap, u.cost - s.mice);
     }
 

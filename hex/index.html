@@ -710,6 +710,16 @@ const UPGRADES = [
     cost: 15e6, unlock: { clicks: 1200 },
     effect: { type: "clickMult", mult: 2 },
     fx: "Goomba can't steal pets from jail" },
+  // Cardboard pair: the Box is the classic cheap ambush spot; the Castle is its
+  // upgrade, so it `requires` the Box before it unlocks. Both are plain ×2 pets.
+  { key: "cardboardbox", name: "Cardboard Box", icon: "📦",
+    cost: 300000, unlock: { clicks: 550 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "The ultimate ambush spot — no mouse expects the box" },
+  { key: "cardboardcastle", name: "Cardboard Castle", icon: "🏰",
+    cost: 8e6, unlock: { requires: "cardboardbox", clicks: 1000 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "A fortress of flaps — every corner a fresh pounce" },
 
   // --- Cross-building synergies ---
   // Cookie Clicker's GrandmaSynergy pattern: the cheapest building takes a job

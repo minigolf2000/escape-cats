@@ -32,7 +32,12 @@ const S = QRArt.sizeOf(VERSION); // 41
 const FRAMES = 10;
 const DELAY_MS = 100;
 const MASK = 3; // fixed across frames (see report); chosen empirically below.
-const RESTARTS = 24; // solver restarts per frame, best-of by (pins, headroom)
+// Flip budget 0: the pure Gauss-Jordan solve is already a valid codeword with
+// ZERO RS errors, so keeping the budget at 0 gives full per-block headroom AND
+// means no deliberate flips can disturb the figure across frames (constancy).
+const MARGIN = 0;
+const MARGIN_CAP = 0;
+const RESTARTS = 6; // noise-only restarts (pins/headroom are seed-invariant here)
 const SCALE = 8;
 const QUIET = 4;
 
@@ -111,12 +116,12 @@ function inEyes(r, c) {
 // angle = AMP * sin(2π f / FRAMES), so frame 0 and the loop point match.
 // ---------------------------------------------------------------------------
 const TAIL_BASE = { r: 30, c: 22 }; // anchored on the body's right side (constant)
-const AMP_DEG = 20; // +/- swing -> ~40deg sweep
-const TAIL_THICK = 0.62; // centerline half-thickness -> ~2 modules
+const AMP_DEG = 22; // +/- swing -> ~44deg sweep
+const TAIL_THICK = 0.95; // centerline half-thickness -> solid ~2-3 modules
 
 // Rest-pose control points relative to the base (drow, dcol), row grows down.
 const TAIL_P1 = { dr: -8, dc: 8 }; // rises up and to the right
-const TAIL_P2 = { dr: -15, dc: 6 }; // curls back over the top
+const TAIL_P2 = { dr: -14, dc: 8 }; // curls over the top
 
 function rot(dr, dc, ang) {
   const cs = Math.cos(ang);
@@ -146,7 +151,7 @@ function tailDarkAt(ang) {
       for (let c = c0; c <= c0 + 3; c++) {
         if (!inBounds(r, c)) continue;
         const d = Math.hypot(r - fr, c - fc);
-        if (d <= TAIL_THICK + 0.38) set.add(idx(r, c));
+        if (d <= TAIL_THICK + 0.5) set.add(idx(r, c));
       }
     }
   }
@@ -158,8 +163,7 @@ function frameAngle(f) {
   return amp * Math.sin((2 * Math.PI * f) / FRAMES);
 }
 
-// Union of every tail pose (constant), used to reserve a clean white swing
-// corridor so the moving tail always reads.
+// Union of every tail pose (constant): the whole area the tail sweeps through.
 function swingUnion() {
   const u = new Set();
   for (let f = 0; f < FRAMES; f++) {
@@ -187,11 +191,16 @@ function dilate1(set) {
 //   1. figure dark (head/body/ears)   -- constant
 //   2. eyes white                     -- constant
 //   3. current tail dark              -- varies
-//   4. swing-corridor white           -- constant region, complement varies
+//   4. 1-module white halo around the current tail -- varies
 // Figure+eyes get the highest priority so they are pinned first (within rank)
-// and come out byte-identical every frame.
+// and come out byte-identical every frame. The tail beats its own halo for
+// rank, so the moving tail stays solid; the halo is a thin white outline that
+// separates the dark tail from the shimmering noise ground in every pose.
 // ---------------------------------------------------------------------------
-const CORRIDOR = dilate1(swingUnion()); // constant white corridor (minus tail)
+// The constant white swing lane: the whole sweep area, dilated by 1, MINUS the
+// figure (dark wins). Pinned white in every frame (constant region) so the dark
+// tail always reads as black-on-white; the tail overrides it dark per frame.
+const SWING = dilate1(dilate1(swingUnion())); // 2-module white margin around sweep
 const FIGURE_DARK = (() => {
   const s = new Set();
   for (let r = 0; r < S; r++)
@@ -228,8 +237,8 @@ function buildFrameTarget(f) {
   // 3. current tail dark
   const tail = tailDarkAt(frameAngle(f));
   for (const mi of tail) paint(mi, 1);
-  // 4. swing-corridor white, everywhere the tail is NOT this frame
-  for (const mi of CORRIDOR) if (!tail.has(mi)) paint(mi, 2);
+  // 4. constant white swing lane, everywhere the tail is NOT this frame
+  for (const mi of SWING) if (!tail.has(mi) && !FIGURE_DARK.has(mi)) paint(mi, 2);
 
   const order = [];
   for (let i = 0; i < S * S; i++) if (tone[i] > 0 && !fp.func[i]) order.push(i);
@@ -243,7 +252,7 @@ function buildFrameTarget(f) {
 // Solve one frame: best-of RESTARTS by (pins satisfied desc, headroom desc).
 // ---------------------------------------------------------------------------
 function solveFrame(prep, f) {
-  const { order, target, seq } = buildFrameTarget(f);
+  const { order, target, seq, tail } = buildFrameTarget(f);
   let best = null;
   for (let k = 0; k < RESTARTS; k++) {
     const noiseSeed = 0x51701 + f * 1000 + k;
@@ -253,8 +262,8 @@ function solveFrame(prep, f) {
       target,
       seq,
       mask: MASK,
-      margin: 0.5,
-      marginCap: 0.8,
+      margin: MARGIN,
+      marginCap: MARGIN_CAP,
       noiseRng: QRArt.mulberry32(noiseSeed),
       flipSeed,
     });
@@ -275,6 +284,17 @@ function solveFrame(prep, f) {
     if (satisfied === order.length && minHead >= 4) break;
   }
   best.order = order;
+  best.tail = tail;
+  // per-category unsatisfied breakdown
+  const un = new Set(best.res.unsatisfied);
+  let figUn = 0, eyeUn = 0, tailUn = 0, corrUn = 0;
+  for (const mi of un) {
+    if (FIGURE_DARK.has(mi)) figUn++;
+    else if (EYES_WHITE.has(mi)) eyeUn++;
+    else if (tail.has(mi)) tailUn++;
+    else corrUn++;
+  }
+  best.breakdown = { figUn, eyeUn, tailUn, corrUn, tailTotal: tail.size };
   return best;
 }
 
@@ -282,29 +302,29 @@ function solveFrame(prep, f) {
 // ASCII preview (silhouette + a couple of tail poses), no solving.
 // ---------------------------------------------------------------------------
 function preview() {
-  const corridor = CORRIDOR;
-  const glyph = (r, c, tailSet) => {
+  const glyph = (r, c, tailSet, haloSet) => {
     const mi = idx(r, c);
     if (fp.func[mi]) return "+";
     if (inEyes(r, c)) return "o";
     if (tailSet.has(mi)) return "#";
     if (inSilhouette(r, c)) return "@";
-    if (corridor.has(mi)) return ".";
+    if (haloSet.has(mi)) return ".";
     return " ";
   };
   for (const f of [0, 2, 5, 8]) {
     const tail = tailDarkAt(frameAngle(f));
+    const halo = dilate1(tail);
     console.log(`\n=== frame ${f} (angle ${(frameAngle(f) * 180 / Math.PI).toFixed(1)}deg) ===`);
     let head = "   ";
     for (let c = 0; c < S; c++) head += c % 10;
     console.log(head);
     for (let r = 0; r < S; r++) {
       let line = String(r).padStart(2, " ") + " ";
-      for (let c = 0; c < S; c++) line += glyph(r, c, tail);
+      for (let c = 0; c < S; c++) line += glyph(r, c, tail, halo);
       console.log(line);
     }
   }
-  console.log(`\nFIGURE_DARK ${FIGURE_DARK.size}  EYES ${EYES_WHITE.size}  CORRIDOR ${corridor.size}`);
+  console.log(`\nFIGURE_DARK ${FIGURE_DARK.size}  EYES ${EYES_WHITE.size}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -379,8 +399,10 @@ function main() {
       decoded8: vres.scales[0].decoded,
       decoded3: vres.scales[1].decoded,
     });
+    const bd = best.breakdown;
     console.log(
-      `frame ${f}: pins ${best.satisfied}/${best.order.length}, flips ${res.flips.length}, minHead ${minHead}, restart#${best.k}`
+      `frame ${f}: pins ${best.satisfied}/${best.order.length}, flips ${res.flips.length}, minHead ${minHead}` +
+        ` | unsat fig ${bd.figUn} eye ${bd.eyeUn} tail ${bd.tailUn}/${bd.tailTotal} corr ${bd.corrUn}`
     );
   }
 
@@ -400,6 +422,18 @@ function main() {
     const v0 = matrices[0][mi];
     for (let f = 1; f < FRAMES; f++) if (matrices[f][mi] !== v0) { varying.add(mi); break; }
   }
+  // Furniture (function-pattern) constancy: must be identical across frames.
+  let funcBoil = 0;
+  for (let mi = 0; mi < S * S; mi++) {
+    if (!fp.func[mi]) continue;
+    const v0 = matrices[0][mi];
+    for (let f = 1; f < FRAMES; f++) if (matrices[f][mi] !== v0) { funcBoil++; break; }
+  }
+  // Constant figure "scratch" holes: figure-dark modules that render light in
+  // frame 0 (identical every frame since figure does not boil).
+  let figHoles = 0;
+  for (const mi of FIGURE_DARK) if (matrices[0][mi] !== 1) figHoles++;
+  for (const mi of EYES_WHITE) if (matrices[0][mi] !== 0) figHoles++;
 
   // --- Render frames + write PNGs ---
   const frameImgs = matrices.map((m) => renderMatrix(m, VERSION, { scale: SCALE, quiet: QUIET }));
@@ -437,16 +471,29 @@ function main() {
   const lines = [];
   lines.push("# Piece 3 — animated code: build report\n");
   lines.push(`- URL: \`${URL}\` (v${VERSION}, level ${LEVEL}, urlCase schemehost)`);
-  lines.push(`- ${FRAMES} frames @ ${DELAY_MS}ms, looping APNG (upng-js, lossless truecolor)`);
+  lines.push(`- ${FRAMES} frames @ ${DELAY_MS}ms, looping APNG via upng-js.`);
+  lines.push(`  UPNG auto-picked a lossless 2-colour palette (round-trip is byte-exact,`);
+  lines.push(`  see below), acTL num_plays = 0 (loops forever).`);
   lines.push(`- Mask **fixed at ${MASK}** across all frames; EC level fixed at ${LEVEL}.`);
+  lines.push(`  Fixed mask chosen empirically: it keeps the figure byte-identical and`);
+  lines.push(`  the furniture rock-steady (see furniture check). Varying the mask would`);
+  lines.push(`  reseed the whole rendered field and risk visible boiling for no gain.`);
+  lines.push(`- **Flip budget 0** (margin 0). The pure Gauss-Jordan solve is already a`);
+  lines.push(`  valid codeword with zero RS errors, so every block keeps full headroom`);
+  lines.push(`  (9/9) AND no deliberate flip can disturb the figure between frames.`);
   lines.push(`- Render: scale ${SCALE}, quiet ${QUIET}, black on white.`);
-  lines.push(`- Restarts/frame: ${RESTARTS}, best-of by (pins satisfied, min headroom).\n`);
+  lines.push(`- Restarts/frame: ${RESTARTS} (noise-only; pins/headroom are seed-invariant here).\n`);
 
   lines.push("## Constancy\n");
   lines.push(`- Figure (head/body/ears/eyes) pinned modules: ${figureIdx.length}`);
   lines.push(`- Figure modules that differ across frames: **${boilCount}** ` +
     `(${boilCount === 0 ? "byte-identical — figure does not boil" : "BOILING in frames " + [...boilFrames].join(",")})`);
-  lines.push(`- Total modules that vary across frames (the animated area): ${varying.size}\n`);
+  lines.push(`- Function-pattern (finder/timing/alignment) modules differing across frames: **${funcBoil}** ` +
+    `(${funcBoil === 0 ? "furniture is rock-steady" : "FURNITURE FLICKER"})`);
+  lines.push(`- Total modules that vary across frames (the animated tail + shimmer ground): ${varying.size}`);
+  lines.push(`- Figure "ink scratch" holes (pins the right-side codeword rank can't`);
+  lines.push(`  satisfy exactly): ${figHoles} of ${figureIdx.length} figure modules, **identical every`);
+  lines.push(`  frame** (constant, so they read as scratchiness, not boiling).\n`);
 
   lines.push("## Per-frame acceptance meter\n");
   lines.push("| frame | pins | flips | per-block headroom | min head | jsQR@8 | jsQR@3 |");

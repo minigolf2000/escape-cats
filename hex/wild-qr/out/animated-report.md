@@ -1,44 +1,56 @@
 # Piece 3 — animated code: build report
 
 - URL: `https://github.com/minigolf2000/cat-games` (v6, level L, urlCase schemehost)
-- 10 frames @ 100ms, looping APNG (upng-js, lossless truecolor)
+- 10 frames @ 100ms, looping APNG via upng-js.
+  UPNG auto-picked a lossless 2-colour palette (round-trip is byte-exact,
+  see below), acTL num_plays = 0 (loops forever).
 - Mask **fixed at 3** across all frames; EC level fixed at L.
+  Fixed mask chosen empirically: it keeps the figure byte-identical and
+  the furniture rock-steady (see furniture check). Varying the mask would
+  reseed the whole rendered field and risk visible boiling for no gain.
+- **Flip budget 0** (margin 0). The pure Gauss-Jordan solve is already a
+  valid codeword with zero RS errors, so every block keeps full headroom
+  (9/9) AND no deliberate flip can disturb the figure between frames.
 - Render: scale 8, quiet 4, black on white.
-- Restarts/frame: 24, best-of by (pins satisfied, min headroom).
+- Restarts/frame: 6 (noise-only; pins/headroom are seed-invariant here).
 
 ## Constancy
 
 - Figure (head/body/ears/eyes) pinned modules: 462
-- Figure modules that differ across frames: **5** (BOILING in frames 1)
-- Total modules that vary across frames (the animated area): 629
+- Figure modules that differ across frames: **0** (byte-identical — figure does not boil)
+- Function-pattern (finder/timing/alignment) modules differing across frames: **0** (furniture is rock-steady)
+- Total modules that vary across frames (the animated tail + shimmer ground): 532
+- Figure "ink scratch" holes (pins the right-side codeword rank can't
+  satisfy exactly): 11 of 462 figure modules, **identical every
+  frame** (constant, so they read as scratchiness, not boiling).
 
 ## Per-frame acceptance meter
 
 | frame | pins | flips | per-block headroom | min head | jsQR@8 | jsQR@3 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | 623/645 | 34 | 2 / 9 | 2 | ok | ok |
-| 1 | 625/645 | 35 | 2 / 9 | 2 | ok | ok |
-| 2 | 623/645 | 34 | 2 / 9 | 2 | ok | ok |
-| 3 | 623/645 | 34 | 2 / 9 | 2 | ok | ok |
-| 4 | 625/645 | 35 | 2 / 9 | 2 | ok | ok |
-| 5 | 623/645 | 34 | 2 / 9 | 2 | ok | ok |
-| 6 | 624/645 | 33 | 2 / 9 | 2 | ok | ok |
-| 7 | 624/645 | 30 | 2 / 9 | 2 | ok | ok |
-| 8 | 624/645 | 30 | 2 / 9 | 2 | ok | ok |
-| 9 | 624/645 | 33 | 2 / 9 | 2 | ok | ok |
+| 0 | 650/729 | 0 | 9 / 9 | 9 | ok | ok |
+| 1 | 652/729 | 0 | 9 / 9 | 9 | ok | ok |
+| 2 | 653/729 | 0 | 9 / 9 | 9 | ok | ok |
+| 3 | 653/729 | 0 | 9 / 9 | 9 | ok | ok |
+| 4 | 652/729 | 0 | 9 / 9 | 9 | ok | ok |
+| 5 | 650/729 | 0 | 9 / 9 | 9 | ok | ok |
+| 6 | 653/729 | 0 | 9 / 9 | 9 | ok | ok |
+| 7 | 649/729 | 0 | 9 / 9 | 9 | ok | ok |
+| 8 | 649/729 | 0 | 9 / 9 | 9 | ok | ok |
+| 9 | 653/729 | 0 | 9 / 9 | 9 | ok | ok |
 
 Per-block detail (used/cap):
 
-- f0: 7/9  0/9
-- f1: 7/9  0/9
-- f2: 7/9  0/9
-- f3: 7/9  0/9
-- f4: 7/9  0/9
-- f5: 7/9  0/9
-- f6: 7/9  0/9
-- f7: 7/9  0/9
-- f8: 7/9  0/9
-- f9: 7/9  0/9
+- f0: 0/9  0/9
+- f1: 0/9  0/9
+- f2: 0/9  0/9
+- f3: 0/9  0/9
+- f4: 0/9  0/9
+- f5: 0/9  0/9
+- f6: 0/9  0/9
+- f7: 0/9  0/9
+- f8: 0/9  0/9
+- f9: 0/9  0/9
 
 ## Round-trip (APNG decode -> compare to source render -> jsQR)
 

@@ -73,13 +73,74 @@ const irisCells = new Set();
 for (let r = 2; r <= 4; r++) for (let c = 32; c <= 34; c++) irisCells.add(r * S + c); // TR eye
 for (let r = 32; r <= 34; r++) for (let c = 2; c <= 4; c++) irisCells.add(r * S + c); // BL eye
 
-// --- priority pins, highest value first ---
+// --- priority pins ---
+// Priority (highest first): mouth, whiskers, whisker halos, eyebrows, muzzle
+// field. The dark features (mouth/whiskers) must survive the solver, so they
+// are pinned first; the large white fields are lower priority.
+// paintLight only fills genuine noise cells (never overwrites a dark feature).
+const paintLight = (r, c) => {
+  if (r < 0 || c < 0 || r >= S || c >= S) return;
+  const i = r * S + c;
+  if (fp.func[i] || tone[i] === 1) return; // don't clobber dark features/func
+  paint(r, c, 2);
+};
 
-// (a) Iris eyebrow bands: widen the finder separators toward centre with white
+// hang-space helper: origin at the nose (30,30); +H = right in the hang,
+// +D = down in the hang. r = 30 + D - H, c = 30 + D + H.
+const NR = 30, NC = 30;
+
+// (1) Mouth: a 1-module-thick "omega" (two arcs) ~2 modules below the nose,
+// floating on the white muzzle field. Tops at D=3, valleys at D=4.
+const mouth = [
+  [NR + 3 - -2, NC + 3 + -2], // (35,31) left top
+  [NR + 3 - 0, NC + 3 + 0],   // (33,33) middle top
+  [NR + 3 - 2, NC + 3 + 2],   // (31,35) right top
+  [NR + 4 - -1, NC + 4 + -1], // (35,33) left valley
+  [NR + 4 - 1, NC + 4 + 1],   // (33,35) right valley
+];
+for (const [r, c] of mouth) paint(r, c, 1);
+
+// (2) Whiskers: exactly 3 per side, 1 module thick, horizontal in the hang
+// (constant r+c), fanning from the cheeks out to the symbol edge. Right cheek
+// exits the right edge (c=36) at rows 20/24/28 (hang levels D=-2/0/2); left
+// cheek is the mirror. All start clear of the mouth (H>=3).
+function whiskerCellsFor(D, side) {
+  // side 'R': c increases to 36; 'L': mirror (r increases to 36).
+  const cells = [];
+  for (let H = 3; ; H++) {
+    const r = NR + D - H, c = NC + D + H;
+    if (side === "R") {
+      if (c > 36 || r < 0) break;
+      cells.push([r, c]);
+      if (c === 36) break;
+    } else {
+      // mirror: swap so the stroke runs to row 36
+      const rr = c, cc = r;
+      if (rr > 36 || cc < 0) break;
+      cells.push([rr, cc]);
+      if (rr === 36) break;
+    }
+  }
+  return cells;
+}
+const whiskers = [];
+for (const D of [-2, 0, 2]) {
+  whiskers.push({ dir: [-1, +1], cells: whiskerCellsFor(D, "R") });
+  whiskers.push({ dir: [+1, -1], cells: whiskerCellsFor(D, "L") });
+}
+// paint whisker cores (dark, high priority)
+for (const w of whiskers) for (const [r, c] of w.cells) paint(r, c, 1);
+// (3) whisker halos: 1-module white margin around each core (noise cells only)
+for (const w of whiskers)
+  for (const [r, c] of w.cells)
+    for (let dr = -1; dr <= 1; dr++)
+      for (let dc = -1; dc <= 1; dc++) paintLight(r + dr, c + dc);
+
+// (4) Iris eyebrow bands: widen the finder separators toward centre with white
 // so each eye pops off the fur. Auto-skips function cells (timing/format).
 function eyebrow(rows, cols) {
   for (let r = rows[0]; r <= rows[1]; r++)
-    for (let c = cols[0]; c <= cols[1]; c++) paint(r, c, 2);
+    for (let c = cols[0]; c <= cols[1]; c++) paintLight(r, c);
 }
 // TR eye (rows 0..6, cols 30..36): inner edges face down (row 7+) & left (col 29-)
 eyebrow([7, 9], [27, 36]);
@@ -88,60 +149,16 @@ eyebrow([0, 9], [27, 28]);
 eyebrow([27, 36], [7, 9]);
 eyebrow([27, 28], [0, 9]);
 
-// (b) Muzzle: rounded-diamond white cutout around the nose (~13 modules across).
+// (5) Muzzle: rounded-diamond white cutout around the nose (~13 modules across).
 // Manhattan disc of radius 6 centred just BR of the nose, corners softened.
-const MUZ_R = 30.5, MUZ_C = 30.5, MUZ_RAD = 6;
-const muzzleCells = [];
+// Lowest priority; only fills genuine noise so nose/mouth/whiskers stay put.
+const MUZ_R = 31, MUZ_C = 31, MUZ_RAD = 6;
 for (let r = 0; r < S; r++)
   for (let c = 0; c < S; c++) {
     const man = Math.abs(r - MUZ_R) + Math.abs(c - MUZ_C);
     const cheb = Math.max(Math.abs(r - MUZ_R), Math.abs(c - MUZ_C));
-    if (man <= MUZ_RAD && cheb <= MUZ_RAD - 0.5) muzzleCells.push([r, c]);
+    if (man <= MUZ_RAD && cheb <= MUZ_RAD - 0.5) paintLight(r, c);
   }
-for (const [r, c] of muzzleCells) paint(r, c, 2);
-
-// (c) Mouth: a small dark "w" (reads as omega/mouth BELOW the nose when hung),
-// sitting inside the white muzzle field, just BR of the nose.
-const mouth = [
-  [33, 28], [34, 29], [35, 30], [34, 31],
-  [35, 32], [34, 33], [33, 34],
-];
-for (const [r, c] of mouth) paint(r, c, 1);
-
-// (d) Whiskers: dark anti-diagonal strokes (perpendicular to the TL->BR
-// diagonal, so horizontal when hung), each with a 1-module white halo.
-// Cheek A exits toward the RIGHT-eye edge (dir -1,+1); cheek B toward the
-// LEFT-eye edge (dir +1,-1). Three strokes per cheek.
-const whiskerCells = [];
-function stroke(r0, c0, dr, dc, len) {
-  const cells = [];
-  for (let k = 0; k < len; k++) cells.push([r0 + dr * k, c0 + dc * k]);
-  return cells;
-}
-const whiskerStrokes = [
-  // cheek A (toward right eye): direction (-1,+1), 3 parallel strokes
-  stroke(31, 33, -1, +1, 4),
-  stroke(32, 33, -1, +1, 4),
-  stroke(33, 33, -1, +1, 4),
-  // cheek B (toward left eye): direction (+1,-1), 3 parallel strokes
-  stroke(33, 31, +1, -1, 4),
-  stroke(33, 32, +1, -1, 4),
-  stroke(33, 33, +1, -1, 4),
-];
-for (const strk of whiskerStrokes) {
-  for (const [r, c] of strk) {
-    // 1-module white halo around each whisker cell (painted first, lower prio
-    // than the whisker core which we paint after)
-    for (let dr = -1; dr <= 1; dr++)
-      for (let dc = -1; dc <= 1; dc++) paint(r + dr, c + dc, 2);
-  }
-}
-for (const strk of whiskerStrokes) {
-  for (const [r, c] of strk) {
-    whiskerCells.push([r, c]);
-    paint(r, c, 1);
-  }
-}
 
 // Derive {order, target}: painted, non-function cells, oldest paint first.
 const order = [];
@@ -204,38 +221,32 @@ const modY = (r) => QR_Y + r * M;
 
 // Ear triangles (buffer coords). Bases sit on the two card edges meeting at the
 // TL corner (which becomes the TOP apex after +45deg rotation); apexes point
-// outward. After rotation they flank the top vertex.
-const EAR_H = 5.5 * M;
+// up-and-outward. A 3-module gap by the corner leaves the finder "blaze"
+// visible between the ears. Tall, so they read as unmistakable ears at
+// thumbnail size.
 const earRight = [
   // base on TOP edge of card
   [CARD_X + 3 * M, CARD_Y],
-  [CARD_X + 12 * M, CARD_Y],
-  [CARD_X + 7.5 * M, CARD_Y - EAR_H],
+  [CARD_X + 15 * M, CARD_Y],
+  [CARD_X + 12 * M, CARD_Y - 16 * M], // apex: up, leaning outward (toward RIGHT vertex)
 ];
 const earLeft = [
-  // base on LEFT edge of card
+  // base on LEFT edge of card (mirror of earRight about the diagonal)
   [CARD_X, CARD_Y + 3 * M],
-  [CARD_X, CARD_Y + 12 * M],
-  [CARD_X - EAR_H, CARD_Y + 7.5 * M],
+  [CARD_X, CARD_Y + 15 * M],
+  [CARD_X - 16 * M, CARD_Y + 12 * M], // apex: up, leaning outward (toward LEFT vertex)
 ];
 
-// Poster whisker strokes on the green field: continue the in-symbol whiskers
-// outward from the card edge. Anchored at each whisker stroke's outer module,
-// extended ~4.5 modules in the same anti-diagonal direction.
+// Poster whisker strokes on the green field: continue each in-symbol whisker
+// outward from the symbol edge, same angle (so they read horizontal in the
+// diamond hang). Anchored at each whisker's outer module, extended ~7 modules.
 const fieldWhiskers = [];
-{
-  const specs = [
-    { dr: -1, dc: +1, cells: whiskerStrokes.slice(0, 3) },
-    { dr: +1, dc: -1, cells: whiskerStrokes.slice(3, 6) },
-  ];
-  for (const { dr, dc, cells } of specs) {
-    for (const strk of cells) {
-      const [or, oc] = strk[strk.length - 1]; // outer module
-      const x1 = modX(oc) + M / 2, y1 = modY(or) + M / 2;
-      const x2 = x1 + dc * 4.5 * M, y2 = y1 + dr * 4.5 * M;
-      fieldWhiskers.push([x1, y1, x2, y2]);
-    }
-  }
+for (const w of whiskers) {
+  const [dr, dc] = w.dir;
+  const [or, oc] = w.cells[w.cells.length - 1]; // outer module (at the edge)
+  const x1 = modX(oc) + M / 2, y1 = modY(or) + M / 2;
+  const x2 = x1 + dc * 7 * M, y2 = y1 + dr * 7 * M;
+  fieldWhiskers.push([x1, y1, x2, y2]);
 }
 
 // Rotation: +45deg (clockwise, screen y-down) maps TL->TOP, TR->RIGHT,

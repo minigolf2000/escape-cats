@@ -136,21 +136,19 @@ function main() {
   console.log(`pad (ASCII)     : ${dotted(pad)}`);
   console.log(`pad (hex head)  : ${[...pad.slice(0, 16)].map((b) => b.toString(16).padStart(2, "0")).join(" ")} ...`);
   console.log("");
-  // Highlight: is this standard 0xEC/0x11 padding, or a smuggled message?
+  // Standard QR padding after the terminator is the alternating 0xEC 0x11
+  // filler. Readable ASCII there is the smuggled easter egg.
   const isStd = pad.every((b, i) => b === (i % 2 === 0 ? 0xec : 0x11));
   if (isStd) {
     console.log("padding is the standard alternating 0xEC 0x11 filler — nothing hidden.");
-  } else {
-    // the hidden ASCII runs until the standard 0xEC/0x11 filler resumes
-    let end = pad.length;
-    for (let i = 0; i < pad.length; i++) {
-      if (pad[i] === (i % 2 === 0 ? 0xec : 0x11) &&
-          pad.slice(i).every((b, k) => b === ((i + k) % 2 === 0 ? 0xec : 0x11))) { end = i; break; }
-    }
-    const msg = Buffer.from(pad.slice(0, end)).toString("ascii");
-    console.log(`>>> HIDDEN MESSAGE (${end} bytes at stream offset ${padStart}):`);
-    console.log(`>>> ${msg}`);
+    return;
   }
+  console.log("padding is NOT the standard 0xEC 0x11 filler — a message is smuggled here.");
+  // The smuggled text is the leading printable-ASCII run at the pad boundary;
+  // the art-solved pad bytes that follow are (mostly non-printable) noise.
+  let run = 0;
+  while (run < pad.length && pad[run] >= 0x20 && pad[run] <= 0x7e) run++;
+  console.log(`>>> smuggled ASCII @ stream offset ${padStart}: ${Buffer.from(pad.slice(0, run)).toString("ascii")}`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) main();

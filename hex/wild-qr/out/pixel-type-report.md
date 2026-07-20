@@ -8,10 +8,18 @@ The artwork *is* the code's name: two lines of pixel type — **CAT** (large,
 with a 1-module white halo, everything else surrendered to noise. Scanning opens
 `https://github.com/minigolf2000/cat-games`.
 
+## Three-tone render (Disney-poster trick, zero solver cost)
+The hero renders letter strokes + function patterns in **pure black** and the
+surrendered noise ground in **dark gray `#3a3a3a`** — so the type lifts off the
+noise. This is a render-time recolour only; the matrix (and thus the scan) is
+unchanged.
+- Gray relative luminance: **0.0423** (gate < 0.2 ✓).
+- The jsQR scan gate is enforced on the **toned** artifact (not just BW) at scale 8, scale 3, and half-res — all must pass.
+
 ## Symbol
 - Version 6, level L (41x41), mask 4 (chosen by stroke-pins, then halo-pins, then headroom).
 - urlCase: **schemehost** (scheme+host case bits are the only steerable bits in the frozen URL region); verified with `allowSchemeHostCase`.
-- Decoded (case-remixed, RFC-3986 equivalent): `httPS://gITHUb.cOM/minigolf2000/cat-games`
+- Decoded (case-remixed, RFC-3986 equivalent): `HTtpS://GiThuB.cOM/minigolf2000/cat-games`
 - freeDim 290, deliberate flips 32.
 
 ## Legibility gate (the piece)
@@ -29,6 +37,13 @@ with a 1-module white halo, everything else surrendered to noise. Scanning opens
 - GAMES `E`: 15/16 strokes (**1 missed**)
 - GAMES `S`: 16/16 strokes
 
+### GAMES halo (art-notes experiment)
+Tried a 2-module halo band around the GAMES line (higher priority than the CAT
+halo). It **cost 2 stroke pins** — 248→246 (97.25%→96.47%, below the 97% gate:
+M and S each lost a stroke to the extra light-pin competition), so it was
+**reverted to a 1-module halo**. The three-tone separation carries GAMES
+instead. (Currently GAMES_HALO_R=1; set env `GHALO=2` to reproduce the rejected variant.)
+
 ## Per-block meter (honest validate() decode)
 - blk0: 7/9 codewords used — 2 headroom
 - blk1: 0/9 codewords used — 9 headroom
@@ -38,9 +53,12 @@ Worst-block headroom: 2 codewords (gate: ≥2). Bare-symbol verifyMatrix passed 
 ## Scan matrix (jsQR)
 | render | result | decoded (scheme+host case-normalised) |
 | --- | --- | --- |
-| scale 8 | PASS | = URL |
-| scale 3 | PASS | = URL |
-| scale 8 half-res | PASS | = URL |
+| toned scale 8 | PASS | = URL |
+| toned scale 3 | PASS | = URL |
+| toned scale 8 half-res | PASS | = URL |
+| bw scale 8 | PASS | = URL |
+| bw scale 3 | PASS | = URL |
+| bw scale 8 half-res | PASS | = URL |
 
 ## Placement
 - CAT: rows 9..22, cols 7..32 (C 7..14, A 16..23, T 25..32). Right of the col-6 timing strip; slight left bias pulls the frozen-side T off the extreme right edge.
@@ -49,7 +67,9 @@ Worst-block headroom: 2 codewords (gate: ≥2). Bare-symbol verifyMatrix passed 
 - Priority order: frozen-side letter strokes first (rightmost right-edge column first), then all strokes, then halos, then paw.
 
 ## Deliverables
-- out/pixel-type.png — solved symbol, scale 8
-- out/pixel-type.svg — vector symbol (quiet zone 4)
-- out/pixel-type-target-vs-solved.png — pre-solve ideal vs solved, side by side
+- out/pixel-type.png — **hero, three-tone** (black type on gray noise), scale 8
+- out/pixel-type-bw.png — pure black/white print fallback, scale 8
+- out/pixel-type.svg — vector, three-tone (quiet zone 4)
+- out/pixel-type-bw.svg — vector, black/white fallback
+- out/pixel-type-target-vs-solved.png — pre-solve ideal vs toned-solved, side by side
 - out/pixel-type-report.md — this file

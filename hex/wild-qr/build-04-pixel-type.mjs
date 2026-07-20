@@ -37,6 +37,26 @@ const S = QRArt.sizeOf(VERSION); // 41
 const NOISE_SEED = 0xca7f00d;
 const FLIP_SEED = 20260720;
 
+// Three-tone palette (Disney-poster trick, applied at render time — zero solver
+// cost). Letter strokes + function patterns render pure black; the surrendered
+// noise ground renders dark gray so the type lifts off it. jsQR still thresholds
+// both against white, so the toned artifact scans.
+const GRAY = [0x3a, 0x3a, 0x3a]; // #3a3a3a — must stay low-luminance (< 0.2)
+function relLuminance([r, g, b]) {
+  const f = (c) => {
+    c /= 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+
+// GAMES halo band radius (Chebyshev). Art notes asked to try 2 for the smaller
+// line; measured, the 2-module band cost 2 stroke pins (248->246, 97.25%->
+// 96.47%, below the 97% gate: M and S each lost a stroke to the extra
+// light-pin competition), so we keep 1 and let the three-tone separation carry
+// GAMES. (Set GHALO=2 to reproduce the rejected variant.)
+const GAMES_HALO_R = Number(process.env.GHALO ?? 1);
+
 const fp = QRArt.functionPatterns(VERSION);
 
 // ---------------------------------------------------------------------------
@@ -254,9 +274,17 @@ const priorityOrder = [...letters].sort((a, b) => {
 // (a) letter strokes — highest priority, frozen-side letters first.
 for (const L of priorityOrder) for (const [r, c] of L.cells) paintDark(r, c, false);
 
-// (b) 1-module white halo around every letter stroke — next priority.
+// (b) Halos — next priority. GAMES (smaller glyphs, fights the noise harder)
+// gets a wider halo band placed FIRST (higher priority); then a 1-module ring
+// around every stroke gives CAT its halo (GAMES inner ring is already down).
 const allStroke = [];
 for (const L of letters) for (const cell of L.cells) allStroke.push(cell);
+const gamesStroke = [];
+for (const L of letters) if (L.line === "GAMES") for (const cell of L.cells) gamesStroke.push(cell);
+for (const [r, c] of gamesStroke)
+  for (let dr = -GAMES_HALO_R; dr <= GAMES_HALO_R; dr++)
+    for (let dc = -GAMES_HALO_R; dc <= GAMES_HALO_R; dc++)
+      if (dr || dc) paintLight(r + dr, c + dc);
 for (const [r, c] of allStroke)
   for (let dr = -1; dr <= 1; dr++)
     for (let dc = -1; dc <= 1; dc++)
@@ -362,26 +390,62 @@ if (letterPct < 97) {
 // 7. Render deliverables
 // ---------------------------------------------------------------------------
 const SCALE = 8, QUIET = 4;
+const GRAY_LUM = relLuminance(GRAY);
 
-// (a) the solved symbol
-writePNG(path.join(OUT, "pixel-type.png"), renderMatrix(matrix, VERSION, { scale: SCALE, quiet: QUIET }));
+// blackSet = the modules that render pure black in the toned version: function
+// patterns + intended letter/paw strokes (the ones actually dark in the matrix).
+// Everything else dark is surrendered noise → gray.
+const blackSet = new Set();
+for (let i = 0; i < S * S; i++) if (fp.func[i]) blackSet.add(i);
+for (const i of strokeIdx) blackSet.add(i);
+for (const i of pawIdx) blackSet.add(i);
 
-// (b) SVG (dark rects on white, quiet zone 4)
-function buildSVG(m) {
+// Three-tone rasteriser: black for strokes+function patterns, gray for noise,
+// white for light. Own rasteriser (the engine's toRGBA is single-dark-colour).
+function renderToned(m, { scale = SCALE, quiet = QUIET } = {}) {
+  const dim = (S + 2 * quiet) * scale;
+  const data = new Uint8ClampedArray(dim * dim * 4);
+  for (let i = 0; i < data.length; i += 4) { data[i] = data[i + 1] = data[i + 2] = 255; data[i + 3] = 255; }
+  for (let r = 0; r < S; r++)
+    for (let c = 0; c < S; c++) {
+      if (!m[r * S + c]) continue;
+      const col = blackSet.has(r * S + c) ? [0, 0, 0] : GRAY;
+      const x0 = (c + quiet) * scale, y0 = (r + quiet) * scale;
+      for (let y = 0; y < scale; y++)
+        for (let x = 0; x < scale; x++) {
+          const o = ((y0 + y) * dim + (x0 + x)) * 4;
+          data[o] = col[0]; data[o + 1] = col[1]; data[o + 2] = col[2]; data[o + 3] = 255;
+        }
+    }
+  return { data, width: dim, height: dim };
+}
+
+// (a) hero = toned; (b) BW = pure black/white print fallback.
+writePNG(path.join(OUT, "pixel-type.png"), renderToned(matrix, { scale: SCALE, quiet: QUIET }));
+writePNG(path.join(OUT, "pixel-type-bw.png"), renderMatrix(matrix, VERSION, { scale: SCALE, quiet: QUIET }));
+
+// SVG builder. toned=true → two colours (black strokes+func over gray noise);
+// toned=false → pure black on white (BW fallback).
+function buildSVG(m, toned) {
   const M = 10, QZ = QUIET;
   const dim = (S + 2 * QZ) * M;
-  let dark = "";
+  let black = "", gray = "";
   for (let r = 0; r < S; r++)
-    for (let c = 0; c < S; c++)
-      if (m[r * S + c]) dark += `M${(c + QZ) * M} ${(r + QZ) * M}h${M}v${M}h-${M}z`;
+    for (let c = 0; c < S; c++) {
+      if (!m[r * S + c]) continue;
+      const seg = `M${(c + QZ) * M} ${(r + QZ) * M}h${M}v${M}h-${M}z`;
+      if (!toned || blackSet.has(r * S + c)) black += seg; else gray += seg;
+    }
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dim} ${dim}" width="${dim}" height="${dim}" shape-rendering="crispEdges">` +
     `<rect width="${dim}" height="${dim}" fill="#ffffff"/>` +
-    `<path d="${dark}" fill="#000000"/>` +
+    (toned ? `<path d="${gray}" fill="#3a3a3a"/>` : "") +
+    `<path d="${black}" fill="#000000"/>` +
     `</svg>`
   );
 }
-fs.writeFileSync(path.join(OUT, "pixel-type.svg"), buildSVG(matrix));
+fs.writeFileSync(path.join(OUT, "pixel-type.svg"), buildSVG(matrix, true));
+fs.writeFileSync(path.join(OUT, "pixel-type-bw.svg"), buildSVG(matrix, false));
 
 // (c) target-vs-solved side-by-side. Left = pre-solve ideal (function patterns +
 // the letter/paw strokes, dark on white, noise & halos blank so the type reads
@@ -439,8 +503,10 @@ function sideBySide(leftImg, rightImg, gapPx, labelL, labelR) {
   return { data, width: W, height: H };
 }
 
-const idealImg = renderMatrix(idealMatrix, VERSION, { scale: SCALE, quiet: QUIET });
-const solvedImg = renderMatrix(matrix, VERSION, { scale: SCALE, quiet: QUIET });
+// Target = pre-solve ideal (toned: black strokes/func on white). Solved = the
+// toned hero, so the review sees exactly what ships.
+const idealImg = renderToned(idealMatrix, { scale: SCALE, quiet: QUIET });
+const solvedImg = renderToned(matrix, { scale: SCALE, quiet: QUIET });
 writePNG(
   path.join(OUT, "pixel-type-target-vs-solved.png"),
   sideBySide(idealImg, solvedImg, 40, "TARGET", "SOLVED")
@@ -473,15 +539,26 @@ function sameURLlite(a, b) {
   };
   return norm(a) === norm(b);
 }
+// The scan gate applies to the TONED artifact (the hero), not just the BW
+// render. jsQR must recover the URL from the gray-on-white toned image at
+// scale 8, scale 3, and half-res.
 const scanTargets = [
-  { label: "scale 8", img: renderMatrix(matrix, VERSION, { scale: 8, quiet: 4 }) },
-  { label: "scale 3", img: renderMatrix(matrix, VERSION, { scale: 3, quiet: 4 }) },
-  { label: "scale 8 half-res", img: halfRes(renderMatrix(matrix, VERSION, { scale: 8, quiet: 4 })) },
+  { label: "toned scale 8", img: renderToned(matrix, { scale: 8, quiet: 4 }) },
+  { label: "toned scale 3", img: renderToned(matrix, { scale: 3, quiet: 4 }) },
+  { label: "toned scale 8 half-res", img: halfRes(renderToned(matrix, { scale: 8, quiet: 4 })) },
+  { label: "bw scale 8", img: renderMatrix(matrix, VERSION, { scale: 8, quiet: 4 }) },
+  { label: "bw scale 3", img: renderMatrix(matrix, VERSION, { scale: 3, quiet: 4 }) },
+  { label: "bw scale 8 half-res", img: halfRes(renderMatrix(matrix, VERSION, { scale: 8, quiet: 4 })) },
 ];
 const scanMatrix = scanTargets.map((t) => {
   const decoded = scanRGBA(t.img);
   return { label: t.label, ok: decoded !== null && sameURLlite(decoded, URL), decoded };
 });
+// Hard gates.
+if (GRAY_LUM >= 0.2) throw new Error(`gray luminance ${GRAY_LUM.toFixed(4)} >= 0.2`);
+for (const s of scanMatrix.filter((s) => s.label.startsWith("toned"))) {
+  if (!s.ok) throw new Error(`toned artifact failed jsQR scan gate at ${s.label}: got ${JSON.stringify(s.decoded)}`);
+}
 
 // ---------------------------------------------------------------------------
 // 9. Report
@@ -505,6 +582,14 @@ The artwork *is* the code's name: two lines of pixel type — **CAT** (large,
 with a 1-module white halo, everything else surrendered to noise. Scanning opens
 \`${URL}\`.
 
+## Three-tone render (Disney-poster trick, zero solver cost)
+The hero renders letter strokes + function patterns in **pure black** and the
+surrendered noise ground in **dark gray \`#3a3a3a\`** — so the type lifts off the
+noise. This is a render-time recolour only; the matrix (and thus the scan) is
+unchanged.
+- Gray relative luminance: **${GRAY_LUM.toFixed(4)}** (gate < 0.2 ✓).
+- The jsQR scan gate is enforced on the **toned** artifact (not just BW) at scale 8, scale 3, and half-res — all must pass.
+
 ## Symbol
 - Version ${VERSION}, level ${LEVEL} (${S}x${S}), mask ${mask} (chosen by stroke-pins, then halo-pins, then headroom).
 - urlCase: **schemehost** (scheme+host case bits are the only steerable bits in the frozen URL region); verified with \`allowSchemeHostCase\`.
@@ -518,6 +603,13 @@ with a 1-module white halo, everything else surrendered to noise. Scanning opens
 
 ### Per-letter stroke satisfaction
 ${perLetterLines}
+
+### GAMES halo (art-notes experiment)
+Tried a 2-module halo band around the GAMES line (higher priority than the CAT
+halo). It **cost 2 stroke pins** — 248→246 (97.25%→96.47%, below the 97% gate:
+M and S each lost a stroke to the extra light-pin competition), so it was
+**reverted to a 1-module halo**. The three-tone separation carries GAMES
+instead. (Currently GAMES_HALO_R=${GAMES_HALO_R}; set env \`GHALO=2\` to reproduce the rejected variant.)
 
 ## Per-block meter (honest validate() decode)
 ${meterLines(v.perBlock)}
@@ -536,9 +628,11 @@ ${scanMatrix.map((s) => `| ${s.label} | ${s.ok ? "PASS" : "FAIL"} | ${sameURLlit
 - Priority order: frozen-side letter strokes first (rightmost right-edge column first), then all strokes, then halos, then paw.
 
 ## Deliverables
-- out/pixel-type.png — solved symbol, scale ${SCALE}
-- out/pixel-type.svg — vector symbol (quiet zone ${QUIET})
-- out/pixel-type-target-vs-solved.png — pre-solve ideal vs solved, side by side
+- out/pixel-type.png — **hero, three-tone** (black type on gray noise), scale ${SCALE}
+- out/pixel-type-bw.png — pure black/white print fallback, scale ${SCALE}
+- out/pixel-type.svg — vector, three-tone (quiet zone ${QUIET})
+- out/pixel-type-bw.svg — vector, black/white fallback
+- out/pixel-type-target-vs-solved.png — pre-solve ideal vs toned-solved, side by side
 - out/pixel-type-report.md — this file
 `;
 fs.writeFileSync(path.join(OUT, "pixel-type-report.md"), report);

@@ -314,7 +314,7 @@ function preview() {
   for (const f of [0, 2, 5, 8]) {
     const tail = tailDarkAt(frameAngle(f));
     const halo = dilate1(tail);
-    console.log(`\n=== frame ${f} (angle ${(frameAngle(f) * 180 / Math.PI).toFixed(1)}deg) ===`);
+    console.log(`\n=== frame ${f} (pose s=${frameAngle(f).toFixed(2)}) ===`);
     let head = "   ";
     for (let c = 0; c < S; c++) head += c % 10;
     console.log(head);
@@ -500,7 +500,17 @@ function main() {
   lines.push(`  valid codeword with zero RS errors, so every block keeps full headroom`);
   lines.push(`  (9/9) AND no deliberate flip can disturb the figure between frames.`);
   lines.push(`- Render: scale ${SCALE}, quiet ${QUIET}, black on white.`);
-  lines.push(`- Restarts/frame: ${RESTARTS} (noise-only; pins/headroom are seed-invariant here).\n`);
+  lines.push(`- Restarts/frame: ${RESTARTS} (noise-only; pins/headroom are seed-invariant here).`);
+  lines.push(`- **Tail relocated to the LEFT (high-rank) columns.** A measured rank map`);
+  lines.push(`  (pin every module, count what sticks) shows columns 0-14 are 100%`);
+  lines.push(`  pinnable, 15-31 fall to ~73-88%, and 32-40 (frozen by the 41-char URL`);
+  lines.push(`  per the interleave analysis) only ~40-56%. The tail therefore swishes in`);
+  lines.push(`  the left columns and the cat sits centre-right (centre column CX=${CX}),`);
+  lines.push(`  a balance point that keeps the tail at 0% holes while the body's scratch`);
+  lines.push(`  count stays low (${figHoles}, comparable to the pre-relocation 11).`);
+  lines.push(`- Tail: solid 3-module stroke, 3-module white swing lane, pose interpolated`);
+  lines.push(`  as s = sin(2π f/${FRAMES}) so the tip metronomes ~5 columns and rises above`);
+  lines.push(`  shoulder height at the extremes; base pinned constant.\n`);
 
   lines.push("## Constancy\n");
   lines.push(`- Figure (head/body/ears/eyes) pinned modules: ${figureIdx.length}`);
@@ -509,9 +519,20 @@ function main() {
   lines.push(`- Function-pattern (finder/timing/alignment) modules differing across frames: **${funcBoil}** ` +
     `(${funcBoil === 0 ? "furniture is rock-steady" : "FURNITURE FLICKER"})`);
   lines.push(`- Total modules that vary across frames (the animated tail + shimmer ground): ${varying.size}`);
-  lines.push(`- Figure "ink scratch" holes (pins the right-side codeword rank can't`);
-  lines.push(`  satisfy exactly): ${figHoles} of ${figureIdx.length} figure modules, **identical every`);
+  lines.push(`- Figure "ink scratch" holes (pins the medium-rank columns can't satisfy`);
+  lines.push(`  exactly): ${figHoles} of ${figureIdx.length} figure modules, **identical every`);
   lines.push(`  frame** (constant, so they read as scratchiness, not boiling).\n`);
+
+  const worstTail = Math.max(...frameStats.map((s) => s.tailHolePct));
+  lines.push("## Tail legibility (hard gate: hole rate <= 8% per frame)\n");
+  lines.push(`- Worst tail hole rate across all frames: **${worstTail.toFixed(1)}%** ` +
+    `(gate <= 8%). Tail lives in the high-rank left columns, so it pins near-exactly.\n`);
+  lines.push("| frame | tail pins satisfied | tail holes | hole rate |");
+  lines.push("| --- | --- | --- | --- |");
+  for (const s of frameStats) {
+    lines.push(`| ${s.f} | ${s.tailTotal - s.tailUn}/${s.tailTotal} | ${s.tailUn} | ${s.tailHolePct.toFixed(1)}% |`);
+  }
+  lines.push("");
 
   lines.push("## Per-frame acceptance meter\n");
   lines.push("| frame | pins | flips | per-block headroom | min head | jsQR@8 | jsQR@3 |");

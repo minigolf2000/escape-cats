@@ -13,6 +13,16 @@
   (9/9) AND no deliberate flip can disturb the figure between frames.
 - Render: scale 8, quiet 4, black on white.
 - Restarts/frame: 6 (noise-only; pins/headroom are seed-invariant here).
+- **Tail relocated to the LEFT (high-rank) columns.** A measured rank map
+  (pin every module, count what sticks) shows columns 0-14 are 100%
+  pinnable, 15-31 fall to ~73-88%, and 32-40 (frozen by the 41-char URL
+  per the interleave analysis) only ~40-56%. The tail therefore swishes in
+  the left columns and the cat sits centre-right (centre column CX=16),
+  a balance point that keeps the tail at 0% holes while the body's scratch
+  count stays low (9, comparable to the pre-relocation 11).
+- Tail: solid 3-module stroke, 3-module white swing lane, pose interpolated
+  as s = sin(2π f/10) so the tip metronomes ~5 columns and rises above
+  shoulder height at the extremes; base pinned constant.
 
 ## Constancy
 
@@ -20,9 +30,26 @@
 - Figure modules that differ across frames: **0** (byte-identical — figure does not boil)
 - Function-pattern (finder/timing/alignment) modules differing across frames: **0** (furniture is rock-steady)
 - Total modules that vary across frames (the animated tail + shimmer ground): 573
-- Figure "ink scratch" holes (pins the right-side codeword rank can't
-  satisfy exactly): 9 of 420 figure modules, **identical every
+- Figure "ink scratch" holes (pins the medium-rank columns can't satisfy
+  exactly): 9 of 420 figure modules, **identical every
   frame** (constant, so they read as scratchiness, not boiling).
+
+## Tail legibility (hard gate: hole rate <= 8% per frame)
+
+- Worst tail hole rate across all frames: **0.0%** (gate <= 8%). Tail lives in the high-rank left columns, so it pins near-exactly.
+
+| frame | tail pins satisfied | tail holes | hole rate |
+| --- | --- | --- | --- |
+| 0 | 72/72 | 0 | 0.0% |
+| 1 | 72/72 | 0 | 0.0% |
+| 2 | 74/74 | 0 | 0.0% |
+| 3 | 74/74 | 0 | 0.0% |
+| 4 | 72/72 | 0 | 0.0% |
+| 5 | 72/72 | 0 | 0.0% |
+| 6 | 71/71 | 0 | 0.0% |
+| 7 | 70/70 | 0 | 0.0% |
+| 8 | 70/70 | 0 | 0.0% |
+| 9 | 71/71 | 0 | 0.0% |
 
 ## Per-frame acceptance meter
 

@@ -1,0 +1,14 @@
+{
+  "name": "wild-qr",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Headless QR-art engine harness with real jsQR scan verification.",
+  "scripts": {
+    "test": "node smoke.test.mjs"
+  },
+  "dependencies": {
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0"
+  }
+}

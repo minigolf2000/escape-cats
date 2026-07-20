@@ -62,15 +62,20 @@ function inEllipse(r, c, cr, cc, hr, hc) {
 // Sitting cat, front view: triangular ears with a notch, a narrow head, and a
 // broad body mass grounded at the bottom of the symbol.
 // ---------------------------------------------------------------------------
-const HEAD = { cr: 13.0, cc: 15, hr: 5.0, hc: 5.2 }; // narrow head (width ~10)
-const BODY = { cc: 15 }; // body is a bell defined by a per-row half-width
+// The cat sits CENTER-RIGHT so the tail can swish in the high-rank left columns
+// (0-14 are 100% pinnable; 15+ degrade; 32+ are frozen by the URL). CX (the cat
+// centre column) trades body scratch-holes (grows as the body moves right into
+// medium-rank columns) against tail room on the left; swept empirically.
+const CX = Number(process.env.CX) || 16;
+const HEAD = { cr: 13.0, cc: CX, hr: 5.0, hc: 4.7 }; // narrow head (width ~9)
+const BODY = { cc: CX }; // body is a bell defined by a per-row half-width
 
 // body half-width as a function of row (shoulders under the head -> broad base)
 function bodyHalfWidth(r) {
   if (r < 16 || r > 38) return -1;
-  // grows from ~6 at the shoulders to ~10 at the seated base (width ~20)
+  // grows from ~5.6 at the shoulders to ~8.3 at the seated base (width ~11-17)
   const t = (r - 16) / (38 - 16);
-  return 6.0 + t * 4.0;
+  return 5.6 + t * 2.7;
 }
 
 function inBody(r, c) {
@@ -91,9 +96,9 @@ function inEars(r, c) {
   const t = (EAR_BASE - r) / (EAR_BASE - EAR_APEX); // 0 at base -> 1 at apex
   // half-width shrinks linearly to a sharp apex
   const earHalf = 2.8 * (1 - t) + 0.4;
-  // left ear centered col 11.5, right ear col 18.5 -> clear notch at col 15
-  if (Math.abs(c - 11.5) <= earHalf) return true;
-  if (Math.abs(c - 18.5) <= earHalf) return true;
+  // ears at CX∓3.5 -> clear notch at CX
+  if (Math.abs(c - (CX - 3.5)) <= earHalf) return true;
+  if (Math.abs(c - (CX + 3.5)) <= earHalf) return true;
   return false;
 }
 
@@ -103,46 +108,41 @@ function inSilhouette(r, c) {
 
 // Two almond white eye cutouts in the head.
 const EYES = [
-  { cr: 12.8, cc: 12.6, hr: 1.35, hc: 1.15 },
-  { cr: 12.8, cc: 17.4, hr: 1.35, hc: 1.15 },
+  { cr: 12.8, cc: CX - 2.3, hr: 1.35, hc: 1.15 },
+  { cr: 12.8, cc: CX + 2.3, hr: 1.35, hc: 1.15 },
 ];
 function inEyes(r, c) {
   return EYES.some((e) => inEllipse(r, c, e.cr, e.cc, e.hr, e.hc));
 }
 
 // ---------------------------------------------------------------------------
-// The tail — a 2-module-thick curve rising from the body's right side, drawn
-// in a different pose per frame. The pose parameter is a smooth metronome:
+// The tail — a solid 3-module-thick curve rising from the body's LEFT side (the
+// high-rank left columns, where pins actually stick), drawn in a different pose
+// per frame. The pose parameter is a smooth metronome:
 // angle = AMP * sin(2π f / FRAMES), so frame 0 and the loop point match.
+// It is long enough to rise above shoulder height at the sweep extremes.
 // ---------------------------------------------------------------------------
-const TAIL_BASE = { r: 30, c: 22 }; // anchored on the body's right side (constant)
-const AMP_DEG = 22; // +/- swing -> ~44deg sweep
-const TAIL_THICK = 0.95; // centerline half-thickness -> solid ~2-3 modules
+const TAIL_BASE = { r: 30, c: CX - 6 }; // anchored on the body's lower-left (constant)
+const TAIL_THICK = 1.05; // centerline half-thickness -> solid 3 modules
 
-// Rest-pose control points relative to the base (drow, dcol), row grows down.
-const TAIL_P1 = { dr: -8, dc: 8 }; // rises up and to the right
-const TAIL_P2 = { dr: -14, dc: 8 }; // curls over the top
+// The tail is a quadratic Bezier base -> control -> tip. The pose parameter
+// s = sin(2π f/FRAMES) in [-1,1] sweeps the tip (and, at half rate, the mid
+// control) so the whole stroke stays clearly LEFT of the body in every frame
+// while the tip metronomes ~7 columns. The base is pinned; the tip rides high
+// above shoulder height so the swish reads as a tail, not a leg.
+const TIP_MID = { r: 10.5, c: CX - 11.7 }, TIP_SWING = { r: 0.6, c: 2.5 };
+const CTL_MID = { r: 20.5, c: CX - 10.3 }, CTL_SWING = { r: 0.0, c: 1.3 };
 
-function rot(dr, dc, ang) {
-  const cs = Math.cos(ang);
-  const sn = Math.sin(ang);
-  return { dr: dr * cs - dc * sn, dc: dr * sn + dc * cs };
-}
-
-// Dark modules for the tail at a given frame angle (radians). Returns a Set of
-// module indices.
-function tailDarkAt(ang) {
-  const p0 = { r: TAIL_BASE.r, c: TAIL_BASE.c };
-  const r1 = rot(TAIL_P1.dr, TAIL_P1.dc, ang);
-  const r2 = rot(TAIL_P2.dr, TAIL_P2.dc, ang);
-  const p1 = { r: p0.r + r1.dr, c: p0.c + r1.dc };
-  const p2 = { r: p0.r + r2.dr, c: p0.c + r2.dc };
+// Dark modules for the tail at pose s in [-1,1]. Returns a Set of module idx.
+function tailDarkAt(s) {
+  const p0 = TAIL_BASE;
+  const p1 = { r: CTL_MID.r + s * CTL_SWING.r, c: CTL_MID.c - s * CTL_SWING.c };
+  const p2 = { r: TIP_MID.r + s * TIP_SWING.r, c: TIP_MID.c - s * TIP_SWING.c };
   const set = new Set();
-  const N = 200;
+  const N = 240;
   for (let i = 0; i <= N; i++) {
     const t = i / N;
     const mt = 1 - t;
-    // quadratic Bezier p0->p1->p2
     const fr = mt * mt * p0.r + 2 * mt * t * p1.r + t * t * p2.r;
     const fc = mt * mt * p0.c + 2 * mt * t * p1.c + t * t * p2.c;
     const r0 = Math.floor(fr - 1.5);
@@ -158,9 +158,9 @@ function tailDarkAt(ang) {
   return set;
 }
 
+// Smooth looping metronome: s(f) = sin(2π f/FRAMES), frame 0 == loop point.
 function frameAngle(f) {
-  const amp = (AMP_DEG * Math.PI) / 180;
-  return amp * Math.sin((2 * Math.PI * f) / FRAMES);
+  return Math.sin((2 * Math.PI * f) / FRAMES);
 }
 
 // Union of every tail pose (constant): the whole area the tail sweeps through.
@@ -367,6 +367,21 @@ function main() {
     preview();
     return;
   }
+  if (process.argv.includes("--measure")) {
+    const prep = QRArt.prepareArt(URL, VERSION, LEVEL, "schemehost");
+    let figHoles = 0, tailWorst = 0, tailWorstPct = 0;
+    const m0 = solveFrame(prep, 0).res.matrix;
+    for (const mi of FIGURE_DARK) if (m0[mi] !== 1) figHoles++;
+    for (const mi of EYES_WHITE) if (m0[mi] !== 0) figHoles++;
+    for (let f = 0; f < FRAMES; f++) {
+      const b = solveFrame(prep, f);
+      const t = b.breakdown.tailUn, tot = b.breakdown.tailTotal;
+      const pct = (100 * t) / tot;
+      if (pct > tailWorstPct) { tailWorstPct = pct; tailWorst = `${t}/${tot}`; }
+    }
+    console.log(`CX=${CX}: figHoles ${figHoles}/${FIGURE_DARK.size + EYES_WHITE.size}, worst tail ${tailWorst} = ${tailWorstPct.toFixed(1)}%`);
+    return;
+  }
   fs.mkdirSync(OUT, { recursive: true });
   fs.mkdirSync(FRAMES_DIR, { recursive: true });
 
@@ -398,6 +413,9 @@ function main() {
       restart: best.k,
       decoded8: vres.scales[0].decoded,
       decoded3: vres.scales[1].decoded,
+      tailUn: best.breakdown.tailUn,
+      tailTotal: best.breakdown.tailTotal,
+      tailHolePct: (100 * best.breakdown.tailUn) / best.breakdown.tailTotal,
     });
     const bd = best.breakdown;
     console.log(

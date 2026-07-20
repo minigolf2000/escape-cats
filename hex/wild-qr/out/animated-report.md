@@ -16,28 +16,28 @@
 
 ## Constancy
 
-- Figure (head/body/ears/eyes) pinned modules: 462
+- Figure (head/body/ears/eyes) pinned modules: 420
 - Figure modules that differ across frames: **0** (byte-identical — figure does not boil)
 - Function-pattern (finder/timing/alignment) modules differing across frames: **0** (furniture is rock-steady)
-- Total modules that vary across frames (the animated tail + shimmer ground): 532
+- Total modules that vary across frames (the animated tail + shimmer ground): 573
 - Figure "ink scratch" holes (pins the right-side codeword rank can't
-  satisfy exactly): 11 of 462 figure modules, **identical every
+  satisfy exactly): 9 of 420 figure modules, **identical every
   frame** (constant, so they read as scratchiness, not boiling).
 
 ## Per-frame acceptance meter
 
 | frame | pins | flips | per-block headroom | min head | jsQR@8 | jsQR@3 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | 650/729 | 0 | 9 / 9 | 9 | ok | ok |
-| 1 | 652/729 | 0 | 9 / 9 | 9 | ok | ok |
-| 2 | 653/729 | 0 | 9 / 9 | 9 | ok | ok |
-| 3 | 653/729 | 0 | 9 / 9 | 9 | ok | ok |
-| 4 | 652/729 | 0 | 9 / 9 | 9 | ok | ok |
-| 5 | 650/729 | 0 | 9 / 9 | 9 | ok | ok |
-| 6 | 653/729 | 0 | 9 / 9 | 9 | ok | ok |
-| 7 | 649/729 | 0 | 9 / 9 | 9 | ok | ok |
-| 8 | 649/729 | 0 | 9 / 9 | 9 | ok | ok |
-| 9 | 653/729 | 0 | 9 / 9 | 9 | ok | ok |
+| 0 | 562/593 | 0 | 9 / 9 | 9 | ok | ok |
+| 1 | 561/593 | 0 | 9 / 9 | 9 | ok | ok |
+| 2 | 557/593 | 0 | 9 / 9 | 9 | ok | ok |
+| 3 | 557/593 | 0 | 9 / 9 | 9 | ok | ok |
+| 4 | 561/593 | 0 | 9 / 9 | 9 | ok | ok |
+| 5 | 562/593 | 0 | 9 / 9 | 9 | ok | ok |
+| 6 | 553/593 | 0 | 9 / 9 | 9 | ok | ok |
+| 7 | 556/593 | 0 | 9 / 9 | 9 | ok | ok |
+| 8 | 556/593 | 0 | 9 / 9 | 9 | ok | ok |
+| 9 | 553/593 | 0 | 9 / 9 | 9 | ok | ok |
 
 Per-block detail (used/cap):
 

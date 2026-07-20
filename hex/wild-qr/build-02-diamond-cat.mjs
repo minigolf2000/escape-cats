@@ -38,8 +38,10 @@ const URL = "https://github.com/minigolf2000/cat-games";
 const VERSION = 5;
 const LEVEL = "L";
 const S = QRArt.sizeOf(VERSION); // 37
-const NOISE_SEED = 0xca7ca7;
-const FLIP_SEED = 20260720;
+// Seeds chosen by a deterministic offline sweep to minimise critical-feature
+// (mouth / whisker / muzzle) misses while keeping >=3 codewords of headroom.
+const NOISE_SEED = 3076564310;
+const FLIP_SEED = 24108505;
 
 // Poster colours
 const COL_FIELD = [23, 83, 56]; // #175338 green field
@@ -123,31 +125,32 @@ function whiskerCellsFor(D, side) {
   }
   return cells;
 }
+const CORE_LEN = 4; // dark stub length; colinear field strokes continue to/past the edge
 const whiskers = [];
 for (const D of [-2, 0, 2]) {
-  whiskers.push({ dir: [-1, +1], cells: whiskerCellsFor(D, "R") });
-  whiskers.push({ dir: [+1, -1], cells: whiskerCellsFor(D, "L") });
+  const cellsR = whiskerCellsFor(D, "R");
+  const cellsL = whiskerCellsFor(D, "L");
+  whiskers.push({ dir: [-1, +1], cells: cellsR, cores: cellsR.slice(0, CORE_LEN) });
+  whiskers.push({ dir: [+1, -1], cells: cellsL, cores: cellsL.slice(0, CORE_LEN) });
 }
-// paint whisker cores (dark, high priority)
-for (const w of whiskers) for (const [r, c] of w.cells) paint(r, c, 1);
-// (3) whisker halos: 1-module white margin around each core (noise cells only)
+// paint whisker cores (dark, high priority): short stubs that read as the
+// whisker roots; the bold white field strokes continue them onto the green.
+for (const w of whiskers) for (const [r, c] of w.cores) paint(r, c, 1);
+// (3) whisker halos: 1-module white margin on the 4-neighbours of each core, so
+// each whisker sits in a clean white channel (noise cells only; light footprint).
 for (const w of whiskers)
-  for (const [r, c] of w.cells)
-    for (let dr = -1; dr <= 1; dr++)
-      for (let dc = -1; dc <= 1; dc++) paintLight(r + dr, c + dc);
+  for (const [r, c] of w.cores)
+    for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) paintLight(r + dr, c + dc);
 
-// (4) Iris eyebrow bands: widen the finder separators toward centre with white
-// so each eye pops off the fur. Auto-skips function cells (timing/format).
-function eyebrow(rows, cols) {
-  for (let r = rows[0]; r <= rows[1]; r++)
-    for (let c = cols[0]; c <= cols[1]; c++) paintLight(r, c);
+// (4) Iris eyebrow bands: a thin white arc hugging the inner corner of each eye
+// finder so it pops off the fur. Auto-skips function cells (timing/format).
+function eyebrow(cells) {
+  for (const [r, c] of cells) paintLight(r, c);
 }
-// TR eye (rows 0..6, cols 30..36): inner edges face down (row 7+) & left (col 29-)
-eyebrow([7, 9], [27, 36]);
-eyebrow([0, 9], [27, 28]);
-// BL eye (rows 30..36, cols 0..6): inner edges face up (row 29-) & right (col 7+)
-eyebrow([27, 36], [7, 9]);
-eyebrow([27, 28], [0, 9]);
+// TR eye (rows 0..6, cols 30..36): inner edges face down (row 9) & left (col 28)
+eyebrow([...Array(7)].map((_, k) => [9, 30 + k]).concat([...Array(8)].map((_, k) => [2 + k, 28])));
+// BL eye (rows 30..36, cols 0..6): inner edges face up (row 27) & right (col 8)
+eyebrow([...Array(7)].map((_, k) => [30 + k, 9]).concat([...Array(8)].map((_, k) => [28, 2 + k])));
 
 // (5) Muzzle: rounded-diamond white cutout around the nose (~13 modules across).
 // Manhattan disc of radius 6 centred just BR of the nose, corners softened.
@@ -171,6 +174,19 @@ for (const i of order) target[i] = tone[i] === 1 ? 1 : 0;
 // 2. Solve (schemehost case play) — search masks, keep the best solve.
 // ---------------------------------------------------------------------------
 const prep = QRArt.prepareArt(URL, VERSION, LEVEL, "schemehost");
+// Critical features that must read crisply: the nose is a function pattern, so
+// the readable art is mouth + whisker cores + muzzle white field.
+const criticalIdx = [
+  ...mouth.map(([r, c]) => r * S + c),
+  ...whiskers.flatMap((w) => w.cores.map(([r, c]) => r * S + c)),
+];
+for (let r = 0; r < S; r++)
+  for (let c = 0; c < S; c++) {
+    const man = Math.abs(r - MUZ_R) + Math.abs(c - MUZ_C);
+    const cheb = Math.max(Math.abs(r - MUZ_R), Math.abs(c - MUZ_C));
+    if (man <= MUZ_RAD && cheb <= MUZ_RAD - 0.5 && !fp.func[r * S + c] && tone[r * S + c] === 2)
+      criticalIdx.push(r * S + c);
+  }
 let best = null;
 for (let mask = 0; mask < 8; mask++) {
   const res = QRArt.solveArt(prep, {
@@ -184,16 +200,38 @@ for (let mask = 0; mask < 8; mask++) {
     flipSeed: FLIP_SEED,
   });
   const honored = order.length - res.unsatisfied.length;
+  const critMiss = criticalIdx.reduce((n, i) => n + (res.matrix[i] !== target[i] ? 1 : 0), 0);
   // validate for honest per-block headroom
   const v = QRArt.validate(res.matrix, VERSION);
   const headroom = v.ok ? Math.min(...v.perBlock.map((b) => b.capacity - b.errors)) : -1;
-  const score = honored * 1000 + headroom; // prefer honored pins, then headroom
-  if (!best || score > best.score) best = { mask, res, honored, headroom, v, score };
+  // prefer: fewest critical-feature misses, then most pins, then most headroom
+  const score = -critMiss * 1e7 + honored * 1000 + headroom;
+  if (!best || score > best.score) best = { mask, res, honored, headroom, v, score, critMiss };
 }
 
 const { res, mask, honored, v } = best;
 const matrix = res.matrix;
 const pinPct = (honored / order.length) * 100;
+
+if (process.env.DIAG) {
+  const inSet = (arr) => new Set(arr.map(([r, c]) => r * S + c));
+  const mouthSet = inSet(mouth);
+  const coreSet = inSet(whiskers.flatMap((w) => w.cores));
+  const classify = (i) => {
+    if (mouthSet.has(i)) return "mouth";
+    if (coreSet.has(i)) return "whiskerCore";
+    const r = (i / S) | 0, c = i % S;
+    const man = Math.abs(r - MUZ_R) + Math.abs(c - MUZ_C);
+    if (man <= MUZ_RAD) return "muzzle";
+    if ((r <= 9 && c >= 27) || (r >= 27 && c <= 9)) return "eyebrow";
+    return "whiskerHalo/other";
+  };
+  const tot = {}, miss = {};
+  for (const i of order) { const k = classify(i); tot[k] = (tot[k] || 0) + 1; }
+  for (const i of res.unsatisfied) { const k = classify(i); miss[k] = (miss[k] || 0) + 1; }
+  console.log("DIAG mask", mask, "order", order.length, "unsat", res.unsatisfied.length);
+  for (const k of Object.keys(tot)) console.log(`  ${k}: ${miss[k] || 0}/${tot[k]} missed`);
+}
 
 // Acceptance: bare symbol must verify at scale 8 and 3 (schemehost-equivalent).
 const vm = verifyMatrix(matrix, VERSION, URL, { allowSchemeHostCase: true });
@@ -210,7 +248,7 @@ const M = 20; // px per module
 const QZ = 5; // quiet-zone modules (card padding), >= 4
 const CARD = (S + 2 * QZ) * M; // white card side
 const RX = 3 * M; // card corner radius
-const EDGE = 8 * M; // buffer margin for ears + whiskers
+const EDGE = 18 * M; // buffer margin for ears + field whiskers (tall ears fit)
 const BUF = CARD + 2 * EDGE; // upright buffer side
 const CARD_X = EDGE, CARD_Y = EDGE; // card top-left in buffer
 const QR_X = CARD_X + QZ * M, QR_Y = CARD_Y + QZ * M; // QR top-left in buffer
@@ -238,14 +276,17 @@ const earLeft = [
 ];
 
 // Poster whisker strokes on the green field: continue each in-symbol whisker
-// outward from the symbol edge, same angle (so they read horizontal in the
-// diamond hang). Anchored at each whisker's outer module, extended ~7 modules.
+// outward, same angle (so they read horizontal in the diamond hang). They must
+// live entirely OUTSIDE the card (never touch a QR module), so each starts just
+// beyond the card edge (~6.5 modules past the symbol edge; the quiet zone is 5)
+// and runs ~7 modules onto the green field.
 const fieldWhiskers = [];
 for (const w of whiskers) {
   const [dr, dc] = w.dir;
-  const [or, oc] = w.cells[w.cells.length - 1]; // outer module (at the edge)
-  const x1 = modX(oc) + M / 2, y1 = modY(or) + M / 2;
-  const x2 = x1 + dc * 7 * M, y2 = y1 + dr * 7 * M;
+  const [or, oc] = w.cells[w.cells.length - 1]; // outer module (at the symbol edge)
+  const cx = modX(oc) + M / 2, cy = modY(or) + M / 2;
+  const x1 = cx + dc * 6.5 * M, y1 = cy + dr * 6.5 * M; // just past the card edge
+  const x2 = cx + dc * 13.5 * M, y2 = cy + dr * 13.5 * M; // out onto the field
   fieldWhiskers.push([x1, y1, x2, y2]);
 }
 

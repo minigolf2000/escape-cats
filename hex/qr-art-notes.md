@@ -168,3 +168,13 @@ gets ~95% of the way. "Likelihood it still scans" isn't vibes; it's exact
 arithmetic — `capacity − errors` per block — plus real-phone tests before
 print, because print adds its own damage (keep ≥2 codewords of headroom, more
 for posters).
+
+## The wild gallery
+
+The ideas above eventually escaped containment: [`wild-qr/`](./wild-qr/)
+holds seven brain-bending pieces built on a headless extraction of the
+studio engine — a nearly-blank code, a diamond-hung cat whose eyes are
+finder patterns, an APNG whose every frame scans, a code that spells its own
+destination, a solvable picross puzzle that becomes a QR, a QR made of 865
+smaller QRs, and a message smuggled in the pad codewords. Each is
+jsQR-verified and deterministic; see [`wild-qr/README.md`](./wild-qr/README.md).

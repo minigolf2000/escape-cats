@@ -1,25 +1,42 @@
-// build-01-nearly-blank.mjs — Piece 1: "the nearly-blank code".
+// build-01-nearly-blank.mjs — Piece 1: "the nearly-blank code" (v2, disc strategy).
 //
-// A mostly-white sheet with a thin, line-drawn cat face + the three finder
-// squares, that still scans. Run `node build-01-nearly-blank.mjs` to regenerate
-// everything in out/ (fully deterministic).
+// Run `node build-01-nearly-blank.mjs` to regenerate out/ (fully deterministic).
 //
-// Strategy (specs/01-nearly-blank.md):
-//   1. Pin all black strokes (highest priority).
-//   2. Pin a 2-module white halo around every stroke ("drawn on paper").
-//   3. Pin the WHOLE remaining field white, spiralling outward from the face
-//      centre — so when solver rank runs out, the forced/unsatisfied modules
-//      (speckle) land at the symbol margins, reading as paper grain, not face
-//      damage.
-// The engine's flip pass then erases residual dark speckle (near-face first via
-// the seq tie-break), keeping >=2 codewords of headroom per block.
+// Art direction (revised, art-notes round): a thin line-drawn cat face sitting
+// on an IMMACULATE white disc (radius 11 around the face), framed by a light
+// residual-grain field that reads as paper texture. Requirements:
+//   (a) every stroke satisfied — no holes in the drawing,
+//   (b) ZERO non-stroke dark modules inside the disc — the face on clean white,
+//   (c) overall whiteness >= 74%,
+//   (d) >= 2 codewords headroom per block, scans at scale 8 and 3.
 //
-// Search: all 8 masks x 200 restarts (flip-seed rotations), scored by weighted
-// satisfied pins (halo > field) + a whiteness bonus on the inner 29x29. Levels
-// L and M are both solved and compared; L wins (it maximises solver rank, which
-// is what a white-field piece needs). urlCase "schemehost" gives the solver the
-// case bits inside the frozen URL region; verification allows the RFC-3986 case
-// remix.
+// The engine gives a ~14-codeword flip budget at level L / headroom 2. A
+// face-covering disc reaches the URL-frozen columns, so it holds uncontrollable
+// cells that ONLY the flip budget can erase — and cleaning them consumes most of
+// that budget. The trick that lets (b) and (c) coexist:
+//
+//   - The URL freezes the first ~29 data codewords, which the interleave places
+//     in BLOCK 0. Block 1 is pure padding (fully steerable) and the flip pass
+//     keeps a large separate budget there.
+//   - The disc's uncontrollable cells all live in block 0, so the disc consumes
+//     only block-0 flips. We therefore pin the outer field white ONLY on cells
+//     whose codeword is steerable WITHOUT touching block 0's disc budget —
+//     i.e. cells in block 1 or in any error-correction codeword. Their failures
+//     are absorbed by block 1's spare flips, so the disc stays immaculate while
+//     the field goes mostly white.
+//   - Genuinely frozen field cells (block-0 URL codewords) are left FREE; they
+//     become the light residual grain framing the disc.
+//
+// Strategy / pin priority:
+//   1. All black strokes (the drawing).
+//   2. Every non-stroke disc + whisker-corridor cell white (innermost first).
+//   3. Every "block-1-or-EC" field cell white (nearest first).
+// Search all 8 masks x flip-seeds for the (mask, flipSeed) giving zero stroke
+// holes and zero disc-dark at max whiteness; a short noise-seed sweep whitens
+// any remaining free cells (pins are invariant to the noise seed).
+//
+// urlCase "schemehost" gives the solver the case bits inside the frozen URL
+// region; verification allows the RFC-3986 case remix.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,30 +48,28 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, "out");
 const URL = "https://github.com/minigolf2000/cat-games";
 const VERSION = 6;
+const LEVEL = "L"; // L maximises solver rank; M is rank-starved and dirties the disc.
 const S = QRArt.sizeOf(VERSION); // 41
-const RESTARTS = 200;             // >=48 per spec; more restarts = better speckle redistribution
-const NOISE_SEED = 999;          // freeDim is 0 for a full-field pin, so the
-                                 // noise seed is inert; fixed for determinism.
+const FLIP_RESTARTS = 300;  // flip-seed rotations searched per mask (>=48)
+const NOISE_RESTARTS = 400; // noise-seed samples to whiten remaining free cells
+const BASE_NOISE = 12345;
 
 // ---------------------------------------------------------------------------
-// Face geometry (row, col). Procedural, centred slightly left-of-center. The
-// head clears the v6 alignment pattern at (34,34), which stays as furniture.
-// The head arc opens at the ear joins and at the chin; the right whiskers reach
-// a little further than the left, keeping the signature whiskers legible while
-// spending fewer "expensive" dark modules in the clean left field.
+// Face geometry (row, col). Centred left-of-centre so the face + its clean disc
+// sit in the controllable left columns; clears the v6 alignment pattern at
+// (34,34). The head (r8) + ears fit entirely inside the r11 disc.
 // ---------------------------------------------------------------------------
 const G = {
-  CY: 19, CX: 18,     // face centre (row, col)
-  HEAD_R: 9,          // head radius (~18-module diameter, within spec's +-2)
+  CY: 19, CX: 14,     // face centre (row, col)
+  HEAD_R: 8,          // head circle radius
   EAR_H: 4,           // ear height
   EYE_ROW: 16,        // eye line
   EYE_DX: 4,          // eyes ~2*EYE_DX apart
   NOSE_ROW: 19,
   MOUTH_ROW: 21,
-  WHISK_L: 4,         // left whisker length (modules)
-  WHISK_R: 6,         // right whisker length
-  HALO: 2,            // white halo thickness (Chebyshev)
-  CHIN_GAP: 70,       // degrees of open chin at the bottom of the head arc
+  WHISK_L: 5,         // left whisker length (modules)
+  WHISK_R: 4,         // right whisker length
+  DISC_R: 11,         // clean-disc radius around the face centre
 };
 
 // Bresenham line into a sink(r,c).
@@ -71,14 +86,29 @@ function line(r0, c0, r1, c1, sink) {
   }
 }
 
-// Build the tri-tone target the way the studio's buildOrderTarget does:
-// tone 0 free / 1 dark / 2 light, plus a seq paint-stamp = priority order.
-function buildTarget(P = G) {
+// Classify every module: a field cell is "safe" to pin white (its failures are
+// absorbed without spending block-0's disc flip budget) iff its codeword is in
+// block 1 or is an error-correction codeword. prep.lay carries the interleave.
+function safeMask(prep) {
+  const lay = prep.lay;
+  const safe = new Uint8Array(S * S);
+  for (let mi = 0; mi < S * S; mi++) {
+    const bit = lay.moduleToBit[mi];
+    if (bit < 0 || bit >= lay.totalCw * 8) { safe[mi] = 1; continue; } // remainder bits
+    const info = lay.inter[bit >> 3];
+    safe[mi] = info.isEC || info.block === 1 ? 1 : 0;
+  }
+  return safe;
+}
+
+// Build the target: tone 0 free / 1 dark / 2 light, plus a seq paint-stamp.
+function buildTarget(prep, P = G) {
   const {
     CY, CX, HEAD_R, EAR_H, EYE_ROW, EYE_DX, NOSE_ROW, MOUTH_ROW,
-    WHISK_L, WHISK_R, HALO, CHIN_GAP,
+    WHISK_L, WHISK_R, DISC_R,
   } = P;
   const fp = QRArt.functionPatterns(VERSION);
+  const safe = safeMask(prep);
   const tone = new Int8Array(S * S);
   const seq = new Int32Array(S * S).fill(-1);
   let counter = 0;
@@ -86,8 +116,7 @@ function buildTarget(P = G) {
   const paint = (r, c, t) => {
     if (!inB(r, c)) return;
     const i = r * S + c;
-    if (fp.func[i]) return;      // never constrain function patterns
-    if (tone[i] !== 0) return;   // keep the earliest (highest-priority) paint
+    if (fp.func[i] || tone[i] !== 0) return;
     tone[i] = t;
     seq[i] = counter++;
   };
@@ -101,49 +130,44 @@ function buildTarget(P = G) {
     strokes.add(i);
   };
 
-  // Head: open arc outline (1 module). Angle 0 = +col; top = 270. Breaks at the
-  // two ear joins and the chin gap.
-  const earJoinL = [248, 260], earJoinR = [280, 292];
-  const chinLo = 90 - CHIN_GAP / 2, chinHi = 90 + CHIN_GAP / 2;
+  // Head: closed circle outline (1 module), broken only at the two ear joins.
   for (let a = 0; a < 360; a += 0.5) {
     const rad = (a * Math.PI) / 180;
     const rr = Math.round(CY + HEAD_R * Math.sin(rad));
     const cc = Math.round(CX + HEAD_R * Math.cos(rad));
-    if (a >= earJoinL[0] && a <= earJoinL[1]) continue;
-    if (a >= earJoinR[0] && a <= earJoinR[1]) continue;
-    if (CHIN_GAP > 0 && a >= chinLo && a <= chinHi) continue;
+    if ((a >= 248 && a <= 260) || (a >= 280 && a <= 292)) continue;
     dark(rr, cc);
   }
 
-  // Ears: two OUTLINE triangles sitting on top of the head arc.
+  // Ears: two OUTLINE triangles on top of the head.
   const topRow = CY - HEAD_R;
   const tri = (bL, bR, bRow, aR, aC) => {
-    line(bRow, bL, bRow, bR, dark); // base
-    line(bRow, bL, aR, aC, dark);   // left side
-    line(bRow, bR, aR, aC, dark);   // right side
+    line(bRow, bL, bRow, bR, dark);
+    line(bRow, bL, aR, aC, dark);
+    line(bRow, bR, aR, aC, dark);
   };
   tri(CX - 8, CX - 3, topRow + 2, topRow + 2 - EAR_H, CX - 6);
   tri(CX + 3, CX + 8, topRow + 2, topRow + 2 - EAR_H, CX + 6);
 
-  // Eyes: two 2x2 dark dots on the eye line.
+  // Eyes: two 2x2 dark dots.
   const eye = (er, ec) => { dark(er, ec); dark(er, ec + 1); dark(er + 1, ec); dark(er + 1, ec + 1); };
   eye(EYE_ROW, CX - EYE_DX - 1);
   eye(EYE_ROW, CX + EYE_DX - 1);
 
-  // Nose: 3-module triangle at face centre.
+  // Nose: 3-module triangle.
   dark(NOSE_ROW, CX);
   dark(NOSE_ROW + 1, CX - 1);
   dark(NOSE_ROW + 1, CX + 1);
 
-  // Mouth: small "omega" curve under the nose.
+  // Mouth: small "omega".
   dark(MOUTH_ROW, CX - 1);
   dark(MOUTH_ROW, CX + 1);
   dark(MOUTH_ROW + 1, CX - 2);
   dark(MOUTH_ROW + 1, CX);
   dark(MOUTH_ROW + 1, CX + 2);
 
-  // Whiskers: three horizontal strokes per side, radiating, extending OUTSIDE
-  // the head arc into the field.
+  // Whiskers: three horizontal strokes per side, radiating, extending outside
+  // the head into the field (their lanes become clean corridors, below).
   const whiskerRows = [EYE_ROW + 2, EYE_ROW + 4, EYE_ROW + 6];
   const tilt = [-1, 0, 1];
   whiskerRows.forEach((wr, k) => {
@@ -151,73 +175,73 @@ function buildTarget(P = G) {
     for (let c = CX + HEAD_R + 1, st = 0; st < WHISK_R; c++, st++) dark(wr + Math.round(tilt[k] * st * 0.4), c);
   });
 
-  // Commit strokes (priority 1, oldest paint).
   for (const i of strokes) paint((i / S) | 0, i % S, 1);
 
-  // ---- halo (white): HALO-module Chebyshev dilation of strokes ------------
-  for (const i of strokes) {
-    const sr = (i / S) | 0, sc = i % S;
-    for (let dr = -HALO; dr <= HALO; dr++)
-      for (let dc = -HALO; dc <= HALO; dc++) {
-        const r = sr + dr, c = sc + dc;
-        if (!inB(r, c)) continue;
-        if (strokes.has(r * S + c)) continue;
-        paint(r, c, 2);
-      }
-  }
-
-  // ---- field (white): everything else, spiralling out from the face centre-
-  const rest = [];
+  // ---- clean disc (white) -------------------------------------------------
+  const disc = new Set();
   for (let r = 0; r < S; r++)
     for (let c = 0; c < S; c++) {
       const i = r * S + c;
-      if (fp.func[i] || tone[i] !== 0) continue;
-      rest.push([i, (r - CY) * (r - CY) + (c - CX) * (c - CX)]);
+      if (fp.func[i]) continue;
+      if ((r - CY) * (r - CY) + (c - CX) * (c - CX) <= DISC_R * DISC_R) disc.add(i);
     }
-  rest.sort((a, b) => a[1] - b[1]); // nearest-to-face first => margins last
-  for (const [i] of rest) paint((i / S) | 0, i % S, 2);
+  for (const wr of whiskerRows)
+    for (let dr = -1; dr <= 1; dr++) {
+      const r = wr + dr;
+      const cLo = CX - HEAD_R - WHISK_L - 1, cHi = CX + HEAD_R + WHISK_R + 1;
+      for (let c = cLo; c <= cHi; c++) {
+        const i = r * S + c;
+        if (inB(r, c) && !fp.func[i]) disc.add(i);
+      }
+    }
+  const discCells = [];
+  for (const i of disc) {
+    if (strokes.has(i)) continue;
+    const r = (i / S) | 0, c = i % S;
+    discCells.push([i, (r - CY) * (r - CY) + (c - CX) * (c - CX)]);
+  }
+  discCells.sort((a, b) => a[1] - b[1]); // innermost first
+  for (const [i] of discCells) paint((i / S) | 0, i % S, 2);
 
-  // ---- derive order / target / tier map -----------------------------------
+  // ---- outer field: pin white only on "safe" (block-1 or EC) cells --------
+  const safeField = [];
+  for (let i = 0; i < S * S; i++) {
+    if (fp.func[i] || tone[i] !== 0 || !safe[i]) continue;
+    const r = (i / S) | 0, c = i % S;
+    safeField.push([i, (r - CY) * (r - CY) + (c - CX) * (c - CX)]);
+  }
+  safeField.sort((a, b) => a[1] - b[1]); // nearest first
+  for (const [i] of safeField) paint((i / S) | 0, i % S, 2);
+  // Genuinely frozen (block-0 URL) field cells are left FREE — residual grain.
+
   const order = [];
   for (let i = 0; i < S * S; i++) if (tone[i] > 0 && !fp.func[i]) order.push(i);
   order.sort((a, b) => seq[a] - seq[b]);
   const target = new Uint8Array(S * S);
   for (const i of order) target[i] = tone[i] === 1 ? 1 : 0;
 
-  // tier: 3 = stroke, 2 = halo (white within Chebyshev 2 of a stroke), 1 = field
-  const tier = new Int8Array(S * S);
-  for (const i of order) {
-    if (tone[i] === 1) { tier[i] = 3; continue; }
-    const sr = (i / S) | 0, sc = i % S;
-    let halo = false;
-    for (let dr = -2; dr <= 2 && !halo; dr++)
-      for (let dc = -2; dc <= 2; dc++)
-        if (strokes.has((sr + dr) * S + (sc + dc))) { halo = true; break; }
-    tier[i] = halo ? 2 : 1;
-  }
-
-  return { order, target, seq, tone, tier, strokes, fp };
+  return { order, target, seq, strokes, disc, fp };
 }
 
-// Whiteness metrics.
-function whiteness(matrix, fp, strokes) {
+function metrics(matrix, strokes, disc, fp) {
+  let strokeBad = 0;
+  for (const i of strokes) if (matrix[i] !== 1) strokeBad++;
+  let discDark = 0, discCells = 0;
+  for (const i of disc) {
+    if (strokes.has(i)) continue;
+    discCells++;
+    if (matrix[i] === 1) discDark++;
+  }
   let nfTotal = 0, nfLight = 0;
   for (let i = 0; i < S * S; i++) {
     if (fp.func[i]) continue;
     nfTotal++;
     if (matrix[i] === 0) nfLight++;
   }
-  let innTotal = 0, innLight = 0;
-  for (let r = 6; r <= 34; r++)
-    for (let c = 6; c <= 34; c++) {
-      const i = r * S + c;
-      if (fp.func[i] || strokes.has(i)) continue;
-      innTotal++;
-      if (matrix[i] === 0) innLight++;
-    }
   return {
+    strokeBad, strokeTotal: strokes.size,
+    discDark, discCells,
     overall: nfLight / nfTotal, overallLight: nfLight, overallTotal: nfTotal,
-    inner: innLight / innTotal, innerLight: innLight, innerTotal: innTotal,
   };
 }
 
@@ -227,124 +251,92 @@ function meterLine(perBlock) {
     .join("\n  ");
 }
 
-// Deterministic restart flip-seed sequence.
-const flipSeedFor = (t) => (t === 0 ? 0 : (Math.imul(t, 2654435761) >>> 0) % 4000000);
-
-// Solve one level: search 8 masks x RESTARTS flip-seeds, score, return the best.
-function solveLevel(level, tgt) {
-  const { order, target, seq, tier, strokes, fp } = tgt;
-  const prep = QRArt.prepareArt(URL, VERSION, level, "schemehost");
-  let best = null;
-  for (let mask = 0; mask < 8; mask++) {
-    for (let t = 0; t < RESTARTS; t++) {
-      const flipSeed = flipSeedFor(t);
-      const res = QRArt.solveArt(prep, {
-        order, target, seq, mask,
-        margin: 0.5, marginCap: 0.8,
-        noiseRng: QRArt.mulberry32(NOISE_SEED),
-        flipSeed,
-      });
-      if (res.headroom < 2) continue; // enforce >=2 codewords headroom/block
-
-      const unsat = new Set(res.unsatisfied);
-      let sStroke = 0, sHalo = 0, sField = 0, nStroke = 0, nHalo = 0, nField = 0;
-      for (const i of order) {
-        if (tier[i] === 3) { nStroke++; if (!unsat.has(i)) sStroke++; }
-        else if (tier[i] === 2) { nHalo++; if (!unsat.has(i)) sHalo++; }
-        else { nField++; if (!unsat.has(i)) sField++; }
-      }
-      const w = whiteness(res.matrix, fp, strokes);
-
-      // Art score: weighted satisfied pins (halo > field) + whiteness bonus on
-      // the inner 29x29. Among candidates that clear both acceptance gates
-      // (78% overall / 92% inner) we maximise the *minimum* margin above them,
-      // so the winner is as robust as the tight ceiling allows; below the gates
-      // we push both whiteness figures up toward passing.
-      const pass = w.overall >= 0.78 && w.inner >= 0.92;
-      const worstMargin = Math.min(w.overall - 0.78, w.inner - 0.92);
-      const art = pass
-        ? 1e7 + worstMargin * 1e6 + (w.overall + w.inner) * 1000 +
-          sStroke * 50 + sHalo * 6 + sField * 1
-        : (w.overall - 0.78) * 1e5 + (w.inner - 0.92) * 1e5 +
-          sStroke * 50 + sHalo * 6 + sField * 1 +
-          w.inner * 4000 + w.overall * 2000;
-
-      const cand = {
-        level, mask, flipSeed, res, w, art, pass,
-        sStroke, nStroke, sHalo, nHalo, sField, nField,
-      };
-      if (!best || art > best.art) best = cand;
-    }
-  }
-  return best;
-}
+const flipSeedFor = (t) => (t === 0 ? 0 : (Math.imul(t, 2654435761) >>> 0) % 5000000);
 
 function main() {
   fs.mkdirSync(OUT, { recursive: true });
-  const tgt = buildTarget(G);
+  const prep = QRArt.prepareArt(URL, VERSION, LEVEL, "schemehost");
+  const { order, target, seq, strokes, disc, fp } = buildTarget(prep, G);
 
-  // Solve + compare L and M.
-  const cands = [];
-  for (const level of ["L", "M"]) {
-    const c = solveLevel(level, tgt);
-    const v = verifyMatrix(c.res.matrix, VERSION, URL, { allowSchemeHostCase: true });
-    const perBlock = v.perBlock;
-    const minHead = Math.min(...perBlock.map((b) => b.capacity - b.errorsUsed));
-    cands.push({ ...c, v, perBlock, minHead });
+  const solve = (mask, flipSeed, noiseSeed) =>
+    QRArt.solveArt(prep, {
+      order, target, seq, mask,
+      margin: 0.5, marginCap: 0.8,
+      noiseRng: QRArt.mulberry32(noiseSeed >>> 0),
+      flipSeed,
+    });
+
+  // Phase A — (mask, flipSeed) minimising (strokeBad, discDark), then whiteness.
+  let A = null;
+  for (let mask = 0; mask < 8; mask++) {
+    for (let t = 0; t < FLIP_RESTARTS; t++) {
+      const flipSeed = flipSeedFor(t);
+      const res = solve(mask, flipSeed, BASE_NOISE);
+      if (res.headroom < 2) continue;
+      const m = metrics(res.matrix, strokes, disc, fp);
+      const key = -(m.strokeBad * 100000 + m.discDark * 1000) + m.overall * 100;
+      if (!A || key > A.key) A = { key, mask, flipSeed, m };
+    }
   }
 
-  // Winner: prefer a candidate that passes all gates; among those, best art.
-  const gatePass = (c) => c.minHead >= 2 && c.w.overall >= 0.78 && c.w.inner >= 0.92;
-  cands.sort((a, b) => {
-    const pa = gatePass(a) ? 1 : 0, pb = gatePass(b) ? 1 : 0;
-    if (pa !== pb) return pb - pa;
-    return b.art - a.art;
-  });
-  const winner = cands[0];
-  const { level, mask, res, w, perBlock, minHead, flipSeed } = winner;
+  // Phase B — hold (mask, flipSeed); whiten remaining free cells via noise seed.
+  let noiseSeed = BASE_NOISE, bestOverall = A.m.overall;
+  for (let n = 0; n < NOISE_RESTARTS; n++) {
+    const seed = (1000 + n * 7919) >>> 0;
+    const res = solve(A.mask, A.flipSeed, seed);
+    const m = metrics(res.matrix, strokes, disc, fp);
+    if (m.strokeBad === A.m.strokeBad && m.discDark === A.m.discDark && m.overall > bestOverall) {
+      bestOverall = m.overall;
+      noiseSeed = seed;
+    }
+  }
 
-  // Final verification (throws on any scan/decode failure).
+  const res = solve(A.mask, A.flipSeed, noiseSeed);
+  const m = metrics(res.matrix, strokes, disc, fp);
+
   const v = verifyMatrix(res.matrix, VERSION, URL, { allowSchemeHostCase: true });
+  const perBlock = v.perBlock;
+  const minHead = Math.min(...perBlock.map((b) => b.capacity - b.errorsUsed));
   const decoded = v.validate.text;
 
-  // Outputs.
   writePNG(path.join(OUT, "nearly-blank.png"), renderMatrix(res.matrix, VERSION, { scale: 8, quiet: 4 }));
   fs.writeFileSync(path.join(OUT, "nearly-blank.svg"), QRArt.toSVG(res.matrix, VERSION, { scale: 8, quiet: 4 }));
   fs.writeFileSync(path.join(OUT, "nearly-blank-preview.txt"), QRArt.ascii(res.matrix, VERSION));
 
-  const report = `# Piece 1 — nearly-blank — build report
+  const passA = m.strokeBad === 0;
+  const passB = m.discDark === 0;
+  const passC = m.overall >= 0.74;
+  const passD = minHead >= 2;
+
+  const report = `# Piece 1 — nearly-blank — build report (v2, immaculate-disc)
 
 Generated by \`node build-01-nearly-blank.mjs\` (deterministic; re-run to regenerate).
 
 ## Chosen configuration
 - URL: \`${URL}\`
 - urlCase "schemehost"; decoded (RFC-3986 case remix, same URL): \`${decoded}\`
-- Version ${VERSION} (${S}x${S}) — Level **${level}**, Mask **${mask}**
-- Restart flip-seed: ${flipSeed} (search: 8 masks x ${RESTARTS} restarts/level)
-- freeDim (noise DoF): ${res.freeDim} — a full-field white pin consumes all rank
-- Deliberate flips: ${res.flips.length}
+- Version ${VERSION} (${S}x${S}) — Level **${LEVEL}**, Mask **${A.mask}**
+- Face centre (${G.CY},${G.CX}); head r${G.HEAD_R}; clean disc r${G.DISC_R} (${m.discCells} non-stroke cells)
+- flipSeed ${A.flipSeed}, noiseSeed ${noiseSeed} (search: 8 masks x ${FLIP_RESTARTS} flip restarts, then ${NOISE_RESTARTS} noise samples)
+- freeDim (noise DoF): ${res.freeDim}; deliberate flips: ${res.flips.length}
 
-## Acceptance gates
-- verifyMatrix @ scale 8 + scale 3 (allowSchemeHostCase): **PASS**
-- Per-block meter (independent validate() decode):
+## Acceptance gates (revised, art-notes round)
+- (a) Stroke satisfaction: **${m.strokeTotal - m.strokeBad}/${m.strokeTotal}** ${passA ? "— **100% PASS**" : `(${m.strokeBad} holes) — FAIL`}
+- (b) Non-stroke dark inside the disc: **${m.discDark}** ${passB ? "— **PASS (immaculate)**" : "— FAIL"}
+- (c) Overall whiteness (non-function light): **${(m.overall * 100).toFixed(1)}%** (${m.overallLight}/${m.overallTotal}); need >= 74%: **${passC ? "PASS" : "FAIL"}**
+- (d) Headroom & scan:
   ${meterLine(perBlock)}
-  min headroom = ${minHead} codewords (need >= 2): **${minHead >= 2 ? "PASS" : "FAIL"}**
-- Whiteness, non-function modules light: **${(w.overall * 100).toFixed(1)}%** (${w.overallLight}/${w.overallTotal}); need >= 78%: **${w.overall >= 0.78 ? "PASS" : "FAIL"}**
-- Inner 29x29 light (rows/cols 6..34, excl. strokes + furniture): **${(w.inner * 100).toFixed(1)}%** (${w.innerLight}/${w.innerTotal}); need >= 92%: **${w.inner >= 0.92 ? "PASS" : "FAIL"}**
+  min headroom = ${minHead} (need >= 2): **${passD ? "PASS" : "FAIL"}**; jsQR @ scale 8 + 3 (allowSchemeHostCase): **PASS**
 
-## Pin satisfaction (by priority tier)
-- Strokes (dark):    ${winner.sStroke}/${winner.nStroke}
-- Halo (2px white):  ${winner.sHalo}/${winner.nHalo}
-- Field (white):     ${winner.sField}/${winner.nField}
+**All gates: ${passA && passB && passC && passD ? "PASS" : "SEE ABOVE"}.**
 
-## Level comparison (best candidate each)
-${cands
-  .slice()
-  .sort((a, b) => (a.level < b.level ? -1 : 1))
-  .map((c) => `- Level ${c.level}, mask ${c.mask}: overall ${(c.w.overall * 100).toFixed(1)}%, inner ${(c.w.inner * 100).toFixed(1)}%, minHead ${c.minHead}, halo ${c.sHalo}/${c.nHalo}, field ${c.sField}/${c.nField}${gatePass(c) ? " [passes gates]" : ""}`)
-  .join("\n")}
-
-L wins: it maximises solver rank (nVars ${QRArt.prepareArt(URL, VERSION, "L", "schemehost").bases.length} vs M ${QRArt.prepareArt(URL, VERSION, "M", "schemehost").bases.length}), which is what a white-field piece needs; M's smaller rank leaves more residual speckle despite its larger flip budget.
+## How (b) and (c) coexist
+The URL freezes ~29 data codewords, all placed by the interleave in **block 0**.
+The face disc's uncontrollable cells therefore only spend block-0 flips (${perBlock[0].errorsUsed}/${perBlock[0].capacity}
+used). The outer field is pinned white ONLY on block-1 / EC cells, whose failures
+are absorbed by block 1's separate budget (${perBlock[1].errorsUsed}/${perBlock[1].capacity} used) — so the disc stays
+immaculate while the field goes ~${(m.overall * 100).toFixed(0)}% white. The genuinely frozen block-0 URL
+cells are left free and read as the light residual grain framing the disc.
 
 ## Outputs
 - out/nearly-blank.png (scale 8, quiet 4)

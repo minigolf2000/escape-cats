@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "jsqr": "^1.4.0",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "upng-js": "^2.1.0"
   }
 }

@@ -994,6 +994,22 @@ const UPGRADES = [
 ];
 
 // ---------------------------------------------------------------------------
+// FEEL-TEST BUILD — global cost reduction to 25%.
+// Everything costs a quarter of its authored price. Applied ONCE to the balance
+// tables here so every downstream consumer — buy checks, shop rendering, the
+// in-file pacing simulator, and the dev tools table — reads the reduced numbers
+// for free, with no per-call multiplier to thread through. Building `base` also
+// gates each building's reveal (lifetime >= base), so scaling it keeps reveals
+// aligned with the new, earlier affordability. Purely a pacing experiment: set
+// COST_SCALE back to 1 to restore the shipped economy.
+// ---------------------------------------------------------------------------
+const COST_SCALE = 0.25;
+if (COST_SCALE !== 1) {
+  BUILDINGS.forEach(b => { b.base = Math.max(1, Math.ceil(b.base * COST_SCALE)); });
+  UPGRADES.forEach(u => { u.cost = Math.max(1, Math.ceil(u.cost * COST_SCALE)); });
+}
+
+// ---------------------------------------------------------------------------
 // STATE
 // ---------------------------------------------------------------------------
 const game = {

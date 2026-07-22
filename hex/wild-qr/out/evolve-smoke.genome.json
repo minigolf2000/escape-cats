@@ -1,0 +1,81 @@
+{
+  "seed": 42,
+  "version": 10,
+  "level": "L",
+  "ground": "gray",
+  "mask": "auto",
+  "icons": [
+    {
+      "type": "cat",
+      "r": 8,
+      "c": 9,
+      "scale": 1
+    },
+    {
+      "type": "paw",
+      "r": 8,
+      "c": 32,
+      "scale": 1
+    },
+    {
+      "type": "cat",
+      "r": 8,
+      "c": 43,
+      "scale": 1
+    },
+    {
+      "type": "paw",
+      "r": 10,
+      "c": 21,
+      "scale": 1
+    },
+    {
+      "type": "cat",
+      "r": 17,
+      "c": 31,
+      "scale": 1
+    },
+    {
+      "type": "paw",
+      "r": 19,
+      "c": 17,
+      "scale": 1
+    },
+    {
+      "type": "cat",
+      "r": 28,
+      "c": 10,
+      "scale": 1.5
+    },
+    {
+      "type": "paw",
+      "r": 20,
+      "c": 43,
+      "scale": 1
+    },
+    {
+      "type": "cat",
+      "r": 29,
+      "c": 32,
+      "scale": 1
+    },
+    {
+      "type": "paw",
+      "r": 32,
+      "c": 44,
+      "scale": 1.5
+    },
+    {
+      "type": "cat",
+      "r": 41,
+      "c": 32,
+      "scale": 1
+    },
+    {
+      "type": "paw",
+      "r": 44,
+      "c": 9,
+      "scale": 1
+    }
+  ]
+}

@@ -56,6 +56,13 @@ const funcSet = fp.func;
 const inB = (r, c) => r >= 0 && c >= 0 && r < S && c < S;
 const idx = (r, c) => r * S + c;
 
+// Block-0 DATA mask (the URL block: its codewords carry the frozen URL + block-0
+// padding). Forcing icon cells here competes for block 0's own tight 9-codeword
+// flip budget, whereas cells in blocks 1-3 / EC are rank-settable (cheap). Icons
+// placed on fewer block-0 cells survive the intact-or-absent trim more often.
+const B0MASK = block0Data(QRArt.prepareArt(URL, VERSION, LEVEL, "schemehost"), S);
+const b0Cost = (mods) => { let n = 0; for (const i of mods) if (B0MASK[i]) n++; return n; };
+
 // Furniture dilated by Chebyshev distance D: cells within D of a function module.
 // An icon whose cells touch this zone sits jammed against a fixed pattern (finder/
 // timing/alignment) — its modules are over-constrained and often NOT rank-
@@ -226,7 +233,7 @@ function computeHalos(instances, defaultW = 1) {
 // halo light) with headroom >=2. Searches masks x flip restarts; keeps the best
 // config by (heroes-all-perfect, kept count, whiteness). Returns the winner.
 // ---------------------------------------------------------------------------
-function solveWall(prep, instances, safe, { minKeep, fieldBand = 0 }) {
+function solveWall(prep, instances, safe, { minKeep, fieldBand = 0, noFieldWhite = false }) {
   // Central-first ordering so the center of the pattern claims rank priority.
   const cdist = (ins) => {
     const [cy, cx] = ins.center; return (cy - 28) * (cy - 28) + (cx - 28) * (cx - 28);
@@ -252,6 +259,10 @@ function solveWall(prep, instances, safe, { minKeep, fieldBand = 0 }) {
     // just below the required cells, for visual separation. Not a completeness
     // gate, so any miss is minor grain rather than a dropped instance.
     for (const ins of active) for (const i of ins.soft) if (!keptStrokes.has(i)) push(i, false);
+    // THREE-TONE designs surrender the ground to noise (no field-white pins at
+    // all); the freed flip budget goes to more instances + hard halos. The dark
+    // noise renders gray #3a3a3a, black icons + white halos pop off it.
+    if (noFieldWhite) return { order: ord, target, seq };
     // field white: safe cells not in a kept stroke/halo, central-first. With
     // fieldBand>0 restrict to safe cells within Chebyshev distance fieldBand of a
     // kept icon cell — this keeps the total pin count near the free-bit rank so
@@ -350,33 +361,50 @@ function solveWall(prep, instances, safe, { minKeep, fieldBand = 0 }) {
 function runDesign(prep, safe, b0, design) {
   const placed = design.instances;      // all attempted (already func-cleared)
   computeHalos(placed, design.haloW ?? 1);
-  const minKeep = Math.ceil(placed.length * 0.60);
-  const { best, buildIO, runSolve, insScore, whitenessOf } = solveWall(prep, placed, safe, { minKeep, fieldBand: design.fieldBand ?? 0 });
+  const minKeep = design.minKeepAbs ?? Math.ceil(placed.length * 0.60);
+  const { best, buildIO, runSolve, insScore, whitenessOf } = solveWall(prep, placed, safe,
+    { minKeep, fieldBand: design.fieldBand ?? 0, noFieldWhite: !!design.toned });
   if (!best) throw new Error(`${design.name}: no config kept >=60% with heroes perfect`);
 
-  // Noise whitening: hold mask/flipSeed/kept-set, sweep noise seeds (pins &
-  // flips are noise-invariant, so completeness/headroom are unchanged).
-  const io = buildIO(best.active);
-  let bestWhite = -1, matrix = null, noiseSeed = BASE_NOISE;
+  const kept = best.active;
+  const shapeMask = new Set();          // icon cells → pure black in the toned render
+  for (const ins of kept) for (const i of ins.mods) shapeMask.add(i);
+
+  // Noise sweep: hold mask/flipSeed/kept-set (pins & flips are noise-invariant, so
+  // completeness/headroom are unchanged). For toned designs the HERO artifact is
+  // the three-tone render, so we require it to scan at scale 8/3/2 and pick the
+  // best-scanning seed; for white-field designs we pick the whitest field.
+  const io = buildIO(kept);
+  let matrix = null, noiseSeed = BASE_NOISE, bestScore = -1;
   for (let n = 0; n < NOISE_RESTARTS; n++) {
     const sd = (1000 + n * 7919) >>> 0;
     const res = runSolve(io, best.mask, best.flipSeed, sd);
-    const w = whitenessOf(res.matrix);
-    if (w > bestWhite) { bestWhite = w; matrix = res.matrix; noiseSeed = sd; }
+    let score;
+    if (design.toned) {
+      // must scan in TONED form at all three scales; tiebreak on whiteness.
+      const ok8 = !!scanRGBA(renderToned(res.matrix, shapeMask, { scale: 8, quiet: 4 }));
+      const ok3 = ok8 && !!scanRGBA(renderToned(res.matrix, shapeMask, { scale: 3, quiet: 4 }));
+      const ok2 = ok3 && !!scanRGBA(renderToned(res.matrix, shapeMask, { scale: 2, quiet: 4 }));
+      score = (ok8 ? 1 : 0) + (ok3 ? 1 : 0) + (ok2 ? 1 : 0) + whitenessOf(res.matrix);
+    } else {
+      score = whitenessOf(res.matrix);
+    }
+    if (score > bestScore) { bestScore = score; matrix = res.matrix; noiseSeed = sd; }
   }
 
-  // Honest verify + per-block meter.
+  // Honest verify + per-block meter (validate() is tone-agnostic — same matrix).
   const v = verifyMatrix(matrix, VERSION, URL, { allowSchemeHostCase: true });
   const perBlock = v.perBlock;
   const minHead = Math.min(...perBlock.map((b) => b.capacity - b.errorsUsed));
 
-  // Multi-scale scan report (8/3/2) on the FINAL rendered PNG tones.
+  // Multi-scale scan report (8/3/2) on the HERO artifact tones (toned for the
+  // three-tone designs, plain BW otherwise).
   const scan = {};
-  for (const scale of [8, 3, 2]) scan[scale] = !!scanRGBA(renderMatrix(matrix, VERSION, { scale, quiet: 4 }));
+  for (const scale of [8, 3, 2]) {
+    const img = design.toned ? renderToned(matrix, shapeMask, { scale, quiet: 4 }) : renderMatrix(matrix, VERSION, { scale, quiet: 4 });
+    scan[scale] = !!scanRGBA(img);
+  }
 
-  // Metrics.
-  const kept = best.active;
-  const keptSet = new Set(kept);
   // Post-hoc heroes: for lattice designs we don't PROTECT specific instances (the
   // solver keeps whatever solves perfectly); the N most-central SURVIVORS are the
   // heroes — they are, by construction, complete. (Protected designs skip this.)
@@ -385,27 +413,41 @@ function runDesign(prep, safe, b0, design) {
       ((a.center[0] - 28) ** 2 + (a.center[1] - 28) ** 2) - ((b.center[0] - 28) ** 2 + (b.center[1] - 28) ** 2));
     for (let k = 0; k < Math.min(design.postHocHeroes, central.length); k++) central[k].hero = true;
   }
+  const keptSet = new Set(kept);
   let strokeTot = 0, strokeDark = 0;
   for (const ins of kept) { strokeTot += ins.mods.size; for (const i of ins.mods) if (matrix[i] === 1) strokeDark++; }
   const whiteness = whitenessOf(matrix);
   const heroKept = kept.filter((i) => i.hero).length;
   const heroTotal = design.postHocHeroes ? Math.min(design.postHocHeroes, kept.length) : placed.filter((i) => i.hero).length;
 
-  // Files.
-  writePNG(path.join(OUT, `wallpaper-${design.name}.png`), renderMatrix(matrix, VERSION, { scale: 8, quiet: 4 }));
-  fs.writeFileSync(path.join(OUT, `wallpaper-${design.name}.svg`), QRArt.toSVG(matrix, VERSION, { scale: 8, quiet: 4 }));
+  // Files. Toned designs ship the three-tone PNG/SVG as the hero artifact PLUS a
+  // BW fallback (-bw.png/.svg) for print; white-field designs ship plain BW.
+  if (design.toned) {
+    writePNG(path.join(OUT, `wallpaper-${design.name}.png`), renderToned(matrix, shapeMask, { scale: 8, quiet: 4 }));
+    fs.writeFileSync(path.join(OUT, `wallpaper-${design.name}.svg`), tonedSVG(matrix, shapeMask, { scale: 8, quiet: 4 }));
+    writePNG(path.join(OUT, `wallpaper-${design.name}-bw.png`), renderMatrix(matrix, VERSION, { scale: 8, quiet: 4 }));
+    fs.writeFileSync(path.join(OUT, `wallpaper-${design.name}-bw.svg`), QRArt.toSVG(matrix, VERSION, { scale: 8, quiet: 4 }));
+  } else {
+    writePNG(path.join(OUT, `wallpaper-${design.name}.png`), renderMatrix(matrix, VERSION, { scale: 8, quiet: 4 }));
+    fs.writeFileSync(path.join(OUT, `wallpaper-${design.name}.svg`), QRArt.toSVG(matrix, VERSION, { scale: 8, quiet: 4 }));
+  }
 
   // Target matrix = base + ALL attempted instance strokes dark (the ideal
   // full pattern), for the contact sheet.
   const target = new Uint8Array(fp.base);
   for (const ins of placed) for (const i of ins.mods) target[i] = 1;
 
+  // vertical distribution of survivors (for the "reads top-to-bottom" check).
+  const rowsOf = kept.map((k) => k.center[0]).sort((a, b) => a - b);
+  const bandCounts = [0, 0, 0];
+  for (const rr of rowsOf) bandCounts[Math.min(2, Math.floor((rr - 4) / 17))]++;
+
   return {
     name: design.name, matrix, target, perBlock, minHead, mask: best.mask, flipSeed: best.flipSeed, noiseSeed,
     placedN: placed.length, keptN: kept.length, droppedN: placed.length - kept.length,
     heroKept, heroTotal, keepFrac: kept.length / placed.length,
     strokeSat: strokeTot ? strokeDark / strokeTot : 1, strokeTot, strokeDark,
-    whiteness, scan, decoded: v.validate.text,
+    whiteness, scan, decoded: v.validate.text, toned: !!design.toned, shapeMask, bandCounts,
     dropped: placed.filter((i) => !keptSet.has(i)).map((i) => i.label),
     seedNote: design.seedNote,
   };
@@ -422,7 +464,7 @@ function runDesign(prep, safe, b0, design) {
 // attempt sites reaching into the frozen-right — those drop by the rule.
 // ---------------------------------------------------------------------------
 function designSmileyDots() {
-  const R = 4, CLEAR = 2;
+  const R = 4, CLEAR = 1;
   const clean = (cy, cx) => cx + R <= 47 && cy + R <= 51 && cx - R >= 8 && cy - R >= 8;
   const ok = (cy, cx) => {
     const ins = makeInstance("", "smiley", [cy, cx], smileyCells(cy, cx, R), {});
@@ -440,10 +482,11 @@ function designSmileyDots() {
   };
   const clearCount = (PITCH, oy, ox) => gridSites(PITCH, oy, ox).filter(([cy, cx]) => ok(cy, cx)).length;
   // Maximise furniture-clear clean-canvas sites; on ties prefer the LARGER pitch
-  // (airier, more legible dots). Pitch 10 gives a dense-but-distinct polka that
-  // dodges the 22-module alignment lattice better than a resonant pitch 11.
+  // (airier, more legible dots). Pitch 10 packs the fullest lattice (bottom rows
+  // included) — the three-tone ground frees the flip budget that used to cap the
+  // count, so the dense attempt survives intact-or-absent.
   let best = null;
-  for (const PITCH of [11, 12, 13]) {
+  for (const PITCH of [9, 10, 11]) {
     for (let oy = 5; oy < 5 + PITCH; oy++)
       for (let ox = 5; ox < 5 + PITCH; ox++) {
         const clear = clearCount(PITCH, oy, ox);
@@ -460,9 +503,9 @@ function designSmileyDots() {
     .filter(([cy, cx]) => ok(cy, cx))
     .sort((a, b) => ((a[0] - 28) ** 2 + (a[1] - 28) ** 2) - ((b[0] - 28) ** 2 + (b[1] - 28) ** 2));
   const instances = sites.map(([cy, cx]) =>
-    makeInstance(`smiley@${cy},${cx}`, "smiley", [cy, cx], smileyCells(cy, cx, R), {}));
-  return { name: "smiley-dots", instances, haloW: 1, postHocHeroes: 4,
-    seedNote: `staggered polka grid pitch ${best.PITCH} (origin ${best.oy},${best.ox}), ring r${R}, ${CLEAR}-module furniture clearance; ${instances.length} furniture-clear sites on the clean canvas` };
+    makeInstance(`smiley@${cy},${cx}`, "smiley", [cy, cx], smileyCells(cy, cx, R), { haloW: 0, softW: 2 }));
+  return { name: "smiley-dots", instances, haloW: 1, postHocHeroes: 4, toned: true,
+    seedNote: `staggered polka grid pitch ${best.PITCH} (origin ${best.oy},${best.ox}), ring r${R}, ${CLEAR}-module furniture clearance, HARD 1-module white halo, three-tone ground; ${instances.length} furniture-clear sites on the clean canvas` };
 }
 
 // ---------------------------------------------------------------------------
@@ -470,6 +513,14 @@ function designSmileyDots() {
 // the most central S rendered at FULL build-09 size (protected hero, perfect).
 // ---------------------------------------------------------------------------
 function designCoolSWall() {
+  // Compact S: verticals 4 tall (0.75), same topology / parallel waist / open ends
+  // as build-09. HARD white halos are INFEASIBLE for this thin open glyph at v10 —
+  // its diagonal waist + open counters carry linearly-stuck cells that no mask/
+  // flip can whiten, so a hard-halo gate drops every compact (verified at cw3 AND
+  // the wider cw4 fallback). Instead the compacts are stroke-only for completeness
+  // with a 2-module SOFT white halo (best-effort, high priority); on the THREE-TONE
+  // ground the freed flip budget makes those rings clean and the uniform gray
+  // ground (not black grain) lets the black S's pop at arm's length.
   const COMPACT = { cw: 3, vh: 4, wd: 3, ch: 3, cap: 3 };  // width 7, height 16
   const FULL = { cw: 6, vh: 6, wd: 4, ch: 5, cap: 5 };      // width 13, height 25 (build-09)
   const fullS0 = coolSCells(0, 0, FULL);
@@ -484,7 +535,10 @@ function designCoolSWall() {
     for (const dx of [0, -1, 1, -2, 2, 3, -3]) {
       const row0 = 16 + dy, col0 = 10 + dx; // verticals 10,16,22 → clear of col-6 timing & col-28 alignment
       const { cells, center } = coolSCells(row0, col0, FULL);
-      const ins = makeInstance(`coolS-FULL@${row0},${col0}`, "coolS-full", center, cells, { hero: true, protect: true });
+      // hero strokes are protected & perfect; its halo is a 2-module SOFT white
+      // zone (best-effort on the toned ground) so its own stuck-halo cells don't
+      // spend the flip budget the surrounding compact S's need.
+      const ins = makeInstance(`coolS-FULL@${row0},${col0}`, "coolS-full", center, cells, { hero: true, protect: true, haloW: 0, softW: 2 });
       if (ins.funcHit === 0 && clearsFurniture(ins.mods, 2)) { hero = ins; hero._row0 = row0; hero._col0 = col0; break outer; }
     }
   }
@@ -496,25 +550,40 @@ function designCoolSWall() {
   // alternate-row offset; drop any that hit furniture (1-module clearance) or
   // overlap the hero (its cells + a 1-module gap). Compacts are NOT protected —
   // any that can't solve 100% drop by the intact-or-absent rule.
-  const compW = 7, compH = 16, ROWP = 15, COLP = 7;
+  const compW = 7, compH = 16;
+  // guard = hero cells + a 1-module ring, so a compact never overlaps the hero
+  // (their soft white zones may still abut, which reads as brick mortar).
   const heroGuard = new Set();
   for (const i of hero.mods) {
     const r = (i / S) | 0, c = i % S;
     for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr, cc = c + dc; if (inB(rr, cc)) heroGuard.add(idx(rr, cc)); }
   }
-  let brow = 0;
-  for (let row0 = 9; row0 + compH <= 56; row0 += ROWP, brow++) {
-    const off = (brow % 2) ? Math.round(COLP / 2) : 0;
-    for (let col0 = 3 + off; col0 + compW <= 56; col0 += COLP) {
+  // Candidate compact S's on 3 brick rows (9/24/39, clear of the row-6 timing);
+  // enumerate a fine column grid, then keep the CHEAPEST (fewest block-0 cells,
+  // so most rank-settable → survives the trim), greedily non-overlapping. This
+  // beats a rigid brick that lands S's on the expensive block-0 mid-columns.
+  const cands = [];
+  for (const row0 of [9, 24, 39]) {
+    for (let col0 = 3; col0 + compW <= 56; col0 += 2) {
       const { cells, center } = coolSCells(row0, col0, COMPACT);
-      const ins = makeInstance(`coolS@${row0},${col0}`, "coolS", center, cells, { haloW: 0, softW: 2 });
+      const ins = makeInstance(`coolS@${row0},${col0}`, "coolS", center, cells, { haloW: 0, softW: 1 });
       if (ins.funcHit !== 0 || !clearsFurniture(ins.mods, 1)) continue;
       if ([...ins.mods].some((i) => heroGuard.has(i))) continue;
-      instances.push(ins);
+      ins._cost = b0Cost(ins.mods);
+      cands.push(ins);
     }
   }
-  return { name: "cool-s-wall", instances, haloW: 1,
-    seedNote: `brick grid: 1 FULL S (build-09 size, verticals cols ${hero._col0}/${hero._col0 + 6}/${hero._col0 + 12}) at (${hero._row0},${hero._col0}) + ${instances.length - 1} compact S (verticals 4 tall, same topology/parallel waist/open ends), row pitch ${ROWP} col pitch ${COLP}` };
+  cands.sort((a, b) => a._cost - b._cost);
+  const taken = new Set(heroGuard);
+  const dil = (mods) => { const s = new Set(); for (const i of mods) { const r = (i / S) | 0, c = i % S; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr, cc = c + dc; if (inB(rr, cc)) s.add(idx(rr, cc)); } } return s; };
+  for (const ins of cands) {
+    if ([...ins.mods].some((i) => taken.has(i))) continue;      // non-overlapping (1-gap)
+    for (const i of dil(ins.mods)) taken.add(i);
+    instances.push(ins);
+    if (instances.length >= 8) break;                            // hero + up to 7 compacts
+  }
+  return { name: "cool-s-wall", instances, haloW: 1, toned: true, minKeepAbs: 4,
+    seedNote: `brick grid, three-tone ground: 1 FULL S (build-09 size, verticals cols ${hero._col0}/${hero._col0 + 6}/${hero._col0 + 12}) at (${hero._row0},${hero._col0}) + ${instances.length - 1} compact S (verticals ${COMPACT.vh} tall, same topology/parallel waist/open ends, 2-module SOFT halo), row pitch ${ROWP} col pitch ${COLP}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -594,15 +663,58 @@ function designDoodlePage() {
 }
 
 // ---------------------------------------------------------------------------
+// Three-tone rasteriser (build-04/08 trick): pure black for function patterns +
+// the design's ICON cells (shapeMask), gray #3a3a3a for surrendered-noise dark
+// cells (the wallpaper ground), white for light. jsQR thresholds the gray as dark
+// against white, so the toned image scans; the black icons + hard white halos pop
+// off the gray. GRAY relative (linear) luminance = 0.043 (< 0.2). Icons keep a
+// completeness-gated white halo, so the icon reads as black-on-white on gray.
+// ---------------------------------------------------------------------------
+const GRAY = [0x3a, 0x3a, 0x3a];
+function renderToned(m, shapeMask, { scale = 8, quiet = 4 } = {}) {
+  const dim = (S + 2 * quiet) * scale;
+  const data = new Uint8ClampedArray(dim * dim * 4).fill(255);
+  for (let r = 0; r < S; r++)
+    for (let c = 0; c < S; c++) {
+      const i = idx(r, c);
+      if (!m[i]) continue;
+      const col = (funcSet[i] || shapeMask.has(i)) ? [0, 0, 0] : GRAY;
+      const x0 = (c + quiet) * scale, y0 = (r + quiet) * scale;
+      for (let y = 0; y < scale; y++)
+        for (let x = 0; x < scale; x++) {
+          const o = ((y0 + y) * dim + (x0 + x)) * 4;
+          data[o] = col[0]; data[o + 1] = col[1]; data[o + 2] = col[2];
+        }
+    }
+  return { data, width: dim, height: dim };
+}
+function tonedSVG(m, shapeMask, { scale = 8, quiet = 4 } = {}) {
+  const dim = (S + 2 * quiet) * scale;
+  let black = "", gray = "";
+  for (let r = 0; r < S; r++)
+    for (let c = 0; c < S; c++) {
+      const i = idx(r, c);
+      if (!m[i]) continue;
+      const s = `M${(c + quiet) * scale} ${(r + quiet) * scale}h${scale}v${scale}h-${scale}z`;
+      if (funcSet[i] || shapeMask.has(i)) black += s; else gray += s;
+    }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dim} ${dim}" width="${dim}" height="${dim}" shape-rendering="crispEdges">` +
+    `<rect width="${dim}" height="${dim}" fill="#ffffff"/><path d="${gray}" fill="#3a3a3a"/><path d="${black}" fill="#000000"/></svg>`;
+}
+
+// ---------------------------------------------------------------------------
 // Contact sheet — 3 rows (one per design), each [TARGET | SOLVED], labelled.
-// The reviewer checks the wallpaper/periodicity effect here.
+// The reviewer checks the wallpaper/periodicity effect here. Toned designs show
+// their three-tone SOLVED render (black icons on gray ground).
 // ---------------------------------------------------------------------------
 function contactSheet(results) {
   const SCALE = 5, QUIET = 3;
   const rows = results.map((r) => ({
     name: r.name,
     target: renderMatrix(r.target, VERSION, { scale: SCALE, quiet: QUIET }),
-    solved: renderMatrix(r.matrix, VERSION, { scale: SCALE, quiet: QUIET }),
+    solved: (r.toned && r.shapeMask)
+      ? renderToned(r.matrix, r.shapeMask, { scale: SCALE, quiet: QUIET })
+      : renderMatrix(r.matrix, VERSION, { scale: SCALE, quiet: QUIET }),
   }));
   const tw = rows[0].target.width, th = rows[0].target.height;
   const pad = 14, labelH = 18, gap = 16, rowGap = 22;

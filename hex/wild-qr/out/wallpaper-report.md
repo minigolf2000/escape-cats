@@ -43,40 +43,40 @@ Gates: scale 8/3/2 scans, headroom >=2 on all 4 blocks, whiteness >=66%, keep
 
 ## smiley-dots
 
-- Composition: staggered polka grid pitch 11 (origin 5,7), ring r4, 2-module furniture clearance; 8 furniture-clear sites on the clean canvas
-- Instances **placed 8 / kept 6** (dropped 2); keep 75.0% PASS (>=60%)
+- Composition: staggered polka grid pitch 10 (origin 6,7), ring r4, 1-module furniture clearance, HARD 1-module white halo, three-tone ground; 12 furniture-clear sites on the clean canvas
+- Instances **placed 12 / kept 9** (dropped 3); keep 75.0% PASS (>=60%)
 - Heroes: **4/4 kept and complete** PASS
-- Stroke satisfaction (kept instances): **192/192 = 100.0%** (survivors are 100% by construction of the intact-or-absent rule)
-- Whiteness (non-function light): **80.6%** PASS (>=66%)
-- Mask **2**, flipSeed 0, noiseSeed 1000 (search: 8 masks x 6 flip restarts, then 160 noise samples)
+- Stroke satisfaction (kept instances): **288/288 = 100.0%** (survivors are 100% by construction of the intact-or-absent rule)
+- Whiteness (non-function light): **61.6%** **FAIL (<66%)**
+- Mask **7**, flipSeed 0, noiseSeed 784981 (search: 8 masks x 6 flip restarts, then 160 noise samples)
 - Per-block meter (all 4 v10 blocks):
   blk0: 7/9 used (2 headroom)
-  blk1: 7/9 used (2 headroom)
-  blk2: 7/9 used (2 headroom)
-  blk3: 7/9 used (2 headroom)
+  blk1: 0/9 used (9 headroom)
+  blk2: 0/9 used (9 headroom)
+  blk3: 0/9 used (9 headroom)
   min headroom = 2 (need >=2): PASS
 - Scan report: scale 8 **OK**, scale 3 **OK**, scale 2 **OK** (57 modules is large — scale 2 explicitly checked) PASS
-- Dropped (absent) instances: smiley@27,40, smiley@16,35
-- Decoded (case remix, same URL): `HttpS://GITHub.COM/minigolf2000/cat-games`
+- Dropped (absent) instances: smiley@26,37, smiley@16,32, smiley@46,37
+- Decoded (case remix, same URL): `HTTps://gitHub.com/minigolf2000/cat-games`
 - Files: out/wallpaper-smiley-dots.png, out/wallpaper-smiley-dots.svg
 
 ## cool-s-wall
 
-- Composition: brick grid: 1 FULL S (build-09 size, verticals cols 11/17/23) at (16,11) + 5 compact S (verticals 4 tall, same topology/parallel waist/open ends), row pitch 15 col pitch 7
+- Composition: brick grid, three-tone ground: 1 FULL S (build-09 size, verticals cols 11/17/23) at (16,11) + 5 compact S (verticals 4 tall, same topology/parallel waist/open ends, 2-module SOFT halo), row pitch 15 col pitch 7
 - Instances **placed 6 / kept 4** (dropped 2); keep 66.7% PASS (>=60%)
 - Heroes: **1/1 kept and complete** PASS
 - Stroke satisfaction (kept instances): **182/182 = 100.0%** (survivors are 100% by construction of the intact-or-absent rule)
-- Whiteness (non-function light): **81.6%** PASS (>=66%)
-- Mask **1**, flipSeed 0, noiseSeed 1000 (search: 8 masks x 6 flip restarts, then 160 noise samples)
+- Whiteness (non-function light): **59.6%** **FAIL (<66%)**
+- Mask **4**, flipSeed 2276917, noiseSeed 381112 (search: 8 masks x 6 flip restarts, then 160 noise samples)
 - Per-block meter (all 4 v10 blocks):
   blk0: 7/9 used (2 headroom)
-  blk1: 7/9 used (2 headroom)
-  blk2: 7/9 used (2 headroom)
-  blk3: 7/9 used (2 headroom)
+  blk1: 0/9 used (9 headroom)
+  blk2: 0/9 used (9 headroom)
+  blk3: 0/9 used (9 headroom)
   min headroom = 2 (need >=2): PASS
 - Scan report: scale 8 **OK**, scale 3 **OK**, scale 2 **OK** (57 modules is large — scale 2 explicitly checked) PASS
-- Dropped (absent) instances: coolS@9,38, coolS@39,38
-- Decoded (case remix, same URL): `htTpS://GIThuB.Com/minigolf2000/cat-games`
+- Dropped (absent) instances: coolS@9,31, coolS@24,35
+- Decoded (case remix, same URL): `htTPS://gitHuB.cOm/minigolf2000/cat-games`
 - Files: out/wallpaper-cool-s-wall.png, out/wallpaper-cool-s-wall.svg
 
 ## doodle-page

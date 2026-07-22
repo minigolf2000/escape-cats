@@ -51,12 +51,35 @@ const inB = (r, c) => r >= 0 && c >= 0 && r < S && c < S;
 // decided per-segment by the design's heroTest(centroidR, centroidC).
 // ---------------------------------------------------------------------------
 
-// 1. RINGS — concentric circles centered on the (34,34) alignment bullseye,
-//    3-module radial pitch, expanding until clipped. Hero: 3 innermost rings.
-function designRings() {
-  const CY = 34, CX = 34, PITCH = 3, MAXR = 12; // clipped at r12 (4 rings): centered on the
-  // maximally-frozen bottom-right corner, each extra ring steals flip budget from the hero, so
-  // we stop where the hero holds its ceiling and stroke stays ≥88% (see report).
+// A clean disc: every non-function module within `r` of the center, innermost
+// first (build-01 technique). Extra corridor cells may be appended.
+function discAround(cy, cx, r, extra = []) {
+  const cells = [];
+  for (let rr = 0; rr < S; rr++)
+    for (let cc = 0; cc < S; cc++) {
+      const i = rr * S + cc;
+      if (funcSet[i]) continue;
+      const d2 = (rr - cy) * (rr - cy) + (cc - cx) * (cc - cx);
+      if (d2 <= r * r) cells.push([i, d2]);
+    }
+  for (const [rr, cc] of extra) {
+    if (!inB(rr, cc)) continue;
+    const i = rr * S + cc;
+    if (!funcSet[i]) cells.push([i, (rr - cy) * (rr - cy) + (cc - cx) * (cc - cx)]);
+  }
+  const seen = new Set();
+  cells.sort((a, b) => a[1] - b[1]);
+  const out = [];
+  for (const [i] of cells) { if (seen.has(i)) continue; seen.add(i); out.push(i); }
+  return out;
+}
+
+// 1. RINGS — concentric circles re-centered into the controllable LEFT territory
+//    (the (34,34) alignment goes back to being furniture). 4 rings at pitch 3;
+//    a build-01 clean disc holds zero speckle through the inner 2 rings. Hero:
+//    inner 3 rings 100% + disc speckle 0.
+function designRings(center) {
+  const [CY, CX] = center, PITCH = 3, MAXR = 12, DISC_R = 7;
   const paths = [];
   let idx = 0;
   for (let radius = PITCH; radius <= MAXR; radius += PITCH, idx++) {
@@ -64,9 +87,11 @@ function designRings() {
     paths.push({ pts, hero: idx < 3, prio: radius });
   }
   return {
-    name: "rings", center: [CY, CX], paths,
+    name: "rings", center, paths,
     heroTest: () => false, // hero is carried by the inner-ring flag
-    heroDesc: "the 3 innermost rings (radii 3/6/9 around the (34,34) alignment bullseye)",
+    heroDesc: `the 3 innermost rings (r 3/6/9 around center (${CY},${CX})) + zero-speckle disc r${DISC_R}`,
+    discCellsFn: () => discAround(CY, CX, DISC_R),
+    discDesc: `clean disc r${DISC_R} (through the inner 2 rings)`,
   };
 }
 
@@ -133,96 +158,112 @@ function designSpiral() {
   };
 }
 
-// 4. LATTICE — isometric "tumbling blocks" (rhombille) tessellation, cell height
-//    ~8, across the full data area. Dashed degradation allowed outside the hero
-//    center 21×21 (rows/cols 10–30).
-function designLattice() {
-  const RR = 8;                       // hex circumradius → height 2*RR = 16 (a full-area tessellation is inherently dense; see report)
-  const hStep = Math.sqrt(3) * RR;    // ~6.93 horizontal center spacing
-  const vStep = 1.5 * RR;             // 6 vertical center spacing
-  const verts = (cy, cx) =>
-    [90, 150, 210, 270, 330, 30].map((a) => {
-      const rad = (a * Math.PI) / 180;
-      return [cy - RR * Math.sin(rad), cx + RR * Math.cos(rad)];
-    });
+// 4. STARBURST — 14 thin 1-module rays radiating a full 360° from a hub in the
+//    controllable left. Rays dash-fade outward (heaviest toward the frozen right,
+//    where dropped segments read as intentional). Hero: the innermost 7 modules
+//    of every ray 100% + a clean hub disc r4.
+function designStarburst(center) {
+  const [CY, CX] = center, N = 14, HERO_LEN = 7, MAXLEN = 24, DISC_R = 4;
   const paths = [];
-  let row = 0;
-  for (let cy = -RR; cy <= S + RR; cy += vStep, row++) {
-    const xoff = (row % 2) * (hStep / 2);
-    for (let cx = -RR + xoff; cx <= S + RR; cx += hStep) {
-      const v = verts(cy, cx).map(([r, c]) => [Math.round(r), Math.round(c)]);
-      // hex outline as 6 edges (ordered walk)
-      const outline = [];
-      for (let k = 0; k < 6; k++) {
-        const a = v[k], b = v[(k + 1) % 6];
-        line(a[0], a[1], b[0], b[1], (r, c) => outline.push([r, c]));
-      }
-      paths.push({ pts: outline, hero: false, prio: 0 });
-      // internal Y: center → top(90°, vert 0), → lower-left(210°, vert 2),
-      // → lower-right(330°, vert 4) — the three cube-face seams.
-      for (const vi of [0, 2, 4]) {
-        const spoke = [];
-        line(Math.round(cy), Math.round(cx), v[vi][0], v[vi][1], (r, c) => spoke.push([r, c]));
-        paths.push({ pts: spoke, hero: false, prio: 0 });
-      }
+  for (let k = 0; k < N; k++) {
+    const ang = (k * 2 * Math.PI) / N;
+    // walk the ray outward, splitting into hero (inner 7 modules) and outer.
+    const cells = [];
+    const seen = new Set();
+    for (let t = 1; t <= MAXLEN; t += 0.5) {
+      const rr = Math.round(CY + t * Math.sin(ang));
+      const cc = Math.round(CX + t * Math.cos(ang));
+      if (!inB(rr, cc)) break;
+      const i = rr * S + cc;
+      if (funcSet[i]) continue;
+      if (seen.has(i)) continue;
+      seen.add(i);
+      cells.push([rr, cc]);
     }
+    const heroPts = cells.slice(0, HERO_LEN);
+    const outerPts = cells.slice(HERO_LEN);
+    if (heroPts.length) paths.push({ pts: heroPts, hero: true, prio: 0, ray: k });
+    if (outerPts.length) paths.push({ pts: outerPts, hero: false, prio: 1, ray: k });
   }
   return {
-    name: "lattice", center: [20, 20], paths,
-    heroTest: (r, c) => r >= 10 && r <= 30 && c >= 10 && c <= 30,
-    heroDesc: "the center 21×21 (rows/cols 10–30)",
-    fadeFrozen: true, // fade frozen-block-0 outer segments → frees budget for hero
-    // Designed peripheral dissolve: cubes stay solid in the center and thin into
-    // scattered blocks toward the frozen edges. Keep-rate falls with radius; a
-    // deterministic per-segment hash decides which whole segments fade (never a
-    // single module) so the thinning reads as intentional, not as budget noise.
+    name: "starburst", center, paths,
+    heroTest: () => false,
+    heroDesc: `the inner 7 modules of all ${N} rays (hub (${CY},${CX})) + clean hub disc r${DISC_R}`,
+    discCellsFn: () => discAround(CY, CX, DISC_R),
+    discDesc: `clean hub disc r${DISC_R}`,
+    fadeFrozen: true, // fade frozen-block-0 outer ray segments (they'd dash anyway)
+    // Rays thin outward: keep-rate falls with radius so the burst fades into
+    // scattered dashes at the rim (whole segments only — a dash rhythm).
     fade: (cr, cc, hero, hash) => {
       if (hero) return false;
-      const d = Math.hypot(cr - 20, cc - 20);
-      const keep = d <= 9 ? 1 : Math.max(0.1, 1 - (d - 9) / 10);
-      return hash > keep; // drop this whole segment
+      const d = Math.hypot(cr - CY, cc - CX);
+      const keep = d <= 10 ? 1 : Math.max(0.15, 1 - (d - 10) / 12);
+      return hash > keep;
     },
   };
 }
 
-// 5. TARGET-CAT — piece 1's face as pure geometry (circle head, triangle ears,
-//    dot eyes) at center-left, orbited by two thin concentric arcs. Hero: the
-//    cat and the inner arc.
+// 5. TARGET-CAT — an unmistakable cat face on a build-01 clean disc: head circle
+//    (broken at the ear joins so the ears clearly punch through the top edge),
+//    solid 2×2 eyes, nose dot, 3 whiskers per side, and exactly ONE ~200° orbit
+//    arc in a supporting role. Hero: all face features 100%.
 function designTargetCat() {
-  const CY = 18, CX = 13, HEAD_R = 5;
+  const CY = 19, CX = 13, HEAD_R = 6;
   const paths = [];
-  // Head circle (broken at the two ear joins so ears sit on top cleanly).
+  // Head circle, broken at the two ear bases (a ~5-module gap under each ear) so
+  // the ear triangles visibly break the head's top edge.
+  const EJL = CX - 3, EJR = CX + 3; // ear join columns
   const head = circleOutline(CY, CX, HEAD_R).filter(([r, c]) => {
-    const up = r < CY - 2;
-    const nearJoin = up && Math.abs(Math.abs(c - CX) - 3) <= 1;
-    return !nearJoin;
+    const up = r <= CY - HEAD_R + 2;
+    const underEar = up && (Math.abs(c - EJL) <= 2 || Math.abs(c - EJR) <= 2);
+    return !underEar;
   });
   paths.push({ pts: head, hero: true, prio: 0 });
-  // Ears: two outline triangles atop the head.
-  const topRow = CY - HEAD_R;
-  const ear = (bL, bR, bRow, aR, aC) => {
+  // Ears: two filled triangles rising ABOVE the head's top edge from the gaps.
+  const topRow = CY - HEAD_R + 1;
+  const ear = (baseL, baseR, apexC) => {
+    const apexR = topRow - 3;
     const pts = [];
-    line(bRow, bL, aR, aC, (r, c) => pts.push([r, c]));
-    line(aR, aC, bRow, bR, (r, c) => pts.push([r, c]));
+    line(topRow, baseL, apexR, apexC, (r, c) => pts.push([r, c]));   // outer edge
+    line(apexR, apexC, topRow, baseR, (r, c) => pts.push([r, c]));   // inner edge
+    line(topRow, baseL, topRow, baseR, (r, c) => pts.push([r, c]));  // base seam
     paths.push({ pts, hero: true, prio: 0 });
   };
-  ear(CX - 5, CX - 1, topRow + 1, topRow - 2, CX - 3);
-  ear(CX + 1, CX + 5, topRow + 1, topRow - 2, CX + 3);
-  // Eyes: two 2×2 dots.
+  ear(EJL - 2, EJL + 2, EJL);
+  ear(EJR - 2, EJR + 2, EJR);
+  // Eyes: two solid 2×2 blocks.
   const eye = (er, ec) => paths.push({ pts: [[er, ec], [er, ec + 1], [er + 1, ec], [er + 1, ec + 1]], hero: true, prio: 0 });
-  eye(CY - 1, CX - 3);
-  eye(CY - 1, CX + 2);
-  // Nose: small triangle.
-  paths.push({ pts: [[CY + 2, CX], [CY + 3, CX - 1], [CY + 3, CX + 1]], hero: true, prio: 0 });
-  // Two orbiting concentric arcs (partial circles), centered on the head.
-  const innerArc = circleOutline(CY, CX, HEAD_R + 3, 20, 340);
-  const outerArc = circleOutline(CY, CX, HEAD_R + 6, 35, 325);
-  paths.push({ pts: innerArc, hero: true, prio: 0 });   // inner arc is hero
-  paths.push({ pts: outerArc, hero: false, prio: 1 });  // outer arc may dash
+  eye(CY - 1, CX - 4);
+  eye(CY - 1, CX + 3);
+  // Nose: a 2-module dot.
+  paths.push({ pts: [[CY + 2, CX - 1], [CY + 2, CX]], hero: true, prio: 0 });
+  // Whiskers: 3 per side, radiating from just beside the nose out past the head.
+  const whiskRows = [CY + 1, CY + 2, CY + 3];
+  whiskRows.forEach((wr, k) => {
+    const tilt = [-1, 0, 1][k];
+    const lft = [], rgt = [];
+    for (let s = 0; s < 5; s++) { lft.push([wr + Math.round(tilt * s * 0.5), CX - 2 - s]); }
+    for (let s = 0; s < 5; s++) { rgt.push([wr + Math.round(tilt * s * 0.5), CX + 1 + s]); }
+    paths.push({ pts: lft, hero: true, prio: 0 });
+    paths.push({ pts: rgt, hero: true, prio: 0 });
+  });
+  // ONE partial orbit arc (~200°), supporting role → outer (may dash).
+  const arc = circleOutline(CY, CX, HEAD_R + 4, 30, 230);
+  paths.push({ pts: arc, hero: false, prio: 1 });
   return {
     name: "target-cat", center: [CY, CX], paths,
     heroTest: () => false,
-    heroDesc: "the cat (head/ears/eyes/nose) and the inner orbit arc",
+    heroDesc: "all face features (head, ears, solid eyes, nose, whiskers) on a clean disc",
+    // Clean disc over the whole face (head + ears + eyes + nose), plus corridors
+    // along the whisker rows so the whiskers sit on clean white too (build-01).
+    discCellsFn: () => {
+      const corr = [];
+      for (const wr of whiskRows)
+        for (let dr = -1; dr <= 1; dr++)
+          for (let c = CX - 7; c <= CX + 6; c++) corr.push([wr + dr, c]);
+      return discAround(CY, CX, HEAD_R + 1, corr);
+    },
+    discDesc: `clean disc r${HEAD_R + 1} over the face + whisker corridors`,
   };
 }
 
@@ -257,20 +298,23 @@ function buildDesign(prep, design, safe, b0, restarts) {
       segments.push(s);
     }
   }
-  // Field-white candidates: safe (block-1/EC) cells not drawn and not function.
+  // Clean-disc cells (optional, build-01 technique).
+  const discCells = design.discCellsFn ? design.discCellsFn() : [];
+  const discSet = new Set(discCells);
+  // Field-white candidates: safe (block-1/EC) cells not drawn, not disc, not func.
   const inSeg = new Set();
   for (const s of segments) for (const i of s.mods) inSeg.add(i);
   const fieldWhiteSafe = [];
   for (let i = 0; i < S * S; i++) {
-    if (funcSet[i] || inSeg.has(i) || !safe[i]) continue;
+    if (funcSet[i] || inSeg.has(i) || discSet.has(i) || !safe[i]) continue;
     fieldWhiteSafe.push(i);
   }
 
   const solved = solveDashed(prep, {
-    S, segments, fieldWhiteSafe, center: design.center, funcSet,
+    S, segments, fieldWhiteSafe, center: design.center, funcSet, discCells,
     flipRestarts: restarts, baseNoise: BASE_NOISE,
   });
-  return { segments, fieldWhiteSafe, solved };
+  return { segments, fieldWhiteSafe, discCells, solved };
 }
 
 function run(design, restarts = FLIP_RESTARTS) {
@@ -282,8 +326,8 @@ function run(design, restarts = FLIP_RESTARTS) {
   if (!best) throw new Error(`${design.name}: no config met headroom≥2`);
 
   // Noise whitening: hold (mask, flipSeed, sacrifice); sweep noise seeds.
-  const darkSegs = best.darkSegs, sacrificed = best.sacrificed;
-  const io = solved.buildIO(darkSegs, sacrificed);
+  const sacrificed = best.sacrificed;
+  const io = solved.buildIO(solved.heroOrder, best.keptOuter, sacrificed);
   let bestNoise = BASE_NOISE, bestWhite = -1, bestMatrix = null, bestM = null;
   for (let n = 0; n < NOISE_RESTARTS; n++) {
     const seed = (1000 + n * 7919) >>> 0;
@@ -315,9 +359,28 @@ function run(design, restarts = FLIP_RESTARTS) {
     name: design.name, matrix, m, perBlock, minHead,
     mask: best.mask, flipSeed: best.flipSeed, noiseSeed: bestNoise,
     segments, dropped, dropFrozen, dropSafe,
-    heroDesc: design.heroDesc, decoded: v.validate.text,
+    heroDesc: design.heroDesc, discDesc: design.discDesc, decoded: v.validate.text,
     center: design.center,
   };
+}
+
+// Nudge search: try candidate hub centers, pick the one that best solves
+// (clean disc first, then hero, then whiteness) with a cheap probe, then hand
+// the winning design to run() for the full search.
+function chooseCenter(builder, centers, probeRestarts = 24) {
+  const prep = QRArt.prepareArt(URL, VERSION, LEVEL, "schemehost");
+  const steer = safeMask(prep, S);
+  const b0 = block0Data(prep, S);
+  let bestC = centers[0], bestKey = -Infinity;
+  for (const c of centers) {
+    const design = builder(c);
+    const { solved } = buildDesign(prep, design, steer, b0, probeRestarts);
+    if (!solved.best) continue;
+    const m = solved.best.m;
+    const key = -m.discDark * 1e12 + m.heroSat * 1e9 + m.strokeSat * 1e3 + m.whiteness;
+    if (key > bestKey) { bestKey = key; bestC = c; }
+  }
+  return bestC;
 }
 
 // ---------------------------------------------------------------------------
@@ -386,7 +449,25 @@ function pct(x) { return (x * 100).toFixed(1) + "%"; }
 
 function main() {
   fs.mkdirSync(OUT, { recursive: true });
-  const designs = [designRings(), designWaves(), designSpiral(), designLattice(), designTargetCat()];
+  // Remove the retired lattice outputs (replaced by starburst).
+  for (const ext of ["png", "svg"]) {
+    const f = path.join(OUT, `geometric-lattice.${ext}`);
+    if (fs.existsSync(f)) fs.unlinkSync(f);
+  }
+  // rings & starburst: nudge the hub center within ±2 (a 9-point spread) in the
+  // controllable-left territory, picking the center that solves cleanest.
+  const NUDGE = [[0, 0], [-2, 0], [2, 0], [0, -2], [0, 2], [-1, -1], [1, 1], [-1, 1], [1, -1]];
+  const ringsCenters = NUDGE.map(([dy, dx]) => [19 + dy, 15 + dx]);
+  const burstCenters = NUDGE.map(([dy, dx]) => [20 + dy, 14 + dx]);
+  process.stderr.write("choosing rings center...\n");
+  const ringsC = chooseCenter(designRings, ringsCenters);
+  process.stderr.write("choosing starburst center...\n");
+  const burstC = chooseCenter(designStarburst, burstCenters);
+
+  const designs = [
+    designRings(ringsC), designWaves(), designSpiral(),
+    designStarburst(burstC), designTargetCat(),
+  ];
   const results = [];
   for (const d of designs) {
     process.stderr.write(`solving ${d.name}...\n`);
@@ -417,6 +498,10 @@ function main() {
     lines.push(`- Stroke satisfaction (overall): **${r.m.strokeSatN}/${r.m.strokeTot} = ${pct(r.m.strokeSat)}** ${strokePass ? "PASS" : "**below 88% — see dashes**"}`);
     lines.push(`- Hero-zone satisfaction: **${r.m.heroSatN}/${r.m.heroTot} = ${pct(r.m.heroSat)}** ${heroPass ? "PASS" : "**FAIL**"}`);
     lines.push(`- Whiteness (non-function light): **${pct(r.m.whiteness)}** (${r.m.nfLight}/${r.m.nfTot}) ${whitePass ? "PASS" : "**FAIL**"}`);
+    if (r.discDesc) {
+      const discPass = r.m.discDark === 0;
+      lines.push(`- Clean disc (${r.discDesc}): **${r.m.discDark} speckle** of ${r.m.discTot} non-stroke disc cells ${discPass ? "— **PASS (immaculate)**" : "— **FAIL**"}`);
+    }
     lines.push(`- Per-block meter:`);
     lines.push(`  ${meterLine(r.perBlock)}`);
     lines.push(`  min headroom = ${r.minHead} (need ≥2): ${headPass ? "PASS" : "**FAIL**"}`);
@@ -439,36 +524,31 @@ function main() {
   lines.push("## Contact sheet");
   lines.push("- out/geometric-contact.png — all five side by side.");
   lines.push("");
-  lines.push("## Deviations & known limits");
+  lines.push("## Notes (art-notes round 2)");
   lines.push("");
   lines.push("- **Dashes, not nibbles.** Every stroke is cut into contiguous 2–3 module");
   lines.push("  segments. A probe solve measures per-segment satisfaction; whole outer");
   lines.push("  segments that don't come up fully dark are sacrificed and re-pinned WHITE");
   lines.push("  (clean gaps) in a second solve. Hero + kept segments pin first with equal-");
   lines.push("  or-greater free rank, so they stay solid — misses land as whole dropped");
-  lines.push("  segments. \"Gap strays\" in each design are the residual count of dark");
-  lines.push("  modules inside an intended gap (a frozen cell the flip budget couldn't");
-  lines.push("  clear); they are reported per design and are small.");
-  lines.push("- **rings — hero can't reach 100% (spec-mandated frozen center).** The (34,34)");
-  lines.push("  alignment sits in the maximally-frozen bottom-right block-0 corner (the QR");
-  lines.push("  interleave places the URL codewords there). The 3 innermost rings solve to");
-  lines.push("  at most **74/79 = 93.7% even in isolation** — the flip cap (7 codewords/block,");
-  lines.push("  to keep headroom ≥2) physically cannot clear the last ~5 frozen modules.");
-  lines.push("  Per the spec's \"shrink or clip and say so\", the pattern is clipped to 4 rings");
-  lines.push("  (r 3/6/9/12): each extra ring steals budget and pushes hero below its ceiling");
-  lines.push("  and stroke below 88%. The ~5 hero misses appear as short breaks in the");
-  lines.push("  innermost arcs. All other gates pass.");
-  lines.push("- **lattice — hero 97.2% (spec-mandated 21×21 box reaches into the frozen right).**");
-  lines.push("  The center 21×21 hero box spans cols 10–30; its right edge (cols ~25–30) is");
-  lines.push("  frozen block-0. The hero box solves 100% in isolation, but with the field-white");
-  lines.push("  pins present, 3 frozen-edge modules can't be cleared within the flip cap. A");
-  lines.push("  full-area line tessellation is inherently ~40% dark, so the pattern uses the");
-  lines.push("  spec's allowed peripheral dissolve (whole segments faded out toward the frozen");
-  lines.push("  edges) to reach nearly-blank whiteness; this reads as cubes thinning to");
-  lines.push("  scattered blocks. Cell height is enlarged from the spec's ~8 to 16 for the same");
-  lines.push("  reason (height-8 was 48% dark — whiteness ≥68% impossible).");
-  lines.push("- **waves / spiral / target-cat pass all gates** (stroke ≥88% overall, hero 100%,");
-  lines.push("  whiteness ≥68%, headroom ≥2/block, jsQR @ scale 8 + 3).");
+  lines.push("  segments. \"Gap strays\" are the residual dark modules inside an intended gap");
+  lines.push("  (a frozen cell the flip budget couldn't clear); reported per design, small.");
+  lines.push("- **Clean disc (build-01 technique).** rings, starburst and target-cat pin a");
+  lines.push("  disc of white cells at high priority (right after the hero strokes, before");
+  lines.push("  everything else) so the hero sits on immaculate white. Disc speckle is a gate");
+  lines.push("  (target 0) and is reported per design.");
+  lines.push("- **rings — re-centered off the frozen corner.** The (34,34) alignment is back to");
+  lines.push("  being furniture; the rings now center in the controllable left, so the inner-3-");
+  lines.push("  ring hero and the zero-speckle disc both solve cleanly. 4 rings at pitch 3.");
+  lines.push("- **starburst replaces lattice.** A line tessellation is inherently ~40% dark");
+  lines.push("  before the solver starts, which fights the nearly-blank medium; the starburst");
+  lines.push("  is 14 one-module rays that are sparse by construction and fade to dashes at the");
+  lines.push("  rim (heaviest toward the frozen right, where the dashes read as intentional).");
+  lines.push("  The retired out/geometric-lattice.* files are deleted.");
+  lines.push("- **target-cat.** The face now leads: solid 2×2 eyes, ear triangles that break");
+  lines.push("  the head's top edge, nose dot + 3 whiskers/side, and a single ~200° orbit arc");
+  lines.push("  in a supporting role, all on a clean disc. hero = every face feature.");
+  lines.push("- **waves / spiral are UNCHANGED from round 1** (byte-identical seeds/outputs).");
   lines.push("");
   const report = lines.join("\n");
   fs.writeFileSync(path.join(OUT, "geometric-report.md"), report);

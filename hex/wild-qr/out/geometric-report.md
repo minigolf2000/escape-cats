@@ -9,18 +9,18 @@ misses land as whole dropped 2–3 module segments (dashes), never single-module
 
 ## rings
 
-- Hero zone: the 3 innermost rings (radii 3/6/9 around the (34,34) alignment bullseye)
-- Mask **0**, flipSeed 0, noiseSeed 610763 (search: 8 masks × restarts, then 400 noise samples)
-- Stroke satisfaction (overall): **100/110 = 90.9%** PASS
-- Hero-zone satisfaction: **74/79 = 93.7%** **FAIL**
-- Whiteness (non-function light): **73.2%** (1012/1383) PASS
+- Hero zone: the 3 innermost rings (r 3/6/9 around center (18,14)) + zero-speckle disc r7
+- Mask **6**, flipSeed 0, noiseSeed 1000 (search: 8 masks × restarts, then 400 noise samples)
+- Stroke satisfaction (overall): **167/167 = 100.0%** PASS
+- Hero-zone satisfaction: **107/107 = 100.0%** PASS
+- Whiteness (non-function light): **70.1%** (969/1383) PASS
+- Clean disc (clean disc r7 (through the inner 2 rings)): **0 speckle** of 95 non-stroke disc cells — **PASS (immaculate)**
 - Per-block meter:
   blk0: 7/9 used (2 headroom)
   blk1: 7/9 used (2 headroom)
   min headroom = 2 (need ≥2): PASS
-- Dashes (budget-driven): 7 segment(s) dropped — 7 touching frozen block-0 (URL) cells, 0 elsewhere. Gap strays (dark inside a dropped gap): 2/7.
-  dropped-segment centroids: (40,36)×3, (34,28)×3, (30,26)×3, (26,30)×3, (27,39)×4, (24,27)×3, (23,39)×4
-- Decoded (case remix, same URL): `htTpS://gIthub.cOm/minigolf2000/cat-games`
+- Dashes (budget-driven): 0 segment(s) dropped — 0 touching frozen block-0 (URL) cells, 0 elsewhere. No stray darks inside dropped gaps.
+- Decoded (case remix, same URL): `HTtPS://gIThUb.coM/minigolf2000/cat-games`
 - Files: out/geometric-rings.png, out/geometric-rings.svg
 
 ## waves
@@ -54,67 +54,63 @@ misses land as whole dropped 2–3 module segments (dashes), never single-module
 - Decoded (case remix, same URL): `HtTps://gIThuB.COm/minigolf2000/cat-games`
 - Files: out/geometric-spiral.png, out/geometric-spiral.svg
 
-## lattice
+## starburst
 
-- Hero zone: the center 21×21 (rows/cols 10–30)
-- Mask **2**, flipSeed 1712678, noiseSeed 2234158 (search: 8 masks × restarts, then 400 noise samples)
-- Stroke satisfaction (overall): **132/136 = 97.1%** PASS
-- Hero-zone satisfaction: **103/106 = 97.2%** **FAIL**
-- Whiteness (non-function light): **73.1%** (1011/1383) PASS
+- Hero zone: the inner 7 modules of all 14 rays (hub (21,15)) + clean hub disc r4
+- Mask **2**, flipSeed 0, noiseSeed 1000 (search: 8 masks × restarts, then 400 noise samples)
+- Stroke satisfaction (overall): **161/161 = 100.0%** PASS
+- Hero-zone satisfaction: **82/82 = 100.0%** PASS
+- Whiteness (non-function light): **71.5%** (989/1383) PASS
+- Clean disc (clean hub disc r4): **0 speckle** of 5 non-stroke disc cells — **PASS (immaculate)**
 - Per-block meter:
   blk0: 7/9 used (2 headroom)
   blk1: 7/9 used (2 headroom)
   min headroom = 2 (need ≥2): PASS
-- Dashes (budget-driven): 4 segment(s) dropped — 4 touching frozen block-0 (URL) cells, 0 elsewhere. Designed peripheral dissolve: 61 whole segment(s) faded out toward the edges (intentional negative space, not misses). Gap strays (dark inside a dropped gap): 12/169.
-  dropped-segment centroids: (11,25)×3, (22,24)×3, (29,29)×3, (31,32)×3
-- Decoded (case remix, same URL): `HTTPs://gIThuB.Com/minigolf2000/cat-games`
-- Files: out/geometric-lattice.png, out/geometric-lattice.svg
+- Dashes (budget-driven): 0 segment(s) dropped — 0 touching frozen block-0 (URL) cells, 0 elsewhere. Designed peripheral dissolve: 42 whole segment(s) faded out toward the edges (intentional negative space, not misses). Gap strays (dark inside a dropped gap): 4/121.
+- Decoded (case remix, same URL): `HTTps://GItHUB.coM/minigolf2000/cat-games`
+- Files: out/geometric-starburst.png, out/geometric-starburst.svg
 
 ## target-cat
 
-- Hero zone: the cat (head/ears/eyes/nose) and the inner orbit arc
-- Mask **2**, flipSeed 0, noiseSeed 2289591 (search: 8 masks × restarts, then 400 noise samples)
-- Stroke satisfaction (overall): **135/135 = 100.0%** PASS
-- Hero-zone satisfaction: **85/85 = 100.0%** PASS
-- Whiteness (non-function light): **72.1%** (997/1383) PASS
+- Hero zone: all face features (head, ears, solid eyes, nose, whiskers) on a clean disc
+- Mask **3**, flipSeed 0, noiseSeed 1822370 (search: 8 masks × restarts, then 400 noise samples)
+- Stroke satisfaction (overall): **113/113 = 100.0%** PASS
+- Hero-zone satisfaction: **81/81 = 100.0%** PASS
+- Whiteness (non-function light): **74.3%** (1027/1383) PASS
+- Clean disc (clean disc r7 over the face + whisker corridors): **0 speckle** of 82 non-stroke disc cells — **PASS (immaculate)**
 - Per-block meter:
   blk0: 1/9 used (8 headroom)
   blk1: 7/9 used (2 headroom)
   min headroom = 2 (need ≥2): PASS
 - Dashes (budget-driven): 0 segment(s) dropped — 0 touching frozen block-0 (URL) cells, 0 elsewhere. No stray darks inside dropped gaps.
-- Decoded (case remix, same URL): `HtTPS://GITHuB.cOM/minigolf2000/cat-games`
+- Decoded (case remix, same URL): `htTps://gITHub.Com/minigolf2000/cat-games`
 - Files: out/geometric-target-cat.png, out/geometric-target-cat.svg
 
 ## Contact sheet
 - out/geometric-contact.png — all five side by side.
 
-## Deviations & known limits
+## Notes (art-notes round 2)
 
 - **Dashes, not nibbles.** Every stroke is cut into contiguous 2–3 module
   segments. A probe solve measures per-segment satisfaction; whole outer
   segments that don't come up fully dark are sacrificed and re-pinned WHITE
   (clean gaps) in a second solve. Hero + kept segments pin first with equal-
   or-greater free rank, so they stay solid — misses land as whole dropped
-  segments. "Gap strays" in each design are the residual count of dark
-  modules inside an intended gap (a frozen cell the flip budget couldn't
-  clear); they are reported per design and are small.
-- **rings — hero can't reach 100% (spec-mandated frozen center).** The (34,34)
-  alignment sits in the maximally-frozen bottom-right block-0 corner (the QR
-  interleave places the URL codewords there). The 3 innermost rings solve to
-  at most **74/79 = 93.7% even in isolation** — the flip cap (7 codewords/block,
-  to keep headroom ≥2) physically cannot clear the last ~5 frozen modules.
-  Per the spec's "shrink or clip and say so", the pattern is clipped to 4 rings
-  (r 3/6/9/12): each extra ring steals budget and pushes hero below its ceiling
-  and stroke below 88%. The ~5 hero misses appear as short breaks in the
-  innermost arcs. All other gates pass.
-- **lattice — hero 97.2% (spec-mandated 21×21 box reaches into the frozen right).**
-  The center 21×21 hero box spans cols 10–30; its right edge (cols ~25–30) is
-  frozen block-0. The hero box solves 100% in isolation, but with the field-white
-  pins present, 3 frozen-edge modules can't be cleared within the flip cap. A
-  full-area line tessellation is inherently ~40% dark, so the pattern uses the
-  spec's allowed peripheral dissolve (whole segments faded out toward the frozen
-  edges) to reach nearly-blank whiteness; this reads as cubes thinning to
-  scattered blocks. Cell height is enlarged from the spec's ~8 to 16 for the same
-  reason (height-8 was 48% dark — whiteness ≥68% impossible).
-- **waves / spiral / target-cat pass all gates** (stroke ≥88% overall, hero 100%,
-  whiteness ≥68%, headroom ≥2/block, jsQR @ scale 8 + 3).
+  segments. "Gap strays" are the residual dark modules inside an intended gap
+  (a frozen cell the flip budget couldn't clear); reported per design, small.
+- **Clean disc (build-01 technique).** rings, starburst and target-cat pin a
+  disc of white cells at high priority (right after the hero strokes, before
+  everything else) so the hero sits on immaculate white. Disc speckle is a gate
+  (target 0) and is reported per design.
+- **rings — re-centered off the frozen corner.** The (34,34) alignment is back to
+  being furniture; the rings now center in the controllable left, so the inner-3-
+  ring hero and the zero-speckle disc both solve cleanly. 4 rings at pitch 3.
+- **starburst replaces lattice.** A line tessellation is inherently ~40% dark
+  before the solver starts, which fights the nearly-blank medium; the starburst
+  is 14 one-module rays that are sparse by construction and fade to dashes at the
+  rim (heaviest toward the frozen right, where the dashes read as intentional).
+  The retired out/geometric-lattice.* files are deleted.
+- **target-cat.** The face now leads: solid 2×2 eyes, ear triangles that break
+  the head's top edge, nose dot + 3 whiskers/side, and a single ~200° orbit arc
+  in a supporting role, all on a clean disc. hero = every face feature.
+- **waves / spiral are UNCHANGED from round 1** (byte-identical seeds/outputs).

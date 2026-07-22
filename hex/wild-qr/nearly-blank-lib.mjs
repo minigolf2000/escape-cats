@@ -199,6 +199,8 @@ function claimForSegs(segs, claimed) {
 export function solveDashed(prep, opts) {
   const {
     S, segments, fieldWhiteSafe, center, funcSet,
+    discCells = [],   // optional: modules pinned WHITE at high priority (build-01
+                      // clean-disc technique). Innermost-first order recommended.
     masks = [0, 1, 2, 3, 4, 5, 6, 7],
     flipRestarts = 120, baseNoise = 12345,
     margin = 0.5, marginCap = 0.8,
@@ -230,8 +232,13 @@ export function solveDashed(prep, opts) {
   // Field-white modules (safe cells only), nearest-to-center first.
   const fieldMods = fieldWhiteSafe.slice().sort((a, b) => d2(a) - d2(b));
 
-  // Build order/target/seq arrays for a given dark-seg list + white-seg list.
-  const buildIO = (darkSegs, whiteSegs) => {
+  // Build order/target/seq arrays. Priority: hero dark → CLEAN DISC white →
+  // outer dark → sacrificed white (dash gaps) → field white. Placing the disc
+  // right after the hero strokes (and before the outer strokes) is build-01's
+  // trick: the disc's non-stroke cells win rank ahead of everything but the hero
+  // drawing, so the disc stays speckle-free. When discCells is empty the order
+  // reduces to hero→outer→white→field — identical to the pre-disc behaviour.
+  const buildIO = (heroDark, outerDark, whiteSegs) => {
     const order = [];
     const target = new Uint8Array(S * S);
     const seq = new Int32Array(S * S).fill(-1);
@@ -241,7 +248,9 @@ export function solveDashed(prep, opts) {
       target[i] = dark ? 1 : 0;
       seq[i] = order.length;
     };
-    for (const k of darkSegs) for (const i of segments[k].mods) push(i, true);
+    for (const k of heroDark) for (const i of segments[k].mods) push(i, true);
+    for (const i of discCells) push(i, false);      // clean disc
+    for (const k of outerDark) for (const i of segments[k].mods) push(i, true);
     for (const k of whiteSegs) for (const i of segments[k].mods) push(i, false);
     for (const i of fieldMods) push(i, false);
     return { order, target, seq };
@@ -259,40 +268,40 @@ export function solveDashed(prep, opts) {
   const segDark = (matrix, k) => segments[k].mods.every((i) => matrix[i] === 1);
 
   let best = null;
-  const allDarkOrder = [...heroOrder, ...outerOrder];
 
   for (const mask of masks) {
     for (let t = 0; t < flipRestarts; t++) {
       const flipSeed = flipSeedFor(t);
-      // --- PROBE: everything dark + field white; measure segment satisfaction.
-      const probeIO = buildIO(allDarkOrder, []);
+      // --- PROBE: everything dark + disc/field white; measure segment satisfaction.
+      const probeIO = buildIO(heroOrder, outerOrder, []);
       const probe = runSolve(probeIO, mask, flipSeed, baseNoise);
       if (probe.headroom < 2) continue;
       // Sacrifice whole outer segments that aren't fully dark, PLUS the designed
       // pre-drop (peripheral-dissolve) segments.
       const sacrificed = [...preDrop, ...outerOrder.filter((k) => !segDark(probe.matrix, k))];
       const keptOuter = outerOrder.filter((k) => segDark(probe.matrix, k));
-      // --- RE-SOLVE: hero+kept dark, sacrificed white (dash gaps), field white.
-      const darkSegs = [...heroOrder, ...keptOuter];
-      const resIO = buildIO(darkSegs, sacrificed);
+      // --- RE-SOLVE: hero dark, disc white, kept dark, sacrificed white, field.
+      const resIO = buildIO(heroOrder, keptOuter, sacrificed);
       const res = runSolve(resIO, mask, flipSeed, baseNoise);
       if (res.headroom < 2) continue;
-      const m = measure(res.matrix, segments, heroOrder, funcSet, S, sacrificed);
-      // Selection key: maximize hero satisfaction FIRST (continuously, so when no
-      // config reaches 100% we still surface the best-achievable hero), then
-      // stroke%, then whiteness.
-      const key = m.heroSat * 1e9 + m.strokeSat * 1e3 + m.whiteness * 1;
+      const m = measure(res.matrix, segments, heroOrder, funcSet, S, sacrificed, discCells);
+      // Selection key: clean disc FIRST (zero speckle is a hard art gate), then
+      // maximize hero satisfaction (continuously), then stroke%, then whiteness.
+      const key = -m.discDark * 1e12 + m.heroSat * 1e9 + m.strokeSat * 1e3 + m.whiteness * 1;
       if (!best || key > best.key) {
-        best = { key, mask, flipSeed, sacrificed, darkSegs, m };
+        best = { key, mask, flipSeed, sacrificed, keptOuter, m };
       }
     }
   }
 
-  return { best, buildIO, runSolve, heroOrder, outerOrder, fieldMods, measure: (mat, sac) => measure(mat, segments, heroOrder, funcSet, S, sac) };
+  return {
+    best, buildIO, runSolve, heroOrder, outerOrder, fieldMods,
+    measure: (mat, sac) => measure(mat, segments, heroOrder, funcSet, S, sac, discCells),
+  };
 }
 
 // Per-config metrics over the drawn geometry.
-export function measure(matrix, segments, heroSegKeys, funcSet, S, sacrificed) {
+export function measure(matrix, segments, heroSegKeys, funcSet, S, sacrificed, discCells = []) {
   const heroSet = new Set(heroSegKeys);
   // "Active" strokes = the drawn line (hero + non-faded outer). Designed-fade
   // segments (forceDrop) are intentional negative space and are excluded from
@@ -316,12 +325,26 @@ export function measure(matrix, segments, heroSegKeys, funcSet, S, sacrificed) {
     if (!sacSet.has(k)) return;
     for (const i of s.mods) { gapTot++; if (matrix[i] === 1) gapDark++; }
   });
+  // discDark: clean-disc speckle. A disc cell is pinned white unless it is a
+  // hero-stroke cell (hero pins before the disc). Any non-hero disc cell that is
+  // dark is speckle — the build-01 gate wants this at 0.
+  let discDark = 0, discTot = 0;
+  if (discCells.length) {
+    const heroMods = new Set();
+    for (const k of heroSegKeys) for (const i of segments[k].mods) heroMods.add(i);
+    for (const i of discCells) {
+      if (heroMods.has(i)) continue;
+      discTot++;
+      if (matrix[i] === 1) discDark++;
+    }
+  }
   let nfTot = 0, nfLight = 0;
   for (let i = 0; i < S * S; i++) { if (funcSet[i]) continue; nfTot++; if (matrix[i] === 0) nfLight++; }
   return {
     strokeTot, strokeSatN, strokeSat: strokeTot ? strokeSatN / strokeTot : 1,
     heroTot, heroSatN, heroSat: heroTot ? heroSatN / heroTot : 1,
     droppedSegs, fadedSegs, gapDark, gapTot,
+    discDark, discTot,
     whiteness: nfLight / nfTot, nfLight, nfTot,
     sacrificedCount: sacSet.size,
   };

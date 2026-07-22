@@ -859,7 +859,7 @@ const UPGRADES = [
     fx: "Watched closely, every mouse multiplies out of politeness" },
 
   // --- Petting ---
-  { key: "whiskers", name: "Sensitive Whiskers", icon: "🐈",
+  { key: "whiskers", name: "Cat Tree", icon: "🌳",
     cost: 100, unlock: { total: 200 },
     effect: { type: "clickFlat", add: 1 } },
   { key: "clawsharp", name: "Cat Brush", icon: "🪮",
@@ -900,14 +900,17 @@ const UPGRADES = [
     cost: 40e6, unlock: { clicks: 1500 },
     effect: { type: "clickMult", mult: 2 },
     fx: "Pet the bitey one without consequence" },
-  { key: "cattree", name: "Cat Tree", icon: "🌳",
+  // Window Perch #2 and #3 of the running gag (see #1 in the Bespoke section):
+  // the first perch was innocent; these two later, pricier ones lean into the
+  // excess. All three are plain ×2 pets — the joke lives entirely in the flavor.
+  { key: "cattree", name: "Window Perch", icon: "🪟",
     cost: 60e6, unlock: { clicks: 1800 },
     effect: { type: "clickMult", mult: 2 },
-    fx: "Claims the tallest perch in the house" },
+    fx: "A second window perch, for the second window" },
   { key: "windowperch", name: "Window Perch", icon: "🪟",
     cost: 90e6, unlock: { clicks: 2200 },
     effect: { type: "clickMult", mult: 2 },
-    fx: "Prime real estate for judging the birds outside" },
+    fx: "A third window perch. The house has two windows" },
   { key: "dryfood", name: "Dry Food", icon: "🥣",
     cost: 120e6, unlock: { clicks: 2600 },
     effect: { type: "clickMult", mult: 2 },
@@ -926,9 +929,13 @@ const UPGRADES = [
   // never the Factory. See hex-clicker-synergy-brief.md (now historical).
 
   // --- Bespoke ---
-  { key: "milk", name: "Saucer of Milk", icon: "🥛",
+  // Window Perch #1 of the running gag (see #2/#3 in the petting ladder above):
+  // this first one is played straight; the later two lean into the excess.
+  // Replaces the old Saucer of Milk (+5% income) — now a plain ×2 petting bonus.
+  { key: "milk", name: "Window Perch", icon: "🪟",
     cost: 50000, unlock: { total: 40000 },
-    effect: { type: "globalPct", pct: 5 } },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "Prime real estate for judging the birds outside" },
   { key: "magnet", name: "Mouse Magnet", icon: "🧲",
     cost: 30000, unlock: { golden: 2 },
     effect: { type: "goldenFreq", mult: 1.5 } },
@@ -1063,7 +1070,7 @@ function foldMods(bought, owned) {
       else if (e.type === "globalPct") globalPct += e.pct;
       // Multiplicative global (Lucky Number 6's clean x6), kept separate from the
       // additive globalPct so it multiplies the whole stack instead of blending
-      // into the +% sum — an honest "x6", not "+500% added to Milk/Focus".
+      // into the +% sum — an honest "x6", not "+500% added to Focus".
       else if (e.type === "globalMult") globalMul *= e.mult;
       else if (e.type === "clickFlat") m.clickFlat += e.add;
       else if (e.type === "clickShare") m.clickShare += e.pct / 100;

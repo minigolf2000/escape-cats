@@ -13,8 +13,8 @@ misses land as whole dropped 2–3 module segments (dashes), never single-module
 - Mask **6**, flipSeed 0, noiseSeed 1000 (search: 8 masks × restarts, then 400 noise samples)
 - Stroke satisfaction (overall): **167/167 = 100.0%** PASS
 - Hero-zone satisfaction: **107/107 = 100.0%** PASS
-- Whiteness (non-function light): **70.1%** (969/1383) PASS
-- Clean disc (clean disc r7 (through the inner 2 rings)): **0 speckle** of 95 non-stroke disc cells — **PASS (immaculate)**
+- Whiteness (non-function light): **70.1%** (969/1383); need ≥68%: PASS
+- Clean disc (clean disc r7 (through the inner 2 rings)): **0 speckle** of 95 cells — **PASS (immaculate)**
 - Per-block meter:
   blk0: 7/9 used (2 headroom)
   blk1: 7/9 used (2 headroom)
@@ -29,7 +29,7 @@ misses land as whole dropped 2–3 module segments (dashes), never single-module
 - Mask **4**, flipSeed 0, noiseSeed 555330 (search: 8 masks × restarts, then 400 noise samples)
 - Stroke satisfaction (overall): **171/173 = 98.8%** PASS
 - Hero-zone satisfaction: **87/87 = 100.0%** PASS
-- Whiteness (non-function light): **68.4%** (946/1383) PASS
+- Whiteness (non-function light): **68.4%** (946/1383); need ≥68%: PASS
 - Per-block meter:
   blk0: 7/9 used (2 headroom)
   blk1: 7/9 used (2 headroom)
@@ -45,7 +45,7 @@ misses land as whole dropped 2–3 module segments (dashes), never single-module
 - Mask **6**, flipSeed 0, noiseSeed 357355 (search: 8 masks × restarts, then 400 noise samples)
 - Stroke satisfaction (overall): **182/182 = 100.0%** PASS
 - Hero-zone satisfaction: **75/75 = 100.0%** PASS
-- Whiteness (non-function light): **68.8%** (951/1383) PASS
+- Whiteness (non-function light): **68.8%** (951/1383); need ≥68%: PASS
 - Per-block meter:
   blk0: 7/9 used (2 headroom)
   blk1: 7/9 used (2 headroom)
@@ -60,8 +60,8 @@ misses land as whole dropped 2–3 module segments (dashes), never single-module
 - Mask **2**, flipSeed 0, noiseSeed 1000 (search: 8 masks × restarts, then 400 noise samples)
 - Stroke satisfaction (overall): **161/161 = 100.0%** PASS
 - Hero-zone satisfaction: **82/82 = 100.0%** PASS
-- Whiteness (non-function light): **71.5%** (989/1383) PASS
-- Clean disc (clean hub disc r4): **0 speckle** of 5 non-stroke disc cells — **PASS (immaculate)**
+- Whiteness (non-function light): **71.5%** (989/1383); need ≥68%: PASS
+- Clean disc (clean hub disc r4): **0 speckle** of 5 cells — **PASS (immaculate)**
 - Per-block meter:
   blk0: 7/9 used (2 headroom)
   blk1: 7/9 used (2 headroom)
@@ -76,8 +76,8 @@ misses land as whole dropped 2–3 module segments (dashes), never single-module
 - Mask **3**, flipSeed 0, noiseSeed 1822370 (search: 8 masks × restarts, then 400 noise samples)
 - Stroke satisfaction (overall): **113/113 = 100.0%** PASS
 - Hero-zone satisfaction: **81/81 = 100.0%** PASS
-- Whiteness (non-function light): **74.3%** (1027/1383) PASS
-- Clean disc (clean disc r7 over the face + whisker corridors): **0 speckle** of 82 non-stroke disc cells — **PASS (immaculate)**
+- Whiteness (non-function light): **74.3%** (1027/1383); need ≥68%: PASS
+- Clean disc (clean disc r7 over the face + whisker corridors): **0 speckle** of 82 cells — **PASS (immaculate)**
 - Per-block meter:
   blk0: 1/9 used (8 headroom)
   blk1: 7/9 used (2 headroom)
@@ -86,10 +86,64 @@ misses land as whole dropped 2–3 module segments (dashes), never single-module
 - Decoded (case remix, same URL): `htTps://gITHub.Com/minigolf2000/cat-games`
 - Files: out/geometric-target-cat.png, out/geometric-target-cat.svg
 
-## Contact sheet
-- out/geometric-contact.png — all five side by side.
+## honeycomb
 
-## Notes (art-notes round 2)
+- Hero zone: the 3 largest hexes — edge band 100% (all solid hexes) + interior ≥90%; 2-module white halos
+- Mask **6**, flipSeed 0, noiseSeed 1000 (search: 8 masks × restarts, then 400 noise samples)
+- Edge-band satisfaction (all solid blobs): **90/90 = 100.0%** PASS
+- Hero-zone satisfaction: **115/115 = 100.0%** PASS
+- Blob interior fill: overall **100.0%** (100/100); hero interiors **100.0%** (100/100), need ≥90%: PASS — interior misses are invisible inside the black mass
+- White cutouts: **100.0%** (27/27) light
+- Whiteness (non-function light): **68.5%** (947/1383); need ≥60%: PASS
+- White halos (the 2-module white halos ringing every solid hex): **2 speckle** of 209 halo cells (99.0% clean) — PASS (soft gate)
+- Per-block meter:
+  blk0: 7/9 used (2 headroom)
+  blk1: 7/9 used (2 headroom)
+  min headroom = 2 (need ≥2): PASS
+- Dashes (budget-driven): 0 segment(s) dropped — 0 touching frozen block-0 (URL) cells, 0 elsewhere. Designed peripheral dissolve: 13 whole segment(s) faded out toward the edges (intentional negative space, not misses). Gap strays (dark inside a dropped gap): 9/38.
+- Decoded (case remix, same URL): `HtTps://GITHub.com/minigolf2000/cat-games`
+- Files: out/geometric-honeycomb.png, out/geometric-honeycomb.svg
+
+## tangram
+
+- Hero zone: the 4 largest dark triangles (edge 100%) + all (auto-placed, all-safe) white cutout triangles
+- Mask **2**, flipSeed 0, noiseSeed 2234158 (search: 8 masks × restarts, then 400 noise samples)
+- Edge-band satisfaction (all solid blobs): **99/99 = 100.0%** PASS
+- Hero-zone satisfaction: **88/88 = 100.0%** PASS
+- Blob interior fill: overall **100.0%** (52/52); hero interiors **100.0%** (42/42), need ≥90%: PASS — interior misses are invisible inside the black mass
+- White cutouts: **100.0%** (18/18) light
+- Whiteness (non-function light): **71.9%** (995/1383); need ≥60%: PASS
+- Three-tone render (black shapes / gray #3a3a3a noise / white cutouts): toned image scans — jsQR @ scale 8: **OK**, scale 3: **OK** (BW fallback in out/geometric-tangram-bw.png also scans)
+- Per-block meter:
+  blk0: 3/9 used (6 headroom)
+  blk1: 7/9 used (2 headroom)
+  min headroom = 2 (need ≥2): PASS
+- Dashes (budget-driven): 0 segment(s) dropped — 0 touching frozen block-0 (URL) cells, 0 elsewhere. No stray darks inside dropped gaps.
+- Decoded (case remix, same URL): `httPs://githUB.coM/minigolf2000/cat-games`
+- Files: out/geometric-tangram.png, out/geometric-tangram.svg, out/geometric-tangram-bw.png
+
+## Contact sheet
+- out/geometric-contact.png — all seven side by side (tangram tile shown three-tone).
+
+## Notes (art-notes round 3 — solid-blob additions)
+
+- **honeycomb & tangram are SOLID BLOBS**, scored the Disney-poster way: only
+  the EDGE band + halos are pinned at top priority (must be 100%); the interior
+  fill is pinned at the LOWEST priority so it takes only leftover rank and never
+  out-competes the edges for flip budget — an interior miss inside a black mass
+  is invisible. Relaxed whiteness gate ≥60% (solid masses are darker).
+- **honeycomb** — 6 flat-top hexagons (horizontal top/bottom runs, side 4–6 so the
+  60° staircases read crisp), clustered center-left. 3 largest solid (edge 100%,
+  interior ≥90%), 1 outline-with-white-center for contrast, 2 dissolving into
+  dashed outlines toward the frozen right (solveDashed). 2-module white halos.
+- **tangram** — the one THREE-TONE piece: solid dark triangles (edge pinned,
+  interior filled) + white cutout triangles, over a SURRENDERED noise ground.
+  Rendered black shapes / white cutouts / gray #3a3a3a noise (piece-4 trick); the
+  toned image is verified to scan at scale 8 AND 3, same as the BW fallback.
+- **Rounds 1–2 designs are UNCHANGED** — rings/starburst/target-cat still solve
+  clean (0 speckle), waves/spiral byte-identical to round 1.
+
+## Earlier notes (rounds 1–2)
 
 - **Dashes, not nibbles.** Every stroke is cut into contiguous 2–3 module
   segments. A probe solve measures per-segment satisfaction; whole outer

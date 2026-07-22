@@ -57,6 +57,74 @@ export function circleOutline(cy, cx, radius, aStart = 0, aEnd = 360, step = nul
 export const arcOutline = circleOutline;
 
 // ---------------------------------------------------------------------------
+// Solid-blob geometry: fill a convex polygon, split into edge band + interior,
+// and grow a white halo. All return Sets/arrays of module indices (func cells
+// excluded). Used by the honeycomb (hexagons) and tangram (triangles) designs.
+// ---------------------------------------------------------------------------
+// Fill a polygon given by vertices [[r,c],...] via even-odd scanline. Returns a
+// Set of non-function module indices inside (or on) the polygon.
+export function fillPolygon(verts, S, funcSet) {
+  const fill = new Set();
+  let minR = Infinity, maxR = -Infinity;
+  for (const [r] of verts) { minR = Math.min(minR, r); maxR = Math.max(maxR, r); }
+  minR = Math.max(0, Math.floor(minR)); maxR = Math.min(S - 1, Math.ceil(maxR));
+  for (let r = minR; r <= maxR; r++) {
+    const xs = [];
+    for (let e = 0; e < verts.length; e++) {
+      const [r1, c1] = verts[e], [r2, c2] = verts[(e + 1) % verts.length];
+      if ((r1 <= r && r2 > r) || (r2 <= r && r1 > r)) {
+        xs.push(c1 + ((r - r1) / (r2 - r1)) * (c2 - c1));
+      }
+    }
+    xs.sort((a, b) => a - b);
+    for (let p = 0; p + 1 < xs.length; p += 2) {
+      const cLo = Math.round(xs[p]), cHi = Math.round(xs[p + 1]);
+      for (let c = cLo; c <= cHi; c++) {
+        if (c < 0 || c >= S) continue;
+        const i = r * S + c;
+        if (!funcSet[i]) fill.add(i);
+      }
+    }
+  }
+  return fill;
+}
+
+// Edge band = fill cells that touch a non-fill cell (4-neighbourhood) or the
+// grid border. Returns a Set of module indices.
+export function edgeOf(fill, S) {
+  const edge = new Set();
+  for (const i of fill) {
+    const r = (i / S) | 0, c = i % S;
+    const nb = [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]];
+    let boundary = false;
+    for (const [rr, cc] of nb) {
+      if (rr < 0 || cc < 0 || rr >= S || cc >= S) { boundary = true; break; }
+      if (!fill.has(rr * S + cc)) { boundary = true; break; }
+    }
+    if (boundary) edge.add(i);
+  }
+  return edge;
+}
+
+// White halo = cells within Chebyshev distance `w` OUTSIDE the fill (not in fill,
+// not function). Returns an array of module indices.
+export function haloOf(fill, S, funcSet, w = 2) {
+  const halo = new Set();
+  for (const i of fill) {
+    const r = (i / S) | 0, c = i % S;
+    for (let dr = -w; dr <= w; dr++)
+      for (let dc = -w; dc <= w; dc++) {
+        const rr = r + dr, cc = c + dc;
+        if (rr < 0 || cc < 0 || rr >= S || cc >= S) continue;
+        const j = rr * S + cc;
+        if (fill.has(j) || funcSet[j]) continue;
+        halo.add(j);
+      }
+  }
+  return [...halo];
+}
+
+// ---------------------------------------------------------------------------
 // Block-aware white-pin classifier (piece 1's insight). A field cell is "safe"
 // to pin white iff its codeword lives in block 1 or is an EC codeword — those
 // failures are absorbed by block 1's separate flip budget without spending the
@@ -220,14 +288,19 @@ export function solveDashed(prep, opts) {
     const A = segKey(ka), B = segKey(kb);
     return A.hero - B.hero || A.prio - B.prio || A.dist - B.dist;
   };
-  const heroOrder = segIdx.filter((k) => segments[k].hero).sort(cmp);
-  // Outer segments split into "active" (compete for budget) and "preDrop"
-  // (a DESIGNED peripheral dissolve — whole segments the design chose to fade
-  // out, e.g. the lattice thinning toward the frozen edges). preDrop segments
-  // are sacrificed up front (pinned white), never probed.
-  const outerActive = segIdx.filter((k) => !segments[k].hero && !segments[k].forceDrop).sort(cmp);
-  const preDrop = segIdx.filter((k) => !segments[k].hero && segments[k].forceDrop);
+  // Segment categories. For the line designs every segment is a plain dark
+  // stroke (no .interior / .white flags) so these reduce to the original split.
+  //   edge/stroke : dark, pinned by hero/outer priority (the drawn line/outline).
+  //   interior    : dark, pinned at the LOWEST priority (solid-blob fill) — never
+  //                 sacrificed, tolerates invisible misses, doesn't chase flips.
+  //   white       : pinned WHITE at high priority (a cutout / white shape).
+  const isPlain = (s) => !s.interior && !s.white;
+  const heroOrder = segIdx.filter((k) => segments[k].hero && isPlain(segments[k])).sort(cmp);
+  const outerActive = segIdx.filter((k) => !segments[k].hero && isPlain(segments[k]) && !segments[k].forceDrop).sort(cmp);
+  const preDrop = segIdx.filter((k) => !segments[k].hero && isPlain(segments[k]) && segments[k].forceDrop);
   const outerOrder = outerActive;
+  const whiteHeroKeys = segIdx.filter((k) => segments[k].white).sort(cmp);   // cutouts / white shapes
+  const interiorKeys = segIdx.filter((k) => segments[k].interior).sort(cmp); // solid-blob fill
 
   // Field-white modules (safe cells only), nearest-to-center first.
   const fieldMods = fieldWhiteSafe.slice().sort((a, b) => d2(a) - d2(b));
@@ -238,6 +311,11 @@ export function solveDashed(prep, opts) {
   // trick: the disc's non-stroke cells win rank ahead of everything but the hero
   // drawing, so the disc stays speckle-free. When discCells is empty the order
   // reduces to hero→outer→white→field — identical to the pre-disc behaviour.
+  // Priority: hero edges (dark) → disc/halo white → white cutouts → outer dark →
+  // sacrificed white (dash gaps) → INTERIOR fill (dark, lowest dark priority so
+  // it consumes only leftover rank and doesn't out-compete the edges for flips) →
+  // field white. Empty categories drop out, so for the line designs this is
+  // exactly hero→disc→outer→sacrificed→field as before.
   const buildIO = (heroDark, outerDark, whiteSegs) => {
     const order = [];
     const target = new Uint8Array(S * S);
@@ -249,9 +327,11 @@ export function solveDashed(prep, opts) {
       seq[i] = order.length;
     };
     for (const k of heroDark) for (const i of segments[k].mods) push(i, true);
-    for (const i of discCells) push(i, false);      // clean disc
+    for (const i of discCells) push(i, false);      // clean disc / halos
+    for (const k of whiteHeroKeys) for (const i of segments[k].mods) push(i, false); // white cutouts
     for (const k of outerDark) for (const i of segments[k].mods) push(i, true);
     for (const k of whiteSegs) for (const i of segments[k].mods) push(i, false);
+    for (const k of interiorKeys) for (const i of segments[k].mods) push(i, true);   // blob fill
     for (const i of fieldMods) push(i, false);
     return { order, target, seq };
   };
@@ -285,9 +365,12 @@ export function solveDashed(prep, opts) {
       const res = runSolve(resIO, mask, flipSeed, baseNoise);
       if (res.headroom < 2) continue;
       const m = measure(res.matrix, segments, heroOrder, funcSet, S, sacrificed, discCells);
-      // Selection key: clean disc FIRST (zero speckle is a hard art gate), then
-      // maximize hero satisfaction (continuously), then stroke%, then whiteness.
-      const key = -m.discDark * 1e12 + m.heroSat * 1e9 + m.strokeSat * 1e3 + m.whiteness * 1;
+      // Selection key: clean disc/halo FIRST (zero speckle), then the hard hero
+      // gate (edges + cutouts), then edge-band/stroke%, then blob interior fill,
+      // then whiteness. For the line designs intSat is 1 (a constant), so the key
+      // reduces to the pre-blob formula and their winning config is unchanged.
+      const key = -m.discDark * 1e12 + m.heroSat * 1e9 + m.strokeSat * 1e3
+        + m.heroIntSat * 1e1 + m.whiteness * 1;
       if (!best || key > best.key) {
         best = { key, mask, flipSeed, sacrificed, keptOuter, m };
       }
@@ -300,23 +383,45 @@ export function solveDashed(prep, opts) {
   };
 }
 
-// Per-config metrics over the drawn geometry.
+// Per-config metrics over the drawn geometry. Handles both the line designs
+// (plain dark strokes) and the solid-blob designs (edge / interior / white-
+// cutout segments). For line designs the interior/white branches are never hit,
+// so every returned number is identical to the pre-blob version.
 export function measure(matrix, segments, heroSegKeys, funcSet, S, sacrificed, discCells = []) {
-  const heroSet = new Set(heroSegKeys);
-  // "Active" strokes = the drawn line (hero + non-faded outer). Designed-fade
-  // segments (forceDrop) are intentional negative space and are excluded from
-  // the stroke denominator — they are not misses.
+  // A segment is hero iff it flags itself so (heroOrder passed in matches this
+  // for the line designs; using the flag directly also catches hero cutouts and
+  // hero interiors on the blob designs).
+  const isHero = (s) => !!s.hero;
+  // "Active edge/stroke" = plain dark segments (the drawn line / blob outline),
+  // minus designed fades. Interior fill and white cutouts are scored separately.
   let strokeTot = 0, strokeSatN = 0, heroTot = 0, heroSatN = 0;
+  let intTot = 0, intSatN = 0, heroIntTot = 0, heroIntSatN = 0;   // interior fill (dark)
+  let cutTot = 0, cutSatN = 0, heroCutTot = 0, heroCutSatN = 0;   // white cutouts (light)
   const droppedSegs = [], fadedSegs = [];
   segments.forEach((s, k) => {
+    if (s.white) { // white cutout / white shape — satisfied cell = LIGHT (0)
+      let lightN = 0;
+      for (const i of s.mods) if (matrix[i] === 0) lightN++;
+      cutTot += s.mods.length; cutSatN += lightN;
+      if (isHero(s)) { heroCutTot += s.mods.length; heroCutSatN += lightN; }
+      if (lightN < s.mods.length) droppedSegs.push({ k, mods: s.mods, darkN: lightN, len: s.mods.length, hero: isHero(s), white: true });
+      return;
+    }
     let darkN = 0;
     for (const i of s.mods) if (matrix[i] === 1) darkN++;
+    if (s.interior) { // solid-blob fill — invisible misses allowed, not a stroke
+      intTot += s.mods.length; intSatN += darkN;
+      if (isHero(s)) { heroIntTot += s.mods.length; heroIntSatN += darkN; }
+      return;
+    }
     if (s.forceDrop) { fadedSegs.push({ k, mods: s.mods, len: s.mods.length }); return; }
     strokeTot += s.mods.length;
     strokeSatN += darkN;
-    if (heroSet.has(k)) { heroTot += s.mods.length; heroSatN += darkN; }
-    if (darkN < s.mods.length) droppedSegs.push({ k, mods: s.mods, darkN, len: s.mods.length, hero: heroSet.has(k) });
+    if (isHero(s)) { heroTot += s.mods.length; heroSatN += darkN; }
+    if (darkN < s.mods.length) droppedSegs.push({ k, mods: s.mods, darkN, len: s.mods.length, hero: isHero(s) });
   });
+  // Hard hero gate = hero edges (dark) + hero white cutouts (light), all 100%.
+  const heroGateTot = heroTot + heroCutTot, heroGateSatN = heroSatN + heroCutSatN;
   // gapDark: modules inside SACRIFICED segments that came out dark anyway (a
   // stray within an intended gap — the one nibble risk; report it).
   let gapDark = 0, gapTot = 0;
@@ -325,15 +430,15 @@ export function measure(matrix, segments, heroSegKeys, funcSet, S, sacrificed, d
     if (!sacSet.has(k)) return;
     for (const i of s.mods) { gapTot++; if (matrix[i] === 1) gapDark++; }
   });
-  // discDark: clean-disc speckle. A disc cell is pinned white unless it is a
-  // hero-stroke cell (hero pins before the disc). Any non-hero disc cell that is
-  // dark is speckle — the build-01 gate wants this at 0.
+  // discDark: clean-disc / white-halo speckle. A disc cell is pinned white unless
+  // it is a dark art cell pinned earlier (hero edge or interior fill). Any other
+  // disc cell that is dark is speckle — the build-01 gate wants this at 0.
   let discDark = 0, discTot = 0;
   if (discCells.length) {
-    const heroMods = new Set();
-    for (const k of heroSegKeys) for (const i of segments[k].mods) heroMods.add(i);
+    const darkArt = new Set();
+    for (const s of segments) if (!s.white) for (const i of s.mods) darkArt.add(i);
     for (const i of discCells) {
-      if (heroMods.has(i)) continue;
+      if (darkArt.has(i)) continue;
       discTot++;
       if (matrix[i] === 1) discDark++;
     }
@@ -342,7 +447,11 @@ export function measure(matrix, segments, heroSegKeys, funcSet, S, sacrificed, d
   for (let i = 0; i < S * S; i++) { if (funcSet[i]) continue; nfTot++; if (matrix[i] === 0) nfLight++; }
   return {
     strokeTot, strokeSatN, strokeSat: strokeTot ? strokeSatN / strokeTot : 1,
-    heroTot, heroSatN, heroSat: heroTot ? heroSatN / heroTot : 1,
+    heroTot: heroGateTot, heroSatN: heroGateSatN, heroSat: heroGateTot ? heroGateSatN / heroGateTot : 1,
+    intTot, intSatN, intSat: intTot ? intSatN / intTot : 1,
+    heroIntTot, heroIntSatN, heroIntSat: heroIntTot ? heroIntSatN / heroIntTot : 1,
+    cutTot, cutSatN, cutSat: cutTot ? cutSatN / cutTot : 1,
+    heroCutTot, heroCutSatN,
     droppedSegs, fadedSegs, gapDark, gapTot,
     discDark, discTot,
     whiteness: nfLight / nfTot, nfLight, nfTot,

@@ -40,6 +40,26 @@ that reads as a sparse pen drawing on paper.
    center-left, orbited by two thin concentric arcs. Hero zone: the cat and
    inner arc.
 
+## Round-3 additions (user request: hexagon / triangle blobs)
+
+Solid blobs, not outlines — the Disney-poster move (solid masses + white
+cutouts are codeword-cheap; only edges and halos need exact pinning). Both
+designs keep the shared rules and gates, except whiteness ≥60% (solid
+masses are darker by nature) and a new gate: every blob's EDGE band (its
+outline modules) 100%, interiors may eat invisible misses.
+
+6. **honeycomb** — 5–7 flat-top solid hexagons, side 4–6 modules, mixed
+   sizes, clustered center-left with 1–2 rendered as outline-with-white-
+   center for contrast; 2-module white halos; toward the frozen right the
+   cluster dissolves into partial dashed hex outlines (solveDashed). Hero:
+   the three largest hexes (edge band 100%, interior ≥90%).
+7. **tangram** — solid triangles of varied size/rotation tumbling
+   diagonally across the symbol like confetti, plus 2–3 white cutout
+   triangles punched into the surrendered-noise ground between them
+   (three-tone: black shapes, white shapes, gray noise — noise stays
+   surrendered, unlike the white-field designs). Hero: the four largest
+   dark triangles + all white cutouts.
+
 ## Deliverables
 
 - out/geometric-<name>.png + .svg per design (scale 8, quiet 4)

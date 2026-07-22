@@ -84,6 +84,23 @@ honest read path (unmask → de-interleave → RS-correct) and prints it. The
 visible art is a paw print solved with the ~40% of pad freedom the message
 left behind.
 
+## 8–11. The wallpaper & evolution wing
+
+Later additions push into repeating pattern and machine search:
+
+- **Geometric nearly-blank series** (`out/geometric-*.png`) — rings, waves,
+  spiral, starburst, target-cat, plus solid-blob honeycomb and tangram.
+- **v10 wallpaper** (`out/wallpaper-*.png`) — 57×57 codes tiled with smiley
+  polka dots, the '90s Cool S, and a school-binder doodle page.
+- **Smiley & Cool S icons** (`out/icon-*.png`) — the schoolyard classics as
+  nearly-blank line art.
+- **Evolved cat/paw wallpaper** (`out/evolve-champion-*.png`) — the champions
+  of an *aesthetic genetic algorithm* that evolved icon placements over
+  generations, scored for "wow" by a vision judge each round. A dense grid of
+  tiny cat faces (and a cats-and-paws sibling) on a v10 code. See
+  `out/evolve-report.md` and `out/evolve-montage.png` for the story, and
+  `specs/` for how each piece was directed.
+
 ## Verifying everything yourself
 
 ```sh

@@ -681,7 +681,7 @@
 // ---------------------------------------------------------------------------
 const GROWTH = 1.15;
 const BUILDINGS = [
-  { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 40,     mps: 0.4, blurb: "Gets a mouse every 2.5 seconds" },
+  { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 10,     mps: 0.4, blurb: "Gets a mouse every 2.5 seconds" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
   { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces mice" },
   // The one day building that keeps producing after the night reset (see
@@ -1467,7 +1467,11 @@ function buyUpgrade(key) {
 const cpsValEl = cpsEl.querySelector("b");
 function refreshHud() {
   countEl.textContent = fmt(game.mice);
-  cpsValEl.textContent = fmt(cps());
+  // The top-of-screen rate is a headline number, not a precise readout: it
+  // ticks constantly and a fractional tail ("7.4 per second") reads as noise.
+  // floats=0 forces a whole number here only — fmt still keeps decimals for
+  // prices, per-building rates and effect text everywhere else.
+  cpsValEl.textContent = fmt(cps(), 0);
 }
 
 // ---------------------------------------------------------------------------

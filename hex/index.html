@@ -1018,6 +1018,11 @@ const UPGRADES = [
     fx: "She takes the wheel — the mice streak wherever she wills" },
 ];
 
+// Catnap Hypnalysis is the finale of daytime: it must read as the single most
+// expensive thing on the day shop. Anything pricier is withheld until the twist
+// (see unlockMet's day-cap), so this cost is the ceiling of the daytime economy.
+const CATNAP_COST = UPGRADES.find(u => u.key === "catnap").cost;
+
 // ---------------------------------------------------------------------------
 // STATE
 // ---------------------------------------------------------------------------
@@ -1189,6 +1194,11 @@ function unlockMet(u, s) {
   if (c.clicks != null && s.clicks < c.clicks) return false;
   if (c.golden != null && s.goldCaught < c.golden) return false;
   if (c.requires && !s.bought[c.requires]) return false;
+  // Daytime cap: nothing pricier than Catnap appears before the twist, so Catnap
+  // is always the most expensive upgrade on the day shop — its finale. Catnap
+  // itself is exempt (its cost isn't > its own), and once night is on this lifts
+  // for everything (the night chain is already `requires`-gated regardless).
+  if (u.cost > CATNAP_COST && !nightOf(s.bought)) return false;
   return true;
 }
 function isUnlocked(u) {

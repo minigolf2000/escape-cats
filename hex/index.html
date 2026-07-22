@@ -744,12 +744,13 @@ const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
 // Global income compression. The BUILDINGS mps column mirrors Cookie Clicker's
 // first buildings, whose pacing targets a weeks-long IDLE game; this is a
-// frantic ~10-min co-op for a team of 4. INCOME_SCALE multiplies all passive
+// frantic ~7-min co-op for a team of 4. INCOME_SCALE multiplies all passive
 // income (and, via clickShare, the pet-share term with it — so the click/idle
-// balance is preserved) to land the run at: medium team (~8 pets/s) ≈ 10 min,
-// good team mashing (~16 pets/s) ≈ 7 min. One dial, tune against playtests.
-// Applied in baseCpsWith so the in-file pacing simulator sees it for free.
-const INCOME_SCALE = 3.5;
+// balance is preserved) to land the run (to word-legible) at: a team of 4
+// mashing (~16 pets/s) ≈ 7:00, a strong team (~12/s) ≈ 7:30, a medium team
+// (~8/s) ≈ 8:30 — measured against the in-file sim. One dial, tune against
+// playtests. Applied in baseCpsWith so the pacing simulator sees it for free.
+const INCOME_SCALE = 2.7;
 const SAVE_KEY = "hexclicker.v1";
 
 // ---------------------------------------------------------------------------
@@ -1018,11 +1019,6 @@ const UPGRADES = [
     fx: "She takes the wheel — the mice streak wherever she wills" },
 ];
 
-// Catnap Hypnalysis is the finale of daytime: it must read as the single most
-// expensive thing on the day shop. Anything pricier is withheld until the twist
-// (see unlockMet's day-cap), so this cost is the ceiling of the daytime economy.
-const CATNAP_COST = UPGRADES.find(u => u.key === "catnap").cost;
-
 // ---------------------------------------------------------------------------
 // STATE
 // ---------------------------------------------------------------------------
@@ -1194,11 +1190,6 @@ function unlockMet(u, s) {
   if (c.clicks != null && s.clicks < c.clicks) return false;
   if (c.golden != null && s.goldCaught < c.golden) return false;
   if (c.requires && !s.bought[c.requires]) return false;
-  // Daytime cap: nothing pricier than Catnap appears before the twist, so Catnap
-  // is always the most expensive upgrade on the day shop — its finale. Catnap
-  // itself is exempt (its cost isn't > its own), and once night is on this lifts
-  // for everything (the night chain is already `requires`-gated regardless).
-  if (u.cost > CATNAP_COST && !nightOf(s.bought)) return false;
   return true;
 }
 function isUnlocked(u) {

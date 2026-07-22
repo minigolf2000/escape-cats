@@ -418,6 +418,7 @@
   #trayHandle {
     flex: none; width: 100%; display: flex; align-items: center;
     justify-content: space-between; padding: 10px 14px; cursor: pointer;
+    touch-action: none; /* claim vertical drags for resize, not page scroll */
     -webkit-appearance: none; appearance: none; border-radius: 0;
     background: var(--wood), var(--panel-bg);
     border: 0; border-top: 1px solid var(--wood-line);
@@ -449,11 +450,16 @@
                 transform .2s cubic-bezier(.4,0,1,1);
   }
   #dock.open #trayBody {
-    max-height: 56vh;
+    /* Open height is a drag-set var (capped at 60vh in JS so a tall tray can't
+       blanket the night-wall reveal); 56vh is the pre-drag default. */
+    max-height: var(--tray-h, 56vh);
     transform: translateY(0); pointer-events: auto;
     transition: max-height .32s cubic-bezier(.16,1,.3,1),
                 transform .32s cubic-bezier(.16,1,.3,1);
   }
+  /* No animated max-height while a finger is actively resizing — the height is
+     driven frame-by-frame from the drag, so a transition would lag the finger. */
+  #dock.dragging #trayBody { transition: none; }
   /* Respect the same motion preference the rays already honor: snap, no slide. */
   @media (prefers-reduced-motion: reduce) {
     #trayBody, #dock.open #trayBody { transition: none; }
@@ -681,7 +687,7 @@
 // ---------------------------------------------------------------------------
 const GROWTH = 1.15;
 const BUILDINGS = [
-  { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 40,     mps: 0.4, blurb: "Gets a mouse every 2.5 seconds" },
+  { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 10,     mps: 0.4, blurb: "Gets a mouse every 2.5 seconds" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
   { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces mice" },
   // The one day building that keeps producing after the night reset (see
@@ -853,7 +859,7 @@ const UPGRADES = [
     fx: "Watched closely, every mouse multiplies out of politeness" },
 
   // --- Petting ---
-  { key: "whiskers", name: "Sensitive Whiskers", icon: "🐈",
+  { key: "whiskers", name: "Cat Tree", icon: "🌳",
     cost: 100, unlock: { total: 200 },
     effect: { type: "clickFlat", add: 1 } },
   { key: "clawsharp", name: "Cat Brush", icon: "🪮",
@@ -894,14 +900,17 @@ const UPGRADES = [
     cost: 40e6, unlock: { clicks: 1500 },
     effect: { type: "clickMult", mult: 2 },
     fx: "Pet the bitey one without consequence" },
-  { key: "cattree", name: "Cat Tree", icon: "🌳",
+  // Window Perch #2 and #3 of the running gag (see #1 in the Bespoke section):
+  // the first perch was innocent; these two later, pricier ones lean into the
+  // excess. All three are plain ×2 pets — the joke lives entirely in the flavor.
+  { key: "cattree", name: "Window Perch", icon: "🪟",
     cost: 60e6, unlock: { clicks: 1800 },
     effect: { type: "clickMult", mult: 2 },
-    fx: "Claims the tallest perch in the house" },
+    fx: "A second window perch, for the second window" },
   { key: "windowperch", name: "Window Perch", icon: "🪟",
     cost: 90e6, unlock: { clicks: 2200 },
     effect: { type: "clickMult", mult: 2 },
-    fx: "Prime real estate for judging the birds outside" },
+    fx: "A third window perch. The house has two windows" },
   { key: "dryfood", name: "Dry Food", icon: "🥣",
     cost: 120e6, unlock: { clicks: 2600 },
     effect: { type: "clickMult", mult: 2 },
@@ -920,9 +929,13 @@ const UPGRADES = [
   // never the Factory. See hex-clicker-synergy-brief.md (now historical).
 
   // --- Bespoke ---
-  { key: "milk", name: "Saucer of Milk", icon: "🥛",
+  // Window Perch #1 of the running gag (see #2/#3 in the petting ladder above):
+  // this first one is played straight; the later two lean into the excess.
+  // Replaces the old Saucer of Milk (+5% income) — now a plain ×2 petting bonus.
+  { key: "milk", name: "Window Perch", icon: "🪟",
     cost: 50000, unlock: { total: 40000 },
-    effect: { type: "globalPct", pct: 5 } },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "Prime real estate for judging the birds outside" },
   { key: "magnet", name: "Mouse Magnet", icon: "🧲",
     cost: 30000, unlock: { golden: 2 },
     effect: { type: "goldenFreq", mult: 1.5 } },
@@ -1057,7 +1070,7 @@ function foldMods(bought, owned) {
       else if (e.type === "globalPct") globalPct += e.pct;
       // Multiplicative global (Lucky Number 6's clean x6), kept separate from the
       // additive globalPct so it multiplies the whole stack instead of blending
-      // into the +% sum — an honest "x6", not "+500% added to Milk/Focus".
+      // into the +% sum — an honest "x6", not "+500% added to Focus".
       else if (e.type === "globalMult") globalMul *= e.mult;
       else if (e.type === "clickFlat") m.clickFlat += e.add;
       else if (e.type === "clickShare") m.clickShare += e.pct / 100;
@@ -1244,7 +1257,50 @@ function setTrayOpen(open) {
   dockEl.classList.toggle("open", open);
   trayHandleEl.setAttribute("aria-expanded", open ? "true" : "false");
 }
-trayHandleEl.addEventListener("click", () => setTrayOpen(!dockEl.classList.contains("open")));
+// The handle is both a toggle and a resize grip. A tap flips the tray open/
+// closed (the original behavior); a vertical drag resizes it live, and a hard
+// downward yank closes it. One pointer controller owns the gesture so tap and
+// drag never double-fire — which is why the old `click` listener is gone.
+// Height persists per device; capped at 60vh so a tall tray can't blanket the
+// night-wall reveal (the cutscene force-closes it regardless).
+const trayBodyEl = $("#trayBody");
+const TRAY_H_KEY = "hexclicker.trayh";
+const TRAY_MIN_H = 120;   // px; released below half this => close
+const TRAY_SLOP = 6;      // px of travel still counted as a tap, not a drag
+const trayMaxH = () => Math.round(innerHeight * 0.6);
+const clampTrayH = h => Math.max(TRAY_MIN_H, Math.min(trayMaxH(), h));
+const setTrayH = h => dockEl.style.setProperty("--tray-h", clampTrayH(h) + "px");
+(() => { const h = parseFloat(localStorage.getItem(TRAY_H_KEY)); if (h > 0) setTrayH(h); })();
+
+let trayDrag = null;
+trayHandleEl.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  try { trayHandleEl.setPointerCapture(e.pointerId); } catch {}
+  trayDrag = { id: e.pointerId, y: e.clientY, raw: 0, moved: false,
+    startH: dockEl.classList.contains("open") ? trayBodyEl.getBoundingClientRect().height : 0 };
+  dockEl.classList.add("dragging");
+});
+trayHandleEl.addEventListener("pointermove", e => {
+  if (!trayDrag || e.pointerId !== trayDrag.id) return;
+  const dy = trayDrag.y - e.clientY;               // finger up => taller
+  if (Math.abs(dy) > TRAY_SLOP) trayDrag.moved = true;
+  if (!trayDrag.moved) return;
+  trayDrag.raw = trayDrag.startH + dy;
+  dockEl.classList.add("open");
+  setTrayH(trayDrag.raw);
+});
+function endTrayDrag(e) {
+  if (!trayDrag || e.pointerId !== trayDrag.id) return;
+  const d = trayDrag; trayDrag = null;
+  dockEl.classList.remove("dragging");
+  try { trayHandleEl.releasePointerCapture(e.pointerId); } catch {}
+  if (!d.moved) { setTrayOpen(!dockEl.classList.contains("open")); return; } // tap = toggle
+  if (d.raw < TRAY_MIN_H / 2) { setTrayOpen(false); return; }                // yanked closed
+  setTrayOpen(true);
+  try { localStorage.setItem(TRAY_H_KEY, String(clampTrayH(d.raw))); } catch {}
+}
+trayHandleEl.addEventListener("pointerup", endTrayDrag);
+trayHandleEl.addEventListener("pointercancel", endTrayDrag);
 upgradeSecEl.querySelector(".shopHead").addEventListener("click", () => setTrayOpen(false));
 
 // Kiosk lockdown (see the html,body CSS note): swallow the long-press context
@@ -1467,7 +1523,11 @@ function buyUpgrade(key) {
 const cpsValEl = cpsEl.querySelector("b");
 function refreshHud() {
   countEl.textContent = fmt(game.mice);
-  cpsValEl.textContent = fmt(cps());
+  // The top-of-screen rate is a headline number, not a precise readout: it
+  // ticks constantly and a fractional tail ("7.4 per second") reads as noise.
+  // floats=0 forces a whole number here only — fmt still keeps decimals for
+  // prices, per-building rates and effect text everywhere else.
+  cpsValEl.textContent = fmt(cps(), 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -2510,11 +2570,15 @@ function updateCat(t) {
     lookX = IRIS_LOOK * 0.5 * Math.sin(t / 2300) * Math.sin(t / 5700);
     lookY = IRIS_LOOK * 0.3 * Math.sin(t / 3300) * Math.sin(t / 7100);
   }
-  // Dilated only while awake AND a golden is actually out there — not during
-  // sleep even if a saucer is drifting past, matching the branch above where
-  // asleep never looks toward it either. #irisLeft/#irisRight's own CSS
-  // transition (.12s ease-out) is what makes this a dilate rather than a snap.
-  const pupilScaleX = (!asleep && goldActive) ? PUPIL_ROUND : PUPIL_SLIT;
+  // Dilated while awake AND excited: either a golden is actually out there, or
+  // a Click Frenzy is running (pets worth more) — the buff a caught golden
+  // leaves behind, so her eyes stay blown wide through the frenzy instead of
+  // snapping shut the instant the mouse is gone. Not during sleep even if a
+  // saucer is drifting past, matching the branch above where asleep never looks
+  // toward it either. #irisLeft/#irisRight's own CSS transition (.12s ease-out)
+  // is what makes this a dilate rather than a snap.
+  const clickFrenzy = currentClickBuff() > 1;
+  const pupilScaleX = (!asleep && (goldActive || clickFrenzy)) ? PUPIL_ROUND : PUPIL_SLIT;
   const irisTransform = `translate(${lookX}px, ${lookY}px) scale(${pupilScaleX}, ${irisScaleY})`;
   irisLeftEl.style.transform = irisTransform;
   irisRightEl.style.transform = irisTransform;
@@ -2877,7 +2941,13 @@ function initDev() {
     #devbar summary { cursor: pointer; color: #aeb6c6; list-style: none; padding: 1px 0; }
     #devbar summary::-webkit-details-marker { display: none; }
     #devbar summary::before { content: "▸ "; }
-    #devList[open] summary::before { content: "▾ "; }
+    #devbar details[open] > summary::before { content: "▾ "; }
+    /* Outer collapse: the whole panel folds down to a "🛠 debug" pill; the inner
+       devList stays its own independent fold (the data tables). Two nested
+       <details> give three tiers — pill / controls / controls+tables — and each
+       open-state is persisted (see initDev). */
+    #devPanel > summary { color: var(--neon); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    #devPanel > * + * { margin-top: 5px; }
     #devContent { margin-top: 4px; overflow-x: auto; }
     #devContent h4 { margin: 10px 0 5px; color: var(--gold); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
     #devContent h4:first-child { margin-top: 0; }
@@ -2891,12 +2961,14 @@ function initDev() {
   const bar = document.createElement("div");
   bar.id = "devbar";
   bar.innerHTML =
-    `<div class="r">speed <button data-sp="1" class="on">×1</button><button data-sp="10">×10</button><button data-sp="50">×50</button></div>
+    `<details id="devPanel" open><summary>🛠 debug</summary>
+     <div class="r">speed <button data-sp="1" class="on">×1</button><button data-sp="10">×10</button><button data-sp="50">×50</button></div>
      <div class="r">team <button data-team="1" class="on">×1</button><button data-team="4">×4</button></div>
      <div class="r">grant <button data-g="1e4">+10K</button><button data-g="1e6">+1M</button><button data-g="1e8">+100M</button></div>
      <div class="r">jump ${Object.keys(DEV_PRESETS).map(k => `<button data-p="${k}">${k}</button>`).join("")}</div>
      <div class="r">sim <button data-sim="0">idle</button><button data-sim="3">solo 3/s</button><button data-sim="10">team 10/s</button></div>
-     <details id="devList"><summary>buildings &amp; upgrades</summary><div id="devContent"></div></details>`;
+     <details id="devList"><summary>buildings &amp; upgrades</summary><div id="devContent"></div></details>
+     </details>`;
   document.body.appendChild(bar);
   const list = bar.querySelector("#devList"), content = bar.querySelector("#devContent");
   // `toggle` fires as a queued task, so a sim click that opens the panel and
@@ -2932,6 +3004,24 @@ function initDev() {
       devApply(b.dataset.p);
     }
   });
+
+  // Tiered collapse, persisted: the outer panel (devPanel) and the data tables
+  // (devList) each remember their open state across reloads, so a dev who keeps
+  // it fully folded to the pill doesn't have to re-collapse it every load. Two
+  // listeners on devList's `toggle` is fine — the existing one paints content,
+  // this one just saves.
+  const panel = bar.querySelector("#devPanel");
+  const DEV_UI_KEY = "hexclicker.devui";
+  const saveDevUi = () => {
+    try { localStorage.setItem(DEV_UI_KEY, JSON.stringify({ panel: panel.open, list: list.open })); } catch {}
+  };
+  panel.addEventListener("toggle", saveDevUi);
+  list.addEventListener("toggle", saveDevUi);
+  let devUi = {};
+  try { devUi = JSON.parse(localStorage.getItem(DEV_UI_KEY)) || {}; } catch {}
+  // Markup default is panel-open / list-closed; only override from a saved state.
+  if (typeof devUi.panel === "boolean") panel.open = devUi.panel;
+  if (devUi.list === true) list.open = true; // fires the paint+widen toggle handler
 }
 
 // ---------------------------------------------------------------------------

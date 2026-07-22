@@ -151,7 +151,7 @@
      shown at night (the theme vars are for colors; a display toggle doesn't
      need to round-trip through one). */
   #rays {
-    position: absolute; top: 44%; left: 50%; width: 190vmax; height: 190vmax;
+    position: absolute; top: 33%; left: 50%; width: 190vmax; height: 190vmax;
     margin: -95vmax 0 0 -95vmax; pointer-events: none; display: block;
     background: repeating-conic-gradient(from 0deg,
       rgba(255,255,255,.115) 0deg 5deg, transparent 5deg 11deg);
@@ -165,8 +165,14 @@
      against #hexCat's actual painted shapes (see its rule below), not this
      full-stage box, so a tap in the empty space around Hex (or between her
      ears) doesn't count as a pet. */
+  /* Biased upward, not centered: the buildings strip is now pinned to the
+     bottom of the screen (see #buildingSec), so Hex sits in the upper play area
+     to fill what used to be dead space and to stay clear of the pinned shop.
+     A static transform on this outer box only — the JS purr/dream (#catMotion)
+     and the night zoom (#catPose) live inside and compose on top of it. */
   #catWrap {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    transform: translateY(-11vh);
   }
   /* Four nested layers, one transform each, because they animate on wildly
      different clocks and CSS can't run two durations on one property:
@@ -415,20 +421,26 @@
   /* appearance:none + border-radius:0: it's a bare <button>, and mobile
      Safari's default control chrome rounds its corners — squares it back off
      to match the rest of the wood-rail framing. */
+  /* Neutral drag-grip, not a labelled bar: it governs the Upgrades drawer that
+     unfurls above it, and the "Upgrades" plaque inside the drawer names that
+     section — so a word here would just double up and read as a header for the
+     Buildings pinned below. A centered pill is the standard "drag me" affordance. */
   #trayHandle {
     flex: none; width: 100%; display: flex; align-items: center;
-    justify-content: space-between; padding: 10px 14px; cursor: pointer;
+    justify-content: center; padding: 7px 14px; cursor: pointer;
     touch-action: none; /* claim vertical drags for resize, not page scroll */
     -webkit-appearance: none; appearance: none; border-radius: 0;
     background: var(--wood), var(--panel-bg);
     border: 0; border-top: 1px solid var(--wood-line);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
-    color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.5);
-    font: 700 11px var(--ui-font); letter-spacing: .14em; text-transform: uppercase;
   }
-  #trayHandle .right { display: flex; align-items: center; gap: 8px; }
-  #trayHandle .chev { font-size: 10px; transition: transform .18s; }
-  #dock.open #trayHandle .chev { transform: rotate(180deg); }
+  #trayHandle .grip {
+    width: 44px; height: 4px; border-radius: 999px;
+    background: rgba(255,255,255,.55); box-shadow: 0 1px 1px rgba(0,0,0,.45);
+  }
+  /* The pinned Buildings label is a plain caption, not a tappable close like the
+     Upgrades plaque, so it doesn't take the pointer cursor. */
+  #buildingSec .shopHead { cursor: default; }
 
   /* The body caps itself rather than each list capping independently —
      otherwise the upgrade strip stacks on the building list and the two
@@ -485,8 +497,19 @@
 
   /* Divider and list travel together — a "BUILDINGS" label over nothing but a
      ??? teaser is chrome, not a choice. Section waits for a real building. */
-  #buildingSec { flex: 1 1 auto; min-height: 0; display: none; }
+  /* Pinned below the handle now, not inside the collapsing drawer: buildings
+     stay on screen even when the Upgrades drawer is shut. flex:none so it sizes
+     to its own content (the capped #shop) instead of fighting the drawer for
+     height. A top rail separates it from the handle above. */
+  #buildingSec {
+    flex: none; display: none;
+    border-top: 1px solid var(--wood-line);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+  }
   #buildingSec.show { display: flex; flex-direction: column; }
+  /* Night cutscene: recede the ENTIRE shop (including the pinned buildings) so
+     nothing covers the wall reveal; restored when the beat ends. */
+  #dock.cutscene-hidden { opacity: 0; pointer-events: none; transition: opacity .3s ease; }
 
   /* Between Upgrades and Buildings: no label, just the wood-grain rail that
      used to sit under "Buildings" text — the row content below already says
@@ -655,20 +678,22 @@
        flexbox, so the handle (last child) always sits at the true bottom
        edge, and the body unfurls upward above it when opened — not the other
        way around, which is what "first child" would have given us. -->
+  <!-- Only the Upgrades drawer collapses/resizes. #buildingSec is a sibling
+       BELOW the handle (see markup order), so buildings stay pinned to the
+       bottom of the screen even when the Upgrades drawer is shut. -->
   <div id="trayBody">
     <div id="upgradeSec">
       <button type="button" class="shopHead" aria-controls="trayBody"><span class="lab">Upgrades</span></button>
       <div id="upgrades"></div>
     </div>
-    <div id="buildingSec">
-      <div class="shopDivider"></div>
-      <div id="shop"></div>
-    </div>
   </div>
-  <button id="trayHandle" aria-expanded="true" aria-controls="trayBody">
-    <span>Shop</span>
-    <span class="right"><span class="chev">▲</span></span>
+  <button id="trayHandle" aria-expanded="true" aria-controls="trayBody" aria-label="Toggle upgrades drawer">
+    <span class="grip"></span>
   </button>
+  <div id="buildingSec">
+    <div class="shopHead build"><span class="lab">Buildings</span></div>
+    <div id="shop"></div>
+  </div>
 </div>
 
 <!-- Input trap for the night-transition cutscene: transparent (the beat plays
@@ -719,12 +744,13 @@ const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
 // Global income compression. The BUILDINGS mps column mirrors Cookie Clicker's
 // first buildings, whose pacing targets a weeks-long IDLE game; this is a
-// frantic ~10-min co-op for a team of 4. INCOME_SCALE multiplies all passive
+// frantic ~7-min co-op for a team of 4. INCOME_SCALE multiplies all passive
 // income (and, via clickShare, the pet-share term with it — so the click/idle
-// balance is preserved) to land the run at: medium team (~8 pets/s) ≈ 10 min,
-// good team mashing (~16 pets/s) ≈ 7 min. One dial, tune against playtests.
-// Applied in baseCpsWith so the in-file pacing simulator sees it for free.
-const INCOME_SCALE = 3.5;
+// balance is preserved) to land the run (to word-legible) at: a team of 4
+// mashing (~16 pets/s) ≈ 7:00, a strong team (~12/s) ≈ 7:30, a medium team
+// (~8/s) ≈ 8:30 — measured against the in-file sim. One dial, tune against
+// playtests. Applied in baseCpsWith so the pacing simulator sees it for free.
+const INCOME_SCALE = 2.7;
 const SAVE_KEY = "hexclicker.v1";
 
 // ---------------------------------------------------------------------------
@@ -2420,13 +2446,15 @@ function runNightCutscene() {
   if (cutsceneLock) return;
   cutsceneLock = true;
   const wasOpen = dockEl.classList.contains("open");
-  setTrayOpen(false);                 // recede the shop so everyone sees the reveal
+  setTrayOpen(false);                 // shut the upgrades drawer…
+  dockEl.classList.add("cutscene-hidden"); // …and recede the pinned buildings too, for the reveal
   cutsceneVeilEl.classList.add("on"); // nothing selectable while the beat plays
   // Duration read here (not a top-level const) so it can reference YAWN_MS, which
   // is declared further down. Kept in sync with the CSS: YAWN_MS (1300) + the
   // #catPose zoom (1800ms) = the moment the camera settles.
   setTimeout(() => {
     cutsceneVeilEl.classList.remove("on");
+    dockEl.classList.remove("cutscene-hidden");
     setTrayOpen(wasOpen);             // restore the player's own layout
     cutsceneLock = false;
   }, YAWN_MS + 1800);

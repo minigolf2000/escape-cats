@@ -2514,11 +2514,15 @@ function updateCat(t) {
     lookX = IRIS_LOOK * 0.5 * Math.sin(t / 2300) * Math.sin(t / 5700);
     lookY = IRIS_LOOK * 0.3 * Math.sin(t / 3300) * Math.sin(t / 7100);
   }
-  // Dilated only while awake AND a golden is actually out there — not during
-  // sleep even if a saucer is drifting past, matching the branch above where
-  // asleep never looks toward it either. #irisLeft/#irisRight's own CSS
-  // transition (.12s ease-out) is what makes this a dilate rather than a snap.
-  const pupilScaleX = (!asleep && goldActive) ? PUPIL_ROUND : PUPIL_SLIT;
+  // Dilated while awake AND excited: either a golden is actually out there, or
+  // a Click Frenzy is running (pets worth more) — the buff a caught golden
+  // leaves behind, so her eyes stay blown wide through the frenzy instead of
+  // snapping shut the instant the mouse is gone. Not during sleep even if a
+  // saucer is drifting past, matching the branch above where asleep never looks
+  // toward it either. #irisLeft/#irisRight's own CSS transition (.12s ease-out)
+  // is what makes this a dilate rather than a snap.
+  const clickFrenzy = currentClickBuff() > 1;
+  const pupilScaleX = (!asleep && (goldActive || clickFrenzy)) ? PUPIL_ROUND : PUPIL_SLIT;
   const irisTransform = `translate(${lookX}px, ${lookY}px) scale(${pupilScaleX}, ${irisScaleY})`;
   irisLeftEl.style.transform = irisTransform;
   irisRightEl.style.transform = irisTransform;

@@ -421,25 +421,26 @@
   /* appearance:none + border-radius:0: it's a bare <button>, and mobile
      Safari's default control chrome rounds its corners — squares it back off
      to match the rest of the wood-rail framing. */
-  /* Neutral drag-grip, not a labelled bar: it governs the Upgrades drawer that
-     unfurls above it, and the "Upgrades" plaque inside the drawer names that
-     section — so a word here would just double up and read as a header for the
-     Buildings pinned below. A centered pill is the standard "drag me" affordance. */
+  /* Neutral drag-grip, not a labelled bar: it's the topmost bar of the shop and
+     governs the Upgrades drawer that unfurls below it. A centered pill is the
+     standard "drag me" affordance; no word is needed. The border sits on the
+     BOTTOM now (it separates the handle from the drawer beneath it) — the top
+     edge is framed by #dock's own border-top. */
   #trayHandle {
     flex: none; width: 100%; display: flex; align-items: center;
     justify-content: center; padding: 7px 14px; cursor: pointer;
     touch-action: none; /* claim vertical drags for resize, not page scroll */
     -webkit-appearance: none; appearance: none; border-radius: 0;
     background: var(--wood), var(--panel-bg);
-    border: 0; border-top: 1px solid var(--wood-line);
+    border: 0; border-bottom: 1px solid var(--wood-line);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
   }
   #trayHandle .grip {
     width: 44px; height: 4px; border-radius: 999px;
     background: rgba(255,255,255,.55); box-shadow: 0 1px 1px rgba(0,0,0,.45);
   }
-  /* The pinned Buildings label is a plain caption, not a tappable close like the
-     Upgrades plaque, so it doesn't take the pointer cursor. */
+  /* The pinned Buildings bar is a plain rail, not interactive, so it keeps the
+     default cursor (also the .shopHead default now). */
   #buildingSec .shopHead { cursor: default; }
 
   /* The body caps itself rather than each list capping independently —
@@ -477,22 +478,18 @@
     #trayBody, #dock.open #trayBody { transition: none; }
   }
 
-  /* CC's big centered "Store" plaque, sat on its own wooden rail. Doubles as a
-     close affordance: it's only ever on screen while the tray is open (it lives
-     inside #trayBody), so a click can only collapse the tray — same action as
-     tapping the handle, a second target up top where the thumb already is. */
+  /* Title-less small bar sitting on its own wooden rail — just the Cookie Clicker
+     wood framing, no text. Only the pinned Buildings section still uses it (as a
+     thin cap above the building list); the Upgrades drawer is governed by the top
+     handle instead. Height is pure padding now that there's no label. */
   .shopHead {
-    flex: none;
-    display: flex; align-items: center; justify-content: center; padding: 7px 12px 6px;
+    flex: none; height: 6px;
+    display: flex; align-items: center; justify-content: center; padding: 0;
     -webkit-appearance: none; appearance: none; border-radius: 0;
     background: var(--wood), var(--panel-bg);
-    border: 0; width: 100%; cursor: pointer;
+    border: 0; width: 100%; cursor: default;
     border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
-  }
-  .shopHead .lab {
-    font: 700 15px var(--ui-font); letter-spacing: .02em; color: var(--title-color);
-    text-shadow: var(--title-shadow);
   }
 
   /* Divider and list travel together — a "BUILDINGS" label over nothing but a
@@ -503,8 +500,6 @@
      height. A top rail separates it from the handle above. */
   #buildingSec {
     flex: none; display: none;
-    border-top: 1px solid var(--wood-line);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
   }
   #buildingSec.show { display: flex; flex-direction: column; }
   /* Night cutscene: recede the ENTIRE shop (including the pinned buildings) so
@@ -674,24 +669,25 @@
 </div>
 
 <div id="dock">
-  <!-- trayBody BEFORE trayHandle in DOM: #dock is a bottom-anchored column
-       flexbox, so the handle (last child) always sits at the true bottom
-       edge, and the body unfurls upward above it when opened — not the other
-       way around, which is what "first child" would have given us. -->
-  <!-- Only the Upgrades drawer collapses/resizes. #buildingSec is a sibling
-       BELOW the handle (see markup order), so buildings stay pinned to the
-       bottom of the screen even when the Upgrades drawer is shut. -->
+  <!-- The drag/toggle handle is pinned to the TOP of the shop now: a title-less
+       small bar with a centered grip. It's a direct #dock child (NOT inside
+       #trayBody), so it stays on screen when the Upgrades drawer is collapsed
+       and can always reopen it. Tap toggles; a vertical drag resizes the drawer
+       that unfurls below it; a hard downward yank closes. -->
+  <button id="trayHandle" aria-expanded="true" aria-controls="trayBody" aria-label="Toggle shop">
+    <span class="grip"></span>
+  </button>
+  <!-- Upgrades drawer: collapses/resizes below the top handle. It has no header
+       of its own anymore — the top handle governs it. -->
   <div id="trayBody">
     <div id="upgradeSec">
-      <button type="button" class="shopHead" aria-controls="trayBody"><span class="lab">Upgrades</span></button>
       <div id="upgrades"></div>
     </div>
   </div>
-  <button id="trayHandle" aria-expanded="true" aria-controls="trayBody" aria-label="Toggle upgrades drawer">
-    <span class="grip"></span>
-  </button>
+  <!-- Buildings stay pinned to the bottom under their own title-less small bar,
+       even when the Upgrades drawer is shut. -->
   <div id="buildingSec">
-    <div class="shopHead build"><span class="lab">Buildings</span></div>
+    <div class="shopHead build" aria-hidden="true"></div>
     <div id="shop"></div>
   </div>
 </div>
@@ -1275,10 +1271,9 @@ function syncDock() {
     upgradeSecEl.classList.contains("show") || buildingSecEl.classList.contains("show"));
 }
 
-// Two things can drive the tray: the bottom handle (toggles) and the Upgrades
-// header (only reachable while open, so it always collapses). Both route here so
-// the handle's aria-expanded stays the source of truth wherever the click came
-// from.
+// The top handle is the only thing that drives the tray now (tap toggles, drag
+// resizes). Routing through here keeps the handle's aria-expanded the source of
+// truth.
 function setTrayOpen(open) {
   dockEl.classList.toggle("open", open);
   trayHandleEl.setAttribute("aria-expanded", open ? "true" : "false");
@@ -1327,7 +1322,6 @@ function endTrayDrag(e) {
 }
 trayHandleEl.addEventListener("pointerup", endTrayDrag);
 trayHandleEl.addEventListener("pointercancel", endTrayDrag);
-upgradeSecEl.querySelector(".shopHead").addEventListener("click", () => setTrayOpen(false));
 
 // Kiosk lockdown (see the html,body CSS note): swallow the long-press context
 // menu so a held tap on Hex or a shop row never raises the browser's callout.

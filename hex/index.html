@@ -493,7 +493,12 @@
      can't. That red/green is the whole readout in CC; it survives here.
      Affordable rows brighten rather than getting a neon glow. */
   .item {
+    /* Fixed uniform height for EVERY row (buildings and upgrades, owned or not) so
+       the full-height left icons all come out the same size. Two lines tall: a
+       building is name + price; an upgrade is name + effect with its price pulled
+       out to the right, so both are the same height. */
     display: flex; align-items: center; gap: 0; width: 100%; text-align: left;
+    height: calc(41px * var(--ss)); box-sizing: border-box;
     background: transparent; border: none; border-bottom: 1px solid var(--line);
     padding: 0 calc(11px * var(--ss)) 0 0; color: var(--muted); cursor: not-allowed;
     transition: background .1s, opacity .15s; opacity: .5;
@@ -504,15 +509,15 @@
   .item.can { cursor: var(--paw); opacity: 1; }
   .item.can:active { background: rgba(255,255,255,.11); }
   .item .icon {
-    /* One fixed square size for EVERY row — buildings and upgrades alike — so the
-       left icons never disagree row-to-row the way full-height ones did (rows
-       vary in height: unowned buildings show a blurb, upgrade effect text wraps).
-       Flush to the left edge, vertically centered, square, sharp corners. */
-    flex: none; align-self: center;
-    width: calc(36px * var(--ss)); height: calc(36px * var(--ss));
+    /* Fills the whole row height so there's no vertical gap between rows' icons.
+       Every row is a uniform 3 lines (name + fx + cost, the fx clamped to one line
+       and its space reserved when owned), so the full-height icons all come out
+       the same size. The runtime sets width == height (square) and the glyph to
+       fill it. Flush to the left edge, sharp corners. */
+    flex: none; align-self: stretch; width: auto; height: auto; min-height: 0;
     border-radius: 0; display: grid; place-items: center;
     margin: 0 calc(11px * var(--ss)) 0 0;
-    font-size: calc(18px * var(--ss)); background: var(--icon-bg); border: 0;
+    background: var(--icon-bg); border: 0;
   }
   .item.can .icon { border-color: var(--line-hi); }
   /* Cookie Clicker's own store-row placement (verified against its live DOM:
@@ -540,11 +545,15 @@
   /* Same mouse coin as .cost, shrunk down — without it "12/s" reads as a bare
      number with no unit; this is the unit. */
   .item .rate .coin { flex: none; width: calc(10px * var(--ss)); height: auto; display: block; }
-  .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px; }
+  .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* one line, so every row is a uniform 3 lines tall */
   /* Building blurb is a pre-purchase tease: once you own one, the row drops the
      description and keeps just name + rate + price. Upgrade rows never get the
      .bought class, so their .fx (effect text) is untouched. */
-  .item.bought .fx { display: none; }
+  /* Building rows are name + price (two lines); the blurb doesn't show inline (it
+     would be a third line and break the uniform height). Upgrade rows keep their
+     effect text — that's the .fx in #upgrades, untouched by this. */
+  #shop .item .fx { display: none; }
   .item .cost {
     display: flex; align-items: center; gap: 4px;
     font: 700 14px var(--ui-font); font-size: calc(13.5px * var(--ss)); line-height: 1.04; color: var(--cost-ok);
@@ -1436,13 +1445,15 @@ function refreshUpgrades() {
       // u.cost is a table constant, so the price is rendered once here rather
       // than rewritten through the affordability change-detector below — which
       // only ever wrote the same string back and implied the cost could change.
+      // Price pulled out to a .right column (like buildings' owned count) so the
+      // body is just name + effect — two lines, matching a building row's height.
       el.innerHTML =
         `<div class="icon">${u.icon}</div>
          <div class="body">
            <div class="nm">${u.name}</div>
            <div class="fx">${effectText(u)}</div>
-           <div class="cost">${currencyIconSVG()}<span class="costNum">${fmt(u.cost)}</span></div>
-         </div>`;
+         </div>
+         <div class="right"><div class="cost">${currencyIconSVG()}<span class="costNum">${fmt(u.cost)}</span></div></div>`;
       el.addEventListener("click", () => buyUpgrade(u.key));
       upgradesEl.appendChild(el);
       upRows.set(u.key, { el, cost: el.querySelector(".cost") });
@@ -3069,10 +3080,10 @@ syncPhase(); // saves restore the phase for free
 initDev();
 countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refreshHud()'s job
 
-// Shop-skin runtime: drive the scroll shadows (.can-up / .can-down) and publish
-// the dock/HUD heights so #catWrap can center Hex in the space above the static
-// shop. (Icon sizing is pure CSS now — a fixed square per row.) All read-only
-// measurement, so there's no layout feedback with the game's own row refresh.
+// Shop-skin runtime: keep each left icon a full-height square, drive the scroll
+// shadows (.can-up / .can-down), and publish the dock/HUD heights so #catWrap can
+// center Hex in the space above the static shop. All read-only measurement, so
+// there's no layout feedback with the game's own in-place row refresh.
 (function () {
   const rootEl = document.documentElement;
   const hudEl = $("#hud");
@@ -3097,7 +3108,18 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
     el.classList.toggle("can-up", el.scrollTop > 1);
     el.classList.toggle("can-down", el.scrollTop + el.clientHeight < el.scrollHeight - 1);
   }
-  function tick() { measure(); scrollers.forEach(updAff); }
+  // Left icons stretch to full row height (CSS); set width == that height so each
+  // stays square, and size the glyph to fill it. Rows are a uniform 3 lines, so
+  // every icon lands the same size. Setting width doesn't change row height, so
+  // there's no layout feedback.
+  function sizeIcons() {
+    const icons = document.querySelectorAll("#shop .item .icon, #upgrades .item .icon");
+    for (let i = 0; i < icons.length; i++) {
+      const h = icons[i].offsetHeight;
+      if (h) { icons[i].style.width = h + "px"; icons[i].style.fontSize = Math.round(h * 0.5) + "px"; }
+    }
+  }
+  function tick() { measure(); sizeIcons(); scrollers.forEach(updAff); }
   scrollers.forEach(el => el.addEventListener("scroll", () => updAff(el), { passive: true }));
   if (window.ResizeObserver) { const ro = new ResizeObserver(tick); ro.observe(dockEl); if (hudEl) ro.observe(hudEl); }
   addEventListener("resize", tick);

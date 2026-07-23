@@ -2994,7 +2994,18 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
     }
   }
   function measure() {
-    const dh = getComputedStyle(dockEl).display !== "none" ? dockEl.offsetHeight : 0;
+    // Pin Hex as if the Upgrades drawer always holds ~2 upgrades, so unlocking or
+    // buying upgrades never shifts her. Instead of the section's live height we
+    // substitute the #upgrades cap (10vh * --ss) — the height ~2 tall upgrade
+    // rows already reach — and only measure the Buildings section live. Only 0/1
+    // upgrade then sits slightly off, which is fine.
+    let dh = 0;
+    if (getComputedStyle(dockEl).display !== "none") {
+      const bh = getComputedStyle(buildingSecEl).display !== "none" ? buildingSecEl.offsetHeight : 0;
+      const ss = parseFloat(getComputedStyle(rootEl).getPropertyValue("--ss")) || 1;
+      const upPinned = Math.round(innerHeight * 0.10 * ss) + 1; // upgrades cap + section border
+      dh = bh + upPinned;
+    }
     rootEl.style.setProperty("--dock-h", dh + "px");
     rootEl.style.setProperty("--hud-h", (hudEl ? hudEl.offsetHeight : 0) + "px");
   }

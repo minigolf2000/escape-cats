@@ -235,7 +235,11 @@
   #hexCat > * { pointer-events: auto; cursor: var(--paw); touch-action: manipulation; }
   #catWrap.squash #hexCat { transform: scale(.93); }
   #catWrap.frenzy #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
-  #catWrap.frenzy #hexCat #head { stroke: #ffd44d; }
+  #catWrap.frenzy #hexCat .catLine { stroke: #ffd44d; }
+  /* idle-motion pivots: the head tilts about the neck; each ear about its base */
+  #catFace { transform-box: fill-box; transform-origin: 50% 96%; }
+  #earLeft { transform-box: fill-box; transform-origin: 52% 90%; }
+  #earRight { transform-box: fill-box; transform-origin: 48% 82%; }
   /* Frenzy lights up the IRIS (#eyeLeft/#eyeRight), leaving the pupil black.
      This used to target #irisLeft/#irisRight, which was right back when those
      were the green iris dots — after the eye coloring flipped (green iris,
@@ -633,13 +637,30 @@
   <div id="catWrap">
    <div id="catMotion"><div id="catPose"><div id="catBreath">
     <svg id="hexCat" role="button" aria-label="Pet Hex" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path id="head" d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z" fill="#111114" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round"/>
+     <g id="catFace">
+      <!-- Head split so the ears can flick independently: a solid black FILL for
+           the whole silhouette (no stroke, so a tilting ear reveals only black
+           behind it), the white OUTLINE of just the lower head + the valley
+           between the ears, and each EAR as its own group (black fill + a white V
+           outline, base unstroked) that pivots at its base. At rest the three
+           compose back into the original head exactly. -->
+      <path id="headFill" d="M26.5 57.5L32.1 44L69.7 44L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L138.2 44L166.5 44L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z" fill="#111114"/>
+      <path id="headOutline" class="catLine" d="M86.5 71.5C93.5 67.5 111 66.5 119.5 71.5M170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+      <g id="earLeft">
+       <path d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5Z" fill="#111114"/>
+       <path class="catLine" d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+      </g>
+      <g id="earRight">
+       <path d="M119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56Z" fill="#111114"/>
+       <path class="catLine" d="M119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+      </g>
       <path id="eyeLeft" d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="#65C256"/>
       <path id="eyeRight" d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="#65C256"/>
       <path id="irisLeft" d="M68 128C72.4183 128 76 124.418 76 120C76 115.582 72.4183 112 68 112C63.5817 112 60 115.582 60 120C60 124.418 63.5817 128 68 128Z" fill="#0a0b10"/>
       <path id="irisRight" d="M135 131C139.418 131 143 127.418 143 123C143 118.582 139.418 115 135 115C130.582 115 127 118.582 127 123C127 127.418 130.582 131 135 131Z" fill="#0a0b10"/>
       <path id="mouth" d="M87 160C95 158.667 99 154.333 99 147C99 154.333 103 158.667 111 160" stroke="#F4F4F2" stroke-width="2.4" stroke-linecap="round"/>
       <path id="whiskers" d="M80 143L34 134M80 149H32M80 155L34 164M120 143L166 134M120 149H168M120 155L166 164" stroke="#F4F4F2" stroke-width="2.2" stroke-linecap="round"/>
+     </g>
     </svg>
    </div></div></div>
   </div>
@@ -1657,6 +1678,7 @@ function pet(clientX, clientY) {
 }
 
 const catEl = $("#catWrap"), hexCatEl = $("#hexCat"), catMotionEl = $("#catMotion");
+const catFaceEl = $("#catFace"), earLeftEl = $("#earLeft"), earRightEl = $("#earRight");
 const irisLeftEl = $("#irisLeft"), irisRightEl = $("#irisRight");
 const eyeLeftEl = $("#eyeLeft"), eyeRightEl = $("#eyeRight");
 const whiskersEl = $("#whiskers"), mouthEl = $("#mouth");
@@ -2404,6 +2426,9 @@ const IDLE = {
   purr: false,            // rumble while she's being petted
   yawn: true,             // one big yawn as she drops into the night phase
   dreamTwitch: true,      // rare whole-head jerk while dreaming
+  headTilt: true,         // an occasional curious tip of the head
+  earFlick: true,         // quick independent ear twitches
+  earSwivel: true,        // ears orient toward a golden mouse
 };
 
 const SLOW_BLINK_MS = 1100;
@@ -2565,6 +2590,31 @@ function updateCat(t) {
   const motionT = (purrY || dreamY) ? `translateY(${(purrY + dreamY).toFixed(2)}px)` : "";
   if (catMotionEl.style.transform !== motionT) catMotionEl.style.transform = motionT;
 
+  // --- Head tilt + ears --------------------------------------------------
+  // All three rest at night (the wall-reveal pose owns Hex then).
+  if (asleep) {
+    if (catFaceEl.style.transform) catFaceEl.style.transform = "";
+    if (earLeftEl.style.transform) earLeftEl.style.transform = "";
+    if (earRightEl.style.transform) earRightEl.style.transform = "";
+  } else {
+    const tilt = headTiltDeg(t, !alert); // only tips her head when nothing's got her attention
+    const faceT = tilt ? `rotate(${tilt.toFixed(2)}deg)` : "";
+    if (catFaceEl.style.transform !== faceT) catFaceEl.style.transform = faceT;
+    // ears orient toward a golden mouse (like the eyes/whiskers), with quick
+    // independent flicks superimposed
+    let swiv = 0;
+    if (IDLE.earSwivel && alert) {
+      const cx = stageEl.clientWidth / 2;
+      swiv = Math.max(-1, Math.min(1, ((goldX + 31) - cx) / cx)) * 6;
+    }
+    const rotL = swiv + earFlickDeg(t, earStateL);
+    const rotR = swiv + earFlickDeg(t, earStateR);
+    const eLT = rotL ? `rotate(${rotL.toFixed(2)}deg)` : "";
+    const eRT = rotR ? `rotate(${rotR.toFixed(2)}deg)` : "";
+    if (earLeftEl.style.transform !== eLT) earLeftEl.style.transform = eLT;
+    if (earRightEl.style.transform !== eRT) earRightEl.style.transform = eRT;
+  }
+
   updateWhiskers(t, asleep, alert);
 }
 
@@ -2588,6 +2638,44 @@ function dreamTwitchOffset(t, asleep) {
   // would cut off mid-motion.
   const p = 1 - (dreamUntil - t) / DREAM_MS;
   return dreamDir * 3.2 * Math.sin(p * Math.PI * 2) * (1 - p);
+}
+
+// Head tilt: an occasional curious tip of the head, pivoting at the neck. A
+// discrete scheduled gesture (ease in -> hold -> ease out), like the dream
+// twitch — she only offers it when nothing else has her attention (`calm`).
+let tiltAt = 0, tiltStart = -1, tiltDir = 1;
+const TILT_IN = 430, TILT_HOLD = 950, TILT_OUT = 640, TILT_MAX = 7;
+function headTiltDeg(t, calm) {
+  if (!IDLE.headTilt) return 0;
+  if (!tiltAt) tiltAt = t + 6000 + Math.random() * 9000;
+  if (tiltStart < 0 && calm && t >= tiltAt) {
+    tiltStart = t; tiltDir = Math.random() < 0.5 ? -1 : 1;
+    tiltAt = t + 9000 + Math.random() * 12000;
+  }
+  if (tiltStart < 0) return 0;
+  const e = t - tiltStart, dur = TILT_IN + TILT_HOLD + TILT_OUT;
+  if (e >= dur) { tiltStart = -1; return 0; }
+  let a;
+  if (e < TILT_IN) a = smoothstep(e / TILT_IN);
+  else if (e < TILT_IN + TILT_HOLD) a = 1;
+  else a = 1 - smoothstep((e - TILT_IN - TILT_HOLD) / TILT_OUT);
+  return tiltDir * TILT_MAX * a;
+}
+
+// Ear flick: a quick 0 -> peak -> 0 twitch of one ear over a quarter-second.
+// Each ear keeps its own schedule so they fire out of sync, the way a real
+// cat's do; sign points each ear's flick outward.
+const EAR_FLICK_MS = 240;
+const earStateL = { at: 0, start: -1, sign: -1 };
+const earStateR = { at: 0, start: -1, sign: 1 };
+function earFlickDeg(t, ear) {
+  if (!IDLE.earFlick) return 0;
+  if (!ear.at) ear.at = t + 2500 + Math.random() * 6000;
+  if (ear.start < 0 && t >= ear.at) { ear.start = t; ear.at = t + 3500 + Math.random() * 8000; }
+  if (ear.start < 0) return 0;
+  const e = t - ear.start;
+  if (e >= EAR_FLICK_MS) { ear.start = -1; return 0; }
+  return ear.sign * 11 * Math.sin(Math.PI * e / EAR_FLICK_MS);
 }
 
 // Whiskers have two behaviours and one element, so they get one owner:

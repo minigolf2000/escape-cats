@@ -504,11 +504,15 @@
   .item.can { cursor: var(--paw); opacity: 1; }
   .item.can:active { background: rgba(255,255,255,.11); }
   .item .icon {
-    flex: none; align-self: stretch; width: auto; height: auto; min-height: 0;
+    /* One fixed square size for EVERY row — buildings and upgrades alike — so the
+       left icons never disagree row-to-row the way full-height ones did (rows
+       vary in height: unowned buildings show a blurb, upgrade effect text wraps).
+       Flush to the left edge, vertically centered, square, sharp corners. */
+    flex: none; align-self: center;
+    width: calc(36px * var(--ss)); height: calc(36px * var(--ss));
     border-radius: 0; display: grid; place-items: center;
     margin: 0 calc(11px * var(--ss)) 0 0;
-    font-size: calc(20px * var(--ss)); background: var(--icon-bg); border: 0;
-    /* width is set == the stretched height (a full-height square) by the runtime */
+    font-size: calc(18px * var(--ss)); background: var(--icon-bg); border: 0;
   }
   .item.can .icon { border-color: var(--line-hi); }
   /* Cookie Clicker's own store-row placement (verified against its live DOM:
@@ -594,7 +598,6 @@
   #upgrades::-webkit-scrollbar { width: 0; }
   .item.up { padding: 0 calc(11px * var(--ss)) 0 0; }
   .item.up .body { padding: calc(4px * var(--ss)) 0; }
-  .item.up .icon { font-size: calc(16px * var(--ss)); }
   .item.up .nm { font-size: calc(12.5px * var(--ss)); }
   /* ---- Scroll shadow (locked affordance): a soft inner shadow at whichever
      edge still has content to scroll. Snug to the row edge because the scrollers
@@ -3066,21 +3069,14 @@ syncPhase(); // saves restore the phase for free
 initDev();
 countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refreshHud()'s job
 
-// Shop-skin runtime: keep each left icon a full-height square, drive the scroll
-// shadows (.can-up / .can-down), and publish the dock/HUD heights so #catWrap can
-// center Hex in the space above the static shop. All read-only measurement, so
-// there's no layout feedback with the game's own in-place row refresh.
+// Shop-skin runtime: drive the scroll shadows (.can-up / .can-down) and publish
+// the dock/HUD heights so #catWrap can center Hex in the space above the static
+// shop. (Icon sizing is pure CSS now — a fixed square per row.) All read-only
+// measurement, so there's no layout feedback with the game's own row refresh.
 (function () {
   const rootEl = document.documentElement;
   const hudEl = $("#hud");
   const scrollers = [shopEl, upgradesEl];
-  function sizeIcons() {
-    const icons = document.querySelectorAll("#shop .item .icon, #upgrades .item .icon");
-    for (let i = 0; i < icons.length; i++) {
-      const h = icons[i].offsetHeight;
-      if (h) { icons[i].style.width = h + "px"; icons[i].style.fontSize = Math.round(h * 0.5) + "px"; }
-    }
-  }
   function measure() {
     // Pin Hex as if the Upgrades drawer always holds ~2 upgrades, so unlocking or
     // buying upgrades never shifts her. Instead of the section's live height we
@@ -3101,7 +3097,7 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
     el.classList.toggle("can-up", el.scrollTop > 1);
     el.classList.toggle("can-down", el.scrollTop + el.clientHeight < el.scrollHeight - 1);
   }
-  function tick() { measure(); sizeIcons(); scrollers.forEach(updAff); }
+  function tick() { measure(); scrollers.forEach(updAff); }
   scrollers.forEach(el => el.addEventListener("scroll", () => updAff(el), { passive: true }));
   if (window.ResizeObserver) { const ro = new ResizeObserver(tick); ro.observe(dockEl); if (hudEl) ro.observe(hudEl); }
   addEventListener("resize", tick);

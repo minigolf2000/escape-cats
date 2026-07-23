@@ -172,7 +172,7 @@
      and the night zoom (#catPose) live inside and compose on top of it. */
   #catWrap {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    transform: translateY(-11vh);
+    transform: translateY(-16vh);
   }
   /* Four nested layers, one transform each, because they animate on wildly
      different clocks and CSS can't run two durations on one property:
@@ -214,7 +214,7 @@
      real per-shape hit-testing back; cursor/touch-action move down with it,
      since they're meaningless on an element excluded from hit-testing. */
   #hexCat {
-    width: min(62%, 340px); height: auto; max-height: 94%;
+    width: min(55%, 300px); height: auto; max-height: 84%;
     pointer-events: none;
     /* day: sitting in the sunburst, so a warm white bloom like CC's cookie */
     filter: drop-shadow(0 3px 10px rgba(0,0,0,.45)) drop-shadow(0 0 30px rgba(200,235,255,.45));
@@ -279,7 +279,9 @@
      the wall. Delay only on the night rule, so waking (dev preset back to day)
      still snaps back immediately. Keep in sync with YAWN_MS. */
   body.night #catPose {
-    transform: translateY(calc(50vh - 104px)) scale(.25);
+    /* 55vh (not 50vh) compensates #catWrap's day bias moving up to -16vh, so the
+       sleeping cat still settles at the same absolute spot for the wall reveal. */
+    transform: translateY(calc(55vh - 104px)) scale(.25);
     transition-delay: 1.3s;
   }
   body.night #hexCat { filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
@@ -393,10 +395,10 @@
   }
 
   /* ---- Shop tray ----
-     An OVERLAY, not a flow element: fixed to the bottom edge, so opening it
-     floats over Hex instead of resizing the stage. The handle is always the
-     bottom bar; the body grows upward out of it. Identical day and night —
-     only the tint changes. Still hides entirely when there's nothing to sell.
+     An OVERLAY, not a flow element: fixed to the bottom edge, so it floats over
+     Hex instead of resizing the stage. Static and always open — no handle, no
+     drag. Identical day and night — only the tint changes. Still hides entirely
+     when there's nothing to sell.
 
      NO background of its own: the stage (Hex, the rays, the night wall) shows
      straight through the transparent rows. It used to paint --panel-bg, which
@@ -404,8 +406,8 @@
      showing through while actually being an opaque coat in front of it, and
      making .item transparent appeared to do nothing. The blur stays: it's what
      keeps row text legible over whatever art it's floating on. The wood rails
-     (.shopHead / .shopDivider / #trayHandle) keep their own fills, so the
-     Cookie Clicker framing survives. */
+     (.shopHead / .shopDivider) keep their own fills, so the Cookie Clicker
+     framing survives. */
   #dock {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
     display: none; flex-direction: column;
@@ -415,68 +417,13 @@
   }
   #dock.show { display: flex; }
 
-  /* Cookie Clicker frames every panel in wood. The handle doubles as that
-     frame: at night --wood resolves to `none` and the background-color
-     underneath shows through, so the same element reads as a plain bar. */
-  /* appearance:none + border-radius:0: it's a bare <button>, and mobile
-     Safari's default control chrome rounds its corners — squares it back off
-     to match the rest of the wood-rail framing. */
-  /* Neutral drag-grip, not a labelled bar: it's the topmost bar of the shop and
-     governs the Upgrades drawer that unfurls below it. A centered pill is the
-     standard "drag me" affordance; no word is needed. The border sits on the
-     BOTTOM now (it separates the handle from the drawer beneath it) — the top
-     edge is framed by #dock's own border-top. */
-  #trayHandle {
-    flex: none; width: 100%; display: flex; align-items: center;
-    justify-content: center; padding: 7px 14px; cursor: pointer;
-    touch-action: none; /* claim vertical drags for resize, not page scroll */
-    -webkit-appearance: none; appearance: none; border-radius: 0;
-    background: var(--wood), var(--panel-bg);
-    border: 0; border-bottom: 1px solid var(--wood-line);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
-  }
-  #trayHandle .grip {
-    width: 44px; height: 4px; border-radius: 999px;
-    background: rgba(255,255,255,.55); box-shadow: 0 1px 1px rgba(0,0,0,.45);
-  }
   /* The pinned Buildings bar is a plain rail, not interactive, so it keeps the
      default cursor (also the .shopHead default now). */
   #buildingSec .shopHead { cursor: default; }
 
-  /* The body caps itself rather than each list capping independently —
-     otherwise the upgrade strip stacks on the building list and the two
-     together fill the screen. Shop absorbs whatever's left. */
-  /* Open/close is animated, so the body stays in the DOM and flexes at all
-     times (display can't transition) — collapsed it's max-height:0 + clipped,
-     so it takes no space and can't be tapped (pointer-events:none). Opening
-     grows it back up to its cap while the content rises, reading as the tray
-     unfurling upward out of the handle — a purely positional move, no fade.
-     Easing is asymmetric:
-     a soft, slightly-overshooting ease-out on the way open, a quicker ease-in
-     on the way closed — the standard bottom-sheet feel. */
-  #trayBody {
-    flex: 1 1 auto; min-height: 0;
-    display: flex; flex-direction: column;
-    max-height: 0; overflow: hidden;
-    transform: translateY(6px); pointer-events: none;
-    transition: max-height .2s cubic-bezier(.4,0,1,1),
-                transform .2s cubic-bezier(.4,0,1,1);
-  }
-  #dock.open #trayBody {
-    /* Open height is a drag-set var (capped at 60vh in JS so a tall tray can't
-       blanket the night-wall reveal); 56vh is the pre-drag default. */
-    max-height: var(--tray-h, 56vh);
-    transform: translateY(0); pointer-events: auto;
-    transition: max-height .32s cubic-bezier(.16,1,.3,1),
-                transform .32s cubic-bezier(.16,1,.3,1);
-  }
-  /* No animated max-height while a finger is actively resizing — the height is
-     driven frame-by-frame from the drag, so a transition would lag the finger. */
-  #dock.dragging #trayBody { transition: none; }
-  /* Respect the same motion preference the rays already honor: snap, no slide. */
-  @media (prefers-reduced-motion: reduce) {
-    #trayBody, #dock.open #trayBody { transition: none; }
-  }
+  /* Static shop: always open, no drag or resize. The two sections just stack and
+     each caps its own list (see #upgrades / #shop max-heights below), so the dock
+     sizes to its content and can't blanket the stage. */
 
   /* Title-less small bar sitting on its own wooden rail — just the Cookie Clicker
      wood framing, no text. Only the pinned Buildings section still uses it (as a
@@ -669,23 +616,13 @@
 </div>
 
 <div id="dock">
-  <!-- The drag/toggle handle is pinned to the TOP of the shop now: a title-less
-       small bar with a centered grip. It's a direct #dock child (NOT inside
-       #trayBody), so it stays on screen when the Upgrades drawer is collapsed
-       and can always reopen it. Tap toggles; a vertical drag resizes the drawer
-       that unfurls below it; a hard downward yank closes. -->
-  <button id="trayHandle" aria-expanded="true" aria-controls="trayBody" aria-label="Toggle shop">
-    <span class="grip"></span>
-  </button>
-  <!-- Upgrades drawer: collapses/resizes below the top handle. It has no header
-       of its own anymore — the top handle governs it. -->
-  <div id="trayBody">
-    <div id="upgradeSec">
-      <div id="upgrades"></div>
-    </div>
+  <!-- Static shop: always open, no handle, no drag. Upgrades on top under a thin
+       title-less rail (only unlocked-and-unbought upgrades exist here); Buildings
+       pinned below their own rail. Each list caps and scrolls on its own. -->
+  <div id="upgradeSec">
+    <div class="shopHead" aria-hidden="true"></div>
+    <div id="upgrades"></div>
   </div>
-  <!-- Buildings stay pinned to the bottom under their own title-less small bar,
-       even when the Upgrades drawer is shut. -->
   <div id="buildingSec">
     <div class="shopHead build" aria-hidden="true"></div>
     <div id="shop"></div>
@@ -694,7 +631,7 @@
 
 <!-- Input trap for the night-transition cutscene: transparent (the beat plays
      through it), but while .on it eats every tap so nothing is selectable. Sits
-     above the dock so even the shop handle is locked. -->
+     above the dock so the whole static shop is locked during the reveal. -->
 <div id="cutsceneVeil"></div>
 
 <script>
@@ -1261,7 +1198,6 @@ const countEl = $("#count"), countIconEl = $("#countIcon"), cpsEl = $("#cps"), s
 const goldenEl = $("#golden"), buffEl = $("#buff");
 const upgradesEl = $("#upgrades"), upgradeSecEl = $("#upgradeSec");
 const buildingSecEl = $("#buildingSec"), dockEl = $("#dock");
-const trayHandleEl = $("#trayHandle");
 const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 
 // Neither section knows about the other, so the dock's own visibility is
@@ -1271,57 +1207,8 @@ function syncDock() {
     upgradeSecEl.classList.contains("show") || buildingSecEl.classList.contains("show"));
 }
 
-// The top handle is the only thing that drives the tray now (tap toggles, drag
-// resizes). Routing through here keeps the handle's aria-expanded the source of
-// truth.
-function setTrayOpen(open) {
-  dockEl.classList.toggle("open", open);
-  trayHandleEl.setAttribute("aria-expanded", open ? "true" : "false");
-}
-// The handle is both a toggle and a resize grip. A tap flips the tray open/
-// closed (the original behavior); a vertical drag resizes it live, and a hard
-// downward yank closes it. One pointer controller owns the gesture so tap and
-// drag never double-fire — which is why the old `click` listener is gone.
-// Height persists per device; capped at 60vh so a tall tray can't blanket the
-// night-wall reveal (the cutscene force-closes it regardless).
-const trayBodyEl = $("#trayBody");
-const TRAY_H_KEY = "hexclicker.trayh";
-const TRAY_MIN_H = 120;   // px; released below half this => close
-const TRAY_SLOP = 6;      // px of travel still counted as a tap, not a drag
-const trayMaxH = () => Math.round(innerHeight * 0.6);
-const clampTrayH = h => Math.max(TRAY_MIN_H, Math.min(trayMaxH(), h));
-const setTrayH = h => dockEl.style.setProperty("--tray-h", clampTrayH(h) + "px");
-(() => { const h = parseFloat(localStorage.getItem(TRAY_H_KEY)); if (h > 0) setTrayH(h); })();
-
-let trayDrag = null;
-trayHandleEl.addEventListener("pointerdown", e => {
-  e.preventDefault();
-  try { trayHandleEl.setPointerCapture(e.pointerId); } catch {}
-  trayDrag = { id: e.pointerId, y: e.clientY, raw: 0, moved: false,
-    startH: dockEl.classList.contains("open") ? trayBodyEl.getBoundingClientRect().height : 0 };
-  dockEl.classList.add("dragging");
-});
-trayHandleEl.addEventListener("pointermove", e => {
-  if (!trayDrag || e.pointerId !== trayDrag.id) return;
-  const dy = trayDrag.y - e.clientY;               // finger up => taller
-  if (Math.abs(dy) > TRAY_SLOP) trayDrag.moved = true;
-  if (!trayDrag.moved) return;
-  trayDrag.raw = trayDrag.startH + dy;
-  dockEl.classList.add("open");
-  setTrayH(trayDrag.raw);
-});
-function endTrayDrag(e) {
-  if (!trayDrag || e.pointerId !== trayDrag.id) return;
-  const d = trayDrag; trayDrag = null;
-  dockEl.classList.remove("dragging");
-  try { trayHandleEl.releasePointerCapture(e.pointerId); } catch {}
-  if (!d.moved) { setTrayOpen(!dockEl.classList.contains("open")); return; } // tap = toggle
-  if (d.raw < TRAY_MIN_H / 2) { setTrayOpen(false); return; }                // yanked closed
-  setTrayOpen(true);
-  try { localStorage.setItem(TRAY_H_KEY, String(clampTrayH(d.raw))); } catch {}
-}
-trayHandleEl.addEventListener("pointerup", endTrayDrag);
-trayHandleEl.addEventListener("pointercancel", endTrayDrag);
+// The shop is static now — always open, no handle, no drag/resize. It only ever
+// appears or hides as a whole (syncDock), so there's no tray-open state to track.
 
 // Kiosk lockdown (see the html,body CSS note): swallow the long-press context
 // menu so a held tap on Hex or a shop row never raises the browser's callout.
@@ -2432,16 +2319,14 @@ function makeStars() {
 // The night-transition CUTSCENE. Fired once, only on the live day->night edge (a
 // player buying the twist) — never on load/reconnect or a dev preset, so a
 // returning player drops straight into night without replaying the beat. It
-// takes the screen: the shop slides shut, a transparent veil locks ALL input
-// (petting included), the existing yawn->zoom->reveal plays, then input frees and
-// the shop returns to exactly where the player had it.
+// takes the screen: the whole static shop recedes, a transparent veil locks ALL
+// input (petting included), the existing yawn->zoom->reveal plays, then input
+// frees and the shop fades back in.
 let cutsceneLock = false;
 function runNightCutscene() {
   if (cutsceneLock) return;
   cutsceneLock = true;
-  const wasOpen = dockEl.classList.contains("open");
-  setTrayOpen(false);                 // shut the upgrades drawer…
-  dockEl.classList.add("cutscene-hidden"); // …and recede the pinned buildings too, for the reveal
+  dockEl.classList.add("cutscene-hidden"); // recede the whole static shop for the reveal
   cutsceneVeilEl.classList.add("on"); // nothing selectable while the beat plays
   // Duration read here (not a top-level const) so it can reference YAWN_MS, which
   // is declared further down. Kept in sync with the CSS: YAWN_MS (1300) + the
@@ -2449,7 +2334,6 @@ function runNightCutscene() {
   setTimeout(() => {
     cutsceneVeilEl.classList.remove("on");
     dockEl.classList.remove("cutscene-hidden");
-    setTrayOpen(wasOpen);             // restore the player's own layout
     cutsceneLock = false;
   }, YAWN_MS + 1800);
 }
@@ -3052,7 +2936,6 @@ function initDev() {
 load();
 recalc();
 buildShop();
-dockEl.classList.add("open"); // opens by default; tray state is UI, not saved
 syncPhase(); // saves restore the phase for free
 initDev();
 countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refreshHud()'s job

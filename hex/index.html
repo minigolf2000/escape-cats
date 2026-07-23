@@ -579,7 +579,10 @@
 
   /* ---- Upgrades strip (only unlocked-and-unbought ones exist here, so the
      list is short; buying removes the row) ---- */
-  #upgradeSec { flex: none; display: none; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  /* No bottom padding: the #upgrades scroller must reach the section edge so the
+     bottom scroll-shadow sits flush with the divider (matching the top), instead
+     of floating above a strip of padding. */
+  #upgradeSec { flex: none; display: none; border-bottom: 1px solid var(--line); }
   #upgradeSec.show { display: block; }
   #upgrades { max-height: calc(10vh * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; }
   #upgrades::-webkit-scrollbar { width: 0; }

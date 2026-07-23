@@ -80,3 +80,30 @@ Final champions (both jsQR-verified):
   around it (`out/evolve-ga/g4-focalfix.json`)
 - **evolve-champion-diagonal.png** — dense diagonal-drift face field
   (`out/evolve-ga/g4-diagdense.json`)
+
+## The mystery run: question marks & keyholes
+
+Same experiment, new species — and a demonstration of **transfer
+learning across GA runs**. The glyph set was extended with `qmark` (a
+5×8 pixel '?') and `keyhole` (solid disc + flared skirt), verified
+backward-compatible (the cat champion re-renders byte-identical). The
+theme has built-in meta-humor: a QR code is already a mystery box, so
+tiling it with question marks is the code being honest about itself.
+
+Because the cat run had already discovered the good genes for this
+canvas (density pitch, the furniture-clear focal spot at (14,16),
+diagonal shear, checker alternation), generation m0 was seeded with
+those genes applied to the new species — and immediately scored where
+the cat run's gen 2 had (best ~87 vs the cat run's 75-point start).
+One recombination generation later:
+
+- **evolve-champion-mystery-fabric.png** (~89) — brick-alternating
+  question marks and keyholes ("questions and locked doors"), 13 icons
+  (`out/evolve-ga/gm1-checkerstag.json`)
+- **evolve-champion-big-question.png** (~87) — one 1.5× focal '?'
+  trailing into small drifting ?s ("a question leading to more
+  questions") (`out/evolve-ga/gm1-focaldiag.json`)
+
+Stopped after two generations: +2 improvement, both niches (texture /
+composition) covered. Lesson: champion genomes are reusable knowledge —
+a themed re-run costs a fraction of the original search.

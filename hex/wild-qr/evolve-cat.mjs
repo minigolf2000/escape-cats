@@ -102,6 +102,35 @@ const CAT_FACE = [
   "##..##",
   ".####.",
 ];
+// Question mark (~5w x 8t): a classic pixel-font '?'. A rounded hook loop up top
+// (r0-1, hollow centre), the curve sweeps down the right and back to a chunky
+// 2-module central stem (r2-5), a 1-module light GAP (r6), then a 2-module dot
+// (r7). Strokes are >=2 modules so the glyph survives the halo/intact rule and
+// still reads as ? at base scale. The dot is a separate dark component but rides
+// the same instance (kept or dropped whole by intact-or-absent).
+const QMARK_BASE = [
+  ".###.",
+  "##.##",
+  "...##",
+  "..##.",
+  ".##..",
+  ".##..",
+  ".....",
+  ".##..",
+];
+// Keyhole (~5w x 7t): a SOLID blob — a round dark disc up top (r0-3, ~5 wide with
+// rounded top corner) fused to a wedge/trapezoid that flares DOWN beneath it
+// (r4-5 a 3-wide neck widening to a 5-wide base at r6). Crisp edge, solid
+// interior (no cutouts), so it fills like a stamped keyhole silhouette.
+const KEYHOLE_BASE = [
+  ".###.",
+  "#####",
+  "#####",
+  "#####",
+  ".###.",
+  "#####",
+  "#####",
+];
 
 function parseBitmap(rows) {
   const h = rows.length, w = Math.max(...rows.map((r) => r.length));
@@ -147,6 +176,8 @@ const BASES = {
   paw: parseBitmap(PAW_BASE),
   catSilhouette: parseBitmap(CAT_SILHOUETTE),
   catFace: parseBitmap(CAT_FACE),
+  qmark: parseBitmap(QMARK_BASE),
+  keyhole: parseBitmap(KEYHOLE_BASE),
 };
 const ALLOWED_SCALES = new Set([1, 1.5]);
 const glyphCache = new Map();
@@ -155,6 +186,8 @@ function glyphOf(type, scale, catStyle = "silhouette") {
   let base;
   if (type === "paw") base = BASES.paw;
   else if (type === "cat") base = catStyle === "face" ? BASES.catFace : BASES.catSilhouette;
+  else if (type === "qmark") base = BASES.qmark;
+  else if (type === "keyhole") base = BASES.keyhole;
   else return null;
   const key = type + (type === "cat" ? "/" + (catStyle === "face" ? "face" : "silhouette") : "") + "@" + scale;
   if (glyphCache.has(key)) return glyphCache.get(key);
@@ -192,7 +225,7 @@ function rasterizeIcon(icon, S, funcSet, idx, inB, catStyle) {
   const { type } = icon;
   const scale = icon.scale;
   const r0 = icon.r, c0 = icon.c;
-  if (type !== "cat" && type !== "paw") return { skip: "bad-type" };
+  if (type !== "cat" && type !== "paw" && type !== "qmark" && type !== "keyhole") return { skip: "bad-type" };
   if (!ALLOWED_SCALES.has(scale)) return { skip: "bad-scale" };
   if (!Number.isInteger(r0) || !Number.isInteger(c0)) return { skip: "bad-coord" };
   const g = glyphOf(type, scale, catStyle);
@@ -444,7 +477,7 @@ function renderGenome(genome, outPath) {
   let wh = 0;
   { let t = 0, l = 0; for (let i = 0; i < S * S; i++) { if (funcSet[i]) continue; t++; if (matrix[i] === 0) l++; } wh = t ? l / t : 1; }
 
-  const iconCounts = { cat: 0, paw: 0 };
+  const iconCounts = { cat: 0, paw: 0, qmark: 0, keyhole: 0 };
   for (const ins of kept) iconCounts[ins.type]++;
 
   const meta = {
@@ -556,7 +589,7 @@ function usage() {
     "usage:\n" +
     "  node evolve-cat.mjs render  <genome.json> <out.png>\n" +
     "  node evolve-cat.mjs contact <a.png,b.png,...> <out.png> [labelA,labelB,...]\n" +
-    "  node evolve-cat.mjs glyph   <cat|paw> <silhouette|face> <out.png> [px=16]\n"
+    "  node evolve-cat.mjs glyph   <cat|paw|qmark|keyhole> <silhouette|face|-> <out.png> [px=16]\n"
   );
 }
 
@@ -581,7 +614,7 @@ function main() {
         valid: false, scans: { s8: false, s3: false },
         placed: Array.isArray(genome.icons) ? genome.icons.length : 0, kept: 0,
         dropped: Array.isArray(genome.icons) ? genome.icons.length : 0,
-        whiteness: 0, minHeadroom: 0, iconCounts: { cat: 0, paw: 0 },
+        whiteness: 0, minHeadroom: 0, iconCounts: { cat: 0, paw: 0, qmark: 0, keyhole: 0 },
         mask: genome.mask === "auto" || genome.mask == null ? -1 : (Number(genome.mask) & 7),
         seed: (Number.isFinite(genome.seed) ? genome.seed : 0) >>> 0,
       };
@@ -600,7 +633,7 @@ function main() {
     process.exit(0);
   } else if (cmd === "glyph") {
     const type = arg1, style = arg2, out = arg3, px = process.argv[6] ? Number(process.argv[6]) : 16;
-    if ((type !== "cat" && type !== "paw") || !out) { usage(); process.exit(2); }
+    if ((type !== "cat" && type !== "paw" && type !== "qmark" && type !== "keyhole") || !out) { usage(); process.exit(2); }
     try {
       const img = renderGlyphIso(type, style === "face" ? "face" : "silhouette", px);
       fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });

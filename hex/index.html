@@ -815,8 +815,7 @@ const UPGRADES = [
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmfeliway", name: "Feliway Sprinklers", icon: "💨",
     cost: 8000, unlock: { owned: ["farm", 15] },
-    effect: { type: "buildingMult", building: "farm", mult: 2 },
-    fx: "Calm mice grow twice as plump" },
+    effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmtractor", name: "Zoomie Tractors", icon: "🚜",
     cost: 45000, unlock: { owned: ["farm", 30] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
@@ -825,12 +824,10 @@ const UPGRADES = [
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "farmchuru", name: "Churu Hydroponics", icon: "🍦",
     cost: 1.2e6, unlock: { owned: ["farm", 75] },
-    effect: { type: "buildingMult", building: "farm", mult: 3 },
-    fx: "Mice raised on nothing but churu-enriched mist" },
+    effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "farmdrone", name: "Autonomous Insect Swatter Drones", icon: "🚁",
     cost: 6e6, unlock: { owned: ["farm", 100] },
-    effect: { type: "buildingMult", building: "farm", mult: 4 },
-    fx: "Not one pest survives to touch the crop" },
+    effect: { type: "buildingMult", building: "farm", mult: 4 } },
 
   // --- Mouse Factory ---
   // Same escalating ladder as the Farm (×2 mechanical → ×3 fancier → ×4 finale),
@@ -840,19 +837,16 @@ const UPGRADES = [
     effect: { type: "buildingMult", building: "factory", mult: 2 } },
   { key: "factory2", name: "Laser Chaser Assembly Belt", icon: "🔴",
     cost: 800000, unlock: { owned: ["factory", 12] },
-    effect: { type: "buildingMult", building: "factory", mult: 2 },
-    fx: "The belt runs wherever the red dot leads" },
+    effect: { type: "buildingMult", building: "factory", mult: 2 } },
   { key: "factory3", name: "LED Weaving Looms", icon: "💡",
     cost: 4e6, unlock: { owned: ["factory", 20] },
     effect: { type: "buildingMult", building: "factory", mult: 3 } },
   { key: "factory4", name: "Pneumatic Crinkle Packagers", icon: "🎁",
     cost: 20e6, unlock: { owned: ["factory", 35] },
-    effect: { type: "buildingMult", building: "factory", mult: 3 },
-    fx: "Every mouse sealed with a satisfying crinkle" },
+    effect: { type: "buildingMult", building: "factory", mult: 3 } },
   { key: "factory5", name: "Bioluminescent Dip Vats", icon: "🪼",
     cost: 90e6, unlock: { owned: ["factory", 50] },
-    effect: { type: "buildingMult", building: "factory", mult: 4 },
-    fx: "Dipped to a soft glow — easy to count in the dark" },
+    effect: { type: "buildingMult", building: "factory", mult: 4 } },
 
   // --- Schrödinger's Lab — fantastical cross-building tier ---
   // The Lab gets NO upgrades that boost itself. Instead, owning it unlocks a
@@ -863,16 +857,13 @@ const UPGRADES = [
   // ×3 across the board, fantastical flavour. Costs are GUESSES.
   { key: "farm2", name: "Splice-Grown Mice", icon: "🧬",
     cost: 3e6, unlock: { owned: [["farm", 25], ["lab", 1]] },
-    effect: { type: "buildingMult", building: "farm", mult: 3 },
-    fx: "Grown from a strand of theoretical mouse" },
+    effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "labparcels", name: "2 Second Shipping", icon: "🚀",
     cost: 3e6, unlock: { owned: [["shopper", 25], ["lab", 1]] },
-    effect: { type: "buildingMult", building: "shopper", mult: 3 },
-    fx: "The lab folds the route flat — the box lands before you order" },
+    effect: { type: "buildingMult", building: "shopper", mult: 3 } },
   { key: "labfactory", name: "Superposition Assembly Line", icon: "⚛️",
     cost: 5e6, unlock: { owned: [["factory", 10], ["lab", 1]] },
-    effect: { type: "buildingMult", building: "factory", mult: 3 },
-    fx: "The line runs every configuration at once" },
+    effect: { type: "buildingMult", building: "factory", mult: 3 } },
   // A factory that makes factories: a SELF-synergy (crossBuilding with per ==
   // building), so each Mouse Factory you own makes every Mouse Factory +5%
   // better. Total factory output becomes ~quadratic in count — a snowball that
@@ -881,12 +872,10 @@ const UPGRADES = [
   // factories (×1.75-2.25); watch it in the pacing sim if factory counts drift.
   { key: "factoryfactory", name: "Factory Factory", icon: "🪆",
     cost: 6e6, unlock: { owned: [["factory", 15], ["lab", 1]] },
-    effect: { type: "crossBuilding", building: "factory", per: "factory", pct: 5 },
-    fx: "Every factory tools up the next — the more you run, the better each one" },
+    effect: { type: "crossBuilding", building: "factory", per: "factory", pct: 5 } },
   { key: "labobserver", name: "The Observer Effect", icon: "🔭",
     cost: 8e6, unlock: { owned: [["lab", 2]] },
-    effect: { type: "globalPct", pct: 15 },
-    fx: "Watched closely, every mouse multiplies out of politeness" },
+    effect: { type: "globalPct", pct: 15 } },
 
   // --- Petting ---
   { key: "whiskers", name: "Cat Tree", icon: "🌳",
@@ -903,18 +892,15 @@ const UPGRADES = [
     effect: { type: "clickMult", mult: 2 } },
   { key: "jailgoomba", name: "Lock Goomba in Cardboard Castle", icon: "🚔",
     cost: 15e6, unlock: { clicks: 1200 },
-    effect: { type: "clickMult", mult: 2 },
-    fx: "Goomba can't steal pets from the cardboard castle" },
+    effect: { type: "clickMult", mult: 2 } },
   // Cardboard pair: the Box is the classic cheap ambush spot; the Castle is its
   // upgrade, so it `requires` the Box before it unlocks. Both are plain ×2 pets.
   { key: "cardboardbox", name: "Cardboard Box", icon: "📦",
     cost: 300000, unlock: { clicks: 550 },
-    effect: { type: "clickMult", mult: 2 },
-    fx: "The ultimate ambush spot — no mouse expects the box" },
+    effect: { type: "clickMult", mult: 2 } },
   { key: "cardboardcastle", name: "Cardboard Castle", icon: "🏰",
     cost: 8e6, unlock: { requires: "cardboardbox", clicks: 1000 },
-    effect: { type: "clickMult", mult: 2 },
-    fx: "A fortress of flaps — every corner a fresh pounce" },
+    effect: { type: "clickMult", mult: 2 } },
   // More ×2 petting. Costs/unlocks are placeholders — parked in the petting
   // ladder in ascending order so they don't all reveal at once; NOT tuned yet.
   { key: "scratchpost", name: "Scratching Post", icon: "🪵",
@@ -928,23 +914,19 @@ const UPGRADES = [
     effect: { type: "clickMult", mult: 2 } },
   { key: "ovenmitts", name: "Oven Mitts", icon: "🧤",
     cost: 40e6, unlock: { clicks: 1500 },
-    effect: { type: "clickMult", mult: 2 },
-    fx: "Pet the bitey one without consequence" },
+    effect: { type: "clickMult", mult: 2 } },
   // Window Perch #2 and #3 of the running gag (see #1 in the Bespoke section):
   // the first perch was innocent; these two later, pricier ones lean into the
   // excess. All three are plain ×2 pets — the joke lives entirely in the flavor.
   { key: "cattree", name: "Window Perch", icon: "🪟",
     cost: 60e6, unlock: { clicks: 1800 },
-    effect: { type: "clickMult", mult: 2 },
-    fx: "A second window perch, for the second window" },
+    effect: { type: "clickMult", mult: 2 } },
   { key: "windowperch", name: "Window Perch", icon: "🪟",
     cost: 90e6, unlock: { clicks: 2200 },
-    effect: { type: "clickMult", mult: 2 },
-    fx: "A third window perch. The house has two windows" },
+    effect: { type: "clickMult", mult: 2 } },
   { key: "dryfood", name: "Dry Food", icon: "🥣",
     cost: 120e6, unlock: { clicks: 2600 },
-    effect: { type: "clickMult", mult: 2 },
-    fx: "Her midday snack, kibble by kibble" },
+    effect: { type: "clickMult", mult: 2 } },
 
   // --- Cross-building synergies ---
   // (None right now.) Assisted Pounce and Thesis Subjects lived here — both used
@@ -964,8 +946,7 @@ const UPGRADES = [
   // Replaces the old Saucer of Milk (+5% income) — now a plain ×2 petting bonus.
   { key: "milk", name: "Window Perch", icon: "🪟",
     cost: 50000, unlock: { total: 40000 },
-    effect: { type: "clickMult", mult: 2 },
-    fx: "Prime real estate for judging the birds outside" },
+    effect: { type: "clickMult", mult: 2 } },
   { key: "magnet", name: "Mouse Magnet", icon: "🧲",
     cost: 30000, unlock: { golden: 2 },
     effect: { type: "goldenFreq", mult: 1.5 } },
@@ -977,8 +958,7 @@ const UPGRADES = [
   // buildings disappear at night. Retune against the day-buildings decision.
   { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
     cost: 2e6, unlock: { requires: "catnap", golden: 6 },
-    effect: { type: "globalMult", mult: 6 },
-    fx: "A run of pure luck — every mouse, sixfold" },
+    effect: { type: "globalMult", mult: 6 } },
   { key: "focus", name: "Hex's Undivided Focus", icon: "👁️",
     cost: 250000, unlock: { total: 200000 },
     effect: { type: "globalPct", pct: 10 } },
@@ -1210,20 +1190,22 @@ function effectText(u) {
   if (u.fx) return u.fx;
   return [].concat(u.effect).map(oneEffectText).filter(Boolean).join(" · ");
 }
+// Prefer math over words: state the multiplier/percentage, not "twice as good".
 function oneEffectText(e) {
   switch (e.type) {
-    case "buildingMult": return `${buildingName(e.building)} is ${e.mult === 2 ? "twice" : "×" + e.mult} as good`;
+    // Lead with the number so it survives if the line gets truncated.
+    case "buildingMult": return `×${e.mult} ${buildingName(e.building)}`;
     case "globalPct":    return `+${e.pct}% mice per second`;
     case "globalMult":   return `×${e.mult} mice per second`;
     case "clickFlat":    return `+${fmt(e.add)} per pet`;
     case "clickShare":   return `+${e.pct}% of your /s per pet`;
-    case "clickMult":    return `Petting is ×${e.mult} stronger`;
-    case "goldenFreq":   return `Golden mice appear ×${e.mult} as often`;
-    case "goldenLife":   return `Golden mice linger +${e.add}s longer`;
+    case "clickMult":    return `×${e.mult} per pet`;
+    case "goldenFreq":   return `×${e.mult} golden mice`;
+    case "goldenLife":   return `+${e.add}s golden mice`;
     case "trail":        return `Dream mice leave longer trails`;
     case "countMice":    return `The first mice appear on the wall`;
-    case "crossBuilding": return `${buildingName(e.building)} gains +${e.pct}% per ${buildingName(e.per)}`;
-    case "clickPerBuilding": return `+${fmt(e.add)} per pet for every ${buildingName(e.per)}`;
+    case "crossBuilding": return `+${e.pct}% ${buildingName(e.building)} per ${buildingName(e.per)}`;
+    case "clickPerBuilding": return `+${fmt(e.add)} per pet, per ${buildingName(e.per)}`;
     default:             return "";
   }
 }

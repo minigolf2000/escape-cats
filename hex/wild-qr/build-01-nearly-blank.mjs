@@ -46,7 +46,7 @@ import { verifyMatrix } from "./verify.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, "out");
-const URL = "https://github.com/minigolf2000/cat-games";
+const URL = process.env.QR_URL || "https://github.com/minigolf2000/cat-games";
 const VERSION = 6;
 const LEVEL = "L"; // L maximises solver rank; M is rank-starved and dirties the disc.
 const S = QRArt.sizeOf(VERSION); // 41

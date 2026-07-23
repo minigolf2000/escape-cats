@@ -396,7 +396,8 @@ function renderGenome(genome, outPath) {
     ? [0, 1, 2, 3, 4, 5, 6, 7]
     : [Number(maskReq) & 7];
 
-  const prep = QRArt.prepareArt(URL, version, level, "schemehost");
+  const url = typeof genome.url === "string" && genome.url ? genome.url : URL;
+  const prep = QRArt.prepareArt(url, version, level, "schemehost");
   const safe = safeMaskV10(prep, S);
 
   // Rasterize + furniture-guard. Skipped icons are logged but never abort the run.
@@ -437,9 +438,9 @@ function renderGenome(genome, outPath) {
     samples.sort((a, b) => b.white - a.white);
     const scans = (m) => {
       const i8 = toned ? renderToned(m, shapeSet, S, funcSet, { scale: 8, quiet: 4 }) : renderMatrix(m, version, { scale: 8, quiet: 4 });
-      if (!sameURL(scanRGBA(i8), URL)) return false;
+      if (!sameURL(scanRGBA(i8), url)) return false;
       const i3 = toned ? renderToned(m, shapeSet, S, funcSet, { scale: 3, quiet: 4 }) : renderMatrix(m, version, { scale: 3, quiet: 4 });
-      return sameURL(scanRGBA(i3), URL);
+      return sameURL(scanRGBA(i3), url);
     };
     matrix = null;
     for (const s of samples) { if (scans(s.m)) { matrix = s.m; break; } }
@@ -447,7 +448,7 @@ function renderGenome(genome, outPath) {
     if (!matrix) matrix = samples.length ? samples[0].m : runSolve(io, best.mask, best.flipSeed, baseNoise).matrix;
   } else {
     // Utterly unsolvable even empty (should never happen) — emit the plain code.
-    const std = QRArt.encodeStandard(URL, { version, level });
+    const std = QRArt.encodeStandard(url, { version, level });
     matrix = std.matrix;
     usedMask = std.mask;
   }
@@ -460,8 +461,8 @@ function renderGenome(genome, outPath) {
     : renderMatrix(matrix, version, { scale: 8, quiet: 4 });
   const img3 = toned ? renderToned(matrix, shapeMask, S, funcSet, { scale: 3, quiet: 4 })
     : renderMatrix(matrix, version, { scale: 3, quiet: 4 });
-  const s8 = sameURL(scanRGBA(img8), URL);
-  const s3 = sameURL(scanRGBA(img3), URL);
+  const s8 = sameURL(scanRGBA(img8), url);
+  const s3 = sameURL(scanRGBA(img3), url);
   const valid = s8 && s3;
 
   // Always write the PNG (best effort), even when it does not scan.

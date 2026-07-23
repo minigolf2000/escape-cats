@@ -107,3 +107,24 @@ One recombination generation later:
 Stopped after two generations: +2 improvement, both niches (texture /
 composition) covered. Lesson: champion genomes are reusable knowledge —
 a themed re-run costs a fraction of the original search.
+
+## The hexxygon.com run: URL length is the biggest lever, proven
+
+The notes' oldest claim — every payload byte saved is 8 free solver bits
+plus one less frozen codeword — finally demonstrated on the champions.
+`https://hexxygon.com` (20 chars vs 41) raises v10-L freedom from 1854 to
+2024 basis vectors and halves the frozen block-0 region. With no path
+component the ENTIRE URL is scheme+host, so every letter is case-playable
+(decodes like `HttpS://heXXYgON.COM` are RFC-3986-equivalent).
+
+Same genomes, same lattices, new URL (genome `url` field; old genomes
+render byte-identical):
+
+| piece | repo URL kept | hexxygon kept |
+| --- | --- | --- |
+| cat grid (`hexxygon-cats.png`) | 17 | **26/28** — near-full-width wallpaper |
+| mystery fabric (`hexxygon-mystery-fabric.png`) | 13 | **20/20** — zero drops |
+| mama cat (`hexxygon-mama-cat.png`) | 12 | **22/25** |
+| nearly-blank cat (`hexxygon-blank.png`, v6) | — | 114/114 strokes, disc 0, 77.0% white, block-0 flips 0/9 |
+
+All four jsQR-verified against https://hexxygon.com (case-equivalent).

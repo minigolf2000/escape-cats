@@ -1,0 +1,20 @@
+{
+  "valid": true,
+  "scans": {
+    "s8": true,
+    "s3": true
+  },
+  "placed": 28,
+  "kept": 26,
+  "dropped": 2,
+  "whiteness": 0.5177,
+  "minHeadroom": 2,
+  "iconCounts": {
+    "cat": 26,
+    "paw": 0,
+    "qmark": 0,
+    "keyhole": 0
+  },
+  "mask": 4,
+  "seed": 1
+}

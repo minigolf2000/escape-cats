@@ -45,11 +45,16 @@
      Study strips it away to the bare dark dream, the contrast is the reveal.
      Fonts are system stacks (Georgia) rather than Cookie Clicker's actual
      webfonts — the prototype stays zero-dependency and file:// friendly. */
+  @font-face {
+    font-family: 'Baloo 2'; font-style: normal; font-weight: 100 900; font-display: swap;
+    src: url(data:font/woff2;base64,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) format('woff2');
+  }
   :root {
     --gold: #ffd44d;
     --neon: #57e6c9;
+    --ss: 1.9;  /* shop skin scale (locked) */
 
-    --ui-font: Georgia, "Times New Roman", serif;
+    --ui-font: 'Baloo 2', system-ui, sans-serif;
     --page-bg:
       radial-gradient(58vh 58vh at 50% 44%, rgba(150,205,255,.34), rgba(90,160,220,.10) 45%, transparent 70%),
       repeating-linear-gradient(90deg, #2e6699 0 26px, #295c8b 26px 52px);
@@ -68,7 +73,7 @@
     --title-shadow: 0 2px 0 rgba(0,0,0,.5), 0 0 14px rgba(0,0,0,.45);
   }
   body.night {
-    --ui-font: -apple-system, "Segoe UI", system-ui, sans-serif;
+    --ui-font: 'Baloo 2', system-ui, sans-serif;
     --page-bg:
       radial-gradient(90vw 55vh at 50% 12%, rgba(180,140,255,0.07), transparent 62%),
       #06070c;
@@ -172,8 +177,13 @@
      and the night zoom (#catPose) live inside and compose on top of it. */
   #catWrap {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    transform: translateY(-11vh);
+    /* Centered in the space between the HUD and the top of the static shop; the
+       two heights are published as CSS vars by the shop-skin runtime (JS). */
+    transform: translateY(calc((var(--hud-h, 0px) - var(--dock-h, 0px)) / 2));
   }
+  /* At night the wall reveal owns Hex's position (see #catPose), so drop the day
+     centering entirely. */
+  body.night #catWrap { transform: none; }
   /* Four nested layers, one transform each, because they animate on wildly
      different clocks and CSS can't run two durations on one property:
        #catMotion — purr + dream twitch (JS, per-frame, NO transition)
@@ -214,7 +224,7 @@
      real per-shape hit-testing back; cursor/touch-action move down with it,
      since they're meaningless on an element excluded from hit-testing. */
   #hexCat {
-    width: min(62%, 340px); height: auto; max-height: 94%;
+    width: min(55%, 300px); height: auto; max-height: 84%;
     pointer-events: none;
     /* day: sitting in the sunburst, so a warm white bloom like CC's cookie */
     filter: drop-shadow(0 3px 10px rgba(0,0,0,.45)) drop-shadow(0 0 30px rgba(200,235,255,.45));
@@ -279,7 +289,9 @@
      the wall. Delay only on the night rule, so waking (dev preset back to day)
      still snaps back immediately. Keep in sync with YAWN_MS. */
   body.night #catPose {
-    transform: translateY(calc(50vh - 104px)) scale(.25);
+    /* Independent of the day centering (#catWrap is neutralized at night): the
+       original wall-reveal pose, so the sleeping cat settles where it expects. */
+    transform: translateY(calc(39vh - 104px)) scale(.25);
     transition-delay: 1.3s;
   }
   body.night #hexCat { filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
@@ -393,10 +405,10 @@
   }
 
   /* ---- Shop tray ----
-     An OVERLAY, not a flow element: fixed to the bottom edge, so opening it
-     floats over Hex instead of resizing the stage. The handle is always the
-     bottom bar; the body grows upward out of it. Identical day and night —
-     only the tint changes. Still hides entirely when there's nothing to sell.
+     An OVERLAY, not a flow element: fixed to the bottom edge, so it floats over
+     Hex instead of resizing the stage. Static and always open — no handle, no
+     drag. Identical day and night — only the tint changes. Still hides entirely
+     when there's nothing to sell.
 
      NO background of its own: the stage (Hex, the rays, the night wall) shows
      straight through the transparent rows. It used to paint --panel-bg, which
@@ -404,8 +416,8 @@
      showing through while actually being an opaque coat in front of it, and
      making .item transparent appeared to do nothing. The blur stays: it's what
      keeps row text legible over whatever art it's floating on. The wood rails
-     (.shopHead / .shopDivider / #trayHandle) keep their own fills, so the
-     Cookie Clicker framing survives. */
+     (.shopHead / .shopDivider) keep their own fills, so the Cookie Clicker
+     framing survives. */
   #dock {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
     display: none; flex-direction: column;
@@ -415,84 +427,26 @@
   }
   #dock.show { display: flex; }
 
-  /* Cookie Clicker frames every panel in wood. The handle doubles as that
-     frame: at night --wood resolves to `none` and the background-color
-     underneath shows through, so the same element reads as a plain bar. */
-  /* appearance:none + border-radius:0: it's a bare <button>, and mobile
-     Safari's default control chrome rounds its corners — squares it back off
-     to match the rest of the wood-rail framing. */
-  /* Neutral drag-grip, not a labelled bar: it governs the Upgrades drawer that
-     unfurls above it, and the "Upgrades" plaque inside the drawer names that
-     section — so a word here would just double up and read as a header for the
-     Buildings pinned below. A centered pill is the standard "drag me" affordance. */
-  #trayHandle {
-    flex: none; width: 100%; display: flex; align-items: center;
-    justify-content: center; padding: 7px 14px; cursor: pointer;
-    touch-action: none; /* claim vertical drags for resize, not page scroll */
-    -webkit-appearance: none; appearance: none; border-radius: 0;
-    background: var(--wood), var(--panel-bg);
-    border: 0; border-top: 1px solid var(--wood-line);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
-  }
-  #trayHandle .grip {
-    width: 44px; height: 4px; border-radius: 999px;
-    background: rgba(255,255,255,.55); box-shadow: 0 1px 1px rgba(0,0,0,.45);
-  }
-  /* The pinned Buildings label is a plain caption, not a tappable close like the
-     Upgrades plaque, so it doesn't take the pointer cursor. */
+  /* The pinned Buildings bar is a plain rail, not interactive, so it keeps the
+     default cursor (also the .shopHead default now). */
   #buildingSec .shopHead { cursor: default; }
 
-  /* The body caps itself rather than each list capping independently —
-     otherwise the upgrade strip stacks on the building list and the two
-     together fill the screen. Shop absorbs whatever's left. */
-  /* Open/close is animated, so the body stays in the DOM and flexes at all
-     times (display can't transition) — collapsed it's max-height:0 + clipped,
-     so it takes no space and can't be tapped (pointer-events:none). Opening
-     grows it back up to its cap while the content rises, reading as the tray
-     unfurling upward out of the handle — a purely positional move, no fade.
-     Easing is asymmetric:
-     a soft, slightly-overshooting ease-out on the way open, a quicker ease-in
-     on the way closed — the standard bottom-sheet feel. */
-  #trayBody {
-    flex: 1 1 auto; min-height: 0;
-    display: flex; flex-direction: column;
-    max-height: 0; overflow: hidden;
-    transform: translateY(6px); pointer-events: none;
-    transition: max-height .2s cubic-bezier(.4,0,1,1),
-                transform .2s cubic-bezier(.4,0,1,1);
-  }
-  #dock.open #trayBody {
-    /* Open height is a drag-set var (capped at 60vh in JS so a tall tray can't
-       blanket the night-wall reveal); 56vh is the pre-drag default. */
-    max-height: var(--tray-h, 56vh);
-    transform: translateY(0); pointer-events: auto;
-    transition: max-height .32s cubic-bezier(.16,1,.3,1),
-                transform .32s cubic-bezier(.16,1,.3,1);
-  }
-  /* No animated max-height while a finger is actively resizing — the height is
-     driven frame-by-frame from the drag, so a transition would lag the finger. */
-  #dock.dragging #trayBody { transition: none; }
-  /* Respect the same motion preference the rays already honor: snap, no slide. */
-  @media (prefers-reduced-motion: reduce) {
-    #trayBody, #dock.open #trayBody { transition: none; }
-  }
+  /* Static shop: always open, no drag or resize. The two sections just stack and
+     each caps its own list (see #upgrades / #shop max-heights below), so the dock
+     sizes to its content and can't blanket the stage. */
 
-  /* CC's big centered "Store" plaque, sat on its own wooden rail. Doubles as a
-     close affordance: it's only ever on screen while the tray is open (it lives
-     inside #trayBody), so a click can only collapse the tray — same action as
-     tapping the handle, a second target up top where the thumb already is. */
+  /* Title-less small bar sitting on its own wooden rail — just the Cookie Clicker
+     wood framing, no text. Only the pinned Buildings section still uses it (as a
+     thin cap above the building list); the Upgrades drawer is governed by the top
+     handle instead. Height is pure padding now that there's no label. */
   .shopHead {
-    flex: none;
-    display: flex; align-items: center; justify-content: center; padding: 7px 12px 6px;
+    flex: none; height: 6px;
+    display: flex; align-items: center; justify-content: center; padding: 0;
     -webkit-appearance: none; appearance: none; border-radius: 0;
     background: var(--wood), var(--panel-bg);
-    border: 0; width: 100%; cursor: pointer;
+    border: 0; width: 100%; cursor: default;
     border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
-  }
-  .shopHead .lab {
-    font: 700 15px var(--ui-font); letter-spacing: .02em; color: var(--title-color);
-    text-shadow: var(--title-shadow);
   }
 
   /* Divider and list travel together — a "BUILDINGS" label over nothing but a
@@ -503,8 +457,6 @@
      height. A top rail separates it from the handle above. */
   #buildingSec {
     flex: none; display: none;
-    border-top: 1px solid var(--wood-line);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
   }
   #buildingSec.show { display: flex; flex-direction: column; }
   /* Night cutscene: recede the ENTIRE shop (including the pinned buildings) so
@@ -528,16 +480,16 @@
      The partial 4th row peeking under the cap is the scroll affordance, since
      the scrollbar itself is hidden below. Fewer rows than the cap just size to
      content (no scroll), so early game is unaffected. */
-  #shop { flex: 1 1 auto; min-height: 0; max-height: 190px; overflow-y: auto; overscroll-behavior: contain; padding: 2px 0 4px; }
+  #shop { flex: 1 1 auto; min-height: 0; max-height: calc(180px * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; }
   #shop::-webkit-scrollbar { width: 0; }
   /* CC store rows: a dark inset strip, a framed icon, name over effect, and
      the price right-aligned — green when you can afford it, red when you
      can't. That red/green is the whole readout in CC; it survives here.
      Affordable rows brighten rather than getting a neon glow. */
   .item {
-    display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+    display: flex; align-items: center; gap: 0; width: 100%; text-align: left;
     background: transparent; border: none; border-bottom: 1px solid var(--line);
-    padding: 8px 12px; color: var(--muted); cursor: not-allowed;
+    padding: 0 calc(11px * var(--ss)) 0 0; color: var(--muted); cursor: not-allowed;
     transition: background .1s, opacity .15s; opacity: .5;
   }
   /* Resting rows stay transparent so the page background shows through the
@@ -546,60 +498,65 @@
   .item.can { cursor: pointer; opacity: 1; }
   .item.can:active { background: rgba(255,255,255,.11); }
   .item .icon {
-    flex: none; width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center;
-    font-size: 21px; background: var(--icon-bg); border: 1px solid var(--line);
+    flex: none; align-self: stretch; width: auto; height: auto; min-height: 0;
+    border-radius: 0; display: grid; place-items: center;
+    margin: 0 calc(11px * var(--ss)) 0 0;
+    font-size: calc(20px * var(--ss)); background: var(--icon-bg); border: 0;
+    /* width is set == the stretched height (a full-height square) by the runtime */
   }
   .item.can .icon { border-color: var(--line-hi); }
   /* Cookie Clicker's own store-row placement (verified against its live DOM:
      name flows first, price flows right under it in the same column, and only
      the owned count is pulled out to its own corner) — name top-left, price
      bottom-left, quantity on the right. */
-  .item .body { flex: 1 1 auto; min-width: 0; }
+  .item .body { flex: 1 1 auto; min-width: 0; padding: calc(5px * var(--ss)) 0; line-height: 1.08; }
   /* Building rows: the name sits alone on the top line; its per-second rate is
      NOT here — it's pulled out to the right column (.right) so it can sit on the
      same baseline as the big owned count, reading as a pair (how many × how much
      each). The blurb ("Grows mice in glowing rows") reads on its own line below
      (the same .fx slot upgrade rows use for effect text) UNTIL you own one, then
      it's hidden — see .item.bought. Upgrade rows have no rate, so .nm sits bare. */
-  .item .titleRow { display: flex; align-items: baseline; gap: 8px; }
+  .item .titleRow { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .item .nm {
-    font: 700 13.5px var(--ui-font); color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.45);
+    font: 700 13.5px var(--ui-font); font-size: calc(13.5px * var(--ss)); line-height: 1.12;
+    color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.45);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
   }
   .item .rate {
     flex: none; display: inline-flex; align-items: center; gap: 3px;
-    font: 700 11px var(--ui-font); color: var(--muted);
+    font: 700 11px var(--ui-font); font-size: calc(9.5px * var(--ss)); color: var(--muted);
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
   /* Same mouse coin as .cost, shrunk down — without it "12/s" reads as a bare
      number with no unit; this is the unit. */
-  .item .rate .coin { flex: none; width: 12px; height: auto; display: block; }
-  .item .fx { font: 400 11px var(--ui-font); color: var(--muted); margin-top: 1px; }
+  .item .rate .coin { flex: none; width: calc(10px * var(--ss)); height: auto; display: block; }
+  .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px; }
   /* Building blurb is a pre-purchase tease: once you own one, the row drops the
      description and keeps just name + rate + price. Upgrade rows never get the
      .bought class, so their .fx (effect text) is untouched. */
   .item.bought .fx { display: none; }
   .item .cost {
     display: flex; align-items: center; gap: 4px;
-    font: 700 14px var(--ui-font); color: var(--cost-ok);
+    font: 700 14px var(--ui-font); font-size: calc(13.5px * var(--ss)); line-height: 1.04; color: var(--cost-ok);
     text-shadow: 0 1px 1px rgba(0,0,0,.5);
     font-variant-numeric: tabular-nums; white-space: nowrap;
-    margin-top: 2px;
+    margin-top: calc(1px * var(--ss));
   }
   .item .cost.no { color: var(--cost-no); }
   /* The coin's fill is a literal `fill="var(--neon)"` baked into the SVG
      markup at creation, not `currentColor` — so .cost.no flipping this div's
      text color red can never touch it. See currencyIconSVG()'s comment. */
-  .item .cost .coin { flex: none; width: 18px; height: auto; display: block; }
+  .item .cost .coin { flex: none; width: calc(16px * var(--ss)); height: auto; display: block; }
   /* Right column: the per-second rate sitting at the foot of the big owned
      count, baseline-aligned, so the two read as one "output" pair (how many you
      own × how much each makes) instead of the rate floating up by the name.
      Vertically centered in the row by .item's own align-items:center. */
-  .item .right { flex: none; display: flex; align-items: baseline; gap: 7px; }
+  .item .right { flex: none; display: flex; align-items: baseline; gap: calc(5px * var(--ss)); align-self: center; }
   /* Quantity owned — its own corner, not stacked with price, sized to read at
      a glance like CC's big count rather than a label next to a label. */
   .item .own {
-    flex: none; min-width: 30px; text-align: right;
-    font: 800 26px var(--ui-font); color: var(--dim); text-shadow: 0 1px 1px rgba(0,0,0,.45);
+    flex: none; min-width: calc(26px * var(--ss)); text-align: right;
+    font: 800 26px var(--ui-font); font-size: calc(20px * var(--ss)); line-height: 1; color: var(--dim); text-shadow: 0 1px 1px rgba(0,0,0,.45);
     font-variant-numeric: tabular-nums;
   }
   .item.can .own { color: var(--ink); }
@@ -610,7 +567,7 @@
      Swapping visibility in CSS means refreshShop() never writes text for a
      teased row, and the real name can't flash before the class lands. */
   .item.gone { display: none; }
-  .item .lockedNm { display: none; font: 700 13.5px var(--ui-font); color: var(--dim); letter-spacing: .14em; }
+  .item .lockedNm { display: none; font: 700 13.5px var(--ui-font); font-size: calc(13.5px * var(--ss)); color: var(--dim); letter-spacing: .14em; }
   .item .icLocked { display: none; color: var(--dim); font-weight: 800; }
   .item.locked { cursor: default; opacity: .4; }
   .item.locked .lockedNm { display: block; }
@@ -622,13 +579,34 @@
 
   /* ---- Upgrades strip (only unlocked-and-unbought ones exist here, so the
      list is short; buying removes the row) ---- */
-  #upgradeSec { flex: none; display: none; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  /* No bottom padding: the #upgrades scroller must reach the section edge so the
+     bottom scroll-shadow sits flush with the divider (matching the top), instead
+     of floating above a strip of padding. */
+  #upgradeSec { flex: none; display: none; border-bottom: 1px solid var(--line); }
   #upgradeSec.show { display: block; }
-  #upgrades { max-height: 11vh; overflow-y: auto; overscroll-behavior: contain; padding: 2px 0 0; }
+  #upgrades { max-height: calc(10vh * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; }
   #upgrades::-webkit-scrollbar { width: 0; }
-  .item.up { padding: 6px 12px; }
-  .item.up .icon { width: 30px; height: 30px; font-size: 16px; border-radius: 9px; }
-  .item.up .nm { font-size: 12.5px; }
+  .item.up { padding: 0 calc(11px * var(--ss)) 0 0; }
+  .item.up .body { padding: calc(4px * var(--ss)) 0; }
+  .item.up .icon { font-size: calc(16px * var(--ss)); }
+  .item.up .nm { font-size: calc(12.5px * var(--ss)); }
+  /* ---- Scroll shadow (locked affordance): a soft inner shadow at whichever
+     edge still has content to scroll. Snug to the row edge because the scrollers
+     carry no vertical padding. .can-up / .can-down are toggled by the runtime. ---- */
+  #shop::before, #shop::after, #upgrades::before, #upgrades::after {
+    content: ""; position: sticky; left: 0; right: 0; display: block;
+    height: calc(16px * var(--ss)); pointer-events: none; z-index: 3;
+  }
+  #shop::before, #upgrades::before {
+    top: 0; margin-bottom: calc(-16px * var(--ss));
+    background: linear-gradient(to bottom, rgba(0,0,0,.6), transparent); opacity: 0; transition: opacity .12s;
+  }
+  #shop::after, #upgrades::after {
+    bottom: 0; margin-top: calc(-16px * var(--ss));
+    background: linear-gradient(to top, rgba(0,0,0,.6), transparent); opacity: 0; transition: opacity .12s;
+  }
+  #shop.can-up::before, #upgrades.can-up::before { opacity: 1; }
+  #shop.can-down::after, #upgrades.can-down::after { opacity: 1; }
 </style>
 
 <div id="hud">
@@ -674,31 +652,22 @@
 </div>
 
 <div id="dock">
-  <!-- trayBody BEFORE trayHandle in DOM: #dock is a bottom-anchored column
-       flexbox, so the handle (last child) always sits at the true bottom
-       edge, and the body unfurls upward above it when opened — not the other
-       way around, which is what "first child" would have given us. -->
-  <!-- Only the Upgrades drawer collapses/resizes. #buildingSec is a sibling
-       BELOW the handle (see markup order), so buildings stay pinned to the
-       bottom of the screen even when the Upgrades drawer is shut. -->
-  <div id="trayBody">
-    <div id="upgradeSec">
-      <button type="button" class="shopHead" aria-controls="trayBody"><span class="lab">Upgrades</span></button>
-      <div id="upgrades"></div>
-    </div>
+  <!-- Static shop: always open, no handle, no drag. Upgrades on top under a thin
+       title-less rail (only unlocked-and-unbought upgrades exist here); Buildings
+       pinned below their own rail. Each list caps and scrolls on its own. -->
+  <div id="upgradeSec">
+    <div class="shopHead" aria-hidden="true"></div>
+    <div id="upgrades"></div>
   </div>
-  <button id="trayHandle" aria-expanded="true" aria-controls="trayBody" aria-label="Toggle upgrades drawer">
-    <span class="grip"></span>
-  </button>
   <div id="buildingSec">
-    <div class="shopHead build"><span class="lab">Buildings</span></div>
+    <div class="shopHead build" aria-hidden="true"></div>
     <div id="shop"></div>
   </div>
 </div>
 
 <!-- Input trap for the night-transition cutscene: transparent (the beat plays
      through it), but while .on it eats every tap so nothing is selectable. Sits
-     above the dock so even the shop handle is locked. -->
+     above the dock so the whole static shop is locked during the reveal. -->
 <div id="cutsceneVeil"></div>
 
 <script>
@@ -1265,7 +1234,6 @@ const countEl = $("#count"), countIconEl = $("#countIcon"), cpsEl = $("#cps"), s
 const goldenEl = $("#golden"), buffEl = $("#buff");
 const upgradesEl = $("#upgrades"), upgradeSecEl = $("#upgradeSec");
 const buildingSecEl = $("#buildingSec"), dockEl = $("#dock");
-const trayHandleEl = $("#trayHandle");
 const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 
 // Neither section knows about the other, so the dock's own visibility is
@@ -1275,59 +1243,8 @@ function syncDock() {
     upgradeSecEl.classList.contains("show") || buildingSecEl.classList.contains("show"));
 }
 
-// Two things can drive the tray: the bottom handle (toggles) and the Upgrades
-// header (only reachable while open, so it always collapses). Both route here so
-// the handle's aria-expanded stays the source of truth wherever the click came
-// from.
-function setTrayOpen(open) {
-  dockEl.classList.toggle("open", open);
-  trayHandleEl.setAttribute("aria-expanded", open ? "true" : "false");
-}
-// The handle is both a toggle and a resize grip. A tap flips the tray open/
-// closed (the original behavior); a vertical drag resizes it live, and a hard
-// downward yank closes it. One pointer controller owns the gesture so tap and
-// drag never double-fire — which is why the old `click` listener is gone.
-// Height persists per device; capped at 60vh so a tall tray can't blanket the
-// night-wall reveal (the cutscene force-closes it regardless).
-const trayBodyEl = $("#trayBody");
-const TRAY_H_KEY = "hexclicker.trayh";
-const TRAY_MIN_H = 120;   // px; released below half this => close
-const TRAY_SLOP = 6;      // px of travel still counted as a tap, not a drag
-const trayMaxH = () => Math.round(innerHeight * 0.6);
-const clampTrayH = h => Math.max(TRAY_MIN_H, Math.min(trayMaxH(), h));
-const setTrayH = h => dockEl.style.setProperty("--tray-h", clampTrayH(h) + "px");
-(() => { const h = parseFloat(localStorage.getItem(TRAY_H_KEY)); if (h > 0) setTrayH(h); })();
-
-let trayDrag = null;
-trayHandleEl.addEventListener("pointerdown", e => {
-  e.preventDefault();
-  try { trayHandleEl.setPointerCapture(e.pointerId); } catch {}
-  trayDrag = { id: e.pointerId, y: e.clientY, raw: 0, moved: false,
-    startH: dockEl.classList.contains("open") ? trayBodyEl.getBoundingClientRect().height : 0 };
-  dockEl.classList.add("dragging");
-});
-trayHandleEl.addEventListener("pointermove", e => {
-  if (!trayDrag || e.pointerId !== trayDrag.id) return;
-  const dy = trayDrag.y - e.clientY;               // finger up => taller
-  if (Math.abs(dy) > TRAY_SLOP) trayDrag.moved = true;
-  if (!trayDrag.moved) return;
-  trayDrag.raw = trayDrag.startH + dy;
-  dockEl.classList.add("open");
-  setTrayH(trayDrag.raw);
-});
-function endTrayDrag(e) {
-  if (!trayDrag || e.pointerId !== trayDrag.id) return;
-  const d = trayDrag; trayDrag = null;
-  dockEl.classList.remove("dragging");
-  try { trayHandleEl.releasePointerCapture(e.pointerId); } catch {}
-  if (!d.moved) { setTrayOpen(!dockEl.classList.contains("open")); return; } // tap = toggle
-  if (d.raw < TRAY_MIN_H / 2) { setTrayOpen(false); return; }                // yanked closed
-  setTrayOpen(true);
-  try { localStorage.setItem(TRAY_H_KEY, String(clampTrayH(d.raw))); } catch {}
-}
-trayHandleEl.addEventListener("pointerup", endTrayDrag);
-trayHandleEl.addEventListener("pointercancel", endTrayDrag);
-upgradeSecEl.querySelector(".shopHead").addEventListener("click", () => setTrayOpen(false));
+// The shop is static now — always open, no handle, no drag/resize. It only ever
+// appears or hides as a whole (syncDock), so there's no tray-open state to track.
 
 // Kiosk lockdown (see the html,body CSS note): swallow the long-press context
 // menu so a held tap on Hex or a shop row never raises the browser's callout.
@@ -2438,16 +2355,14 @@ function makeStars() {
 // The night-transition CUTSCENE. Fired once, only on the live day->night edge (a
 // player buying the twist) — never on load/reconnect or a dev preset, so a
 // returning player drops straight into night without replaying the beat. It
-// takes the screen: the shop slides shut, a transparent veil locks ALL input
-// (petting included), the existing yawn->zoom->reveal plays, then input frees and
-// the shop returns to exactly where the player had it.
+// takes the screen: the whole static shop recedes, a transparent veil locks ALL
+// input (petting included), the existing yawn->zoom->reveal plays, then input
+// frees and the shop fades back in.
 let cutsceneLock = false;
 function runNightCutscene() {
   if (cutsceneLock) return;
   cutsceneLock = true;
-  const wasOpen = dockEl.classList.contains("open");
-  setTrayOpen(false);                 // shut the upgrades drawer…
-  dockEl.classList.add("cutscene-hidden"); // …and recede the pinned buildings too, for the reveal
+  dockEl.classList.add("cutscene-hidden"); // recede the whole static shop for the reveal
   cutsceneVeilEl.classList.add("on"); // nothing selectable while the beat plays
   // Duration read here (not a top-level const) so it can reference YAWN_MS, which
   // is declared further down. Kept in sync with the CSS: YAWN_MS (1300) + the
@@ -2455,7 +2370,6 @@ function runNightCutscene() {
   setTimeout(() => {
     cutsceneVeilEl.classList.remove("on");
     dockEl.classList.remove("cutscene-hidden");
-    setTrayOpen(wasOpen);             // restore the player's own layout
     cutsceneLock = false;
   }, YAWN_MS + 1800);
 }
@@ -3058,10 +2972,41 @@ function initDev() {
 load();
 recalc();
 buildShop();
-dockEl.classList.add("open"); // opens by default; tray state is UI, not saved
 syncPhase(); // saves restore the phase for free
 initDev();
 countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refreshHud()'s job
+
+// Shop-skin runtime: keep each left icon a full-height square, drive the scroll
+// shadows (.can-up / .can-down), and publish the dock/HUD heights so #catWrap can
+// center Hex in the space above the static shop. All read-only measurement, so
+// there's no layout feedback with the game's own in-place row refresh.
+(function () {
+  const rootEl = document.documentElement;
+  const hudEl = $("#hud");
+  const scrollers = [shopEl, upgradesEl];
+  function sizeIcons() {
+    const icons = document.querySelectorAll("#shop .item .icon, #upgrades .item .icon");
+    for (let i = 0; i < icons.length; i++) {
+      const h = icons[i].offsetHeight;
+      if (h) { icons[i].style.width = h + "px"; icons[i].style.fontSize = Math.round(h * 0.5) + "px"; }
+    }
+  }
+  function measure() {
+    const dh = getComputedStyle(dockEl).display !== "none" ? dockEl.offsetHeight : 0;
+    rootEl.style.setProperty("--dock-h", dh + "px");
+    rootEl.style.setProperty("--hud-h", (hudEl ? hudEl.offsetHeight : 0) + "px");
+  }
+  function updAff(el) {
+    el.classList.toggle("can-up", el.scrollTop > 1);
+    el.classList.toggle("can-down", el.scrollTop + el.clientHeight < el.scrollHeight - 1);
+  }
+  function tick() { measure(); sizeIcons(); scrollers.forEach(updAff); }
+  scrollers.forEach(el => el.addEventListener("scroll", () => updAff(el), { passive: true }));
+  if (window.ResizeObserver) { const ro = new ResizeObserver(tick); ro.observe(dockEl); if (hudEl) ro.observe(hudEl); }
+  addEventListener("resize", tick);
+  setInterval(tick, 300);
+  tick();
+})();
 refreshHud();
 refreshShop();
 refreshUpgrades();

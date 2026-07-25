@@ -52,7 +52,10 @@
   :root {
     --gold: #ffd44d;
     --neon: #57e6c9;
-    --ss: 1.9;  /* shop skin scale (locked) */
+    --ss: 1.52;  /* shop skin scale — every shop dimension (row heights, icons,
+                    fonts, padding, scroll caps) is authored as `Npx * var(--ss)`,
+                    so this one knob resizes the whole tray. Downsized to 4/5 of
+                    the old 1.9 to give the stage more room. */
     --paw: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAEuElEQVR4nOxXW0xbZRz/fb1QCi1lhaHAFhEYgtOpycIWBykjRhmXkGVmBLNEw8aDThPjBZ/MfPdFQwYbQclifDBuRAxhCyJpzMrD2LKUjnHZFgTCRdiA0tMWWjjH/3doa8ultJiFl/2S853v/L///ft/l6PCLkOFXcauO6CIhtnlsh9xOBwfLy0tZa0f4zQ+Rjz5iAIsEiZJshsFgbUyBlNAkEn1cXEJn/G+ICx+zxj7KEiiKz4eVYwZ5rbTHZEDgmDvINYTQ0PDsFh6UF5eipSUFHKCfSOKopLeX09P/4OOjusoKChATk42F2vX6RIq/rcDgiC8Doh3h4cfoqSkDF6vF2lpqbh50wyVSuUg4yqiaY8eLcTMzAzUajU6O68jOzuTpBWHdDqdLZz+CGpAfIO3PT0W2TjH5OQU7t8f4BnQ06fWarXJxjk4j8Vi8cmuHtpOeySr4Dne2O2LIUSn0xnoOxyhYy6X29djadgGGzJAlVxMc36XCstFiockickVbzQmhfDl5eUG+kajMWTs4MG8NfOM5ZCOYa6LdN5xux2m9fZYqOf2I6LIetY7JhHm5xeYyVSMhQU7DhzIQnf3H6ACHCUjanrSysoq0ddn40Zpevqg08WL2BjgqkIhvRkXZ7i1aQZEERc4raurm6r5OJqamv2RuIzGPWhv/w1tba30bvPRlV+RvTrev3LlR1y79gus1tvcOHdbnofGxiYUFh4H10lQUoAXtswApWqJXppjx4owNjYmR9Pfb4Ver+MKO4n97SD2H4h2z6fmNWo+CChluCFJKBEEJ03VqzItK+tFmM1/8u4yLc9YP68qKM2JTqdDQzuabNxHw8DAIPLzD1Nf0UKbj4eo5T6/z26yiiUy/jvx/kr5LLHZ7gUGHj0agcfjQUxMjIb0JlBwiyEOEGGBMrAcGxurSU19HlNT0z7PM9fmSiH9RP6ouFG+DEdGRjA4OCSP5ea+hMzMTJAcI55KMl7G6bxW/EhPT+fG5Qz4jYc4sBYxOiiCk+fO1aCh4TJKS99BUpJRzoTXu6K6erUV9fUNGB8fx2bIyHgB589/iFOnTqrUahWSk5NRXV1FG1MXamtrAjaCZUJy6Ha7M5aX3bdoh9vrp1Gl48mTeVRUVGJiYhKRgEfLC9VoTKTM/VfnKysrjzUa7WGtVjvqp4WsAhr4W6lUv0LdFr7yOM3j8aKqqjpi4xwTExM4c+Z9Mrgqf1PUc/Q0k+6Xg41vcIBDr9fPUJXW0FR8yr8vXmzEgwcPES36+/tx6dJluc+Y4hO9PqGWdM+u5wt3FpzgTW/vbewUvb13fD2xZCueMGcBK+atzRb2MAsLq9Xq7761FU+4DMjp2rdvP3aK1NTAWTQXtQNUNPxMQFFRIXYKvyzpsiBaB6gIZQfq6r7A6dPvIlpwGS4brGtTO1sN0DKMcToXW4jlPf7Nb0Rms5mevzA7+5juBwu0P8xBqVQiMdFAzx66pu2FyVRIkRcF7YLSz/HxfFUxT1QO+EHb85f0+hy+i0kUoI1D+lanM3wXjinCW7GkdLkcpbQpnqUDaT/NqYFEDZTahLVx2KldpG87XWBG6dxophvzDYpa3E53RA48TTz7NXvmwL8AAAD//6QjYfAAAAAGSURBVAMA8l/kFjMrX3YAAAAASUVORK5CYII=) 16 5, auto;
                   /* cat-paw cursor (desktop); mobile ignores it */
 
@@ -570,6 +573,46 @@
     font-variant-numeric: tabular-nums;
   }
   .item.can .own { color: var(--ink); }
+
+  /* ---- Buy feedback (Cookie-Clicker click juice, retargeted to the row) ------
+     CC's click animation lives on its big cookie BUTTON: a squish on press plus
+     a cookie flying off. We have no in-row button — the whole row IS the buy
+     target — so the same juice rides the row itself: a quick press-squish, a
+     warm gold wash flushing through the (transparent) row, and the building's
+     own icon popping up out of it. Transform + background only, so it stays on
+     the compositor and can never nudge a neighbouring row. */
+  @keyframes buyPop {
+    0%   { transform: scale(1);     background: rgba(255,212,77,.42); }
+    30%  { transform: scale(.955);  background: rgba(255,212,77,.30); }
+    62%  { transform: scale(1.018); background: rgba(255,212,77,.10); }
+    100% { transform: scale(1);     background: transparent; }
+  }
+  .item.buy-pop { animation: buyPop .34s cubic-bezier(.34,1.56,.64,1); transform-origin: center; }
+
+  /* The icon that jumps out of a bought row: the building/upgrade's own emoji,
+     floated from the row's icon square. Appended to <body> (position:fixed) so
+     it rises clear of the shop's overflow clip and the dock's stacking context
+     — a row-parented child would be scissored at the scroller edge. */
+  .buyFloat {
+    position: fixed; pointer-events: none; z-index: 50;
+    font-size: calc(17px * var(--ss)); line-height: 1;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,.55));
+    animation: buyFloatUp .8s ease-out forwards; will-change: transform, opacity;
+  }
+  @keyframes buyFloatUp {
+    0%   { opacity: 0; transform: translate(-50%,-2px)  scale(.5)  rotate(-8deg); }
+    22%  { opacity: 1; transform: translate(-50%,-16px) scale(1.15) rotate(4deg); }
+    100% { opacity: 0; transform: translate(-50%,-62px) scale(1)   rotate(0deg); }
+  }
+  /* Reduced motion: keep the feedback, drop the movement — a plain wash on the
+     row and an in-place fade for the icon. Both still end on an animationend so
+     their JS cleanup (class removal / element removal) still fires. */
+  @media (prefers-reduced-motion: reduce) {
+    .item.buy-pop { animation: buyFlash .34s ease-out; }
+    .buyFloat { animation: buyFade .6s ease-out forwards; }
+    @keyframes buyFlash { 0% { background: rgba(255,212,77,.42); } 100% { background: transparent; } }
+    @keyframes buyFade  { 0% { opacity: 0; transform: translate(-50%,0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-20px); } }
+  }
 
   /* ---- Locked / teased building rows ----
      .gone  = past the tease window; not on the shelf at all.
@@ -1400,6 +1443,34 @@ function refreshShop() {
   syncDock();
 }
 
+// ---- Buy click animation (see .item.buy-pop / .buyFloat) --------------------
+// Split in two so building rows (which persist through a buy) get the full
+// press-squish, while upgrade rows (removed by refreshUpgrades the instant they
+// are bought) still get the icon pop even though squishing a row that's about to
+// vanish would flash for one frame and cut.
+function rowPress(rowEl) {
+  // Re-arm the animation so a fast repeat-buy re-triggers it: drop the class,
+  // force a reflow to flush the removal, then re-add.
+  rowEl.classList.remove("buy-pop");
+  void rowEl.offsetWidth;
+  rowEl.classList.add("buy-pop");
+  rowEl.addEventListener("animationend", () => rowEl.classList.remove("buy-pop"), { once: true });
+}
+function spawnBuyIcon(rowEl, icon) {
+  const src = rowEl.querySelector(".icon") || rowEl;
+  const r = src.getBoundingClientRect();
+  const f = document.createElement("div");
+  f.className = "buyFloat"; f.textContent = icon;
+  f.style.left = (r.left + r.width / 2) + "px";
+  f.style.top = (r.top + r.height / 2) + "px";
+  document.body.appendChild(f);
+  // animationend is the normal path; the timeout is a belt-and-braces cleanup in
+  // case the element is offscreen and its animation never fires an end event.
+  const done = () => f.remove();
+  f.addEventListener("animationend", done, { once: true });
+  setTimeout(done, 1000);
+}
+
 function buy(i) {
   const b = BUILDINGS[i];
   if (!isRevealed(b, game)) return;
@@ -1407,6 +1478,9 @@ function buy(i) {
   if (game.mice < price) return;
   game.mice -= price;
   game.owned[b.id] += 1;
+  const rowEl = shopRows[i].el;
+  rowPress(rowEl);
+  spawnBuyIcon(rowEl, b.icon);
   // REQUIRED, not defensive: the synergy effects (crossBuilding,
   // clickPerBuilding) read game.owned, so their multipliers are only correct
   // as of the last recalc(). Omit this and the bonus silently freezes at
@@ -1463,6 +1537,11 @@ function buyUpgrade(key) {
   const u = UPGRADES.find(x => x.key === key);
   if (!u || game.bought[u.key] || !isUnlocked(u) || game.mice < u.cost) return;
   const nightBefore = nightActive();
+  // Pop the icon BEFORE the state change: refreshUpgrades() below rebuilds the
+  // list and deletes this row the moment it's bought, so capture its position
+  // now. No row-squish here — the row is gone before it could play.
+  const upRowEl = upRows.get(u.key)?.el;
+  if (upRowEl) spawnBuyIcon(upRowEl, u.icon);
   game.mice -= u.cost;
   game.bought[u.key] = 1;
   recalc();

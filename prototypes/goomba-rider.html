@@ -156,6 +156,9 @@ const FR_KIND = [0.18, 0.06, 0.02];   // friction
 const POP_R = 6;                      // party-popper trigger radius (generous — poppers forgive)
 const POP_R2 = (POP_R + R) * (POP_R + R);
 const POP_COOLDOWN = 0.8;
+const MOUSE_R = 7.5;                  // neon-mouse pickup radius (generous — party hands)
+const UPDRAFT_A = 205;                // balloon-arch updraft: beats gravity, so she floats up
+const BUMP_R = 5.5, BUMP_E = 1.18, BUMP_MIN = 58;  // piñata bumper: pinball-style radial kick
 
 // ---------- levels ----------
 // terrain: polylines (walls/cliffs are just steep segments). cushions: horizontal
@@ -236,14 +239,55 @@ const LEVELS = [
     goal: [-2, 148], cushions: [], pops: [],
     solution: [ [[34, 24], [86, 48]], [[64, 112], [38, 138]] ] },
 
+  // Mice are a routing goal, not a gate: one band can drop her down the shaft, but it
+  // can't make her pass four scattered points. Collectibles force multi-band far more
+  // naturally than geometry tricks do.
+  { name: '7 · Mouse Slalom', budget: 3,
+    hint: 'grab every neon mouse before the cake — slalom her down the shaft',
+    hint2: 'bank her off each band toward the next mouse',
+    start: [10, 22],
+    terrain: [ [[-4, 20], [30, 30]],
+               [[6, 34], [6, 204], [104, 210], [104, 34]] ],
+    goal: [96, 205],
+    mice: [[32, 72], [76, 118], [32, 164]],
+    solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],
+                [[87, 132.3], [45.9, 160.8]] ] },
+
+  { name: '8 · Balloon Arch', budget: 2,
+    hint: 'the balloon column lifts her — you decide where she leaves it',
+    hint2: 'let her float to the top, then bridge across to the cake',
+    start: [8, 12],
+    terrain: [ [[-6, 10], [36, 22]],
+               [[108, 26], [108, 150]],
+               [[18, 68], [54, 74]] ],
+    goal: [26, 66],
+    cushions: [ { x: 70, y: 190, w: 38 } ],
+    updrafts: [ { x: 68, y: 58, w: 40, h: 130 } ],
+    solution: [ [[74, 60], [56, 72]] ] },
+
+  { name: '9 · Piñata Alley', budget: 3,
+    hint: 'piñatas hit BACK — bank her through the mice and out the bottom',
+    hint2: 'bumpers add speed; aim her in and let them do the rest',
+    start: [8, 14],
+    terrain: [ [[-6, 12], [38, 24]],
+               [[4, 30], [4, 190], [106, 196], [106, 30]] ],
+    goal: [96, 191],
+    mice: [[26, 96], [82, 140]],
+    bumpers: [ { x: 62, y: 66 }, { x: 34, y: 128 }, { x: 84, y: 100 } ],
+    solution: [ [[60.5, 33.4], [48.5, 38.4]], [[11.1, 106.2], [56.6, 115.1]] ] },
 ];
 
 function initLevel(L) { // world bounds + popper aim vectors + start-pad angle
+  L.cushions = L.cushions || []; L.pops = L.pops || [];
+  L.mice = L.mice || []; L.updrafts = L.updrafts || []; L.bumpers = L.bumpers || [];
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   const eat = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
   for (const poly of L.terrain) for (const [x, y] of poly) eat(x, y);
   for (const c of L.cushions) { eat(c.x, c.y); eat(c.x + c.w, c.y); }
   for (const pp of L.pops) { eat(pp.x - 6, pp.y - 6); eat(pp.x + 6, pp.y + 6); }
+  for (const m of L.mice) eat(m[0], m[1]);
+  for (const u of L.updrafts) { eat(u.x, u.y); eat(u.x + u.w, u.y + u.h); }
+  for (const bp of L.bumpers) { eat(bp.x - BUMP_R, bp.y - BUMP_R); eat(bp.x + BUMP_R, bp.y + BUMP_R); }
   eat(L.goal[0], L.goal[1]); eat(L.start[0], L.start[1]);
   L.bounds = { x0: x0 - 8, y0: y0 - 16, x1: x1 + 8, y1: y1 + 8 };
   for (const pp of L.pops) {
@@ -498,12 +542,20 @@ function makeRun(L, bands) {
     bandHits: bands.map(() => 0),
     cushHits: L.cushions.map(() => 0),
     popT: L.pops.map(() => -9),
+    got: L.mice.map(() => false), gotN: 0, lifting: false,
+    bumpT: L.bumpers.map(() => -9), events: [],
   };
 }
 function stepRun(st, dt) {
   if (st.result) return;
   st.t += dt;
   st.v.y += G * dt;
+  // balloon arch: a column of lift she floats up through — long, steerable hang time
+  st.lifting = false;
+  for (const u of st.L.updrafts)
+    if (st.p.x > u.x && st.p.x < u.x + u.w && st.p.y > u.y && st.p.y < u.y + u.h) {
+      st.v.y -= UPDRAFT_A * dt; st.lifting = true;
+    }
   const sp0 = Math.hypot(st.v.x, st.v.y);
   if (sp0 > MAX_SPEED) { st.v.x *= MAX_SPEED / sp0; st.v.y *= MAX_SPEED / sp0; }
   st.p.x += st.v.x * dt; st.p.y += st.v.y * dt;
@@ -535,8 +587,31 @@ function stepRun(st, dt) {
     }
   }
 
-  // party poppers: fly close and she gets re-launched along the popper's aim
   const L = st.L;
+  // piñata bumpers: pinball-style radial kick, adds energy — pure chaos and spectacle
+  for (let i = 0; i < L.bumpers.length; i++) {
+    const bp = L.bumpers[i];
+    let nx = st.p.x - bp.x, ny = st.p.y - bp.y;
+    const d = Math.hypot(nx, ny);
+    if (d < BUMP_R + R && d > 1e-9) {
+      nx /= d; ny /= d;
+      st.p.x = bp.x + nx * (BUMP_R + R); st.p.y = bp.y + ny * (BUMP_R + R);
+      const vn = st.v.x * nx + st.v.y * ny;
+      st.v.x -= (1 + BUMP_E) * vn * nx; st.v.y -= (1 + BUMP_E) * vn * ny;
+      const sp2 = Math.hypot(st.v.x, st.v.y);
+      if (sp2 < BUMP_MIN) { st.v.x = nx * BUMP_MIN; st.v.y = ny * BUMP_MIN; }
+      st.bumpT[i] = st.t; st.events.push(['bump', st.p.x, st.p.y, st.t]);
+    }
+  }
+  // neon mice: collect every one before the cake unlocks
+  for (let i = 0; i < L.mice.length; i++) {
+    if (st.got[i]) continue;
+    const dx = st.p.x - L.mice[i][0], dy = st.p.y - L.mice[i][1];
+    if (dx * dx + dy * dy < (MOUSE_R + R) * (MOUSE_R + R)) {
+      st.got[i] = true; st.gotN++; st.events.push(['mouse', L.mice[i][0], L.mice[i][1], st.t]);
+    }
+  }
+  // party poppers: fly close and she gets re-launched along the popper's aim
   for (let i = 0; i < L.pops.length; i++) {
     if (st.t - st.popT[i] < POP_COOLDOWN) continue;
     const pp = L.pops[i];
@@ -544,7 +619,7 @@ function stepRun(st, dt) {
     if (dx * dx + dy * dy < POP_R2) {
       st.p.x = pp.x; st.p.y = pp.y; // popper grabs her, then fires — launches are exact
       st.v.x = pp.vx; st.v.y = pp.vy;
-      st.popT[i] = st.t;
+      st.popT[i] = st.t; st.events.push(['pop', pp.x, pp.y, st.t]);
     }
   }
 
@@ -566,7 +641,7 @@ function stepRun(st, dt) {
   const b = L.bounds;
   if (sp < 3.5) st.slowT += dt; else st.slowT = 0;
   const gdx = st.p.x - L.goal[0], gdy = st.p.y - L.goal[1];
-  if (gdx * gdx + gdy * gdy < 81) { st.result = 'win'; return; }
+  if (gdx * gdx + gdy * gdy < 81 && st.gotN === L.mice.length) { st.result = 'win'; return; }
   if (st.p.y > b.y1 + 25) st.result = 'fall';
   else if (st.p.x < b.x0 - 12) st.result = 'left';
   else if (st.p.x > b.x1 + 30) st.result = 'flew';
@@ -1023,6 +1098,76 @@ function drawPopper(pp, i) {
   ctx.restore();
 }
 
+function drawMouse(mx, my, taken, i) {
+  if (taken) return;
+  const u = Math.max(cam.s, 2.2), x = sxp(mx), y = syp(my);
+  const bob = Math.sin(tGlobal * 3 + i * 1.7) * 0.5 * u;
+  ctx.save(); ctx.translate(x, y + bob);
+  ctx.fillStyle = 'rgba(87,230,201,0.13)';
+  ctx.beginPath(); ctx.arc(0, 0, 4.5 * u, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#57e6c9'; ctx.lineWidth = 0.42 * u; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.ellipse(0, 0, 2.1 * u, 1.4 * u, 0, 0, 6.28); ctx.stroke();
+  ctx.beginPath(); ctx.arc(-1.5 * u, -1.1 * u, 0.85 * u, 0, 6.28); ctx.stroke(); // ear
+  ctx.beginPath();
+  ctx.moveTo(2 * u, 0.2 * u);
+  ctx.quadraticCurveTo(3.6 * u, 0.4 * u, 3.2 * u, -1.4 * u + Math.sin(tGlobal * 7 + i) * 0.3 * u);
+  ctx.stroke();
+  ctx.fillStyle = '#57e6c9';
+  ctx.beginPath(); ctx.arc(-1.9 * u, 0.1 * u, 0.28 * u, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+
+function drawUpdraft(u0) {
+  const x = sxp(u0.x), y = syp(u0.y), w = u0.w * cam.s, h = u0.h * cam.s;
+  const g = ctx.createLinearGradient(0, y + h, 0, y);
+  g.addColorStop(0, 'rgba(177,139,255,0.03)'); g.addColorStop(1, 'rgba(177,139,255,0.20)');
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(177,139,255,0.35)'; ctx.lineWidth = 1.2;
+  ctx.setLineDash([6, 8]); ctx.beginPath();
+  ctx.moveTo(x, y + h); ctx.lineTo(x, y); ctx.moveTo(x + w, y + h); ctx.lineTo(x + w, y);
+  ctx.stroke(); ctx.setLineDash([]);
+  // balloons rising up the column
+  const n = Math.max(3, Math.round(u0.w / 9));
+  for (let i = 0; i < n; i++) {
+    const ph = ((tGlobal * 0.32 + i * 0.37) % 1);
+    const bx = x + w * ((i + 0.5) / n) + Math.sin(tGlobal * 1.6 + i * 2) * 0.1 * w;
+    const by = y + h * (1 - ph);
+    const rr = 1.5 * Math.max(cam.s, 2.2);
+    ctx.globalAlpha = Math.min(1, ph * 4) * (1 - ph * 0.55);
+    ctx.fillStyle = BAND_COLORS[i % 4];
+    ctx.beginPath(); ctx.ellipse(bx, by, rr * 0.8, rr, 0, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(bx, by + rr); ctx.lineTo(bx, by + rr * 2.1); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawBumper(bp, hot) {
+  const u = Math.max(cam.s, 2.2), x = sxp(bp.x), y = syp(bp.y);
+  const pop = 1 + hot * 0.35;
+  ctx.save(); ctx.translate(x, y); ctx.scale(pop, pop);
+  ctx.fillStyle = 'rgba(255,93,177,0.15)';
+  ctx.beginPath(); ctx.arc(0, 0, (BUMP_R + 2.5) * cam.s, 0, 6.28); ctx.fill();
+  const g = ctx.createRadialGradient(-BUMP_R * u * 0.3, -BUMP_R * u * 0.3, BUMP_R * u * 0.15,
+                                     0, 0, BUMP_R * u);
+  g.addColorStop(0, '#ffd166'); g.addColorStop(0.55, '#ff5db1'); g.addColorStop(1, '#c23a85');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, BUMP_R * cam.s, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = hot > 0.05 ? '#fff' : 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = (0.5 + hot) * u;
+  ctx.beginPath(); ctx.arc(0, 0, BUMP_R * cam.s, 0, 6.28); ctx.stroke();
+  // piñata frill
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 0.35 * u;
+  for (let i = 0; i < 6; i++) {
+    const a = i * 1.047 + tGlobal * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * BUMP_R * cam.s * 0.45, Math.sin(a) * BUMP_R * cam.s * 0.45);
+    ctx.lineTo(Math.cos(a) * BUMP_R * cam.s * 0.85, Math.sin(a) * BUMP_R * cam.s * 0.85);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawCake(L) {
   const x = sxp(L.goal[0]), y = syp(L.goal[1]), u = Math.max(cam.s, 2.6);
   const pulse = 1 + Math.sin(tGlobal * 3) * 0.05;
@@ -1039,6 +1184,20 @@ function drawCake(L) {
   ctx.fillStyle = '#ffb54a';
   ctx.beginPath(); ctx.ellipse(0, -6.8 * u, 0.45 * u * fl, 0.8 * u * fl, 0, 0, 6.28); ctx.fill();
   ctx.restore();
+  // locked until every mouse is collected
+  const left = L.mice.length - (run ? run.gotN : 0);
+  if (left > 0) {
+    ctx.save(); ctx.translate(x, y - 9.5 * u);
+    ctx.fillStyle = 'rgba(20,10,45,0.85)';
+    ctx.beginPath(); ctx.roundRect(-3.4 * u, -1.6 * u, 6.8 * u, 3.2 * u, 1.2 * u); ctx.fill();
+    ctx.strokeStyle = '#57e6c9'; ctx.lineWidth = 0.28 * u; ctx.stroke();
+    ctx.fillStyle = '#57e6c9';
+    ctx.font = `700 ${2.3 * u}px ui-rounded, system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🐭' + left, 0, 0.1 * u);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
 }
 
 function drawGoomba(px, py, angle, face, grounded, airborne, idle) {
@@ -1145,9 +1304,12 @@ function drawLab() {
     cam.s = Math.min((cw - inner) / bw, (ch - inner - 22) / bh);
     cam.x = (b.x0 + b.x1) / 2; cam.y = (b.y0 + b.y1) / 2;
     camOX = x + cw / 2 - W / 2; camOY = y + (ch - 22) / 2 + 11 - H / 2;
+    L.updrafts.forEach(drawUpdraft);
     drawTerrain(L);
     L.cushions.forEach(cu => drawCushion(cu, 0));
     L.pops.forEach((pp, k) => drawPopper(pp, k));
+    L.bumpers.forEach(bp => drawBumper(bp, 0));
+    L.mice.forEach((m, k) => drawMouse(m[0], m[1], false, k));
     drawCake(L);
     (L.solution || []).forEach((s, k) => drawBand(
       snapBand(L, { ax: s[0][0], ay: s[0][1], bx: s[1][0], by: s[1][1] }), k % 4, 0, false));
@@ -1173,6 +1335,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - (frame.last || now)) / 1000); frame.last = now;
   tGlobal += dt;
+  if (state === 'card') return;   // a ride card is on screen; don't paint over it
   if (state === 'lab') { drawLab(); return; }
   const L = LEVELS[level];
 
@@ -1222,9 +1385,12 @@ function frame(now) {
   ctx.save();
   if (shake > 0) { shake = Math.max(0, shake - dt * 3); ctx.translate((Math.random() - .5) * 10 * shake, (Math.random() - .5) * 10 * shake); }
 
+  L.updrafts.forEach(drawUpdraft);
   drawTerrain(L);
   L.cushions.forEach((c, i) => drawCushion(c, cushAnim[i] || 0));
   L.pops.forEach((pp, i) => drawPopper(pp, i));
+  L.bumpers.forEach((bp, i) => drawBumper(bp, run ? Math.max(0, 1 - (run.t - run.bumpT[i]) * 4) : 0));
+  L.mice.forEach((m, i) => drawMouse(m[0], m[1], run ? run.got[i] : false, i));
   drawCake(L);
   bands.forEach(bd => drawBand(bd, bd.color, bd.excited || 0, false));
   if (preview && state === 'edit') drawBand(preview, bands.length % 4, 0, true);
@@ -1257,8 +1423,79 @@ function frame(now) {
   ctx.restore();
 }
 
-window.__gr = { simulate, LEVELS, BAND_MAX, DEV, svgToLevel,
+// Ride card: the level with her actual traced path drawn over it. The shape of the ride
+// IS the fun in a line rider, so this is what gets reviewed — by us and by playtesters.
+function rideCard(li, bandPairs, label) {
+  const L = LEVELS[li];
+  state = 'card';
+  document.getElementById('hud').style.display = 'none';
+  const bds = (bandPairs || L.solution || []).map(([a, b]) =>
+    snapBand(L, { ax: a[0], ay: a[1], bx: b[0], by: b[1] }));
+  const st = makeRun(L, bds);
+  const path = [];
+  let acc = 0, top = 1e9, fastest = 0, air = 0;
+  while (!st.result && st.t < RUN_MAX + 1) {
+    const wasGround = st.grounded;
+    stepRun(st, SUB);
+    if (!wasGround) air += SUB;
+    top = Math.min(top, st.p.y);
+    fastest = Math.max(fastest, Math.hypot(st.v.x, st.v.y));
+    acc += SUB;
+    if (acc >= 1 / 60) { acc = 0; path.push([st.p.x, st.p.y, st.grounded ? 1 : 0]); }
+  }
+  const b = L.bounds;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cam.s = Math.min(W / (b.x1 - b.x0), (H - 90) / (b.y1 - b.y0)) * 0.94;
+  cam.x = (b.x0 + b.x1) / 2; cam.y = (b.y0 + b.y1) / 2 + 24 / cam.s;
+  camOX = camOY = 0;
+  drawBackground(0.016);
+  L.updrafts.forEach(drawUpdraft);
+  drawTerrain(L);
+  L.cushions.forEach(c => drawCushion(c, 0));
+  L.pops.forEach((pp, i) => drawPopper(pp, i));
+  L.bumpers.forEach(bp => drawBumper(bp, 0));
+  L.mice.forEach((m, i) => drawMouse(m[0], m[1], false, i));
+  drawCake(L);
+  bds.forEach((bd, i) => drawBand(bd, i % 4, 0, false));
+  // the traced path: bright where airborne, dim where riding a surface
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const air of [0, 1]) {
+    ctx.strokeStyle = air ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.30)';
+    ctx.lineWidth = air ? 2.6 : 1.6;
+    ctx.beginPath();
+    let pen = false;
+    for (const [px, py, g] of path) {
+      if ((g ? 0 : 1) !== air) { pen = false; continue; }
+      const sx2 = sxp(px), sy2 = syp(py);
+      pen ? ctx.lineTo(sx2, sy2) : ctx.moveTo(sx2, sy2);
+      pen = true;
+    }
+    ctx.stroke();
+  }
+  for (const [kind, ex, ey] of st.events) { // where the mechanics actually fired
+    ctx.strokeStyle = kind === 'pop' ? '#ffd166' : kind === 'bump' ? '#ff5db1' : '#57e6c9';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(sxp(ex), syp(ey), 9, 0, 6.28); ctx.stroke();
+  }
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(sxp(st.p.x), syp(st.p.y), 4, 0, 6.28); ctx.fill();
+  ctx.font = '700 15px ui-rounded, system-ui, sans-serif';
+  ctx.fillStyle = '#f2ecff';
+  ctx.fillText(label || L.name, 14, 26);
+  ctx.font = '11px ui-rounded, system-ui, sans-serif';
+  ctx.fillStyle = st.result === 'win' ? '#57e6c9' : '#ff8f8f';
+  ctx.fillText(`${st.result} · ${st.t.toFixed(1)}s · ${(100 * air / Math.max(st.t, .01)).toFixed(0)}% airborne` +
+    ` · top speed ${fastest.toFixed(0)} · bands ${bds.length}` +
+    (L.mice.length ? ` · mice ${st.gotN}/${L.mice.length}` : ''), 14, 44);
+  return { result: st.result, t: +st.t.toFixed(2), airPct: +(100 * air / Math.max(st.t, .01)).toFixed(0),
+           topSpeed: +fastest.toFixed(0), events: st.events.length, mice: `${st.gotN}/${L.mice.length}` };
+}
+
+window.__gr = { simulate, LEVELS, BAND_MAX, DEV, svgToLevel, rideCard,
   importSVG: text => installCustomLevel(text),
+  closeCard() { document.getElementById('hud').style.display = ''; state = 'edit'; syncHud(); },
   // dev/test controls for driving the live game headlessly
   place(pairs) { bands = pairs.map(([a, b], i) => snapBand(LEVELS[level],
     { ax: a[0], ay: a[1], bx: b[0], by: b[1], color: i % 4 })); syncHud(); },

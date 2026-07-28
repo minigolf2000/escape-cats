@@ -19,6 +19,9 @@ Names are case-insensitive prefixes; everything else that has a **stroke** becom
 | `start` | small circle | where Goomba begins (put it ~just above a slope) |
 | `goal` or `cake` | small circle | the cake |
 | `cushion` | rect or horizontal line | bouncy pillow (its top edge; restitution > 1) |
+| `mouse` | small circle | neon mouse — the cake stays locked until every one is collected |
+| `updraft` | rect | balloon column: sustained lift, she floats up through it |
+| `bumper` | small circle | piñata bumper: pinball-style radial kick that *adds* energy |
 | `pop` | a **line** | party popper: line start = position, direction = aim, **length = power** |
 | `sol` or `band` | lines | intended solution bands (optional — powers the 🧪 *verify level* button) |
 | `guide`, `note`, `frame`, `bg` | anything | ignored |
@@ -76,6 +79,11 @@ staircase, and a 4-stage staircase drifts ~200 units sideways — too wide to st
 A zigzag needs her to reverse, and the only robust reverser is a wall (hit it, lose all
 horizontal speed, drop). Combining wall-reversals with popper-lifts inside a portrait
 column is the unsolved bit.
+
+**Collectibles beat geometry for forcing multi-band.** Scattered neon mice make the cake
+a *routing* problem instead of a reachability one: one band can drop her down a shaft, but
+it can't make her pass three separate points. This is a far more natural way to require
+four bands (and so four players) than any of the geometry tricks below.
 
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — put the cake in a pocket with a ceiling so falling arrivals are

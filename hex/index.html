@@ -437,9 +437,10 @@
      default cursor (also the .shopHead default now). */
   #buildingSec .shopHead { cursor: var(--paw); }
 
-  /* Static shop: always open, no drag or resize. The two sections just stack and
-     each caps its own list (see #upgrades / #shop max-heights below), so the dock
-     sizes to its content and can't blanket the stage. */
+  /* The shop still can't be dragged or resized, but a tap on either wood rail
+     (.shopHead) collapses/reopens it as a whole (#dock.collapsed) — both lists
+     cap and scroll on their own, so the dock sizes to its content when open and
+     can't blanket the stage either way. */
 
   /* Title-less small bar sitting on its own wooden rail — just the Cookie Clicker
      wood framing, no text. Only the pinned Buildings section still uses it (as a
@@ -486,8 +487,11 @@
      The partial 4th row peeking under the cap is the scroll affordance, since
      the scrollbar itself is hidden below. Fewer rows than the cap just size to
      content (no scroll), so early game is unaffected. */
-  #shop { flex: 1 1 auto; min-height: 0; max-height: calc(180px * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; }
+  #shop { flex: 1 1 auto; min-height: 0; max-height: calc(180px * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; transition: max-height .25s ease; }
   #shop::-webkit-scrollbar { width: 0; }
+  /* Collapsed: both lists shrink to nothing, leaving just the two wood rails as
+     a slim closed bar — tap either rail to reopen. */
+  #dock.collapsed #upgrades, #dock.collapsed #shop { max-height: 0; }
   /* CC store rows: a dark inset strip, a framed icon, name over effect, and
      the price right-aligned — green when you can afford it, red when you
      can't. That red/green is the whole readout in CC; it survives here.
@@ -594,7 +598,7 @@
      of floating above a strip of padding. */
   #upgradeSec { flex: none; display: none; border-bottom: 1px solid var(--line); }
   #upgradeSec.show { display: block; }
-  #upgrades { max-height: calc(10vh * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; }
+  #upgrades { max-height: calc(10vh * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; transition: max-height .25s ease; }
   #upgrades::-webkit-scrollbar { width: 0; }
   .item.up { padding: 0 calc(11px * var(--ss)) 0 0; }
   .item.up .body { padding: calc(4px * var(--ss)) 0; }
@@ -682,11 +686,11 @@
        title-less rail (only unlocked-and-unbought upgrades exist here); Buildings
        pinned below their own rail. Each list caps and scrolls on its own. -->
   <div id="upgradeSec">
-    <div class="shopHead" aria-hidden="true"></div>
+    <button type="button" class="shopHead" aria-expanded="true" aria-controls="dock" aria-label="Toggle shop"></button>
     <div id="upgrades"></div>
   </div>
   <div id="buildingSec">
-    <div class="shopHead build" aria-hidden="true"></div>
+    <button type="button" class="shopHead build" aria-expanded="true" aria-controls="dock" aria-label="Toggle shop"></button>
     <div id="shop"></div>
   </div>
 </div>
@@ -1269,8 +1273,15 @@ function syncDock() {
     upgradeSecEl.classList.contains("show") || buildingSecEl.classList.contains("show"));
 }
 
-// The shop is static now — always open, no handle, no drag/resize. It only ever
-// appears or hides as a whole (syncDock), so there's no tray-open state to track.
+// The shop still can't be dragged or resized, but a tap on either wood rail
+// (.shopHead) collapses/reopens it as a whole. Collapsed state is UI, not saved —
+// the dock always opens fresh (matches the pre-static-redesign tray).
+const shopHeadEls = document.querySelectorAll(".shopHead");
+function toggleShop() {
+  const expanded = !dockEl.classList.toggle("collapsed");
+  shopHeadEls.forEach(el => el.setAttribute("aria-expanded", String(expanded)));
+}
+shopHeadEls.forEach(el => el.addEventListener("click", toggleShop));
 
 // Kiosk lockdown (see the html,body CSS note): swallow the long-press context
 // menu so a held tap on Hex or a shop row never raises the browser's callout.

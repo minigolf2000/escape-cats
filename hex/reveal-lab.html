@@ -468,16 +468,48 @@ function posAt(m, t) {
   return { x: a.x + (b.x - a.x) * frac + w.x, y: a.y + (b.y - a.y) * frac + w.y };
 }
 
+// Same silhouette as the live game's mouse (hex/index.html's drawWallMouse,
+// itself synced to the MOUSE_TAIL_D/MOUSE_BODY_D/MOUSE_EAR/MOUSE_EYE SVG
+// constants used everywhere else a mouse is drawn) — body blob with a white
+// keyline, one ear, a dark eye dot, a curled tail. `r` keeps the old ellipse
+// shape's meaning (roughly the body's vertical half-size) so callers/sliders
+// didn't need retuning.
 function drawMouse(x, y, color, r) {
-  ctx.fillStyle = color;
-  ctx.beginPath(); ctx.ellipse(x, y, r * 1.25, r, 0, 0, 6.28); ctx.fill();
-  ctx.beginPath();
-  ctx.arc(x - r * 0.7, y - r * 0.9, r * 0.45, 0, 6.28);
-  ctx.arc(x + r * 0.1, y - r * 1.0, r * 0.45, 0, 6.28);
-  ctx.fill();
-  ctx.strokeStyle = color; ctx.lineWidth = r * 0.28; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(x + r * 1.2, y);
-  ctx.quadraticCurveTo(x + r * 2.1, y + r * 0.5, x + r * 2.6, y - r * 0.4); ctx.stroke();
+  const s = r / 10, cx = 30.5, cy = 14;
+  const P = (px, py) => [x + (px - cx) * s, y + (py - cy) * s];
+  const seg = (c1x, c1y, c2x, c2y, ex, ey) => {
+    const [a, b] = P(c1x, c1y), [c, d] = P(c2x, c2y), [e, f] = P(ex, ey);
+    ctx.bezierCurveTo(a, b, c, d, e, f);
+  };
+
+  // tail — a curled stroke off the rear
+  const [tx0, ty0] = P(12, 17);
+  ctx.strokeStyle = color; ctx.lineWidth = r * 0.16; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(tx0, ty0);
+  seg(4, 21, 2, 10, 8, 7);
+  ctx.stroke();
+
+  // body
+  const [bx0, by0] = P(51, 16);
+  ctx.beginPath(); ctx.moveTo(bx0, by0);
+  seg(46, 8, 37, 4, 27, 5);
+  seg(16, 6, 10, 10, 10, 16);
+  seg(10, 21, 17, 24, 27, 24);
+  seg(37, 24, 47, 21, 51, 16);
+  ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  ctx.strokeStyle = '#f4f4f2'; ctx.lineWidth = r * 0.14; ctx.stroke();
+
+  // ear
+  const [erx, ery] = P(33, 7);
+  ctx.beginPath(); ctx.arc(erx, ery, 4.6 * s, 0, 6.283);
+  ctx.fillStyle = color; ctx.fill();
+  ctx.strokeStyle = '#f4f4f2'; ctx.lineWidth = r * 0.14; ctx.stroke();
+
+  // eye
+  const [ix, iy] = P(42, 12);
+  ctx.beginPath(); ctx.arc(ix, iy, 1.8 * s, 0, 6.283);
+  ctx.fillStyle = '#0a0b10'; ctx.fill();
 }
 
 let simT = 0, last = performance.now();

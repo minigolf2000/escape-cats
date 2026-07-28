@@ -15,8 +15,8 @@
   .dot { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #6b5a98; background: transparent; }
   .dot.open { border-color: #ffd166; }
   .dot.cur  { background: #ffd166; border-color: #ffd166; box-shadow: 0 0 10px rgba(255,209,102,.7); }
-  #inv { display: flex; gap: 5px; }
-  #inv svg { width: 30px; height: 30px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); transition: opacity .25s, transform .25s; }
+  #inv { display: flex; gap: 4px; }
+  #inv svg { width: 27px; height: 27px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); transition: opacity .25s, transform .25s; }
   #inv svg.used { opacity: .18; transform: scale(.82); }
   #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 34px); left: 0; right: 0;
           text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
@@ -30,6 +30,17 @@
   #clear { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom));
            height: 44px; padding: 0 16px; border-radius: 22px; font-size: 14px; font-weight: 700;
            color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
+  #gear { position: absolute; left: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 54px);
+          width: 44px; height: 44px; border-radius: 22px; font-size: 19px;
+          color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
+  #devp { position: absolute; left: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 106px);
+          pointer-events: auto; background: rgba(20,10,45,.94); border: 1.5px solid rgba(201,189,240,.35);
+          border-radius: 14px; padding: 12px 14px; display: none; flex-direction: column; gap: 8px;
+          font-size: 12px; color: #c9bdf0; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  #devp.show { display: flex; }
+  #devp label { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  #devp input[type=range] { width: 130px; accent-color: #57e6c9; }
+  #devp b { color: #ffd166; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
   #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.9);
            background: rgba(20,10,45,.92); border: 2px solid #ffd166; color: #ffe9b3;
            padding: 14px 26px; border-radius: 18px; font-size: 20px; font-weight: 800; text-align: center;
@@ -41,7 +52,7 @@
   #title h1 { margin: 0; font-size: clamp(34px, 9vw, 56px); letter-spacing: .01em;
               background: linear-gradient(90deg, #ff5db1, #ffd166, #57e6c9); -webkit-background-clip: text; background-clip: text; color: transparent; }
   #title .sub { color: #c9bdf0; font-size: 14px; margin-top: -8px; }
-  #title .how { color: #f2ecff; font-size: 15px; line-height: 1.75; max-width: 340px; }
+  #title .how { color: #f2ecff; font-size: 15px; line-height: 1.75; max-width: 350px; }
   #title .how b { color: #ffd166; }
   #title .go { margin-top: 8px; height: 54px; padding: 0 34px; border-radius: 27px; font-size: 18px; font-weight: 800;
                color: #1b0f38; background: linear-gradient(180deg, #67f2d4, #3fd4b4); }
@@ -55,9 +66,15 @@
       <svg viewBox="0 0 32 32" fill="none" stroke="#ff5db1" stroke-width="3" stroke-linejoin="round"><path d="M16 27 C4 18 6 7 13 8 C15 8.5 16 10 16 11 C16 10 17 8.5 19 8 C26 7 28 18 16 27 Z"/></svg>
       <svg viewBox="0 0 32 32" fill="none" stroke="#57e6c9" stroke-width="3" stroke-linejoin="round"><path d="M16 3 L20 12 L30 13 L22 19 L25 29 L16 23 L7 29 L10 19 L2 13 L12 12 Z"/></svg>
       <svg viewBox="0 0 32 32" fill="none" stroke="#ffd166" stroke-width="3" stroke-linejoin="round"><path d="M5 20 Q5 10 9 9 L11 4 L14 8 Q16 7.5 18 8 L21 4 L23 9 Q27 10 27 20 Q27 27 16 27 Q5 27 5 20 Z"/></svg>
+      <svg viewBox="0 0 32 32" fill="none" stroke="#b18bff" stroke-width="3" stroke-linejoin="round"><path d="M18 3 L8 18 L14 18 L11 29 L24 13 L17 13 Z"/></svg>
     </div>
   </div>
   <div id="hint"></div>
+  <button id="gear">⚙️</button>
+  <div id="devp">
+    <label>edit zoom <input id="ez" type="range" min="1" max="2.2" step="0.05"><b id="ezv"></b></label>
+    <label>run zoom <input id="rz" type="range" min="1" max="3" step="0.05"><b id="rzv"></b></label>
+  </div>
   <button id="clear">clear bands</button>
   <button id="play">▶ PLAY</button>
   <div id="toast"></div>
@@ -66,8 +83,8 @@
     <div class="sub">a silly-bandz line rider · cat games party prototype</div>
     <div class="how">
       <b>Two fingers</b> (or click-drag) stretch a <b>silly band</b> of track.<br>
-      Place up to <b>3</b>, then hit <b>PLAY</b> — Goomba rides on her own.<br>
-      Tap a band to take it back. Get her to the cake. 🎂
+      <b>One finger</b> drags to look around. Tap a band to take it back.<br>
+      Place up to <b>4</b>, hit <b>PLAY</b>, get her to the cake. 🎂
     </div>
     <button class="go">LET'S RIDE</button>
   </div>
@@ -75,11 +92,13 @@
 <script>
 'use strict';
 // ---------- Goomba Rider — line-rider clone where the track is silly bandz. ----------
-// Single-player prototype. Multiplayer plan: each player owns ONE band (an intent:
-// two endpoints), everyone holds their band in place at once, someone hits PLAY, and
-// the server runs this same deterministic sim (stepRun below is pure state-in/state-out
-// on purpose) and broadcasts. For the demo, one player places up to 3 bands.
-// World space: x right, y DOWN (gravity is +y). 1 unit ≈ 0.5% of a level's width.
+// Single-player prototype. Multiplayer plan: teams of FOUR, each player owns ONE band
+// (an intent: two endpoints); a team of three still gets the full budget — one player
+// places two bands, one per hand. Everyone holds their band in place at once, someone
+// hits PLAY, and the server runs this same deterministic sim (stepRun below is pure
+// state-in/state-out on purpose) and broadcasts. For the demo, one player places up to 4.
+// World space: x right, y DOWN (gravity is +y). Levels are portrait-leaning — most
+// parties play phones vertically.
 
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
@@ -109,70 +128,92 @@ const START_VX = 20;    // the little push when PLAY is hit
 const MAX_SPEED = 120;
 const BAND_MAX = 58;    // one silly band's worth of stretch
 const BAND_MIN = 6;
-const MAX_BANDS = 3;    // demo: one player places 3; real game: 3 players, 1 each
+const MAX_BANDS = 4;    // demo budget = team budget: 4 players x 1 band (3-player teams: someone uses two hands)
 const SUB = 1 / 240;    // physics substep
-const E_BAND = 0.32, E_GROUND = 0.02;      // restitution
-const FR_BAND = 0.06, FR_GROUND = 0.18;    // friction (per-second-ish)
+const RUN_MAX = 15;     // seconds before we call a run stuck
+const KIND_GROUND = 0, KIND_BAND = 1, KIND_CUSH = 2;
+const E_KIND  = [0.02, 0.32, 1.30];   // restitution: ground, band, cushion (springs!)
+const FR_KIND = [0.18, 0.06, 0.02];   // friction
+const POP_R = 6;                      // party-popper trigger radius (generous — poppers forgive)
+const POP_R2 = (POP_R + R) * (POP_R + R);
+const POP_COOLDOWN = 0.8;
 
 // ---------- levels ----------
-// terrain: polylines. Walls/cliff faces are just steep segments. goal: the cake.
-// solution: a band set that clears the level (used by tests + tuning, never shown).
+// terrain: polylines (walls/cliffs are just steep segments). cushions: horizontal
+// bouncy pillows {x,y,w}. pops: party poppers {x,y,deg,spd} that re-launch Goomba
+// along their aim. goal: the cake. solution: a band set that clears the level
+// (used by tests + tuning, never shown).
 const LEVELS = [
   { name: '1 · Mind the Gap',
     hint: 'stretch a silly band across the gap, then hit PLAY',
-    hint2: 'connect the two slopes — lip to lip',
-    start: [12, 36],
-    terrain: [ [[-5, 34], [30, 44], [62, 54]],
-               [[112, 66], [150, 72], [205, 78]] ],
-    goal: [186, 73], cukes: [],
-    solution: [ [[62, 54], [112, 66]] ] },
+    hint2: 'lip to lip — she rides bands like rails',
+    start: [6, 16],
+    terrain: [ [[-5, 16], [30, 22]],
+               [[64, 58], [88, 66]],
+               [[112, 50], [112, 135], [84, 128]] ],
+    goal: [106, 132], cushions: [], pops: [],
+    solution: [ [[30, 22], [64, 58]] ] },
 
   { name: '2 · The Big Drop',
     hint: 'cats always land on their feet. snowboards don’t.',
     hint2: 'a slanted band in the pit turns falling into forward',
-    start: [10, 19],
-    terrain: [ [[-5, 18], [40, 30], [68, 36]],
-               [[128, 120], [128, 95], [205, 105]] ],
-    goal: [186, 101], cukes: [],
-    solution: [ [[76, 60], [124, 86]] ] },
+    start: [8, 13],
+    terrain: [ [[-5, 12], [40, 17]],
+               [[86, 160], [86, 128], [112, 140]] ],
+    goal: [104, 135], cushions: [], pops: [],
+    solution: [ [[58, 70], [88, 110]] ] },
 
-  { name: '3 · The Cucumber Patch',
-    hint: 'she is NOT riding through that. cats have limits.',
-    hint2: 'a tilted band is a launch ramp — bury its ends in the hill',
-    start: [10, 20],
-    terrain: [ [[-5, 16], [55, 48], [160, 68], [205, 72]] ],
-    goal: [186, 69], cukes: [[112, 58.3], [121, 60]],
-    solution: [ [[92, 56], [112, 46]] ] },
+  { name: '3 · Pop Goes Goomba',
+    hint: 'party poppers do the lifting — your band does the aiming',
+    hint2: 'ramp her into the bottom popper; the rest is physics',
+    start: [8, 54],
+    terrain: [ [[-5, 52], [46, 62]],
+               [[56, 24], [80, 30]] ],
+    goal: [74, 27],
+    cushions: [ { x: 44, y: 150, w: 34 } ],
+    pops: [ { x: 94, y: 120, deg: -96, spd: 118 },
+            { x: 86, y: 74, deg: -97, spd: 118 } ],
+    solution: [ [[54, 84], [86, 110]] ] },
 
-  { name: '4 · Double Trouble',
-    hint: 'two gaps, three bands. you do the math.',
-    hint2: 'bridge both gaps before she gets there',
-    start: [10, 28],
-    terrain: [ [[-5, 26], [48, 42]],
-               [[88, 100], [88, 52], [126, 58]],
-               [[168, 100], [168, 54], [205, 60]] ],
-    goal: [190, 57], cukes: [],
-    solution: [ [[48, 42], [88, 52]], [[126, 58], [168, 54]] ] },
+  { name: '4 · Pillow Fort',
+    hint: 'the pillow is comfy. TOO comfy.',
+    hint2: 'lay a band across the shaft — she’ll land on it and slide out',
+    start: [8, 10],
+    terrain: [ [[-5, 8], [46, 20]],
+               [[96, 40], [96, 150]],
+               [[52, 44], [52, 96]],
+               [[0, 120], [24, 138], [48, 132]] ],
+    goal: [24, 135],
+    cushions: [ { x: 56, y: 150, w: 40 } ],
+    pops: [],
+    solution: [ [[60, 110], [94, 92]] ] },
 
   { name: '5 · Grand Finale',
-    hint: 'everything you’ve got: catch her, bridge it, launch her',
-    hint2: 'the last gap is too wide to jump — span it lip to lip',
-    start: [8, 11],
-    terrain: [ [[-5, 10], [38, 20]],
-               [[80, 100], [80, 52], [112, 58]],
-               [[150, 100], [150, 64], [196, 72], [196, 100]],
-               [[246, 110], [246, 80], [300, 86]] ],
-    goal: [280, 82], cukes: [],
-    solution: [ [[44, 36], [80, 50]], [[112, 58], [150, 64]], [[196, 72], [246, 80]] ] },
+    hint: 'everything you’ve got: catch her, bridge up, then bridge back',
+    hint2: 'both far ledges sit HIGHER than their lips — span them lip to lip',
+    start: [8, 12],
+    terrain: [ [[-5, 11], [42, 15]],
+               [[76, 84], [110, 92]],
+               [[134, 84], [152, 88]],
+               [[168, 60], [168, 105]],
+               [[168, 138], [120, 158]],
+               [[36, 146], [66, 148]] ],
+    goal: [44, 146], cushions: [], pops: [],
+    solution: [ [[50, 52], [76, 84]], [[110, 92], [134, 84]], [[120, 158], [66, 148]] ] },
 ];
 
-for (const L of LEVELS) { // world bounds per level, from geometry
+for (const L of LEVELS) { // world bounds + popper aim vectors + start-pad angle
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   const eat = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
   for (const poly of L.terrain) for (const [x, y] of poly) eat(x, y);
+  for (const c of L.cushions) { eat(c.x, c.y); eat(c.x + c.w, c.y); }
+  for (const pp of L.pops) { eat(pp.x - 6, pp.y - 6); eat(pp.x + 6, pp.y + 6); }
   eat(L.goal[0], L.goal[1]); eat(L.start[0], L.start[1]);
   L.bounds = { x0: x0 - 8, y0: y0 - 16, x1: x1 + 8, y1: y1 + 8 };
-  // board angle while waiting at the start pad
+  for (const pp of L.pops) {
+    const rad = pp.deg * Math.PI / 180;
+    pp.vx = Math.cos(rad) * pp.spd; pp.vy = Math.sin(rad) * pp.spd;
+  }
   L.startAngle = 0;
   for (const poly of L.terrain) for (let i = 0; i + 1 < poly.length; i++) {
     const [ax, ay] = poly[i], [bx, by] = poly[i + 1];
@@ -222,11 +263,13 @@ function segsFor(L, bands) {
   const segs = [];
   for (const poly of L.terrain)
     for (let i = 0; i + 1 < poly.length; i++)
-      segs.push({ ax: poly[i][0], ay: poly[i][1], bx: poly[i + 1][0], by: poly[i + 1][1], band: -1 });
+      segs.push({ ax: poly[i][0], ay: poly[i][1], bx: poly[i + 1][0], by: poly[i + 1][1], kind: KIND_GROUND, band: -1, cush: -1 });
+  L.cushions.forEach((c, ci) =>
+    segs.push({ ax: c.x, ay: c.y, bx: c.x + c.w, by: c.y, kind: KIND_CUSH, band: -1, cush: ci }));
   bands.forEach((bd, bi) => {
     const pts = bandPoints(bd);
     for (let i = 0; i + 1 < pts.length; i++)
-      segs.push({ ax: pts[i][0], ay: pts[i][1], bx: pts[i + 1][0], by: pts[i + 1][1], band: bi });
+      segs.push({ ax: pts[i][0], ay: pts[i][1], bx: pts[i + 1][0], by: pts[i + 1][1], kind: KIND_BAND, band: bi, cush: -1 });
   });
   return segs;
 }
@@ -237,7 +280,10 @@ function makeRun(L, bands) {
     L, segs: segsFor(L, bands),
     p: { x: L.start[0], y: L.start[1] }, v: { x: START_VX, y: 0 },
     face: 1, boardA: L.startAngle, grounded: false, onBand: -1,
-    t: 0, slowT: 0, result: null, bandHits: bands.map(() => 0),
+    t: 0, slowT: 0, result: null, snap: { x: L.start[0], y: L.start[1], t: 0 },
+    bandHits: bands.map(() => 0),
+    cushHits: L.cushions.map(() => 0),
+    popT: L.pops.map(() => -9),
   };
 }
 function stepRun(st, dt) {
@@ -262,15 +308,28 @@ function stepRun(st, dt) {
       st.p.x = qx + nx * R; st.p.y = qy + ny * R;
       const vn = st.v.x * nx + st.v.y * ny;
       if (vn < 0) {
-        const e = s.band >= 0 ? E_BAND : E_GROUND;
-        st.v.x -= (1 + e) * vn * nx; st.v.y -= (1 + e) * vn * ny;
+        st.v.x -= (1 + E_KIND[s.kind]) * vn * nx;
+        st.v.y -= (1 + E_KIND[s.kind]) * vn * ny;
         if (s.band >= 0) st.bandHits[s.band] = 1;
+        if (s.cush >= 0) st.cushHits[s.cush] = 1;
       }
-      const fr = (s.band >= 0 ? FR_BAND : FR_GROUND) * dt;
+      const fr = FR_KIND[s.kind] * dt;
       const tx = -ny, ty = nx, vt = st.v.x * tx + st.v.y * ty;
       st.v.x -= vt * fr * tx; st.v.y -= vt * fr * ty;
       st.grounded = true; tanX = abx; tanY = aby;
       if (s.band >= 0) st.onBand = s.band;
+    }
+  }
+
+  // party poppers: fly close and she gets re-launched along the popper's aim
+  const L = st.L;
+  for (let i = 0; i < L.pops.length; i++) {
+    if (st.t - st.popT[i] < POP_COOLDOWN) continue;
+    const pp = L.pops[i];
+    const dx = st.p.x - pp.x, dy = st.p.y - pp.y;
+    if (dx * dx + dy * dy < POP_R2) {
+      st.v.x = pp.vx; st.v.y = pp.vy;
+      st.popT[i] = st.t;
     }
   }
 
@@ -289,18 +348,20 @@ function stepRun(st, dt) {
   st.boardA += da * Math.min(1, 14 * dt);
 
   // outcomes
-  const L = st.L, b = L.bounds;
+  const b = L.bounds;
   if (sp < 3.5) st.slowT += dt; else st.slowT = 0;
   const gdx = st.p.x - L.goal[0], gdy = st.p.y - L.goal[1];
   if (gdx * gdx + gdy * gdy < 81) { st.result = 'win'; return; }
-  for (const [cx, cy] of L.cukes) {
-    const dx = st.p.x - cx, dy = st.p.y - cy;
-    if (dx * dx + dy * dy < (R + 2.6) * (R + 2.6)) { st.result = 'cuke'; return; }
-  }
   if (st.p.y > b.y1 + 25) st.result = 'fall';
   else if (st.p.x < b.x0 - 12) st.result = 'left';
   else if (st.p.x > b.x1 + 30) st.result = 'flew';
-  else if (st.slowT > 1.4 || st.t > 25) st.result = 'stall';
+  else if (st.slowT > 1.4) st.result = 'stall';
+  else if (st.t > RUN_MAX) st.result = 'loop';
+  else if (st.t - st.snap.t > 3.5) { // trapped in a bowl/corner, or boinging in place
+    const sdx = st.p.x - st.snap.x, sdy = st.p.y - st.snap.y;
+    if (sdx * sdx + sdy * sdy < 64 || Math.abs(sdx) < 6) st.result = 'loop';
+    else st.snap = { x: st.p.x, y: st.p.y, t: st.t };
+  }
 }
 // headless sim for tests/tuning: window.__gr.simulate(levelIdx, [[[ax,ay],[bx,by]],...])
 function simulate(li, bandPairs) {
@@ -310,26 +371,17 @@ function simulate(li, bandPairs) {
   const st = makeRun(L, bands);
   const traj = [];
   let acc = 0;
-  while (!st.result && st.t < 26) {
+  while (!st.result && st.t < RUN_MAX + 1) {
     stepRun(st, SUB);
     acc += SUB;
     if (acc >= 1 / 30) { acc = 0; traj.push([+st.p.x.toFixed(2), +st.p.y.toFixed(2)]); }
   }
   return { result: st.result || 'timeout', t: +st.t.toFixed(2), traj };
 }
-window.__gr = { simulate, LEVELS, BAND_MAX,
-  // dev/test controls for driving the live game headlessly
-  place(pairs) { bands = pairs.map(([a, b], i) => snapBand(LEVELS[level],
-    { ax: a[0], ay: a[1], bx: b[0], by: b[1], color: i % 3 })); syncHud(); },
-  play() { playBtn.onclick(); },
-  skipTitle() { titleEl.style.display = 'none'; state = 'edit'; syncHud(); },
-  goto(i) { loadLevel(i); },
-  state: () => ({ state, level, bands: bands.length, run: run && { x: run.p.x, y: run.p.y } }),
-};
 
 // ---------- game state ----------
-const BAND_COLORS = ['#ff5db1', '#57e6c9', '#ffd166'];
-const BAND_DARK   = ['#c23a85', '#2fae95', '#d0a53e'];
+const BAND_COLORS = ['#ff5db1', '#57e6c9', '#ffd166', '#b18bff'];
+const BAND_DARK   = ['#c23a85', '#2fae95', '#d0a53e', '#7f5ad9'];
 let level = Math.min(+(localStorage.getItem('goombarider.lvl') || 0), LEVELS.length - 1);
 let unlocked = +(localStorage.getItem('goombarider.max') || 0);
 let state = 'title';          // title | edit | run | win
@@ -337,23 +389,38 @@ let bands = [];               // {ax,ay,bx,by,color}
 let run = null;               // active sim state
 let preview = null;           // {ax,ay,bx,by,ok} while stretching
 let fails = 0, tGlobal = 0, toastT = 0;
-let cam = { x: 0, y: 0, s: 10 }, shake = 0;
-let parts = [], confetti = [];
+let cam = { x: 0, y: 0, s: 10 }, pan = { x: 0, y: 0 }, shake = 0;
+let parts = [], confetti = [], cushAnim = [], popPrev = null;
+
+const DEV = Object.assign({ ez: 1.15, rz: 1.9 },
+  JSON.parse(localStorage.getItem('goombarider.dev') || '{}'));
 
 const $ = id => document.getElementById(id);
 const lvlEl = $('lvl'), hintEl = $('hint'), dotsEl = $('dots'), invEl = $('inv'),
-      playBtn = $('play'), clearBtn = $('clear'), toastEl = $('toast'), titleEl = $('title');
+      playBtn = $('play'), clearBtn = $('clear'), toastEl = $('toast'), titleEl = $('title'),
+      gearBtn = $('gear'), devpEl = $('devp'), ezEl = $('ez'), rzEl = $('rz'),
+      ezvEl = $('ezv'), rzvEl = $('rzv');
 
-function fitCam(L) {
-  const b = L.bounds, bw = b.x1 - b.x0, bh = b.y1 - b.y0;
-  const s = Math.min(W / bw, (H - 120) / bh) * 0.96;
-  return { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 + 14 / s, s };
+function fitScale(L) {
+  const b = L.bounds;
+  return Math.min(W / (b.x1 - b.x0), (H - 120) / (b.y1 - b.y0)) * 0.96;
+}
+function clampCam(x, y, s, b) {
+  const hw = W / 2 / s, hh = H / 2 / s;
+  return {
+    x: (b.x1 - b.x0) < 2 * hw ? (b.x0 + b.x1) / 2 : Math.max(b.x0 + hw, Math.min(b.x1 - hw, x)),
+    y: (b.y1 - b.y0) < 2 * hh ? (b.y0 + b.y1) / 2 : Math.max(b.y0 + hh, Math.min(b.y1 - hh, y)),
+    s,
+  };
 }
 function loadLevel(i) {
   level = i; bands = []; run = null; preview = null; fails = 0;
   state = state === 'title' ? 'title' : 'edit';
   const L = LEVELS[level];
-  Object.assign(cam, fitCam(L));
+  const b = L.bounds;
+  pan = { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 };
+  Object.assign(cam, clampCam(pan.x, pan.y, fitScale(L) * DEV.ez, b));
+  cushAnim = L.cushions.map(() => 0); popPrev = null;
   localStorage.setItem('goombarider.lvl', level);
   toastEl.classList.remove('show');
   syncHud();
@@ -384,14 +451,17 @@ function toast(msg, ms) {
 
 const FAIL_MSG = {
   fall: 'Goomba fell! 🙀', left: 'she rolled away! 🙀', flew: 'overshot the party! 🙀',
-  stall: 'ran out of zoom… 😿', cuke: 'A CUCUMBER?! 🥒🙀', timeout: 'ran out of zoom… 😿',
+  stall: 'ran out of zoom… 😿', loop: 'she’s stuck! try different bands 😹',
+  timeout: 'she’s stuck! try different bands 😹',
 };
 
 function startRun() {
   run = makeRun(LEVELS[level], bands);
+  popPrev = run.popT.slice();
   state = 'run'; syncHud();
 }
 function endRun(result) {
+  if (run) pan = { x: run.p.x, y: run.p.y }; // leave the camera where the action ended
   if (result === 'win') {
     state = 'win';
     unlocked = Math.max(unlocked, Math.min(level + 1, LEVELS.length - 1));
@@ -400,7 +470,7 @@ function endRun(result) {
     for (let i = 0; i < 90; i++) confetti.push({
       x: L.goal[0], y: L.goal[1] - 4,
       vx: (Math.random() - 0.5) * 70, vy: -Math.random() * 70 - 15,
-      c: BAND_COLORS[i % 3], r: Math.random() * 6.28, vr: (Math.random() - .5) * 10,
+      c: BAND_COLORS[i % 4], r: Math.random() * 6.28, vr: (Math.random() - .5) * 10,
       life: 2.2 + Math.random(),
     });
     toast('LEVEL CLEAR! 🎉', 1800);
@@ -423,10 +493,21 @@ clearBtn.onclick = () => { if (state === 'edit') { bands = []; syncHud(); } };
 titleEl.querySelector('.go').onclick = () => { titleEl.style.display = 'none'; state = 'edit'; syncHud(); };
 window.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); playBtn.onclick(); } });
 
-// ---------- input: two fingers = stretch a band; drag works on desktop ----------
+// dev panel: live zoom tuning, persisted
+function saveDev() { localStorage.setItem('goombarider.dev', JSON.stringify(DEV)); }
+function syncDev() {
+  ezEl.value = DEV.ez; rzEl.value = DEV.rz;
+  ezvEl.textContent = DEV.ez.toFixed(2) + 'x'; rzvEl.textContent = DEV.rz.toFixed(2) + 'x';
+}
+gearBtn.onclick = () => devpEl.classList.toggle('show');
+ezEl.oninput = () => { DEV.ez = +ezEl.value; syncDev(); saveDev(); };
+rzEl.oninput = () => { DEV.rz = +rzEl.value; syncDev(); saveDev(); };
+syncDev();
+
+// ---------- input: two fingers stretch a band; one finger pans; drag works on desktop ----------
 const toWorld = (px, py) => ({ x: (px - W / 2) / cam.s + cam.x, y: (py - H / 2) / cam.s + cam.y });
-const touches = new Map();
-let mouseDrag = null, tapInfo = null;
+const touches = new Map(); // id -> {cx,cy} client coords (world derived per use)
+let mouseDrag = null, tapInfo = null, panning = false;
 
 function previewFrom(a, b) {
   const len = Math.hypot(b.x - a.x, b.y - a.y);
@@ -434,10 +515,14 @@ function previewFrom(a, b) {
   preview.ok = len >= BAND_MIN && len <= BAND_MAX && bands.length < MAX_BANDS;
   preview.len = len;
 }
+function previewFromTouches() {
+  const [p, q] = [...touches.values()];
+  previewFrom(toWorld(p.cx, p.cy), toWorld(q.cx, q.cy));
+}
 function placePreview() {
   if (preview && preview.ok) {
     bands.push(snapBand(LEVELS[level],
-      { ax: preview.ax, ay: preview.ay, bx: preview.bx, by: preview.by, color: bands.length % 3 }));
+      { ax: preview.ax, ay: preview.ay, bx: preview.bx, by: preview.by, color: bands.length % 4 }));
     syncHud();
   } else if (preview && preview.len > BAND_MAX) toast('too stretchy! 🫨', 900);
   preview = null;
@@ -459,19 +544,31 @@ function tryDelete(w) {
 cv.addEventListener('touchstart', e => {
   e.preventDefault();
   if (state !== 'edit') return;
-  for (const t of e.changedTouches) touches.set(t.identifier, toWorld(t.clientX, t.clientY));
+  for (const t of e.changedTouches) touches.set(t.identifier, { cx: t.clientX, cy: t.clientY });
   if (touches.size === 1) {
     const t = e.changedTouches[0];
     tapInfo = { x: t.clientX, y: t.clientY, t: performance.now() };
+    panning = false;
   }
-  if (touches.size === 2) { tapInfo = null; const [a, b] = [...touches.values()]; previewFrom(a, b); }
+  if (touches.size === 2) { tapInfo = null; panning = false; previewFromTouches(); }
 }, { passive: false });
 cv.addEventListener('touchmove', e => {
   e.preventDefault();
   if (state !== 'edit') return;
-  for (const t of e.changedTouches)
-    if (touches.has(t.identifier)) touches.set(t.identifier, toWorld(t.clientX, t.clientY));
-  if (touches.size === 2) { const [a, b] = [...touches.values()]; previewFrom(a, b); }
+  for (const t of e.changedTouches) {
+    const rec = touches.get(t.identifier);
+    if (!rec) continue;
+    if (touches.size === 1) {
+      if (tapInfo && Math.hypot(t.clientX - tapInfo.x, t.clientY - tapInfo.y) > 10)
+        { panning = true; tapInfo = null; }
+      if (panning) {
+        pan.x -= (t.clientX - rec.cx) / cam.s;
+        pan.y -= (t.clientY - rec.cy) / cam.s;
+      }
+    }
+    rec.cx = t.clientX; rec.cy = t.clientY;
+  }
+  if (touches.size === 2) previewFromTouches();
 }, { passive: false });
 cv.addEventListener('touchend', e => {
   e.preventDefault();
@@ -484,8 +581,9 @@ cv.addEventListener('touchend', e => {
       tryDelete(toWorld(t.clientX, t.clientY));
     tapInfo = null;
   }
+  if (touches.size === 0) panning = false;
 }, { passive: false });
-cv.addEventListener('touchcancel', () => { touches.clear(); preview = null; tapInfo = null; });
+cv.addEventListener('touchcancel', () => { touches.clear(); preview = null; tapInfo = null; panning = false; });
 
 cv.addEventListener('mousedown', e => {
   if (state !== 'edit') return;
@@ -504,6 +602,11 @@ window.addEventListener('mouseup', e => {
   }
   mouseDrag = null; preview = null;
 });
+cv.addEventListener('wheel', e => {
+  if (state !== 'edit') return;
+  e.preventDefault();
+  pan.x += e.deltaX / cam.s; pan.y += e.deltaY / cam.s;
+}, { passive: false });
 
 // ---------- rendering ----------
 const sxp = x => (x - cam.x) * cam.s + W / 2;
@@ -512,14 +615,13 @@ const syp = y => (y - cam.y) * cam.s + H / 2;
 const ambient = [];
 for (let i = 0; i < 34; i++) ambient.push({
   x: Math.random(), y: Math.random(), s: 2 + Math.random() * 3,
-  c: BAND_COLORS[i % 3], vy: 6 + Math.random() * 12, sway: Math.random() * 6.28,
+  c: BAND_COLORS[i % 4], vy: 6 + Math.random() * 12, sway: Math.random() * 6.28,
 });
 
 function drawBackground(dt) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#241245'); g.addColorStop(0.6, '#170b30'); g.addColorStop(1, '#12081f');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  // string lights
   for (let row = 0; row < 2; row++) {
     const y0 = 26 + row * 34, sagg = 22 + row * 8, x0 = -20, x1 = W + 20;
     ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1.5;
@@ -530,14 +632,13 @@ function drawBackground(dt) {
       const t = i / n, u = 1 - t;
       const bx = u * u * x0 + 2 * u * t * (W / 2) + t * t * x1;
       const by = u * u * y0 + 2 * u * t * (y0 + sagg * 2) + t * t * y0;
-      const c = BAND_COLORS[(i + row) % 3];
+      const c = BAND_COLORS[(i + row) % 4];
       const tw = 0.55 + 0.45 * Math.sin(tGlobal * 2.2 + i * 1.7 + row);
       ctx.fillStyle = c; ctx.globalAlpha = 0.35 + 0.5 * tw;
       ctx.beginPath(); ctx.arc(bx, by + 4, 3, 0, 6.28); ctx.fill();
       ctx.globalAlpha = 1;
     }
   }
-  // drifting confetti
   for (const a of ambient) {
     a.y += a.vy * dt / H; a.sway += dt * 2;
     if (a.y > 1.05) { a.y = -0.05; a.x = Math.random(); }
@@ -560,7 +661,6 @@ function drawTerrain(L) {
     ctx.stroke();
     ctx.strokeStyle = '#f3e9d6'; ctx.lineWidth = 1.5 * cam.s;
     ctx.stroke();
-    // sprinkle: candy dashes on top of the frosting
     ctx.strokeStyle = 'rgba(255,93,177,0.55)'; ctx.lineWidth = 0.5 * cam.s;
     ctx.setLineDash([2 * cam.s, 7 * cam.s]);
     ctx.stroke();
@@ -586,7 +686,6 @@ function drawBand(bd, colorIdx, excite, ghost) {
   ctx.strokeStyle = ghost && !preview.ok ? '#ff8f8f' : BAND_COLORS[colorIdx];
   ctx.lineWidth = 0.8 * cam.s; path(); ctx.stroke();
   ctx.setLineDash([]);
-  // knots at the ends
   for (const [x, y] of [pts[0], pts[8]]) {
     ctx.fillStyle = BAND_COLORS[colorIdx];
     ctx.beginPath(); ctx.arc(sxp(x), syp(y), 0.9 * cam.s, 0, 6.28); ctx.fill();
@@ -596,33 +695,67 @@ function drawBand(bd, colorIdx, excite, ghost) {
   ctx.globalAlpha = 1;
 }
 
+function drawCushion(c, squish) {
+  const u = Math.max(cam.s, 2.2);
+  const x = sxp(c.x + c.w / 2), y = syp(c.y), w = c.w * cam.s;
+  const sy = 1 - 0.3 * squish, sx = 1 + 0.25 * squish;
+  ctx.save(); ctx.translate(x, y); ctx.scale(sx, sy);
+  ctx.fillStyle = '#ff9dce';
+  ctx.beginPath(); ctx.roundRect(-w / 2, -0.6 * u, w, 3.4 * u, 1.7 * u); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath(); ctx.roundRect(-w / 2 + 0.8 * u, -0.1 * u, w - 1.6 * u, 0.7 * u, 0.35 * u); ctx.fill();
+  ctx.fillStyle = '#e074ae'; // button dimples
+  const nb = Math.max(2, Math.round(c.w / 14));
+  for (let i = 1; i <= nb; i++) {
+    ctx.beginPath(); ctx.arc(-w / 2 + (w * i) / (nb + 1), 1.5 * u, 0.35 * u, 0, 6.28); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPopper(pp, i) {
+  const u = Math.max(cam.s, 2.2);
+  const x = sxp(pp.x), y = syp(pp.y);
+  const rad = Math.atan2(pp.vy, pp.vx);
+  const pulse = 0.8 + 0.2 * Math.sin(tGlobal * 4 + i * 2);
+  ctx.save(); ctx.translate(x, y);
+  // trigger ring
+  ctx.strokeStyle = 'rgba(255,209,102,0.55)'; ctx.lineWidth = 0.35 * u;
+  ctx.setLineDash([1.2 * u, 1.4 * u]); ctx.lineDashOffset = -tGlobal * 6 * u;
+  ctx.beginPath(); ctx.arc(0, 0, POP_R * cam.s * pulse, 0, 6.28); ctx.stroke();
+  ctx.setLineDash([]);
+  // cone pointing along the aim
+  ctx.rotate(rad);
+  const grad = ctx.createLinearGradient(-3 * u, 0, 1.5 * u, 0);
+  grad.addColorStop(0, '#ffd166'); grad.addColorStop(0.5, '#ff5db1'); grad.addColorStop(1, '#b18bff');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(-3.2 * u, -0.5 * u); ctx.lineTo(1.6 * u, -1.7 * u);
+  ctx.lineTo(1.6 * u, 1.7 * u); ctx.lineTo(-3.2 * u, 0.5 * u);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.ellipse(1.6 * u, 0, 0.5 * u, 1.7 * u, 0, 0, 6.28); ctx.fill();
+  // aim arrow
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 0.35 * u; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(2.6 * u, 0); ctx.lineTo(5.2 * u, 0);
+  ctx.moveTo(4.4 * u, -0.8 * u); ctx.lineTo(5.2 * u, 0); ctx.lineTo(4.4 * u, 0.8 * u); ctx.stroke();
+  ctx.restore();
+}
+
 function drawCake(L) {
   const x = sxp(L.goal[0]), y = syp(L.goal[1]), u = Math.max(cam.s, 2.6);
   const pulse = 1 + Math.sin(tGlobal * 3) * 0.05;
   ctx.save(); ctx.translate(x, y + 2 * u); ctx.scale(pulse, pulse);
   ctx.fillStyle = 'rgba(255,209,102,0.12)';
   ctx.beginPath(); ctx.arc(0, -2 * u, 7.5 * u, 0, 6.28); ctx.fill();
-  // plate + tiers
   ctx.fillStyle = '#cfc4ec'; ctx.beginPath(); ctx.ellipse(0, 0.4 * u, 4.6 * u, 0.8 * u, 0, 0, 6.28); ctx.fill();
   ctx.fillStyle = '#ff9dce'; ctx.beginPath(); ctx.roundRect(-3.6 * u, -2.6 * u, 7.2 * u, 3 * u, 0.8 * u); ctx.fill();
   ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.roundRect(-2.4 * u, -4.6 * u, 4.8 * u, 2.2 * u, 0.7 * u); ctx.fill();
-  ctx.fillStyle = '#fff'; // frosting drips
+  ctx.fillStyle = '#fff';
   for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.arc(i * u, -2.6 * u, 0.55 * u, 0, 6.28); ctx.fill(); }
-  // candle
   ctx.fillStyle = '#57e6c9'; ctx.fillRect(-0.3 * u, -6.2 * u, 0.6 * u, 1.6 * u);
   const fl = 1 + Math.sin(tGlobal * 11) * 0.25;
   ctx.fillStyle = '#ffb54a';
   ctx.beginPath(); ctx.ellipse(0, -6.8 * u, 0.45 * u * fl, 0.8 * u * fl, 0, 0, 6.28); ctx.fill();
-  ctx.restore();
-}
-
-function drawCuke(cx, cy) {
-  const x = sxp(cx), y = syp(cy), u = Math.max(cam.s, 2.2);
-  ctx.save(); ctx.translate(x, y); ctx.rotate(-0.25);
-  ctx.fillStyle = '#3f9b3f';
-  ctx.beginPath(); ctx.ellipse(0, 0, 3 * u, 1.15 * u, 0, 0, 6.28); ctx.fill();
-  ctx.fillStyle = '#59b859';
-  for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.ellipse(i * 1.5 * u, -0.2 * u, 0.5 * u, 0.22 * u, 0, 0, 6.28); ctx.fill(); }
   ctx.restore();
 }
 
@@ -634,45 +767,37 @@ function drawGoomba(px, py, angle, face, grounded, airborne, idle) {
   ctx.scale(face, 1);
   const crouch = grounded ? 1 : 0.88;
   const bob = idle ? Math.sin(tGlobal * 2.4) * 0.14 * u : 0;
-  // snowboard
   ctx.fillStyle = '#8f6cf0';
   ctx.beginPath(); ctx.roundRect(-4.2 * u, R * u * 0.72, 8.4 * u, 0.85 * u, 0.5 * u); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.beginPath(); ctx.roundRect(-3.4 * u, R * u * 0.72 + 0.15 * u, 2.4 * u, 0.25 * u, 0.15 * u); ctx.fill();
-  // tail
   ctx.strokeStyle = '#e8853d'; ctx.lineWidth = 1.0 * u; ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(-1.8 * u, 0.3 * u + bob);
   ctx.quadraticCurveTo(-3.6 * u, -0.4 * u + bob,
     -3.9 * u, (airborne ? -2.6 : -1.9) * u + Math.sin(tGlobal * 6) * 0.4 * u + bob);
   ctx.stroke();
-  // body (crouches on the ground, stretches in the air)
   ctx.fillStyle = '#e8853d';
   ctx.beginPath(); ctx.ellipse(-0.3 * u, (-0.4 + bob / u) * u, 2.3 * u, 1.9 * u * crouch, 0, 0, 6.28); ctx.fill();
-  // stripes on the back
   ctx.strokeStyle = '#c96a24'; ctx.lineWidth = 0.32 * u;
   ctx.beginPath();
   ctx.moveTo(-1.6 * u, -1.7 * u * crouch + bob); ctx.lineTo(-1.3 * u, -0.9 * u + bob);
   ctx.moveTo(-0.6 * u, -2.0 * u * crouch + bob); ctx.lineTo(-0.4 * u, -1.1 * u + bob);
   ctx.stroke();
-  // head
   ctx.fillStyle = '#e8853d';
   ctx.beginPath(); ctx.arc(1.7 * u, (-1.6 + bob / u) * u, 1.5 * u, 0, 6.28); ctx.fill();
-  // ears
   ctx.beginPath();
   ctx.moveTo(0.7 * u, -2.6 * u + bob); ctx.lineTo(0.9 * u, -3.9 * u + bob); ctx.lineTo(1.7 * u, -2.9 * u + bob);
   ctx.moveTo(2.1 * u, -3.0 * u + bob); ctx.lineTo(2.7 * u, -4.0 * u + bob); ctx.lineTo(3.0 * u, -2.7 * u + bob);
   ctx.fill();
   ctx.strokeStyle = '#c96a24'; ctx.lineWidth = 0.28 * u;
   ctx.beginPath(); ctx.moveTo(1.0 * u, -3.4 * u + bob); ctx.lineTo(1.15 * u, -2.95 * u + bob); ctx.stroke();
-  // scarf, flapping
   ctx.strokeStyle = '#ff5db1'; ctx.lineWidth = 0.55 * u;
   ctx.beginPath();
   ctx.moveTo(1.1 * u, -0.6 * u + bob);
   ctx.quadraticCurveTo(0 * u, -0.2 * u + bob,
     (-1.4 - (airborne ? 0.8 : 0.2)) * u, (-0.1 + Math.sin(tGlobal * 9) * 0.25) * u + bob);
   ctx.stroke();
-  // face
   const wide = airborne ? 1.5 : 1;
   ctx.fillStyle = '#4d3319';
   ctx.beginPath();
@@ -700,7 +825,6 @@ function frame(now) {
   tGlobal += dt;
   const L = LEVELS[level];
 
-  // sim
   if (state === 'run' && run) {
     frame.acc = (frame.acc || 0) + dt;
     while (frame.acc > SUB) {
@@ -708,28 +832,39 @@ function frame(now) {
       stepRun(run, SUB);
       if (run.result) { endRun(run.result); break; }
     }
-    if (run && run.onBand >= 0 && Math.random() < 0.5)
-      parts.push({ x: run.p.x, y: run.p.y + R, vx: -run.v.x * 0.15, vy: -12,
-                   c: BAND_COLORS[bands[run.onBand] ? bands[run.onBand].color : 0], life: 0.5 });
+    if (run) {
+      if (run.onBand >= 0 && Math.random() < 0.5)
+        parts.push({ x: run.p.x, y: run.p.y + R, vx: -run.v.x * 0.15, vy: -12,
+                     c: BAND_COLORS[bands[run.onBand] ? bands[run.onBand].color : 0], life: 0.5 });
+      run.cushHits.forEach((h, i) => { if (h) { cushAnim[i] = 1; run.cushHits[i] = 0; } });
+      run.popT.forEach((t, i) => { // popper just fired → confetti blast
+        if (popPrev && t !== popPrev[i]) {
+          const pp = L.pops[i];
+          for (let k = 0; k < 22; k++) confetti.push({
+            x: pp.x, y: pp.y,
+            vx: pp.vx * 0.25 + (Math.random() - 0.5) * 40, vy: pp.vy * 0.25 - Math.random() * 20,
+            c: BAND_COLORS[k % 4], r: Math.random() * 6.28, vr: (Math.random() - .5) * 12,
+            life: 0.8 + Math.random() * 0.5,
+          });
+        }
+      });
+      popPrev = run.popT.slice();
+    }
   }
   for (const b of bands) if (run && run.bandHits[bands.indexOf(b)]) b.excited = 1;
   bands.forEach(b => { b.excited = Math.max(0, (b.excited || 0) - dt * 1.6); });
+  cushAnim = cushAnim.map(v => Math.max(0, v - dt * 2.2));
 
-  // camera: fit level in edit, gently chase Goomba in run
-  const fit = fitCam(L);
-  let target = fit, ts = fit.s;
+  // camera: pannable zoomed edit view; chase cam during runs (dev panel tunes both)
+  const fs = fitScale(L), b = L.bounds;
+  let target;
   if (state === 'run' && run) {
-    ts = fit.s * 1.55;
-    const b = L.bounds;
-    target = {
-      x: Math.max(b.x0 + W / 2 / ts, Math.min(b.x1 - W / 2 / ts, run.p.x + run.face * 14)),
-      y: Math.max(b.y0 + H / 2 / ts, Math.min(b.y1 + 10 - H / 2 / ts, run.p.y)),
-      s: ts,
-    };
-    if (W / ts > b.x1 - b.x0) target.x = fit.x;
-    if (H / ts > b.y1 - b.y0 + 10) target.y = fit.y;
+    target = clampCam(run.p.x + run.face * 8, run.p.y, fs * DEV.rz, b);
+  } else {
+    target = clampCam(pan.x, pan.y, fs * DEV.ez, b);
+    pan.x = target.x; pan.y = target.y; // keep pan inside bounds so it doesn't drift
   }
-  const k = Math.min(1, 5 * dt);
+  const k = Math.min(1, (panning ? 14 : 5) * dt);
   cam.x += (target.x - cam.x) * k; cam.y += (target.y - cam.y) * k; cam.s += (target.s - cam.s) * k;
 
   drawBackground(dt);
@@ -737,13 +872,13 @@ function frame(now) {
   if (shake > 0) { shake = Math.max(0, shake - dt * 3); ctx.translate((Math.random() - .5) * 10 * shake, (Math.random() - .5) * 10 * shake); }
 
   drawTerrain(L);
-  for (const [cx2, cy2] of L.cukes) drawCuke(cx2, cy2);
+  L.cushions.forEach((c, i) => drawCushion(c, cushAnim[i] || 0));
+  L.pops.forEach((pp, i) => drawPopper(pp, i));
   drawCake(L);
-  bands.forEach(b => drawBand(b, b.color, b.excited || 0, false));
-  if (preview && state === 'edit') drawBand(preview, bands.length % 3, 0, true);
+  bands.forEach(bd => drawBand(bd, bd.color, bd.excited || 0, false));
+  if (preview && state === 'edit') drawBand(preview, bands.length % 4, 0, true);
   if (state !== 'run') drawStartPad(L);
 
-  // particles
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.life -= dt;
     if (p.life <= 0) { parts.splice(i, 1); continue; }
@@ -763,7 +898,6 @@ function frame(now) {
   }
   ctx.globalAlpha = 1;
 
-  // Goomba
   if (state === 'run' && run)
     drawGoomba(run.p.x, run.p.y, run.boardA * run.face, run.face, run.grounded, !run.grounded, false);
   else
@@ -771,6 +905,16 @@ function frame(now) {
 
   ctx.restore();
 }
+
+window.__gr = { simulate, LEVELS, BAND_MAX, DEV,
+  // dev/test controls for driving the live game headlessly
+  place(pairs) { bands = pairs.map(([a, b], i) => snapBand(LEVELS[level],
+    { ax: a[0], ay: a[1], bx: b[0], by: b[1], color: i % 4 })); syncHud(); },
+  play() { playBtn.onclick(); },
+  skipTitle() { titleEl.style.display = 'none'; state = 'edit'; syncHud(); },
+  goto(i) { loadLevel(i); },
+  state: () => ({ state, level, bands: bands.length, run: run && { x: run.p.x, y: run.p.y } }),
+};
 
 loadLevel(level);
 syncHud();

@@ -52,6 +52,12 @@
            opacity: 0; transition: opacity .18s, transform .18s; white-space: nowrap; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
   #toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
   #hud:has(#title:not([style*="none"])) > :not(#title) { visibility: hidden; }
+  #hud.lab > :not(#labbar) { visibility: hidden; }
+  #labbar { position: absolute; left: 0; right: 0; bottom: max(14px, env(safe-area-inset-bottom));
+            display: none; justify-content: center; gap: 10px; pointer-events: auto; }
+  #hud.lab #labbar { display: flex; }
+  #labbar button { height: 42px; padding: 0 20px; border-radius: 21px; font-size: 14px; font-weight: 700;
+                   color: #1b0f38; background: linear-gradient(180deg, #67f2d4, #3fd4b4); }
   #title { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
            gap: 14px; background: rgba(13,6,30,.86); pointer-events: auto; text-align: center; padding: 24px; }
   #title h1 { margin: 0; font-size: clamp(34px, 9vw, 56px); letter-spacing: .01em;
@@ -83,11 +89,13 @@
       <button class="devbtn" id="importBtn">📄 import SVG</button>
       <button class="devbtn" id="verifyBtn">🧪 verify level</button>
     </div>
+    <div class="devrow"><button class="devbtn" id="labBtn">🔬 level lab</button></div>
     <input id="svgFile" type="file" accept=".svg,image/svg+xml" hidden>
   </div>
   <button id="clear">clear bands</button>
   <button id="play">▶ PLAY</button>
   <div id="toast"></div>
+  <div id="labbar"><button id="labClose">✕ close lab</button></div>
   <div id="title">
     <h1>GOOMBA RIDER</h1>
     <div class="sub">a silly-bandz line rider · cat games party prototype</div>
@@ -138,7 +146,8 @@ const START_VX = 20;    // the little push when PLAY is hit
 const MAX_SPEED = 120;
 const BAND_MAX = 58;    // one silly band's worth of stretch
 const BAND_MIN = 6;
-const MAX_BANDS = 4;    // demo budget = team budget: 4 players x 1 band (3-player teams: someone uses two hands)
+const MAX_BANDS = 4;    // team budget ceiling: 4 players x 1 band (3-player teams: someone uses two hands)
+const budgetOf = L => Math.min(MAX_BANDS, L.budget || MAX_BANDS);
 const SUB = 1 / 240;    // physics substep
 const RUN_MAX = 15;     // seconds before we call a run stuck
 const KIND_GROUND = 0, KIND_BAND = 1, KIND_CUSH = 2;
@@ -213,6 +222,20 @@ const LEVELS = [
                [[22, 194], [48, 196]] ],
     goal: [34, 193], cushions: [], pops: [],
     solution: [ [[44, 50], [66, 80]], [[96, 94], [106, 86]], [[88, 198], [48, 196]] ] },
+
+  { name: '6 · Two-Step', budget: 2,
+    hint: 'two gaps, two bands — and she comes back the other way',
+    hint2: 'the wall turns her around; catch her on the way back',
+    start: [8, 14],
+    terrain: [ [[-6, 12], [34, 24]],
+               [[86, 48], [120, 56]],
+               [[128, 46], [128, 92]],
+               [[132, 98], [64, 112]],
+               [[-12, 124], [36, 130]],
+               [[-12, 150], [36, 146]] ],
+    goal: [-2, 148], cushions: [], pops: [],
+    solution: [ [[34, 24], [86, 48]], [[64, 112], [38, 138]] ] },
+
 ];
 
 function initLevel(L) { // world bounds + popper aim vectors + start-pad angle
@@ -632,7 +655,11 @@ function syncHud() {
     if (open) d.onclick = () => { if (state !== 'run') { loadLevel(i); } };
     dotsEl.appendChild(d);
   });
-  [...invEl.children].forEach((svg, i) => svg.classList.toggle('used', i < bands.length));
+  const budget = budgetOf(L);
+  [...invEl.children].forEach((svg, i) => {
+    svg.style.display = i < budget ? '' : 'none';
+    svg.classList.toggle('used', i < bands.length);
+  });
   playBtn.textContent = state === 'run' ? '■ STOP' : state === 'win' ? (level < LEVELS.length - 1 ? 'NEXT ▸' : '↺ AGAIN') : '▶ PLAY';
   playBtn.className = state === 'run' ? 'stop' : state === 'win' ? 'next' : '';
   clearBtn.style.display = (state === 'edit' && bands.length) ? '' : 'none';
@@ -717,6 +744,31 @@ window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => { e.preventDefault(); importSVGFile(e.dataTransfer.files[0]); });
 $('importBtn').onclick = () => $('svgFile').click();
 $('svgFile').onchange = e => { importSVGFile(e.target.files[0]); e.target.value = ''; };
+function openLab() {
+  if (state === 'run') endRun(null);
+  labVerdicts.clear();
+  state = 'lab';
+  document.getElementById('hud').classList.add('lab');
+  devpEl.classList.remove('show');
+}
+function closeLab(i) {
+  document.getElementById('hud').classList.remove('lab');
+  state = 'edit';
+  loadLevel(i === undefined ? level : i);
+}
+$('labBtn').onclick = openLab;
+$('labClose').onclick = () => closeLab();
+function labTap(px, py) {
+  for (const c of labCells) {
+    if (px < c.x || px > c.x + c.w || py < c.y || py > c.y + c.h) continue;
+    if (px > c.x + c.w - 30 && py < c.y + 28) { // the ★ corner
+      labStars.has(c.i) ? labStars.delete(c.i) : labStars.add(c.i);
+      localStorage.setItem('goombarider.stars', JSON.stringify([...labStars]));
+    } else closeLab(c.i);
+    return true;
+  }
+  return false;
+}
 $('verifyBtn').onclick = () => {
   const L = LEVELS[level];
   const bare = simulate(level, []);
@@ -739,7 +791,7 @@ let mouseDrag = null, tapInfo = null, panning = false;
 function previewFrom(a, b) {
   const len = Math.hypot(b.x - a.x, b.y - a.y);
   preview = snapBand(LEVELS[level], { ax: a.x, ay: a.y, bx: b.x, by: b.y });
-  preview.ok = len >= BAND_MIN && len <= BAND_MAX && bands.length < MAX_BANDS;
+  preview.ok = len >= BAND_MIN && len <= BAND_MAX && bands.length < budgetOf(LEVELS[level]);
   preview.len = len;
 }
 function previewFromTouches() {
@@ -770,6 +822,7 @@ function tryDelete(w) {
 
 cv.addEventListener('touchstart', e => {
   e.preventDefault();
+  if (state === 'lab') { const t = e.changedTouches[0]; labTap(t.clientX, t.clientY); return; }
   if (state !== 'edit') return;
   for (const t of e.changedTouches) touches.set(t.identifier, { cx: t.clientX, cy: t.clientY });
   if (touches.size === 1) {
@@ -813,6 +866,7 @@ cv.addEventListener('touchend', e => {
 cv.addEventListener('touchcancel', () => { touches.clear(); preview = null; tapInfo = null; panning = false; });
 
 cv.addEventListener('mousedown', e => {
+  if (state === 'lab') { labTap(e.clientX, e.clientY); return; }
   if (state !== 'edit') return;
   mouseDrag = { a: toWorld(e.clientX, e.clientY), px: e.clientX, py: e.clientY, t: performance.now() };
 });
@@ -836,8 +890,9 @@ cv.addEventListener('wheel', e => {
 }, { passive: false });
 
 // ---------- rendering ----------
-const sxp = x => (x - cam.x) * cam.s + W / 2;
-const syp = y => (y - cam.y) * cam.s + H / 2;
+let camOX = 0, camOY = 0; // lab mode draws levels into grid cells by offsetting the camera
+const sxp = x => (x - cam.x) * cam.s + W / 2 + camOX;
+const syp = y => (y - cam.y) * cam.s + H / 2 + camOY;
 
 const ambient = [];
 for (let i = 0; i < 34; i++) ambient.push({
@@ -1046,10 +1101,79 @@ function drawStartPad(L) {
   ctx.setLineDash([]);
 }
 
+// ---------- level lab: every level at a glance, with live sim verdicts ----------
+// Triage tool — tap a card to play it, tap its ★ to shortlist. The verdicts come
+// from the real sim: "bare" must NOT win (or the level is free) and "sol" must win.
+let labCells = [], labStars = new Set(JSON.parse(localStorage.getItem('goombarider.stars') || '[]'));
+const labVerdicts = new Map();
+function labVerdict(i) {
+  if (!labVerdicts.has(i)) {
+    const L = LEVELS[i];
+    const bare = simulate(i, []).result;
+    const sol = L.solution && L.solution.length ? simulate(i, L.solution).result : null;
+    labVerdicts.set(i, { bare, sol, ok: bare !== 'win' && sol === 'win' });
+  }
+  return labVerdicts.get(i);
+}
+function drawLab() {
+  ctx.fillStyle = '#100722'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.font = '700 15px ui-rounded, system-ui, sans-serif';
+  ctx.fillStyle = '#f2ecff';
+  ctx.fillText('Level Lab', 16, 30);
+  ctx.font = '12px ui-rounded, system-ui, sans-serif';
+  ctx.fillStyle = '#8a80b0';
+  ctx.fillText('tap a card to play · ★ to shortlist', 16, 48);
+
+  const cols = W > H ? 3 : 2;
+  const rows = Math.ceil(LEVELS.length / cols);
+  const padX = 12, top = 62, bottom = 70;
+  const cw = (W - padX * (cols + 1)) / cols;
+  const ch = Math.min((H - top - bottom - 12 * (rows - 1)) / rows, cw * 1.5);
+  labCells = [];
+  LEVELS.forEach((L, i) => {
+    const c = i % cols, r = (i / cols) | 0;
+    const x = padX + c * (cw + padX), y = top + r * (ch + 12);
+    labCells.push({ i, x, y, w: cw, h: ch });
+    const v = labVerdict(i);
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.clip();
+    ctx.fillStyle = '#180d31'; ctx.fillRect(x, y, cw, ch);
+    // the level itself, fitted into the card
+    const b = L.bounds, bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+    const inner = 16;
+    cam.s = Math.min((cw - inner) / bw, (ch - inner - 22) / bh);
+    cam.x = (b.x0 + b.x1) / 2; cam.y = (b.y0 + b.y1) / 2;
+    camOX = x + cw / 2 - W / 2; camOY = y + (ch - 22) / 2 + 11 - H / 2;
+    drawTerrain(L);
+    L.cushions.forEach(cu => drawCushion(cu, 0));
+    L.pops.forEach((pp, k) => drawPopper(pp, k));
+    drawCake(L);
+    (L.solution || []).forEach((s, k) => drawBand(
+      snapBand(L, { ax: s[0][0], ay: s[0][1], bx: s[1][0], by: s[1][1] }), k % 4, 0, false));
+    camOX = camOY = 0;
+    ctx.restore();
+    // frame + labels
+    ctx.strokeStyle = i === level ? '#ffd166' : 'rgba(201,189,240,0.22)';
+    ctx.lineWidth = i === level ? 2.5 : 1.5;
+    ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
+    ctx.font = '700 12px ui-rounded, system-ui, sans-serif';
+    ctx.fillStyle = '#f2ecff';
+    ctx.fillText(L.name.length > 18 ? L.name.slice(0, 17) + '…' : L.name, x + 9, y + ch - 8);
+    ctx.font = '10px ui-rounded, system-ui, sans-serif';
+    ctx.fillStyle = v.ok ? '#57e6c9' : '#ff8f8f';
+    ctx.fillText(`${v.ok ? '✓' : '✗'} bare:${v.bare} · up to ${budgetOf(L)}`, x + 9, y + 16);
+    ctx.font = '13px ui-rounded, system-ui, sans-serif';
+    ctx.fillStyle = labStars.has(i) ? '#ffd166' : 'rgba(201,189,240,0.3)';
+    ctx.fillText('★', x + cw - 20, y + 18);
+  });
+}
+
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - (frame.last || now)) / 1000); frame.last = now;
   tGlobal += dt;
+  if (state === 'lab') { drawLab(); return; }
   const L = LEVELS[level];
 
   if (state === 'run' && run) {

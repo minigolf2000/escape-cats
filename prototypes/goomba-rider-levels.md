@@ -48,8 +48,58 @@ lands exactly in the tuning sweet spot.
 - The 🧪 *verify level* button runs the real sim: **bare should NOT win** (else the level is
   too easy) and your `sol` bands should win.
 
+## Design notes: what the sim taught us
+
+Findings from brute-forcing the solution space (`tools/minbands.mjs`). These are physics
+facts about this game, not opinions — each one came from a level that failed a check.
+
+**The universal shortcut is "long fall + one catch band."** If the cake sits at the bottom
+and the start at the top, gravity does all the work and a single band near the goal wins.
+Grand Finale shipped as a 3-band level and had 380 one-band solutions. Anything that
+descends toward its goal has this problem.
+
+**The second shortcut is "extend the start ramp."** A band laid along the opening slope
+just buys speed, and speed clears gaps that were supposed to need bridging. Any level
+where *more speed helps* can be trivialized this way.
+
+**Poppers are the antidote, because they erase state.** A popper sets velocity exactly,
+so nothing upstream changes what happens downstream. That makes stages independent, which
+is precisely what forces one band per stage. Poppers aren't decoration — they're the
+structural tool for multiplayer levels.
+
+**But a popper must fire *away* from the band that feeds it.** Launch back across the
+band she just rode and she immediately re-collides with it. Give the popper ~12 units of
+drop below the feeding band's end, or aim it to continue her direction.
+
+**Which creates the open problem.** "Popper continues her direction" forces a one-way
+staircase, and a 4-stage staircase drifts ~200 units sideways — too wide to stay portrait.
+A zigzag needs her to reverse, and the only robust reverser is a wall (hit it, lose all
+horizontal speed, drop). Combining wall-reversals with popper-lifts inside a portrait
+column is the unsolved bit.
+
+**Anti-shortcut devices that do work:**
+- **Roofed pocket** — put the cake in a pocket with a ceiling so falling arrivals are
+  blocked and the only entry is horizontally through the mouth.
+- **Ceiling over a run** — caps how high she can arc, so extra speed can't skip a gap.
+- **Goal above the start** — falling can never reach it.
+- **Speed governor** — she leaves a lip slowly if that lip is a short gentle shelf just
+  below a wall-drop; at ~15 speed even a 20-unit gap is uncrossable.
+
+**Useful numbers:** gaps wider than ~45 units aren't jumpable at typical speed, and a band
+only spans 58 — so the "needs exactly one band" window is roughly 45–58 units, and it
+widens a lot if you slow her down first. Two segments closer than ~4.4 units (2 × her
+radius) wedge her in a corner and stall the run.
+
 ## Baking + multiplayer notes
 
 `window.__gr` exposes `importSVG(text)`, `svgToLevel(text)`, and `simulate(levelIdx, bands)` —
 the same deterministic sim the future PartyKit server would run. Team budget is 4 bands
 (4 players × 1; a 3-player team has someone place two).
+
+A level's `budget` field caps how many bands the player may place (default 4). Today it's
+an *allowance* — every shipped level can be beaten with one band if you find the right one.
+For the party version each level must genuinely **require** 4, or players get benched; run
+`tools/minbands.mjs` on any candidate before trusting it.
+
+Use the ⚙ → 🔬 **level lab** to see all levels at once with live sim verdicts, tap one to
+play it, and ★ the ones worth keeping.

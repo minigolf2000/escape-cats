@@ -11,7 +11,7 @@
      with the panel when rows are added. --ph is the CONTENT height; the safe-area
      inset is added on top (rather than eating into it) so a home bar can't squeeze
      the bottom row off. */
-  :root { --ph: 286px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
+  :root { --ph: 242px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
   #c { position: fixed; inset: 0 0 var(--deck) 0; width: 100%; height: calc(100% - var(--deck));
        touch-action: none; }
@@ -22,11 +22,19 @@
     padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;
     display: flex; flex-direction: column; gap: 6px; user-select: none;
   }
+  /* Rows never flex: without this the leftover height silently inflates whichever
+     row can absorb it (the scene picker, which grew to 83px tall buttons when
+     rows were added), so --ph and the rows' real heights have to be kept in step
+     deliberately rather than by accident. */
+  #panel > * { flex: none; }
   .row { display: flex; gap: 6px; align-items: center; }
-  /* Labelled segmented row — the scene picker is unlabelled (it's the headline
-     control); these name which axis they switch, since two pickers side by side
-     are otherwise indistinguishable. Label column matches .sliders' 54px so the
-     whole deck reads as one left-aligned stack. */
+  /* The scene picker is the headline control, so it stays deliberately chunkier
+     than the rows below it. */
+  #scene { height: 38px; }
+  /* Labelled segmented row — the scene picker above is unlabelled (it's the
+     headline control), so this one names what it switches rather than reading as
+     a second row of scenes. Label column matches .sliders' 54px so the whole deck
+     reads as one left-aligned stack. */
   .segRow { display: flex; gap: 8px; align-items: center; }
   .segRow > label { flex: 0 0 54px; text-align: right; color: #77808f; font-size: 11px; }
   .seg { display: flex; gap: 4px; flex: 1; }
@@ -61,14 +69,6 @@
       <button data-v="stroke">1-stroke</button>
     </div>
   </div>
-  <div class="segRow"><label>face</label>
-    <div class="seg" id="faceMode">
-      <button data-v="travel" class="on">travel</button>
-      <button data-v="flat">flat</button>
-      <button data-v="scen">scenery</button>
-      <button data-v="axis">axis</button>
-    </div>
-  </div>
   <div class="sliders">
     <label>mice</label><input type="range" id="sN" min="1" max="90" value="60"><output id="oN">60</output>
     <label>word %</label><input type="range" id="sY" min="10" max="80" value="30"><output id="oY">30</output>
@@ -79,9 +79,6 @@
   <div class="row">
     <div class="stat" style="flex:1">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
     <button class="tbtn" id="reseed" style="flex:0 0 90px">reseed</button>
-  </div>
-  <div class="row">
-    <div class="stat" style="flex:1">word mouse turn rate <b id="turn">—</b> °/s</div>
   </div>
 </div>
 <script>
@@ -104,7 +101,7 @@ function resize() {
 addEventListener('resize', resize);
 
 const S = { scene: 'moon', N: 60, yellowPct: 30, trail: 35, noise: 0.10, seed: 7,
-            wordSrc: 'fill', face: 'travel', turnPen: 0 };
+            wordSrc: 'fill', turnPen: 0 };
 
 // Sample spacing for word tours, in the 190px-font reference space that all
 // three word sources normalize to (see sampleLine / sampleStrokeWord). Also the
@@ -715,9 +712,6 @@ function drawMouse(x, y, color, r, angle) {
 }
 
 let simT = 0, last = performance.now();
-// Smoothed mean angular rate of the word mice — the number this whole set of
-// toggles exists to move. Written by frame(), painted by the readout below.
-let turnEMA = null;
 function frame(now) {
   const dt = now - last; last = now;
   simT += dt;
@@ -729,7 +723,6 @@ function frame(now) {
   const trailN = S.trail, trailDt = 80;
   const maxSeg = 16; // a real patrol step is a few px per 80ms; longer = glide, no ink
   const inkW = TRAIL_W[S.wordSrc] || 1.8;
-  let turnSum = 0, turnN = 0; // word-mice angular rate, for the readout
   for (let i = 0; i < S.N; i++) {
     const m = cast[i];
     const isWord = CREWS[m.crew].kind === 'word';
@@ -751,47 +744,21 @@ function frame(now) {
       ctx.globalAlpha = 1;
     }
     const p = posAt(m, t);
-    // Facing. 'flat' is the original always-horizontal look; 'scen' rotates only
-    // the scenery (whose long smooth arcs are where it reads best) and leaves the
-    // word flat; 'axis' aligns to the stroke's AXIS rather than its direction —
-    // the heading is flipped 180° whenever it opposes what we already stored, so
-    // a mouse never spins at a patrol turnaround, it just walks backward.
-    const faceOn = S.face === 'travel' || S.face === 'axis'
-                || (S.face === 'scen' && !isWord);
-    let ang = 0;
-    if (faceOn) {
-      // Sample a step back and point along the displacement. Smoothed as a unit
-      // VECTOR (not the raw angle) so it eases through turnarounds instead of
-      // snapping, and wraps clean through ±π. Held at the last heading when
-      // displacement is ~0 (a single-point crew), rather than being pulled to
-      // atan2(0,0)'s spurious 0°.
-      const prevP = posAt(m, t - HEADING_DT);
-      const ddx = p.x - prevP.x, ddy = p.y - prevP.y;
-      const dist = Math.hypot(ddx, ddy);
-      if (dist > 0.02) {
-        let ux = ddx / dist, uy = ddy / dist;
-        if (S.face === 'axis' && m.dirX !== undefined && ux * m.dirX + uy * m.dirY < 0) {
-          ux = -ux; uy = -uy;
-        }
-        if (m.dirX === undefined) { m.dirX = ux; m.dirY = uy; }
-        else { m.dirX += (ux - m.dirX) * HEADING_EASE; m.dirY += (uy - m.dirY) * HEADING_EASE; }
-      }
-      if (m.dirX !== undefined) ang = Math.atan2(m.dirY, m.dirX);
+    // Facing: sample a step back and point along the displacement. Smoothed as a
+    // unit VECTOR (not the raw angle) so it eases through the ping-pong
+    // turnarounds instead of snapping, and wraps clean through ±π. Held at the
+    // last heading when displacement is ~0 (a single-point crew), rather than
+    // being pulled to atan2(0,0)'s spurious 0°.
+    const prevP = posAt(m, t - HEADING_DT);
+    const ddx = p.x - prevP.x, ddy = p.y - prevP.y;
+    const dist = Math.hypot(ddx, ddy);
+    if (dist > 0.02) {
+      const ux = ddx / dist, uy = ddy / dist;
+      if (m.dirX === undefined) { m.dirX = ux; m.dirY = uy; }
+      else { m.dirX += (ux - m.dirX) * HEADING_EASE; m.dirY += (uy - m.dirY) * HEADING_EASE; }
     }
-    if (isWord && dt > 0) {
-      if (m.lastAng !== undefined) {
-        let d = Math.abs(ang - m.lastAng);
-        if (d > Math.PI) d = Math.PI * 2 - d; // shortest way round
-        turnSum += d * (1000 / dt); turnN++;
-      }
-      m.lastAng = ang;
-    }
+    const ang = m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX);
     drawMouse(p.x, p.y, m.color, 3.1, ang);
-  }
-  if (turnN) {
-    const degPerSec = turnSum / turnN * 180 / Math.PI;
-    // Heavily smoothed — the per-frame figure is far too jumpy to read.
-    turnEMA = turnEMA === null ? degPerSec : turnEMA + (degPerSec - turnEMA) * 0.03;
   }
   requestAnimationFrame(frame);
 }
@@ -812,11 +779,6 @@ function seg(id, key, after) {
 }
 seg('scene', 'scene', () => loadScene(S.scene));
 seg('wordSrc', 'wordSrc', () => loadScene(S.scene)); // re-threads the word tours
-seg('faceMode', 'face', () => {
-  // Drop stored headings so a mode switch can't ease out of a stale facing.
-  for (const m of cast) { m.dirX = m.dirY = undefined; m.lastAng = undefined; }
-  turnEMA = null;
-});
 
 function slider(id, out, key, scale) {
   const el = document.getElementById(id), o = document.getElementById(out);
@@ -860,13 +822,5 @@ function updateStat() {
   tagEl.textContent = label;
   tagEl.style.background = color; tagEl.style.color = '#fff';
 }
-
-// Painted on a timer rather than per frame: turnEMA averages over ~30 frames, so
-// a 60Hz repaint would only flicker digits.
-const turnEl = document.getElementById('turn');
-setInterval(() => {
-  turnEl.textContent = turnEMA === null ? '—' : Math.round(turnEMA);
-}, 250);
-
 loadScene('moon');
 </script>

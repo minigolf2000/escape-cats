@@ -2981,8 +2981,8 @@ function initDev() {
        separate overlay that can end up covering its own dismiss control. */
     #devbar.wide { max-width: min(760px, 94vw); max-height: 82vh; overflow-y: auto; }
     #devbar .r { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-    #devbar button { border: 1px solid #333c4e; background: #171c26; color: #aeb6c6;
-      border-radius: 6px; padding: 3px 7px; font: inherit; cursor: pointer; }
+    #devbar button, #devbar a { border: 1px solid #333c4e; background: #171c26; color: #aeb6c6;
+      border-radius: 6px; padding: 3px 7px; font: inherit; cursor: pointer; text-decoration: none; }
     #devbar button.on { border-color: var(--neon); color: var(--neon); }
     #devbar summary { cursor: pointer; color: #aeb6c6; list-style: none; padding: 1px 0; }
     #devbar summary::-webkit-details-marker { display: none; }
@@ -3008,6 +3008,7 @@ function initDev() {
   bar.id = "devbar";
   bar.innerHTML =
     `<details id="devPanel" open><summary>🛠 debug</summary>
+     <div class="r">tools <a href="reveal-lab.html" target="_blank" rel="noopener noreferrer">🌙 reveal lab</a></div>
      <div class="r">speed <button data-sp="1" class="on">×1</button><button data-sp="10">×10</button><button data-sp="50">×50</button></div>
      <div class="r">team <button data-team="1" class="on">×1</button><button data-team="4">×4</button></div>
      <div class="r">grant <button data-g="1e4">+10K</button><button data-g="1e6">+1M</button><button data-g="1e8">+100M</button></div>

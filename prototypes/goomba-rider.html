@@ -195,9 +195,9 @@ const LEVELS = [
                [[40, -14], [66, -8]] ],
     goal: [48, -13],
     cushions: [ { x: 36, y: 150, w: 36 } ],
-    pops: [ { x: 98, y: 126, deg: -96, spd: 118 },
-            { x: 94, y: 80, deg: -97, spd: 118 },
-            { x: 85, y: 34, deg: -102, spd: 118 } ],
+    pops: [ { x: 98, y: 126, deg: -96, spd: 142 },
+            { x: 94, y: 80, deg: -97, spd: 142 },
+            { x: 85, y: 34, deg: -102, spd: 142 } ],
     solution: [ [[54, 80], [92, 118]] ] },
 
   { name: '4 · Pillow Fort',
@@ -253,17 +253,20 @@ const LEVELS = [
     solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],
                 [[87, 132.3], [45.9, 160.8]] ] },
 
+  // The cake sits high on the FAR side, so the column is the only way up — a mechanic
+  // you can route around isn't really in the level.
   { name: '8 · Balloon Arch', budget: 2,
-    hint: 'the balloon column lifts her — you decide where she leaves it',
-    hint2: 'let her float to the top, then bridge across to the cake',
+    hint: 'the balloon column is the only way up — decide where she leaves it',
+    hint2: 'slant a band across the top of the column to fling her out sideways',
     start: [8, 12],
-    terrain: [ [[-6, 10], [36, 22]],
-               [[108, 26], [108, 150]],
-               [[18, 68], [54, 74]] ],
-    goal: [26, 66],
-    cushions: [ { x: 70, y: 190, w: 38 } ],
-    updrafts: [ { x: 68, y: 58, w: 40, h: 130 } ],
-    solution: [ [[74, 60], [56, 72]] ] },
+    terrain: [ [[-6, 10], [40, 24]],
+               [[108, 30], [108, 192]],
+               [[18, 48], [58, 52]],
+               [[20, 60], [56, 66]] ],
+    goal: [28, 58],
+    cushions: [ { x: 62, y: 190, w: 46 } ],
+    updrafts: [ { x: 60, y: 40, w: 48, h: 150 } ],
+    solution: [ [[101.5, 26.7], [107.1, 34.4]] ] },
 
   { name: '9 · Piñata Alley', budget: 3,
     hint: 'piñatas hit BACK — bank her through the mice and out the bottom',
@@ -272,9 +275,13 @@ const LEVELS = [
     terrain: [ [[-6, 12], [38, 24]],
                [[4, 30], [4, 190], [106, 196], [106, 30]] ],
     goal: [96, 191],
-    mice: [[26, 96], [82, 140]],
-    bumpers: [ { x: 62, y: 66 }, { x: 34, y: 128 }, { x: 84, y: 100 } ],
-    solution: [ [[60.5, 33.4], [48.5, 38.4]], [[11.1, 106.2], [56.6, 115.1]] ] },
+    mice: [[24, 92], [86, 150]],
+    // curtains, not obstacles: the gaps are narrower than she is, so she MUST bounce
+    bumpers: [ { x: 16, y: 62 }, { x: 34, y: 62 }, { x: 52, y: 62 },
+               { x: 70, y: 62 }, { x: 88, y: 62 },
+               { x: 25, y: 122 }, { x: 43, y: 122 }, { x: 61, y: 122 },
+               { x: 79, y: 122 }, { x: 97, y: 122 } ],
+    solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
 ];
 
 function initLevel(L) { // world bounds + popper aim vectors + start-pad angle
@@ -292,7 +299,8 @@ function initLevel(L) { // world bounds + popper aim vectors + start-pad angle
   L.bounds = { x0: x0 - 8, y0: y0 - 16, x1: x1 + 8, y1: y1 + 8 };
   for (const pp of L.pops) {
     const rad = pp.deg * Math.PI / 180;
-    pp.vx = Math.cos(rad) * pp.spd; pp.vy = Math.sin(rad) * pp.spd;
+    pp.ux = Math.cos(rad); pp.uy = Math.sin(rad);
+    pp.vx = pp.ux * pp.spd; pp.vy = pp.uy * pp.spd;
   }
   L.startAngle = 0;
   for (const poly of L.terrain) for (let i = 0; i + 1 < poly.length; i++) {
@@ -617,8 +625,14 @@ function stepRun(st, dt) {
     const pp = L.pops[i];
     const dx = st.p.x - pp.x, dy = st.p.y - pp.y;
     if (dx * dx + dy * dy < POP_R2) {
-      st.p.x = pp.x; st.p.y = pp.y; // popper grabs her, then fires — launches are exact
-      st.v.x = pp.vx; st.v.y = pp.vy;
+      // A popper redirects rather than overwrites: it sets DIRECTION, but carries her
+      // arrival speed through (with pp.spd as a floor). If it replaced velocity outright
+      // it would erase everything the players did upstream — and in a 4-player run the
+      // whole point is being able to say "that was MY band."
+      st.p.x = pp.x; st.p.y = pp.y;
+      const arrive = Math.hypot(st.v.x, st.v.y);
+      const sp2 = Math.min(MAX_SPEED, Math.max(arrive, pp.spd * 0.82));
+      st.v.x = pp.ux * sp2; st.v.y = pp.uy * sp2;
       st.popT[i] = st.t; st.events.push(['pop', pp.x, pp.y, st.t]);
     }
   }

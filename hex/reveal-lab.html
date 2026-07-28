@@ -1,19 +1,34 @@
 <!doctype html>
+<!-- Explicit charset: the panel labels carry non-ASCII (λ, ×, °) and a static
+     host that serves .html without a charset parameter would otherwise leave the
+     browser to guess, which renders them as mojibake. -->
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Reveal Lab</title>
 <style>
   /* Deliberately single-theme: a dark observation room. This is a tuning instrument. */
+  /* One height for the control deck, so the canvas inset can't drift out of sync
+     with the panel when rows are added. --ph is the CONTENT height; the safe-area
+     inset is added on top (rather than eating into it) so a home bar can't squeeze
+     the bottom row off. */
+  :root { --ph: 286px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
-  #c { position: fixed; inset: 0 0 186px 0; width: 100%; height: calc(100% - 186px);
+  #c { position: fixed; inset: 0 0 var(--deck) 0; width: 100%; height: calc(100% - var(--deck));
        touch-action: none; }
   #panel {
-    position: fixed; left: 0; right: 0; bottom: 0; height: 186px;
+    position: fixed; left: 0; right: 0; bottom: 0; height: var(--deck);
     background: #181b22; border-top: 1px solid #262b36;
     font: 500 12px -apple-system, "Segoe UI", system-ui, sans-serif; color: #aeb6c6;
     padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;
     display: flex; flex-direction: column; gap: 6px; user-select: none;
   }
   .row { display: flex; gap: 6px; align-items: center; }
+  /* Labelled segmented row — the scene picker is unlabelled (it's the headline
+     control); these name which axis they switch, since two pickers side by side
+     are otherwise indistinguishable. Label column matches .sliders' 54px so the
+     whole deck reads as one left-aligned stack. */
+  .segRow { display: flex; gap: 8px; align-items: center; }
+  .segRow > label { flex: 0 0 54px; text-align: right; color: #77808f; font-size: 11px; }
   .seg { display: flex; gap: 4px; flex: 1; }
   .seg button {
     flex: 1; padding: 6px 2px; border: 0; border-radius: 7px;
@@ -39,15 +54,34 @@
     <button data-v="moon" class="on">to the moon</button>
     <button data-v="dice">six sided</button>
   </div>
+  <div class="segRow"><label>word</label>
+    <div class="seg" id="wordSrc">
+      <button data-v="fill" class="on">filled</button>
+      <button data-v="skel">skeleton</button>
+      <button data-v="stroke">1-stroke</button>
+    </div>
+  </div>
+  <div class="segRow"><label>face</label>
+    <div class="seg" id="faceMode">
+      <button data-v="travel" class="on">travel</button>
+      <button data-v="flat">flat</button>
+      <button data-v="scen">scenery</button>
+      <button data-v="axis">axis</button>
+    </div>
+  </div>
   <div class="sliders">
     <label>mice</label><input type="range" id="sN" min="1" max="90" value="60"><output id="oN">60</output>
     <label>word %</label><input type="range" id="sY" min="10" max="80" value="30"><output id="oY">30</output>
     <label>trail</label><input type="range" id="sT" min="0" max="60" value="35"><output id="oT">35</output>
     <label>noise</label><input type="range" id="sW" min="0" max="100" value="10"><output id="oW">10</output>
+    <label>turn λ</label><input type="range" id="sL" min="0" max="100" value="0"><output id="oL">0</output>
   </div>
   <div class="row">
     <div class="stat" style="flex:1">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
     <button class="tbtn" id="reseed" style="flex:0 0 90px">reseed</button>
+  </div>
+  <div class="row">
+    <div class="stat" style="flex:1">word mouse turn rate <b id="turn">—</b> °/s</div>
   </div>
 </div>
 <script>
@@ -69,7 +103,20 @@ function resize() {
 }
 addEventListener('resize', resize);
 
-const S = { scene: 'moon', N: 60, yellowPct: 30, trail: 35, noise: 0.10, seed: 7 };
+const S = { scene: 'moon', N: 60, yellowPct: 30, trail: 35, noise: 0.10, seed: 7,
+            wordSrc: 'fill', face: 'travel', turnPen: 0 };
+
+// Sample spacing for word tours, in the 190px-font reference space that all
+// three word sources normalize to (see sampleLine / sampleStrokeWord). Also the
+// unit the turn penalty is denominated in.
+const SAMPLE_STEP = 6;
+
+// How wide the trail strokes the word, per source. The filled source lays down
+// many near-parallel passes across a letter's whole area, so a hairline reads;
+// the centerline sources make ONE pass and need a pen roughly the letter's
+// stroke width to fill the same silhouette. Eyeballed at the default scene
+// scale, not derived — retune alongside any big change to letter size.
+const TRAIL_W = { fill: 1.8, skel: 5, stroke: 5 };
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -82,18 +129,98 @@ function mulberry32(seed) {
 }
 
 // ---------- word sampling: one crew per letter ----------
-function sampleLine(word) {
+// Greedy nearest-neighbour thread through a point cloud, with an optional TURN
+// PENALTY. Plain NN over a FILLED glyph is what makes the word mice twitch: a
+// 190px letter is ~6 samples thick, so the nearest unused point is a lateral
+// neighbour about as often as a longitudinal one and the tour snakes ACROSS the
+// stroke instead of along it. Blending a turn cost into the choice buys longer
+// straight runs. `lambda` is denominated in sample-steps of detour the thread
+// will accept to avoid a 180° turn, so it's scale-free.
+function threadPoints(lp, lambda) {
+  const n = lp.length;
+  if (n < 2) return lp.slice();
+  // start topmost-then-leftmost, so a tour begins where a pen would
+  let s = 0;
+  for (let i = 1; i < n; i++)
+    if (lp[i].y < lp[s].y - 1 || (Math.abs(lp[i].y - lp[s].y) <= 1 && lp[i].x < lp[s].x)) s = i;
+  const used = new Uint8Array(n); used[s] = 1;
+  const tour = [lp[s]];
+  let cur = s, hx = 0, hy = 0; // hx/hy: unit heading of the step just taken
+  for (let step = 1; step < n; step++) {
+    let best = -1, bc = Infinity;
+    for (let j = 0; j < n; j++) {
+      if (used[j]) continue;
+      const vx = lp[j].x - lp[cur].x, vy = lp[j].y - lp[cur].y;
+      const d = Math.hypot(vx, vy);
+      let c = d;
+      if (lambda > 0 && d > 1e-6 && (hx || hy)) {
+        const dot = Math.max(-1, Math.min(1, (hx * vx + hy * vy) / d));
+        c += lambda * SAMPLE_STEP * (Math.acos(dot) / Math.PI);
+      }
+      if (c < bc) { bc = c; best = j; }
+    }
+    if (best < 0) break;
+    const vx = lp[best].x - lp[cur].x, vy = lp[best].y - lp[cur].y;
+    const vl = Math.hypot(vx, vy) || 1;
+    hx = vx / vl; hy = vy / vl;
+    used[best] = 1; tour.push(lp[best]); cur = best;
+  }
+  return tour;
+}
+
+// Zhang-Suen thinning, in place on a 1-byte-per-pixel binary mask. Collapses a
+// filled glyph to a 1px centreline so the thread has only one way to go — the
+// automatic counterpart to the hand-authored 1-stroke glyphs. Branch points (the
+// junctions in H, E, X) still force the thread to double back, so this is
+// smoother than `filled` but not as clean as `stroke`.
+function skeletonize(bin, w, h) {
+  const at = (x, y) => (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) ? 0 : bin[y * w + x];
+  const dead = [];
+  for (let guard = 0; guard < 200; guard++) {
+    let removed = 0;
+    for (let pass = 0; pass < 2; pass++) {
+      dead.length = 0;
+      for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+        if (!bin[y * w + x]) continue;
+        const p2 = at(x, y - 1), p3 = at(x + 1, y - 1), p4 = at(x + 1, y), p5 = at(x + 1, y + 1),
+              p6 = at(x, y + 1), p7 = at(x - 1, y + 1), p8 = at(x - 1, y), p9 = at(x - 1, y - 1);
+        const B = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+        if (B < 2 || B > 6) continue;              // endpoint or interior
+        const seq = [p2, p3, p4, p5, p6, p7, p8, p9, p2];
+        let A = 0;
+        for (let k = 0; k < 8; k++) if (!seq[k] && seq[k + 1]) A++;
+        if (A !== 1) continue;                     // removing it would break connectivity
+        if (pass === 0) { if (p2 && p4 && p6) continue; if (p4 && p6 && p8) continue; }
+        else           { if (p2 && p4 && p8) continue; if (p2 && p6 && p8) continue; }
+        dead.push(y * w + x);
+      }
+      for (const i of dead) bin[i] = 0;
+      removed += dead.length;
+    }
+    if (!removed) break;
+  }
+  return bin;
+}
+
+// Rasterize a line of text and return one tour per letter. `skel` thins each
+// glyph to its centreline first. Output is always normalized into the same
+// 190px-font reference space, whatever font size the raster actually used, so
+// loadScene's `ln.size / 190` placement math is source-agnostic.
+const RASTER_FS = { fill: 190, skel: 96 };
+function sampleLine(word, src, lambda) {
+  const FS = RASTER_FS[src] || 190;
+  const norm = 190 / FS;                       // back into the reference space
+  const step = Math.max(1, Math.round(SAMPLE_STEP / norm));
   const oc = document.createElement('canvas');
   const octx = oc.getContext('2d');
-  const FS = 190;
   octx.font = `900 ${FS}px Arial, Helvetica, sans-serif`;
   const widths = [...word].map(ch => octx.measureText(ch).width);
   const gap = FS * 0.06;
   const totalW = widths.reduce((a, b) => a + b + gap, 0);
-  oc.width = Math.ceil(totalW + 40); oc.height = Math.ceil(FS * 1.5);
+  oc.width = Math.ceil(totalW + FS * 0.21); oc.height = Math.ceil(FS * 1.5);
   octx.font = `900 ${FS}px Arial, Helvetica, sans-serif`;
   octx.textBaseline = 'middle';
-  let x = 20;
+  let x = FS * 0.105;
   const bounds = [];
   for (let i = 0; i < word.length; i++) {
     octx.fillText(word[i], x, oc.height / 2);
@@ -101,41 +228,40 @@ function sampleLine(word) {
     x += widths[i] + gap;
   }
   const img = octx.getImageData(0, 0, oc.width, oc.height).data;
-  const pts = [], STEP = 6;
-  for (let py = 0; py < oc.height; py += STEP) {
-    for (let px = 0; px < oc.width; px += STEP) {
-      if (img[(py * oc.width + px) * 4 + 3] > 128) {
-        let letter = 0;
-        for (let b = 0; b < bounds.length; b++) if (px >= bounds[b][0] - gap) letter = b;
-        pts.push({ x: px, y: py, letter });
-      }
-    }
+
+  // Skeleton walks the thinned mask pixel-by-pixel (it's 1px wide, so a coarse
+  // grid would shatter it into disconnected specks); filled subsamples on a grid.
+  const pts = [];
+  const letterOf = px => {
+    let letter = 0;
+    for (let b = 0; b < bounds.length; b++) if (px >= bounds[b][0] - gap) letter = b;
+    return letter;
+  };
+  if (src === 'skel') {
+    const bin = new Uint8Array(oc.width * oc.height);
+    for (let i = 0; i < bin.length; i++) bin[i] = img[i * 4 + 3] > 128 ? 1 : 0;
+    skeletonize(bin, oc.width, oc.height);
+    for (let py = 0; py < oc.height; py++) for (let px = 0; px < oc.width; px++)
+      if (bin[py * oc.width + px]) pts.push({ x: px, y: py, letter: letterOf(px) });
+  } else {
+    for (let py = 0; py < oc.height; py += step) for (let px = 0; px < oc.width; px += step)
+      if (img[(py * oc.width + px) * 4 + 3] > 128) pts.push({ x: px, y: py, letter: letterOf(px) });
   }
-  // per-letter nearest-neighbour thread -> one tour per letter
+
   const byLetter = [];
   for (const p of pts) (byLetter[p.letter] = byLetter[p.letter] || []).push(p);
   const letters = [];
   for (let L = 0; L < word.length; L++) {
     const lp = byLetter[L];
     if (!lp || !lp.length) continue;
-    let s = 0;
-    for (let i = 1; i < lp.length; i++)
-      if (lp[i].y < lp[s].y - 1 || (Math.abs(lp[i].y - lp[s].y) <= 1 && lp[i].x < lp[s].x)) s = i;
-    const used = new Uint8Array(lp.length); used[s] = 1;
-    const tour = [lp[s]];
-    let cur = s;
-    for (let step = 1; step < lp.length; step++) {
-      let best = -1, bd = Infinity;
-      for (let j = 0; j < lp.length; j++) {
-        if (used[j]) continue;
-        const d = (lp[j].x - lp[cur].x) ** 2 + (lp[j].y - lp[cur].y) ** 2;
-        if (d < bd) { bd = d; best = j; }
-      }
-      used[best] = 1; tour.push(lp[best]); cur = best;
-    }
-    letters.push(tour);
+    let tour = threadPoints(lp, lambda).map(p => ({ x: p.x * norm, y: p.y * norm }));
+    // A pixel-dense skeleton tour carries ~6x the points the rest of the sim
+    // expects; resample it back to SAMPLE_STEP so patrol speed and the
+    // legibility formula stay comparable across sources.
+    if (src === 'skel') tour = resamplePoly(tour, SAMPLE_STEP);
+    if (tour.length > 1) letters.push(tour);
   }
-  return { letters, w: oc.width, h: oc.height };
+  return { letters, w: oc.width * norm, h: oc.height * norm };
 }
 
 // ---------- scene path tracer (canvas-like API that records polylines) ----------
@@ -238,26 +364,28 @@ function components(polys) {
     if (!groups.has(r)) groups.set(r, []);
     groups.get(r).push(polys[i]);
   }
-  // chain each component's subpaths end-to-nearest-end so patrol glides stay short
-  return [...groups.values()].map(g => {
-    const restList = [...g];
-    let chain = restList.shift();
-    const outPolys = [chain];
-    while (restList.length) {
-      const tail = outPolys[outPolys.length - 1];
-      const end = tail[tail.length - 1];
-      let bi = 0, brev = false, bd = Infinity;
-      restList.forEach((p, i) => {
-        const d0 = (p[0].x - end.x) ** 2 + (p[0].y - end.y) ** 2;
-        const d1 = (p[p.length - 1].x - end.x) ** 2 + (p[p.length - 1].y - end.y) ** 2;
-        if (d0 < bd) { bd = d0; bi = i; brev = false; }
-        if (d1 < bd) { bd = d1; bi = i; brev = true; }
-      });
-      const nxt = restList.splice(bi, 1)[0];
-      outPolys.push(brev ? [...nxt].reverse() : nxt);
-    }
-    return outPolys.flat();
-  });
+  return [...groups.values()].map(chainPolys);
+}
+// Chain subpaths end-to-nearest-end (reversing where that's the closer join) so
+// patrol glides between them stay short. Shared with the 1-stroke glyphs, whose
+// retraced strokes arrive as separate subpaths for the same reason.
+function chainPolys(g) {
+  const restList = [...g];
+  const outPolys = [restList.shift()];
+  while (restList.length) {
+    const tail = outPolys[outPolys.length - 1];
+    const end = tail[tail.length - 1];
+    let bi = 0, brev = false, bd = Infinity;
+    restList.forEach((p, i) => {
+      const d0 = (p[0].x - end.x) ** 2 + (p[0].y - end.y) ** 2;
+      const d1 = (p[p.length - 1].x - end.x) ** 2 + (p[p.length - 1].y - end.y) ** 2;
+      if (d0 < bd) { bd = d0; bi = i; brev = false; }
+      if (d1 < bd) { bd = d1; bi = i; brev = true; }
+    });
+    const nxt = restList.splice(bi, 1)[0];
+    outPolys.push(brev ? [...nxt].reverse() : nxt);
+  }
+  return outPolys.flat();
 }
 
 function star4(x, cx, cy, r) {
@@ -271,6 +399,72 @@ function hexPath(x, cx, cy, r, rot) {
     i ? x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
       : x.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
   }
+}
+
+// ---------- 1-stroke alphabet ----------
+// A single-stroke ("engraver's") font for exactly the letters the two scenes
+// need. Each glyph is ONE continuous pen path in a box `w` wide by 100 tall
+// (y=0 cap height, y=100 baseline), authored through the same tracer() API the
+// scenery uses — so a letter arrives as a smooth polyline with no lateral
+// snaking, and a mouse walking it is literally writing the letter.
+//
+// Retracing is deliberate and normal for this kind of font: T doubles back
+// along half its bar to reach the stem, E re-crosses its middle arm, X passes
+// through its own centre three times. The ping-pong patrol makes retraces free
+// — the mouse was going to come back this way regardless.
+const GLYPHS = {
+  'T': { w: 62, draw(x) { x.moveTo(0, 0); x.lineTo(62, 0); x.lineTo(31, 0); x.lineTo(31, 100); } },
+  'O': { w: 68, draw(x) { x.moveTo(68, 50); x.ellipse(34, 50, 34, 50, 0, 0, 6.283); } },
+  'H': { w: 64, draw(x) { x.moveTo(0, 0); x.lineTo(0, 100); x.lineTo(0, 50);
+                          x.lineTo(64, 50); x.lineTo(64, 0); x.lineTo(64, 100); } },
+  'E': { w: 58, draw(x) { x.moveTo(58, 0); x.lineTo(0, 0); x.lineTo(0, 50); x.lineTo(46, 50);
+                          x.lineTo(0, 50); x.lineTo(0, 100); x.lineTo(58, 100); } },
+  'M': { w: 76, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(38, 58);
+                          x.lineTo(76, 0); x.lineTo(76, 100); } },
+  'N': { w: 66, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(66, 100); x.lineTo(66, 0); } },
+  'S': { w: 60, draw(x) { x.moveTo(56, 16); x.bezierCurveTo(46, 0, 8, 0, 6, 24);
+                          x.bezierCurveTo(4, 45, 52, 47, 54, 70);
+                          x.bezierCurveTo(56, 96, 14, 100, 2, 82); } },
+  'I': { w: 20, draw(x) { x.moveTo(10, 0); x.lineTo(10, 100); } },
+  'X': { w: 64, draw(x) { x.moveTo(0, 0); x.lineTo(32, 50); x.lineTo(64, 0); x.lineTo(32, 50);
+                          x.lineTo(0, 100); x.lineTo(32, 50); x.lineTo(64, 100); } },
+  'D': { w: 66, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0);
+                          x.bezierCurveTo(54, 0, 70, 24, 66, 50);
+                          x.bezierCurveTo(62, 76, 44, 100, 0, 100); } },
+  ' ': { w: 34, draw() {} },
+};
+// Wider than a text font's tracking would be: these are single hairline strokes
+// that the trail then inks to roughly a letter's stroke width, so adjacent glyphs
+// close up by that much again once they're drawn.
+const GLYPH_GAP = 17;
+// Arial Black's cap height at the 190px reference size, so a 1-stroke word
+// lands at the same optical size as the rasterized sources.
+const REF_CAP_H = 137;
+
+function sampleStrokeWord(word) {
+  const letters = [];
+  let pen = 0;
+  for (const ch of word) {
+    const g = GLYPHS[ch] || GLYPHS[' '];
+    const tr = tracer();
+    tr.translate(pen, 0);
+    g.draw(tr);
+    const polys = tr.polys.map(p => resamplePoly(p, 4)).filter(p => p.length > 1);
+    if (polys.length) letters.push(chainPolys(polys));
+    pen += g.w + GLYPH_GAP;
+  }
+  // Normalize into the 190px reference space: scale to REF_CAP_H tall, then
+  // shift so the ink spans [0,w] x [0,h] (loadScene centres on w/2, h/2).
+  const all = letters.flat();
+  if (!all.length) return { letters, w: 1, h: 1 };
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of all) {
+    if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x;
+    if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y;
+  }
+  const k = REF_CAP_H / Math.max(1, y1 - y0);
+  for (const p of all) { p.x = (p.x - x0) * k; p.y = (p.y - y0) * k; }
+  return { letters, w: (x1 - x0) * k, h: (y1 - y0) * k };
 }
 
 // ---------- the two scenes ----------
@@ -379,7 +573,8 @@ function loadScene(key) {
   // word letters -> one crew each, placed per line
   WORD_LEN = 0;
   for (const ln of def.lines) {
-    const s = sampleLine(ln.text);
+    const s = S.wordSrc === 'stroke' ? sampleStrokeWord(ln.text)
+                                     : sampleLine(ln.text, S.wordSrc, S.turnPen);
     const scale = ln.size / 190;
     for (const letterTour of s.letters) {
       const tour = letterTour.map(p => ({
@@ -520,6 +715,9 @@ function drawMouse(x, y, color, r, angle) {
 }
 
 let simT = 0, last = performance.now();
+// Smoothed mean angular rate of the word mice — the number this whole set of
+// toggles exists to move. Written by frame(), painted by the readout below.
+let turnEMA = null;
 function frame(now) {
   const dt = now - last; last = now;
   simT += dt;
@@ -530,10 +728,15 @@ function frame(now) {
 
   const trailN = S.trail, trailDt = 80;
   const maxSeg = 16; // a real patrol step is a few px per 80ms; longer = glide, no ink
+  const inkW = TRAIL_W[S.wordSrc] || 1.8;
+  let turnSum = 0, turnN = 0; // word-mice angular rate, for the readout
   for (let i = 0; i < S.N; i++) {
     const m = cast[i];
+    const isWord = CREWS[m.crew].kind === 'word';
     if (trailN > 0) {
-      ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+      // Only the word's ink width follows the source; scenery is always a
+      // hairline (its tours were already centrelines to begin with).
+      ctx.lineWidth = isWord ? inkW : 1.8; ctx.lineCap = 'round';
       let prev = posAt(m, t);
       for (let j = 1; j <= trailN; j++) {
         const p = posAt(m, t - j * trailDt);
@@ -548,21 +751,47 @@ function frame(now) {
       ctx.globalAlpha = 1;
     }
     const p = posAt(m, t);
-    // Heading: sample a step back and point the mouse along the displacement.
-    // Smoothed as a unit vector (not the raw angle) so it eases through the
-    // ping-pong turnarounds instead of snapping, and wraps clean through ±π.
-    // Held at rest (dist ~0, e.g. a single-point crew) rather than pulled to
-    // atan2(0,0)'s spurious 0°.
-    const prevP = posAt(m, t - HEADING_DT);
-    const ddx = p.x - prevP.x, ddy = p.y - prevP.y;
-    const dist = Math.hypot(ddx, ddy);
-    if (dist > 0.02) {
-      const ux = ddx / dist, uy = ddy / dist;
-      if (m.dirX === undefined) { m.dirX = ux; m.dirY = uy; }
-      else { m.dirX += (ux - m.dirX) * HEADING_EASE; m.dirY += (uy - m.dirY) * HEADING_EASE; }
+    // Facing. 'flat' is the original always-horizontal look; 'scen' rotates only
+    // the scenery (whose long smooth arcs are where it reads best) and leaves the
+    // word flat; 'axis' aligns to the stroke's AXIS rather than its direction —
+    // the heading is flipped 180° whenever it opposes what we already stored, so
+    // a mouse never spins at a patrol turnaround, it just walks backward.
+    const faceOn = S.face === 'travel' || S.face === 'axis'
+                || (S.face === 'scen' && !isWord);
+    let ang = 0;
+    if (faceOn) {
+      // Sample a step back and point along the displacement. Smoothed as a unit
+      // VECTOR (not the raw angle) so it eases through turnarounds instead of
+      // snapping, and wraps clean through ±π. Held at the last heading when
+      // displacement is ~0 (a single-point crew), rather than being pulled to
+      // atan2(0,0)'s spurious 0°.
+      const prevP = posAt(m, t - HEADING_DT);
+      const ddx = p.x - prevP.x, ddy = p.y - prevP.y;
+      const dist = Math.hypot(ddx, ddy);
+      if (dist > 0.02) {
+        let ux = ddx / dist, uy = ddy / dist;
+        if (S.face === 'axis' && m.dirX !== undefined && ux * m.dirX + uy * m.dirY < 0) {
+          ux = -ux; uy = -uy;
+        }
+        if (m.dirX === undefined) { m.dirX = ux; m.dirY = uy; }
+        else { m.dirX += (ux - m.dirX) * HEADING_EASE; m.dirY += (uy - m.dirY) * HEADING_EASE; }
+      }
+      if (m.dirX !== undefined) ang = Math.atan2(m.dirY, m.dirX);
     }
-    const ang = m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX);
+    if (isWord && dt > 0) {
+      if (m.lastAng !== undefined) {
+        let d = Math.abs(ang - m.lastAng);
+        if (d > Math.PI) d = Math.PI * 2 - d; // shortest way round
+        turnSum += d * (1000 / dt); turnN++;
+      }
+      m.lastAng = ang;
+    }
     drawMouse(p.x, p.y, m.color, 3.1, ang);
+  }
+  if (turnN) {
+    const degPerSec = turnSum / turnN * 180 / Math.PI;
+    // Heavily smoothed — the per-frame figure is far too jumpy to read.
+    turnEMA = turnEMA === null ? degPerSec : turnEMA + (degPerSec - turnEMA) * 0.03;
   }
   requestAnimationFrame(frame);
 }
@@ -570,12 +799,25 @@ requestAnimationFrame(frame);
 resize();
 
 // ---------- controls ----------
-document.getElementById('scene').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  S.scene = b.dataset.v;
-  [...document.getElementById('scene').children].forEach(c => c.classList.toggle('on', c === b));
-  loadScene(S.scene);
+// Every segmented picker works the same way: write S[key] from data-v, move the
+// `on` pill, then run `after`.
+function seg(id, key, after) {
+  const box = document.getElementById(id);
+  box.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    S[key] = b.dataset.v;
+    [...box.children].forEach(c => c.classList.toggle('on', c === b));
+    if (after) after();
+  });
+}
+seg('scene', 'scene', () => loadScene(S.scene));
+seg('wordSrc', 'wordSrc', () => loadScene(S.scene)); // re-threads the word tours
+seg('faceMode', 'face', () => {
+  // Drop stored headings so a mode switch can't ease out of a stale facing.
+  for (const m of cast) { m.dirX = m.dirY = undefined; m.lastAng = undefined; }
+  turnEMA = null;
 });
+
 function slider(id, out, key, scale) {
   const el = document.getElementById(id), o = document.getElementById(out);
   el.addEventListener('input', () => {
@@ -589,6 +831,14 @@ slider('sN', 'oN', 'N');
 slider('sY', 'oY', 'yellowPct');
 slider('sT', 'oT', 'trail');
 slider('sW', 'oW', 'noise', true);
+// λ re-threads every word tour, which is O(n²) per letter — too heavy to run on
+// every intermediate value, so the readout tracks the drag and the rebuild waits
+// for release ('change'). Scaled to 0..4 sample-steps of detour per 180° turn.
+(() => {
+  const el = document.getElementById('sL'), o = document.getElementById('oL');
+  el.addEventListener('input', () => { o.textContent = el.value; });
+  el.addEventListener('change', () => { S.turnPen = +el.value / 25; loadScene(S.scene); });
+})();
 document.getElementById('reseed').addEventListener('click', () => {
   S.seed = (S.seed * 1103515245 + 12345) >>> 0;
   rebuildCast();
@@ -610,5 +860,13 @@ function updateStat() {
   tagEl.textContent = label;
   tagEl.style.background = color; tagEl.style.color = '#fff';
 }
+
+// Painted on a timer rather than per frame: turnEMA averages over ~30 frames, so
+// a 60Hz repaint would only flicker digits.
+const turnEl = document.getElementById('turn');
+setInterval(() => {
+  turnEl.textContent = turnEMA === null ? '—' : Math.round(turnEMA);
+}, 250);
+
 loadScene('moon');
 </script>

@@ -368,6 +368,8 @@ const SCENE_DEFS = {
 const PALETTE = { yellow: '#ffd44d', blue: '#5fb0ff', pink: '#ff6fa5', green: '#5fe0a0', purple: '#b48cff' };
 const WORD_PPMS_FRAC = 2.2e-5; // fraction of the whole word's ink per ms (legibility formula input)
 const SCENE_PPMS = 0.004;      // scenery patrol speed, tour-points per ms
+const HEADING_DT = 16;         // ms back-sample for facing direction (~1 frame at 60fps)
+const HEADING_EASE = 0.25;     // per-frame lerp toward the new heading vector
 
 // CREWS: [{ color, tour(scene-space pts), len, kind: 'word'|'scenery' }]
 let CREWS = [], WORD_LEN = 0;
@@ -473,10 +475,14 @@ function posAt(m, t) {
 // constants used everywhere else a mouse is drawn) — body blob with a white
 // keyline, one ear, a dark eye dot, a curled tail. `r` keeps the old ellipse
 // shape's meaning (roughly the body's vertical half-size) so callers/sliders
-// didn't need retuning.
-function drawMouse(x, y, color, r) {
+// didn't need retuning. The art faces +x at rest, so `angle` (radians, canvas
+// convention) is the heading to rotate it toward — 0 keeps the old look.
+function drawMouse(x, y, color, r, angle) {
   const s = r / 10, cx = 30.5, cy = 14;
-  const P = (px, py) => [x + (px - cx) * s, y + (py - cy) * s];
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle || 0);
+  const P = (px, py) => [(px - cx) * s, (py - cy) * s];
   const seg = (c1x, c1y, c2x, c2y, ex, ey) => {
     const [a, b] = P(c1x, c1y), [c, d] = P(c2x, c2y), [e, f] = P(ex, ey);
     ctx.bezierCurveTo(a, b, c, d, e, f);
@@ -510,6 +516,7 @@ function drawMouse(x, y, color, r) {
   const [ix, iy] = P(42, 12);
   ctx.beginPath(); ctx.arc(ix, iy, 1.8 * s, 0, 6.283);
   ctx.fillStyle = '#0a0b10'; ctx.fill();
+  ctx.restore();
 }
 
 let simT = 0, last = performance.now();
@@ -541,7 +548,21 @@ function frame(now) {
       ctx.globalAlpha = 1;
     }
     const p = posAt(m, t);
-    drawMouse(p.x, p.y, m.color, 3.1);
+    // Heading: sample a step back and point the mouse along the displacement.
+    // Smoothed as a unit vector (not the raw angle) so it eases through the
+    // ping-pong turnarounds instead of snapping, and wraps clean through ±π.
+    // Held at rest (dist ~0, e.g. a single-point crew) rather than pulled to
+    // atan2(0,0)'s spurious 0°.
+    const prevP = posAt(m, t - HEADING_DT);
+    const ddx = p.x - prevP.x, ddy = p.y - prevP.y;
+    const dist = Math.hypot(ddx, ddy);
+    if (dist > 0.02) {
+      const ux = ddx / dist, uy = ddy / dist;
+      if (m.dirX === undefined) { m.dirX = ux; m.dirY = uy; }
+      else { m.dirX += (ux - m.dirX) * HEADING_EASE; m.dirY += (uy - m.dirY) * HEADING_EASE; }
+    }
+    const ang = m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX);
+    drawMouse(p.x, p.y, m.color, 3.1, ang);
   }
   requestAnimationFrame(frame);
 }

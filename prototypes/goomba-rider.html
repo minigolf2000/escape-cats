@@ -41,6 +41,11 @@
   #devp label { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
   #devp input[type=range] { width: 130px; accent-color: #57e6c9; }
   #devp b { color: #ffd166; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+  .devrow { display: flex; gap: 6px; }
+  .devbtn { flex: 1; height: 32px; border-radius: 9px; font-size: 12px; font-weight: 700;
+            color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
+  .dot.custom { border-radius: 3px; transform: rotate(45deg); border-color: #57e6c9; }
+  .dot.custom.cur { background: #57e6c9; box-shadow: 0 0 10px rgba(87,230,201,.7); }
   #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.9);
            background: rgba(20,10,45,.92); border: 2px solid #ffd166; color: #ffe9b3;
            padding: 14px 26px; border-radius: 18px; font-size: 20px; font-weight: 800; text-align: center;
@@ -74,6 +79,11 @@
   <div id="devp">
     <label>edit zoom <input id="ez" type="range" min="1" max="2.2" step="0.05"><b id="ezv"></b></label>
     <label>run zoom <input id="rz" type="range" min="1" max="3" step="0.05"><b id="rzv"></b></label>
+    <div class="devrow">
+      <button class="devbtn" id="importBtn">📄 import SVG</button>
+      <button class="devbtn" id="verifyBtn">🧪 verify level</button>
+    </div>
+    <input id="svgFile" type="file" accept=".svg,image/svg+xml" hidden>
   </div>
   <button id="clear">clear bands</button>
   <button id="play">▶ PLAY</button>
@@ -143,66 +153,69 @@ const POP_COOLDOWN = 0.8;
 // bouncy pillows {x,y,w}. pops: party poppers {x,y,deg,spd} that re-launch Goomba
 // along their aim. goal: the cake. solution: a band set that clears the level
 // (used by tests + tuning, never shown).
+// Levels aim for roughly portrait-phone proportions (~1:2), so fitting the level
+// to a vertical screen is the nice zoom by construction.
 const LEVELS = [
   { name: '1 · Mind the Gap',
     hint: 'stretch a silly band across the gap, then hit PLAY',
     hint2: 'lip to lip — she rides bands like rails',
-    start: [6, 16],
-    terrain: [ [[-5, 16], [30, 22]],
-               [[64, 58], [88, 66]],
-               [[112, 50], [112, 135], [84, 128]] ],
-    goal: [106, 132], cushions: [], pops: [],
-    solution: [ [[30, 22], [64, 58]] ] },
+    start: [8, 16],
+    terrain: [ [[-5, 16], [40, 24]],
+               [[68, 60], [94, 70]],
+               [[100, 50], [100, 220], [92, 224], [78, 212]] ],
+    goal: [92, 221], cushions: [], pops: [],
+    solution: [ [[40, 24], [68, 60]] ] },
 
   { name: '2 · The Big Drop',
     hint: 'cats always land on their feet. snowboards don’t.',
     hint2: 'a slanted band in the pit turns falling into forward',
     start: [8, 13],
-    terrain: [ [[-5, 12], [40, 17]],
-               [[86, 160], [86, 128], [112, 140]] ],
-    goal: [104, 135], cushions: [], pops: [],
-    solution: [ [[58, 70], [88, 110]] ] },
+    terrain: [ [[-5, 12], [36, 17]],
+               [[88, 200], [88, 166], [130, 182], [130, 148]] ],
+    goal: [124, 178], cushions: [], pops: [],
+    solution: [ [[56, 70], [82, 116]] ] },
 
   { name: '3 · Pop Goes Goomba',
     hint: 'party poppers do the lifting — your band does the aiming',
     hint2: 'ramp her into the bottom popper; the rest is physics',
     start: [8, 54],
     terrain: [ [[-5, 52], [46, 62]],
-               [[56, 24], [80, 30]] ],
-    goal: [74, 27],
-    cushions: [ { x: 44, y: 150, w: 34 } ],
-    pops: [ { x: 94, y: 120, deg: -96, spd: 118 },
-            { x: 86, y: 74, deg: -97, spd: 118 } ],
-    solution: [ [[54, 84], [86, 110]] ] },
+               [[40, -14], [66, -8]] ],
+    goal: [48, -13],
+    cushions: [ { x: 36, y: 150, w: 36 } ],
+    pops: [ { x: 98, y: 126, deg: -96, spd: 118 },
+            { x: 94, y: 80, deg: -97, spd: 118 },
+            { x: 85, y: 34, deg: -102, spd: 118 } ],
+    solution: [ [[54, 80], [92, 118]] ] },
 
   { name: '4 · Pillow Fort',
     hint: 'the pillow is comfy. TOO comfy.',
     hint2: 'lay a band across the shaft — she’ll land on it and slide out',
     start: [8, 10],
     terrain: [ [[-5, 8], [46, 20]],
-               [[96, 40], [96, 150]],
-               [[52, 44], [52, 96]],
-               [[0, 120], [24, 138], [48, 132]] ],
-    goal: [24, 135],
-    cushions: [ { x: 56, y: 150, w: 40 } ],
+               [[96, 40], [96, 190]],
+               [[52, 44], [52, 120]],
+               [[0, 144], [24, 168], [48, 160]] ],
+    goal: [24, 165],
+    cushions: [ { x: 56, y: 190, w: 40 } ],
     pops: [],
-    solution: [ [[60, 110], [94, 92]] ] },
+    solution: [ [[58, 126], [95, 102]] ] },
 
   { name: '5 · Grand Finale',
     hint: 'everything you’ve got: catch her, bridge up, then bridge back',
     hint2: 'both far ledges sit HIGHER than their lips — span them lip to lip',
-    start: [8, 12],
-    terrain: [ [[-5, 11], [42, 15]],
-               [[76, 84], [110, 92]],
-               [[134, 84], [152, 88]],
-               [[168, 60], [168, 105]],
-               [[168, 138], [120, 158]],
-               [[36, 146], [66, 148]] ],
-    goal: [44, 146], cushions: [], pops: [],
-    solution: [ [[50, 52], [76, 84]], [[110, 92], [134, 84]], [[120, 158], [66, 148]] ] },
+    start: [8, 10],
+    terrain: [ [[-5, 12], [38, 15]],
+               [[70, 86], [96, 94]],
+               [[106, 86], [116, 90]],
+               [[128, 60], [128, 104]],
+               [[128, 170], [88, 198]],
+               [[22, 194], [48, 196]] ],
+    goal: [34, 193], cushions: [], pops: [],
+    solution: [ [[44, 50], [66, 80]], [[96, 94], [106, 86]], [[88, 198], [48, 196]] ] },
 ];
 
-for (const L of LEVELS) { // world bounds + popper aim vectors + start-pad angle
+function initLevel(L) { // world bounds + popper aim vectors + start-pad angle
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   const eat = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
   for (const poly of L.terrain) for (const [x, y] of poly) eat(x, y);
@@ -220,6 +233,184 @@ for (const L of LEVELS) { // world bounds + popper aim vectors + start-pad angle
     if (L.start[0] >= Math.min(ax, bx) && L.start[0] <= Math.max(ax, bx) && Math.abs(bx - ax) > 1)
       { L.startAngle = Math.atan2(by - ay, bx - ax); break; }
   }
+  return L;
+}
+LEVELS.forEach(initLevel);
+
+// ---------- SVG level import ----------
+// Draw a level in Figma (or any vector tool), export SVG, drag the file onto the
+// game. Conventions (layer names, case-insensitive; everything else with a stroke
+// becomes terrain):
+//   start    circle/point  where Goomba begins
+//   goal     circle/point  the cake
+//   cushion  a line/rect   bouncy pillow (its top edge)
+//   pop      a line        party popper: line START = position, direction = aim,
+//                          length = power (world len × 2.5, clamped 60–120)
+//   sol      lines         optional solution bands, used by the verify button
+//   guide/note/frame       ignored
+// Coordinates are normalized so the level is 200 world-units tall — a 390×844
+// phone frame in Figma becomes a perfectly tuned level footprint.
+function matMul(m, n) {
+  return [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1],
+          m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
+          m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+}
+function parseTransform(str) {
+  let m = [1, 0, 0, 1, 0, 0];
+  if (!str) return m;
+  for (const [, fn, argStr] of str.matchAll(/(\w+)\s*\(([^)]*)\)/g)) {
+    const a = argStr.split(/[\s,]+/).filter(Boolean).map(Number);
+    if (fn === 'translate') m = matMul(m, [1, 0, 0, 1, a[0] || 0, a[1] || 0]);
+    else if (fn === 'scale') m = matMul(m, [a[0], 0, 0, a.length > 1 ? a[1] : a[0], 0, 0]);
+    else if (fn === 'matrix') m = matMul(m, a);
+    else if (fn === 'rotate') {
+      const r = (a[0] || 0) * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
+      const cx = a[1] || 0, cy = a[2] || 0;
+      m = matMul(m, [1, 0, 0, 1, cx, cy]);
+      m = matMul(m, [c, s, -s, c, 0, 0]);
+      m = matMul(m, [1, 0, 0, 1, -cx, -cy]);
+    }
+  }
+  return m;
+}
+function elMatrix(el) {
+  const chain = [];
+  for (let n = el; n && n.getAttribute; n = n.parentNode) chain.unshift(n);
+  let m = [1, 0, 0, 1, 0, 0];
+  for (const n of chain) m = matMul(m, parseTransform(n.getAttribute('transform')));
+  return m;
+}
+const applyMat = (m, [x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+function parsePathPts(d) { // path data → array of polylines (curves flattened)
+  const tok = d.match(/[a-df-zA-DF-Z]|-?\.?\d+(?:\.\d+)?(?:e-?\d+)?/gi) || [];
+  const polys = []; let poly = null, i = 0, cmd = '';
+  let x = 0, y = 0, sx = 0, sy = 0, pcx = 0, pcy = 0;
+  const num = () => +tok[i++];
+  const put = (px, py) => { if (poly) poly.push([px, py]); };
+  const bez3 = (x1, y1, x2, y2, x3, y3) => {
+    for (let k = 1; k <= 6; k++) {
+      const t = k / 6, u = 1 - t;
+      put(u * u * u * x + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3,
+          u * u * u * y + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3);
+    }
+    pcx = x2; pcy = y2; x = x3; y = y3;
+  };
+  const bez2 = (x1, y1, x2, y2) => {
+    for (let k = 1; k <= 6; k++) {
+      const t = k / 6, u = 1 - t;
+      put(u * u * x + 2 * u * t * x1 + t * t * x2, u * u * y + 2 * u * t * y1 + t * t * y2);
+    }
+    pcx = x1; pcy = y1; x = x2; y = y2;
+  };
+  while (i < tok.length) {
+    if (/[a-zA-Z]/.test(tok[i])) cmd = tok[i++];
+    const rel = cmd === cmd.toLowerCase() && cmd !== 'z' && cmd !== 'Z';
+    const C = cmd.toUpperCase();
+    if (C === 'M') {
+      const nx = num() + (rel ? x : 0), ny = num() + (rel ? y : 0);
+      x = sx = nx; y = sy = ny;
+      poly = [[x, y]]; polys.push(poly);
+      cmd = rel ? 'l' : 'L';
+    } else if (C === 'L') { x = num() + (rel ? x : 0); y = num() + (rel ? y : 0); put(x, y); }
+    else if (C === 'H') { x = num() + (rel ? x : 0); put(x, y); }
+    else if (C === 'V') { y = num() + (rel ? y : 0); put(x, y); }
+    else if (C === 'C') {
+      const x1 = num() + (rel ? x : 0), y1 = num() + (rel ? y : 0);
+      const x2 = num() + (rel ? x : 0), y2 = num() + (rel ? y : 0);
+      bez3(x1, y1, x2, y2, num() + (rel ? x : 0), num() + (rel ? y : 0));
+    } else if (C === 'S') {
+      const x1 = 2 * x - pcx, y1 = 2 * y - pcy;
+      const x2 = num() + (rel ? x : 0), y2 = num() + (rel ? y : 0);
+      bez3(x1, y1, x2, y2, num() + (rel ? x : 0), num() + (rel ? y : 0));
+    } else if (C === 'Q') {
+      const x1 = num() + (rel ? x : 0), y1 = num() + (rel ? y : 0);
+      bez2(x1, y1, num() + (rel ? x : 0), num() + (rel ? y : 0));
+    } else if (C === 'T') { bez2(2 * x - pcx, 2 * y - pcy, num() + (rel ? x : 0), num() + (rel ? y : 0)); }
+    else if (C === 'A') { i += 5; x = num() + (rel ? x : 0); y = num() + (rel ? y : 0); put(x, y); } // arc → chord
+    else if (C === 'Z') { put(sx, sy); x = sx; y = sy; }
+    else i++; // unknown, skip token
+  }
+  return polys.filter(p => p.length > 1);
+}
+function svgToLevel(svgText) {
+  const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+  if (doc.querySelector('parsererror')) throw new Error('not a valid SVG file');
+  const nameOf = el => {
+    for (let n = el; n && n.getAttribute; n = n.parentNode) {
+      const nm = n.getAttribute('data-name') || n.getAttribute('id');
+      if (nm) return nm.toLowerCase();
+    }
+    return '';
+  };
+  const hasStroke = el => {
+    for (let n = el; n && n.getAttribute; n = n.parentNode) {
+      const s = n.getAttribute('stroke') || (n.getAttribute('style') || '').match(/stroke:\s*([^;]+)/)?.[1];
+      if (s && s !== 'none') return true;
+    }
+    return false;
+  };
+  const terrain = [], cushLines = [], popLines = [], sols = [];
+  let start = null, goal = null;
+  for (const el of doc.querySelectorAll('path,line,polyline,polygon,rect,circle,ellipse')) {
+    const name = nameOf(el), m = elMatrix(el), tag = el.tagName.toLowerCase();
+    if (/guide|note|frame|bg|background/.test(name)) continue;
+    let polys = [];
+    if (tag === 'line')
+      polys = [[[+el.getAttribute('x1'), +el.getAttribute('y1')], [+el.getAttribute('x2'), +el.getAttribute('y2')]]];
+    else if (tag === 'polyline' || tag === 'polygon') {
+      const nums = (el.getAttribute('points') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      const pts = [];
+      for (let k = 0; k + 1 < nums.length; k += 2) pts.push([nums[k], nums[k + 1]]);
+      if (tag === 'polygon' && pts.length) pts.push(pts[0]);
+      polys = [pts];
+    } else if (tag === 'rect') {
+      const rx = +el.getAttribute('x') || 0, ry = +el.getAttribute('y') || 0;
+      const rw = +el.getAttribute('width') || 0, rh = +el.getAttribute('height') || 0;
+      polys = [[[rx, ry], [rx + rw, ry], [rx + rw, ry + rh], [rx, ry + rh], [rx, ry]]];
+    } else if (tag === 'circle' || tag === 'ellipse')
+      polys = [[[+el.getAttribute('cx') || 0, +el.getAttribute('cy') || 0]]];
+    else if (tag === 'path')
+      polys = parsePathPts(el.getAttribute('d') || '');
+    polys = polys.map(p => p.map(pt => applyMat(m, pt))).filter(p => p.length);
+    if (!polys.length) continue;
+    const first = polys[0][0];
+    if (name.startsWith('start')) start = first;
+    else if (name.startsWith('goal') || name.startsWith('cake')) goal = first;
+    else if (name.startsWith('cushion')) cushLines.push(polys[0]);
+    else if (name.startsWith('pop')) popLines.push(polys[0]);
+    else if (name.startsWith('sol') || name.startsWith('band')) sols.push(...polys);
+    else if (polys[0].length > 1 && (hasStroke(el) || name.startsWith('terrain') || name.startsWith('wall') || name.startsWith('slope')))
+      terrain.push(...polys);
+  }
+  const missing = [!start && 'a "start" point', !goal && 'a "goal" point', !terrain.length && 'terrain strokes'].filter(Boolean);
+  if (missing.length) throw new Error('SVG is missing ' + missing.join(', '));
+  // normalize: level becomes 200 world-units tall
+  let x0 = 1e9, y0 = 1e9, y1 = -1e9;
+  const eat = ([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); };
+  terrain.flat().forEach(eat); cushLines.flat().forEach(eat); popLines.flat().forEach(eat);
+  eat(start); eat(goal);
+  const s = 200 / Math.max(50, y1 - y0);
+  const tx = ([x, y]) => [+((x - x0) * s).toFixed(1), +((y - y0) * s).toFixed(1)];
+  const level = {
+    name: '✦ · Custom', custom: true,
+    hint: 'imported level — stretch bands and hit PLAY',
+    hint2: 'edit the SVG and drop it in again to iterate',
+    start: tx(start), goal: tx(goal),
+    terrain: terrain.map(p => p.map(tx)),
+    cushions: cushLines.map(p => {
+      const pts = p.map(tx);
+      const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
+      return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(6, Math.max(...xs) - Math.min(...xs)) };
+    }),
+    pops: popLines.map(p => {
+      const a = tx(p[0]), b = tx(p[p.length - 1]);
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      return { x: a[0], y: a[1], deg: Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI,
+               spd: Math.max(60, Math.min(120, len * 2.5)) };
+    }),
+    solution: sols.map(p => [p[0], p[p.length - 1]].map(tx)),
+  };
+  return initLevel(level);
 }
 
 // ---------- band geometry ----------
@@ -328,6 +519,7 @@ function stepRun(st, dt) {
     const pp = L.pops[i];
     const dx = st.p.x - pp.x, dy = st.p.y - pp.y;
     if (dx * dx + dy * dy < POP_R2) {
+      st.p.x = pp.x; st.p.y = pp.y; // popper grabs her, then fires — launches are exact
       st.v.x = pp.vx; st.v.y = pp.vy;
       st.popT[i] = st.t;
     }
@@ -433,10 +625,11 @@ function syncHud() {
     state === 'win' ? 'LEVEL CLEAR! 🎉' :
     (fails >= 3 && L.hint2 ? '💡 ' + L.hint2 : L.hint);
   dotsEl.innerHTML = '';
-  LEVELS.forEach((_, i) => {
+  LEVELS.forEach((Li, i) => {
     const d = document.createElement('div');
-    d.className = 'dot' + (i === level ? ' cur' : i <= unlocked ? ' open' : '');
-    if (i <= unlocked) d.onclick = () => { if (state !== 'run') { loadLevel(i); } };
+    const open = i <= unlocked || Li.custom;
+    d.className = 'dot' + (Li.custom ? ' custom' : '') + (i === level ? ' cur' : open ? ' open' : '');
+    if (open) d.onclick = () => { if (state !== 'run') { loadLevel(i); } };
     dotsEl.appendChild(d);
   });
   [...invEl.children].forEach((svg, i) => svg.classList.toggle('used', i < bands.length));
@@ -503,6 +696,40 @@ gearBtn.onclick = () => devpEl.classList.toggle('show');
 ezEl.oninput = () => { DEV.ez = +ezEl.value; syncDev(); saveDev(); };
 rzEl.oninput = () => { DEV.rz = +rzEl.value; syncDev(); saveDev(); };
 syncDev();
+
+// SVG level import: drag a Figma-exported .svg onto the page, or use the dev panel
+function installCustomLevel(svgText) {
+  const L = svgToLevel(svgText); // throws with a readable message on bad input
+  const idx = LEVELS.findIndex(x => x.custom);
+  if (idx >= 0) LEVELS[idx] = L; else LEVELS.push(L);
+  localStorage.setItem('goombarider.customsvg', svgText);
+  loadLevel(LEVELS.indexOf(L));
+  toast('✦ custom level loaded!', 1600);
+}
+function importSVGFile(file) {
+  if (!file || !/svg/i.test(file.type + file.name)) { toast('drop an .svg file 🙏', 1200); return; }
+  file.text().then(text => {
+    try { installCustomLevel(text); }
+    catch (err) { toast('⚠️ ' + err.message, 2600); }
+  });
+}
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); importSVGFile(e.dataTransfer.files[0]); });
+$('importBtn').onclick = () => $('svgFile').click();
+$('svgFile').onchange = e => { importSVGFile(e.target.files[0]); e.target.value = ''; };
+$('verifyBtn').onclick = () => {
+  const L = LEVELS[level];
+  const bare = simulate(level, []);
+  const sol = L.solution && L.solution.length ? simulate(level, L.solution) : null;
+  const bareOk = bare.result !== 'win';
+  const solOk = sol && sol.result === 'win';
+  toast(`bare: ${bare.result} ${bareOk ? '✓' : '✗ too easy!'}` +
+        (sol ? ` · solution: ${sol.result} ${solOk ? '✓' : '✗'}` : ' · no sol lines in SVG'), 3200);
+};
+try { // restore a previously imported custom level
+  const saved = localStorage.getItem('goombarider.customsvg');
+  if (saved) LEVELS.push(svgToLevel(saved));
+} catch { localStorage.removeItem('goombarider.customsvg'); }
 
 // ---------- input: two fingers stretch a band; one finger pans; drag works on desktop ----------
 const toWorld = (px, py) => ({ x: (px - W / 2) / cam.s + cam.x, y: (py - H / 2) / cam.s + cam.y });
@@ -906,7 +1133,8 @@ function frame(now) {
   ctx.restore();
 }
 
-window.__gr = { simulate, LEVELS, BAND_MAX, DEV,
+window.__gr = { simulate, LEVELS, BAND_MAX, DEV, svgToLevel,
+  importSVG: text => installCustomLevel(text),
   // dev/test controls for driving the live game headlessly
   place(pairs) { bands = pairs.map(([a, b], i) => snapBand(LEVELS[level],
     { ax: a[0], ay: a[1], bx: b[0], by: b[1], color: i % 4 })); syncHud(); },

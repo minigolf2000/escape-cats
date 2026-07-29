@@ -1105,4 +1105,22 @@ function writeReport(rows, wins, hero, v6) {
   fs.writeFileSync(path.join(OUT, "snake-feasibility.json"), JSON.stringify(rows, null, 2) + "\n");
 }
 
-main();
+// ===========================================================================
+// 13. REUSABLE CORE (added for piece 13 — build-12-hexword.mjs)
+// ===========================================================================
+// Named exports of the machinery above so a sibling generator can reuse the
+// solve -> gate -> three-tone-render pipeline without copying it. Nothing here
+// changes the behaviour of this file: `main()` still runs, but only when this
+// module is the process entry point (i.e. `node build-11-snake.mjs ...`), so
+// importing it no longer prints usage and exits 2.
+export {
+  buildGeometry, geometryFor, assertInducedPath,
+  buildLattice, longestPath, liftPath, addTails, makeRoutes, evaluateRoute,
+  solveRoute, prepFor, buildSnake,
+  renderToned, tonedSVG, renderRoute, contactSheet, drawText,
+  parseGenome, fmtStats,
+  GRAY, URL_DEFAULT, OUT,
+};
+
+const ENTRY = process.argv[1] ? path.resolve(process.argv[1]) : null;
+if (ENTRY === path.resolve(fileURLToPath(import.meta.url))) main();

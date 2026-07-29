@@ -1,0 +1,1150 @@
+[
+  {
+    "label": "hexagon-v10",
+    "kind": "hexagon",
+    "version": 10,
+    "ok": true,
+    "fail": null,
+    "stats": {
+      "lineCells": 160,
+      "pinned": 160,
+      "bridges": 0,
+      "lineSat": 1,
+      "haloCells": 584,
+      "haloSat": 0.9982876712328768,
+      "specks": 35,
+      "topo": {
+        "size": 160,
+        "components": 1,
+        "compSizes": [
+          160
+        ],
+        "isolated": 0,
+        "endpoints": 0,
+        "through": 160,
+        "branches": 0,
+        "deg3": 0,
+        "deg4": 0
+      },
+      "gate": {
+        "checks": [
+          {
+            "name": "connected (1 component)",
+            "ok": true,
+            "got": 1
+          },
+          {
+            "name": "endpoints == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "branch cells == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "isolated == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "span >= 70% of width",
+            "ok": true,
+            "got": "71.9%"
+          },
+          {
+            "name": "line satisfaction == 100%",
+            "ok": true,
+            "got": "100.00%"
+          },
+          {
+            "name": "headroom >= 2 codewords",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "jsQR toned@8 + toned@3 + bw@8 + bw@3",
+            "ok": true,
+            "got": "{\"toned8\":true,\"toned3\":true,\"bw8\":true,\"bw3\":true}"
+          }
+        ],
+        "ok": true
+      },
+      "scans": {
+        "toned8": true,
+        "toned3": true,
+        "bw8": true,
+        "bw3": true
+      },
+      "headroom": 2,
+      "perBlock": [
+        {
+          "errors": 7,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        }
+      ],
+      "span": 41,
+      "spanPct": 0.7192982456140351,
+      "height": 37,
+      "bbox": [
+        10,
+        8,
+        46,
+        48
+      ],
+      "detours": [
+        {
+          "trimmed": 11,
+          "inserted": 11,
+          "from": [
+            24,
+            48
+          ],
+          "to": [
+            32,
+            48
+          ],
+          "cells": [
+            [
+              24,
+              47
+            ],
+            [
+              24,
+              46
+            ],
+            [
+              25,
+              46
+            ],
+            [
+              26,
+              46
+            ],
+            [
+              27,
+              46
+            ],
+            [
+              28,
+              46
+            ],
+            [
+              29,
+              46
+            ],
+            [
+              30,
+              46
+            ],
+            [
+              31,
+              46
+            ],
+            [
+              32,
+              46
+            ],
+            [
+              32,
+              47
+            ]
+          ]
+        },
+        {
+          "trimmed": 11,
+          "inserted": 11,
+          "from": [
+            32,
+            8
+          ],
+          "to": [
+            24,
+            8
+          ],
+          "cells": [
+            [
+              32,
+              9
+            ],
+            [
+              32,
+              10
+            ],
+            [
+              31,
+              10
+            ],
+            [
+              30,
+              10
+            ],
+            [
+              29,
+              10
+            ],
+            [
+              28,
+              10
+            ],
+            [
+              27,
+              10
+            ],
+            [
+              26,
+              10
+            ],
+            [
+              25,
+              10
+            ],
+            [
+              24,
+              10
+            ],
+            [
+              24,
+              9
+            ]
+          ]
+        }
+      ],
+      "params": {
+        "cr": 28,
+        "cc": 28,
+        "W": 22,
+        "A": 13,
+        "H": 18,
+        "d": 9,
+        "tipStyle": "in",
+        "R": 22
+      },
+      "flips": 21,
+      "blockUsed": [
+        7,
+        0,
+        0,
+        0
+      ],
+      "freeDim": 1334,
+      "pins": 690,
+      "configs": 31,
+      "tried": 32,
+      "decoded": "HttPS://hExxygOn.cOM"
+    }
+  },
+  {
+    "label": "hexagon-v6",
+    "kind": "hexagon",
+    "version": 6,
+    "ok": true,
+    "fail": null,
+    "stats": {
+      "lineCells": 88,
+      "pinned": 88,
+      "bridges": 0,
+      "lineSat": 1,
+      "haloCells": 341,
+      "haloSat": 1,
+      "specks": 5,
+      "topo": {
+        "size": 88,
+        "components": 1,
+        "compSizes": [
+          88
+        ],
+        "isolated": 0,
+        "endpoints": 0,
+        "through": 88,
+        "branches": 0,
+        "deg3": 0,
+        "deg4": 0
+      },
+      "gate": {
+        "checks": [
+          {
+            "name": "connected (1 component)",
+            "ok": true,
+            "got": 1
+          },
+          {
+            "name": "endpoints == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "branch cells == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "isolated == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "span >= 70% of width",
+            "ok": false,
+            "got": "61.0%"
+          },
+          {
+            "name": "line satisfaction == 100%",
+            "ok": true,
+            "got": "100.00%"
+          },
+          {
+            "name": "headroom >= 2 codewords",
+            "ok": true,
+            "got": 3
+          },
+          {
+            "name": "jsQR toned@8 + toned@3 + bw@8 + bw@3",
+            "ok": true,
+            "got": "{\"toned8\":true,\"toned3\":true,\"bw8\":true,\"bw3\":true}"
+          }
+        ],
+        "ok": false
+      },
+      "scans": {
+        "toned8": true,
+        "toned3": true,
+        "bw8": true,
+        "bw3": true
+      },
+      "headroom": 3,
+      "perBlock": [
+        {
+          "errors": 6,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        }
+      ],
+      "span": 25,
+      "spanPct": 0.6097560975609756,
+      "height": 21,
+      "bbox": [
+        10,
+        8,
+        30,
+        32
+      ],
+      "detours": [],
+      "params": {
+        "cr": 20,
+        "cc": 20,
+        "W": 12,
+        "A": 7,
+        "H": 10,
+        "d": 5,
+        "tipStyle": "in",
+        "R": 12
+      },
+      "flips": 19,
+      "blockUsed": [
+        6,
+        0
+      ],
+      "freeDim": 539,
+      "pins": 389,
+      "configs": 32,
+      "tried": 32,
+      "decoded": "htTps://HexXYgon.coM"
+    }
+  },
+  {
+    "label": "hexword-v10",
+    "kind": "hexword",
+    "version": 10,
+    "ok": true,
+    "fail": null,
+    "stats": {
+      "lineCells": 140,
+      "pinned": 140,
+      "bridges": 0,
+      "lineSat": 1,
+      "haloCells": 707,
+      "haloSat": 1,
+      "specks": 40,
+      "topo": {
+        "size": 140,
+        "components": 1,
+        "compSizes": [
+          140
+        ],
+        "isolated": 0,
+        "endpoints": 8,
+        "through": 122,
+        "branches": 10,
+        "deg3": 10,
+        "deg4": 0
+      },
+      "gate": {
+        "checks": [
+          {
+            "name": "connected (1 component)",
+            "ok": true,
+            "got": 1
+          },
+          {
+            "name": "isolated == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "line satisfaction == 100%",
+            "ok": true,
+            "got": "100.00%"
+          },
+          {
+            "name": "headroom >= 2 codewords",
+            "ok": true,
+            "got": 3
+          },
+          {
+            "name": "jsQR toned@8 + toned@3 + bw@8 + bw@3",
+            "ok": true,
+            "got": "{\"toned8\":true,\"toned3\":true,\"bw8\":true,\"bw3\":true}"
+          }
+        ],
+        "ok": true
+      },
+      "scans": {
+        "toned8": true,
+        "toned3": true,
+        "bw8": true,
+        "bw3": true
+      },
+      "headroom": 3,
+      "perBlock": [
+        {
+          "errors": 6,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        }
+      ],
+      "span": 41,
+      "spanPct": 0.7192982456140351,
+      "height": 15,
+      "bbox": [
+        32,
+        8,
+        46,
+        48
+      ],
+      "detours": [],
+      "params": {
+        "top": 32,
+        "bot": 46,
+        "h": 15,
+        "mid": 39,
+        "cH": 8,
+        "wH": 10,
+        "cE": 21,
+        "wE": 10,
+        "cX": 34,
+        "wX": 15,
+        "gap1": 3,
+        "gap2": 3,
+        "joinStyle": "base"
+      },
+      "flips": 18,
+      "blockUsed": [
+        6,
+        0,
+        0,
+        0
+      ],
+      "freeDim": 1214,
+      "pins": 810,
+      "configs": 32,
+      "tried": 32,
+      "decoded": "HtTps://HexxygoN.Com"
+    }
+  },
+  {
+    "label": "hexword-v6",
+    "kind": "hexword",
+    "version": 6,
+    "ok": true,
+    "fail": null,
+    "stats": {
+      "lineCells": 100,
+      "pinned": 100,
+      "bridges": 0,
+      "lineSat": 1,
+      "haloCells": 490,
+      "haloSat": 0.9775510204081632,
+      "specks": 20,
+      "topo": {
+        "size": 100,
+        "components": 1,
+        "compSizes": [
+          100
+        ],
+        "isolated": 0,
+        "endpoints": 8,
+        "through": 82,
+        "branches": 10,
+        "deg3": 10,
+        "deg4": 0
+      },
+      "gate": {
+        "checks": [
+          {
+            "name": "connected (1 component)",
+            "ok": true,
+            "got": 1
+          },
+          {
+            "name": "isolated == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "line satisfaction == 100%",
+            "ok": true,
+            "got": "100.00%"
+          },
+          {
+            "name": "headroom >= 2 codewords",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "jsQR toned@8 + toned@3 + bw@8 + bw@3",
+            "ok": true,
+            "got": "{\"toned8\":true,\"toned3\":true,\"bw8\":true,\"bw3\":true}"
+          }
+        ],
+        "ok": true
+      },
+      "scans": {
+        "toned8": true,
+        "toned3": true,
+        "bw8": true,
+        "bw3": true
+      },
+      "headroom": 2,
+      "perBlock": [
+        {
+          "errors": 7,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        }
+      ],
+      "span": 31,
+      "spanPct": 0.7560975609756098,
+      "height": 11,
+      "bbox": [
+        13,
+        8,
+        23,
+        38
+      ],
+      "detours": [],
+      "params": {
+        "top": 13,
+        "bot": 23,
+        "h": 11,
+        "mid": 18,
+        "cH": 8,
+        "wH": 7,
+        "cE": 18,
+        "wE": 7,
+        "cX": 28,
+        "wX": 11,
+        "gap1": 3,
+        "gap2": 3,
+        "joinStyle": "base"
+      },
+      "flips": 27,
+      "blockUsed": [
+        7,
+        0
+      ],
+      "freeDim": 422,
+      "pins": 506,
+      "configs": 18,
+      "tried": 32,
+      "decoded": "hTtpS://hEXxyGoN.CoM"
+    }
+  },
+  {
+    "label": "hexword-in-hexagon",
+    "kind": "combo",
+    "version": 10,
+    "ok": true,
+    "fail": null,
+    "stats": {
+      "lineCells": 255,
+      "pinned": 255,
+      "bridges": 0,
+      "lineSat": 1,
+      "haloCells": 865,
+      "haloSat": 0.9976878612716763,
+      "specks": 41,
+      "topo": {
+        "size": 255,
+        "components": 2,
+        "compSizes": [
+          160,
+          95
+        ],
+        "isolated": 0,
+        "endpoints": 8,
+        "through": 237,
+        "branches": 10,
+        "deg3": 10,
+        "deg4": 0
+      },
+      "gate": {
+        "checks": [
+          {
+            "name": "components <= 2",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "isolated == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "line satisfaction == 100%",
+            "ok": true,
+            "got": "100.00%"
+          },
+          {
+            "name": "headroom >= 2 codewords",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "jsQR toned@8 + toned@3 + bw@8 + bw@3",
+            "ok": true,
+            "got": "{\"toned8\":true,\"toned3\":true,\"bw8\":true,\"bw3\":true}"
+          }
+        ],
+        "ok": true
+      },
+      "scans": {
+        "toned8": true,
+        "toned3": true,
+        "bw8": true,
+        "bw3": true
+      },
+      "headroom": 2,
+      "perBlock": [
+        {
+          "errors": 7,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        }
+      ],
+      "span": 41,
+      "spanPct": 0.7192982456140351,
+      "height": 37,
+      "bbox": [
+        10,
+        8,
+        46,
+        48
+      ],
+      "detours": [
+        {
+          "trimmed": 11,
+          "inserted": 11,
+          "from": [
+            24,
+            48
+          ],
+          "to": [
+            32,
+            48
+          ],
+          "cells": [
+            [
+              24,
+              47
+            ],
+            [
+              24,
+              46
+            ],
+            [
+              25,
+              46
+            ],
+            [
+              26,
+              46
+            ],
+            [
+              27,
+              46
+            ],
+            [
+              28,
+              46
+            ],
+            [
+              29,
+              46
+            ],
+            [
+              30,
+              46
+            ],
+            [
+              31,
+              46
+            ],
+            [
+              32,
+              46
+            ],
+            [
+              32,
+              47
+            ]
+          ]
+        },
+        {
+          "trimmed": 11,
+          "inserted": 11,
+          "from": [
+            32,
+            8
+          ],
+          "to": [
+            24,
+            8
+          ],
+          "cells": [
+            [
+              32,
+              9
+            ],
+            [
+              32,
+              10
+            ],
+            [
+              31,
+              10
+            ],
+            [
+              30,
+              10
+            ],
+            [
+              29,
+              10
+            ],
+            [
+              28,
+              10
+            ],
+            [
+              27,
+              10
+            ],
+            [
+              26,
+              10
+            ],
+            [
+              25,
+              10
+            ],
+            [
+              24,
+              10
+            ],
+            [
+              24,
+              9
+            ]
+          ]
+        }
+      ],
+      "params": {
+        "hex": {
+          "cr": 28,
+          "cc": 28,
+          "W": 22,
+          "A": 13,
+          "H": 18,
+          "d": 9,
+          "tipStyle": "in",
+          "R": 22
+        },
+        "word": {
+          "top": 32,
+          "bot": 42,
+          "h": 11,
+          "mid": 37,
+          "cH": 15,
+          "wH": 6,
+          "cE": 23,
+          "wE": 6,
+          "cX": 31,
+          "wX": 11,
+          "gap1": 2,
+          "gap2": 2,
+          "joinStyle": "base"
+        }
+      },
+      "flips": 22,
+      "blockUsed": [
+        7,
+        0,
+        0,
+        0
+      ],
+      "freeDim": 961,
+      "pins": 1063,
+      "configs": 30,
+      "tried": 32,
+      "decoded": "HTtPS://hexXygon.cOM"
+    }
+  },
+  {
+    "label": "hexagon-v10-lobed",
+    "kind": "hexagon",
+    "version": 10,
+    "ok": true,
+    "fail": null,
+    "stats": {
+      "lineCells": 176,
+      "pinned": 174,
+      "bridges": 2,
+      "lineSat": 1,
+      "haloCells": 658,
+      "haloSat": 0.9924012158054711,
+      "specks": 45,
+      "topo": {
+        "size": 176,
+        "components": 1,
+        "compSizes": [
+          176
+        ],
+        "isolated": 0,
+        "endpoints": 0,
+        "through": 176,
+        "branches": 0,
+        "deg3": 0,
+        "deg4": 0
+      },
+      "gate": {
+        "checks": [
+          {
+            "name": "connected (1 component)",
+            "ok": true,
+            "got": 1
+          },
+          {
+            "name": "endpoints == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "branch cells == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "isolated == 0",
+            "ok": true,
+            "got": 0
+          },
+          {
+            "name": "span >= 70% of width",
+            "ok": true,
+            "got": "93.0%"
+          },
+          {
+            "name": "line satisfaction == 100%",
+            "ok": true,
+            "got": "100.00%"
+          },
+          {
+            "name": "headroom >= 2 codewords",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "jsQR toned@8 + toned@3 + bw@8 + bw@3",
+            "ok": true,
+            "got": "{\"toned8\":true,\"toned3\":true,\"bw8\":true,\"bw3\":true}"
+          }
+        ],
+        "ok": true
+      },
+      "scans": {
+        "toned8": true,
+        "toned3": true,
+        "bw8": true,
+        "bw3": true
+      },
+      "headroom": 2,
+      "perBlock": [
+        {
+          "errors": 7,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        },
+        {
+          "errors": 0,
+          "capacity": 9
+        }
+      ],
+      "span": 53,
+      "spanPct": 0.9298245614035088,
+      "height": 37,
+      "bbox": [
+        10,
+        2,
+        46,
+        54
+      ],
+      "detours": [
+        {
+          "trimmed": 9,
+          "inserted": 17,
+          "from": [
+            24,
+            49
+          ],
+          "to": [
+            32,
+            49
+          ],
+          "cells": [
+            [
+              24,
+              50
+            ],
+            [
+              24,
+              51
+            ],
+            [
+              24,
+              52
+            ],
+            [
+              24,
+              53
+            ],
+            [
+              24,
+              54
+            ],
+            [
+              25,
+              54
+            ],
+            [
+              26,
+              54
+            ],
+            [
+              27,
+              54
+            ],
+            [
+              28,
+              54
+            ],
+            [
+              29,
+              54
+            ],
+            [
+              30,
+              54
+            ],
+            [
+              31,
+              54
+            ],
+            [
+              32,
+              54
+            ],
+            [
+              32,
+              53
+            ],
+            [
+              32,
+              52
+            ],
+            [
+              32,
+              51
+            ],
+            [
+              32,
+              50
+            ]
+          ]
+        },
+        {
+          "trimmed": 9,
+          "inserted": 17,
+          "from": [
+            32,
+            7
+          ],
+          "to": [
+            24,
+            7
+          ],
+          "cells": [
+            [
+              32,
+              6
+            ],
+            [
+              32,
+              5
+            ],
+            [
+              32,
+              4
+            ],
+            [
+              32,
+              3
+            ],
+            [
+              32,
+              2
+            ],
+            [
+              31,
+              2
+            ],
+            [
+              30,
+              2
+            ],
+            [
+              29,
+              2
+            ],
+            [
+              28,
+              2
+            ],
+            [
+              27,
+              2
+            ],
+            [
+              26,
+              2
+            ],
+            [
+              25,
+              2
+            ],
+            [
+              24,
+              2
+            ],
+            [
+              24,
+              3
+            ],
+            [
+              24,
+              4
+            ],
+            [
+              24,
+              5
+            ],
+            [
+              24,
+              6
+            ]
+          ]
+        }
+      ],
+      "params": {
+        "cr": 28,
+        "cc": 28,
+        "W": 22,
+        "A": 13,
+        "H": 18,
+        "d": 9,
+        "tipStyle": "out",
+        "R": 22
+      },
+      "flips": 22,
+      "blockUsed": [
+        7,
+        0,
+        0,
+        0
+      ],
+      "freeDim": 1258,
+      "pins": 766,
+      "configs": 19,
+      "tried": 32,
+      "decoded": "HttPS://hexXyGoN.cOM"
+    }
+  }
+]

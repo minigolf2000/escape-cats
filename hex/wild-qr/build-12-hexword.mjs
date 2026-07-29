@@ -786,18 +786,32 @@ function main() {
 }
 
 // ---------------------------------------------------------------------------
-// haloW is per design, not global: the hexagon is a pure outline and a 2-module
-// band keeps it reading as a DRAWN LINE, while the word needs 3 so the letter
-// counters clear the noise (legibility is the hero gate). `alt: true` marks a
-// design that is built for the contact sheet only — the rejected lobed hexagon,
-// kept so the detour decision is visible rather than asserted.
+// haloW is per design, not global: a 2-module band keeps an outline reading as a
+// DRAWN LINE, while the standalone word needs 3 so the letter counters clear the
+// noise (legibility is the hero gate). `also` writes the same artifact under a
+// second stem so the hero has a stable filename without losing the descriptive
+// one.
+//
+// THE LOBED HEXAGON IS THE HERO. `tipStyle:"out"` does not merely dodge the two
+// side alignment patterns — it ENCLOSES them, so each one lands inside a vertex
+// and reads as a decorative boss set into the hexagon's point. Function pattern
+// becomes ornament, and the span goes to 93.0%, which is what "a hexagon that
+// spans the QR code" actually asks for. The chamfered `hexagon-v10` is kept as
+// the purist variant: the same figure with nothing but hexagon in it, at the
+// minimum span the gate allows.
 const DESIGNS = [
+  { label: "hexagon-hero", kind: "hexagon", version: 10, haloW: 2, tipStyle: "out",
+    also: "hexagon-v10-lobed" },
   { label: "hexagon-v10", kind: "hexagon", version: 10, haloW: 2 },
   { label: "hexagon-v6", kind: "hexagon", version: 6, haloW: 2 },
   { label: "hexword-v10", kind: "hexword", version: 10, haloW: 3 },
   { label: "hexword-v6", kind: "hexword", version: 6, haloW: 3 },
+  // Hero combo: the lobed hexagon is taller and wider through the middle, which
+  // buys a 10-row word (up from 11 rows crammed against the jewel) sitting with
+  // 2 clear rows above it and 3 below — see the report for what was tried.
+  { label: "hexword-in-hexagon-hero", kind: "combo", version: 10, haloW: 2, tipStyle: "out",
+    top: 33, h: 10, cH: 15, wH: 6, gap1: 3, wE: 6, gap2: 2, wX: 10, midShort: 1 },
   { label: "hexword-in-hexagon", kind: "combo", version: 10, haloW: 2 },
-  { label: "hexagon-v10-lobed", kind: "hexagon", version: 10, haloW: 2, tipStyle: "out", alt: true },
 ];
 
 function buildAll() {
@@ -812,11 +826,14 @@ function buildAll() {
     else process.stderr.write("  FAIL " + b.fail + "\n");
     results.push({ d, b });
     if (b.ok) {
-      const stem = path.join(OUT, d.label);
-      writePNG(stem + ".png", b.img8);
-      writePNG(stem + "-bw.png", b.bw8);
-      fs.writeFileSync(stem + ".svg", tonedSVG(b.matrix, b.lineSet, b.S, b.geo.func, { scale: 8, quiet: 4 }));
-      writePNG(path.join(OUT, d.label + "-route.png"), renderTarget(b.route, { scale: 8, quiet: 2 }));
+      const svg = tonedSVG(b.matrix, b.lineSet, b.S, b.geo.func, { scale: 8, quiet: 4 });
+      for (const name of [d.label, ...(d.also ? [d.also] : [])]) {
+        const stem = path.join(OUT, name);
+        writePNG(stem + ".png", b.img8);
+        writePNG(stem + "-bw.png", b.bw8);
+        fs.writeFileSync(stem + ".svg", svg);
+        writePNG(stem + "-route.png", renderTarget(b.route, { scale: 8, quiet: 2 }));
+      }
     }
   }
   // contact sheet: pre-solve target beside solved result, one row per design
@@ -861,9 +878,8 @@ function writeReport(results) {
     L.push(`| ${d.label} | v${b.version} | ${pct(s.lineSat)} of ${s.lineCells} | ${pct(s.haloSat)} of ${s.haloCells} | ${s.topo.components} | ${s.topo.endpoints} | ${s.topo.branches} | ${s.span} (${pct(s.spanPct)}) | ${s.headroom} | ${s.scans.toned8} | ${s.scans.toned3} | ${s.scans.bw8} | ${s.scans.bw3} | ${s.gate.ok ? "PASS" : "see below"} |`);
   }
   L.push("");
-  L.push("`hexagon-v10-lobed` is the REJECTED alternative treatment of the side");
-  L.push("vertices, built only so the contact sheet shows the choice instead of");
-  L.push("asserting it. It is not a deliverable.", "");
+  L.push("**`hexagon-hero` (= `hexagon-v10-lobed`) is the hero.** `hexagon-v10` is");
+  L.push("the purist variant of the same figure. Both ship; see the next section.", "");
 
   L.push("## A. The hexagon — geometry chosen, and why the detour is structural", "");
   L.push("**Uniform staircases.** A regular hexagon's 60 degree edges are slope");
@@ -899,11 +915,32 @@ function writeReport(results) {
   L.push("deterministic, so the two detours come out as exact mirrors of each other");
   L.push("— it reads as a chamfered vertex, not as a one-sided bite. **No timing");
   L.push("bridges were needed** for the shipped hexagon at either version.", "");
-  L.push("**The alternative that was rejected.** `tipStyle:\"out\"` wraps each");
-  L.push("alignment pattern on the OUTSIDE (trim 9, insert 17, two timing bridges at");
-  L.push("rows 24 and 32) and buys 93.0% span. It solves and scans perfectly — see");
-  L.push("`out/hexagon-v10-lobed.png` — but the vertices become rectangular lugs and");
-  L.push("the silhouette stops reading as a hexagon. Chamfer wins.", "");
+  L.push("### The two treatments, and which is the hero", "");
+  L.push("`tipStyle:\"out\"` is the other way to satisfy the span gate: instead of");
+  L.push("pulling the vertex in, run the outline AROUND each side alignment pattern");
+  L.push("(trim 9 ideal cells, insert 17, crossing the timing column on two bridges");
+  L.push("at rows 24 and 32 — both even, so both land on dark timing modules that");
+  L.push("never have to be pinned). Span 93.0%.", "");
+  L.push("**This is the hero, `out/hexagon-hero.png`.** The detour does not merely");
+  L.push("dodge the alignment patterns, it ENCLOSES them: each one ends up inside a");
+  L.push("vertex, so the two most rigid pieces of QR furniture in the symbol read as");
+  L.push("decorative bosses set into the hexagon's left and right points. That is");
+  L.push("the same move as the diamond-cat piece turning finder patterns into eyes —");
+  L.push("function pattern becoming ornament — and it is the treatment that actually");
+  L.push("answers \"a hexagon that spans the code\": 53 of 57 modules wide against the");
+  L.push("chamfer's 41.", "");
+  L.push("**`out/hexagon-v10.png` is kept as the purist variant**, unchanged: the");
+  L.push("same slope-2 loop with the vertices chamfered inward instead, containing");
+  L.push("nothing but hexagon, at 71.9% — the minimum the span gate allows. Both");
+  L.push("pass every strict gate (1 component, 0 endpoints, 0 branches, 100% line,");
+  L.push("headroom 2, jsQR at 8 and 3 in both tones).", "");
+
+  L.push("### Correction to the first draft of this report", "");
+  L.push("The first draft shipped the lobed hexagon as a REJECTED alternative and");
+  L.push("described its vertices as \"rectangular lugs\" that stop the silhouette");
+  L.push("reading as a hexagon. That undersold it: the lugs are not empty boxes, they");
+  L.push("are frames around the alignment patterns, and the enclosure is what makes");
+  L.push("them read as designed rather than as damage. Reframed above.", "");
   L.push("**v6 span is capped by geometry, not by effort.** At v6 the only");
   L.push("obstruction near the centre line is the timing column itself, and a");
   L.push("5-cell vertical vertex cannot sit on col 7 (a timing flank is usable only");
@@ -983,36 +1020,60 @@ function writeReport(results) {
   }
 
   L.push("## Did the stretch survive?", "");
-  L.push("**Yes — `out/hexword-in-hexagon.png` ships, as TWO components.** The");
-  L.push("hexagon is unchanged (same W=22 chamfered loop, same 0 endpoints / 0");
-  L.push("branches on its own component) and HEX drops inside at 11 rows x 6/6/11");
-  L.push("columns. It survives because:");
-  L.push("");
-  L.push("* the hexagon still reads as a hexagon — the word is fully inside the");
-  L.push("  interior with a >= 1-module gap, asserted programmatically (the route");
-  L.push("  generator returns null if any letter cell is within Chebyshev 1 of the");
-  L.push("  hexagon), so no stroke ever touches the outline;");
-  L.push("* the letters are still unambiguous at 50% — smaller, but the same");
-  L.push("  forms, and the X keeps its exact 45 degree arms (11 rows, 11 cols).");
-  L.push("");
-  L.push("Two honest concessions. **It is 2 components, not 1**: the spec offered a");
-  L.push("single travel segment to the hexagon, but that would put a degree-3 branch");
-  L.push("on a figure whose entire claim is 0 endpoints and 0 branches, so the");
-  L.push("components were left separate and counted. **The word cannot be centred");
-  L.push("inside the hexagon either** — an 11-row band has to sit entirely in rows");
-  L.push("<=24 or >=32 to miss the jewel, i.e. 9 rows off centre whichever way it");
-  L.push("goes. Rows 32-42 was chosen so the jewel reads as a gem ABOVE the label");
-  L.push("rather than as a blob under it. The hexagon narrows toward the flats and");
-  L.push("at row 42 its interior is only cols 14-42, which is what fixes the letters");
-  L.push("at 6/6/11 columns.", "");
+  L.push("**Yes, twice — and the hero version is built on the lobed hexagon.**", "");
+  L.push("`out/hexword-in-hexagon-hero.png` puts HEX inside the 93%-span lobed");
+  L.push("hexagon; `out/hexword-in-hexagon.png` keeps the earlier chamfered version.");
+  L.push("Both are TWO components, deliberately: the spec offered a single travel");
+  L.push("segment from the word to the hexagon, but that would put a degree-3 branch");
+  L.push("on the one figure whose entire claim is 0 endpoints and 0 branches. The");
+  L.push("hexagon component is asserted at 0/0 on its own; the word component");
+  L.push("carries all 8 endpoints and all 10 branches.", "");
+  L.push("The route generator returns null if any letter cell is within Chebyshev 1");
+  L.push("of any hexagon cell, so a >=1-module white gap between the two figures is");
+  L.push("structural rather than eyeballed. That diagonal-touch rule is what bounds");
+  L.push("the word, and it is stricter than it looks: a letter corner one cell");
+  L.push("diagonally from a slant cell already reads as touching.", "");
+  L.push("### Placement: what was tried", "");
+  L.push("The centre jewel owns rows 25-31, so the word band must sit entirely above");
+  L.push("row 25 or below row 31 — it cannot be centred, in either hexagon. Both");
+  L.push("halves were built and compared:", "");
+  L.push("| band | result |");
+  L.push("|---|---|");
+  L.push("| rows 14-24 (above) | word pinned under the top flat, jewel floating in the middle, whole bottom half empty. Shifting it down to rows 13-22 for balance makes the X's top-right corner touch the upper slant diagonally. |");
+  L.push("| rows 32-42 (below, the old size) | 11 rows tall but jammed: exactly one clear row between the jewel and the word's top, and the word's halo merged into the bottom flat's. |");
+  L.push("| **rows 33-42 (below, 10 rows) — SHIPPED** | 2 clear rows above the word, 3 below it. The jewel reads as a gem set above a label instead of a blob crammed onto it. |", "");
+  L.push("### Size: what the bigger hexagon bought", "");
+  L.push("Less than hoped, and the reason is worth recording. The lobes widen the");
+  L.push("figure at rows 24-32, but a word band's binding constraint is its FAR row —");
+  L.push("the row nearest a flat, where the slants have closed in. At row 42 the");
+  L.push("lobed hexagon's interior is still only cols 14-42, exactly as the chamfered");
+  L.push("one is, so the horizontal budget stays at 27 columns either way.", "");
+  L.push("What the lobed shape did buy is VERTICAL room at the bottom of the band,");
+  L.push("which is what lets the word move off the jewel: 10 rows at 33-42 with");
+  L.push("clearance on both sides, instead of 11 rows at 32-42 with none above. So");
+  L.push("the word is one row shorter and considerably better placed, and the gap");
+  L.push("between H and E went from 2 columns to 3 (the E-to-X gap stays at 2 —");
+  L.push("the X's diagonal falls away from the E immediately, so it reads wider than");
+  L.push("it measures). Letters are 6 / 6 / 10 columns; the X is 10x10 so its arms");
+  L.push("stay exact 45-degree staircases.", "");
+  L.push("### Halo: 2, not 3", "");
+  L.push("Halo 3 was built and looked at (`7/32` solver configs, still scanning). It");
+  L.push("floods: the hexagon's entire lower interior becomes a solid white panel,");
+  L.push("the interior texture that makes this piece read as a drawing on noise");
+  L.push("disappears, and the composition goes bottom-heavy. At halo 2 the letters");
+  L.push("are already unambiguous — checked at 8x and downsampled to 50% — because");
+  L.push("the hexagon\'s own halo contributes to the letters\' field. Legibility did");
+  L.push("not have to be traded, so it was not.", "");
 
   L.push("## Deviations from the spec", "");
   L.push("1. **Hexagon slants are 63.4 degrees (slope 2), not 60.** A true 60 degree");
   L.push("   edge cannot be a uniform staircase at this scale; the spec's \"edges");
   L.push("   must be uniform\" and \"regular hexagon\" are in tension and uniformity");
   L.push("   won. Aspect 0.90 vs a regular hexagon's 0.866.");
-  L.push("2. **The v10 hexagon's side vertices are chamfered** (2-column notch,");
-  L.push("   mirrored). Unavoidable for >= 70% span; derivation above.");
+  L.push("2. **The v10 hexagon's side vertices are not clean points.** The hero");
+  L.push("   encloses each side alignment pattern in a lobe (93.0% span); the purist");
+  L.push("   variant chamfers inward with a mirrored 2-column notch (71.9%). A clean");
+  L.push("   vertex caps out at 64.9%, below the gate. Derivation above.");
   L.push("3. **v6 hexagon span is 61.0%, below the 70% gate.** Geometry-capped by");
   L.push("   the timing column; every larger v6 hexagon was visibly damaged.");
   L.push("4. **HEX is not vertically centred** (rows 32-46 at v10, not 18-38). The");
@@ -1023,8 +1084,13 @@ function writeReport(results) {
   L.push("   a 2x3 overlap rather than a point in a 4-connected grid.");
   L.push("7. **Halo widened to 2 (hexagon) / 3 (word)** from piece 12's 1, spent");
   L.push("   directly on legibility. Still >= 2 codewords of headroom everywhere.");
-  L.push("8. **The combo is 2 components**, by choice, to protect the hexagon's");
-  L.push("   branch-free gate.", "");
+  L.push("8. **Both combos are 2 components**, by choice, to protect the hexagon's");
+  L.push("   branch-free gate.");
+  L.push("9. **The hero combo uses halo 2 and a 3/2 column gap pair**, not the");
+  L.push("   standalone word's 3 and 3/3. Halo 3 floods the hexagon interior; the");
+  L.push("   E-to-X gap of 2 reads wider than it measures because the X's diagonal");
+  L.push("   immediately falls away from the E. Legibility verified at both 8x and");
+  L.push("   50% regardless.", "");
 
   L.push("## Deliverables", "");
   for (const { d, b } of results)

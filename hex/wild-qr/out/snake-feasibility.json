@@ -1,0 +1,2228 @@
+[
+  {
+    "label": "serpentine-rows-v10-p4",
+    "version": 10,
+    "variant": "serpentine-rows",
+    "pitch": 4,
+    "ok": true,
+    "ms": 3605,
+    "len": 570,
+    "pinned": 563,
+    "bridges": 7,
+    "halo": 1048,
+    "reroutes": 2,
+    "mask": 1,
+    "flips": 30,
+    "blockUsed": [
+      7,
+      0,
+      0,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9875954198473282,
+    "specks": 13,
+    "rowCov": 1,
+    "colCov": 0.9298245614035088,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 570
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      0,
+      2
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 594,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.49,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 570,
+        "offs": [
+          0,
+          2
+        ],
+        "lineConfigs": 3,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "serpentine-rows-v10-p5",
+    "version": 10,
+    "variant": "serpentine-rows",
+    "pitch": 5,
+    "ok": true,
+    "ms": 6933,
+    "len": 439,
+    "pinned": 436,
+    "bridges": 3,
+    "halo": 843,
+    "reroutes": 5,
+    "mask": 1,
+    "flips": 20,
+    "blockUsed": [
+      7,
+      0,
+      0,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9881376037959668,
+    "specks": 11,
+    "rowCov": 0.9824561403508771,
+    "colCov": 0.9649122807017544,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 439
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      1,
+      2
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 493,
+        "offs": [
+          1,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.39,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 492,
+        "offs": [
+          1,
+          1
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.39,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 458,
+        "offs": [
+          4,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.34,
+        "scanned": false
+      },
+      {
+        "route": 3,
+        "len": 449,
+        "offs": [
+          4,
+          1
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.1,
+        "scanned": false
+      },
+      {
+        "route": 4,
+        "len": 439,
+        "offs": [
+          1,
+          2
+        ],
+        "lineConfigs": 2,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "serpentine-rows-v10-p6",
+    "version": 10,
+    "variant": "serpentine-rows",
+    "pitch": 6,
+    "ok": true,
+    "ms": 6616,
+    "len": 399,
+    "pinned": 394,
+    "bridges": 5,
+    "halo": 758,
+    "reroutes": 5,
+    "mask": 1,
+    "flips": 25,
+    "blockUsed": [
+      7,
+      0,
+      0,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9907651715039578,
+    "specks": 7,
+    "rowCov": 0.9298245614035088,
+    "colCov": 0.9649122807017544,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 399
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      0
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 424,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.76,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 424,
+        "offs": [
+          0,
+          2
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.28,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 418,
+        "offs": [
+          2,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.52,
+        "scanned": false
+      },
+      {
+        "route": 3,
+        "len": 418,
+        "offs": [
+          2,
+          2
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 98.79,
+        "scanned": false
+      },
+      {
+        "route": 4,
+        "len": 399,
+        "offs": [
+          4,
+          0
+        ],
+        "lineConfigs": 2,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "serpentine-cols-v10-p4",
+    "version": 10,
+    "variant": "serpentine-cols",
+    "pitch": 4,
+    "ok": false,
+    "ms": 8021,
+    "fail": "no config reached 100% line",
+    "trail": [
+      {
+        "route": 0,
+        "len": 594,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.15,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 570,
+        "offs": [
+          2,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.29,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 621,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.51,
+        "scanned": false
+      },
+      {
+        "route": 3,
+        "len": 532,
+        "offs": [
+          2,
+          2
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.81,
+        "scanned": false
+      },
+      {
+        "route": 4,
+        "len": 561,
+        "offs": [
+          0,
+          2
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.46,
+        "scanned": false
+      },
+      {
+        "route": 5,
+        "len": 589,
+        "offs": [
+          2,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.14,
+        "scanned": false
+      }
+    ]
+  },
+  {
+    "label": "serpentine-cols-v10-p5",
+    "version": 10,
+    "variant": "serpentine-cols",
+    "pitch": 5,
+    "ok": true,
+    "ms": 5356,
+    "len": 449,
+    "pinned": 446,
+    "bridges": 3,
+    "halo": 856,
+    "reroutes": 4,
+    "mask": 2,
+    "flips": 23,
+    "blockUsed": [
+      7,
+      0,
+      0,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9801401869158879,
+    "specks": 17,
+    "rowCov": 0.9824561403508771,
+    "colCov": 0.9649122807017544,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 449
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      1,
+      4
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 493,
+        "offs": [
+          0,
+          1
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.8,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 492,
+        "offs": [
+          1,
+          1
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.39,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 458,
+        "offs": [
+          0,
+          4
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.78,
+        "scanned": false
+      },
+      {
+        "route": 3,
+        "len": 449,
+        "offs": [
+          1,
+          4
+        ],
+        "lineConfigs": 1,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "serpentine-cols-v10-p6",
+    "version": 10,
+    "variant": "serpentine-cols",
+    "pitch": 6,
+    "ok": true,
+    "ms": 3897,
+    "len": 394,
+    "pinned": 389,
+    "bridges": 5,
+    "halo": 745,
+    "reroutes": 3,
+    "mask": 6,
+    "flips": 20,
+    "blockUsed": [
+      7,
+      0,
+      0,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9879194630872483,
+    "specks": 10,
+    "rowCov": 0.9298245614035088,
+    "colCov": 0.9649122807017544,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 394
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      0
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 424,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.76,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 418,
+        "offs": [
+          2,
+          2
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.76,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 394,
+        "offs": [
+          4,
+          0
+        ],
+        "lineConfigs": 7,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "spiral-v10-p4",
+    "version": 10,
+    "variant": "spiral",
+    "pitch": 4,
+    "ok": true,
+    "ms": 6290,
+    "len": 517,
+    "pinned": 510,
+    "bridges": 7,
+    "halo": 950,
+    "reroutes": 5,
+    "mask": 0,
+    "flips": 18,
+    "blockUsed": [
+      6,
+      0,
+      0,
+      0
+    ],
+    "headroom": 3,
+    "lineSat": 1,
+    "haloSat": 1,
+    "specks": 0,
+    "rowCov": 1,
+    "colCov": 0.7192982456140351,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 517
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      0,
+      2
+    ],
+    "perBlock": [
+      {
+        "errors": 6,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 542,
+        "offs": [
+          2,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.45,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 502,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.6,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 498,
+        "offs": [
+          2,
+          3
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.2,
+        "scanned": false
+      },
+      {
+        "route": 3,
+        "len": 538,
+        "offs": [
+          2,
+          2
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.26,
+        "scanned": false
+      },
+      {
+        "route": 4,
+        "len": 517,
+        "offs": [
+          0,
+          2
+        ],
+        "lineConfigs": 32,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "spiral-v10-p5",
+    "version": 10,
+    "variant": "spiral",
+    "pitch": 5,
+    "ok": true,
+    "ms": 4124,
+    "len": 428,
+    "pinned": 427,
+    "bridges": 1,
+    "halo": 854,
+    "reroutes": 3,
+    "mask": 6,
+    "flips": 24,
+    "blockUsed": [
+      7,
+      0,
+      0,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9859484777517564,
+    "specks": 12,
+    "rowCov": 0.8070175438596491,
+    "colCov": 0.9649122807017544,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 428
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      0,
+      4
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 464,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.57,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 463,
+        "offs": [
+          0,
+          1
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.57,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 428,
+        "offs": [
+          0,
+          4
+        ],
+        "lineConfigs": 4,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "spiral-v10-p6",
+    "version": 10,
+    "variant": "spiral",
+    "pitch": 6,
+    "ok": true,
+    "ms": 1848,
+    "len": 429,
+    "pinned": 422,
+    "bridges": 7,
+    "halo": 814,
+    "reroutes": 1,
+    "mask": 6,
+    "flips": 16,
+    "blockUsed": [
+      7,
+      0,
+      0,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9914004914004914,
+    "specks": 7,
+    "rowCov": 1,
+    "colCov": 0.9649122807017544,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 429
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      0
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 429,
+        "offs": [
+          4,
+          0
+        ],
+        "lineConfigs": 8,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "hybrid-v10-p4",
+    "version": 10,
+    "variant": "hybrid",
+    "pitch": 4,
+    "ok": true,
+    "ms": 4909,
+    "len": 517,
+    "pinned": 510,
+    "bridges": 7,
+    "halo": 950,
+    "reroutes": 4,
+    "mask": 0,
+    "flips": 18,
+    "blockUsed": [
+      6,
+      0,
+      0,
+      0
+    ],
+    "headroom": 3,
+    "lineSat": 1,
+    "haloSat": 1,
+    "specks": 0,
+    "rowCov": 1,
+    "colCov": 0.7192982456140351,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 517
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      0,
+      2
+    ],
+    "perBlock": [
+      {
+        "errors": 6,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 550,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.09,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 510,
+        "offs": [
+          2,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.21,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 498,
+        "offs": [
+          2,
+          3
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.4,
+        "scanned": false
+      },
+      {
+        "route": 3,
+        "len": 517,
+        "offs": [
+          0,
+          2
+        ],
+        "lineConfigs": 32,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "hybrid-v10-p5",
+    "version": 10,
+    "variant": "hybrid",
+    "pitch": 5,
+    "ok": true,
+    "ms": 6225,
+    "len": 418,
+    "pinned": 417,
+    "bridges": 1,
+    "halo": 834,
+    "reroutes": 5,
+    "mask": 6,
+    "flips": 23,
+    "blockUsed": [
+      7,
+      0,
+      0,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9856115107913669,
+    "specks": 12,
+    "rowCov": 0.8070175438596491,
+    "colCov": 0.9649122807017544,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 418
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      0,
+      4
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 459,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.78,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 459,
+        "offs": [
+          0,
+          1
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.34,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 419,
+        "offs": [
+          4,
+          1
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.28,
+        "scanned": false
+      },
+      {
+        "route": 3,
+        "len": 418,
+        "offs": [
+          4,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.04,
+        "scanned": false
+      },
+      {
+        "route": 4,
+        "len": 418,
+        "offs": [
+          0,
+          4
+        ],
+        "lineConfigs": 5,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "hybrid-v10-p6",
+    "version": 10,
+    "variant": "hybrid",
+    "pitch": 6,
+    "ok": true,
+    "ms": 1963,
+    "len": 429,
+    "pinned": 422,
+    "bridges": 7,
+    "halo": 814,
+    "reroutes": 1,
+    "mask": 6,
+    "flips": 16,
+    "blockUsed": [
+      7,
+      0,
+      0,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9914004914004914,
+    "specks": 7,
+    "rowCov": 1,
+    "colCov": 0.9649122807017544,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 429
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      0
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 429,
+        "offs": [
+          4,
+          0
+        ],
+        "lineConfigs": 8,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "serpentine-rows-v6-p5",
+    "version": 6,
+    "variant": "serpentine-rows",
+    "pitch": 5,
+    "ok": true,
+    "ms": 2463,
+    "len": 253,
+    "pinned": 250,
+    "bridges": 3,
+    "halo": 460,
+    "reroutes": 6,
+    "mask": 0,
+    "flips": 18,
+    "blockUsed": [
+      7,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9869565217391304,
+    "specks": 6,
+    "rowCov": 1,
+    "colCov": 0.9512195121951219,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 253
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      0,
+      2
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 303,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 98.67,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 283,
+        "offs": [
+          4,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.29,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 254,
+        "offs": [
+          0,
+          1
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.6,
+        "scanned": false
+      },
+      {
+        "route": 3,
+        "len": 277,
+        "offs": [
+          3,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.27,
+        "scanned": false
+      },
+      {
+        "route": 4,
+        "len": 234,
+        "offs": [
+          1,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 98.7,
+        "scanned": false
+      },
+      {
+        "route": 5,
+        "len": 253,
+        "offs": [
+          0,
+          2
+        ],
+        "lineConfigs": 3,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "serpentine-rows-v6-p6",
+    "version": 6,
+    "variant": "serpentine-rows",
+    "pitch": 6,
+    "ok": true,
+    "ms": 961,
+    "len": 249,
+    "pinned": 244,
+    "bridges": 5,
+    "halo": 440,
+    "reroutes": 2,
+    "mask": 6,
+    "flips": 26,
+    "blockUsed": [
+      7,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9795454545454545,
+    "specks": 9,
+    "rowCov": 1,
+    "colCov": 1,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 249
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      0
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 261,
+        "offs": [
+          4,
+          4
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.22,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 249,
+        "offs": [
+          4,
+          0
+        ],
+        "lineConfigs": 4,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "serpentine-rows-v6-p7",
+    "version": 6,
+    "variant": "serpentine-rows",
+    "pitch": 7,
+    "ok": true,
+    "ms": 490,
+    "len": 165,
+    "pinned": 162,
+    "bridges": 3,
+    "halo": 290,
+    "reroutes": 1,
+    "mask": 0,
+    "flips": 14,
+    "blockUsed": [
+      6,
+      0
+    ],
+    "headroom": 3,
+    "lineSat": 1,
+    "haloSat": 1,
+    "specks": 0,
+    "rowCov": 1,
+    "colCov": 1,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 165
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      5,
+      0
+    ],
+    "perBlock": [
+      {
+        "errors": 6,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 165,
+        "offs": [
+          5,
+          0
+        ],
+        "lineConfigs": 30,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "serpentine-cols-v6-p5",
+    "version": 6,
+    "variant": "serpentine-cols",
+    "pitch": 5,
+    "ok": true,
+    "ms": 2533,
+    "len": 234,
+    "pinned": 231,
+    "bridges": 3,
+    "halo": 418,
+    "reroutes": 5,
+    "mask": 0,
+    "flips": 21,
+    "blockUsed": [
+      6,
+      0
+    ],
+    "headroom": 3,
+    "lineSat": 1,
+    "haloSat": 1,
+    "specks": 0,
+    "rowCov": 1,
+    "colCov": 0.975609756097561,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 234
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      0,
+      1
+    ],
+    "perBlock": [
+      {
+        "errors": 6,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 303,
+        "offs": [
+          0,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.33,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 283,
+        "offs": [
+          0,
+          4
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 98.57,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 254,
+        "offs": [
+          1,
+          0
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.2,
+        "scanned": false
+      },
+      {
+        "route": 3,
+        "len": 277,
+        "offs": [
+          0,
+          3
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.64,
+        "scanned": false
+      },
+      {
+        "route": 4,
+        "len": 234,
+        "offs": [
+          0,
+          1
+        ],
+        "lineConfigs": 32,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "serpentine-cols-v6-p6",
+    "version": 6,
+    "variant": "serpentine-cols",
+    "pitch": 6,
+    "ok": true,
+    "ms": 1419,
+    "len": 243,
+    "pinned": 238,
+    "bridges": 5,
+    "halo": 452,
+    "reroutes": 3,
+    "mask": 7,
+    "flips": 27,
+    "blockUsed": [
+      7,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9712389380530974,
+    "specks": 13,
+    "rowCov": 1,
+    "colCov": 0.9024390243902439,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 243
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      2
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 261,
+        "offs": [
+          4,
+          4
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.22,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 261,
+        "offs": [
+          4,
+          4
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.61,
+        "scanned": false
+      },
+      {
+        "route": 2,
+        "len": 243,
+        "offs": [
+          4,
+          2
+        ],
+        "lineConfigs": 1,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "serpentine-cols-v6-p7",
+    "version": 6,
+    "variant": "serpentine-cols",
+    "pitch": 7,
+    "ok": true,
+    "ms": 475,
+    "len": 191,
+    "pinned": 189,
+    "bridges": 2,
+    "halo": 378,
+    "reroutes": 1,
+    "mask": 0,
+    "flips": 24,
+    "blockUsed": [
+      7,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9682539682539683,
+    "specks": 12,
+    "rowCov": 0.975609756097561,
+    "colCov": 0.975609756097561,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 191
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      4
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 191,
+        "offs": [
+          4,
+          4
+        ],
+        "lineConfigs": 1,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "spiral-v6-p5",
+    "version": 6,
+    "variant": "spiral",
+    "pitch": 5,
+    "ok": true,
+    "ms": 1233,
+    "len": 264,
+    "pinned": 261,
+    "bridges": 3,
+    "halo": 478,
+    "reroutes": 1,
+    "mask": 3,
+    "flips": 26,
+    "blockUsed": [
+      7,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9790794979079498,
+    "specks": 10,
+    "rowCov": 1,
+    "colCov": 0.975609756097561,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 264
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      0,
+      1
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 264,
+        "offs": [
+          0,
+          1
+        ],
+        "lineConfigs": 2,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "spiral-v6-p6",
+    "version": 6,
+    "variant": "spiral",
+    "pitch": 6,
+    "ok": true,
+    "ms": 1008,
+    "len": 249,
+    "pinned": 244,
+    "bridges": 5,
+    "halo": 443,
+    "reroutes": 2,
+    "mask": 6,
+    "flips": 26,
+    "blockUsed": [
+      7,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9774266365688488,
+    "specks": 10,
+    "rowCov": 1,
+    "colCov": 1,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 249
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      0
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 261,
+        "offs": [
+          4,
+          4
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.22,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 249,
+        "offs": [
+          4,
+          0
+        ],
+        "lineConfigs": 4,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "spiral-v6-p7",
+    "version": 6,
+    "variant": "spiral",
+    "pitch": 7,
+    "ok": true,
+    "ms": 444,
+    "len": 191,
+    "pinned": 189,
+    "bridges": 2,
+    "halo": 378,
+    "reroutes": 1,
+    "mask": 1,
+    "flips": 24,
+    "blockUsed": [
+      7,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9682539682539683,
+    "specks": 12,
+    "rowCov": 0.975609756097561,
+    "colCov": 0.975609756097561,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 191
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      4
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 191,
+        "offs": [
+          4,
+          4
+        ],
+        "lineConfigs": 2,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "hybrid-v6-p5",
+    "version": 6,
+    "variant": "hybrid",
+    "pitch": 5,
+    "ok": true,
+    "ms": 1179,
+    "len": 264,
+    "pinned": 261,
+    "bridges": 3,
+    "halo": 478,
+    "reroutes": 1,
+    "mask": 3,
+    "flips": 26,
+    "blockUsed": [
+      7,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9790794979079498,
+    "specks": 10,
+    "rowCov": 1,
+    "colCov": 0.975609756097561,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 264
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      0,
+      1
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 264,
+        "offs": [
+          0,
+          1
+        ],
+        "lineConfigs": 2,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "hybrid-v6-p6",
+    "version": 6,
+    "variant": "hybrid",
+    "pitch": 6,
+    "ok": true,
+    "ms": 1091,
+    "len": 249,
+    "pinned": 244,
+    "bridges": 5,
+    "halo": 443,
+    "reroutes": 2,
+    "mask": 6,
+    "flips": 26,
+    "blockUsed": [
+      7,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9774266365688488,
+    "specks": 10,
+    "rowCov": 1,
+    "colCov": 1,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 249
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      0
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 261,
+        "offs": [
+          4,
+          4
+        ],
+        "lineConfigs": 0,
+        "solvesTried": 32,
+        "bestLineSat": 99.22,
+        "scanned": false
+      },
+      {
+        "route": 1,
+        "len": 249,
+        "offs": [
+          4,
+          0
+        ],
+        "lineConfigs": 4,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  },
+  {
+    "label": "hybrid-v6-p7",
+    "version": 6,
+    "variant": "hybrid",
+    "pitch": 7,
+    "ok": true,
+    "ms": 532,
+    "len": 191,
+    "pinned": 189,
+    "bridges": 2,
+    "halo": 378,
+    "reroutes": 1,
+    "mask": 1,
+    "flips": 24,
+    "blockUsed": [
+      7,
+      0
+    ],
+    "headroom": 2,
+    "lineSat": 1,
+    "haloSat": 0.9682539682539683,
+    "specks": 12,
+    "rowCov": 0.975609756097561,
+    "colCov": 0.975609756097561,
+    "gate": {
+      "ok": true,
+      "connected": true,
+      "endpoints": 2,
+      "branchCells": 0,
+      "isolated": 0,
+      "size": 191
+    },
+    "scans": {
+      "toned8": true,
+      "toned3": true,
+      "bw8": true,
+      "bw3": true
+    },
+    "offs": [
+      4,
+      4
+    ],
+    "perBlock": [
+      {
+        "errors": 7,
+        "capacity": 9
+      },
+      {
+        "errors": 0,
+        "capacity": 9
+      }
+    ],
+    "trail": [
+      {
+        "route": 0,
+        "len": 191,
+        "offs": [
+          4,
+          4
+        ],
+        "lineConfigs": 2,
+        "solvesTried": 32,
+        "bestLineSat": 100,
+        "scanned": true
+      }
+    ]
+  }
+]

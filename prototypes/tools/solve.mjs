@@ -28,8 +28,8 @@ const out = await page.evaluate(({ li, budgetArg, K }) => {
       if (roll < 0.6 && traj && traj.length) {
         const p = traj[(rnd() * traj.length) | 0];
         cx = p[0] + (rnd() * 2 - 1) * 16; cy = p[1] + (rnd() * 2 - 1) * 16;
-      } else if (roll < 0.85 && L.mice.length) {
-        const m = L.mice[(rnd() * L.mice.length) | 0];
+      } else if (roll < 0.85 && L.plants.length) {
+        const m = L.plants[(rnd() * L.plants.length) | 0];
         cx = m[0] + (rnd() * 2 - 1) * 26; cy = m[1] + (rnd() * 2 - 1) * 26;
       } else {
         cx = b.x0 + rnd() * (b.x1 - b.x0); cy = b.y0 + rnd() * (b.y1 - b.y0);
@@ -43,20 +43,20 @@ const out = await page.evaluate(({ li, budgetArg, K }) => {
     }
     return null;
   };
-  // score a run: winning dominates, then mice, then getting near the goal
+  // score a run: winning dominates, then plants, then getting near the goal
   const score = set => {
     const r = simulate(li, set);
     const st = r.traj.length ? r.traj[r.traj.length - 1] : L.start;
-    let best = 1e9, mice = 0;
-    const got = L.mice.map(() => false);
+    let best = 1e9, plants = 0;
+    const got = L.plants.map(() => false);
     for (const p of r.traj) {
       const d = Math.hypot(p[0] - L.goal[0], p[1] - L.goal[1]);
       if (d < best) best = d;
-      L.mice.forEach((m, i) => {
-        if (!got[i] && Math.hypot(p[0] - m[0], p[1] - m[1]) < 8) { got[i] = true; mice++; }
+      L.plants.forEach((m, i) => {
+        if (!got[i] && Math.hypot(p[0] - m[0], p[1] - m[1]) < 8) { got[i] = true; plants++; }
       });
     }
-    return { s: (r.result === 'win' ? 1e6 : 0) + mice * 1000 - best, r: r.result, mice,
+    return { s: (r.result === 'win' ? 1e6 : 0) + plants * 1000 - best, r: r.result, plants,
              near: +best.toFixed(1), traj: r.traj };
   };
 
@@ -75,9 +75,9 @@ const out = await page.evaluate(({ li, budgetArg, K }) => {
       }
     }
     cands.sort((p, q) => q.s - p.s);
-    const uniq = [], seen = new Map();   // keep the beam diverse across mice-counts
+    const uniq = [], seen = new Map();   // keep the beam diverse across plants-counts
     for (const c of cands) {
-      const key = c.mice + ':' + Math.round(c.near / 12);
+      const key = c.plants + ':' + Math.round(c.near / 12);
       if ((seen.get(key) || 0) >= 2) continue;
       seen.set(key, (seen.get(key) || 0) + 1);
       uniq.push(c);
@@ -85,7 +85,7 @@ const out = await page.evaluate(({ li, budgetArg, K }) => {
     }
     if (!uniq.length) { log.push(`stage ${stage}: no improvement found`); break; }
     beam = uniq;
-    log.push(`stage ${stage}: best=${beam[0].r} mice=${beam[0].mice} near=${beam[0].near}`);
+    log.push(`stage ${stage}: best=${beam[0].r} plants=${beam[0].plants} near=${beam[0].near}`);
     if (beam[0].r === 'win') return { found: true, best: beam[0], log, budget };
   }
   return { found: beam[0].r === 'win', best: beam[0], log, budget };

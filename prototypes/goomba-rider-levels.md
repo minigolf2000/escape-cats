@@ -19,7 +19,7 @@ Names are case-insensitive prefixes; everything else that has a **stroke** becom
 | `start` | small circle | where Goomba begins (put it ~just above a slope) |
 | `goal` or `cake` | small circle | the cake |
 | `cushion` | rect or horizontal line | bouncy pillow (its top edge; restitution > 1) |
-| `mouse` | small circle | neon mouse — the cake stays locked until every one is collected |
+| `plant` (or `snake`) | small circle | snake plant — the cake stays locked until every one is collected |
 | `updraft` | rect | balloon column: sustained lift, she floats up through it |
 | `bumper` | small circle | piñata bumper: pinball-style radial kick that *adds* energy |
 | `pop` | a **line** | party popper: line start = position, direction = aim, **length = power** |
@@ -79,6 +79,14 @@ staircase, and a 4-stage staircase drifts ~200 units sideways — too wide to st
 A zigzag needs her to reverse, and the only robust reverser is a wall (hit it, lose all
 horizontal speed, drop). Combining wall-reversals with popper-lifts inside a portrait
 column is the unsolved bit.
+
+**Judge the ride in airborne seconds, not duration.** Across two review rounds,
+`duration × %airborne` predicted the fun ranking almost perfectly; raw duration predicted
+nothing. Lengthening the boring part is metric-gaming — the grind doesn't count.
+
+**A collectible on the line she'd fly anyway is a chime, not a constraint.** Plants only
+create routing pressure when they're *expensive* — off the greedy path, costing speed or
+height or another plant. Put one low near a hazard and one high needing a bounce.
 
 **Collectibles beat geometry for forcing multi-band.** Scattered neon mice make the cake
 a *routing* problem instead of a reachability one: one band can drop her down a shaft, but

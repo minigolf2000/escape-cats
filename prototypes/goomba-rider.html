@@ -156,7 +156,7 @@ const FR_KIND = [0.18, 0.06, 0.02];   // friction
 const POP_R = 6;                      // party-popper trigger radius (generous — poppers forgive)
 const POP_R2 = (POP_R + R) * (POP_R + R);
 const POP_COOLDOWN = 0.8;
-const MOUSE_R = 7.5;                  // neon-mouse pickup radius (generous — party hands)
+const PLANT_R = 7.5;                  // snake-plant pickup radius (generous — party hands)
 const UPDRAFT_A = 205;                // balloon-arch updraft: beats gravity, so she floats up
 const BUMP_R = 5.5, BUMP_E = 1.18, BUMP_MIN = 58;  // piñata bumper: pinball-style radial kick
 
@@ -167,40 +167,91 @@ const BUMP_R = 5.5, BUMP_E = 1.18, BUMP_MIN = 58;  // piñata bumper: pinball-st
 // (used by tests + tuning, never shown).
 // Levels aim for roughly portrait-phone proportions (~1:2), so fitting the level
 // to a vertical screen is the nice zoom by construction.
+// The set is a FUN HOUSE, not a ski hill: every level features at least one bouncy
+// toy, and snake plants make the cake a routing problem — one band can reach a place,
+// but it can't make her pass three scattered plants.
 const LEVELS = [
-  { name: '1 · Mind the Gap',
-    hint: 'stretch a silly band across the gap, then hit PLAY',
-    hint2: 'lip to lip — she rides bands like rails',
-    start: [8, 16],
-    terrain: [ [[-5, 16], [40, 24]],
-               [[68, 60], [94, 70]],
-               [[100, 50], [100, 220], [92, 224], [78, 212]] ],
-    goal: [92, 221], cushions: [], pops: [],
-    solution: [ [[40, 24], [68, 60]] ] },
+  { name: '1 · Snake Plant Slalom', budget: 3,
+    hint: 'grab every snake plant before the cake — slalom her down the shaft',
+    hint2: 'bank her off each band toward the next plant',
+    start: [10, 22],
+    terrain: [ [[-4, 20], [30, 30]],
+               [[6, 34], [6, 204], [104, 210], [104, 34]] ],
+    goal: [96, 205],
+    plants: [[32, 72], [76, 118], [32, 164]],
+    solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],
+                [[87, 132.3], [45.9, 160.8]] ] },
 
-  { name: '2 · The Big Drop',
-    hint: 'cats always land on their feet. snowboards don’t.',
-    hint2: 'a slanted band in the pit turns falling into forward',
-    start: [8, 13],
-    terrain: [ [[-5, 12], [36, 17]],
-               [[88, 200], [88, 166], [130, 182], [130, 148]] ],
-    goal: [124, 178], cushions: [], pops: [],
-    solution: [ [[56, 70], [82, 116]] ] },
+  // Judge concept "SLOW RISE": fast fall past the visible cake, then three seconds of
+  // floaty nothing in the balloon column — the comedy pause — then a kicker band
+  // flicks her out and gravity snaps back on. The only tempo change in the game.
+  { name: '2 · Slow Rise', budget: 2,
+    hint: 'she falls right past the cake… the balloons bring her back',
+    hint2: 'a kicker INSIDE the column flicks her out at the height you choose',
+    start: [8, 12],
+    terrain: [ [[-6, 10], [30, 20]],
+               [[6, 58], [40, 62]],
+               [[62, 30], [62, 150]],
+               [[106, 20], [106, 190]] ],
+    goal: [14, 55],
+    updrafts: [ { x: 62, y: 44, w: 44, h: 146 } ],
+    plants: [[96, 54]],
+    solution: [ [[83.1, 185.4], [40.4, 156.2]], [[106.6, 22.8], [100.7, 14]] ] },
 
-  { name: '3 · Pop Goes Goomba',
-    hint: 'party poppers do the lifting — your band does the aiming',
-    hint2: 'ramp her into the bottom popper; the rest is physics',
-    start: [8, 54],
-    terrain: [ [[-5, 52], [46, 62]],
-               [[40, -14], [66, -8]] ],
-    goal: [48, -13],
-    cushions: [ { x: 36, y: 150, w: 36 } ],
-    pops: [ { x: 98, y: 126, deg: -96, spd: 142 },
-            { x: 94, y: 80, deg: -97, spd: 142 },
-            { x: 85, y: 34, deg: -102, spd: 142 } ],
-    solution: [ [[54, 80], [92, 118]] ] },
+  // Judge concept "THE SKIM": build speed in a chute, popper fires her nearly flat
+  // through a long low slot, and the bands are lifts that keep her skimming between
+  // ceiling and cushion floor. Sustained tension instead of one instant.
+  { name: '3 · The Skim', budget: 3, maxSpeed: 135,
+    hint: 'keep her skimming through the slot — every sag needs a lift',
+    hint2: 'small flat bands under her path stop her clipping the pillows',
+    start: [8, 12],
+    terrain: [ [[-6, 10], [26, 22]],
+               [[26, 22], [10, 56], [14, 96], [32, 112], [44, 118]],
+               [[46, 102], [148, 108]],
+               [[150, 126], [162, 176], [150, 186], [128, 180]] ],
+    goal: [148, 179],
+    cushions: [ { x: 46, y: 138, w: 100 } ],
+    // one plant LOW (dip toward the pillows), one HIGH (needs a bounce peak) — a
+    // collectible on the line she'd fly anyway is a chime, not a constraint
+    plants: [[74, 134], [116, 112]],
+    pops: [ { x: 48, y: 122, deg: -6, spd: 112 } ],
+    solution: [ [[123.5, 98.3], [99.1, 130.1]] ] },
 
-  { name: '4 · Pillow Fort',
+  // The finale the party asked for: a sealed pinball box. She rattles off piñatas and
+  // pillow floors, the plants gate the cake, and the only exit is the drain hole.
+  // Bands are deflector plates steering the chaos. Losing is funnier than winning.
+  { name: '4 · The Puzzle Box', budget: 4, maxSpeed: 140,
+    hint: 'route her through the chaos: every plant, then out the drain',
+    hint2: 'bands are deflector plates — steer the ricochets toward the hole',
+    start: [8, 12],
+    terrain: [ [[-6, 10], [32, 20]],
+               [[46, 28], [104, 32]],
+               [[8, 42], [8, 182], [40, 188]],
+               [[64, 188], [104, 182], [104, 32]],
+               [[36, 196], [52, 210], [68, 198]] ],
+    goal: [52, 206],
+    plants: [[28, 70], [78, 104], [16, 164]],
+    bumpers: [ { x: 56, y: 62 }, { x: 84, y: 78 }, { x: 22, y: 106 },
+               { x: 62, y: 128 }, { x: 88, y: 152 } ],
+    cushions: [ { x: 10, y: 180, w: 28 }, { x: 66, y: 180, w: 36 } ],
+    solution: [ [[59.8, 75.3], [14, 71.3]], [[38.1, 93.3], [4.9, 112.8]] ] },
+
+  { name: '5 · Piñata Alley', budget: 3,
+    hint: 'piñatas hit BACK — bank her through the plants and out the bottom',
+    hint2: 'bumpers add speed; aim her in and let them do the rest',
+    start: [8, 14],
+    terrain: [ [[-6, 12], [38, 24]],
+               [[4, 30], [4, 190], [106, 196], [106, 30]] ],
+    goal: [96, 191],
+    plants: [[24, 92], [86, 150]],
+    // curtains, not obstacles: the gaps are narrower than she is, so she MUST bounce
+    bumpers: [ { x: 16, y: 62 }, { x: 34, y: 62 }, { x: 52, y: 62 },
+               { x: 70, y: 62 }, { x: 88, y: 62 },
+               { x: 25, y: 122 }, { x: 43, y: 122 }, { x: 61, y: 122 },
+               { x: 79, y: 122 }, { x: 97, y: 122 } ],
+    solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
+
+  { name: '6 · Pillow Fort',
     hint: 'the pillow is comfy. TOO comfy.',
     hint2: 'lay a band across the shaft — she’ll land on it and slide out',
     start: [8, 10],
@@ -210,52 +261,9 @@ const LEVELS = [
                [[0, 144], [24, 168], [48, 160]] ],
     goal: [24, 165],
     cushions: [ { x: 56, y: 190, w: 40 } ],
-    pops: [],
     solution: [ [[58, 126], [95, 102]] ] },
 
-  { name: '5 · Grand Finale',
-    hint: 'everything you’ve got: catch her, bridge up, then bridge back',
-    hint2: 'both far ledges sit HIGHER than their lips — span them lip to lip',
-    start: [8, 10],
-    terrain: [ [[-5, 12], [38, 15]],
-               [[70, 86], [96, 94]],
-               [[106, 86], [116, 90]],
-               [[128, 60], [128, 104]],
-               [[128, 170], [88, 198]],
-               [[22, 194], [48, 196]] ],
-    goal: [34, 193], cushions: [], pops: [],
-    solution: [ [[44, 50], [66, 80]], [[96, 94], [106, 86]], [[88, 198], [48, 196]] ] },
-
-  { name: '6 · Two-Step', budget: 2,
-    hint: 'two gaps, two bands — and she comes back the other way',
-    hint2: 'the wall turns her around; catch her on the way back',
-    start: [8, 14],
-    terrain: [ [[-6, 12], [34, 24]],
-               [[86, 48], [120, 56]],
-               [[128, 46], [128, 92]],
-               [[132, 98], [64, 112]],
-               [[-12, 124], [36, 130]],
-               [[-12, 150], [36, 146]] ],
-    goal: [-2, 148], cushions: [], pops: [],
-    solution: [ [[34, 24], [86, 48]], [[64, 112], [38, 138]] ] },
-
-  // Mice are a routing goal, not a gate: one band can drop her down the shaft, but it
-  // can't make her pass four scattered points. Collectibles force multi-band far more
-  // naturally than geometry tricks do.
-  { name: '7 · Mouse Slalom', budget: 3,
-    hint: 'grab every neon mouse before the cake — slalom her down the shaft',
-    hint2: 'bank her off each band toward the next mouse',
-    start: [10, 22],
-    terrain: [ [[-4, 20], [30, 30]],
-               [[6, 34], [6, 204], [104, 210], [104, 34]] ],
-    goal: [96, 205],
-    mice: [[32, 72], [76, 118], [32, 164]],
-    solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],
-                [[87, 132.3], [45.9, 160.8]] ] },
-
-  // The cake sits high on the FAR side, so the column is the only way up — a mechanic
-  // you can route around isn't really in the level.
-  { name: '8 · Balloon Arch', budget: 2,
+  { name: '7 · Balloon Arch', budget: 2,
     hint: 'the balloon column is the only way up — decide where she leaves it',
     hint2: 'slant a band across the top of the column to fling her out sideways',
     start: [8, 12],
@@ -268,31 +276,30 @@ const LEVELS = [
     updrafts: [ { x: 60, y: 40, w: 48, h: 150 } ],
     solution: [ [[101.5, 26.7], [107.1, 34.4]] ] },
 
-  { name: '9 · Piñata Alley', budget: 3,
-    hint: 'piñatas hit BACK — bank her through the mice and out the bottom',
-    hint2: 'bumpers add speed; aim her in and let them do the rest',
-    start: [8, 14],
-    terrain: [ [[-6, 12], [38, 24]],
-               [[4, 30], [4, 190], [106, 196], [106, 30]] ],
-    goal: [96, 191],
-    mice: [[24, 92], [86, 150]],
-    // curtains, not obstacles: the gaps are narrower than she is, so she MUST bounce
-    bumpers: [ { x: 16, y: 62 }, { x: 34, y: 62 }, { x: 52, y: 62 },
-               { x: 70, y: 62 }, { x: 88, y: 62 },
-               { x: 25, y: 122 }, { x: 43, y: 122 }, { x: 61, y: 122 },
-               { x: 79, y: 122 }, { x: 97, y: 122 } ],
-    solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
+  { name: '8 · Pop Goes Goomba',
+    hint: 'party poppers do the lifting — your band does the aiming',
+    hint2: 'ramp her into the bottom popper; the rest is physics',
+    start: [8, 54],
+    terrain: [ [[-5, 52], [46, 62]],
+               [[40, -14], [66, -8]] ],
+    goal: [48, -13],
+    cushions: [ { x: 36, y: 150, w: 36 } ],
+    pops: [ { x: 98, y: 126, deg: -96, spd: 142 },
+            { x: 94, y: 80, deg: -97, spd: 142 },
+            { x: 85, y: 34, deg: -102, spd: 142 } ],
+    solution: [ [[54, 80], [92, 118]] ] },
+
 ];
 
 function initLevel(L) { // world bounds + popper aim vectors + start-pad angle
   L.cushions = L.cushions || []; L.pops = L.pops || [];
-  L.mice = L.mice || []; L.updrafts = L.updrafts || []; L.bumpers = L.bumpers || [];
+  L.plants = L.plants || []; L.updrafts = L.updrafts || []; L.bumpers = L.bumpers || [];
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   const eat = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
   for (const poly of L.terrain) for (const [x, y] of poly) eat(x, y);
   for (const c of L.cushions) { eat(c.x, c.y); eat(c.x + c.w, c.y); }
   for (const pp of L.pops) { eat(pp.x - 6, pp.y - 6); eat(pp.x + 6, pp.y + 6); }
-  for (const m of L.mice) eat(m[0], m[1]);
+  for (const m of L.plants) eat(m[0], m[1]);
   for (const u of L.updrafts) { eat(u.x, u.y); eat(u.x + u.w, u.y + u.h); }
   for (const bp of L.bumpers) { eat(bp.x - BUMP_R, bp.y - BUMP_R); eat(bp.x + BUMP_R, bp.y + BUMP_R); }
   eat(L.goal[0], L.goal[1]); eat(L.start[0], L.start[1]);
@@ -425,6 +432,7 @@ function svgToLevel(svgText) {
     return false;
   };
   const terrain = [], cushLines = [], popLines = [], sols = [];
+  const plantPts = [], bumpPts = [], upRects = [];
   let start = null, goal = null;
   for (const el of doc.querySelectorAll('path,line,polyline,polygon,rect,circle,ellipse')) {
     const name = nameOf(el), m = elMatrix(el), tag = el.tagName.toLowerCase();
@@ -453,6 +461,9 @@ function svgToLevel(svgText) {
     else if (name.startsWith('goal') || name.startsWith('cake')) goal = first;
     else if (name.startsWith('cushion')) cushLines.push(polys[0]);
     else if (name.startsWith('pop')) popLines.push(polys[0]);
+    else if (name.startsWith('plant') || name.startsWith('snake') || name.startsWith('mouse')) plantPts.push(first);
+    else if (name.startsWith('bump') || name.startsWith('pinata') || name.startsWith('piñata')) bumpPts.push(first);
+    else if (name.startsWith('updraft') || name.startsWith('balloon')) upRects.push(polys[0]);
     else if (name.startsWith('sol') || name.startsWith('band')) sols.push(...polys);
     else if (polys[0].length > 1 && (hasStroke(el) || name.startsWith('terrain') || name.startsWith('wall') || name.startsWith('slope')))
       terrain.push(...polys);
@@ -463,6 +474,7 @@ function svgToLevel(svgText) {
   let x0 = 1e9, y0 = 1e9, y1 = -1e9;
   const eat = ([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); };
   terrain.flat().forEach(eat); cushLines.flat().forEach(eat); popLines.flat().forEach(eat);
+  plantPts.forEach(eat); bumpPts.forEach(eat); upRects.flat().forEach(eat);
   eat(start); eat(goal);
   const s = 200 / Math.max(50, y1 - y0);
   const tx = ([x, y]) => [+((x - x0) * s).toFixed(1), +((y - y0) * s).toFixed(1)];
@@ -482,6 +494,14 @@ function svgToLevel(svgText) {
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
       return { x: a[0], y: a[1], deg: Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI,
                spd: Math.max(60, Math.min(120, len * 2.5)) };
+    }),
+    plants: plantPts.map(tx),
+    bumpers: bumpPts.map(p => { const q = tx(p); return { x: q[0], y: q[1] }; }),
+    updrafts: upRects.map(p => {
+      const pts = p.map(tx), xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
+      return { x: Math.min(...xs), y: Math.min(...ys),
+               w: Math.max(10, Math.max(...xs) - Math.min(...xs)),
+               h: Math.max(10, Math.max(...ys) - Math.min(...ys)) };
     }),
     solution: sols.map(p => [p[0], p[p.length - 1]].map(tx)),
   };
@@ -550,7 +570,7 @@ function makeRun(L, bands) {
     bandHits: bands.map(() => 0),
     cushHits: L.cushions.map(() => 0),
     popT: L.pops.map(() => -9),
-    got: L.mice.map(() => false), gotN: 0, lifting: false,
+    got: L.plants.map(() => false), gotN: 0, lifting: false,
     bumpT: L.bumpers.map(() => -9), events: [],
   };
 }
@@ -564,8 +584,9 @@ function stepRun(st, dt) {
     if (st.p.x > u.x && st.p.x < u.x + u.w && st.p.y > u.y && st.p.y < u.y + u.h) {
       st.v.y -= UPDRAFT_A * dt; st.lifting = true;
     }
+  const cap = st.L.maxSpeed || MAX_SPEED; // later levels run hotter — the night crescendos
   const sp0 = Math.hypot(st.v.x, st.v.y);
-  if (sp0 > MAX_SPEED) { st.v.x *= MAX_SPEED / sp0; st.v.y *= MAX_SPEED / sp0; }
+  if (sp0 > cap) { st.v.x *= cap / sp0; st.v.y *= cap / sp0; }
   st.p.x += st.v.x * dt; st.p.y += st.v.y * dt;
 
   st.grounded = false; st.onBand = -1;
@@ -611,12 +632,12 @@ function stepRun(st, dt) {
       st.bumpT[i] = st.t; st.events.push(['bump', st.p.x, st.p.y, st.t]);
     }
   }
-  // neon mice: collect every one before the cake unlocks
-  for (let i = 0; i < L.mice.length; i++) {
+  // neon plants: collect every one before the cake unlocks
+  for (let i = 0; i < L.plants.length; i++) {
     if (st.got[i]) continue;
-    const dx = st.p.x - L.mice[i][0], dy = st.p.y - L.mice[i][1];
-    if (dx * dx + dy * dy < (MOUSE_R + R) * (MOUSE_R + R)) {
-      st.got[i] = true; st.gotN++; st.events.push(['mouse', L.mice[i][0], L.mice[i][1], st.t]);
+    const dx = st.p.x - L.plants[i][0], dy = st.p.y - L.plants[i][1];
+    if (dx * dx + dy * dy < (PLANT_R + R) * (PLANT_R + R)) {
+      st.got[i] = true; st.gotN++; st.events.push(['plant', L.plants[i][0], L.plants[i][1], st.t]);
     }
   }
   // party poppers: fly close and she gets re-launched along the popper's aim
@@ -631,7 +652,7 @@ function stepRun(st, dt) {
       // whole point is being able to say "that was MY band."
       st.p.x = pp.x; st.p.y = pp.y;
       const arrive = Math.hypot(st.v.x, st.v.y);
-      const sp2 = Math.min(MAX_SPEED, Math.max(arrive, pp.spd * 0.82));
+      const sp2 = Math.min(st.L.maxSpeed || MAX_SPEED, Math.max(arrive, pp.spd * 0.82));
       st.v.x = pp.ux * sp2; st.v.y = pp.uy * sp2;
       st.popT[i] = st.t; st.events.push(['pop', pp.x, pp.y, st.t]);
     }
@@ -655,7 +676,7 @@ function stepRun(st, dt) {
   const b = L.bounds;
   if (sp < 3.5) st.slowT += dt; else st.slowT = 0;
   const gdx = st.p.x - L.goal[0], gdy = st.p.y - L.goal[1];
-  if (gdx * gdx + gdy * gdy < 81 && st.gotN === L.mice.length) { st.result = 'win'; return; }
+  if (gdx * gdx + gdy * gdy < 81 && st.gotN === L.plants.length) { st.result = 'win'; return; }
   if (st.p.y > b.y1 + 25) st.result = 'fall';
   else if (st.p.x < b.x0 - 12) st.result = 'left';
   else if (st.p.x > b.x1 + 30) st.result = 'flew';
@@ -1112,22 +1133,27 @@ function drawPopper(pp, i) {
   ctx.restore();
 }
 
-function drawMouse(mx, my, taken, i) {
+function drawPlant(mx, my, taken, i) {
   if (taken) return;
   const u = Math.max(cam.s, 2.2), x = sxp(mx), y = syp(my);
-  const bob = Math.sin(tGlobal * 3 + i * 1.7) * 0.5 * u;
-  ctx.save(); ctx.translate(x, y + bob);
+  const sway = Math.sin(tGlobal * 2.2 + i * 1.7) * 0.08;
+  ctx.save(); ctx.translate(x, y);
   ctx.fillStyle = 'rgba(87,230,201,0.13)';
-  ctx.beginPath(); ctx.arc(0, 0, 4.5 * u, 0, 6.28); ctx.fill();
-  ctx.strokeStyle = '#57e6c9'; ctx.lineWidth = 0.42 * u; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.ellipse(0, 0, 2.1 * u, 1.4 * u, 0, 0, 6.28); ctx.stroke();
-  ctx.beginPath(); ctx.arc(-1.5 * u, -1.1 * u, 0.85 * u, 0, 6.28); ctx.stroke(); // ear
+  ctx.beginPath(); ctx.arc(0, -1.2 * u, 4.6 * u, 0, 6.28); ctx.fill();
+  // pot
+  ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 0.4 * u; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.beginPath();
-  ctx.moveTo(2 * u, 0.2 * u);
-  ctx.quadraticCurveTo(3.6 * u, 0.4 * u, 3.2 * u, -1.4 * u + Math.sin(tGlobal * 7 + i) * 0.3 * u);
-  ctx.stroke();
-  ctx.fillStyle = '#57e6c9';
-  ctx.beginPath(); ctx.arc(-1.9 * u, 0.1 * u, 0.28 * u, 0, 6.28); ctx.fill();
+  ctx.moveTo(-1.5 * u, 1.0 * u); ctx.lineTo(-1.1 * u, 2.6 * u);
+  ctx.lineTo(1.1 * u, 2.6 * u); ctx.lineTo(1.5 * u, 1.0 * u); ctx.closePath(); ctx.stroke();
+  // snake-plant blades: tall, tapering, gently swaying
+  ctx.strokeStyle = '#57e6c9'; ctx.lineWidth = 0.42 * u;
+  ctx.rotate(sway);
+  for (const [bx, h, lean] of [[-1.0, 3.4, -0.55], [-0.35, 4.6, -0.15], [0.3, 4.0, 0.3], [0.95, 3.0, 0.6]]) {
+    ctx.beginPath();
+    ctx.moveTo(bx * u, 1.0 * u);
+    ctx.quadraticCurveTo((bx + lean * 0.4) * u, (1.0 - h * 0.6) * u, (bx + lean) * u, (1.0 - h) * u);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -1198,8 +1224,8 @@ function drawCake(L) {
   ctx.fillStyle = '#ffb54a';
   ctx.beginPath(); ctx.ellipse(0, -6.8 * u, 0.45 * u * fl, 0.8 * u * fl, 0, 0, 6.28); ctx.fill();
   ctx.restore();
-  // locked until every mouse is collected
-  const left = L.mice.length - (run ? run.gotN : 0);
+  // locked until every snake plant is collected
+  const left = L.plants.length - (run ? run.gotN : 0);
   if (left > 0) {
     ctx.save(); ctx.translate(x, y - 9.5 * u);
     ctx.fillStyle = 'rgba(20,10,45,0.85)';
@@ -1208,7 +1234,7 @@ function drawCake(L) {
     ctx.fillStyle = '#57e6c9';
     ctx.font = `700 ${2.3 * u}px ui-rounded, system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('🐭' + left, 0, 0.1 * u);
+    ctx.fillText('🌱' + left, 0, 0.1 * u);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.restore();
   }
@@ -1323,7 +1349,7 @@ function drawLab() {
     L.cushions.forEach(cu => drawCushion(cu, 0));
     L.pops.forEach((pp, k) => drawPopper(pp, k));
     L.bumpers.forEach(bp => drawBumper(bp, 0));
-    L.mice.forEach((m, k) => drawMouse(m[0], m[1], false, k));
+    L.plants.forEach((m, k) => drawPlant(m[0], m[1], false, k));
     drawCake(L);
     (L.solution || []).forEach((s, k) => drawBand(
       snapBand(L, { ax: s[0][0], ay: s[0][1], bx: s[1][0], by: s[1][1] }), k % 4, 0, false));
@@ -1404,7 +1430,7 @@ function frame(now) {
   L.cushions.forEach((c, i) => drawCushion(c, cushAnim[i] || 0));
   L.pops.forEach((pp, i) => drawPopper(pp, i));
   L.bumpers.forEach((bp, i) => drawBumper(bp, run ? Math.max(0, 1 - (run.t - run.bumpT[i]) * 4) : 0));
-  L.mice.forEach((m, i) => drawMouse(m[0], m[1], run ? run.got[i] : false, i));
+  L.plants.forEach((m, i) => drawPlant(m[0], m[1], run ? run.got[i] : false, i));
   drawCake(L);
   bands.forEach(bd => drawBand(bd, bd.color, bd.excited || 0, false));
   if (preview && state === 'edit') drawBand(preview, bands.length % 4, 0, true);
@@ -1470,7 +1496,7 @@ function rideCard(li, bandPairs, label) {
   L.cushions.forEach(c => drawCushion(c, 0));
   L.pops.forEach((pp, i) => drawPopper(pp, i));
   L.bumpers.forEach(bp => drawBumper(bp, 0));
-  L.mice.forEach((m, i) => drawMouse(m[0], m[1], false, i));
+  L.plants.forEach((m, i) => drawPlant(m[0], m[1], false, i));
   drawCake(L);
   bds.forEach((bd, i) => drawBand(bd, i % 4, 0, false));
   // the traced path: bright where airborne, dim where riding a surface
@@ -1502,9 +1528,9 @@ function rideCard(li, bandPairs, label) {
   ctx.fillStyle = st.result === 'win' ? '#57e6c9' : '#ff8f8f';
   ctx.fillText(`${st.result} · ${st.t.toFixed(1)}s · ${(100 * air / Math.max(st.t, .01)).toFixed(0)}% airborne` +
     ` · top speed ${fastest.toFixed(0)} · bands ${bds.length}` +
-    (L.mice.length ? ` · mice ${st.gotN}/${L.mice.length}` : ''), 14, 44);
+    (L.plants.length ? ` · plants ${st.gotN}/${L.plants.length}` : ''), 14, 44);
   return { result: st.result, t: +st.t.toFixed(2), airPct: +(100 * air / Math.max(st.t, .01)).toFixed(0),
-           topSpeed: +fastest.toFixed(0), events: st.events.length, mice: `${st.gotN}/${L.mice.length}` };
+           topSpeed: +fastest.toFixed(0), events: st.events.length, plants: `${st.gotN}/${L.plants.length}` };
 }
 
 window.__gr = { simulate, LEVELS, BAND_MAX, DEV, svgToLevel, rideCard,

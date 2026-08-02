@@ -546,6 +546,7 @@
      number with no unit; this is the unit. */
   .item .rate .coin { flex: none; width: calc(10px * var(--ss)); height: auto; display: block; }
   .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px; }
+  .item .fx b { color: var(--gold); font-weight: 700; }
   /* Building blurb is a pre-purchase tease: once you own one, the row drops the
      description and keeps just name + rate + price. Upgrade rows never get the
      .bought class, so their .fx (effect text) is untouched. */
@@ -1212,20 +1213,27 @@ function effectText(u) {
   if (u.fx) return u.fx;
   return [].concat(u.effect).map(oneEffectText).filter(Boolean).join(" · ");
 }
+// Word-form only reads naturally for small round multipliers ("twice/thrice
+// as good") — Cookie Clicker's own convention. Percentages skip it entirely:
+// they're usually additive across many stacking sources, where "+5%" stays
+// legible in a way "twice, and twice again" doesn't.
+const multWord = m => (m === 2 ? "twice" : m === 3 ? "thrice" : `×${m}`);
+const cap = s => s[0].toUpperCase() + s.slice(1);
+const hl = s => `<b>${s}</b>`;
 function oneEffectText(e) {
   switch (e.type) {
-    case "buildingMult": return `${buildingName(e.building)} is ${e.mult === 2 ? "twice" : "×" + e.mult} as good`;
-    case "globalPct":    return `+${e.pct}% mice per second`;
-    case "globalMult":   return `×${e.mult} mice per second`;
-    case "clickFlat":    return `+${fmt(e.add)} per pet`;
-    case "clickShare":   return `+${e.pct}% of your /s per pet`;
-    case "clickMult":    return `Petting is ×${e.mult} stronger`;
-    case "goldenFreq":   return `Golden mice appear ×${e.mult} as often`;
-    case "goldenLife":   return `Golden mice linger +${e.add}s longer`;
+    case "buildingMult": return `${buildingName(e.building)} is ${hl(multWord(e.mult))} as good`;
+    case "globalPct":    return `+${hl(e.pct + "%")} mice per second`;
+    case "globalMult":   return `${hl(cap(multWord(e.mult)))} as many mice per second`;
+    case "clickFlat":    return `+${hl(fmt(e.add))} per pet`;
+    case "clickShare":   return `+${hl(e.pct + "%")} of your /s per pet`;
+    case "clickMult":    return `Petting is ${hl(multWord(e.mult))} as strong`;
+    case "goldenFreq":   return `Golden mice appear ${hl(multWord(e.mult))} as often`;
+    case "goldenLife":   return `Golden mice linger +${hl(e.add + "s")} longer`;
     case "trail":        return `Dream mice leave longer trails`;
     case "countMice":    return `The first mice appear on the wall`;
-    case "crossBuilding": return `${buildingName(e.building)} gains +${e.pct}% per ${buildingName(e.per)}`;
-    case "clickPerBuilding": return `+${fmt(e.add)} per pet for every ${buildingName(e.per)}`;
+    case "crossBuilding": return `${buildingName(e.building)} gains +${hl(e.pct + "%")} per ${buildingName(e.per)}`;
+    case "clickPerBuilding": return `+${hl(fmt(e.add))} per pet for every ${buildingName(e.per)}`;
     default:             return "";
   }
 }

@@ -1,4 +1,5 @@
 <!doctype html>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Hex Clicker</title>
 <!--
@@ -1871,8 +1872,12 @@ goldenEl.addEventListener("pointerdown", e => {
 
 // ---------------------------------------------------------------------------
 // NIGHT WALL — the reveal, ported from reveal-lab.html (moon scene only; the
-// dice scene is concept-art per the design doc). Everything is a pure function
-// of (seed, mouse index, time): no wall state to save. Lab knobs map to game
+// dice scene is concept-art per the design doc). The word is drawn from the
+// 1-stroke alphabet (see GLYPHS) and every mouse faces its direction of travel;
+// both were settled in the lab and are locked here, not switchable. Position is
+// still a pure function of (seed, mouse index, time) — no wall state to save —
+// with one exception: each mouse carries a smoothed heading vector for its
+// facing, which is cosmetic and re-converges within a few frames. Lab knobs map to game
 // state — mice N = f(lifetime total) via the locked geometric accumulator,
 // word% = hardcoded constant, noise = locked 0 (wander() dropped entirely),
 // trail = mods.trail from the sleep-stage upgrades, and whether ANY mice show
@@ -1911,7 +1916,13 @@ function wallMiceCount() { return mods.countMice ? wallMiceFor(game.total) : 0; 
 // simulator declare legibility early and report a confidently wrong time.
 // countMice is checked explicitly too (not left implied by the chain) — no
 // mice, no word, no matter how full the trails would be.
-const LEGIBLE_TOTAL = 4.5e7;
+// Re-measured for the 1-stroke word source by screenshotting the live wall
+// across the mouse curve: 50 mice unreadable, 55 borderline (the H loses its
+// left stem), 59 the first clean read, 64 unambiguous. Set at 64 mice for
+// margin — a room can't be asked to squint at the answer. Down from 4.5e7,
+// which the old raster source needed, so the run gets shorter rather than
+// being retuned to hold the old beat.
+const LEGIBLE_TOTAL = 3.0e7;
 const TRAIL_FULL = UPGRADES.flatMap(u => [].concat(u.effect))
   .filter(e => e.type === "trail").reduce((a, e) => a + e.add, 0);
 function isLegible(s) {
@@ -1922,8 +1933,22 @@ function isLegible(s) {
 // Colors come from the shared MOUSE_COLORS table (see spawnMousePop) — the
 // wall used to keep its own separate palette object; deleted in favor of one
 // source of truth. Usage here is fixed-per-role, not random: see loadWallScene.
-const WORD_PPMS_FRAC = 2.2e-5; // fraction of the word's ink per ms (legibility input)
+// Fraction of the word's ink laid per ms — the legibility formula's input, and
+// the knob that decides how many mice it takes to read the word. Raised 2.2e-5
+// -> 3.3e-5 when the word moved to the 1-stroke source, because the two sources
+// FAIL differently: the old raster tour zigzagged across a filled glyph, so a
+// partial trail still shaded a recognisable 2D patch of the letter. A 1-stroke
+// tour is a centreline, so a partial trail draws a partial LETTER — and a
+// partial clean letter reads as a different letter (T->F, N->I, O->C, H->F).
+// Measured: unambiguous at coverage ~1.7 where the old source got by on ~1.2.
+// Coverage is linear in this, so 1.5x buys that back at the same mouse count.
+// Costs 1.5x word patrol speed (14.1 -> 21.2 tour-points/sec), which keeps the
+// turn rate near the scenery's and leaves the trail step at ~1.5px vs maxSeg 16.
+const WORD_PPMS_FRAC = 3.3e-5;
 const SCENE_PPMS = 0.004;      // scenery patrol speed, tour-points per ms
+const WORD_INK_W = 5;          // word trail width; scenery stays a 1.8 hairline
+const HEADING_DT = 16;         // ms back-sample for facing direction (~1 frame at 60fps)
+const HEADING_EASE = 0.25;     // per-frame lerp toward the new heading vector
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -1933,62 +1958,6 @@ function mulberry32(seed) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-}
-
-// word sampling: one crew per letter
-function sampleLine(word) {
-  const oc = document.createElement('canvas');
-  const octx = oc.getContext('2d');
-  const FS = 190;
-  octx.font = `900 ${FS}px Arial, Helvetica, sans-serif`;
-  const widths = [...word].map(ch => octx.measureText(ch).width);
-  const gap = FS * 0.06;
-  const totalW = widths.reduce((a, b) => a + b + gap, 0);
-  oc.width = Math.ceil(totalW + 40); oc.height = Math.ceil(FS * 1.5);
-  octx.font = `900 ${FS}px Arial, Helvetica, sans-serif`;
-  octx.textBaseline = 'middle';
-  let x = 20;
-  const bounds = [];
-  for (let i = 0; i < word.length; i++) {
-    octx.fillText(word[i], x, oc.height / 2);
-    bounds.push([x, x + widths[i]]);
-    x += widths[i] + gap;
-  }
-  const img = octx.getImageData(0, 0, oc.width, oc.height).data;
-  const pts = [], STEP = 6;
-  for (let py = 0; py < oc.height; py += STEP) {
-    for (let px = 0; px < oc.width; px += STEP) {
-      if (img[(py * oc.width + px) * 4 + 3] > 128) {
-        let letter = 0;
-        for (let b = 0; b < bounds.length; b++) if (px >= bounds[b][0] - gap) letter = b;
-        pts.push({ x: px, y: py, letter });
-      }
-    }
-  }
-  const byLetter = [];
-  for (const p of pts) (byLetter[p.letter] = byLetter[p.letter] || []).push(p);
-  const letters = [];
-  for (let L = 0; L < word.length; L++) {
-    const lp = byLetter[L];
-    if (!lp || !lp.length) continue;
-    let s = 0;
-    for (let i = 1; i < lp.length; i++)
-      if (lp[i].y < lp[s].y - 1 || (Math.abs(lp[i].y - lp[s].y) <= 1 && lp[i].x < lp[s].x)) s = i;
-    const used = new Uint8Array(lp.length); used[s] = 1;
-    const tour = [lp[s]];
-    let cur = s;
-    for (let step = 1; step < lp.length; step++) {
-      let best = -1, bd = Infinity;
-      for (let j = 0; j < lp.length; j++) {
-        if (used[j]) continue;
-        const d = (lp[j].x - lp[cur].x) ** 2 + (lp[j].y - lp[cur].y) ** 2;
-        if (d < bd) { bd = d; best = j; }
-      }
-      used[best] = 1; tour.push(lp[best]); cur = best;
-    }
-    letters.push(tour);
-  }
-  return { letters, w: oc.width, h: oc.height };
 }
 
 // scene path tracer (canvas-like API that records polylines)
@@ -2088,30 +2057,134 @@ function components(polys) {
     if (!groups.has(r)) groups.set(r, []);
     groups.get(r).push(polys[i]);
   }
-  return [...groups.values()].map(g => {
-    const restList = [...g];
-    let chain = restList.shift();
-    const outPolys = [chain];
-    while (restList.length) {
-      const tail = outPolys[outPolys.length - 1];
-      const end = tail[tail.length - 1];
-      let bi = 0, brev = false, bd = Infinity;
-      restList.forEach((p, i) => {
-        const d0 = (p[0].x - end.x) ** 2 + (p[0].y - end.y) ** 2;
-        const d1 = (p[p.length - 1].x - end.x) ** 2 + (p[p.length - 1].y - end.y) ** 2;
-        if (d0 < bd) { bd = d0; bi = i; brev = false; }
-        if (d1 < bd) { bd = d1; bi = i; brev = true; }
-      });
-      const nxt = restList.splice(bi, 1)[0];
-      outPolys.push(brev ? [...nxt].reverse() : nxt);
-    }
-    return outPolys.flat();
-  });
+  return [...groups.values()].map(chainPolys);
+}
+// Chain a group's subpaths end-to-nearest-end (reversing where that's closer) so
+// the patrol's glides between them stay short. Shared with the 1-stroke glyphs,
+// whose multi-subpath letters want exactly the same treatment.
+function chainPolys(g) {
+  const restList = [...g];
+  const outPolys = [restList.shift()];
+  while (restList.length) {
+    const tail = outPolys[outPolys.length - 1];
+    const end = tail[tail.length - 1];
+    let bi = 0, brev = false, bd = Infinity;
+    restList.forEach((p, i) => {
+      const d0 = (p[0].x - end.x) ** 2 + (p[0].y - end.y) ** 2;
+      const d1 = (p[p.length - 1].x - end.x) ** 2 + (p[p.length - 1].y - end.y) ** 2;
+      if (d0 < bd) { bd = d0; bi = i; brev = false; }
+      if (d1 < bd) { bd = d1; bi = i; brev = true; }
+    });
+    const nxt = restList.splice(bi, 1)[0];
+    outPolys.push(brev ? [...nxt].reverse() : nxt);
+  }
+  return outPolys.flat();
+}
+// Does this tour end where it started? A closed tour (a glyph's O, a die pip, a
+// free star, the ringed planet's disc) has no wrap discontinuity, so its crew
+// should LOOP — round and round, continuous heading, no 180-degree turnaround at
+// the ends. Only OPEN strokes need the ping-pong that avoids a wrap jump.
+// Coverage is unaffected either way: the two cycles differ in length (L-1 vs
+// 2(L-1)) but a mouse still advances at `ppms` tour-points per ms, so the ink
+// laid per second — and the legibility formula built on it — is identical.
+// The threshold is relative to the tour's own mean sample spacing, since word
+// tours are resampled several times finer than scenery ones.
+function tourIsClosed(tour) {
+  const L = tour.length;
+  if (L < 4) return false;
+  let sum = 0;
+  for (let i = 1; i < L; i++) sum += Math.hypot(tour[i].x - tour[i - 1].x, tour[i].y - tour[i - 1].y);
+  const step = sum / (L - 1);
+  if (!(step > 0)) return false;
+  return Math.hypot(tour[0].x - tour[L - 1].x, tour[0].y - tour[L - 1].y) <= step * 0.5;
 }
 function star4(x, cx, cy, r) {
   x.moveTo(cx, cy - r); x.quadraticCurveTo(cx, cy, cx + r, cy);
   x.quadraticCurveTo(cx, cy, cx, cy + r); x.quadraticCurveTo(cx, cy, cx - r, cy);
   x.quadraticCurveTo(cx, cy, cx, cy - r);
+}
+
+// ---------------------------------------------------------------------------
+// 1-STROKE ALPHABET — the word source, settled in the Reveal Lab.
+// A single-stroke ("engraver's") font for exactly the letters the scenes need.
+// Each glyph is ONE continuous pen path in a box `w` wide by 100 tall (y=0 cap
+// height, y=100 baseline), authored through the same tracer() API the scenery
+// uses — so a letter arrives as a smooth polyline with no lateral snaking, and
+// a mouse walking it is literally writing the letter.
+//
+// Why this and not the raster sampler it replaced: threading a nearest-
+// neighbour tour through a FILLED glyph snakes across the stroke, because a
+// 190px letter is ~6 samples thick — the nearest unused point is a lateral
+// neighbour about as often as a longitudinal one. Measured in the lab at 39.5
+// degrees of turn per step (1025 deg/sec) against the scenery's 77 deg/sec.
+// The 1-stroke source lands at 4.6 deg/step (85 deg/sec) — the word stops being
+// the odd one out — and reads as clean lettering rather than scratchy hatching.
+//
+// Retracing is deliberate and normal for this kind of font: T doubles back
+// along half its bar to reach the stem, E re-crosses its middle arm, X passes
+// through its own centre three times. The patrol makes retraces free — the
+// mouse was going to come back this way regardless. O is authored closed, so
+// tourIsClosed() picks it up and its crew circles instead of ping-ponging.
+const GLYPHS = {
+  'T': { w: 62, draw(x) { x.moveTo(0, 0); x.lineTo(62, 0); x.lineTo(31, 0); x.lineTo(31, 100); } },
+  'O': { w: 68, draw(x) { x.moveTo(68, 50); x.ellipse(34, 50, 34, 50, 0, 0, 6.283); } },
+  'H': { w: 64, draw(x) { x.moveTo(0, 0); x.lineTo(0, 100); x.lineTo(0, 50);
+                          x.lineTo(64, 50); x.lineTo(64, 0); x.lineTo(64, 100); } },
+  'E': { w: 58, draw(x) { x.moveTo(58, 0); x.lineTo(0, 0); x.lineTo(0, 50); x.lineTo(46, 50);
+                          x.lineTo(0, 50); x.lineTo(0, 100); x.lineTo(58, 100); } },
+  'M': { w: 76, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(38, 58);
+                          x.lineTo(76, 0); x.lineTo(76, 100); } },
+  'N': { w: 66, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(66, 100); x.lineTo(66, 0); } },
+  'S': { w: 60, draw(x) { x.moveTo(56, 16); x.bezierCurveTo(46, 0, 8, 0, 6, 24);
+                          x.bezierCurveTo(4, 45, 52, 47, 54, 70);
+                          x.bezierCurveTo(56, 96, 14, 100, 2, 82); } },
+  'I': { w: 20, draw(x) { x.moveTo(10, 0); x.lineTo(10, 100); } },
+  'X': { w: 64, draw(x) { x.moveTo(0, 0); x.lineTo(32, 50); x.lineTo(64, 0); x.lineTo(32, 50);
+                          x.lineTo(0, 100); x.lineTo(32, 50); x.lineTo(64, 100); } },
+  'D': { w: 66, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0);
+                          x.bezierCurveTo(54, 0, 70, 24, 66, 50);
+                          x.bezierCurveTo(62, 76, 44, 100, 0, 100); } },
+  ' ': { w: 34, draw() {} },
+};
+// Wider than a text font's tracking would be: these are single hairline strokes
+// that the trail then inks to roughly a letter's stroke width, so adjacent
+// glyphs close up by that much again once they're drawn.
+const GLYPH_GAP = 17;
+// Arial Black's cap height at the 190px reference size, so a 1-stroke word lands
+// at the same optical size the raster sampler used to produce.
+const REF_CAP_H = 137;
+
+function sampleStrokeWord(word) {
+  const letters = [];
+  let pen = 0;
+  for (const ch of word) {
+    const g = GLYPHS[ch];
+    if (!g) {
+      // Can only happen if someone edits the scene's text; see assertWordGlyphs,
+      // which catches it at boot. Blank-but-loud beats blank-and-silent.
+      console.error(`[wall] no 1-stroke glyph for ${JSON.stringify(ch)} — rendering blank`);
+      pen += GLYPHS[' '].w + GLYPH_GAP;
+      continue;
+    }
+    const tr = tracer();
+    tr.translate(pen, 0);
+    g.draw(tr);
+    const polys = tr.polys.map(p => resamplePoly(p, 4)).filter(p => p.length > 1);
+    if (polys.length) letters.push(chainPolys(polys));
+    pen += g.w + GLYPH_GAP;
+  }
+  // Normalize into the 190px reference space: scale to REF_CAP_H tall, then
+  // shift so the ink spans [0,w] x [0,h] (loadWallScene centres on w/2, h/2).
+  const all = letters.flat();
+  if (!all.length) return { letters, w: 1, h: 1 };
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of all) {
+    if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x;
+    if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y;
+  }
+  const k = REF_CAP_H / Math.max(1, y1 - y0);
+  for (const p of all) { p.x = (p.x - x0) * k; p.y = (p.y - y0) * k; }
+  return { letters, w: (x1 - x0) * k, h: (y1 - y0) * k };
 }
 
 // TO THE MOON — the committed scene (see hex-clicker-design.md)
@@ -2157,6 +2230,18 @@ const MOON_SCENE = {
   ],
 };
 
+// The scene's word is a hardcoded constant, and loadWallScene() only runs at the
+// night transition — so an unknown letter would surface mid-session, as a silent
+// blank in the middle of the word the room exists to be read. Check it at BOOT
+// instead: this can only ever fire for a developer editing MOON_SCENE.lines,
+// and it fires before anyone is playing. Growing the word means growing GLYPHS.
+(function assertWordGlyphs() {
+  const missing = [...new Set(MOON_SCENE.lines.flatMap(ln => [...ln.text]))]
+    .filter(ch => !GLYPHS[ch]);
+  if (missing.length)
+    throw new Error(`[wall] MOON_SCENE needs 1-stroke glyphs that don't exist: ${missing.join(' ')}`);
+})();
+
 const wallCv = $("#wall"), wctx = wallCv.getContext('2d');
 let wW = 0, wH = 0;
 // Scene->screen mapping is constant between resizes, so it's computed here
@@ -2179,14 +2264,15 @@ let WALL_CREWS = [], WALL_WORD_LEN = 0, wallCast = [];
 function loadWallScene() {
   WALL_CREWS = []; WALL_WORD_LEN = 0;
   for (const ln of MOON_SCENE.lines) {
-    const s = sampleLine(ln.text);
+    const s = sampleStrokeWord(ln.text);
     const scale = ln.size / 190;
     for (const letterTour of s.letters) {
       const tour = letterTour.map(p => ({
         x: ln.cx + (p.x - s.w / 2) * scale,
         y: ln.cy + (p.y - s.h / 2) * scale,
       }));
-      WALL_CREWS.push({ color: MOUSE_COLORS.yellow, tour, len: tour.length, kind: 'word' });
+      WALL_CREWS.push({ color: MOUSE_COLORS.yellow, tour, len: tour.length,
+                       kind: 'word', closed: tourIsClosed(tour) });
       WALL_WORD_LEN += tour.length;
     }
   }
@@ -2194,7 +2280,8 @@ function loadWallScene() {
     const tr = tracer(); e.draw(tr);
     const sampled = tr.polys.map(p => resamplePoly(p, 6)).filter(p => p.length > 1);
     for (const compTour of components(sampled)) {
-      WALL_CREWS.push({ color: MOUSE_COLORS[e.color], tour: compTour, len: compTour.length, kind: 'scenery' });
+      WALL_CREWS.push({ color: MOUSE_COLORS[e.color], tour: compTour, len: compTour.length,
+                       kind: 'scenery', closed: tourIsClosed(compTour) });
     }
   }
   rebuildWallCast();
@@ -2254,9 +2341,11 @@ function wallPosAt(m, t, out) {
     sx = p0.x; sy = p0.y;
   } else {
     const ppms = crew.kind === 'word' ? WORD_PPMS_FRAC * WALL_WORD_LEN : SCENE_PPMS;
-    const cyc = 2 * (L - 1);
+    // Closed tours loop (tour[L-1] IS tour[0], so the wrap is continuous);
+    // open ones ping-pong back along themselves to avoid a wrap jump.
+    const cyc = crew.closed ? L - 1 : 2 * (L - 1);
     let f = ((t * ppms + m.phase * cyc) % cyc + cyc) % cyc;
-    if (f > L - 1) f = cyc - f;
+    if (!crew.closed && f > L - 1) f = cyc - f;
     const idx = Math.min(L - 2, Math.floor(f)), frac = f - idx;
     const a = crew.tour[idx], b = crew.tour[idx + 1];
     sx = a.x + (b.x - a.x) * frac;
@@ -2272,9 +2361,16 @@ function wallPosAt(m, t, out) {
 // space, point for point, so the two can't visually drift apart. `r` plays
 // the same role it did in the old shape (roughly the body's vertical half-
 // size), so existing call sites don't need retuning.
-function drawWallMouse(x, y, color, r) {
+// The art faces +x at rest, so `angle` (radians, canvas convention) is the
+// heading to rotate it toward; 0 keeps the old unrotated look. Rotating in place
+// via translate/rotate rather than baking it into P() keeps the body/tail/ear
+// geometry below character-for-character identical to mouseSVG's.
+function drawWallMouse(x, y, color, r, angle) {
   const s = r / 10, cx = 30.5, cy = 14;
-  const P = (px, py) => [x + (px - cx) * s, y + (py - cy) * s];
+  wctx.save();
+  wctx.translate(x, y);
+  wctx.rotate(angle || 0);
+  const P = (px, py) => [(px - cx) * s, (py - cy) * s];
   const seg = (c1x, c1y, c2x, c2y, ex, ey) => {
     const [a, b] = P(c1x, c1y), [c, d] = P(c2x, c2y), [e, f] = P(ex, ey);
     wctx.bezierCurveTo(a, b, c, d, e, f);
@@ -2308,6 +2404,7 @@ function drawWallMouse(x, y, color, r) {
   const [ix, iy] = P(42, 12);
   wctx.beginPath(); wctx.arc(ix, iy, 1.8 * s, 0, 6.283);
   wctx.fillStyle = '#0a0b10'; wctx.fill();
+  wctx.restore();
 }
 
 // Reused scratch points for the per-frame position math (see wallPosAt).
@@ -2318,9 +2415,13 @@ function drawWall(now) {
   const N = wallMiceCount();
   if (!N || !WALL_CREWS.length) return;
   const trailN = mods.trail, maxSeg = 16;
-  // Invariant across every mouse and segment — set once per frame, not per
-  // segment (that was ~189k redundant assignments/sec at full state).
-  wctx.lineWidth = 1.8; wctx.lineCap = 'round';
+  // lineCap is invariant across every mouse and segment — set once per frame,
+  // not per segment (that was ~189k redundant assignments/sec at full state).
+  // lineWidth can't be hoisted the same way any more: the 1-stroke word tours
+  // are centrelines that make ONE pass where the old raster tours made many, so
+  // the word's ink has to be widened to fill the same letter silhouette. Still
+  // one assignment per mouse, not per segment.
+  wctx.lineCap = 'round';
   for (let i = 0; i < N; i++) {
     const m = wallCast[i];
     // head position: computed once and reused for both the trail's first
@@ -2328,6 +2429,7 @@ function drawWall(now) {
     wallPosAt(m, now, wallHead);
     if (trailN > 0) {
       wctx.strokeStyle = m.color; // invariant across this mouse's segments
+      wctx.lineWidth = WALL_CREWS[m.crew].kind === 'word' ? WORD_INK_W : 1.8;
       let px = wallHead.x, py = wallHead.y;
       for (let j = 1; j <= trailN; j++) {
         const p = wallPosAt(m, now - j * WALL.trailDt, wallScratch);
@@ -2340,7 +2442,21 @@ function drawWall(now) {
       }
       wctx.globalAlpha = 1;
     }
-    drawWallMouse(wallHead.x, wallHead.y, m.color, 3.1);
+    // Facing: sample a step back and point along the displacement. Smoothed as a
+    // unit VECTOR (not the raw angle) so it eases through the ping-pong
+    // turnarounds instead of snapping, and wraps clean through +/-pi. Held at
+    // the last heading when displacement is ~0 (a single-point crew), rather
+    // than being pulled to atan2(0,0)'s spurious 0 degrees.
+    const back = wallPosAt(m, now - HEADING_DT, wallScratch);
+    const ddx = wallHead.x - back.x, ddy = wallHead.y - back.y;
+    const dist = Math.hypot(ddx, ddy);
+    if (dist > 0.02) {
+      const ux = ddx / dist, uy = ddy / dist;
+      if (m.dirX === undefined) { m.dirX = ux; m.dirY = uy; }
+      else { m.dirX += (ux - m.dirX) * HEADING_EASE; m.dirY += (uy - m.dirY) * HEADING_EASE; }
+    }
+    drawWallMouse(wallHead.x, wallHead.y, m.color, 3.1,
+                  m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX));
   }
   // NOTE: legibility detection lived here — cov = (word mice) x (trail ms) x
   // WORD_PPMS_FRAC, crossing 0.85 — and existed only to print the proctor

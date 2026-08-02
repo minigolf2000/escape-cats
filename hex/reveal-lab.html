@@ -384,6 +384,18 @@ function chainPolys(g) {
   }
   return outPolys.flat();
 }
+// Does this tour end where it started? Decides loop vs ping-pong in posAt().
+// Threshold is relative to the tour's own mean sample spacing, since word tours
+// are resampled several times finer than scenery ones.
+function tourIsClosed(tour) {
+  const L = tour.length;
+  if (L < 4) return false;
+  let sum = 0;
+  for (let i = 1; i < L; i++) sum += Math.hypot(tour[i].x - tour[i - 1].x, tour[i].y - tour[i - 1].y);
+  const step = sum / (L - 1);
+  if (!(step > 0)) return false;
+  return Math.hypot(tour[0].x - tour[L - 1].x, tour[0].y - tour[L - 1].y) <= step * 0.5;
+}
 
 function star4(x, cx, cy, r) {
   x.moveTo(cx, cy - r); x.quadraticCurveTo(cx, cy, cx + r, cy);
@@ -557,7 +569,13 @@ const SCENE_DEFS = {
 };
 
 const PALETTE = { yellow: '#ffd44d', blue: '#5fb0ff', pink: '#ff6fa5', green: '#5fe0a0', purple: '#b48cff' };
-const WORD_PPMS_FRAC = 2.2e-5; // fraction of the whole word's ink per ms (legibility formula input)
+// Kept in step with the live game (hex/index.html), which raised this 2.2e-5 ->
+// 3.3e-5 when it settled on the 1-stroke word source — a centreline tour draws a
+// partial LETTER where the filled tour drew a partial patch, so it needs more
+// coverage to be unambiguous. The lab is only a predictor of the game if the two
+// agree; the `filled`/`skeleton` sources now read faster here than they did, but
+// they're kept as comparison references, not as candidates.
+const WORD_PPMS_FRAC = 3.3e-5; // fraction of the whole word's ink per ms (legibility formula input)
 const SCENE_PPMS = 0.004;      // scenery patrol speed, tour-points per ms
 const HEADING_DT = 16;         // ms back-sample for facing direction (~1 frame at 60fps)
 const HEADING_EASE = 0.25;     // per-frame lerp toward the new heading vector
@@ -578,7 +596,8 @@ function loadScene(key) {
         x: ln.cx + (p.x - s.w / 2) * scale,
         y: ln.cy + (p.y - s.h / 2) * scale,
       }));
-      CREWS.push({ color: PALETTE.yellow, tour, len: tour.length, kind: 'word' });
+      CREWS.push({ color: PALETTE.yellow, tour, len: tour.length,
+                   kind: 'word', closed: tourIsClosed(tour) });
       WORD_LEN += tour.length;
     }
   }
@@ -587,7 +606,8 @@ function loadScene(key) {
     const tr = tracer(); e.draw(tr);
     const sampled = tr.polys.map(p => resamplePoly(p, 6)).filter(p => p.length > 1);
     for (const compTour of components(sampled)) {
-      CREWS.push({ color: PALETTE[e.color], tour: compTour, len: compTour.length, kind: 'scenery' });
+      CREWS.push({ color: PALETTE[e.color], tour: compTour, len: compTour.length,
+                   kind: 'scenery', closed: tourIsClosed(compTour) });
     }
   }
   rebuildCast(); updateStat();
@@ -647,15 +667,21 @@ function rebuildCast() {
     members.forEach((m, k) => { m.phase = k / members.length; });
 }
 
-// ping-pong along the crew's tour: covers open strokes with NO wrap-around jump
+// Patrol the crew's tour. CLOSED tours (a glyph's O, a die pip, a free star, the
+// ringed planet's disc) loop: tour[L-1] IS tour[0], so the wrap is continuous and
+// the mouse just circles, with an unbroken heading and no 180-degree turnaround.
+// OPEN strokes ping-pong, which is what covers them with no wrap-around jump.
+// Coverage is identical either way — the cycles differ in length (L-1 vs 2(L-1))
+// but a mouse still advances at `ppms` tour-points per ms, so the ink laid per
+// second, and the legibility formula built on it, are unchanged.
 function posAt(m, t) {
   const crew = CREWS[m.crew];
   const L = crew.len;
   if (L < 2) { const p = sceneMap(crew.tour[0] || { x: 195, y: 310 }); return p; }
   const ppms = crew.kind === 'word' ? WORD_PPMS_FRAC * WORD_LEN : SCENE_PPMS;
-  const cyc = 2 * (L - 1);
+  const cyc = crew.closed ? L - 1 : 2 * (L - 1);
   let f = ((t * ppms + m.phase * cyc) % cyc + cyc) % cyc;
-  if (f > L - 1) f = cyc - f; // the return leg
+  if (!crew.closed && f > L - 1) f = cyc - f; // the return leg
   const idx = Math.min(L - 2, Math.floor(f)), frac = f - idx;
   const a = sceneMap(crew.tour[idx]), b = sceneMap(crew.tour[idx + 1]);
   const w = wander(m.i, t, S.noise * 90 * (crew.kind === 'word' ? 0.5 : 0.3));
@@ -814,10 +840,13 @@ function updateStat() {
   for (let i = 0; i < S.N; i++) if (CREWS[cast[i].crew].kind === 'word') n++;
   const cov = n * trailMs * WORD_PPMS_FRAC;
   covEl.textContent = cov.toFixed(2) + '×';
+  // Bands recalibrated against the settled 1-stroke source by reading the live
+  // wall at each mouse count, not against `filled`'s old 0.85: a centreline word
+  // is still dropping whole letter strokes at 1.2x and only resolves near 1.7x.
   let label, color;
-  if (cov < 0.5) { label = 'hidden'; color = '#5b6472'; }
-  else if (cov < 0.85) { label = 'forming'; color = '#c9803a'; }
-  else if (cov < 2.2) { label = 'legible'; color = '#3fa46b'; }
+  if (cov < 1.0) { label = 'hidden'; color = '#5b6472'; }
+  else if (cov < 1.6) { label = 'forming'; color = '#c9803a'; }
+  else if (cov < 3.0) { label = 'legible'; color = '#3fa46b'; }
   else { label = 'saturated'; color = '#3d63c9'; }
   tagEl.textContent = label;
   tagEl.style.background = color; tagEl.style.color = '#fff';

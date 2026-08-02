@@ -49,6 +49,13 @@
     <label>trail</label><input type="range" id="sT" min="0" max="60" value="35"><output id="oT">35</output>
     <label>noise</label><input type="range" id="sW" min="0" max="10" value="10"><output id="oW">10</output>
   </div>
+  <div class="mini" id="font">
+    <button class="tbtn on" data-v="geometric">geometric</button>
+    <button class="tbtn" data-v="wide">wide</button>
+    <button class="tbtn" data-v="condensed">cond</button>
+    <button class="tbtn" data-v="techno">techno</button>
+    <button class="tbtn" data-v="retro">retro</button>
+  </div>
   <div class="row">
     <div class="stat" style="flex:1">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
     <button class="tbtn" id="reseed" style="flex:0 0 90px">reseed</button>
@@ -243,18 +250,79 @@ function star4(x, cx, cy, r) {
 // along half its bar to reach the stem, E re-crosses its middle arm. The
 // ping-pong patrol makes retraces free — the mouse was going to come back
 // this way regardless.
-const GLYPHS = {
-  'T': { w: 62, draw(x) { x.moveTo(0, 0); x.lineTo(62, 0); x.lineTo(31, 0); x.lineTo(31, 100); } },
-  'O': { w: 68, draw(x) { x.moveTo(68, 50); x.ellipse(34, 50, 34, 50, 0, 0, 6.283); } },
-  'H': { w: 64, draw(x) { x.moveTo(0, 0); x.lineTo(0, 100); x.lineTo(0, 50);
-                          x.lineTo(64, 50); x.lineTo(64, 0); x.lineTo(64, 100); } },
-  'E': { w: 58, draw(x) { x.moveTo(58, 0); x.lineTo(0, 0); x.lineTo(0, 50); x.lineTo(46, 50);
-                          x.lineTo(0, 50); x.lineTo(0, 100); x.lineTo(58, 100); } },
-  'M': { w: 76, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(38, 58);
-                          x.lineTo(76, 0); x.lineTo(76, 100); } },
-  'N': { w: 66, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(66, 100); x.lineTo(66, 0); } },
-  ' ': { w: 34, draw() {} },
+//
+// Five cuts of the same skeleton. Width is the real lever: it sets ink per
+// letter, and ink per letter sets how long a crew takes to draw its letter — so
+// picking a face here is also picking a reveal speed.
+const FONTS = {
+  geometric: {
+    'T': { w: 62, draw(x) { x.moveTo(0, 0); x.lineTo(62, 0); x.lineTo(31, 0); x.lineTo(31, 100); } },
+    'O': { w: 68, draw(x) { x.moveTo(68, 50); x.ellipse(34, 50, 34, 50, 0, 0, 6.283); } },
+    'H': { w: 64, draw(x) { x.moveTo(0, 0); x.lineTo(0, 100); x.lineTo(0, 50);
+                            x.lineTo(64, 50); x.lineTo(64, 0); x.lineTo(64, 100); } },
+    'E': { w: 58, draw(x) { x.moveTo(58, 0); x.lineTo(0, 0); x.lineTo(0, 50); x.lineTo(46, 50);
+                            x.lineTo(0, 50); x.lineTo(0, 100); x.lineTo(58, 100); } },
+    'M': { w: 76, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(38, 58);
+                            x.lineTo(76, 0); x.lineTo(76, 100); } },
+    'N': { w: 66, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(66, 100); x.lineTo(66, 0); } },
+    ' ': { w: 34, draw() {} },
+  },
+  wide: {
+    'T': { w: 78, draw(x) { x.moveTo(0, 0); x.lineTo(78, 0); x.lineTo(39, 0); x.lineTo(39, 100); } },
+    'O': { w: 88, draw(x) { x.moveTo(88, 50); x.ellipse(44, 50, 44, 50, 0, 0, 6.283); } },
+    'H': { w: 80, draw(x) { x.moveTo(0, 0); x.lineTo(0, 100); x.lineTo(0, 50);
+                            x.lineTo(80, 50); x.lineTo(80, 0); x.lineTo(80, 100); } },
+    'E': { w: 72, draw(x) { x.moveTo(72, 0); x.lineTo(0, 0); x.lineTo(0, 50); x.lineTo(58, 50);
+                            x.lineTo(0, 50); x.lineTo(0, 100); x.lineTo(72, 100); } },
+    'M': { w: 96, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(48, 56);
+                            x.lineTo(96, 0); x.lineTo(96, 100); } },
+    'N': { w: 82, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(82, 100); x.lineTo(82, 0); } },
+    ' ': { w: 40, draw() {} },
+  },
+  condensed: {
+    'T': { w: 46, draw(x) { x.moveTo(0, 0); x.lineTo(46, 0); x.lineTo(23, 0); x.lineTo(23, 100); } },
+    'O': { w: 48, draw(x) { x.moveTo(48, 50); x.ellipse(24, 50, 24, 50, 0, 0, 6.283); } },
+    'H': { w: 46, draw(x) { x.moveTo(0, 0); x.lineTo(0, 100); x.lineTo(0, 50);
+                            x.lineTo(46, 50); x.lineTo(46, 0); x.lineTo(46, 100); } },
+    'E': { w: 42, draw(x) { x.moveTo(42, 0); x.lineTo(0, 0); x.lineTo(0, 50); x.lineTo(34, 50);
+                            x.lineTo(0, 50); x.lineTo(0, 100); x.lineTo(42, 100); } },
+    'M': { w: 56, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(28, 60);
+                            x.lineTo(56, 0); x.lineTo(56, 100); } },
+    'N': { w: 48, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(48, 100); x.lineTo(48, 0); } },
+    ' ': { w: 26, draw() {} },
+  },
+  // Squared counters, shallow M waist.
+  techno: {
+    'T': { w: 66, draw(x) { x.moveTo(0, 0); x.lineTo(66, 0); x.lineTo(33, 0); x.lineTo(33, 100); } },
+    'O': { w: 70, draw(x) { const r = 22;
+            x.moveTo(r, 0); x.lineTo(70 - r, 0); x.quadraticCurveTo(70, 0, 70, r);
+            x.lineTo(70, 100 - r); x.quadraticCurveTo(70, 100, 70 - r, 100);
+            x.lineTo(r, 100); x.quadraticCurveTo(0, 100, 0, 100 - r);
+            x.lineTo(0, r); x.quadraticCurveTo(0, 0, r, 0); } },
+    'H': { w: 68, draw(x) { x.moveTo(0, 0); x.lineTo(0, 100); x.lineTo(0, 50);
+                            x.lineTo(68, 50); x.lineTo(68, 0); x.lineTo(68, 100); } },
+    'E': { w: 62, draw(x) { x.moveTo(62, 0); x.lineTo(0, 0); x.lineTo(0, 50); x.lineTo(50, 50);
+                            x.lineTo(0, 50); x.lineTo(0, 100); x.lineTo(62, 100); } },
+    'M': { w: 84, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(42, 38);
+                            x.lineTo(84, 0); x.lineTo(84, 100); } },
+    'N': { w: 70, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(70, 100); x.lineTo(70, 0); } },
+    ' ': { w: 34, draw() {} },
+  },
+  // Deep M waist, high E arm.
+  retro: {
+    'T': { w: 70, draw(x) { x.moveTo(0, 0); x.lineTo(70, 0); x.lineTo(35, 0); x.lineTo(35, 100); } },
+    'O': { w: 84, draw(x) { x.moveTo(84, 50); x.ellipse(42, 50, 42, 50, 0, 0, 6.283); } },
+    'H': { w: 74, draw(x) { x.moveTo(0, 0); x.lineTo(0, 100); x.lineTo(0, 38);
+                            x.lineTo(74, 38); x.lineTo(74, 0); x.lineTo(74, 100); } },
+    'E': { w: 66, draw(x) { x.moveTo(66, 0); x.lineTo(0, 0); x.lineTo(0, 38); x.lineTo(52, 38);
+                            x.lineTo(0, 38); x.lineTo(0, 100); x.lineTo(66, 100); } },
+    'M': { w: 92, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(46, 82);
+                            x.lineTo(92, 0); x.lineTo(92, 100); } },
+    'N': { w: 78, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(78, 100); x.lineTo(78, 0); } },
+    ' ': { w: 38, draw() {} },
+  },
 };
+let GLYPHS = FONTS.geometric;
 // Wider than a text font's tracking would be: these are single hairline strokes
 // that the trail then inks to roughly a letter's stroke width, so adjacent glyphs
 // close up by that much again once they're drawn.
@@ -289,54 +357,61 @@ function sampleStrokeWord(word) {
   return { letters, w: (x1 - x0) * k, h: (y1 - y0) * k };
 }
 
-// ---------- the moon scene, under four word layouts ----------
-// One set of scenery, shared by every layout, so what's being compared is ONLY
-// where the golden letters sit.
+// ---------- the moon scene ----------
+// Every element is a LONG structure carrying a compact payload, so no crew
+// resolves the instant a mouse laps it. Space is mostly empty and its bodies are
+// localized, which fights the slow-reveal the game wants; drawing the path
+// rather than only the body is the way out — an orbit, a comet's tail and a
+// constellation's figure all genuinely cross the frame.
+
+// The Big Dipper in a unit box, radii tracking real magnitudes so it reads as
+// the asterism rather than as seven identical dots.
+const DIPPER = {
+  dubhe:  [0.00, 0.24, 6.5], merak: [0.07, 0.56, 5.5], phecda: [0.32, 0.60, 5],
+  megrez: [0.31, 0.37, 4],   alioth: [0.55, 0.30, 6],  mizar:  [0.77, 0.21, 5.5],
+  alkaid: [1.00, 0.00, 6.5],
+};
+function bigDipper(x, ox, oy, w, h, sc) {
+  const P = k => [ox + DIPPER[k][0] * w, oy + DIPPER[k][1] * h];
+  for (const run of [['dubhe', 'merak', 'phecda', 'megrez', 'dubhe'],
+                     ['megrez', 'alioth', 'mizar', 'alkaid']]) {
+    run.forEach((k, i) => { const [px, py] = P(k); i ? x.lineTo(px, py) : x.moveTo(px, py); });
+  }
+  for (const k of Object.keys(DIPPER)) { const [px, py] = P(k); star4(x, px, py, DIPPER[k][2] * sc); }
+}
+// Tail strands all leave the nucleus together and bow apart downstream; anchored
+// far apart at both ends they'd just be parallel rails, which reads as track.
+function cometSweep(x, hx, hy, r, dx, dy, bows) {
+  x.moveTo(hx + r, hy); x.arc(hx, hy, r, 0, 6.283);
+  const L = Math.hypot(dx, dy), px = -dy / L, py = dx / L;
+  for (const b of bows) {
+    x.moveTo(hx + dx * 0.06, hy + dy * 0.06);
+    x.bezierCurveTo(hx + dx * 0.38 + px * b * 0.18, hy + dy * 0.38 + py * b * 0.18,
+                    hx + dx * 0.72 + px * b * 0.62, hy + dy * 0.72 + py * b * 0.62,
+                    hx + dx + px * b,               hy + dy + py * b);
+  }
+}
+// Where the giant sits on its orbit. Body and path are DIFFERENT colors on
+// purpose: same-color ellipses of similar weight read as one tangle instead of
+// as a planet standing on a path.
+const ORB = { cx: 196, cy: 458, rx: 186, ry: 76, rot: -0.08, at: 1.9 };
+const GIANT = (() => {
+  const c = Math.cos(ORB.rot), s = Math.sin(ORB.rot);
+  const ex = Math.cos(ORB.at) * ORB.rx, ey = Math.sin(ORB.at) * ORB.ry;
+  return { x: ORB.cx + ex * c - ey * s, y: ORB.cy + ex * s + ey * c };
+})();
+
 const MOON_ELEMENTS = [
+  { color: 'pink', draw(x) { cometSweep(x, 348, 88, 8, -300, 452, [-46, -6, 40]); } },
   { color: 'blue', draw(x) {
-    // rocket's flight path arcing up to the moon
-    x.moveTo(84, 396); x.bezierCurveTo(210, 350, 330, 300, 312, 152);
-    // BIG spanning orbit swoosh: bottom-left, over the top, down to the right
-    x.moveTo(22, 500); x.bezierCurveTo(70, 150, 300, 66, 374, 176);
-    // ringed planet
-    x.moveTo(326, 552); x.arc(310, 552, 15, 0, 6.283);
-    x.moveTo(340, 552); x.ellipse(310, 552, 30, 8, -0.32, 0, 6.283);
+    x.moveTo(ORB.cx + ORB.rx * Math.cos(ORB.rot), ORB.cy + ORB.rx * Math.sin(ORB.rot));
+    x.ellipse(ORB.cx, ORB.cy, ORB.rx, ORB.ry, ORB.rot, 0, 6.283);
   } },
   { color: 'green', draw(x) {
-    x.moveTo(94, 96); x.ellipse(70, 96, 24, 8, 0, 0, 6.283);
-    x.moveTo(82, 90); x.arc(70, 90, 12, 3.14, 0);
-    x.moveTo(60, 108); x.lineTo(56, 118); x.moveTo(70, 110); x.lineTo(70, 120);
-    x.moveTo(80, 108); x.lineTo(84, 118);
-    // launch smoke rolled out to span the WHOLE bottom of the frame
-    x.moveTo(20, 606); x.arc(36, 606, 16, 3.14, 0); x.arc(64, 598, 20, 3.14, 0);
-    x.arc(92, 606, 13, 3.14, 0); x.arc(120, 600, 17, 3.14, 0); x.arc(150, 606, 12, 3.14, 0);
-    x.arc(180, 602, 16, 3.14, 0); x.arc(210, 608, 13, 3.14, 0); x.arc(240, 600, 18, 3.14, 0);
-    x.arc(272, 606, 12, 3.14, 0); x.arc(300, 602, 16, 3.14, 0); x.arc(332, 608, 13, 3.14, 0);
-    x.arc(360, 602, 15, 3.14, 0);
+    x.moveTo(GIANT.x + 46, GIANT.y); x.arc(GIANT.x, GIANT.y, 46, 0, 6.283);
+    x.moveTo(GIANT.x + 108, GIANT.y); x.ellipse(GIANT.x, GIANT.y, 108, 28, -0.3, 0, 6.283);
   } },
-  { color: 'purple', draw(x) {
-    x.moveTo(300, 62); x.quadraticCurveTo(374, 88, 350, 140);
-    x.moveTo(300, 62); x.quadraticCurveTo(330, 96, 350, 140);
-    // constellation line spanning the top width
-    x.moveTo(26, 158); x.lineTo(90, 104); x.lineTo(150, 152); x.lineTo(212, 100); x.lineTo(272, 150);
-    // a few free stars scattered wide (the mid-left one sits above the orbit
-    // layout's lowest letter, not beside it)
-    star4(x, 36, 244, 6); star4(x, 356, 250, 5); star4(x, 66, 470, 5); star4(x, 352, 430, 6);
-  } },
-  { color: 'pink', draw(x) {
-    x.save(); x.translate(110, 470); x.rotate(-0.6);
-    x.moveTo(-18, -30); x.quadraticCurveTo(-6, -66, 0, -70);
-    x.quadraticCurveTo(6, -66, 18, -30);
-    x.moveTo(-18, -30); x.lineTo(-18, 26); x.lineTo(18, 26); x.lineTo(18, -30);
-    x.moveTo(-18, 8); x.lineTo(-33, 34); x.lineTo(-18, 26);
-    x.moveTo(18, 8); x.lineTo(33, 34); x.lineTo(18, 26);
-    x.moveTo(11, -8); x.arc(0, -8, 11, 0, 6.283);
-    x.moveTo(-8, -16); x.lineTo(-6, -23); x.lineTo(-2, -18);
-    x.moveTo(2, -18); x.lineTo(6, -23); x.lineTo(8, -16);
-    x.moveTo(-7, 26); x.quadraticCurveTo(0, 46, 7, 26);
-    x.moveTo(-12, 26); x.quadraticCurveTo(0, 72, 12, 26);
-    x.restore();
-  } },
+  { color: 'purple', draw(x) { bigDipper(x, 30, 44, 262, 92, 1.05); } },
 ];
 
 // The locked-in layout: TO THE letterspaced across the frame, MOON huge beneath
@@ -600,6 +675,14 @@ slider('sW', 'oW', 'noise', true);
 document.getElementById('reseed').addEventListener('click', () => {
   S.seed = (S.seed * 1103515245 + 12345) >>> 0;
   rebuildCast();
+});
+// Switching face re-cuts every letter tour, so the whole scene reloads.
+document.getElementById('font').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button');
+  if (!b) return;
+  for (const el of ev.currentTarget.children) el.classList.toggle('on', el === b);
+  GLYPHS = FONTS[b.dataset.v];
+  loadScene();
 });
 
 // live word-legibility estimate (coverage ≈ 1 → the trails ink the word once)

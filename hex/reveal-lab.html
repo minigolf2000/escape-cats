@@ -59,8 +59,10 @@
 <canvas id="c"></canvas>
 <div id="panel">
   <div class="row seg" id="scene">
-    <button data-v="moon" class="on">to the moon</button>
-    <button data-v="dice">six sided</button>
+    <button data-v="stacked" class="on">stacked</button>
+    <button data-v="ascent">ascent</button>
+    <button data-v="orbit">orbit</button>
+    <button data-v="wide">wide</button>
   </div>
   <div class="segRow"><label>word</label>
     <div class="seg" id="wordSrc">
@@ -83,12 +85,14 @@
 </div>
 <script>
 'use strict';
-// ---------- Reveal Lab v4 — crews only, scenes only ----------
+// ---------- Reveal Lab v5 — one scene, competing word layouts ----------
 // The committed design: every GEOMETRICALLY CONTINUOUS shape is a crew — each word
-// letter, the rocket, each star, each die pip. Mice never leave their shape (ping-pong
-// patrol, so open strokes have no wrap-around jump either). Yellow crews spell the
-// word; the other four colors crew the elements of a line-art scene about the word.
-// Positions stay a pure function of (seed, index, simTime).
+// letter, the rocket, each star. Mice never leave their shape (ping-pong patrol, so
+// open strokes have no wrap-around jump either). Yellow crews spell the word; the
+// other four colors crew the elements of a line-art scene about the word.
+// With the 1-stroke source locked in the word reads fast, so the picker now trades
+// SCENES for LAYOUTS: the same moon scenery under four placements of the golden
+// letters. Positions stay a pure function of (seed, index, simTime).
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 let W = 0, H = 0;
@@ -100,7 +104,7 @@ function resize() {
 }
 addEventListener('resize', resize);
 
-const S = { scene: 'moon', N: 60, yellowPct: 30, trail: 35, noise: 0.10, seed: 7,
+const S = { scene: 'stacked', N: 60, yellowPct: 30, trail: 35, noise: 0.10, seed: 7,
             wordSrc: 'fill', turnPen: 0 };
 
 // Sample spacing for word tours, in the 190px-font reference space that all
@@ -168,7 +172,7 @@ function threadPoints(lp, lambda) {
 // Zhang-Suen thinning, in place on a 1-byte-per-pixel binary mask. Collapses a
 // filled glyph to a 1px centreline so the thread has only one way to go — the
 // automatic counterpart to the hand-authored 1-stroke glyphs. Branch points (the
-// junctions in H, E, X) still force the thread to double back, so this is
+// junctions in H and E) still force the thread to double back, so this is
 // smoother than `filled` but not as clean as `stroke`.
 function skeletonize(bin, w, h) {
   const at = (x, y) => (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) ? 0 : bin[y * w + x];
@@ -402,25 +406,17 @@ function star4(x, cx, cy, r) {
   x.quadraticCurveTo(cx, cy, cx, cy + r); x.quadraticCurveTo(cx, cy, cx - r, cy);
   x.quadraticCurveTo(cx, cy, cx, cy - r);
 }
-function hexPath(x, cx, cy, r, rot) {
-  for (let i = 0; i <= 6; i++) {
-    const a = (rot || 0) + i / 6 * Math.PI * 2;
-    i ? x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
-      : x.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-  }
-}
-
 // ---------- 1-stroke alphabet ----------
-// A single-stroke ("engraver's") font for exactly the letters the two scenes
-// need. Each glyph is ONE continuous pen path in a box `w` wide by 100 tall
+// A single-stroke ("engraver's") font for exactly the letters the moon scene
+// needs. Each glyph is ONE continuous pen path in a box `w` wide by 100 tall
 // (y=0 cap height, y=100 baseline), authored through the same tracer() API the
 // scenery uses — so a letter arrives as a smooth polyline with no lateral
 // snaking, and a mouse walking it is literally writing the letter.
 //
 // Retracing is deliberate and normal for this kind of font: T doubles back
-// along half its bar to reach the stem, E re-crosses its middle arm, X passes
-// through its own centre three times. The ping-pong patrol makes retraces free
-// — the mouse was going to come back this way regardless.
+// along half its bar to reach the stem, E re-crosses its middle arm. The
+// ping-pong patrol makes retraces free — the mouse was going to come back
+// this way regardless.
 const GLYPHS = {
   'T': { w: 62, draw(x) { x.moveTo(0, 0); x.lineTo(62, 0); x.lineTo(31, 0); x.lineTo(31, 100); } },
   'O': { w: 68, draw(x) { x.moveTo(68, 50); x.ellipse(34, 50, 34, 50, 0, 0, 6.283); } },
@@ -431,15 +427,6 @@ const GLYPHS = {
   'M': { w: 76, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(38, 58);
                           x.lineTo(76, 0); x.lineTo(76, 100); } },
   'N': { w: 66, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(66, 100); x.lineTo(66, 0); } },
-  'S': { w: 60, draw(x) { x.moveTo(56, 16); x.bezierCurveTo(46, 0, 8, 0, 6, 24);
-                          x.bezierCurveTo(4, 45, 52, 47, 54, 70);
-                          x.bezierCurveTo(56, 96, 14, 100, 2, 82); } },
-  'I': { w: 20, draw(x) { x.moveTo(10, 0); x.lineTo(10, 100); } },
-  'X': { w: 64, draw(x) { x.moveTo(0, 0); x.lineTo(32, 50); x.lineTo(64, 0); x.lineTo(32, 50);
-                          x.lineTo(0, 100); x.lineTo(32, 50); x.lineTo(64, 100); } },
-  'D': { w: 66, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0);
-                          x.bezierCurveTo(54, 0, 70, 24, 66, 50);
-                          x.bezierCurveTo(62, 76, 44, 100, 0, 100); } },
   ' ': { w: 34, draw() {} },
 };
 // Wider than a text font's tracking would be: these are single hairline strokes
@@ -476,95 +463,96 @@ function sampleStrokeWord(word) {
   return { letters, w: (x1 - x0) * k, h: (y1 - y0) * k };
 }
 
-// ---------- the two scenes ----------
+// ---------- the moon scene, under four word layouts ----------
+// One set of scenery, shared by every layout, so what's being compared is ONLY
+// where the golden letters sit.
+const MOON_ELEMENTS = [
+  { color: 'blue', draw(x) {
+    // rocket's flight path arcing up to the moon
+    x.moveTo(84, 396); x.bezierCurveTo(210, 350, 330, 300, 312, 152);
+    // BIG spanning orbit swoosh: bottom-left, over the top, down to the right
+    x.moveTo(22, 500); x.bezierCurveTo(70, 150, 300, 66, 374, 176);
+    // ringed planet
+    x.moveTo(326, 552); x.arc(310, 552, 15, 0, 6.283);
+    x.moveTo(340, 552); x.ellipse(310, 552, 30, 8, -0.32, 0, 6.283);
+  } },
+  { color: 'green', draw(x) {
+    x.moveTo(94, 96); x.ellipse(70, 96, 24, 8, 0, 0, 6.283);
+    x.moveTo(82, 90); x.arc(70, 90, 12, 3.14, 0);
+    x.moveTo(60, 108); x.lineTo(56, 118); x.moveTo(70, 110); x.lineTo(70, 120);
+    x.moveTo(80, 108); x.lineTo(84, 118);
+    // launch smoke rolled out to span the WHOLE bottom of the frame
+    x.moveTo(20, 606); x.arc(36, 606, 16, 3.14, 0); x.arc(64, 598, 20, 3.14, 0);
+    x.arc(92, 606, 13, 3.14, 0); x.arc(120, 600, 17, 3.14, 0); x.arc(150, 606, 12, 3.14, 0);
+    x.arc(180, 602, 16, 3.14, 0); x.arc(210, 608, 13, 3.14, 0); x.arc(240, 600, 18, 3.14, 0);
+    x.arc(272, 606, 12, 3.14, 0); x.arc(300, 602, 16, 3.14, 0); x.arc(332, 608, 13, 3.14, 0);
+    x.arc(360, 602, 15, 3.14, 0);
+  } },
+  { color: 'purple', draw(x) {
+    x.moveTo(300, 62); x.quadraticCurveTo(374, 88, 350, 140);
+    x.moveTo(300, 62); x.quadraticCurveTo(330, 96, 350, 140);
+    // constellation line spanning the top width
+    x.moveTo(26, 158); x.lineTo(90, 104); x.lineTo(150, 152); x.lineTo(212, 100); x.lineTo(272, 150);
+    // a few free stars scattered wide (the mid-left one sits above the orbit
+    // layout's lowest letter, not beside it)
+    star4(x, 36, 244, 6); star4(x, 356, 250, 5); star4(x, 66, 470, 5); star4(x, 352, 430, 6);
+  } },
+  { color: 'pink', draw(x) {
+    x.save(); x.translate(110, 470); x.rotate(-0.6);
+    x.moveTo(-18, -30); x.quadraticCurveTo(-6, -66, 0, -70);
+    x.quadraticCurveTo(6, -66, 18, -30);
+    x.moveTo(-18, -30); x.lineTo(-18, 26); x.lineTo(18, 26); x.lineTo(18, -30);
+    x.moveTo(-18, 8); x.lineTo(-33, 34); x.lineTo(-18, 26);
+    x.moveTo(18, 8); x.lineTo(33, 34); x.lineTo(18, 26);
+    x.moveTo(11, -8); x.arc(0, -8, 11, 0, 6.283);
+    x.moveTo(-8, -16); x.lineTo(-6, -23); x.lineTo(-2, -18);
+    x.moveTo(2, -18); x.lineTo(6, -23); x.lineTo(8, -16);
+    x.moveTo(-7, 26); x.quadraticCurveTo(0, 46, 7, 26);
+    x.moveTo(-12, 26); x.quadraticCurveTo(0, 72, 12, 26);
+    x.restore();
+  } },
+];
+
+// A line is either the classic {text, cx, cy, size} block, or {text, place}
+// where place(k, n) positions the k-th VISIBLE letter (spaces yield no tour)
+// of n at its own center/size/rotation. The orbit layout's chord and crown
+// were picked so the fanned end letters clear the free stars and the moon.
 const SCENE_DEFS = {
-  moon: {
+  stacked: { // the committed design: two centered lines
     lines: [{ text: 'TO THE', cx: 195, cy: 262, size: 40 }, { text: 'MOON', cx: 195, cy: 322, size: 48 }],
-    elements: [
-      { color: 'blue', draw(x) {
-        // rocket's flight path arcing up to the moon
-        x.moveTo(84, 396); x.bezierCurveTo(210, 350, 330, 300, 312, 152);
-        // BIG spanning orbit swoosh: bottom-left, over the top, down to the right
-        x.moveTo(22, 500); x.bezierCurveTo(70, 150, 300, 66, 374, 176);
-        // ringed planet
-        x.moveTo(326, 552); x.arc(310, 552, 15, 0, 6.283);
-        x.moveTo(340, 552); x.ellipse(310, 552, 30, 8, -0.32, 0, 6.283);
-      } },
-      { color: 'green', draw(x) {
-        x.moveTo(94, 96); x.ellipse(70, 96, 24, 8, 0, 0, 6.283);
-        x.moveTo(82, 90); x.arc(70, 90, 12, 3.14, 0);
-        x.moveTo(60, 108); x.lineTo(56, 118); x.moveTo(70, 110); x.lineTo(70, 120);
-        x.moveTo(80, 108); x.lineTo(84, 118);
-        // launch smoke rolled out to span the WHOLE bottom of the frame
-        x.moveTo(20, 606); x.arc(36, 606, 16, 3.14, 0); x.arc(64, 598, 20, 3.14, 0);
-        x.arc(92, 606, 13, 3.14, 0); x.arc(120, 600, 17, 3.14, 0); x.arc(150, 606, 12, 3.14, 0);
-        x.arc(180, 602, 16, 3.14, 0); x.arc(210, 608, 13, 3.14, 0); x.arc(240, 600, 18, 3.14, 0);
-        x.arc(272, 606, 12, 3.14, 0); x.arc(300, 602, 16, 3.14, 0); x.arc(332, 608, 13, 3.14, 0);
-        x.arc(360, 602, 15, 3.14, 0);
-      } },
-      { color: 'purple', draw(x) {
-        x.moveTo(300, 62); x.quadraticCurveTo(374, 88, 350, 140);
-        x.moveTo(300, 62); x.quadraticCurveTo(330, 96, 350, 140);
-        // constellation line spanning the top width
-        x.moveTo(26, 158); x.lineTo(90, 104); x.lineTo(150, 152); x.lineTo(212, 100); x.lineTo(272, 150);
-        // a few free stars scattered wide
-        star4(x, 40, 300, 6); star4(x, 356, 250, 5); star4(x, 66, 470, 5); star4(x, 352, 430, 6);
-      } },
-      { color: 'pink', draw(x) {
-        x.save(); x.translate(110, 470); x.rotate(-0.6);
-        x.moveTo(-18, -30); x.quadraticCurveTo(-6, -66, 0, -70);
-        x.quadraticCurveTo(6, -66, 18, -30);
-        x.moveTo(-18, -30); x.lineTo(-18, 26); x.lineTo(18, 26); x.lineTo(18, -30);
-        x.moveTo(-18, 8); x.lineTo(-33, 34); x.lineTo(-18, 26);
-        x.moveTo(18, 8); x.lineTo(33, 34); x.lineTo(18, 26);
-        x.moveTo(11, -8); x.arc(0, -8, 11, 0, 6.283);
-        x.moveTo(-8, -16); x.lineTo(-6, -23); x.lineTo(-2, -18);
-        x.moveTo(2, -18); x.lineTo(6, -23); x.lineTo(8, -16);
-        x.moveTo(-7, 26); x.quadraticCurveTo(0, 46, 7, 26);
-        x.moveTo(-12, 26); x.quadraticCurveTo(0, 72, 12, 26);
-        x.restore();
-      } },
-    ],
+    elements: MOON_ELEMENTS,
   },
-  dice: {
-    lines: [{ text: 'SIX SIDED', cx: 195, cy: 290, size: 38 }],
-    elements: [
-      { color: 'green', draw(x) {
-        // honeycomb cluster top-left, continuing as a column spanning down the left edge
-        hexPath(x, 52, 74, 26, 0.26); hexPath(x, 96, 100, 26, 0.26); hexPath(x, 52, 126, 26, 0.26);
-        hexPath(x, 96, 152, 26, 0.26); hexPath(x, 140, 74, 26, 0.26);
-        hexPath(x, 60, 210, 22, 0.9); hexPath(x, 100, 250, 20, 0.4); hexPath(x, 56, 320, 22, 0.1);
-        hexPath(x, 92, 400, 20, 0.7); hexPath(x, 60, 500, 22, 0.3); hexPath(x, 300, 560, 22, 0.4);
-        hexPath(x, 330, 190, 18, 0.1);
+  ascent: { // one diagonal climb riding just above the rocket's flight path,
+            // letters growing as the word gains altitude
+    lines: [{ text: 'TO THE MOON', place(k, n) {
+      const t = n < 2 ? 0 : k / (n - 1);
+      return { x: 96 + t * 228, y: 390 - t * 212, size: 30 + t * 15, rot: -0.75 };
+    } }],
+    elements: MOON_ELEMENTS,
+  },
+  orbit: { // letters fanned along an upward arc, each rotated to the tangent,
+           // echoing the big orbit swoosh behind them
+    lines: [{ text: 'TO THE MOON', place(k, n) {
+      const t = n < 2 ? 0 : k / (n - 1);
+      const dx = (t - 0.5) * 282;      // letter centers span x 54..336
+      const R = 239;                   // circle through the ends and a 46px crown
+      return { x: 195 + dx, y: 519 - Math.sqrt(R * R - dx * dx), size: 38,
+               rot: Math.asin(dx / R) };
+    } }],
+    elements: MOON_ELEMENTS,
+  },
+  wide: { // spread: TO THE letterspaced across the frame, MOON huge beneath it
+    lines: [
+      { text: 'TO THE', place(k, n) {
+        const t = n < 2 ? 0 : k / (n - 1);
+        return { x: 75 + t * 240, y: 218, size: 34, rot: 0 };
       } },
-      { color: 'pink', draw(x) {
-        x.moveTo(230, 430); x.lineTo(340, 430); x.lineTo(340, 540); x.lineTo(230, 540); x.closePath();
-        x.moveTo(230, 430); x.lineTo(266, 392); x.lineTo(372, 392); x.lineTo(340, 430);
-        x.moveTo(372, 392); x.lineTo(372, 502); x.lineTo(340, 540);
-        const pip = (px, py, r) => { x.moveTo(px + r, py); x.arc(px, py, r, 0, 6.283); };
-        pip(255, 455, 7); pip(315, 455, 7); pip(285, 485, 7); pip(255, 515, 7); pip(315, 515, 7);
-        pip(358, 424, 5); pip(358, 452, 5); pip(358, 480, 5);
-        pip(285, 408, 5); pip(320, 408, 5);
-      } },
-      { color: 'blue', draw(x) {
-        x.save(); x.translate(300, 120); x.rotate(0.45);
-        x.moveTo(-38, -38); x.lineTo(38, -38); x.lineTo(38, 38); x.lineTo(-38, 38); x.closePath();
-        x.moveTo(-38, -38); x.lineTo(-20, -58); x.lineTo(56, -58); x.lineTo(38, -38);
-        x.moveTo(56, -58); x.lineTo(56, 18); x.lineTo(38, 38);
-        x.moveTo(6, 0); x.arc(0, 0, 6, 0, 6.283);
-        x.restore();
-        // big tumble arc: the die's flight path sweeping down to the other die
-        x.moveTo(300, 178); x.bezierCurveTo(372, 250, 250, 360, 296, 388);
-      } },
-      { color: 'purple', draw(x) {
-        // long motion streaks sweeping clear across the frame (dice in flight)
-        x.moveTo(372, 40); x.quadraticCurveTo(200, 175, 44, 250);
-        x.moveTo(384, 74); x.quadraticCurveTo(214, 205, 60, 300);
-        x.moveTo(356, 18); x.quadraticCurveTo(188, 150, 40, 205);
-        const dot = (px, py, r) => { x.moveTo(px + r, py); x.arc(px, py, r, 0, 6.283); };
-        dot(140, 330, 4); dot(340, 340, 4); dot(160, 470, 4); dot(120, 590, 5); dot(360, 470, 4); dot(220, 600, 3);
+      { text: 'MOON', place(k, n) {
+        const t = n < 2 ? 0 : k / (n - 1);
+        return { x: 63 + t * 264, y: 330, size: 78, rot: 0 };
       } },
     ],
+    elements: MOON_ELEMENTS,
   },
 };
 
@@ -590,16 +578,35 @@ function loadScene(key) {
   for (const ln of def.lines) {
     const s = S.wordSrc === 'stroke' ? sampleStrokeWord(ln.text)
                                      : sampleLine(ln.text, S.wordSrc, S.turnPen);
-    const scale = ln.size / 190;
-    for (const letterTour of s.letters) {
-      const tour = letterTour.map(p => ({
-        x: ln.cx + (p.x - s.w / 2) * scale,
-        y: ln.cy + (p.y - s.h / 2) * scale,
-      }));
+    s.letters.forEach((letterTour, k) => {
+      let tour;
+      if (ln.place) {
+        // per-letter placement: recenter the letter on its own bbox, then
+        // scale/rotate it into the spot the layout chose for it
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const p of letterTour) {
+          if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x;
+          if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y;
+        }
+        const pl = ln.place(k, s.letters.length);
+        const sc = pl.size / 190, rot = pl.rot || 0;
+        const cr = Math.cos(rot), sr = Math.sin(rot);
+        const lcx = (x0 + x1) / 2, lcy = (y0 + y1) / 2;
+        tour = letterTour.map(p => {
+          const dx = (p.x - lcx) * sc, dy = (p.y - lcy) * sc;
+          return { x: pl.x + dx * cr - dy * sr, y: pl.y + dx * sr + dy * cr };
+        });
+      } else {
+        const scale = ln.size / 190;
+        tour = letterTour.map(p => ({
+          x: ln.cx + (p.x - s.w / 2) * scale,
+          y: ln.cy + (p.y - s.h / 2) * scale,
+        }));
+      }
       CREWS.push({ color: PALETTE.yellow, tour, len: tour.length,
                    kind: 'word', closed: tourIsClosed(tour) });
       WORD_LEN += tour.length;
-    }
+    });
   }
   // scenery elements -> connected components -> one crew each
   for (const e of def.elements) {
@@ -851,5 +858,5 @@ function updateStat() {
   tagEl.textContent = label;
   tagEl.style.background = color; tagEl.style.color = '#fff';
 }
-loadScene('moon');
+loadScene('stacked');
 </script>

@@ -941,6 +941,12 @@ const UPGRADES = [
     cost: 120e6, unlock: { clicks: 2600 },
     effect: { type: "clickMult", mult: 2 },
     fx: "Her midday snack, kibble by kibble" },
+  // Sequel to the original Cat Tree (whiskers) — same running-gag pattern as the
+  // Window Perch trio. Plain ×2 pets; the joke lives entirely in the flavor text.
+  { key: "cattreetable", name: "Cat Tree", icon: "🌳",
+    cost: 150e6, unlock: { requires: "whiskers", clicks: 3000 },
+    effect: { type: "clickMult", mult: 2 },
+    fx: "The cat tree got moved onto the table. Nobody asked why" },
 
   // --- Cross-building synergies ---
   // (None right now.) Assisted Pounce and Thesis Subjects lived here — both used

@@ -462,7 +462,16 @@
     border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
   }
   .shopHead {
-    height: calc(19px * var(--ss));
+    /* Sized as a THUMB TARGET, not as a caption. This rail is the only hit area
+       that opens and closes the dock (the divider is deliberately inert), so it
+       has to be comfortable to hit blind while the other thumb is mashing Hex.
+       At the old 19 × --ss it came out 28.5px — under Apple's 44pt AND Material's
+       48dp, i.e. the one control in the shop that was too small to aim at. 32 ×
+       --ss = 48px clears both. The band is centered content on a fixed height, so
+       the extra height is wood around the same SHOP + chevron, not bigger type.
+       Safe to retune freely: #catWrap parks Hex on the sunburst hub (--sun-y) as
+       a CONSTANT, so the rail's height can't shift the thing you're tapping. */
+    height: calc(32px * var(--ss));
     display: flex; align-items: center; justify-content: center; gap: calc(5px * var(--ss));
     padding: 0; -webkit-appearance: none; appearance: none; border-radius: 0;
     width: 100%; cursor: var(--paw); color: var(--ink);

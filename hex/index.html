@@ -79,9 +79,10 @@
   }
   body.night {
     --ui-font: 'Baloo 2', system-ui, sans-serif;
-    --page-bg:
-      radial-gradient(90vw 55vh at 50% 12%, rgba(180,140,255,0.07), transparent 62%),
-      #06070c;
+    /* No --page-bg here on purpose. The night sky is painted by #nightSky, which
+       FADES in — two gradient stacks cannot be transitioned into one another, so
+       overriding this var would snap the whole screen from day to night on one
+       frame. body keeps the day background all game; #nightSky covers it. */
     --panel-bg: rgba(9,11,18,.93);
     --wood: none;
     --wood-line: #262b36;
@@ -113,6 +114,23 @@
     background: var(--page-bg);
     display: flex; flex-direction: column;
   }
+  /* The night sky, as a layer rather than a variable, so day->night can be a
+     DISSOLVE instead of a cut. z-index -1 puts it above body's background and
+     below every in-flow child, so it needs no cooperation from anything else.
+     Fixed, not absolute: it has to cover the whole viewport including behind the
+     fixed #hud and #dock, which body's background does too.
+     2.2s and no delay, so it runs from the moment the twist fires and is fully
+     dark at 2.2s — before the stars finish at 2.9s and well before the camera
+     starts moving at 3.3s. That ordering is the point: the world goes to night
+     first, THEN Hex is carried away from it. */
+  #nightSky {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
+    background:
+      radial-gradient(90vw 55vh at 50% 12%, rgba(180,140,255,0.07), transparent 62%),
+      #06070c;
+    transition: opacity 2.2s ease-in;
+  }
+  body.night #nightSky { opacity: 1; }
 
   /* ---- HUD ----
      An overlay, not a flow element — same reasoning as the shop tray. Before
@@ -167,6 +185,7 @@
     -webkit-mask-image: radial-gradient(circle at center, #000 0 14%, transparent 34%);
     mask-image: radial-gradient(circle at center, #000 0 14%, transparent 34%);
     animation: raySpin 90s linear infinite;
+    transition: opacity 1.8s ease-out;
   }
   @keyframes raySpin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { #rays { animation: none; } }
@@ -297,18 +316,22 @@
      real screen px and doesn't get quartered by the scale. #stage is exactly
      100vh (both #hud and #dock are position:fixed, so #stage is body's only
      in-flow child), which is what makes 50vh mean "the bottom edge". */
-  /* The zoom WAITS for the yawn (IDLE.yawn / YAWN_MS = 1300ms), then pulls
-     back. Without the delay both start on the same frame and the yawn is
-     simply never seen: the zoom is ease-OUT, so it's ~40% shrunk within 300ms,
-     and by peak gape she's a thumbnail. Ordering them turns the phase change
-     into a beat — she yawns herself to sleep, THEN the camera leaves her for
-     the wall. Delay only on the night rule, so waking (dev preset back to day)
-     still snaps back immediately. Keep in sync with YAWN_MS. */
+  /* The zoom WAITS, and for two things now: the yawn (YAWN_MS, 1300ms) and then
+     a 2000ms hold at full size while the first zzz drift off her (see #sleepZ).
+     1.3 + 2.0 = the 3.3s delay below.
+     Without any delay the yawn is simply never seen — the zoom is ease-OUT, so
+     she is ~40% shrunk within 300ms and a thumbnail by peak gape. Without the
+     hold the zzz were legible only as she shrank, at a quarter size, during the
+     one beat the player is forced to watch. Ordering all three turns the phase
+     change into a sentence: she yawns herself to sleep, the zzz say she IS
+     asleep, and THEN the camera leaves her for the wall.
+     Delay only on the night rule, so waking (dev preset back to day) still snaps
+     back immediately. Keep in sync with YAWN_MS + ZZZ_HOLD_MS. */
   body.night #catPose {
     /* Independent of the day centering (#catWrap is neutralized at night): the
        original wall-reveal pose, so the sleeping cat settles where it expects. */
     transform: translateY(calc(39vh - 104px)) scale(.25);
-    transition-delay: 1.3s;
+    transition-delay: 3.3s;
   }
   body.night #hexCat { filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
   #hexCat.asleep #eyeLeft, #hexCat.asleep #eyeRight { transform: scaleY(.07); }
@@ -316,9 +339,11 @@
   /* ---- Sleeping: subdued signs of life ----
      Breath is the only always-on one; it's what separates "asleep" from
      "paused". 4s cycle, ~3% — deliberately below conscious notice. Held off
-     until the zoom-out lands so the two moves don't overlap: that's now the
-     yawn (1.3s) PLUS the zoom (1.8s), hence 3.1s. Three timings in a row, each
-     waiting on the last — yawn, then zoom, then breathe. */
+     at 3.1s, which used to mean "once the zoom has landed" (yawn 1.3 + zoom
+     1.8). With the zzz hold pushing the zoom back to 3.3s, 3.1s now lands just
+     inside the HOLD instead, and that is worth keeping rather than chasing the
+     zoom again: she is still full size there, so a 3% rise and fall is actually
+     legible, right where the beat is asking the player to notice she's asleep. */
   body.night #catBreath { animation: breathe 4s ease-in-out 3.1s infinite; }
   @keyframes breathe {
     0%, 100% { transform: scale(1) translateY(0); }
@@ -340,12 +365,22 @@
      centre, NOT from a box the size of the cat. Positioning against the box
      directly parks the glyphs ~90px above her head, which happens to look
      almost right and is entirely accidental — measure it, don't eyeball it.
-     +50px is 150 of 200 across, -85px is 20 of 210 down: her top right ear.
-     Delayed 3.1s to match #catBreath: the night opens on three timings each
-     waiting on the last, yawn then zoom then breathe, and this joins the end of
-     that queue rather than talking over the yawn. */
+     115px above centre CLEARS her silhouette, and has to: the offsets here are
+     pre-scale, so they track her exactly as she shrinks, but the glyph's own size
+     is held constant by the counter-scale below — which means the glyph is 4x
+     larger RELATIVE to her once she is small. Anchored on her ear (the first
+     version, -85px) that read fine at quarter size and vanished during the new
+     full-size hold, a near-white glyph sitting on her white ear outline. Above
+     the head at 115px it is clear of her at both scales; the head's half-height
+     is 105px, so this is 10px of daylight.
+     Starts at 1.3s — YAWN_MS, the same beat the zoom and the sky start on. It
+     used to wait 3.1s to match #catBreath, which put the first z exactly at the
+     moment the cutscene ENDS (runNightCutscene runs for YAWN_MS + 1800 = 3100ms),
+     so the one stretch of the game where the player is forced to watch her fall
+     asleep was the one stretch with no zzz in it. Not earlier than 1.3s though:
+     during the yawn she is still awake, and you do not snore mid-yawn. */
   #sleepZ {
-    position: absolute; left: calc(50% + 50px); top: calc(50% - 85px); display: none;
+    position: absolute; left: calc(50% + 50px); bottom: calc(50% + 115px); display: none;
     font: 700 96px var(--ui-font); line-height: 1;
     /* Brighter than --ink, which is body text grey and disappears into a sky
        full of stars at this size. Warm white with the night's own violet glow,
@@ -354,13 +389,47 @@
     pointer-events: none;
   }
   body.night #sleepZ { display: block; }
-  #sleepZ span { position: absolute; opacity: 0; animation: driftZ 3.6s ease-out infinite; }
+  /* COUNTER-SCALE. The glyphs live inside #catPose, so they inherit its
+     scale(.25) — which is what keeps them pinned to her head, and also what made
+     them 96px on screen during the new hold, when the pose is still at scale(1).
+     This runs the opposite curve on the same clock as the zoom above, so the
+     product stays .25 throughout: identical on-screen size while she is big AND
+     after she shrinks.
+     The stops are NOT a straight .25 -> 1, and that is the whole point. The pose
+     interpolates its scale linearly under the easing (1 -> .25), so a counter that
+     also interpolates linearly (.25 -> 1) does not cancel it — the product peaks
+     at (1-.375)(.25+.375) = .39, and the z's were measured bulging to 39px against
+     a 24px baseline halfway through the move. Each stop below is .25 / poseScale
+     at that point, with cubic-bezier(.22,.61,.36,1) evaluated into the VALUES so
+     this animation can run `linear`. Product is .250 at every stop.
+     Recompute these if the zoom's duration, easing or .25 ever move.
+     #sleepZ's own box is 0x0 (its spans are absolute), so the default
+     transform-origin is the emergence point itself — exactly what should stay
+     put. `forwards` holds the end state instead of snapping back. */
+  #sleepZ { transform: scale(.25); }
+  body.night #sleepZ { animation: zCounterScale 1.8s linear 3.3s forwards; }
+  @keyframes zCounterScale {
+      0% { transform: scale(.25);  }
+     10% { transform: scale(.314); }
+     20% { transform: scale(.401); }
+     30% { transform: scale(.504); }
+     40% { transform: scale(.615); }
+     50% { transform: scale(.724); }
+     60% { transform: scale(.821); }
+     70% { transform: scale(.901); }
+     80% { transform: scale(.957); }
+     90% { transform: scale(.99);  }
+    100% { transform: scale(1);    }
+  }
+  /* bottom:0, so a glyph grows UPWARD out of the anchor into empty sky instead of
+     hanging down over her face. */
+  #sleepZ span { position: absolute; bottom: 0; opacity: 0; animation: driftZ 3.6s ease-out infinite; }
   /* 1.2s apart inside a 3.6s loop, so the three are evenly spaced forever. Each
      is a little smaller and offset, which is what stops them reading as one
      glyph stuttering in place. */
-  #sleepZ span:nth-child(1) { animation-delay: 3.1s; }
-  #sleepZ span:nth-child(2) { animation-delay: 4.3s; left: 14px; font-size: .78em; }
-  #sleepZ span:nth-child(3) { animation-delay: 5.5s; left: -8px; font-size: .6em; }
+  #sleepZ span:nth-child(1) { animation-delay: 1.3s; }
+  #sleepZ span:nth-child(2) { animation-delay: 2.5s; left: 14px; font-size: .78em; }
+  #sleepZ span:nth-child(3) { animation-delay: 3.7s; left: -8px; font-size: .6em; }
   @keyframes driftZ {
     0%   { opacity: 0; transform: translate(0, 0) rotate(-10deg) scale(.7); }
     18%  { opacity: 1; }
@@ -374,14 +443,21 @@
   }
   #wall { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
   body.night #wall { display: block; }
-  body.night #rays { display: none; }
+  /* Fades rather than `display: none`, which cannot be transitioned and took the
+     whole sunburst out on one frame. 1.8s, no delay: the spokes are gone before
+     #nightSky finishes darkening at 2.2s, so the day comes apart in the right
+     order — light first, then colour. It keeps spinning behind zero opacity,
+     which is one composited rotation and cheaper than fighting the animation. */
+  body.night #rays { opacity: 0; }
 
   /* ---- Night starfield ----
      A backdrop that says "night" the moment the room goes dark, independent of
      the wall mice. Dots are % positioned so they scale with the stage (no resize
-     hook needed). Hidden by default; fades in as the camera pulls back — the
-     1.3s delay matches the yawn (YAWN_MS) so the sky "comes out" during the zoom,
-     not before Hex has closed her eyes. */
+     hook needed). Hidden by default; the 1.3s delay matches the yawn (YAWN_MS),
+     so the sky comes out the moment her eyes close rather than before. It used to
+     land during the zoom; with the zzz hold in front of the zoom it now lands
+     during the HOLD, which is better — the room goes dark around a cat who is
+     still full size, and only then does the camera pull back. */
   #stars { position: absolute; inset: 0; overflow: hidden; pointer-events: none;
     opacity: 0; transition: opacity 1.6s ease-in 1.3s; }
   body.night #stars { opacity: 1; }
@@ -754,6 +830,10 @@
     <div id="cps">per second: <b>0</b></div>
   </div>
 </div>
+
+<!-- Night sky. Empty and fixed behind everything; see its CSS for why the night
+     background is a fading layer instead of a --page-bg override. -->
+<div id="nightSky" aria-hidden="true"></div>
 
 <div id="stage">
   <!-- day-only sunburst (Cookie Clicker's spinning rays); sits under everything -->
@@ -3548,13 +3628,16 @@ function runNightCutscene() {
   dockEl.classList.add("cutscene-hidden"); // recede the whole static shop for the reveal
   cutsceneVeilEl.classList.add("on"); // nothing selectable while the beat plays
   // Duration read here (not a top-level const) so it can reference YAWN_MS, which
-  // is declared further down. Kept in sync with the CSS: YAWN_MS (1300) + the
-  // #catPose zoom (1800ms) = the moment the camera settles.
+  // is declared further down. Kept in sync with the CSS, and it is now a sum of
+  // three beats rather than two: YAWN_MS (1300) + ZZZ_HOLD_MS (2000, she holds
+  // still at full size while the first zzz drift off) + the #catPose zoom
+  // (1800ms) = the moment the camera settles. The veil has to outlast all three,
+  // or the shop fades back in over a cat who is still mid-move.
   setTimeout(() => {
     cutsceneVeilEl.classList.remove("on");
     dockEl.classList.remove("cutscene-hidden");
     cutsceneLock = false;
-  }, YAWN_MS + 1800);
+  }, YAWN_MS + ZZZ_HOLD_MS + 1800);
 }
 
 // ---------------------------------------------------------------------------
@@ -3595,6 +3678,10 @@ const PET_STREAK_NEEDED = 6;      // pets, within...
 const PET_STREAK_WINDOW_MS = 1200; // ...this gap of each other, or it resets
 const PURR_MS = 900;              // purr keeps going this long after the last pet
 const YAWN_MS = 1300;
+// How long she stays put at full size after the yawn, so the zzz register before
+// the camera leaves. Mirrored in CSS by #catPose's 3.3s transition-delay and
+// #sleepZ's matching counter-scale delay — change one and change all three.
+const ZZZ_HOLD_MS = 2000;
 
 const smoothstep = x => x * x * (3 - 2 * x);
 const clamp01 = x => Math.min(1, Math.max(0, x));

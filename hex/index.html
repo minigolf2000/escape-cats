@@ -341,9 +341,12 @@
      directly parks the glyphs ~90px above her head, which happens to look
      almost right and is entirely accidental — measure it, don't eyeball it.
      +50px is 150 of 200 across, -85px is 20 of 210 down: her top right ear.
-     Delayed 3.1s to match #catBreath: the night opens on three timings each
-     waiting on the last, yawn then zoom then breathe, and this joins the end of
-     that queue rather than talking over the yawn. */
+     Starts at 1.3s — YAWN_MS, the same beat the zoom and the sky start on. It
+     used to wait 3.1s to match #catBreath, which put the first z exactly at the
+     moment the cutscene ENDS (runNightCutscene runs for YAWN_MS + 1800 = 3100ms),
+     so the one stretch of the game where the player is forced to watch her fall
+     asleep was the one stretch with no zzz in it. Not earlier than 1.3s though:
+     during the yawn she is still awake, and you do not snore mid-yawn. */
   #sleepZ {
     position: absolute; left: calc(50% + 50px); top: calc(50% - 85px); display: none;
     font: 700 96px var(--ui-font); line-height: 1;
@@ -358,9 +361,9 @@
   /* 1.2s apart inside a 3.6s loop, so the three are evenly spaced forever. Each
      is a little smaller and offset, which is what stops them reading as one
      glyph stuttering in place. */
-  #sleepZ span:nth-child(1) { animation-delay: 3.1s; }
-  #sleepZ span:nth-child(2) { animation-delay: 4.3s; left: 14px; font-size: .78em; }
-  #sleepZ span:nth-child(3) { animation-delay: 5.5s; left: -8px; font-size: .6em; }
+  #sleepZ span:nth-child(1) { animation-delay: 1.3s; }
+  #sleepZ span:nth-child(2) { animation-delay: 2.5s; left: 14px; font-size: .78em; }
+  #sleepZ span:nth-child(3) { animation-delay: 3.7s; left: -8px; font-size: .6em; }
   @keyframes driftZ {
     0%   { opacity: 0; transform: translate(0, 0) rotate(-10deg) scale(.7); }
     18%  { opacity: 1; }

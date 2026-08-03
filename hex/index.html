@@ -1182,22 +1182,29 @@ function nightOf(bought) { return NIGHT_KEYS.some(k => bought[k]); }
 function nightActive() { return nightOf(game.bought); }
 
 // Order of operations mirrors Cookie Clicker's: per-building multipliers apply
-// inside the per-building term, the global multiplier applies to the SUM, and
+// inside the per-building term, the global multiplier applies on top, and
 // timed buffs sit outside everything.
 // Parameterised over (mods, owned) for the same reason foldMods is: that order
 // of operations IS the economy, and the simulator used to re-state it by hand.
 // baseCps()/clickGain() are the thin live-game bindings.
+//
+// What ONE of a building earns you right now, every multiplier folded in —
+// Cookie Clicker's `storedCps * globalCpsMult`, the number its store tooltip
+// quotes. The global term sits in here rather than out on the sum (distributive,
+// so the total is identical) precisely so the shop can print a per-building rate
+// that adds back up to the headline instead of a table constant that doesn't.
+function buildingMpsWith(m, b) {
+  // Dream reset: at night the daytime mouse-industry stops earning. Only the
+  // Lab (which caused the dream) and the surreal night buildings still run —
+  // so a day building's carried-over count sits idle until you wake. Night
+  // buildings can't be owned in daylight, so no reverse guard is needed.
+  if (m.night && !b.night && b.id !== "lab") return 0;
+  return b.mps * m.building[b.id] * m.globalMult * INCOME_SCALE;
+}
 function baseCpsWith(m, owned) {
   let s = 0;
-  for (const b of BUILDINGS) {
-    // Dream reset: at night the daytime mouse-industry stops earning. Only the
-    // Lab (which caused the dream) and the surreal night buildings still run —
-    // so a day building's carried-over count sits idle until you wake. Night
-    // buildings can't be owned in daylight, so no reverse guard is needed.
-    if (m.night && !b.night && b.id !== "lab") continue;
-    s += b.mps * owned[b.id] * m.building[b.id];
-  }
-  return s * m.globalMult * INCOME_SCALE;
+  for (const b of BUILDINGS) s += buildingMpsWith(m, b) * owned[b.id];
+  return s;
 }
 // Pre-buff click value: flat + a share of income, times the click multiplier.
 function clickBaseWith(m, owned) {
@@ -1388,7 +1395,7 @@ function buildShop() {
     el.addEventListener("click", () => buy(i));
     shopEl.appendChild(el);
     return {
-      el, can: null, locked: null, gone: null, ownN: null, bought: null,
+      el, can: null, locked: null, gone: null, ownN: null, bought: null, rateEach: null,
       rate: el.querySelector(".rate"), cost: el.querySelector(".cost"),
       costNum: el.querySelector(".costNum"), own: el.querySelector(".own"),
     };
@@ -1440,9 +1447,15 @@ function refreshShop() {
     const affordable = revealed && game.mice >= price;
 
     const locked = !revealed;
+    // The quoted rate moves when nothing else about the row does: buying an
+    // UPGRADE leaves both `owned` and `locked` alone, so without this term the
+    // row would keep advertising its pre-research number until the next time you
+    // happened to buy that same building. Cookie Clicker sidesteps the question
+    // by recomputing storedCps in CalculateGains() on every purchase of any kind.
+    const rateEach = buildingMpsWith(mods, b);
     // captured before the toggle below overwrites r.locked — the text depends
     // on `revealed` too, and revealed flips on `total` with owned unchanged
-    const textStale = r.ownN !== owned || r.locked !== locked;
+    const textStale = r.ownN !== owned || r.locked !== locked || r.rateEach !== rateEach;
 
     if (r.gone !== gone) { r.el.classList.toggle("gone", gone); r.gone = gone; }
     if (gone) continue;
@@ -1464,13 +1477,19 @@ function refreshShop() {
     // blurb and owned count, so there's nothing to write.
     if (textStale) {
       r.ownN = owned;
+      r.rateEach = rateEach;
       r.costNum.textContent = fmt(price);
       if (revealed) {
         r.own.textContent = owned;
-        const each = b.mps, mine = each * owned;
-        r.rate.innerHTML = mine > 0
-          ? `${currencyIconSVG()}${fmt(mine)}/s`
-          : `+${currencyIconSVG()}${fmt(each)}/s each`;
+        // Cookie Clicker's two tooltip lines, split by whether you own any yet:
+        // "N producing X/s" once you do, "each produces X/s" as the pre-purchase
+        // pitch. Both quote the post-research rate, so the rows sum to the HUD.
+        // Keyed on `owned` rather than the rate being positive — a genuine zero
+        // (a day building idling through the night) is a fact about your stock,
+        // not a reason to fall back to the sales pitch.
+        r.rate.innerHTML = owned > 0
+          ? `${currencyIconSVG()}${fmt(rateEach * owned)}/s`
+          : `+${currencyIconSVG()}${fmt(rateEach)}/s each`;
       }
     }
     r.cost.classList.toggle("no", !affordable);

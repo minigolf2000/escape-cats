@@ -69,7 +69,7 @@
        live afterwards for tweaking. -->
   <div class="mini" id="stage">
     <button class="tbtn on" data-v="points">points</button>
-    <button class="tbtn" data-v="lantern">lantern</button>
+    <button class="tbtn" data-v="counting">counting</button>
     <button class="tbtn" data-v="lucid">lucid</button>
     <button class="tbtn" data-v="word">word</button>
     <button class="tbtn" data-v="scent">scent</button>
@@ -175,7 +175,7 @@ const S = {
   persist: 0,                    // Scent Trail: ink half-life, 0 = rolling window only
   bright: 50,                    // Eyes Adjust: trail peak alpha, percent
   inkW: 18,                      // Fresh Snow: trail width, tenths of a scene unit
-  // Paper Lantern: before it, the mice are anonymous white points of light —
+  // Counting Mice: before it, the mice are anonymous white points of light —
   // indistinguishable from the starfield behind them, which is the point. Cats are
   // dichromatic and see motion before form and form before colour, so a dream that
   // starts as bare moving specks is just accurate cat vision; every upgrade after is
@@ -188,7 +188,7 @@ const S = {
 // fading. Four distinct reveals before a single letter can be read.
 const STAGES = {
   points:  { neon: false, trail: 0,  yellow: 0, persist: 0 },
-  lantern: { neon: true,  trail: 0,  yellow: 0, persist: 0 },
+  counting:{ neon: true,  trail: 0,  yellow: 0, persist: 0 },
   lucid:   { neon: true,  trail: 35, yellow: 0, persist: 0 },
   word:    { neon: true,  trail: 35, yellow: 9, persist: 0 },
   scent:   { neon: true,  trail: 35, yellow: 9, persist: 60 },
@@ -795,9 +795,11 @@ function drawMouse(x, y, color, r, angle) {
   ctx.restore();
 }
 
-// Pre-Paper-Lantern: a drifting light. Deliberately colourless and shapeless, so it
+// Pre-Counting-Mice: a drifting light. Deliberately colourless and shapeless, so it
 // sits among the stars rather than announcing itself as a creature — the whole beat
-// of Paper Lantern is discovering that some of these specks are mice.
+// of Counting Mice is discovering that some of these specks are mice. The name earns
+// its keep twice over: counting sheep is what you do falling asleep, and counting is
+// exactly what you cannot do until the specks resolve into countable creatures.
 function drawPoint(x, y) {
   ctx.globalAlpha = 0.28;
   ctx.beginPath(); ctx.arc(x, y, 3.4, 0, 6.283);

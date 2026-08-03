@@ -434,27 +434,42 @@
   }
   #dock.show { display: flex; }
 
-  /* The pinned Buildings bar is a plain rail, not interactive, so it keeps the
-     default cursor (also the .shopHead default now). */
-  #buildingSec .shopHead { cursor: var(--paw); }
+  /* The shop still can't be dragged or resized, but a tap on the titled SHOP rail
+     collapses/reopens it as a whole (#dock.collapsed) — both lists cap and scroll
+     on their own, so the dock sizes to its content when open and can't blanket the
+     stage either way. The rail is the ONLY hit target for that: the divider above
+     Buildings is inert, so a mistap while reaching for a row can't shut the shop.
 
-  /* The shop still can't be dragged or resized, but a tap on either wood rail
-     (.shopHead) collapses/reopens it as a whole (#dock.collapsed) — both lists
-     cap and scroll on their own, so the dock sizes to its content when open and
-     can't blanket the stage either way. */
-
-  /* Title-less small bar sitting on its own wooden rail — just the Cookie Clicker
-     wood framing, no text. Only the pinned Buildings section still uses it (as a
-     thin cap above the building list); the Upgrades drawer is governed by the top
-     handle instead. Height is pure padding now that there's no label. */
+     Cookie Clicker wood framing, now carrying the panel's name. Tall enough to
+     read as a header (the old rail was 6px of pure padding) while staying a thin
+     cap over the lists. */
   .shopHead {
-    flex: none; height: 6px;
-    display: flex; align-items: center; justify-content: center; padding: 0;
-    -webkit-appearance: none; appearance: none; border-radius: 0;
+    flex: none; height: calc(19px * var(--ss));
+    display: flex; align-items: center; justify-content: center; gap: calc(5px * var(--ss));
+    padding: 0; -webkit-appearance: none; appearance: none; border-radius: 0;
     background: var(--wood), var(--panel-bg);
-    border: 0; width: 100%; cursor: var(--paw);
+    border: 0; width: 100%; cursor: var(--paw); color: var(--ink);
     border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
+  }
+  .shopTitle {
+    font: 700 11px var(--ui-font); font-size: calc(10.5px * var(--ss));
+    letter-spacing: .14em; text-transform: uppercase; line-height: 1;
+    text-shadow: 0 1px 1px rgba(0,0,0,.5);
+  }
+  /* Border-corner caret rather than a glyph — scales with --ss and rotates
+     without a font dependency. Points down while open (tap pushes the shop back
+     down, toward the screen edge it lives on) and flips up when collapsed. The
+     translateY on each state re-centers it: rotating a square about its middle
+     leaves the visual "V" sitting low. */
+  .shopHead .chev {
+    width: calc(6px * var(--ss)); height: calc(6px * var(--ss));
+    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    transform: translateY(calc(-2px * var(--ss))) rotate(45deg);
+    transition: transform .25s ease;
+  }
+  #dock.collapsed .shopHead .chev {
+    transform: translateY(calc(1px * var(--ss))) rotate(225deg);
   }
 
   /* Divider and list travel together — a "BUILDINGS" label over nothing but a
@@ -473,13 +488,19 @@
 
   /* Between Upgrades and Buildings: no label, just the wood-grain rail that
      used to sit under "Buildings" text — the row content below already says
-     which section it is. */
+     which section it is. Inert by design; the SHOP rail owns the toggle. */
   .shopDivider {
     flex: none; height: 6px;
     background: var(--wood), var(--panel-bg);
     border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
   }
+  /* Only earns its keep as a separator. With Upgrades hidden (pre-first-upgrade)
+     it would stack straight under the SHOP rail as a second bar, and when
+     collapsed it would hang below the closed header — drop it in both cases so a
+     shut shop is exactly one rail. */
+  #upgradeSec:not(.show) + #buildingSec .shopDivider,
+  #dock.collapsed .shopDivider { display: none; }
 
   /* `overscroll-behavior: contain` so scrolling past the end of the building
      list stops here instead of bubbling into a document-level pull-refresh.
@@ -490,9 +511,11 @@
      content (no scroll), so early game is unaffected. */
   #shop { flex: 1 1 auto; min-height: 0; max-height: calc(180px * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; transition: max-height .25s ease; }
   #shop::-webkit-scrollbar { width: 0; }
-  /* Collapsed: both lists shrink to nothing, leaving just the two wood rails as
-     a slim closed bar — tap either rail to reopen. */
+  /* Collapsed: both lists shrink to nothing, leaving the titled SHOP rail alone
+     as a slim closed bar — tap it to reopen. Its own bottom border would
+     otherwise be doubled by #upgradeSec's, so that one goes too. */
   #dock.collapsed #upgrades, #dock.collapsed #shop { max-height: 0; }
+  #dock.collapsed #upgradeSec { border-bottom: 0; }
   /* CC store rows: a dark inset strip, a framed icon, name over effect, and
      the price right-aligned — green when you can afford it, red when you
      can't. That red/green is the whole readout in CC; it survives here.
@@ -684,15 +707,21 @@
 </div>
 
 <div id="dock">
-  <!-- Static shop: always open, no handle, no drag. Upgrades on top under a thin
-       title-less rail (only unlocked-and-unbought upgrades exist here); Buildings
-       pinned below their own rail. Each list caps and scrolls on its own. -->
+  <!-- The SHOP rail is the dock's one control: it names the panel and is the only
+       thing you can tap to close/reopen it. A direct child of #dock rather than of
+       #upgradeSec, so the title stays put no matter which sections are on screen
+       (buildings arrive before any upgrade is unlocked). aria-controls names the
+       two lists that actually collapse. Upgrades sit on top, Buildings pinned
+       below their own rail; each list caps and scrolls on its own. -->
+  <button type="button" id="shopToggle" class="shopHead"
+          aria-expanded="true" aria-controls="upgrades shop">
+    <span class="shopTitle">Shop</span><span class="chev" aria-hidden="true"></span>
+  </button>
   <div id="upgradeSec">
-    <button type="button" class="shopHead" aria-expanded="true" aria-controls="dock" aria-label="Toggle shop"></button>
     <div id="upgrades"></div>
   </div>
   <div id="buildingSec">
-    <button type="button" class="shopHead build" aria-expanded="true" aria-controls="dock" aria-label="Toggle shop"></button>
+    <div class="shopDivider"></div>
     <div id="shop"></div>
   </div>
 </div>
@@ -1288,15 +1317,17 @@ function syncDock() {
     upgradeSecEl.classList.contains("show") || buildingSecEl.classList.contains("show"));
 }
 
-// The shop still can't be dragged or resized, but a tap on either wood rail
-// (.shopHead) collapses/reopens it as a whole. Collapsed state is UI, not saved —
-// the dock always opens fresh (matches the pre-static-redesign tray).
-const shopHeadEls = document.querySelectorAll(".shopHead");
+// The shop still can't be dragged or resized, but a tap on the titled SHOP rail
+// collapses/reopens it as a whole. That rail is the only toggle — the divider
+// above Buildings is inert, so reaching for a row can't shut the shop by accident.
+// Collapsed state is UI, not saved — the dock always opens fresh (matches the
+// pre-static-redesign tray).
+const shopToggleEl = $("#shopToggle");
 function toggleShop() {
   const expanded = !dockEl.classList.toggle("collapsed");
-  shopHeadEls.forEach(el => el.setAttribute("aria-expanded", String(expanded)));
+  shopToggleEl.setAttribute("aria-expanded", String(expanded));
 }
-shopHeadEls.forEach(el => el.addEventListener("click", toggleShop));
+shopToggleEl.addEventListener("click", toggleShop);
 
 // Kiosk lockdown (see the html,body CSS note): swallow the long-press context
 // menu so a held tap on Hex or a shop row never raises the browser's callout.
@@ -3230,7 +3261,9 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
       const bh = getComputedStyle(buildingSecEl).display !== "none" ? buildingSecEl.offsetHeight : 0;
       const ss = parseFloat(getComputedStyle(rootEl).getPropertyValue("--ss")) || 1;
       const upPinned = Math.round(innerHeight * 0.10 * ss) + 1; // upgrades cap + section border
-      dh = bh + upPinned;
+      // The SHOP rail is a sibling of both sections, so neither term above covers
+      // it — measured live and added, or Hex centers into the header.
+      dh = shopToggleEl.offsetHeight + bh + upPinned;
     }
     rootEl.style.setProperty("--dock-h", dh + "px");
     rootEl.style.setProperty("--hud-h", (hudEl ? hudEl.offsetHeight : 0) + "px");

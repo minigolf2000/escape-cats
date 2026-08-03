@@ -46,16 +46,16 @@
 <canvas id="c"></canvas>
 <div id="panel">
   <div class="sliders">
-    <!-- Caps are the shape counts, not taste limits: 9 = one golden mouse per
-         letter, 5 = comet tail fan + nucleus, 4 each for the orbit and the
-         giant. Only the dipper is still open. -->
+    <!-- word is capped at 9, one golden mouse per letter. orbit and giant at 4.
+         comet and dipper are open-ended headcounts on a fixed number of shapes.
+         speed's ceiling is a real limit, not taste: past it mice read as streaks. -->
     <label>word</label><input type="range" id="sQyellow" min="0" max="9" value="9"><output id="oQyellow">9</output>
-    <label>comet</label><input type="range" id="sQpink" min="0" max="5" value="5"><output id="oQpink">5</output>
+    <label>comet</label><input type="range" id="sQpink" min="0" max="10" value="10"><output id="oQpink">10</output>
     <label>orbit</label><input type="range" id="sQblue" min="0" max="4" value="4"><output id="oQblue">4</output>
     <label>giant</label><input type="range" id="sQgreen" min="0" max="4" value="4"><output id="oQgreen">4</output>
     <label>dipper</label><input type="range" id="sQpurple" min="0" max="16" value="6"><output id="oQpurple">6</output>
-    <label>speed</label><input type="range" id="sSP" min="4" max="160" value="35"><output id="oSP">35</output>
-    <label>trail</label><input type="range" id="sT" min="0" max="120" value="35"><output id="oT">35</output>
+    <label>speed</label><input type="range" id="sSP" min="2" max="20" value="20"><output id="oSP">20</output>
+    <label>trail</label><input type="range" id="sT" min="0" max="200" value="35"><output id="oT">35</output>
   </div>
   <div class="row">
     <div class="stat" style="flex:1">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
@@ -92,9 +92,10 @@ addEventListener('resize', resize);
 // Headcount is per COLOUR rather than one total split by a word percentage: the
 // colours draw different amounts of ink over very different tour lengths, so the
 // interesting question is how many mice each shape needs, not how the pot is
-// divided. Each colour's cap is its shape count — 9 letters, the comet's fan plus
-// its nucleus, and so on — except the dipper, which is one welded crew and so
-// capped only by how much bunching is tolerable.
+// divided. The word's cap IS its shape count, 9, one golden mouse per letter, and
+// the orbit and giant are capped at 4. The comet and the dipper instead take
+// open-ended headcounts over a fixed set of shapes, so their ceilings are only
+// about how crowded the shape should look.
 
 // ONE speed for every mouse, in scene units per second — settled. Every crew
 // converts it through its own point spacing (crew.step), so the rate is uniform
@@ -113,21 +114,29 @@ addEventListener('resize', resize);
 // one speed it takes about 2.3x as long to draw. That is the cost of every mouse
 // moving alike.
 //
-// DEFAULT_SPEED is not arbitrary: it is the uniform rate that lays word ink down
-// at exactly the pace the old model did with all nine letters staffed. The game's
-// figure is 3.3e-5 of the word per ms; multiplied by the word's 698 tour points
-// and by the nine letters' summed point spacings, over nine mice, that comes to
-// ~35 units/sec. So the lab opens at the pace it had before.
+// The dial is capped at MAX_SPEED because nothing faster is ever wanted — mice
+// are meant to read as mice, and past this they read as streaks.
 //
-// NOTE the lab now diverges from the live game (hex/index.html), which still
-// paces its word the old way. The legibility BANDS in updateStat were calibrated
-// against that model and still hold, since coverage is the same quantity measured
-// in distance rather than in fractions-of-the-word. But the lab only predicts the
-// game again once the game takes the same uniform-speed treatment.
-const DEFAULT_SPEED = 35;      // scene units per second
+// That cap is BELOW the rate the old model effectively ran the word at. The
+// equivalent came out ~35 units/sec (the game's 3.3e-5 of the word per ms, times
+// the word's 698 tour points, times the nine letters' summed point spacings, over
+// nine mice), so the lab now paces the word at 20/35 of what it used to. Coverage
+// is linear in speed, so the word inks ~43% slower and needs correspondingly more
+// trail to reach the same legibility: 119 where 68 sufficed, measured. The trail
+// slider's max went 120 -> 200 for that reason — at 120 the only legible setting
+// was the very last notch, which left the instrument unable to show any headroom
+// above the threshold it exists to find.
+//
+// NOTE the lab has diverged from the live game (hex/index.html), which still paces
+// its word the old way. The legibility BANDS in updateStat were calibrated against
+// that model and still hold, since coverage is the same quantity measured in
+// distance rather than in fractions-of-the-word. But the lab only predicts the game
+// again once the game takes the same uniform-speed treatment.
+const MAX_SPEED = 20;          // scene units per second — a hard ceiling, not taste
+const DEFAULT_SPEED = MAX_SPEED;
 
 const S = {
-  count: { yellow: 9, pink: 5, blue: 4, green: 4, purple: 6 },
+  count: { yellow: 9, pink: 10, blue: 4, green: 4, purple: 6 },
   speed: DEFAULT_SPEED,          // scene units per second, one rate for every mouse
   trail: 35, seed: 7,
 };

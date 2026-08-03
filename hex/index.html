@@ -462,6 +462,7 @@
     border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
   }
   .shopHead {
+    position: relative;   /* anchor for #newBadge */
     /* Sized as a THUMB TARGET, not as a caption. This rail is the only hit area
        that opens and closes the dock (the divider is deliberately inert), so it
        has to be comfortable to hit blind while the other thumb is mashing Hex.
@@ -495,14 +496,11 @@
     transform: translateY(calc(1px * var(--ss))) rotate(225deg);
   }
 
-  /* Outside the collapsing drawer, so buildings stay on screen even when
-     Upgrades is shut. Divider and list travel together, and the section waits
-     for a real building — a header over nothing but a ??? teaser is chrome.
-     flex:none so it sizes to its own content (the capped #shop). */
-  #buildingSec {
-    flex: none; display: none;
-  }
-  #buildingSec.show { display: flex; flex-direction: column; }
+  /* Divider and list travel together, and the section waits for a real
+     building — a header over nothing but a ??? teaser is chrome. Plain blocks
+     inside #shopScroll: neither section caps or scrolls on its own anymore. */
+  #buildingSec { display: none; }
+  #buildingSec.show { display: block; }
   /* Night cutscene: recede the ENTIRE shop (including the pinned buildings) so
      nothing covers the wall reveal; restored when the beat ends. Only the target
      state belongs here — the fade itself is on #dock so it plays in both
@@ -519,16 +517,43 @@
   #upgradeSec:not(.show) + #buildingSec .shopDivider,
   #dock.collapsed .shopDivider { display: none; }
 
-  /* `overscroll-behavior: contain` so scrolling past the end of the list stops
-     here instead of bubbling into a document-level pull-refresh. max-height caps
-     it at ~3 rows (a row is ~57px) against a 4-building day list, so the partial
-     4th row peeking under the cap is the scroll affordance — the scrollbar
-     itself is hidden. Shorter lists just size to content. */
-  #shop { flex: 1 1 auto; min-height: 0; max-height: calc(180px * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; transition: max-height .25s ease; }
-  #shop::-webkit-scrollbar { width: 0; }
-  /* Collapsed: both lists shrink to nothing, leaving the titled SHOP rail alone
-     as a slim closed bar — tap it to reopen. */
-  #dock.collapsed #upgrades, #dock.collapsed #shop { max-height: 0; }
+  /* Unseen-upgrade badge, the mobile-game convention: a count on the thing that
+     OWNS the hidden content, cleared by going and looking. Absolutely positioned
+     so it can't shift the centred SHOP + chevron as the number changes width.
+     Red is the only place this palette uses alarm colour, which is the point —
+     it has to read at a glance to someone whose eyes are on the cat. */
+  #newBadge {
+    position: absolute; right: calc(10px * var(--ss)); top: 50%;
+    transform: translateY(-50%);
+    background: #e5484d; color: #fff; border-radius: 999px;
+    min-width: calc(15px * var(--ss)); height: calc(15px * var(--ss));
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 calc(4px * var(--ss));
+    font: 700 calc(9px * var(--ss))/1 var(--ui-font); letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 1px 3px rgba(0,0,0,.5);
+  }
+  #newBadge[hidden] { display: none; }
+
+  /* THE shop scroller — the only one. Upgrades and Buildings are plain blocks
+     inside it, so a single drag runs the whole shop end to end.
+     `overscroll-behavior: contain` so scrolling past the end stops here instead
+     of bubbling into a document-level pull-refresh. The cap is whichever is
+     smaller: ~3.3 rows of list, or 46% of the viewport — the px term keeps the
+     shop from swallowing a tall screen, the vh term keeps it off Hex on a short
+     one. Either way the partial row peeking under the cap is the scroll
+     affordance, since the scrollbar itself is hidden. Shorter lists size to
+     content. */
+  #shopScroll {
+    max-height: min(calc(300px * var(--ss)), 46vh);
+    overflow-y: auto; overscroll-behavior: contain;
+    position: relative; transition: max-height .25s ease;
+  }
+  #shopScroll::-webkit-scrollbar { width: 0; }
+  #shop { padding: 0; }
+  /* Collapsed: the scroller shrinks to nothing, leaving the titled SHOP rail
+     alone as a slim closed bar — tap it to reopen. */
+  #dock.collapsed #shopScroll { max-height: 0; }
   /* CC store rows: a dark inset strip, a framed icon, name over effect, price
      green when you can afford it and red when you can't — that red/green is the
      whole readout. Affordable rows brighten rather than getting a neon glow. */
@@ -629,33 +654,34 @@
 
   /* ---- Upgrades strip (only unlocked-and-unbought ones exist here, so the
      list is short; buying removes the row) ----
-     No padding or bottom border: the #upgrades scroller has to reach the section
-     edge so its bottom scroll-shadow sits flush with the wood divider, and the
-     divider already draws the line between them. */
-  #upgradeSec { flex: none; display: none; }
+     No padding or bottom border: the list has to reach the section edge so the
+     wood divider below sits flush against the last row, and the divider already
+     draws the line between them. */
+  #upgradeSec { display: none; }
   #upgradeSec.show { display: block; }
-  #upgrades { max-height: calc(10vh * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; transition: max-height .25s ease; }
-  #upgrades::-webkit-scrollbar { width: 0; }
+  #upgrades { padding: 0; }
   .item.up { padding: 0 calc(11px * var(--ss)) 0 0; }
   .item.up .body { padding: calc(4px * var(--ss)) 0; }
   .item.up .nm { font-size: calc(12.5px * var(--ss)); }
   /* ---- Scroll shadow (locked affordance): a soft inner shadow at whichever
      edge still has content to scroll. Snug to the row edge because the scrollers
-     carry no vertical padding. .can-up / .can-down are toggled by the runtime. ---- */
-  #shop::before, #shop::after, #upgrades::before, #upgrades::after {
+     carry no vertical padding. .can-up / .can-down are toggled by the runtime.
+     One scroller, so one pair of shadows — they now mark the ends of the WHOLE
+     shop rather than of each list, which is the point of merging them. ---- */
+  #shopScroll::before, #shopScroll::after {
     content: ""; position: sticky; left: 0; right: 0; display: block;
     height: calc(16px * var(--ss)); pointer-events: none; z-index: 3;
   }
-  #shop::before, #upgrades::before {
+  #shopScroll::before {
     top: 0; margin-bottom: calc(-16px * var(--ss));
     background: linear-gradient(to bottom, rgba(0,0,0,.6), transparent); opacity: 0; transition: opacity .12s;
   }
-  #shop::after, #upgrades::after {
+  #shopScroll::after {
     bottom: 0; margin-top: calc(-16px * var(--ss));
     background: linear-gradient(to top, rgba(0,0,0,.6), transparent); opacity: 0; transition: opacity .12s;
   }
-  #shop.can-up::before, #upgrades.can-up::before { opacity: 1; }
-  #shop.can-down::after, #upgrades.can-down::after { opacity: 1; }
+  #shopScroll.can-up::before { opacity: 1; }
+  #shopScroll.can-down::after { opacity: 1; }
 </style>
 
 <div id="hud">
@@ -722,18 +748,29 @@
        thing you can tap to close/reopen it. A direct child of #dock rather than of
        #upgradeSec, so the title stays put no matter which sections are on screen
        (buildings arrive before any upgrade is unlocked). aria-controls names the
-       two lists that actually collapse. Upgrades sit on top, Buildings pinned
-       below their own rail; each list caps and scrolls on its own. -->
+       one scroller that collapses. Upgrades sit on top, Buildings below the
+       plank; both share a single scroller. -->
   <button type="button" id="shopToggle" class="shopHead"
-          aria-expanded="true" aria-controls="upgrades shop">
+          aria-expanded="true" aria-controls="shopScroll">
     <span class="shopTitle">Shop</span><span class="chev" aria-hidden="true"></span>
+    <!-- Unseen-upgrade count. aria-hidden because the rail's accessible name is
+         relabelled with the same number (see refreshBadge) — left visible it
+         reads out as the bare digit tacked onto "Shop". -->
+    <span id="newBadge" aria-hidden="true" hidden>0</span>
   </button>
-  <div id="upgradeSec">
-    <div id="upgrades"></div>
-  </div>
-  <div id="buildingSec">
-    <div class="shopDivider"></div>
-    <div id="shop"></div>
+  <!-- ONE scroller for both lists. Upgrades and Buildings used to scroll
+       independently, which meant the shop had two thumb-catching regions
+       stacked on each other and no way to get from the top of the upgrade list
+       to the bottom of the building list in one gesture. They are one list with
+       a plank between them now; only #shopScroll scrolls. -->
+  <div id="shopScroll">
+    <div id="upgradeSec">
+      <div id="upgrades"></div>
+    </div>
+    <div id="buildingSec">
+      <div class="shopDivider"></div>
+      <div id="shop"></div>
+    </div>
   </div>
 </div>
 
@@ -755,14 +792,33 @@ const GROWTH = 1.15;
 const BUILDINGS = [
   { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 10,     mps: 0.4, blurb: "Gets a mouse every 2.5 seconds" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
-  { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 47,  blurb: "Mass-produces mice" },
+  // 85 mps, not Cookie Clicker's 47. The mps column mirrors CC's first
+  // buildings, but the COST column doesn't: CC steps 15 → 100 → 1,100 → 12,000,
+  // roughly ten-fold each, and ours steps 10 → 100 → 12,000 because the rung
+  // between Farm and Factory (the old Quarry) was cut. That leaves the Farm a
+  // hundred times cheaper than CC's at the same mps, so a Farm stays a better
+  // buy than a Factory essentially forever: at CC's 47 the sim's bot bought 35
+  // farms and ZERO factories, taking the whole Factory ladder and the Cardboard
+  // line down with it. 85 restores the intended shape — cost-per-mps 141 against
+  // the Farm's 100, close enough that the Factory is what you graduate TO once
+  // farms get expensive, which is the job the missing rung used to do. It is a
+  // NARROW band, so re-measure if it moves: at 70 the bot still bought zero
+  // factories, at 130 it bought almost nothing else.
+  { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 85, blurb: "Mass-produces mice" },
   // The one day building that keeps producing after the night reset (see
-  // baseCpsWith) — the design's "the Lab is still present" in the dream. In
-  // practice it's rarely stocked: it reveals at 130k right as Catnap unlocks, so
-  // teams flip to night before buying many. So night does NOT lean on it — the
-  // seed dream-holes below are the real bootstrap. (Making the Lab worth stocking
-  // pre-twist — revealing it earlier — is a live follow-up, not done here.)
-  { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 260, blurb: "Synthesizes mice from theory" },
+  // baseCpsWith) — the design's "the Lab is still present" in the dream.
+  //
+  // It is also, now, the DOOR OUT OF PHASE 1: Catnap Hypnalysis unlocks on owning
+  // one. That makes its old numbers untenable. At 260 mps it was the worst
+  // cost-per-mps on the rail by a factor of two and had no upgrades of its own to
+  // fix that, so buying one was a straight penalty — fine when it was scenery,
+  // hostile when it's the gate. 400 mps still loses the marginal comparison to a
+  // Factory or a Farm carrying its upgrade stack, and that is correct: you buy
+  // the Lab for what it OPENS — four cross-building upgrades, and the twist —
+  // not because the arithmetic says to. It just shouldn't punish you for it.
+  // Knock-on: Labs keep earning at night, so day Labs now bootstrap the dream
+  // harder than the seed holes below. Watch that in the sim if this moves again.
+  { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 400, blurb: "Synthesizes mice from theory" },
   // Night buildings — hidden until Catnap flips the phase, then revealed by the same
   // lifetime>=base rule. A SELF-CONTAINED ramp, not a topping on day income: after
   // the reset income is night-only, bootstrapped by NIGHT_SEED_COUNT free Portals.
@@ -783,6 +839,11 @@ const NIGHT_SEED_ID = BUILDINGS.find(b => b.night).id;
 const NIGHT_SEED_COUNT = 3;
 const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
+// Zoomies, the golden-mouse buff (the mechanic itself lives with the golden
+// mouse code further down). BASE values: upgrades raise both, so everything at
+// runtime reads mods.zoomMult / mods.zoomTime, never these two directly.
+const ZOOM_MULT = 6;            // Zoomies: pets x6...
+const ZOOM_S = 7;               // ...for 7s
 // Global income compression. The BUILDINGS mps column mirrors Cookie Clicker's
 // first buildings, whose pacing targets a weeks-long IDLE game; this is a
 // frantic ~7-min co-op for a team of 4. INCOME_SCALE multiplies all passive
@@ -811,6 +872,8 @@ const SAVE_KEY = "hexclicker.v1";
 //     clickMult     mult             — multiplies the whole pet
 //     goldenFreq    mult             — golden mice spawn this much sooner
 //     goldenLife    add              — golden mice stay on screen this many more seconds
+//     zoomMult      add              — Zoomies multiplies pets by this much more
+//     zoomTime      add              — Zoomies lasts this many more seconds
 //     trail         add              — night wall trail segments (the reveal ink)
 //     night         (no fields)      — THE phase flip; handled in buyUpgrade
 //
@@ -832,17 +895,17 @@ const UPGRADES = [
     cost: 400, unlock: { owned: ["shopper", 5] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
   { key: "shopper2", name: "Subscribe & Save", icon: "🔁",
-    cost: 4800, unlock: { owned: ["shopper", 25] },
+    cost: 4000, unlock: { owned: ["shopper", 10] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
   // The subscription line's later tiers break from the flat ×2: each one cuts
   // deeper into the supply chain, so the mice-per-dollar gain grows. Liquidation
   // pallets (bulk, still through a middleman) → ×3; importing straight from the
   // factory (no middleman at all) → ×4, the deepest cut in the line.
   { key: "shopper3", name: "Wholesale Liquidation Pallets", icon: "🏷️",
-    cost: 55000, unlock: { owned: ["shopper", 50] },
+    cost: 18000, unlock: { owned: ["shopper", 15] },
     effect: { type: "buildingMult", building: "shopper", mult: 3 } },
   { key: "shopper4", name: "Import Direct from Manufacturer", icon: "🚢",
-    cost: 650000, unlock: { owned: ["shopper", 100] },
+    cost: 60000, unlock: { owned: ["shopper", 21] },
     effect: { type: "buildingMult", building: "shopper", mult: 4 } },
 
   // --- Mouse Farm ---
@@ -850,45 +913,60 @@ const UPGRADES = [
   // to the Factory's 12000 is a wide gap with no building between them) so the
   // Farm carries that whole stretch on upgrades instead. Multipliers escalate
   // as the tech gets sillier — ×2 mechanical tweaks, ×3 precision/premium, ×4
-  // full automation. Costs/thresholds are GUESSES, ascending so they reveal in
-  // sequence rather than all at once. (Splice-Grown Mice used to live here; it
-  // moved to the lab tier below, now gated behind Schrödinger's Lab.)
+  // full automation. Ascending so they reveal in sequence rather than all at
+  // once. (Splice-Grown Mice used to live here; it moved to the lab tier below,
+  // now gated behind Schrödinger's Lab.)
+  //
+  // Owned thresholds are priced against what the day ACTUALLY buys, not a wish.
+  // The old ladder asked for 75 and 100 Farms; the geometric curve puts 50 Farms
+  // at ~722k mice, several times the entire day's spend, so its top three rungs
+  // could never be revealed at all. A day now ends holding ~16-17 Farms (sim,
+  // across 3-16 pets/s), so that is where the ladder tops out. These gates are
+  // measured, not chosen — re-measure them whenever building mps moves.
   { key: "farmplow", name: "Sisal Scratching Plows", icon: "🧶",
-    cost: 1000, unlock: { owned: ["farm", 5] },
+    cost: 900, unlock: { owned: ["farm", 4] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmfeliway", name: "Feliway Sprinklers", icon: "💨",
-    cost: 8000, unlock: { owned: ["farm", 15] },
+    cost: 5000, unlock: { owned: ["farm", 7] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmtractor", name: "Zoomie Tractors", icon: "🚜",
-    cost: 45000, unlock: { owned: ["farm", 30] },
+    cost: 16000, unlock: { owned: ["farm", 10] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmlaser", name: "Laser-Guided Planters", icon: "🎯",
-    cost: 250000, unlock: { owned: ["farm", 50] },
+    cost: 45000, unlock: { owned: ["farm", 13] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "farmchuru", name: "Churu Hydroponics", icon: "🍦",
-    cost: 1.2e6, unlock: { owned: ["farm", 75] },
+    cost: 130000, unlock: { owned: ["farm", 14] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "farmdrone", name: "Autonomous Bug-Batting Drones", icon: "🚁",
-    cost: 6e6, unlock: { owned: ["farm", 100] },
+    cost: 400000, unlock: { owned: ["farm", 16] },
     effect: { type: "buildingMult", building: "farm", mult: 4 } },
 
   // --- Mouse Factory ---
   // Same escalating ladder as the Farm (×2 mechanical → ×3 fancier → ×4 finale),
-  // all cat-toy-flavoured factory kit. Costs/thresholds are GUESSES, ascending.
+  // all cat-toy-flavoured factory kit. Same measured-threshold rule as the Farm:
+  // a day ends holding ~9-10 Factories, so the ladder tops out at 9 rather than
+  // at the old 50 — which was ~5x the whole phase's spend in Factories alone.
+  //
+  // Cost steps stay near 3x even though the gains are ×2/×3, for the reason the
+  // petting ladder is built the way it is: by the time Factories carry the day's
+  // income, a ×3 to Factories is a ×3 to EVERYTHING, and rungs less than that
+  // apart buy each other. At 200k/400k for the top two the sim fired the last
+  // eight rows of the whole game inside three seconds.
   { key: "factory1", name: "Sisal Conveyor Tracks", icon: "🧵",
-    cost: 120000, unlock: { owned: ["factory", 5] },
+    cost: 20000, unlock: { owned: ["factory", 2] },
     effect: { type: "buildingMult", building: "factory", mult: 2 } },
   { key: "factory2", name: "Laser Chaser Assembly Belt", icon: "🔴",
-    cost: 800000, unlock: { owned: ["factory", 12] },
+    cost: 50000, unlock: { owned: ["factory", 4] },
     effect: { type: "buildingMult", building: "factory", mult: 2 } },
   { key: "factory3", name: "LED Weaving Looms", icon: "💡",
-    cost: 4e6, unlock: { owned: ["factory", 20] },
+    cost: 110000, unlock: { owned: ["factory", 6] },
     effect: { type: "buildingMult", building: "factory", mult: 3 } },
   { key: "factory4", name: "Pneumatic Crinkle Packagers", icon: "🎁",
-    cost: 20e6, unlock: { owned: ["factory", 35] },
+    cost: 220000, unlock: { owned: ["factory", 8] },
     effect: { type: "buildingMult", building: "factory", mult: 3 } },
   { key: "factory5", name: "Bioluminescent Dip Vats", icon: "🪼",
-    cost: 90e6, unlock: { owned: ["factory", 50] },
+    cost: 600000, unlock: { owned: ["factory", 9] },
     effect: { type: "buildingMult", building: "factory", mult: 4 } },
 
   // --- Schrödinger's Lab — fantastical cross-building tier ---
@@ -896,101 +974,180 @@ const UPGRADES = [
   // tier of theory-powered boosts to the OTHER day buildings — "synthesizes
   // mice from theory" made literal. Each is AND-gated on owning the Lab plus a
   // modest count of its target building, so it reveals as a late-day power
-  // spike once you've committed to the Lab (which appears alongside the twist).
-  // ×3 across the board, fantastical flavour. Costs are GUESSES.
+  // spike once you've committed to the Lab. This tier is the last rung of phase
+  // 1: it sits under Catnap Hypnalysis on cost so the capstone is still the
+  // capstone, but above every other day ladder so buying a Lab reads as an
+  // escalation. ×3 across the board, fantastical flavour.
   { key: "farm2", name: "Splice-Grown Mice", icon: "🧬",
-    cost: 3e6, unlock: { owned: [["farm", 25], ["lab", 1]] },
+    cost: 110000, unlock: { owned: [["farm", 13], ["lab", 1]] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "labparcels", name: "2 Second Shipping", icon: "🚀",
-    cost: 3e6, unlock: { owned: [["shopper", 25], ["lab", 1]] },
+    cost: 110000, unlock: { owned: [["shopper", 15], ["lab", 1]] },
     effect: { type: "buildingMult", building: "shopper", mult: 3 } },
   { key: "labfactory", name: "Superposition Assembly Line", icon: "⚛️",
-    cost: 5e6, unlock: { owned: [["factory", 10], ["lab", 1]] },
+    cost: 150000, unlock: { owned: [["factory", 6], ["lab", 1]] },
     effect: { type: "buildingMult", building: "factory", mult: 3 } },
   // A factory that makes factories: a SELF-synergy (crossBuilding with per ==
   // building), so each Mouse Factory you own makes every Mouse Factory +5%
   // better. Total factory output becomes ~quadratic in count — a snowball that
   // rewards going wide. The only crossBuilding in the game; buy()'s recalc keeps
-  // its owned-dependent term live. +5% is a GUESS tuned for a realistic ~15-25
-  // factories (×1.75-2.25); watch it in the pacing sim if factory counts drift.
+  // its owned-dependent term live. At the ~9-10 factories a day now ends with
+  // that is ×1.45-1.5; watch it in the pacing sim if factory counts drift.
   { key: "factoryfactory", name: "Factory Factory", icon: "🪆",
-    cost: 6e6, unlock: { owned: [["factory", 15], ["lab", 1]] },
+    cost: 180000, unlock: { owned: [["factory", 8], ["lab", 1]] },
     effect: { type: "crossBuilding", building: "factory", per: "factory", pct: 5 } },
   { key: "labobserver", name: "The Observer Effect", icon: "🔭",
-    cost: 8e6, unlock: { owned: [["lab", 2]] },
+    cost: 300000, unlock: { owned: [["lab", 2]] },
     effect: { type: "globalPct", pct: 15 } },
 
   // --- Petting ---
+  // EVERY row here belongs to phase 1 — petting earns nothing once Hex is asleep
+  // (see pet()'s night gate), so a petting upgrade that isn't affordable before
+  // Catnap Hypnalysis is an upgrade nobody can ever use. The ladder is priced to
+  // finish at half the capstone, and its click gates top out at 1200 pets, which
+  // even a slow solo run (3 pets/s) clears inside the day.
+  //
+  // WHY THIS ISN'T FOURTEEN ×2s. It used to be, spread from 3k to 180M, and it
+  // paced fine only because most of it sat past the twist and was never bought.
+  // Pull the same fourteen doublings under a 1M ceiling and they detonate: once
+  // petting is the bulk of income, each ×2 more than pays for the next rung, so
+  // the last eight rows all fire inside five seconds and the whole day ends at
+  // 1:09. A rung's cost step has to beat the income it grants, which against a
+  // fixed ceiling leaves room for four doublings and no more. The rest of the
+  // ladder earns its keep with effects that CAN'T cascade, in Cookie Clicker's
+  // own idiom:
+  //
+  //   ×2 pets       — 4 rungs, widely spaced; the only shape that compounds
+  //   per-building  — Thousand Fingers: pets scale with Mouse Factories owned.
+  //                   Additive rungs, so stacking them can't compound.
+  //   golden mice   — Lucky Day / Get Lucky: goldens spawn sooner and linger
+  //                   longer, and Zoomies itself hits harder and lasts longer.
+  //                   All bounded by the buff's uptime however many you stack.
+  //   flat / share  — the opening rungs, irrelevant by the end, exactly as in CC.
+  //
+  // Each mechanic is assigned to the running gag that already fit it, not
+  // sprinkled at random: the perches are where Hex WATCHES (goldens), cardboard
+  // is what a Mouse Factory ships in (per-building), and a pounce and a chin
+  // scritch are what Zoomies is made of (buff power and length).
+  //
+  // ASCENDING COST, which is also shop order — refreshUpgrades renders UPGRADES
+  // in array order, so the rail reads as one ladder. Keep it monotonic: a row
+  // out of sequence shows up in the shop above things cheaper than it.
+  // 50, under its own 200 unlock, so the first upgrade anyone ever sees is
+  // already affordable the moment it appears — the opening beat is "there is a
+  // shop and you can use it", not a wait.
   { key: "whiskers", name: "Cat Tree", icon: "🌳",
-    cost: 100, unlock: { total: 200 },
+    cost: 50, unlock: { total: 200 },
     effect: { type: "clickFlat", add: 1 } },
+  { key: "scratchpost", name: "Scratching Post", icon: "🪵",
+    cost: 500, unlock: { clicks: 80 },
+    effect: { type: "clickMult", mult: 2 } },
   { key: "clawsharp", name: "Cat Brush", icon: "🪮",
-    cost: 5000, unlock: { clicks: 100 },
+    cost: 5000, unlock: { clicks: 120 },
     effect: { type: "clickFlat", add: 5 } },
+  // The Cardboard line is this game's Thousand Fingers: pets get better the more
+  // Mouse Factories you own, because a factory is what the boxes ship in. Three
+  // additive rungs (10 → 35 → 100 per factory) rather than Cookie Clicker's
+  // multiplied ones — additive can't compound, which is the whole reason this
+  // line exists instead of three more doublings.
+  //
+  // Per FACTORY and not per Mouse Subscription, for the same reason Thousand
+  // Fingers counts every building EXCEPT cursors. Hung off the cheapest building
+  // it was a feedback loop with no brake — subscriptions cost 10 and make pets
+  // better, better pets buy more subscriptions — and the sim's bot duly bought
+  // 53 subscriptions, 13 farms and ZERO factories, taking the Farm ladder and
+  // the entire Factory ladder down with it. The Factory's 12000 base is the
+  // brake, and aiming the line at the building nobody was stocking is the point.
+  // Gated on owning factories as well: bought with none, these rows do nothing.
+  // The Box is the classic ambush spot, the Castle is its upgrade, and locking
+  // Goomba in it leaves Hex the whole fort — so each `requires` the last.
+  { key: "cardboardbox", name: "Cardboard Box", icon: "📦",
+    cost: 10000, unlock: { owned: ["factory", 3] },
+    effect: { type: "clickPerBuilding", add: 10, per: "factory" } },
   { key: "staticfur", name: "Static Fur", icon: "⚡",
     cost: 20000, unlock: { requires: "whiskers", total: 20000 },
     effect: { type: "clickShare", pct: 2 } },
-  { key: "pounce", name: "Pounce Reflex", icon: "🐾",
-    cost: 100000, unlock: { clicks: 400 },
-    effect: { type: "clickMult", mult: 2 } },
-  { key: "jailgoomba", name: "Lock Goomba in Cardboard Castle", icon: "🚔",
-    cost: 15e6, unlock: { clicks: 1200 },
-    effect: { type: "clickMult", mult: 2 } },
-  // Cardboard pair: the Box is the classic cheap ambush spot; the Castle is its
-  // upgrade, so it `requires` the Box before it unlocks. Both are plain ×2 pets.
-  { key: "cardboardbox", name: "Cardboard Box", icon: "📦",
-    cost: 300000, unlock: { clicks: 550 },
-    effect: { type: "clickMult", mult: 2 } },
-  { key: "cardboardcastle", name: "Cardboard Castle", icon: "🏰",
-    cost: 8e6, unlock: { requires: "cardboardbox", clicks: 1000 },
-    effect: { type: "clickMult", mult: 2 } },
-  // More ×2 petting. Costs/unlocks are placeholders — parked in the petting
-  // ladder in ascending order so they don't all reveal at once; NOT tuned yet.
-  { key: "scratchpost", name: "Scratching Post", icon: "🪵",
-    cost: 3000, unlock: { clicks: 80 },
-    effect: { type: "clickMult", mult: 2 } },
   { key: "scratchpost2", name: "Reinforced Scratching Post", icon: "🪢",
-    cost: 40000, unlock: { requires: "scratchpost", clicks: 250 },
+    cost: 25000, unlock: { requires: "scratchpost", clicks: 260 },
     effect: { type: "clickMult", mult: 2 } },
-  { key: "chinscritch", name: "Chin Scritch", icon: "😌",
-    cost: 3e6, unlock: { clicks: 900 },
-    effect: { type: "clickMult", mult: 2 } },
-  { key: "ovenmitts", name: "Bite-Proof Oven Mitts", icon: "🧤",
-    cost: 40e6, unlock: { clicks: 1500 },
-    effect: { type: "clickMult", mult: 2 } },
-  // Window Perch #2 and #3 of the running gag (see #1 in the Bespoke section):
-  // the first perch was innocent; these two later, pricier ones lean into the
-  // excess. All three are plain ×2 pets, so the NAME has to carry the whole gag —
-  // it used to live in flavor text, which meant three rows titled "Window Perch"
-  // with identical effects and only the flavor telling them apart. Now the
-  // arithmetic is in the titles: three perches, two windows. Never collapse these
-  // back to a bare "Window Perch" or the shop shows duplicate rows.
+  // Pounce Reflex and Chin Scritch are the Zoomies pair — the two rows that make
+  // CATCHING a golden mouse matter more, rather than making every pet matter
+  // more. A pounce is what the zoomies burst IS, so it hits harder; a chin
+  // scritch is what keeps a cat in that state, so it lasts longer. Both are
+  // bounded by the buff's own uptime no matter what else is stacked, which is
+  // exactly why they're here rather than being two more doublings.
+  { key: "pounce", name: "Pounce Reflex", icon: "🐾",
+    cost: 40000, unlock: { clicks: 320 },
+    effect: { type: "zoomMult", add: 3 } },
+  // Window Perch #1 of the running gag (see #2/#3 below). A perch is where Hex
+  // sits and WATCHES the window, so the three perches are the golden-mouse line:
+  // she spots them sooner, and from the second window on they hang around longer
+  // before escaping. This title stays bare "Window Perch" on purpose — it's the
+  // setup the other two count off from, so it's the ONE perch that shouldn't
+  // name a window. (It used to be the Saucer of Milk; hence the key.)
+  { key: "milk", name: "Window Perch", icon: "🪟",
+    cost: 40000, unlock: { total: 40000 },
+    effect: { type: "goldenFreq", mult: 1.3 } },
+  // Window Perch #2 and #3. Two effects each, Cookie Clicker's grandma-synergy
+  // shape: another window is both a better lookout (sooner) and a longer watch
+  // (linger). goldenLife is PAIRED rather than sold alone on purpose — the spawn
+  // timer only runs while nothing is on screen and a caught golden despawns
+  // instantly, so linger is pure insurance against a MISS and is worth exactly
+  // zero to a room that catches everything. Alone it would read as a dead row,
+  // and the pacing sim (which assumes every golden is caught) would score it at
+  // zero gain and never buy it.
+  //
+  // All three perches are one gag, so the NAME has to carry it — it used to live
+  // in flavor text, which meant three rows titled "Window Perch" with only the
+  // flavor telling them apart. The arithmetic is in the titles now: three
+  // perches, two windows. Never collapse these back to a bare "Window Perch".
   { key: "cattree", name: "Window Perch, Second Window", icon: "🪟",
-    cost: 60e6, unlock: { clicks: 1800 },
-    effect: { type: "clickMult", mult: 2 } },
+    cost: 50000, unlock: { clicks: 620 },
+    effect: [{ type: "goldenFreq", mult: 1.25 }, { type: "goldenLife", add: 3 }] },
+  { key: "cardboardcastle", name: "Cardboard Castle", icon: "🏰",
+    cost: 60000, unlock: { requires: "cardboardbox", owned: [["factory", 5]] },
+    effect: { type: "clickPerBuilding", add: 35, per: "factory" } },
+  { key: "chinscritch", name: "Chin Scritch", icon: "😌",
+    cost: 100000, unlock: { clicks: 520 },
+    effect: { type: "zoomTime", add: 4 } },
   { key: "windowperch", name: "Third Window Perch, Second Window", icon: "🪟",
-    cost: 90e6, unlock: { clicks: 2200 },
-    effect: { type: "clickMult", mult: 2 } },
-  // The anticlimax is the joke: 120M mice, bought after churu hydroponics and a
-  // quantum lab, and what it buys is the same kibble as yesterday. The title has
-  // to land that — "Dry Food" alone reads as a straight item.
+    cost: 110000, unlock: { requires: "cattree", clicks: 820 },
+    effect: [{ type: "goldenFreq", mult: 1.25 }, { type: "goldenLife", add: 4 }] },
+  // The anticlimax is the joke: bought after churu hydroponics and a quantum
+  // lab, and what it buys is the same kibble as yesterday. The title has to land
+  // that — "Dry Food" alone reads as a straight item — so the effect stays the
+  // most ordinary thing in the shop.
   { key: "dryfood", name: "Dry Food, Same As Yesterday", icon: "🥣",
-    cost: 120e6, unlock: { clicks: 2600 },
+    cost: 130000, unlock: { clicks: 600 },
     effect: { type: "clickMult", mult: 2 } },
+  // Static Fur's second rung, not a fifth doubling — four ×2s is all the cost
+  // ceiling can space far enough apart. The mitts let you keep both hands in it
+  // however fast the operation is running, which is what a share of your /s per
+  // pet actually means.
+  { key: "ovenmitts", name: "Bite-Proof Oven Mitts", icon: "🧤",
+    cost: 160000, unlock: { clicks: 680 },
+    effect: { type: "clickShare", pct: 2 } },
+  { key: "jailgoomba", name: "Lock Goomba in Cardboard Castle", icon: "🚔",
+    cost: 180000, unlock: { requires: "cardboardcastle", owned: [["factory", 7]] },
+    effect: { type: "clickPerBuilding", add: 100, per: "factory" } },
   // Sequel to the original Cat Tree (whiskers) — same running-gag pattern as the
   // Window Perch trio, and the same rule: the title carries it, because a second
   // row titled plain "Cat Tree" is indistinguishable from the first in the shop.
+  // The ladder's last doubling.
   { key: "cattreetable", name: "Cat Tree, On the Table", icon: "🌳",
-    cost: 150e6, unlock: { requires: "whiskers", clicks: 3000 },
+    cost: 320000, unlock: { requires: "whiskers", clicks: 1000 },
     effect: { type: "clickMult", mult: 2 } },
   // Reads two ways on purpose: a breath of fresh air to anyone playing, and the
   // daily asthma puff to anyone who knows the real Hex. Don't "fix" the wording
   // toward either reading — it has to stay plain enough to carry both. The
   // ambiguity lives in the TITLE, which is why dropping the flavor line cost
-  // nothing here. Plain clicks gate, continuing the ladder's +30e6 / +400 step.
+  // nothing here. The ladder's last rung, and the last petting upgrade anyone
+  // can ever buy — Hex falls asleep shortly after. It lifts the WHOLE operation
+  // rather than pets alone, which is both the plainest reading of the name and
+  // the one shape that can't set off another cascade this late in the day.
   { key: "freshair", name: "A Breath of Fresh Air", icon: "💨",
-    cost: 180e6, unlock: { clicks: 3400 },
-    effect: { type: "clickMult", mult: 2 } },
+    cost: 500000, unlock: { clicks: 1200 },
+    effect: { type: "globalPct", pct: 25 } },
 
   // --- Cross-building synergies ---
   // (None right now.) Assisted Pounce and Thesis Subjects lived here — both used
@@ -1005,16 +1162,12 @@ const UPGRADES = [
   // never the Factory. See hex-clicker-synergy-brief.md (now historical).
 
   // --- Bespoke ---
-  // Window Perch #1 of the running gag (see #2/#3 in the petting ladder above):
-  // this first one is played straight; the later two lean into the excess. Its
-  // title stays bare "Window Perch" on purpose — it's the setup the other two
-  // count off from, so this is the ONE perch that shouldn't name a window.
-  // Replaces the old Saucer of Milk (+5% income) — now a plain ×2 petting bonus.
-  { key: "milk", name: "Window Perch", icon: "🪟",
-    cost: 50000, unlock: { total: 40000 },
-    effect: { type: "clickMult", mult: 2 } },
+  // (Hex's Undivided Focus, a flat +10% global, was removed here: it was a
+  // numbers-only row with no joke in the title and nothing to buy it FOR, and
+  // globalPct now has exactly one owner — The Observer Effect, which earns it by
+  // being the Lab tier's finale. The effect type is still live; don't delete it.)
   { key: "magnet", name: "Mouse Magnet", icon: "🧲",
-    cost: 30000, unlock: { golden: 2 },
+    cost: 20000, unlock: { golden: 1 },
     effect: { type: "goldenFreq", mult: 1.5 } },
   // A night economy spike: a clean ×6 to ALL mouse generation (globalMult, so it
   // multiplies the whole stack rather than adding to the +% sum). Triple-six
@@ -1025,22 +1178,35 @@ const UPGRADES = [
   { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
     cost: 2e6, unlock: { requires: "catnap", golden: 6 },
     effect: { type: "globalMult", mult: 6 } },
-  { key: "focus", name: "Hex's Undivided Focus", icon: "👁️",
-    cost: 250000, unlock: { total: 200000 },
-    effect: { type: "globalPct", pct: 10 } },
 
   // --- THE TWIST + night chain ---
-  // Catnap Hypnalysis unlocks at the lab's own reveal moment (total >= lab base),
-  // so the two arrive as a pair: the lab appears, and so does the strange
-  // upgrade. Buying it flips the night phase permanently (it derives from
-  // game.bought, so saves restore it for free).
-  // Cost trimmed 250k -> 160k: it unlocks at 130k lifetime but you're spending
-  // mice on buildings, so a 250k bank was a ~90s dead wait right before the
-  // twist. 160k lands it just past affordability when it reveals, killing the
-  // one remaining lull. Unlock stays at 130k so it still arrives paired with
-  // the Lab.
+  // Catnap Hypnalysis is the END OF PHASE 1, and it is priced to say so: at 1M
+  // it costs more than three times the dearest thing under it (the Lab tier's
+  // Observer Effect at 300k), so no day ladder can be mistaken for the capstone
+  // and none of them is left stranded behind it. Every other day upgrade —
+  // building AND petting — is tuned to be affordable well before this one, which
+  // matters most for the petting ladder: pets earn nothing at night, so a
+  // petting row you can't buy in daylight is a row you can never use.
+  //
+  // Unlock is OWNING a Schrödinger's Lab, not the old "total >= the Lab's base"
+  // pairing. Same idea told properly: the Lab is what causes the dream, so the
+  // twist appears when you actually build one rather than when you could have.
+  // It also hands the pacing to the room — the Lab is the door, and phase 1 ends
+  // when a team decides to open it, not when a lifetime counter ticks over. And
+  // it avoids the failure mode a plain total gate has at this price: a 1M row
+  // sitting unaffordable on screen for minutes, loudest thing in the shop and
+  // the one thing you can't press. Buying it flips the night phase permanently
+  // (it derives from game.bought, so saves restore it for free).
+  //
+  // The cost of that gate is that a team who never buys a Lab never sees the
+  // twist. Two things pay for it: the Lab is the last, strangest, most expensive
+  // building on the rail (the thing groups buy on sight), and buying one lights
+  // up FOUR upgrade rows at once — its cross-building tier is priced inside
+  // phase 1 now, so the reward for opening the door is immediate and visible.
+  // If playtests still show teams stalling out in daylight, the fix is a nudge
+  // toward the Lab, not a second unlock condition here.
   { key: "catnap", name: "Catnap Hypnalysis", icon: "💤",
-    cost: 160000, unlock: { total: 130000 },
+    cost: 1e6, unlock: { owned: [["lab", 1]] },
     effect: { type: "night" } },
   // Counting Mice: the night's FIRST research. It doesn't ink anything — it flips
   // the wall mice on (type: "countMice" → mods.countMice → wallMiceCount), so the
@@ -1075,9 +1241,17 @@ const game = {
   owned: {},        // id -> count
   bought: {},       // upgrade key -> 1 once purchased
   unlocked: {},     // upgrade key -> 1 once revealed (sticky; never re-hides)
-  // Deadline only — the multiplier is a constant (ZOOM_MULT), so the buff is
+  // upgrade key -> 1 once you have actually LAID EYES on the row: its vertical
+  // midpoint has been inside the shop's visible area. Sticky like `unlocked`,
+  // and saved for the same reason — the SHOP badge counts what's missing from
+  // here, so losing it on reload would light the badge up with the whole list
+  // and read as a bug. Midpoint rather than any-part-visible: a row cropped to
+  // a sliver by the scroller's edge hasn't been read, and the top and bottom
+  // fades sit over exactly that sliver.
+  seen: {},
+  // Deadline only — the multiplier lives in mods (upgrades raise it), so the buff is
   // entirely described by "until when".
-  zoomUntil: 0,     // timestamp ms while Zoomies (pet power x ZOOM_MULT) is active
+  zoomUntil: 0,     // timestamp ms while Zoomies (pet power x mods.zoomMult) is active
 };
 BUILDINGS.forEach(b => game.owned[b.id] = 0);
 
@@ -1089,7 +1263,7 @@ function save() {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       mice: game.mice, total: game.total, clicks: game.clicks,
       goldCaught: game.goldCaught, owned: game.owned,
-      bought: game.bought, unlocked: game.unlocked,
+      bought: game.bought, unlocked: game.unlocked, seen: game.seen,
     }));
   } catch (e) {}
 }
@@ -1107,6 +1281,7 @@ function load() {
     UPGRADES.forEach(u => {
       if (s.bought && s.bought[u.key]) game.bought[u.key] = 1;
       if (s.unlocked && s.unlocked[u.key]) game.unlocked[u.key] = 1;
+      if (s.seen && s.seen[u.key]) game.seen[u.key] = 1;
     });
   } catch (e) {}
 }
@@ -1127,6 +1302,7 @@ function costOf(b, owned) { return Math.ceil(b.base * Math.pow(GROWTH, owned)); 
 function foldMods(bought, owned) {
   const m = { building: {}, globalMult: 1, clickFlat: CLICK_BASE,
               clickShare: CLICK_CPS_SHARE, clickMult: 1, goldenFreq: 1, goldenLife: 0,
+              zoomMult: ZOOM_MULT, zoomTime: ZOOM_S,
               trail: 0, countMice: 0, night: 0 };
   BUILDINGS.forEach(b => m.building[b.id] = 1);
   let globalPct = 0, globalMul = 1;
@@ -1146,6 +1322,11 @@ function foldMods(bought, owned) {
       else if (e.type === "clickMult") m.clickMult *= e.mult;
       else if (e.type === "goldenFreq") m.goldenFreq *= e.mult;
       else if (e.type === "goldenLife") m.goldenLife += e.add;
+      // Zoomies power and length. Both ADD to the base rather than multiplying
+      // it: the buff is already a multiplier gated behind a scarce, short window,
+      // so compounding it would make the golden line the only line worth buying.
+      else if (e.type === "zoomMult") m.zoomMult += e.add;
+      else if (e.type === "zoomTime") m.zoomTime += e.add;
       else if (e.type === "trail") m.trail += e.add;
       // Pure toggle: Counting Mice flips the wall mice on. Folded as a mod (not
       // read by name anywhere) so the same rule feeds the live wall and the sim.
@@ -1213,7 +1394,7 @@ function clickBaseWith(m, owned) {
 function baseCps() { return baseCpsWith(mods, game.owned); }
 // Zoomies is the only buff and it multiplies PETS, so mice/s has no buffed
 // form: baseCps() is the live rate everywhere. Buildings run flat.
-function zoomBuff() { return performance.now() < game.zoomUntil ? ZOOM_MULT : 1; }
+function zoomBuff() { return performance.now() < game.zoomUntil ? mods.zoomMult : 1; }
 function clickGain() {
   // DEV.teamMult is 1 outside ?debug — simulates the 4-player room this game
   // actually ships for, since solo dev testing can't reproduce "four people
@@ -1286,6 +1467,8 @@ function oneEffectText(e) {
       ? `Golden mice appear ${hl(multWord(e.mult))} as often`
       : `Golden mice appear ${hl(Math.round((e.mult - 1) * 100) + "%")} more often`;
     case "goldenLife":   return `Golden mice linger +${hl(e.add + "s")} longer`;
+    case "zoomMult":     return `Zoomies pet ${hl("+×" + e.add)} harder`;
+    case "zoomTime":     return `Zoomies lasts +${hl(e.add + "s")} longer`;
     // Must print e.add: the three sleep stages differ ONLY in trail length, so a
     // constant string rendered all of Deep Sleep / REM / Lucid identically.
     case "trail":        return `Dream mice leave ${hl("+" + e.add)} more trail`;
@@ -1339,6 +1522,17 @@ const $ = s => document.querySelector(s);
 const countEl = $("#count"), countIconEl = $("#countIcon"), cpsEl = $("#cps"), shopEl = $("#shop"), stageEl = $("#stage");
 const goldenEl = $("#golden"), buffEl = $("#buff");
 const upgradesEl = $("#upgrades"), upgradeSecEl = $("#upgradeSec");
+const shopScrollEl = $("#shopScroll"), newBadgeEl = $("#newBadge");
+// Last touch anywhere in the shop, and how long a reveal will hold the list
+// still afterwards. Read by refreshUpgrades() — see the long note there for why
+// the hold is scoped to a tap burst instead of being always on. Capture phase
+// and passive: this only observes, and must still fire for rows that stop
+// propagation. 700ms outlasts the gap between taps in a mash (~250ms at 4/s)
+// without keeping the list frozen once a player's hands are off it.
+let lastShopTapAt = -Infinity;
+const SHOP_HOLD_MS = 700;
+shopScrollEl.addEventListener("pointerdown", () => { lastShopTapAt = performance.now(); },
+                             { capture: true, passive: true });
 const buildingSecEl = $("#buildingSec"), dockEl = $("#dock"), hudEl = $("#hud");
 const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 
@@ -1360,6 +1554,29 @@ function toggleShop() {
   shopToggleEl.setAttribute("aria-expanded", String(expanded));
 }
 shopToggleEl.addEventListener("click", toggleShop);
+
+// How many unlocked, unbought upgrades you have never had on screen. Every
+// unbought upgrade is new — they're one-time purchases, so there's no "new since
+// last visit" to compute; the only question is whether you've seen this one yet.
+// Derived from game.seen rather than tracked incrementally, so it can't drift
+// out of step with the rows that actually exist.
+function refreshBadge() {
+  let n = 0;
+  for (const u of UPGRADES) if (!game.bought[u.key] && game.unlocked[u.key] && !game.seen[u.key]) n++;
+  if (n === badgeN) return;
+  badgeN = n;
+  if (n > 0) newBadgeEl.textContent = n;
+  newBadgeEl.hidden = n === 0;
+  // The rail's accessible name carries the count too — the badge itself is
+  // aria-hidden, so without this a screen reader gets no hint at all. Rewritten
+  // on every change of n, not just when the badge appears and disappears: gated
+  // on the visibility flip it announced the count at first reveal and then never
+  // corrected it, so the badge read 7 while the label still claimed 12.
+  shopToggleEl.setAttribute("aria-label", n > 0 ? `Shop, ${n} new upgrades` : "Shop");
+}
+// Last value pushed to the DOM, so the common case (no change) costs one compare
+// instead of a write — this runs off the scroll tick.
+let badgeN = -1;
 
 // Kiosk lockdown (see the html,body CSS note): swallow the long-press context
 // menu so a held tap on Hex or a shop row never raises the browser's callout.
@@ -1528,6 +1745,40 @@ function refreshUpgrades() {
   const sig = shown.map(u => u.key).join(",");
 
   if (sig !== upSig) {
+    // While a purchase burst is in flight, hold the shop's scroll position
+    // against the BOTTOM of its content across this rebuild, so the building
+    // rows never move under a tapping thumb.
+    //
+    // Upgrades sit above Buildings in one scroller now, and a building purchase
+    // routinely reveals a research — it crosses a lifetime-mice or owned-count
+    // gate. scrollTop is measured from the TOP, so the browser holds it fixed
+    // and everything below the insert drops by a row: the row you just tapped
+    // and are about to tap again. In a game that buys on a single click with no
+    // confirm, that's a mis-buy, and it was worth 75px here — most of a row.
+    //
+    // The browser's own scroll anchoring is meant to absorb exactly this and
+    // can't, twice over: it is suppressed while scrollTop is 0 (the usual state
+    // of a shop this length), and the rebuild below destroys every node it
+    // could have anchored to.
+    //
+    // ONLY during a tap burst, though. This function runs ~12x/sec off the
+    // frame loop, so an always-on hold fires for reveals nobody triggered — and
+    // since the list only ever grows, holding the bottom every time walks the
+    // scroller to the end and leaves it there. Measured: two upgrade rows on
+    // screen for the rest of the run, every new research revealed above the
+    // fold where it is never seen. A shop you can't be startled by is worth
+    // less than one you can't misfire in, but not much less. Idle reveals get
+    // the plain reflow, which puts the new row on screen.
+    //
+    // Distance-from-bottom rather than a scrollTop delta, so the case where the
+    // list is SHORTER than the cap comes out right for free: #dock is fixed to
+    // the bottom of the screen and simply grows upward, scrollTop clamps back
+    // to 0 on its own, and this is a no-op. It equally covers a row LEAVING the
+    // list when an upgrade is bought.
+    const hold = performance.now() - lastShopTapAt < SHOP_HOLD_MS;
+    // Guarded: reading scrollHeight forces layout, so don't pay for it when the
+    // shop is reflowing untouched.
+    const fromBottom = hold ? shopScrollEl.scrollHeight - shopScrollEl.scrollTop : 0;
     upSig = sig;
     upgradesEl.innerHTML = "";
     upRows = new Map();
@@ -1550,6 +1801,13 @@ function refreshUpgrades() {
     }
     upgradeSecEl.classList.toggle("show", shown.length > 0);
     syncDock();
+    // After the show/hide toggles above, so the layout being measured is final.
+    // Assigning past the scrollable range is fine — the browser clamps it.
+    if (hold) shopScrollEl.scrollTop = shopScrollEl.scrollHeight - fromBottom;
+    // The set changed, so the unseen count did too. updSeen() only runs off the
+    // scroll tick, and a reveal that nobody scrolls for would otherwise leave
+    // the badge stale until the next 300ms poll.
+    refreshBadge();
   }
 
   for (const u of shown) {
@@ -1884,13 +2142,14 @@ const goldenSaucerSVG = () => {
 // 7-second all-hands tapping sprint the room can act on, where a buff on idle
 // income would pay out the same whether anyone taps or not.
 // Both knobs are named because the pacing simulator reads them too — retuning
-// Zoomies here must not leave the sim reporting a stale timeline.
-const ZOOM_MULT = 6;            // Zoomies: pets x6...
-const ZOOM_MS = 7000;           // ...for 7s
+// Zoomies here must not leave the sim reporting a stale timeline. They live up
+// in the BALANCE block rather than here, because foldMods seeds mods.zoomMult /
+// mods.zoomTime from them and runs long before this line — a `const` here would
+// be in its temporal dead zone at that point and throw on load.
 const GOLD_MARGIN = 10;         // px of stage edge the golden won't drift past
 const GOLD_MIN_S = 40, GOLD_MAX_S = 90;              // spawn window
 const GOLD_MEAN_S = (GOLD_MIN_S + GOLD_MAX_S) / 2;   // the sim's mean gap
-// The FIRST golden of a run waits longer, landing ~2:30–3:30 — late in the
+// The FIRST golden of a run waits longer, landing ~1:50–2:40 — late in the
 // opening era, "a taste" per the design doc. It is gated on a run rather than a
 // page load: a save that has already caught one uses the normal window, so a
 // mid-game reload doesn't re-serve the intro pause.
@@ -1898,7 +2157,15 @@ const GOLD_MEAN_S = (GOLD_MIN_S + GOLD_MAX_S) / 2;   // the sim's mean gap
 // mouse/pet and the first building costs 10, so a 7s sprint landing at 0:40 is
 // worth ~10x the entire first purchase — it would erase the opening curve
 // before the player has read the shop.
-const GOLD_FIRST_MIN_S = 150, GOLD_FIRST_MAX_S = 210;
+// Pulled in from 2:30–3:30 when Catnap Hypnalysis became the end of phase 1:
+// the whole DAY now finishes at 3:21 for a team of four mashing, so the old
+// window served a fast room its first golden with barely a minute of daylight
+// left. Goldens are day-only content in practice — Zoomies multiplies pets and
+// pets earn nothing once Hex is asleep — and the entire golden upgrade line
+// (three Window Perches, the Mouse Magnet, Pounce Reflex, Chin Scritch) has to
+// pay for itself inside that window or it is rows nobody sensibly buys. This
+// window has to move with the length of the day; it is not an absolute.
+const GOLD_FIRST_MIN_S = 110, GOLD_FIRST_MAX_S = 160;
 let goldTimer = 0, goldActive = false, goldLifeLeft = 0, goldVx = 0, goldVy = 0, goldX = 0, goldY = 0;
 // The reachable box, in #stage-local px. #stage is the full viewport height,
 // but #hud (the score) and #dock (the shop) are position:fixed overlays ON TOP
@@ -1989,8 +2256,8 @@ goldenEl.addEventListener("pointerdown", e => {
   if (!goldActive) return;
   game.goldCaught++;
   const rect = stageEl.getBoundingClientRect();
-  game.zoomUntil = performance.now() + ZOOM_MS;
-  floatNum(goldX - rect.left + 30, goldY - rect.top + 20, "⚡ ×" + ZOOM_MULT);
+  game.zoomUntil = performance.now() + mods.zoomTime * 1000;
+  floatNum(goldX - rect.left + 30, goldY - rect.top + 20, "⚡ ×" + mods.zoomMult);
   despawnGold(); refreshHud(); save();
 }, { passive: false });
 
@@ -3178,7 +3445,7 @@ function frame(now) {
   // buff pill countdown
   if (game.zoomUntil > now) {
     const left = ((game.zoomUntil - now) / 1000);
-    buffEl.textContent = "⚡ ZOOMIES ×" + ZOOM_MULT + " · " + left.toFixed(1) + "s";
+    buffEl.textContent = "⚡ ZOOMIES ×" + mods.zoomMult + " · " + left.toFixed(1) + "s";
     buffEl.style.display = "block";
   } else if (buffEl.style.display === "block") {
     buffEl.style.display = "none";
@@ -3219,8 +3486,10 @@ const DEV_PRESETS = {
                 owned: { shopper: 5, farm: 3 } },
   "midday":   { total: 30000, mice: 12000, clicks: 220,
                 owned: { shopper: 18, farm: 20 } },
-  "pre-night":{ total: 140000, mice: 320000, clicks: 420,
-                owned: { shopper: 25, farm: 40, factory: 4, lab: 1 } },
+  // Bank has to clear Catnap's 1M, or the preset drops you at the twist without
+  // the means to press it — which is the one thing this preset exists to test.
+  "pre-night":{ total: 1500000, mice: 1200000, clicks: 1100,
+                owned: { shopper: 30, farm: 35, factory: 12, lab: 1 } },
   "night":    { total: 450000, mice: 900000, clicks: 550, golden: 3,
                 owned: { shopper: 25, farm: 40, factory: 5, lab: 2 },
                 bought: ["catnap"] },
@@ -3292,7 +3561,8 @@ function devContentHTML() {
 // What it models:
 //   - income integrated at 0.25s steps; petting at a steady `pps` pets/sec
 //   - golden mice as expected value: mean interval 65s / goldenFreq, every one
-//     giving Zoomies (pets x6 for 7s), folded in as a steady-state multiplier
+//     giving Zoomies (pets x mods.zoomMult for mods.zoomTime), folded in as a
+//     steady-state multiplier
 //     on the PET term only. Assumes EVERY golden gets caught — right for a
 //     motivated team of four, generous for solo.
 //   - purchases: story items (night / trail effects) bought on sight — they're
@@ -3323,6 +3593,21 @@ function simulateRun(opts = {}) {
     return isRevealed(b, s);
   };
   const isStory = u => [].concat(u.effect).some(e => e.type === "night" || e.type === "trail" || e.type === "countMice");
+  // Buildings a story upgrade requires you to OWN — today, the Schrödinger's Lab
+  // that Catnap Hypnalysis unlocks on. The bot has to treat these as story
+  // purchases too, because the greedy payback score never picks the Lab: it has
+  // no upgrades of its own, so it always loses the marginal comparison to a
+  // Factory carrying a ×144 stack. Left to its heuristic the bot buys its first
+  // Lab in the NIGHT phase (when day buildings stop being options), which it can
+  // never reach without one — the run just idles out at the cap. A human buys it
+  // because it's the strange expensive new thing that lights up four upgrade
+  // rows. Derived from the table rather than naming "lab", so moving the gate to
+  // another building needs no edit here.
+  const storyBuildings = {};
+  for (const u of UPGRADES) {
+    if (!isStory(u) || !u.unlock.owned) continue;
+    for (const [id, n] of ownedPairs(u.unlock)) storyBuildings[id] = Math.max(storyBuildings[id] || 0, n);
+  }
 
   // Goldens are off the table until the first one is due. Uses the midpoint of
   // the first-spawn window, matching how the rest of the model reads mean
@@ -3342,7 +3627,7 @@ function simulateRun(opts = {}) {
     // before the first spawn can land (`t` is read live off the loop below):
     // over a 10-minute target that intro wait is a quarter of the run, so
     // averaging goldens across it would flatter the early curve.
-    const gClk = goldsLive() ? 1 + (ZOOM_MULT - 1) * (ZOOM_MS / 1000) / I : 1;
+    const gClk = goldsLive() ? 1 + (m.zoomMult - 1) * m.zoomTime / I : 1;
     // Petting earns nothing at night (the sleepy reaction is not a mechanic), so
     // the pet term drops to zero once the twist fires — matches pet()'s gate.
     const pet = nightOf(bought) ? 0 : pps * clickBaseWith(m, owned) * gClk;
@@ -3368,6 +3653,17 @@ function simulateRun(opts = {}) {
         if ([].concat(u.effect).some(e => e.type === "night")) s.owned[NIGHT_SEED_ID] += NIGHT_SEED_COUNT;
       }
       else goalGap = Math.max(goalGap, u.cost - s.mice);
+    }
+    // ...and the buildings those story upgrades gate on, on the same terms:
+    // bought on sight once revealed, saved for while out of reach.
+    for (const id in storyBuildings) {
+      const b = BUILDINGS.find(x => x.id === id);
+      while (s.owned[id] < storyBuildings[id] && isRevealed(b, s)) {
+        const cost = costOf(b, s.owned[id]);
+        if (s.mice < cost) { goalGap = Math.max(goalGap, cost - s.mice); break; }
+        s.mice -= cost; s.owned[id]++;
+        if (s.owned[id] === 1) log(`first ${b.name}`);
+      }
     }
 
     // Growth purchases: repeatedly take the best-scoring affordable option.
@@ -3535,21 +3831,48 @@ syncPhase(); // saves restore the phase for free
 initDev();
 countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refreshHud()'s job
 
-// Shop-skin runtime: drive the scroll shadows (.can-up / .can-down) on the two
-// scrolling lists. (Icon sizing is pure CSS — a fixed-width, full-height tile
+// Shop-skin runtime: drive the scroll shadows (.can-up / .can-down) on the shop
+// scroller. One scroller now — Upgrades and Buildings share it — so this watches
+// a single element. (Icon sizing is pure CSS — a fixed-width, full-height tile
 // per row.) All read-only measurement, so there's no layout feedback with the
 // game's own row refresh.
 // This used to also publish the dock/HUD heights as CSS vars for #catWrap to
 // center Hex against. It doesn't anymore: Hex is pinned to the sunburst (--sun-y)
 // and no longer tracks the shop at all, so those measurements had no consumer.
 (function () {
-  const scrollers = [shopEl, upgradesEl];
+  const scrollers = [shopScrollEl];
   function updAff(el) {
     el.classList.toggle("can-up", el.scrollTop > 1);
     el.classList.toggle("can-down", el.scrollTop + el.clientHeight < el.scrollHeight - 1);
   }
-  function tick() { scrollers.forEach(updAff); }
-  scrollers.forEach(el => el.addEventListener("scroll", () => updAff(el), { passive: true }));
+  // Mark upgrade rows seen as they come into view, which is what clears the
+  // badge. A row counts as seen once its MIDPOINT is inside the scroller's
+  // visible box — the row is then unambiguously on screen and readable, rather
+  // than a sliver under one of the edge fades.
+  //
+  // Polled off the same tick as the scroll shadows instead of an
+  // IntersectionObserver: refreshUpgrades rebuilds every row whenever the
+  // visible set changes, so an observer would need re-observing on each rebuild,
+  // and the list is short enough that this is the cheaper contract. Never marks
+  // anything while the shop is collapsed — max-height 0 leaves clientHeight 0,
+  // so no midpoint is ever inside it.
+  function updSeen() {
+    const box = shopScrollEl.getBoundingClientRect();
+    let changed = false;
+    for (const [key, r] of upRows) {
+      if (game.seen[key]) continue;
+      const b = r.el.getBoundingClientRect();
+      if (b.height <= 0) continue;
+      const mid = b.top + b.height / 2;
+      if (mid >= box.top && mid <= box.bottom) { game.seen[key] = 1; changed = true; }
+    }
+    // No explicit save(): `seen` rides along on the 8-second autosave, and a
+    // write per row scrolled past would be a lot of localStorage for a flag
+    // whose worst-case loss is one badge showing a stale number.
+    if (changed) refreshBadge();
+  }
+  function tick() { scrollers.forEach(updAff); updSeen(); }
+  scrollers.forEach(el => el.addEventListener("scroll", () => { updAff(el); updSeen(); }, { passive: true }));
   if (window.ResizeObserver) { const ro = new ResizeObserver(tick); ro.observe(dockEl); }
   addEventListener("resize", tick);
   setInterval(tick, 300);

@@ -1965,7 +1965,16 @@ function buyUpgrade(key) {
 // exactly that reason: it never changes, so it never needs to be written.
 const cpsValEl = cpsEl.querySelector("b");
 function refreshHud() {
-  countEl.textContent = fmt(game.mice);
+  // The bank is a whole number of mice, always. It is a COUNT of things you can
+  // spend, so a fractional tail is meaningless — you cannot buy with 0.4 of a
+  // mouse — and fmt keeps one decimal below 10 by default, which is exactly the
+  // range the opening minute lives in.
+  //
+  // Math.floor, not fmt(n, 0): toFixed ROUNDS, so 9.7 would print as "10" while
+  // the first Mouse Subscription still costs 10 and buy() still refuses. Never
+  // claim a bank you cannot spend. Above 10 fmt already floors, so this only
+  // changes the opening.
+  countEl.textContent = fmt(Math.floor(game.mice));
   // The top-of-screen rate is a headline number, not a precise readout: it
   // ticks constantly and a fractional tail ("7.4 per second") reads as noise.
   // floats=0 forces a whole number here only — fmt still keeps decimals for

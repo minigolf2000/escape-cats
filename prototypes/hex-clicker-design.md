@@ -10,7 +10,7 @@ and date it. When you build a LOCKED decision into real app code
 (`apps/hex-clicker`, `packages/shared/balance.ts`, the server), leave a comment
 pointing back here.
 
-_Last updated: 2026-07-07._
+_Last updated: 2026-08-03._
 
 ---
 
@@ -51,9 +51,21 @@ _Last updated: 2026-07-07._
   phone at once (seeded from the room clock — free with the deterministic-
   animation architecture). It carries **one slot per player seat**; each player
   must tap their **own** slot. Team Zoomies multiplier scales with how many
-  seats tapped: **×2 → ×3.5 → ×5 → ×7** for one → all four. You still benefit
-  from a partial catch, but max requires everyone — so the pressure is "don't
-  be the cat who missed it."
+  seats tapped: **×2 → ×3 → ×4 → ×6** for one → all four, lasting **7s**. You
+  still benefit from a partial catch, but max requires everyone, and the
+  all-four step is deliberately a cliff (+2 where the others are +1) — so the
+  pressure is "don't be the cat who missed it."
+
+  **Zoomies multiplies PETS, never mice/s.** This is the load-bearing part. A
+  multiplier on idle income pays out the same whether the four of them tap like
+  mad or sit still, so it produces no behavior; a multiplier on pet power turns
+  every catch into a 7-second all-hands tapping sprint — someone yells, everyone
+  hammers their phone, it ends. That sprint is the reason the mechanic exists.
+
+  The **×6 / 7s** ceiling is inherited from the shipped solo build
+  ([`../hex/index.html`](../hex/index.html), `ZOOM_MULT` / `ZOOM_MS`). Four-seat
+  coop should feel like solo at its best, not like a different economy — so the
+  ceiling is the anchor and the ramp below it is what coop adds. Retune together.
 
 - **Player identity — shape + color.** Four seats, assigned across the whole
   Escape Cats series: **Triangle/blue, Square/pink, Circle/green,
@@ -74,14 +86,18 @@ _Last updated: 2026-07-07._
 ## 🔓 OPEN (tuning / brainstorming)
 
 - **All economy constants** — building costs & mps, upgrade costs, accumulator
-  `mouseBase`/`mouseR`, trail segment counts, golden-mouse cadence, zoomies
-  duration. Everything in `BAL` in the prototype is a first guess; tune against
-  the 10-minute target with the TUNE panel's time-scale.
+  `mouseBase`/`mouseR`, trail segment counts, golden-mouse cadence. Everything
+  in `BAL` in the prototype is a first guess; tune against the 10-minute target
+  with the TUNE panel's time-scale. (Zoomies is the exception — its ceiling is
+  pinned to the solo build, see below.)
 - **Era structure & count** — leaning **3 eras** (launch narrative — see
   brainstorm below); exact timings/gates pending a paced playtest.
 - **Final upgrade set** — which handful of upgrades actually ship (10 minutes
   fits far fewer than a normal clicker; curation is the real work).
-- **Zoomies multiplier curve & duration.**
+- **Zoomies ramp shape** — the ×6 / 7s ceiling is settled (matches the solo
+  build) and pets-not-mps is settled; what's open is the ×2 → ×3 → ×4 curve
+  below it, i.e. how much a partial catch is worth and how steep the all-four
+  cliff needs to be before it reads as unfair rather than motivating.
 - **Extra coordination mechanics** beyond the golden mouse (hold-to-buy,
   purr-sync click windows, per-color ownership of the scene) — all unproven.
 - **Player-count scaling** — does `unlockPoints`/pacing flex for 2 vs 6 players?
@@ -119,7 +135,7 @@ limits").
 |---|-----|-------|---------------|---------|-------------|-------------------|
 | 1 | **Ground Control** | 0:00–3:00 | manual tapping | Ball of Yarn, Sharpened Claws | first mice creep on, no trails — word hidden | per-player contribution visible; first golden mouse appears late as a taste |
 | 2 | **Liftoff** | 3:00–6:30 | build & automate | Catnip, Cat Tower, Roomba, Whiskers, Comet Trails L1–2 | scene shapes (rocket, orbit) light up — word forming | two-cat carry on big buys; golden mice regular |
-| 3 | **To The Moon** | 6:30–10:00 | burst & sync | Laser Array, Comet Trails L3–5 | last mice on, trails max — word snaps legible | golden mice peak (all-tap ×7); zoomies chains |
+| 3 | **To The Moon** | 6:30–10:00 | burst & sync | Laser Array, Comet Trails L3–5 | last mice on, trails max — word snaps legible | golden mice peak (all-tap ×6); zoomies chains |
 
 **The two transition gates — the signature group moments:**
 - **Ignition (~3:00):** a launch pad appears; all four tap it together (natural
@@ -138,10 +154,12 @@ but progress still flows) to stay true to no-failure.
 - _Trails (the reveal ink):_ Comet Trails L1–5. Possible branch — Long Tail
   (length) vs Afterimage (brightness/legibility per unit).
 - _Coordination:_ Shiny Bait (golden mice appear more often), Nine Lives
-  (zoomies last longer), Purr-Sync (bonus if all four tap within a shared beat).
+  (zoomies run longer than the 7s baseline), Purr-Sync (bonus if all four tap
+  within a shared beat).
 
 **Coordination mechanics bank (pick a few — golden mouse is locked):**
-1. **Golden mouse** _(LOCKED)_ — one slot per seat, all-tap for ×7 zoomies.
+1. **Golden mouse** _(LOCKED)_ — one slot per seat, all-tap for ×6 zoomies (7s
+   of pet power, not idle income — the sprint is the mechanic).
 2. **Launch gates** — all-four-tap-together to advance an era (Ignition, Escape
    Velocity above). The loudest moments in the room.
 3. **Two-cat carry** — the heaviest purchases (Cat Tower, Laser Array) need two

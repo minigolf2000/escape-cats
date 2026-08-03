@@ -246,18 +246,18 @@
   }
   #hexCat > * { pointer-events: auto; cursor: var(--paw); touch-action: manipulation; }
   #catWrap.squash #hexCat { transform: scale(.93); }
-  #catWrap.frenzy #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
-  #catWrap.frenzy #hexCat .catLine { stroke: #ffd44d; }
+  #catWrap.zoomies #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
+  #catWrap.zoomies #hexCat .catLine { stroke: #ffd44d; }
   /* idle-motion pivots: the head tilts about the neck; each ear about its base */
   #catFace { transform-box: fill-box; transform-origin: 50% 96%; }
   #earLeft { transform-box: fill-box; transform-origin: 52% 90%; }
   #earRight { transform-box: fill-box; transform-origin: 48% 82%; }
-  /* Frenzy lights up the IRIS (#eyeLeft/#eyeRight), leaving the pupil black.
+  /* Zoomies lights up the IRIS (#eyeLeft/#eyeRight), leaving the pupil black.
      This used to target #irisLeft/#irisRight, which was right back when those
      were the green iris dots — after the eye coloring flipped (green iris,
      black pupil) the same rule was recoloring her PUPILS pale yellow, which
      read as a yellow slit floating in a green eye instead of eyes lighting up. */
-  #catWrap.frenzy #hexCat #eyeLeft, #catWrap.frenzy #hexCat #eyeRight { fill: #ffe98a; }
+  #catWrap.zoomies #hexCat #eyeLeft, #catWrap.zoomies #hexCat #eyeRight { fill: #ffe98a; }
   #hexCat #eyeLeft, #hexCat #eyeRight {
     transform-box: fill-box; transform-origin: center; transition: transform .06s;
   }
@@ -1075,11 +1075,9 @@ const game = {
   owned: {},        // id -> count
   bought: {},       // upgrade key -> 1 once purchased
   unlocked: {},     // upgrade key -> 1 once revealed (sticky; never re-hides)
-  // Deadlines only — the multipliers are constants (GOLD_MULT / CLICK_BUFF_MULT),
-  // so a buff is entirely described by "until when". Storing the mult too meant
-  // a per-frame reset writing a value nothing could observe.
-  buffUntil: 0,      // timestamp ms while a cps (Zoomies) buff is active
-  clickBuffUntil: 0, // timestamp ms while a click (Click Frenzy) buff is active
+  // Deadline only — the multiplier is a constant (ZOOM_MULT), so the buff is
+  // entirely described by "until when".
+  zoomUntil: 0,     // timestamp ms while Zoomies (pet power x ZOOM_MULT) is active
 };
 BUILDINGS.forEach(b => game.owned[b.id] = 0);
 
@@ -1206,15 +1204,14 @@ function clickBaseWith(m, owned) {
   return (m.clickFlat + baseCpsWith(m, owned) * m.clickShare) * m.clickMult;
 }
 function baseCps() { return baseCpsWith(mods, game.owned); }
-function currentCpsBuff() { return performance.now() < game.buffUntil ? GOLD_MULT : 1; }
-function currentClickBuff() { return performance.now() < game.clickBuffUntil ? CLICK_BUFF_MULT : 1; }
-function cps() { return baseCps() * currentCpsBuff(); }
+// Zoomies is the only buff and it multiplies PETS, so mice/s has no buffed
+// form: baseCps() is the live rate everywhere. Buildings run flat.
+function zoomBuff() { return performance.now() < game.zoomUntil ? ZOOM_MULT : 1; }
 function clickGain() {
   // DEV.teamMult is 1 outside ?debug — simulates the 4-player room this game
   // actually ships for, since solo dev testing can't reproduce "four people
   // tapping" any other way.
-  return clickBaseWith(mods, game.owned)
-    * currentCpsBuff() * currentClickBuff() * DEV.teamMult;
+  return clickBaseWith(mods, game.owned) * zoomBuff() * DEV.teamMult;
 }
 
 // ---------------------------------------------------------------------------
@@ -1335,7 +1332,7 @@ const $ = s => document.querySelector(s);
 const countEl = $("#count"), countIconEl = $("#countIcon"), cpsEl = $("#cps"), shopEl = $("#shop"), stageEl = $("#stage");
 const goldenEl = $("#golden"), buffEl = $("#buff");
 const upgradesEl = $("#upgrades"), upgradeSecEl = $("#upgradeSec");
-const buildingSecEl = $("#buildingSec"), dockEl = $("#dock");
+const buildingSecEl = $("#buildingSec"), dockEl = $("#dock"), hudEl = $("#hud");
 const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 
 // Neither section knows about the other, so the dock's own visibility is
@@ -1581,7 +1578,7 @@ function refreshHud() {
   // ticks constantly and a fractional tail ("7.4 per second") reads as noise.
   // floats=0 forces a whole number here only — fmt still keeps decimals for
   // prices, per-building rates and effect text everywhere else.
-  cpsValEl.textContent = fmt(cps(), 0);
+  cpsValEl.textContent = fmt(baseCps(), 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1669,7 +1666,7 @@ const mouseSVG = c =>
 const NIGHT_POP_SCALE = 0.5;
 
 const pops = [];
-const POP_MAX = 40; // hard cap so a frenzy tap-storm can't flood the DOM on mobile
+const POP_MAX = 40; // hard cap so a Zoomies tap-storm can't flood the DOM on mobile
 function spawnMousePop(x, y) {
   if (pops.length >= POP_MAX) pops.shift().el.remove();
   const el = document.createElement("div");
@@ -1860,22 +1857,50 @@ const goldenSaucerSVG = () => {
 };
 
 // GOLDEN MOUSE — the fun spike. Spawns every ~40–90s, drifts, must be tapped
-// before it escapes. Two outcomes (mirrors Cookie Clicker's golden cookies):
-//   Click Frenzy → click power ×7 for 7s
-//   Zoomies      → cps ×7 for 12s
+// before it escapes. Catching it always triggers ZOOMIES: pet power x6 for 7s.
 // ---------------------------------------------------------------------------
-// All five knobs named, because the pacing simulator reads them too — they
-// were previously spelled out a third time inside its rate model, so retuning
-// Zoomies here would have left the sim reporting a confidently wrong timeline.
-const CLICK_BUFF_MULT = 7;      // Click Frenzy: pets x7...
-const CLICK_BUFF_MS = 7000;     // ...for 7s
-const GOLD_MULT = 7;            // Zoomies: cps x7...
-const ZOOM_MS = 12000;          // ...for 12s
-const FRENZY_CHANCE = 0.7;      // P(Click Frenzy); the rest are Zoomies
+// Every catch gives the same buff — no roll, so a team meets the mechanic on
+// its first golden rather than on a 30% chance, which matters in a 10-minute
+// room. Zoomies multiplies PETS and nothing else: that makes a catch a
+// 7-second all-hands tapping sprint the room can act on, where a buff on idle
+// income would pay out the same whether anyone taps or not.
+// Both knobs are named because the pacing simulator reads them too — retuning
+// Zoomies here must not leave the sim reporting a stale timeline.
+const ZOOM_MULT = 6;            // Zoomies: pets x6...
+const ZOOM_MS = 7000;           // ...for 7s
 const GOLD_MARGIN = 10;         // px of stage edge the golden won't drift past
 const GOLD_MIN_S = 40, GOLD_MAX_S = 90;              // spawn window
 const GOLD_MEAN_S = (GOLD_MIN_S + GOLD_MAX_S) / 2;   // the sim's mean gap
 let goldTimer = 0, goldActive = false, goldLifeLeft = 0, goldVx = 0, goldVy = 0, goldX = 0, goldY = 0;
+// The reachable box, in #stage-local px. #stage is the full viewport height,
+// but #hud (the score) and #dock (the shop) are position:fixed overlays ON TOP
+// of it — so "inside the stage" is not the same as "tappable", and the golden
+// must stay clear of both or it can't be caught. Both are measured per call
+// rather than cached: the dock's height moves as the shop opens, collapses, and
+// recedes for the night cutscene, and the golden has to react mid-flight. An
+// overlay that's hidden or faded out isn't occluding anything, so it doesn't
+// count against the box.
+function goldBounds() {
+  const sr = stageEl.getBoundingClientRect();
+  const gw = goldenEl.offsetWidth || 62, gh = goldenEl.offsetHeight || 62;
+  const occluderRect = el => {
+    if (!el) return null;
+    const cs = getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden" || +cs.opacity === 0) return null;
+    return el.getBoundingClientRect();
+  };
+  let minY = GOLD_MARGIN, maxY = sr.height - gh - GOLD_MARGIN;
+  const hr = occluderRect(hudEl);
+  if (hr) minY = Math.max(minY, hr.bottom - sr.top + GOLD_MARGIN);
+  const dr = occluderRect(dockEl);
+  if (dr) maxY = Math.min(maxY, dr.top - sr.top - gh - GOLD_MARGIN);
+  const minX = GOLD_MARGIN, maxX = Math.max(GOLD_MARGIN, sr.width - gw - GOLD_MARGIN);
+  // If the overlays leave no gap at all (very short viewport, shop wide open),
+  // collapse to the midpoint of what's left instead of inverting the box — a
+  // golden pinned to one line still beats one that bounces off nothing.
+  if (maxY < minY) { const mid = (minY + maxY) / 2; minY = maxY = mid; }
+  return { minX, minY, maxX, maxY };
+}
 function scheduleGold() {
   goldTimer = (GOLD_MIN_S + Math.random() * (GOLD_MAX_S - GOLD_MIN_S)) / mods.goldenFreq; // seconds
 }
@@ -1892,9 +1917,11 @@ function spawnGold() {
   goldenEl.classList.toggle("saucer", saucer);
   goldenEl.innerHTML = saucer ? goldenSaucerSVG() : goldenMouseSVG();
   goldenEl.setAttribute("aria-label", saucer ? "Golden mouse in a flying saucer" : "Golden mouse");
-  const w = stageEl.clientWidth, h = stageEl.clientHeight;
-  goldX = 40 + Math.random() * (w - 120);
-  goldY = 40 + Math.random() * (h - 160);
+  // Spawn inside the reachable box (set AFTER the art swap above, so offsetWidth
+  // reflects the mouse-vs-saucer size this spawn actually uses).
+  const b = goldBounds();
+  goldX = b.minX + Math.random() * (b.maxX - b.minX);
+  goldY = b.minY + Math.random() * (b.maxY - b.minY);
   const ang = Math.random() * Math.PI * 2, sp = 22 + Math.random() * 18;
   goldVx = Math.cos(ang) * sp; goldVy = Math.sin(ang) * sp;
   // Position BEFORE revealing. moveGold() writes left/top too, but it runs
@@ -1912,16 +1939,15 @@ function moveGold(dt) {
   if (!goldActive) return;
   goldLifeLeft -= dt;
   if (goldLifeLeft <= 0) { despawnGold(); return; }
-  const w = stageEl.clientWidth, h = stageEl.clientHeight;
   goldX += goldVx * dt; goldY += goldVy * dt;
-  // Bounce off a MARGIN-inset box measured from the element's real size rather
-  // than the old hardcoded 72 (which was 62 + margin, silently assuming the day
-  // mouse). The night saucer is a different size, and offsetWidth ignores the
-  // hover animation's transform, so this stays stable frame to frame.
-  const gw = goldenEl.offsetWidth, gh = goldenEl.offsetHeight;
-  const maxX = Math.max(GOLD_MARGIN, w - gw - GOLD_MARGIN), maxY = Math.max(GOLD_MARGIN, h - gh - GOLD_MARGIN);
-  if (goldX < GOLD_MARGIN || goldX > maxX) { goldVx *= -1; goldX = Math.max(GOLD_MARGIN, Math.min(maxX, goldX)); }
-  if (goldY < GOLD_MARGIN || goldY > maxY) { goldVy *= -1; goldY = Math.max(GOLD_MARGIN, Math.min(maxY, goldY)); }
+  // Bounce off the same reachable box the spawn used, re-measured each frame so
+  // opening the shop mid-flight herds the golden up out of the way. The box is
+  // derived from the element's real size (the night saucer differs from the day
+  // mouse, and offsetWidth ignores the hover animation's transform, so it's
+  // stable frame to frame).
+  const { minX, minY, maxX, maxY } = goldBounds();
+  if (goldX < minX || goldX > maxX) { goldVx *= -1; goldX = Math.max(minX, Math.min(maxX, goldX)); }
+  if (goldY < minY || goldY > maxY) { goldVy *= -1; goldY = Math.max(minY, Math.min(maxY, goldY)); }
   goldenEl.style.left = goldX + "px"; goldenEl.style.top = goldY + "px";
   goldenEl.style.opacity = goldLifeLeft < 2 ? (goldLifeLeft / 2).toFixed(2) : "1";
 }
@@ -1934,12 +1960,8 @@ goldenEl.addEventListener("pointerdown", e => {
   if (!goldActive) return;
   game.goldCaught++;
   const rect = stageEl.getBoundingClientRect();
-  if (Math.random() < FRENZY_CHANCE) {
-    game.clickBuffUntil = performance.now() + CLICK_BUFF_MS;
-    floatNum(goldX - rect.left + 30, goldY - rect.top + 20, "👆 ×" + CLICK_BUFF_MULT);
-  } else {
-    game.buffUntil = performance.now() + ZOOM_MS;
-  }
+  game.zoomUntil = performance.now() + ZOOM_MS;
+  floatNum(goldX - rect.left + 30, goldY - rect.top + 20, "⚡ ×" + ZOOM_MULT);
   despawnGold(); refreshHud(); save();
 }, { passive: false });
 
@@ -2809,7 +2831,7 @@ function runNightCutscene() {
 
 // ---------------------------------------------------------------------------
 // CAT rendering — the SVG (#hexCat) is static markup; this just toggles
-// classes/state on it per frame (squash bounce, blink, frenzy recolor).
+// classes/state on it per frame (squash bounce, blink, Zoomies recolor).
 // ---------------------------------------------------------------------------
 const IRIS_LOOK = 4; // svg user-units the iris can travel off-center before it'd clip the socket
 // Pupil width — independent of the eyelid squash below, and on its own axis
@@ -2868,8 +2890,7 @@ function updateCat(t) {
   catEl.classList.toggle("squash", squash > 0.15);
   if (squash > 0) squash = Math.max(0, squash - 0.08);
 
-  const frenzy = currentCpsBuff() > 1 || currentClickBuff() > 1;
-  catEl.classList.toggle("frenzy", frenzy);
+  catEl.classList.toggle("zoomies", zoomBuff() > 1);
 
   const asleep = nightActive();
 
@@ -2949,14 +2970,13 @@ function updateCat(t) {
     lookY = IRIS_LOOK * 0.3 * Math.sin(t / 3300) * Math.sin(t / 7100);
   }
   // Dilated while awake AND excited: either a golden is actually out there, or
-  // a Click Frenzy is running (pets worth more) — the buff a caught golden
-  // leaves behind, so her eyes stay blown wide through the frenzy instead of
+  // Zoomies is running (pets worth more) — the buff a caught golden leaves
+  // behind, so her eyes stay blown wide through the sprint rather than
   // snapping shut the instant the mouse is gone. Not during sleep even if a
   // saucer is drifting past, matching the branch above where asleep never looks
   // toward it either. #irisLeft/#irisRight's own CSS transition (.12s ease-out)
   // is what makes this a dilate rather than a snap.
-  const clickFrenzy = currentClickBuff() > 1;
-  const pupilScaleX = (!asleep && (goldActive || clickFrenzy)) ? PUPIL_ROUND : PUPIL_SLIT;
+  const pupilScaleX = (!asleep && (goldActive || zoomBuff() > 1)) ? PUPIL_ROUND : PUPIL_SLIT;
   const irisTransform = `translate(${lookX}px, ${lookY}px) scale(${pupilScaleX}, ${irisScaleY})`;
   irisLeftEl.style.transform = irisTransform;
   irisRightEl.style.transform = irisTransform;
@@ -3123,17 +3143,13 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
 
   // income (DEV.speed is 1 outside ?debug — a pure pass-through)
-  const inc = cps() * dt * DEV.speed;
+  const inc = baseCps() * dt * DEV.speed;
   if (inc > 0) { game.mice += inc; game.total += inc; }
 
-  // buff pill countdown — click buff takes priority display if both are somehow active
-  if (game.clickBuffUntil > now) {
-    const left = ((game.clickBuffUntil - now) / 1000);
-    buffEl.textContent = "👆 CLICK FRENZY ×" + CLICK_BUFF_MULT + " · " + left.toFixed(1) + "s";
-    buffEl.style.display = "block";
-  } else if (game.buffUntil > now) {
-    const left = ((game.buffUntil - now) / 1000);
-    buffEl.textContent = "⚡ ZOOMIES ×" + GOLD_MULT + " · " + left.toFixed(1) + "s";
+  // buff pill countdown
+  if (game.zoomUntil > now) {
+    const left = ((game.zoomUntil - now) / 1000);
+    buffEl.textContent = "⚡ ZOOMIES ×" + ZOOM_MULT + " · " + left.toFixed(1) + "s";
     buffEl.style.display = "block";
   } else if (buffEl.style.display === "block") {
     buffEl.style.display = "none";
@@ -3190,7 +3206,7 @@ function devApply(name) {
   game.owned = {}; BUILDINGS.forEach(b => game.owned[b.id] = (p.owned && p.owned[b.id]) || 0);
   game.bought = {}; (p.bought || []).forEach(k => game.bought[k] = 1);
   game.unlocked = {}; // sticky unlocks re-derive from the new state
-  game.buffUntil = 0; game.clickBuffUntil = 0;
+  game.zoomUntil = 0;
   recalc();
   syncPhase();
   refreshHud(); refreshShop(); refreshUpgrades(); save();
@@ -3244,10 +3260,10 @@ function devContentHTML() {
 //
 // What it models:
 //   - income integrated at 0.25s steps; petting at a steady `pps` pets/sec
-//   - golden mice as expected value: mean interval 65s / goldenFreq, 70%
-//     Click Frenzy x7 for 7s, 30% Zoomies x7 for 12s, folded in as
-//     steady-state rate multipliers. Assumes EVERY golden gets caught —
-//     right for a motivated team of four, generous for solo.
+//   - golden mice as expected value: mean interval 65s / goldenFreq, every one
+//     giving Zoomies (pets x6 for 7s), folded in as a steady-state multiplier
+//     on the PET term only. Assumes EVERY golden gets caught — right for a
+//     motivated team of four, generous for solo.
 //   - purchases: story items (night / trail effects) bought on sight — they're
 //     the goal, motivated players don't optimize past them. Growth items picked
 //     by minimizing (time-to-afford + payback), the standard clicker-bot
@@ -3284,14 +3300,14 @@ function simulateRun(opts = {}) {
     const m = foldMods(bought, owned);
     const base = baseCpsWith(m, owned);
     const I = GOLD_MEAN_S / m.goldenFreq;                   // mean spawn gap
-    // Timed buffs as steady-state uptime EV, standing in for currentCpsBuff()/
-    // currentClickBuff(), which the sim can't call (they read wall-clock).
-    const gCps = useGold ? 1 + (GOLD_MULT - 1) * (ZOOM_MS / 1000) * (1 - FRENZY_CHANCE) / I : 1;
-    const gClk = useGold ? 1 + (CLICK_BUFF_MULT - 1) * (CLICK_BUFF_MS / 1000) * FRENZY_CHANCE / I : 1;
+    // Zoomies as steady-state uptime EV, standing in for zoomBuff(), which the
+    // sim can't call (it reads wall-clock). Pets only — mice/s is unbuffed, so
+    // `base` goes into the return below with no golden term at all.
+    const gClk = useGold ? 1 + (ZOOM_MULT - 1) * (ZOOM_MS / 1000) / I : 1;
     // Petting earns nothing at night (the sleepy reaction is not a mechanic), so
     // the pet term drops to zero once the twist fires — matches pet()'s gate.
     const pet = nightOf(bought) ? 0 : pps * clickBaseWith(m, owned) * gClk;
-    return { cps: base * gCps, pet, all: base * gCps + pet, I };
+    return { cps: base, pet, all: base + pet, I };
   };
   const log = ev => events.push({ t, ev, total: s.total, rate: rates(s.bought, s.owned).all });
 

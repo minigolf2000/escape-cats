@@ -96,31 +96,36 @@ const S = {
 };
 const COUNT_KEYS = ['yellow', 'pink', 'blue', 'green', 'purple'];
 
-// Order the nine letters of TO THE MOON get staffed in — index into the word's
-// visible letters, spaces excluded:
+// Order the nine letters of TO THE MOON get staffed in. Indices are into the
+// word's visible letters, spaces excluded, so they are ZERO-based here while the
+// order was chosen against 1-based positions:
 //
-//     0 1   2 3 4   5 6 7 8
+//     1 2   3 4 5   6 7 8 9      <- as chosen
+//     0 1   2 3 4   5 6 7 8      <- as indexed below
 //     T O   T H E   M O O N
 //
-// The design goal is to delay the moment a team can GUESS the rest, which is not
-// the same as revealing slowly. Three rules, in priority order:
+// Chosen order, 1-based: 5 8 1 4 9 3 2 7 6, which stages as
 //
-// 1. Spend the uninformative letters first. THE is a function word that
-//    constrains nothing — a team reading "?? THE ????" knows only that there is
-//    a destination. E and H are also the cheapest letters to give away: E is the
-//    commonest letter in English, and H here is fully determined by THE.
-// 2. Never complete the answer word's outline early. MOON's two O's are its
-//    least distinctive letters (a doubled medial vowel), so they come before its
-//    consonants.
-// 3. Hold M for last, not N. This is the one counter-intuitive call, and it is
-//    worth a measurable amount of difficulty: "?OON" admits boon, coon, goon,
-//    loon, moon, noon, soon, toon — eight candidates — whereas "MOO?" admits
-//    only mood, moon, moor, moot, moos. Revealing N second-to-last therefore
-//    keeps the answer genuinely open one step longer than revealing M would.
+//     1: ·· ··E ····      6: T· THE ··ON
+//     2: ·· ··E ··O·      7: TO THE ··ON
+//     3: T· ··E ··O·      8: TO THE ·OON
+//     4: T· ·HE ··O·      9: TO THE MOON
+//     5: T· ·HE ··ON
 //
-// Ties inside a rule break toward NON-ADJACENT positions, because two adjacent
-// letters hand over a bigram, which constrains far more than two letters apart.
-const REVEAL_ORDER = [4, 3, 2, 0, 1, 6, 7, 8, 5];
+// The goal is to delay the moment a team can GUESS the rest, which is not the
+// same as revealing slowly. What this order buys:
+//
+// - It INTERLEAVES the two lines, so neither word completes until step 6. A
+//   finished word is a hard constraint on the rest of the phrase; keeping both
+//   partial for two thirds of the reveal withholds that.
+// - It opens on E, the commonest letter in English and so the cheapest to give
+//   away, and on a medial O — the answer word's least distinctive letter.
+// - It holds M for last rather than N. That is the counter-intuitive call and it
+//   is worth measurable difficulty: at step 8 the board reads "?OON", which
+//   admits boon, coon, goon, loon, moon, noon, soon and toon, where "MOO?" would
+//   admit only mood, moon, moor, moot and moos. Ending on M keeps the answer
+//   genuinely open one step longer.
+const REVEAL_ORDER = [4, 7, 0, 3, 8, 2, 1, 6, 5];
 
 // Every mouse inks the same hairline, word and scenery alike.
 const TRAIL_W = 1.8;

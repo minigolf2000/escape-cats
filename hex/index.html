@@ -808,8 +808,21 @@ const BUILDINGS = [
   // the shelf, so its .fx line is where a new player learns what "owning a
   // building" even means. Every other building inherits that lesson and gets by
   // on its name — see the .item .titleRow note for why the rest stay bare.
+  //
+  // The blurb states no NUMBER, and must never state one again. It used to read
+  // "Gets a mouse every 2.5 seconds", which is 1/mps off this column and was
+  // wrong the moment INCOME_SCALE arrived: the rate this actually earns is
+  // mps x INCOME_SCALE = 1.08/s, which is what the row itself prints beside it
+  // ("+1.1/s each"). Two numbers for one rate, one of them hand-written, is the
+  // exact drift the UPGRADES table has a rule against. The row prints the rate;
+  // the blurb explains what a rate MEANS, which is the part a new player needs.
+  //
+  // Keep it to 21 characters or fewer, measured: .fx has the quoted rate beside
+  // it, so the line wraps at 22+ and the row grows to 97px against its
+  // neighbours' 61px. At 21 it is one line and an 80px row — closer to the shelf
+  // #58 evened out. The old text wrapped, which is why that row was so tall.
   { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 10,     mps: 0.4,
-    blurb: "Gets a mouse every 2.5 seconds" },
+    blurb: "Sends mice on its own" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1   },
   // 85 mps, not Cookie Clicker's 47. The mps column mirrors CC's first
   // buildings, but the COST column doesn't: CC steps 15 → 100 → 1,100 → 12,000,

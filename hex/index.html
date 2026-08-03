@@ -1486,8 +1486,20 @@ const UPGRADES = [
   { key: "luciddreaming", name: "Lucid Dreaming", icon: "🌀",
     cost: 13500, unlock: { requires: "spindles" },
     effect: { type: "trail", add: 10 } },
+  // Dreaming cats twitch their paws as they run, and that is exactly the mechanic:
+  // the dream mice speed up. Placed AFTER Lucid Dreaming on purpose — before trails
+  // exist a speed change is only motion, but once the mice are inking, going faster
+  // visibly fills the wall in quicker. Coverage is linear in speed, so this is a
+  // legibility upgrade wearing a charm upgrade's clothes.
+  //
+  // One rung, not a ladder: it takes speed from the opening 12 to the 20 ceiling and
+  // stops. Anything past 20 reads as streaks rather than mice, so there is nothing
+  // further to sell.
+  { key: "pawtwitch", name: "Paw Twitch", icon: "🐾",
+    cost: 22000, unlock: { requires: "luciddreaming" },
+    effect: { type: "speed", add: 8 } },
   { key: "deltawave", name: "Delta Wave", icon: "🌊",
-    cost: 36000, unlock: { requires: "luciddreaming" },
+    cost: 36000, unlock: { requires: "pawtwitch" },
     effect: { type: "revealBuilding", building: "delta" } },
   // Word of mouth: the mice have to be told. This is the moment the mystery becomes
   // visible at all — and only the START of it, since the nine letters then arrive
@@ -1614,7 +1626,7 @@ function foldMods(bought, owned) {
               //   trail     length of the inked tail (the sleep-stage ladder)
               //   wordMice  the golden letter-mice exist at all (Word of Mouse)
               //   persist   ink half-life; 0 = a rolling window (Scent Trail)
-              trail: 0, neon: 0, wordMice: 0, persist: 0, night: 0,
+              trail: 0, neon: 0, wordMice: 0, persist: 0, speed: 0, night: 0,
               revealed: {} };
   BUILDINGS.forEach(b => m.building[b.id] = 1);
   let globalPct = 0, globalMul = 1;
@@ -1645,6 +1657,7 @@ function foldMods(bought, owned) {
       else if (e.type === "neon") m.neon = 1;
       else if (e.type === "wordMice") m.wordMice = 1;
       else if (e.type === "persist") m.persist += e.add;
+      else if (e.type === "speed") m.speed += e.add;
       else if (e.type === "revealBuilding") m.revealed[e.building] = 1;
       // The twist as a folded mod too, so baseCpsWith (which only gets m + owned,
       // not bought) can enforce the dream reset. Agrees with nightOf/nightActive
@@ -1701,7 +1714,8 @@ function nightOnlyUnlock(u) {
 }
 const isStoryUpgrade = u => [].concat(u.effect).some(e =>
   e.type === "night" || e.type === "trail" || e.type === "neon" ||
-  e.type === "wordMice" || e.type === "persist" || e.type === "revealBuilding");
+  e.type === "wordMice" || e.type === "persist" || e.type === "speed" ||
+  e.type === "revealBuilding");
 function nightOf(bought) { return NIGHT_KEYS.some(k => bought[k]); }
 function nightActive() { return nightOf(game.bought); }
 
@@ -1820,6 +1834,7 @@ function oneEffectText(e) {
     case "neon":         return `The lights on the wall turn out to be mice`;
     case "wordMice":     return `Golden mice join the wall`;
     case "persist":      return `Dream trails stop fading`;
+    case "speed":        return `The dream mice move quicker`;
     case "revealBuilding": return `Reveals ${hl(buildingName(e.building))}`;
     // THE twist, and the one row whose description is a QUESTION rather than a
     // statement of effect. Everything else here follows the rule that the row
@@ -2708,7 +2723,7 @@ goldenEl.addEventListener("pointerdown", e => {
 // facing, which is cosmetic and re-converges within a few frames. Lab knobs map to game
 // state — mice N = f(lifetime total) via the locked geometric accumulator,
 // per-shape headcounts = WALL_COUNT (the word capped at one mouse per letter),
-// noise = locked 0 (wander() dropped entirely), speed = one uniform WALL.speed,
+// noise = locked 0 (wander() dropped entirely), speed = one uniform wallSpeed(),
 // trail = mods.trail from the sleep-stage upgrades, and whether ANY mice show
 // look like is bought (mods.neon, the Counting Mice research).
 // ---------------------------------------------------------------------------
@@ -2759,10 +2774,19 @@ const WALL = {
   // from something already present but unreadable, or Counting Mice has nothing to
   // resolve.
   startMice: 2,
-  speed: 20,        // scene units/sec, ONE rate for every mouse. A ceiling, not
-                    // taste: past this they read as streaks instead of mice.
+  // Scene units/sec, ONE rate for every mouse. 20 is a hard CEILING rather than a
+  // taste call: past it the mice stop reading as mice and become streaks. So Paw
+  // Twitch cannot raise speed past the cap — it climbs TOWARD it, which is why night
+  // has to open slower than the settled value. Drifting specks that speed up as Hex's
+  // paws start twitching is the beat; opening at the ceiling would leave the upgrade
+  // nothing to give.
+  speedBase: 12,
+  speedMax: 20,
   trailDt: 80,
 };
+// Uniform across every crew, and clamped: an upgrade table that over-shoots the cap
+// gets clipped here rather than shipping streaks.
+function wallSpeed(m) { return Math.min(WALL.speedMax, WALL.speedBase + (m.speed || 0)); }
 // Locked formula shape: mouse k climbs on when lifetime total ever crossed
 // mouseBase * mouseR^(k-1). Monotonic in total, so spending never undoes it.
 // Takes the total as a parameter so the pacing simulator can ask about
@@ -2781,7 +2805,7 @@ function wallMiceCount() { return nightActive() ? wallMiceFor(game.total) : 0; }
 // wall actually draws rather than from a hand-set trail number.
 //
 // Coverage is word ink laid inside the visible window over the word's total ink:
-//   wordMice * (WALL.speed / 1000) * visibleMs / WORD_INK
+//   wordMice * (wallSpeed / 1000) * visibleMs / WORD_INK
 // and the 1-stroke word needs ~1.6 of it to read unambiguously, because a partial
 // centreline reads as a DIFFERENT letter (T->F, N->I, O->C, H->F) where the old
 // raster tour still shaded a recognisable patch.
@@ -2816,7 +2840,7 @@ function wallCoverage(m, total) {
   if (!m.night || !m.wordMice) return 0;
   const visibleMs = m.trail * WALL.trailDt
     + (m.persist > 0 ? m.persist * WALL_PERSIST_MS / Math.LN2 : 0);
-  return wordMiceFor(total) * (WALL.speed / 1000) * visibleMs / WORD_INK_EST;
+  return wordMiceFor(total) * (wallSpeed(m) / 1000) * visibleMs / WORD_INK_EST;
 }
 function isLegible(s) {
   return wallCoverage(foldMods(s.bought, s.owned), s.total) >= LEGIBLE_COV;
@@ -3392,7 +3416,7 @@ function wallPosAt(m, t, out) {
     sx = p0.x; sy = p0.y;
   } else {
     // One speed for every mouse: scene units/sec -> this crew's points/ms.
-    const ppms = (WALL.speed / 1000) / crew.step;
+    const ppms = (wallSpeed(mods) / 1000) / crew.step;
     // Closed tours loop (tour[L-1] IS tour[0], so the wrap is continuous);
     // open ones ping-pong back along themselves to avoid a wrap jump.
     const cyc = crew.closed ? L - 1 : 2 * (L - 1);
@@ -3570,7 +3594,7 @@ function drawWall(now) {
   // line. Removed with the text rather than left as dead code. The wall simply
   // becoming readable is the signal now. If the design doc's "gentle one-time
   // shimmer" gets built, the formula to re-add is the one behind
-  // wallCoverage(): word mice x (WALL.speed/1000) x visible ms / word ink,
+  // wallCoverage(): word mice x (wallSpeed/1000) x visible ms / word ink,
   // crossing LEGIBLE_COV.
 }
 

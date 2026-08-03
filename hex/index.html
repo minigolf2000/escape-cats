@@ -1839,7 +1839,7 @@ const goldenSaucerSVG = () => {
 };
 
 // GOLDEN MOUSE — the fun spike. Spawns every ~40–90s, drifts, must be tapped
-// before it escapes. Catching it always triggers ZOOMIES: pet power x7 for 7s.
+// before it escapes. Catching it always triggers ZOOMIES: pet power x6 for 7s.
 // ---------------------------------------------------------------------------
 // One outcome, not a coin flip. This used to roll 70/30 between a pet buff
 // (then called Click Frenzy) and a mice/s buff (which owned the Zoomies name);
@@ -1852,7 +1852,7 @@ const goldenSaucerSVG = () => {
 // Both knobs named, because the pacing simulator reads them too — they were
 // previously spelled out a third time inside its rate model, so retuning
 // Zoomies here would have left the sim reporting a confidently wrong timeline.
-const ZOOM_MULT = 7;            // Zoomies: pets x7...
+const ZOOM_MULT = 6;            // Zoomies: pets x6...
 const ZOOM_MS = 7000;           // ...for 7s
 const GOLD_MARGIN = 10;         // px of stage edge the golden won't drift past
 const GOLD_MIN_S = 40, GOLD_MAX_S = 90;              // spawn window
@@ -3043,7 +3043,7 @@ function devContentHTML() {
 // What it models:
 //   - income integrated at 0.25s steps; petting at a steady `pps` pets/sec
 //   - golden mice as expected value: mean interval 65s / goldenFreq, every one
-//     giving Zoomies (pets x7 for 7s), folded in as a steady-state multiplier
+//     giving Zoomies (pets x6 for 7s), folded in as a steady-state multiplier
 //     on the PET term only. Assumes EVERY golden gets caught — right for a
 //     motivated team of four, generous for solo.
 //   - purchases: story items (night / trail effects) bought on sight — they're

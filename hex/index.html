@@ -573,12 +573,12 @@
   .item.can { cursor: var(--paw); opacity: 1; }
   .item.can:active { background: rgba(255,255,255,.11); }
   .item .icon {
-    /* Fixed WIDTH for every row, full row HEIGHT. Rows vary in height (unowned
-       buildings show a blurb, upgrade effect text wraps), so a fixed square
-       would leave a strip of row background above and below each tile and turn
-       every row boundary into five edges. Stretched, the tint is one unbroken
-       column that the row lines cross cleanly; keeping the glyphs agreeing
-       row-to-row is font-size's job, not the tile's. */
+    /* Fixed WIDTH for every row, full row HEIGHT. Rows still vary in height
+       (upgrade effect text wraps, and the one building blurb adds a line), so a
+       fixed square would leave a strip of row background above and below each
+       tile and turn every row boundary into five edges. Stretched, the tint is
+       one unbroken column that the row lines cross cleanly; keeping the glyphs
+       agreeing row-to-row is font-size's job, not the tile's. */
     flex: none; align-self: stretch;
     width: calc(36px * var(--ss));
     display: grid; place-items: center;
@@ -588,11 +588,17 @@
   /* Cookie Clicker's own store-row placement: name top-left, price under it in
      the same column, quantity pulled out to its own corner on the right. */
   .item .body { flex: 1 1 auto; min-width: 0; padding: calc(5px * var(--ss)) 0; line-height: 1.08; }
-  /* Building rows: the name sits alone on the top line. Its per-second rate is
-     NOT here — it lives in .right, on the same baseline as the owned count, so
-     the two read as a pair (how many × how much each). The blurb takes the .fx
-     line below until you own one (see .item.bought); .fx is the same slot
-     upgrade rows use for effect text. Upgrades have no rate, so .nm sits bare. */
+  /* Building rows: the name sits alone on the top line, price under it, and for
+     all but ONE building that's the whole row — so the shelf is a single row
+     height (~61px at --ss 1.5), and the name has to carry the flavour by itself.
+     The exception is Mouse Subscription, which keeps a .fx blurb line until you
+     own one because that row is the game's onboarding (see its BUILDINGS entry).
+     So exactly one row, exactly once per run, stands taller than its neighbours;
+     buying your first one collapses it and the shelf is uniform from then on.
+     Its per-second rate is NOT here — it lives in .right, on the same baseline as
+     the owned count, so the two read as a pair (how many × how much each).
+     Upgrade rows reuse .item and always show .fx; they have no rate, so .nm sits
+     bare. */
   .item .titleRow { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .item .nm {
     font: 700 13.5px var(--ui-font); font-size: calc(13.5px * var(--ss)); line-height: 1.12;
@@ -607,10 +613,12 @@
   /* Same mouse coin as .cost, shrunk down — without it "12/s" reads as a bare
      number with no unit; this is the unit. */
   .item .rate .coin { flex: none; width: calc(10px * var(--ss)); height: auto; display: block; }
+  /* Every upgrade row, and the one building row with a blurb. */
   .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px; }
   .item .fx b { color: var(--gold); font-weight: 700; }
-  /* The blurb is a pre-purchase tease: own one and the row keeps just name +
-     rate + price. Upgrade rows never get .bought, so their effect text stays. */
+  /* The blurb is a pre-purchase tease: own one and the row drops to the standard
+     name + rate + price. Upgrade rows never get .bought, so their effect text
+     stays for as long as the row exists. */
   .item.bought .fx { display: none; }
   .item .cost {
     display: flex; align-items: center; gap: 4px;
@@ -642,7 +650,15 @@
      Swapping visibility in CSS means refreshShop() never writes text for a
      teased row, and the real name can't flash before the class lands. */
   .item.gone { display: none; }
-  .item .lockedNm { display: none; font: 700 13.5px var(--ui-font); font-size: calc(13.5px * var(--ss)); color: var(--dim); letter-spacing: .14em; }
+  /* line-height MUST match .nm's — this swaps in for .nm's whole line, and the
+     `font:` shorthand above resets line-height to `normal` (~1.63 in Baloo 2,
+     not the 1.12 .nm gets). Omitting it made the ??? row 10px taller than every
+     other building row, which is the one thing a masked row must not be. */
+  .item .lockedNm {
+    display: none; font: 700 13.5px var(--ui-font);
+    font-size: calc(13.5px * var(--ss)); line-height: 1.12;
+    color: var(--dim); letter-spacing: .14em;
+  }
   .item .icLocked { display: none; color: var(--dim); font-weight: 800; }
   .item.locked { cursor: var(--paw); opacity: .4; }
   .item.locked .lockedNm { display: block; }
@@ -790,8 +806,13 @@
 // ---------------------------------------------------------------------------
 const GROWTH = 1.15;
 const BUILDINGS = [
-  { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 10,     mps: 0.4, blurb: "Gets a mouse every 2.5 seconds" },
-  { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1,   blurb: "Grows mice in glowing rows" },
+  // The ONLY building with a blurb, and deliberately so: it's the first thing on
+  // the shelf, so its .fx line is where a new player learns what "owning a
+  // building" even means. Every other building inherits that lesson and gets by
+  // on its name — see the .item .titleRow note for why the rest stay bare.
+  { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 10,     mps: 0.4,
+    blurb: "Gets a mouse every 2.5 seconds" },
+  { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1   },
   // 85 mps, not Cookie Clicker's 47. The mps column mirrors CC's first
   // buildings, but the COST column doesn't: CC steps 15 → 100 → 1,100 → 12,000,
   // roughly ten-fold each, and ours steps 10 → 100 → 12,000 because the rung
@@ -804,7 +825,7 @@ const BUILDINGS = [
   // farms get expensive, which is the job the missing rung used to do. It is a
   // NARROW band, so re-measure if it moves: at 70 the bot still bought zero
   // factories, at 130 it bought almost nothing else.
-  { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 85, blurb: "Mass-produces mice" },
+  { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 85 },
   // The one day building that keeps producing after the night reset (see
   // baseCpsWith) — the design's "the Lab is still present" in the dream.
   //
@@ -818,17 +839,17 @@ const BUILDINGS = [
   // not because the arithmetic says to. It just shouldn't punish you for it.
   // Knock-on: Labs keep earning at night, so day Labs now bootstrap the dream
   // harder than the seed holes below. Watch that in the sim if this moves again.
-  { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 400, blurb: "Synthesizes mice from theory" },
+  { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 400 },
   // Night buildings — hidden until Catnap flips the phase, then revealed by the same
   // lifetime>=base rule. A SELF-CONTAINED ramp, not a topping on day income: after
   // the reset income is night-only, bootstrapped by NIGHT_SEED_COUNT free Portals.
   // Ratios are held near the DAY curve (~0.014 mps/base) so night ramps over a
   // ~3-min sprint instead of exploding in seconds; every tier reveals before
   // legibility (LEGIBLE_TOTAL 45M) so none is dead content. Tuned against the sim.
-  { id: "portal",     name: "Dimensional Mouse Hole", icon: "🌀", base: 10000,  mps: 160,    night: true, blurb: "Mice pour through from elsewhere" },
-  { id: "timemachine",name: "Chrono Cattelite Courier", icon: "🛰️", base: 150000, mps: 2100,   night: true, blurb: "Beams mice down from last Tuesday" },
-  { id: "fractal",    name: "Constellation Cattery",    icon: "🌌", base: 2e6,    mps: 27000,  night: true, blurb: "Every star is a cat, every cat a colony" },
-  { id: "antimatter", name: "Singularity Scratcher",    icon: "🕳️", base: 26e6,   mps: 375000, night: true, blurb: "A post so dense it pulls mice from the void" },
+  { id: "portal",     name: "Dimensional Mouse Hole", icon: "🌀", base: 10000,  mps: 160,    night: true },
+  { id: "timemachine",name: "Chrono Cattelite Courier", icon: "🛰️", base: 150000, mps: 2100,   night: true },
+  { id: "fractal",    name: "Constellation Cattery",    icon: "🌌", base: 2e6,    mps: 27000,  night: true },
+  { id: "antimatter", name: "Singularity Scratcher",    icon: "🕳️", base: 26e6,   mps: 375000, night: true },
 ];
 // Night seed: the moment you fall asleep, a few dream-holes open on their own, so
 // night ALWAYS has a bootstrap income. Without it night deadlocks at zero — day
@@ -1605,7 +1626,7 @@ function buildShop() {
          <div class="titleRow">
            <div class="nm">${b.name}</div>
          </div>
-         <div class="fx">${b.blurb}</div>
+         ${b.blurb ? `<div class="fx">${b.blurb}</div>` : ""}
          <div class="cost">${currencyIconSVG()}<span class="costNum"></span></div>
        </div>
        <div class="right"><div class="rate"></div><div class="own">0</div></div>`;
@@ -1678,9 +1699,11 @@ function refreshShop() {
     if (gone) continue;
     if (r.locked !== locked) { r.el.classList.toggle("locked", locked); r.locked = locked; }
     if (r.can !== affordable) { r.el.classList.toggle("can", affordable); r.can = affordable; }
-    // Blurb is a pre-purchase tease only: the moment you own one, CSS hides
-    // .fx (see .item.bought). Buildings can't be sold, so this flips once 0->1
-    // and stays; guarded like the others so it's not a per-tick class write.
+    // The blurb is a pre-purchase tease: once you own one, CSS hides .fx (see
+    // .item.bought). Only Mouse Subscription has one, so in practice this class
+    // does nothing on every other row — kept general because it's keyed to
+    // owning, not to which building it is. Buildings can't be sold, so it flips
+    // once 0->1 and stays; guarded like the others so it's not a per-tick write.
     const bought = owned > 0;
     if (r.bought !== bought) { r.el.classList.toggle("bought", bought); r.bought = bought; }
 

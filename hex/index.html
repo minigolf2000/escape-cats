@@ -1842,15 +1842,15 @@ const goldenSaucerSVG = () => {
 // GOLDEN MOUSE — the fun spike. Spawns every ~40–90s, drifts, must be tapped
 // before it escapes. Two outcomes (mirrors Cookie Clicker's golden cookies):
 //   Click Frenzy → click power ×7 for 7s
-//   Zoomies      → cps ×7 for 12s
+//   Zoomies      → cps ×6 for 6s
 // ---------------------------------------------------------------------------
 // All five knobs named, because the pacing simulator reads them too — they
 // were previously spelled out a third time inside its rate model, so retuning
 // Zoomies here would have left the sim reporting a confidently wrong timeline.
 const CLICK_BUFF_MULT = 7;      // Click Frenzy: pets x7...
 const CLICK_BUFF_MS = 7000;     // ...for 7s
-const GOLD_MULT = 7;            // Zoomies: cps x7...
-const ZOOM_MS = 12000;          // ...for 12s
+const GOLD_MULT = 6;            // Zoomies: cps x6...
+const ZOOM_MS = 6000;           // ...for 6s
 const FRENZY_CHANCE = 0.7;      // P(Click Frenzy); the rest are Zoomies
 const GOLD_MARGIN = 10;         // px of stage edge the golden won't drift past
 const GOLD_MIN_S = 40, GOLD_MAX_S = 90;              // spawn window
@@ -3019,7 +3019,7 @@ function devContentHTML() {
 // What it models:
 //   - income integrated at 0.25s steps; petting at a steady `pps` pets/sec
 //   - golden mice as expected value: mean interval 65s / goldenFreq, 70%
-//     Click Frenzy x7 for 7s, 30% Zoomies x7 for 12s, folded in as
+//     Click Frenzy x7 for 7s, 30% Zoomies x6 for 6s, folded in as
 //     steady-state rate multipliers. Assumes EVERY golden gets caught —
 //     right for a motivated team of four, generous for solo.
 //   - purchases: story items (night / trail effects) bought on sight — they're

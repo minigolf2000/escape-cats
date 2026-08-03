@@ -411,21 +411,13 @@
 
   /* ---- Shop tray ----
      An OVERLAY, not a flow element: fixed to the bottom edge, so it floats over
-     Hex instead of resizing the stage. Static and always open — no handle, no
-     drag. Identical day and night — only the tint changes. Still hides entirely
-     when there's nothing to sell.
+     Hex instead of resizing the stage. Identical day and night — only the tint
+     changes. Hides entirely when there's nothing to sell.
 
-     NO background of its own: the stage (Hex, the rays, the night wall) shows
-     straight through the transparent rows. It used to paint --panel-bg, which
-     is the same striped gradient as the page — so it looked like the page
-     showing through while actually being an opaque coat in front of it, and
-     making .item transparent appeared to do nothing. The blur stays: it's what
-     keeps row text legible over whatever art it's floating on. The wood rails
-     (.shopHead / .shopDivider) keep their own fills, so the Cookie Clicker
-     framing survives.
-
-     No border of its own: the SHOP rail is the first thing in the dock and
-     already carries a top line, so a border here only doubled it. */
+     No background and no border of its own: the stage (Hex, the rays, the night
+     wall) shows straight through the transparent rows, and .shopHead below
+     already draws the tray's top line. The blur is what keeps row text legible
+     over whatever art it's floating on. */
   #dock {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
     display: none; flex-direction: column;
@@ -434,23 +426,15 @@
   }
   #dock.show { display: flex; }
 
-  /* The shop still can't be dragged or resized, but a tap on the titled SHOP rail
-     collapses/reopens it as a whole (#dock.collapsed) — both lists cap and scroll
-     on their own, so the dock sizes to its content when open and can't blanket the
-     stage either way. The rail is the ONLY hit target for that: the divider above
-     Buildings is inert, so a mistap while reaching for a row can't shut the shop.
+  /* Cookie Clicker wood framing, in two lengths: the titled SHOP cap and the
+     inert Upgrades/Buildings divider. Cut from the same board here — three bands
+     each, carved line / wood / carved line. No bevel highlight: --wood is
+     already a light-to-dark gradient, and a second lit edge on top of the first
+     is what turns a short rail into a stack of hairlines.
 
-     Cookie Clicker wood framing, now carrying the panel's name. Tall enough to
-     read as a header (the old rail was 6px of pure padding) while staying a thin
-     cap over the lists.
-
-     One rail, two jobs — the titled SHOP cap and the inert Upgrades/Buildings
-     divider (.shopDivider) — so they're cut from the same board here and only
-     differ in height below. Exactly three bands each: carved line, wood, carved
-     line. The bevel highlight that used to sit inside the top border is gone;
-     --wood is already a light-to-dark gradient, so it was a second lit edge
-     stacked on the first, which is what made a 6px divider read as five
-     hairlines instead of a plank. */
+     Tapping the SHOP rail collapses/reopens the whole dock (#dock.collapsed).
+     It's the ONLY hit target for that — the divider is inert, so a mistap while
+     reaching for a row can't shut the shop. */
   .shopHead, .shopDivider {
     flex: none; background: var(--wood), var(--panel-bg);
     border: 0;
@@ -467,11 +451,10 @@
     letter-spacing: .14em; text-transform: uppercase; line-height: 1;
     text-shadow: 0 1px 1px rgba(0,0,0,.5);
   }
-  /* Border-corner caret rather than a glyph — scales with --ss and rotates
-     without a font dependency. Points down while open (tap pushes the shop back
-     down, toward the screen edge it lives on) and flips up when collapsed. The
-     translateY on each state re-centers it: rotating a square about its middle
-     leaves the visual "V" sitting low. */
+  /* Border-corner caret rather than a glyph — scales with --ss, no font
+     dependency. Points down while open (tapping pushes the shop toward the
+     screen edge it lives on), up when collapsed. The translateY re-centers it:
+     rotating a square about its middle leaves the visual "V" sitting low. */
   .shopHead .chev {
     width: calc(6px * var(--ss)); height: calc(6px * var(--ss));
     border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
@@ -482,12 +465,10 @@
     transform: translateY(calc(1px * var(--ss))) rotate(225deg);
   }
 
-  /* Divider and list travel together — a "BUILDINGS" label over nothing but a
-     ??? teaser is chrome, not a choice. Section waits for a real building. */
-  /* Pinned below the handle now, not inside the collapsing drawer: buildings
-     stay on screen even when the Upgrades drawer is shut. flex:none so it sizes
-     to its own content (the capped #shop) instead of fighting the drawer for
-     height. A top rail separates it from the handle above. */
+  /* Outside the collapsing drawer, so buildings stay on screen even when
+     Upgrades is shut. Divider and list travel together, and the section waits
+     for a real building — a header over nothing but a ??? teaser is chrome.
+     flex:none so it sizes to its own content (the capped #shop). */
   #buildingSec {
     flex: none; display: none;
   }
@@ -496,47 +477,38 @@
      nothing covers the wall reveal; restored when the beat ends. */
   #dock.cutscene-hidden { opacity: 0; pointer-events: none; transition: opacity .3s ease; }
 
-  /* Between Upgrades and Buildings: no label, just the wood-grain rail that
-     used to sit under "Buildings" text — the row content below already says
-     which section it is. Inert by design; the SHOP rail owns the toggle.
-     Construction is shared with .shopHead above; height scales with --ss like
-     everything else in the shop, so it stays a plank rather than thinning into
-     a pinstripe at the skin's scale. */
+  /* Between Upgrades and Buildings, unlabelled — the rows below already say
+     which section they are. Scales with --ss like the rest of the shop so it
+     stays a plank instead of thinning to a pinstripe at the skin's scale. */
   .shopDivider { height: calc(6px * var(--ss)); }
-  /* Only earns its keep as a separator. With Upgrades hidden (pre-first-upgrade)
-     it would stack straight under the SHOP rail as a second bar, and when
-     collapsed it would hang below the closed header — drop it in both cases so a
-     shut shop is exactly one rail. */
+  /* Only earns its keep between two lists. With Upgrades hidden it would stack
+     under the SHOP rail as a second bar, and collapsed it would hang below the
+     closed header — so a shut shop is exactly one rail. */
   #upgradeSec:not(.show) + #buildingSec .shopDivider,
   #dock.collapsed .shopDivider { display: none; }
 
-  /* `overscroll-behavior: contain` so scrolling past the end of the building
-     list stops here instead of bubbling into a document-level pull-refresh.
-     max-height caps the list at ~3 rows (a row is ~57px): the day list runs to
-     4 buildings, so this trims it one tile shorter and lets the rest scroll.
-     The partial 4th row peeking under the cap is the scroll affordance, since
-     the scrollbar itself is hidden below. Fewer rows than the cap just size to
-     content (no scroll), so early game is unaffected. */
+  /* `overscroll-behavior: contain` so scrolling past the end of the list stops
+     here instead of bubbling into a document-level pull-refresh. max-height caps
+     it at ~3 rows (a row is ~57px) against a 4-building day list, so the partial
+     4th row peeking under the cap is the scroll affordance — the scrollbar
+     itself is hidden. Shorter lists just size to content. */
   #shop { flex: 1 1 auto; min-height: 0; max-height: calc(180px * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; transition: max-height .25s ease; }
   #shop::-webkit-scrollbar { width: 0; }
   /* Collapsed: both lists shrink to nothing, leaving the titled SHOP rail alone
      as a slim closed bar — tap it to reopen. */
   #dock.collapsed #upgrades, #dock.collapsed #shop { max-height: 0; }
-  /* CC store rows: a dark inset strip, a framed icon, name over effect, and
-     the price right-aligned — green when you can afford it, red when you
-     can't. That red/green is the whole readout in CC; it survives here.
-     Affordable rows brighten rather than getting a neon glow. */
+  /* CC store rows: a dark inset strip, a framed icon, name over effect, price
+     green when you can afford it and red when you can't — that red/green is the
+     whole readout. Affordable rows brighten rather than getting a neon glow. */
   .item {
     display: flex; align-items: center; gap: 0; width: 100%; text-align: left;
     background: transparent; border: none; border-bottom: 1px solid var(--line);
     padding: 0 calc(11px * var(--ss)) 0 0; color: var(--muted); cursor: not-allowed;
     transition: background .1s, opacity .15s; opacity: .5;
   }
-  /* The last upgrade row butts straight against the wood divider, which opens
-     with its own line — so this separator was only ever a second hairline on
-     top of one. Scoped to #upgrades because that list holds nothing but visible
-     rows; #shop keeps hidden `.gone` rows at both ends (night swaps the whole
-     day list out), so :last-child there isn't the row you can see. */
+  /* The wood divider right below opens with its own line, so the last row's
+     would double it. Scoped to #upgrades: #shop hides `.gone` rows at both ends
+     (night swaps the day list out), so its :last-child isn't a row you see. */
   #upgrades .item:last-child { border-bottom: 0; }
   /* Resting rows stay transparent so the page background shows through the
      tray; .can:active keeps a background because that's tap feedback, not
@@ -544,31 +516,26 @@
   .item.can { cursor: var(--paw); opacity: 1; }
   .item.can:active { background: rgba(255,255,255,.11); }
   .item .icon {
-    /* Fixed WIDTH for every row — buildings and upgrades alike — but full row
-       HEIGHT. Rows vary in height (unowned buildings show a blurb, upgrade
-       effect text wraps), and a fixed square left a strip of row background
-       above and below each tile: every row boundary became five edges (tile
-       bottom, gap, the row line, gap, next tile top) instead of one. Stretching
-       makes the tint one unbroken column down the shop that the row lines cross
-       cleanly. The glyphs still agree row-to-row — that's font-size's job, not
-       the tile's. */
+    /* Fixed WIDTH for every row, full row HEIGHT. Rows vary in height (unowned
+       buildings show a blurb, upgrade effect text wraps), so a fixed square
+       would leave a strip of row background above and below each tile and turn
+       every row boundary into five edges. Stretched, the tint is one unbroken
+       column that the row lines cross cleanly; keeping the glyphs agreeing
+       row-to-row is font-size's job, not the tile's. */
     flex: none; align-self: stretch;
     width: calc(36px * var(--ss));
     display: grid; place-items: center;
     margin: 0 calc(11px * var(--ss)) 0 0;
     font-size: calc(18px * var(--ss)); background: var(--icon-bg);
   }
-  /* Cookie Clicker's own store-row placement (verified against its live DOM:
-     name flows first, price flows right under it in the same column, and only
-     the owned count is pulled out to its own corner) — name top-left, price
-     bottom-left, quantity on the right. */
+  /* Cookie Clicker's own store-row placement: name top-left, price under it in
+     the same column, quantity pulled out to its own corner on the right. */
   .item .body { flex: 1 1 auto; min-width: 0; padding: calc(5px * var(--ss)) 0; line-height: 1.08; }
-  /* Building rows: the name sits alone on the top line; its per-second rate is
-     NOT here — it's pulled out to the right column (.right) so it can sit on the
-     same baseline as the big owned count, reading as a pair (how many × how much
-     each). The blurb ("Grows mice in glowing rows") reads on its own line below
-     (the same .fx slot upgrade rows use for effect text) UNTIL you own one, then
-     it's hidden — see .item.bought. Upgrade rows have no rate, so .nm sits bare. */
+  /* Building rows: the name sits alone on the top line. Its per-second rate is
+     NOT here — it lives in .right, on the same baseline as the owned count, so
+     the two read as a pair (how many × how much each). The blurb takes the .fx
+     line below until you own one (see .item.bought); .fx is the same slot
+     upgrade rows use for effect text. Upgrades have no rate, so .nm sits bare. */
   .item .titleRow { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .item .nm {
     font: 700 13.5px var(--ui-font); font-size: calc(13.5px * var(--ss)); line-height: 1.12;
@@ -585,9 +552,8 @@
   .item .rate .coin { flex: none; width: calc(10px * var(--ss)); height: auto; display: block; }
   .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px; }
   .item .fx b { color: var(--gold); font-weight: 700; }
-  /* Building blurb is a pre-purchase tease: once you own one, the row drops the
-     description and keeps just name + rate + price. Upgrade rows never get the
-     .bought class, so their .fx (effect text) is untouched. */
+  /* The blurb is a pre-purchase tease: own one and the row keeps just name +
+     rate + price. Upgrade rows never get .bought, so their effect text stays. */
   .item.bought .fx { display: none; }
   .item .cost {
     display: flex; align-items: center; gap: 4px;
@@ -601,13 +567,11 @@
      markup at creation, not `currentColor` — so .cost.no flipping this div's
      text color red can never touch it. See currencyIconSVG()'s comment. */
   .item .cost .coin { flex: none; width: calc(16px * var(--ss)); height: auto; display: block; }
-  /* Right column: the per-second rate sitting at the foot of the big owned
-     count, baseline-aligned, so the two read as one "output" pair (how many you
-     own × how much each makes) instead of the rate floating up by the name.
-     Vertically centered in the row by .item's own align-items:center. */
+  /* Right column: rate and owned count share a baseline so they read as one
+     "output" pair. Centered in the row by .item's own align-items. */
   .item .right { flex: none; display: flex; align-items: baseline; gap: calc(5px * var(--ss)); align-self: center; }
-  /* Quantity owned — its own corner, not stacked with price, sized to read at
-     a glance like CC's big count rather than a label next to a label. */
+  /* Quantity owned — its own corner, not stacked with price, and sized to read
+     at a glance like CC's big count rather than as a label beside a label. */
   .item .own {
     flex: none; min-width: calc(26px * var(--ss)); text-align: right;
     font: 800 26px var(--ui-font); font-size: calc(20px * var(--ss)); line-height: 1; color: var(--dim); text-shadow: 0 1px 1px rgba(0,0,0,.45);
@@ -632,12 +596,10 @@
   .item.locked .right { display: none; }
 
   /* ---- Upgrades strip (only unlocked-and-unbought ones exist here, so the
-     list is short; buying removes the row) ---- */
-  /* No bottom padding: the #upgrades scroller must reach the section edge so the
-     bottom scroll-shadow sits flush with the divider (matching the top), instead
-     of floating above a strip of padding. No bottom border either — the wood
-     divider immediately below already opens with one, and the section's was
-     landing directly on it. */
+     list is short; buying removes the row) ----
+     No padding or bottom border: the #upgrades scroller has to reach the section
+     edge so its bottom scroll-shadow sits flush with the wood divider, and the
+     divider already draws the line between them. */
   #upgradeSec { flex: none; display: none; }
   #upgradeSec.show { display: block; }
   #upgrades { max-height: calc(10vh * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; transition: max-height .25s ease; }
@@ -3269,7 +3231,7 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
 
 // Shop-skin runtime: drive the scroll shadows (.can-up / .can-down) and publish
 // the dock/HUD heights so #catWrap can center Hex in the space above the static
-// shop. (Icon sizing is pure CSS now — a fixed-width, full-height tile per row.)
+// shop. (Icon sizing is pure CSS — a fixed-width, full-height tile per row.)
 // All read-only
 // measurement, so there's no layout feedback with the game's own row refresh.
 (function () {
@@ -3286,7 +3248,7 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
     if (getComputedStyle(dockEl).display !== "none") {
       const bh = getComputedStyle(buildingSecEl).display !== "none" ? buildingSecEl.offsetHeight : 0;
       const ss = parseFloat(getComputedStyle(rootEl).getPropertyValue("--ss")) || 1;
-      const upPinned = Math.round(innerHeight * 0.10 * ss); // the #upgrades cap, which is all the section is now
+      const upPinned = Math.round(innerHeight * 0.10 * ss); // the #upgrades cap is the whole section
       // The SHOP rail is a sibling of both sections, so neither term above covers
       // it — measured live and added, or Hex centers into the header.
       dh = shopToggleEl.offsetHeight + bh + upPinned;

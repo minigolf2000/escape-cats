@@ -1168,7 +1168,7 @@ function foldMods(bought, owned) {
 // Seeded from the fold itself rather than a hand-written literal — the zero
 // state is `foldMods` with nothing bought, so there's exactly one definition
 // of what a mods object contains. (Declaration-hoisted, so calling foldMods
-// here is fine; scheduleGold() reads mods.goldenFreq before boot's recalc.)
+// here is fine.)
 const mods = foldMods({}, game.owned);
 function recalc() { Object.assign(mods, foldMods(game.bought, game.owned)); }
 
@@ -1871,6 +1871,15 @@ const ZOOM_MS = 7000;           // ...for 7s
 const GOLD_MARGIN = 10;         // px of stage edge the golden won't drift past
 const GOLD_MIN_S = 40, GOLD_MAX_S = 90;              // spawn window
 const GOLD_MEAN_S = (GOLD_MIN_S + GOLD_MAX_S) / 2;   // the sim's mean gap
+// The FIRST golden of a run waits longer, landing ~2:30–3:30 — late in the
+// opening era, "a taste" per the design doc. It is gated on a run rather than a
+// page load: a save that has already caught one uses the normal window, so a
+// mid-game reload doesn't re-serve the intro pause.
+// The wait is what makes the catch worth anything. Pet power opens at 1
+// mouse/pet and the first building costs 10, so a 7s sprint landing at 0:40 is
+// worth ~10x the entire first purchase — it would erase the opening curve
+// before the player has read the shop.
+const GOLD_FIRST_MIN_S = 150, GOLD_FIRST_MAX_S = 210;
 let goldTimer = 0, goldActive = false, goldLifeLeft = 0, goldVx = 0, goldVy = 0, goldX = 0, goldY = 0;
 // The reachable box, in #stage-local px. #stage is the full viewport height,
 // but #hud (the score) and #dock (the shop) are position:fixed overlays ON TOP
@@ -1901,10 +1910,11 @@ function goldBounds() {
   if (maxY < minY) { const mid = (minY + maxY) / 2; minY = maxY = mid; }
   return { minX, minY, maxX, maxY };
 }
-function scheduleGold() {
-  goldTimer = (GOLD_MIN_S + Math.random() * (GOLD_MAX_S - GOLD_MIN_S)) / mods.goldenFreq; // seconds
+function scheduleGold(first) {
+  const lo = first ? GOLD_FIRST_MIN_S : GOLD_MIN_S;
+  const hi = first ? GOLD_FIRST_MAX_S : GOLD_MAX_S;
+  goldTimer = (lo + Math.random() * (hi - lo)) / mods.goldenFreq; // seconds
 }
-scheduleGold();
 
 function spawnGold() {
   goldActive = true;
@@ -3208,6 +3218,8 @@ function devApply(name) {
   game.unlocked = {}; // sticky unlocks re-derive from the new state
   game.zoomUntil = 0;
   recalc();
+  scheduleGold(game.goldCaught === 0); // presets jump the run; re-arm to match
+
   syncPhase();
   refreshHud(); refreshShop(); refreshUpgrades(); save();
 }
@@ -3293,6 +3305,11 @@ function simulateRun(opts = {}) {
   };
   const isStory = u => [].concat(u.effect).some(e => e.type === "night" || e.type === "trail" || e.type === "countMice");
 
+  // Goldens are off the table until the first one is due. Uses the midpoint of
+  // the first-spawn window, matching how the rest of the model reads mean
+  // rather than rolled timings.
+  const goldsLive = () => useGold && t >= (GOLD_FIRST_MIN_S + GOLD_FIRST_MAX_S) / 2;
+
   // Steady-state earn rates for an arbitrary hypothetical (bought, owned).
   // Composition comes from baseCpsWith/clickBaseWith — the same functions the
   // live game runs — so only the buff model below is the sim's own.
@@ -3302,8 +3319,11 @@ function simulateRun(opts = {}) {
     const I = GOLD_MEAN_S / m.goldenFreq;                   // mean spawn gap
     // Zoomies as steady-state uptime EV, standing in for zoomBuff(), which the
     // sim can't call (it reads wall-clock). Pets only — mice/s is unbuffed, so
-    // `base` goes into the return below with no golden term at all.
-    const gClk = useGold ? 1 + (ZOOM_MULT - 1) * (ZOOM_MS / 1000) / I : 1;
+    // `base` goes into the return below with no golden term at all. Nothing
+    // before the first spawn can land (`t` is read live off the loop below):
+    // over a 10-minute target that intro wait is a quarter of the run, so
+    // averaging goldens across it would flatter the early curve.
+    const gClk = goldsLive() ? 1 + (ZOOM_MULT - 1) * (ZOOM_MS / 1000) / I : 1;
     // Petting earns nothing at night (the sleepy reaction is not a mechanic), so
     // the pet term drops to zero once the twist fires — matches pet()'s gate.
     const pet = nightOf(bought) ? 0 : pps * clickBaseWith(m, owned) * gClk;
@@ -3316,7 +3336,7 @@ function simulateRun(opts = {}) {
     s.mice += r.all * dt; s.total += r.all * dt;
     earnedCps += r.cps * dt; earnedPet += r.pet * dt;
     s.clicks += pps * dt;
-    if (useGold) { goldAcc += dt / r.I; s.goldCaught = Math.floor(goldAcc); }
+    if (goldsLive()) { goldAcc += dt / r.I; s.goldCaught = Math.floor(goldAcc); }
     t += dt;
 
     // Story purchases first; remember the gap if one is pending but unaffordable.
@@ -3487,6 +3507,10 @@ function initDev() {
 // ---------------------------------------------------------------------------
 load();
 recalc();
+// After load() + recalc() so both inputs are real: goldCaught says whether this
+// is a fresh run (long intro wait) or a resumed one, and goldenFreq reflects
+// upgrades the save already owns.
+scheduleGold(game.goldCaught === 0);
 buildShop();
 syncPhase(); // saves restore the phase for free
 initDev();

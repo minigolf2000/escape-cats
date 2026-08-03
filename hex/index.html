@@ -1596,6 +1596,17 @@ let lastShopTapAt = -Infinity;
 const SHOP_HOLD_MS = 700;
 shopScrollEl.addEventListener("pointerdown", () => { lastShopTapAt = performance.now(); },
                              { capture: true, passive: true });
+// The last time the player SCROLLED the shop themselves, and how long that counts
+// as "looking at it". Separate from lastShopTapAt on purpose: tapping a building
+// row is not evidence you read the upgrade list above it, and the scroll hold
+// writes scrollTop itself — so both have to be excluded from this one. See
+// updSeen for what it gates.
+let lastShopLookAt = -Infinity;
+const SHOP_LOOK_MS = 1000;
+// Raised across the hold's own write to scrollTop. Cleared on the next frame:
+// scroll events fire before rAF, so a real scroll can't slip through the gap,
+// and a write that doesn't move the scroller (no event at all) still clears it.
+let programmaticScroll = false;
 const buildingSecEl = $("#buildingSec"), dockEl = $("#dock"), hudEl = $("#hud");
 const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 
@@ -1868,7 +1879,11 @@ function refreshUpgrades() {
     syncDock();
     // After the show/hide toggles above, so the layout being measured is final.
     // Assigning past the scrollable range is fine — the browser clamps it.
-    if (hold) shopScrollEl.scrollTop = shopScrollEl.scrollHeight - fromBottom;
+    if (hold) {
+      programmaticScroll = true;
+      shopScrollEl.scrollTop = shopScrollEl.scrollHeight - fromBottom;
+      requestAnimationFrame(() => { programmaticScroll = false; });
+    }
     // The set changed, so the unseen count did too. updSeen() only runs off the
     // scroll tick, and a reveal that nobody scrolls for would otherwise leave
     // the badge stale until the next 300ms poll.
@@ -3960,10 +3975,25 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
     el.classList.toggle("can-up", el.scrollTop > 1);
     el.classList.toggle("can-down", el.scrollTop + el.clientHeight < el.scrollHeight - 1);
   }
-  // Mark upgrade rows seen as they come into view, which is what clears the
-  // badge. A row counts as seen once its MIDPOINT is inside the scroller's
-  // visible box — the row is then unambiguously on screen and readable, rather
-  // than a sliver under one of the edge fades.
+  // Mark upgrade rows seen, which is what clears the badge. Two conditions, and
+  // the second one is the whole point: the row's MIDPOINT is inside the visible
+  // box, AND the player has SCROLLED the shop in the last second.
+  //
+  // In-view alone does not work, and the reason is a conspiracy of two things
+  // that are individually reasonable. The rail is cost-ordered, and reveals run
+  // roughly cost-ascending, so a newly revealed row lands at the END of the
+  // upgrade block — and the end of the upgrade block is exactly what stays on
+  // screen when you scroll down to look at buildings. Measured with six rows and
+  // the shop at the bottom: rows 1-3 above the fold, rows 4-6 in view. So every
+  // new row was born in view and marked seen within one tick, and the badge
+  // never fired for anyone playing normally.
+  //
+  // Requiring a scroll is also the literal reading of the rule: a row that
+  // SCROLLS into view has been looked at, a row that appears under your eyes
+  // while they are on the cat has not. Tapping a shop row deliberately does NOT
+  // count — buying a building says nothing about having read the upgrades above
+  // it, and that tap is the single most common thing happening when a reveal
+  // fires.
   //
   // Polled off the same tick as the scroll shadows instead of an
   // IntersectionObserver: refreshUpgrades rebuilds every row whenever the
@@ -3972,6 +4002,12 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
   // anything while the shop is collapsed — max-height 0 leaves clientHeight 0,
   // so no midpoint is ever inside it.
   function updSeen() {
+    // A shop that fits needs no scrolling, so "you haven't scrolled to it" says
+    // nothing — every row is in front of you and a badge pointing at one would be
+    // noise. This is the whole early game, and the first frame in particular,
+    // where the rail holds one row.
+    const fits = shopScrollEl.scrollHeight <= shopScrollEl.clientHeight + 1;
+    if (!fits && performance.now() - lastShopLookAt > SHOP_LOOK_MS) return;
     const box = shopScrollEl.getBoundingClientRect();
     let changed = false;
     for (const [key, r] of upRows) {
@@ -3987,7 +4023,13 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
     if (changed) refreshBadge();
   }
   function tick() { scrollers.forEach(updAff); updSeen(); }
-  scrollers.forEach(el => el.addEventListener("scroll", () => { updAff(el); updSeen(); }, { passive: true }));
+  scrollers.forEach(el => el.addEventListener("scroll", () => {
+    // A scroll the player performed is the "looking at it" signal; the hold's own
+    // write is not, or buying a building would clear the badge for the very row
+    // that purchase just revealed.
+    if (!programmaticScroll) lastShopLookAt = performance.now();
+    updAff(el); updSeen();
+  }, { passive: true }));
   if (window.ResizeObserver) { const ro = new ResizeObserver(tick); ro.observe(dockEl); }
   addEventListener("resize", tick);
   setInterval(tick, 300);

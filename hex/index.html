@@ -59,8 +59,6 @@
        number. Above true center because the shop owns the bottom of the screen.
        Move this one value and cat + background travel together. */
     --sun-y: 33%;
-    --paw: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAEuElEQVR4nOxXW0xbZRz/fb1QCi1lhaHAFhEYgtOpycIWBykjRhmXkGVmBLNEw8aDThPjBZ/MfPdFQwYbQclifDBuRAxhCyJpzMrD2LKUjnHZFgTCRdiA0tMWWjjH/3doa8ultJiFl/2S853v/L///ft/l6PCLkOFXcauO6CIhtnlsh9xOBwfLy0tZa0f4zQ+Rjz5iAIsEiZJshsFgbUyBlNAkEn1cXEJn/G+ICx+zxj7KEiiKz4eVYwZ5rbTHZEDgmDvINYTQ0PDsFh6UF5eipSUFHKCfSOKopLeX09P/4OOjusoKChATk42F2vX6RIq/rcDgiC8Doh3h4cfoqSkDF6vF2lpqbh50wyVSuUg4yqiaY8eLcTMzAzUajU6O68jOzuTpBWHdDqdLZz+CGpAfIO3PT0W2TjH5OQU7t8f4BnQ06fWarXJxjk4j8Vi8cmuHtpOeySr4Dne2O2LIUSn0xnoOxyhYy6X29djadgGGzJAlVxMc36XCstFiockickVbzQmhfDl5eUG+kajMWTs4MG8NfOM5ZCOYa6LdN5xux2m9fZYqOf2I6LIetY7JhHm5xeYyVSMhQU7DhzIQnf3H6ACHCUjanrSysoq0ddn40Zpevqg08WL2BjgqkIhvRkXZ7i1aQZEERc4raurm6r5OJqamv2RuIzGPWhv/w1tba30bvPRlV+RvTrev3LlR1y79gus1tvcOHdbnofGxiYUFh4H10lQUoAXtswApWqJXppjx4owNjYmR9Pfb4Ver+MKO4n97SD2H4h2z6fmNWo+CChluCFJKBEEJ03VqzItK+tFmM1/8u4yLc9YP68qKM2JTqdDQzuabNxHw8DAIPLzD1Nf0UKbj4eo5T6/z26yiiUy/jvx/kr5LLHZ7gUGHj0agcfjQUxMjIb0JlBwiyEOEGGBMrAcGxurSU19HlNT0z7PM9fmSiH9RP6ouFG+DEdGRjA4OCSP5ea+hMzMTJAcI55KMl7G6bxW/EhPT+fG5Qz4jYc4sBYxOiiCk+fO1aCh4TJKS99BUpJRzoTXu6K6erUV9fUNGB8fx2bIyHgB589/iFOnTqrUahWSk5NRXV1FG1MXamtrAjaCZUJy6Ha7M5aX3bdoh9vrp1Gl48mTeVRUVGJiYhKRgEfLC9VoTKTM/VfnKysrjzUa7WGtVjvqp4WsAhr4W6lUv0LdFr7yOM3j8aKqqjpi4xwTExM4c+Z9Mrgqf1PUc/Q0k+6Xg41vcIBDr9fPUJXW0FR8yr8vXmzEgwcPES36+/tx6dJluc+Y4hO9PqGWdM+u5wt3FpzgTW/vbewUvb13fD2xZCueMGcBK+atzRb2MAsLq9Xq7761FU+4DMjp2rdvP3aK1NTAWTQXtQNUNPxMQFFRIXYKvyzpsiBaB6gIZQfq6r7A6dPvIlpwGS4brGtTO1sN0DKMcToXW4jlPf7Nb0Rms5mevzA7+5juBwu0P8xBqVQiMdFAzx66pu2FyVRIkRcF7YLSz/HxfFUxT1QO+EHb85f0+hy+i0kUoI1D+lanM3wXjinCW7GkdLkcpbQpnqUDaT/NqYFEDZTahLVx2KldpG87XWBG6dxophvzDYpa3E53RA48TTz7NXvmwL8AAAD//6QjYfAAAAAGSURBVAMA8l/kFjMrX3YAAAAASUVORK5CYII=) 16 5, auto;
-                  /* cat-paw cursor (desktop); mobile ignores it */
 
     --ui-font: 'Baloo 2', system-ui, sans-serif;
     --page-bg:
@@ -99,7 +97,7 @@
   }
   * { box-sizing: border-box; }
   html, body {
-    margin: 0; height: 100%; overflow: hidden; cursor: var(--paw);
+    margin: 0; height: 100%; overflow: hidden;
     font: 500 13px var(--ui-font); color: var(--ink);
     -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
     /* Kiosk lockdown: this is a proctored, locked-in escape-room game, so the
@@ -244,7 +242,7 @@
     filter: drop-shadow(0 3px 10px rgba(0,0,0,.45)) drop-shadow(0 0 30px rgba(200,235,255,.45));
     transition: transform .1s ease-out;
   }
-  #hexCat > * { pointer-events: auto; cursor: var(--paw); touch-action: manipulation; }
+  #hexCat > * { pointer-events: auto; cursor: pointer; touch-action: manipulation; }
   #catWrap.squash #hexCat { transform: scale(.93); }
   #catWrap.zoomies #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
   #catWrap.zoomies #hexCat .catLine { stroke: #ffd44d; }
@@ -382,7 +380,7 @@
      hardcodes these dimensions; moveGold() measures the element instead. */
   #golden {
     position: absolute; width: 62px; height: 62px; display: none; place-items: center;
-    cursor: var(--paw); filter: drop-shadow(0 0 14px rgba(255,212,77,.85));
+    cursor: pointer; filter: drop-shadow(0 0 14px rgba(255,212,77,.85));
     animation: goldPulse 1.1s ease-in-out infinite; z-index: 5;
   }
   #golden svg { width: 100%; height: auto; display: block; }
@@ -475,7 +473,7 @@
     height: calc(32px * var(--ss));
     display: flex; align-items: center; justify-content: center; gap: calc(5px * var(--ss));
     padding: 0; -webkit-appearance: none; appearance: none; border-radius: 0;
-    width: 100%; cursor: var(--paw); color: var(--ink);
+    width: 100%; cursor: pointer; color: var(--ink);
   }
   .shopTitle {
     font: 700 11px var(--ui-font); font-size: calc(10.5px * var(--ss));
@@ -570,7 +568,7 @@
   /* Resting rows stay transparent so the page background shows through the
      tray; .can:active keeps a background because that's tap feedback, not
      the row's resting look. */
-  .item.can { cursor: var(--paw); opacity: 1; }
+  .item.can { cursor: pointer; opacity: 1; }
   .item.can:active { background: rgba(255,255,255,.11); }
   .item .icon {
     /* Fixed WIDTH for every row, full row HEIGHT. Rows still vary in height
@@ -660,7 +658,7 @@
     color: var(--dim); letter-spacing: .14em;
   }
   .item .icLocked { display: none; color: var(--dim); font-weight: 800; }
-  .item.locked { cursor: var(--paw); opacity: .4; }
+  .item.locked { cursor: default; opacity: .4; }
   .item.locked .lockedNm { display: block; }
   .item.locked .icLocked { display: block; }
   .item.locked .titleRow,
@@ -1055,11 +1053,18 @@ const UPGRADES = [
   // ASCENDING COST, which is also shop order — refreshUpgrades renders UPGRADES
   // in array order, so the rail reads as one ladder. Keep it monotonic: a row
   // out of sequence shows up in the shop above things cheaper than it.
-  // 50, under its own 200 unlock, so the first upgrade anyone ever sees is
-  // already affordable the moment it appears — the opening beat is "there is a
-  // shop and you can use it", not a wait.
+  // The ONE row with no unlock condition at all (unlockText renders it
+  // "always"). It is on the rail in the first frame, before a single pet, so the
+  // opening reads as "there is a shop and here is the first thing in it" — and
+  // because the shop appears with it, the dock is up from the start instead of
+  // arriving once the Mouse Subscription reveals at 10 lifetime.
+  //
+  // It costs 50 against a pet worth 1, so it is a visible target for the first
+  // ~50 pets rather than something already affordable. That's the trade for
+  // ungating it, and it's the Cookie Clicker opening: the Cursor is on screen at
+  // 15 cookies from the first frame too.
   { key: "whiskers", name: "Cat Tree", icon: "🌳",
-    cost: 50, unlock: { total: 200 },
+    cost: 50, unlock: {},
     effect: { type: "clickFlat", add: 1 } },
   { key: "scratchpost", name: "Scratching Post", icon: "🪵",
     cost: 500, unlock: { clicks: 80 },
@@ -1397,6 +1402,14 @@ function recalc() { Object.assign(mods, foldMods(game.bought, game.owned)); }
 // X?" by name, and this was the last place that did. Array, not a single key,
 // so splitting the twist across two upgrades stays a table-only edit.
 const NIGHT_KEYS = UPGRADES.filter(u => [].concat(u.effect).some(e => e.type === "night")).map(u => u.key);
+// The story rows: the twist and the reveal ladder behind it. Recognised by EFFECT
+// rather than by key, so adding a sleep stage doesn't need a second edit here.
+// Shared by the pacing simulator (which buys them on sight, since a motivated
+// player doesn't optimise past them) and by the dev presets (which must never
+// buy them by accident — `night` alone decides whether a preset is a day or a
+// night save).
+const isStoryUpgrade = u => [].concat(u.effect).some(e =>
+  e.type === "night" || e.type === "trail" || e.type === "countMice");
 function nightOf(bought) { return NIGHT_KEYS.some(k => bought[k]); }
 function nightActive() { return nightOf(game.bought); }
 
@@ -3525,6 +3538,16 @@ window.addEventListener("pagehide", save);
 // rather than needing a hand-written inverse of the forward transition.
 // ---------------------------------------------------------------------------
 const DEV = { speed: 1, teamMult: 1 };
+// What share of a preset's LIFETIME earnings has gone on upgrades. Used to
+// decide which rows a save at that point in the run would already hold — see
+// devDerivedBought. 0.25 is a guess in the right shape: a real run spends most
+// of what it earns, and buildings take the larger half.
+const DEV_BOUGHT_SHARE = 0.25;
+// Presets carry buildings, counters and the STORY rows they've passed. They
+// deliberately do NOT list ordinary upgrades: a hand-written list rotted on
+// every retune (the ladder moved three times in a day), and the version that
+// listed none left every jump showing a shop full of 50-mice rows that a save at
+// that point would obviously have bought. Those are derived instead.
 const DEV_PRESETS = {
   "fresh":    { total: 0, mice: 0, clicks: 0 },
   "early":    { total: 600, mice: 350, clicks: 60,
@@ -3542,13 +3565,47 @@ const DEV_PRESETS = {
                 owned: { shopper: 25, farm: 40, factory: 5, lab: 2, portal: 12, timemachine: 4 },
                 bought: ["catnap", "countingmice", "deepsleep", "remsleep", "luciddreaming"] },
 };
+// Fill in the ordinary upgrades a save in this state would already hold: unlock
+// conditions met, and paid for out of a share of lifetime earnings. Story rows
+// are excluded — they stay explicit in the preset, because buying `night` here
+// would silently turn a day preset into a night one.
+//
+// Spends from a SHARED budget, cheapest affordable row first, until the money is
+// gone. Testing each row's cost against the budget independently instead bought
+// every row under the threshold, whose total ran to several times it: pre-night
+// came out holding all five Factory upgrades and the whole Lab tier at 500k
+// mice/s, which is not a state any real save reaches at that lifetime total.
+//
+// Cheapest-first also drives the loop, so `requires` chains resolve for free —
+// each purchase can make the next row eligible, and the scan simply runs again.
+function devDerivedBought(p) {
+  let budget = (p.total || 0) * DEV_BOUGHT_SHARE;
+  for (;;) {
+    let next = null;
+    for (const u of UPGRADES) {
+      if (game.bought[u.key] || isStoryUpgrade(u) || u.cost > budget) continue;
+      if (next && u.cost >= next.cost) continue;
+      if (!unlockMet(u, game)) continue;
+      next = u;
+    }
+    if (!next) return;
+    game.bought[next.key] = 1;
+    budget -= next.cost;
+  }
+}
+
 function devApply(name) {
   const p = DEV_PRESETS[name];
   game.mice = p.mice || 0; game.total = p.total || 0;
   game.clicks = p.clicks || 0; game.goldCaught = p.golden || 0;
   game.owned = {}; BUILDINGS.forEach(b => game.owned[b.id] = (p.owned && p.owned[b.id]) || 0);
   game.bought = {}; (p.bought || []).forEach(k => game.bought[k] = 1);
+  devDerivedBought(p);
   game.unlocked = {}; // sticky unlocks re-derive from the new state
+  // Reset with the rest of the run: `seen` drives the SHOP badge, so carrying it
+  // across a jump is the one piece of the old game that would leak into the new
+  // one — the badge would sit quiet about rows this state has never shown you.
+  game.seen = {};
   game.zoomUntil = 0;
   recalc();
   scheduleGold(game.goldCaught === 0); // presets jump the run; re-arm to match
@@ -3637,7 +3694,7 @@ function simulateRun(opts = {}) {
     if (b.id !== "lab" && night) return false;
     return isRevealed(b, s);
   };
-  const isStory = u => [].concat(u.effect).some(e => e.type === "night" || e.type === "trail" || e.type === "countMice");
+  const isStory = isStoryUpgrade;
   // Buildings a story upgrade requires you to OWN — today, the Schrödinger's Lab
   // that Catnap Hypnalysis unlocks on. The bot has to treat these as story
   // purchases too, because the greedy payback score never picks the Lab: it has

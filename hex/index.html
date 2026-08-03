@@ -999,6 +999,11 @@ const UPGRADES = [
   // 1: it sits under Catnap Hypnalysis on cost so the capstone is still the
   // capstone, but above every other day ladder so buying a Lab reads as an
   // escalation. ×3 across the board, fantastical flavour.
+  //
+  // Every row is a boost to a NAMED building, which is the tier's whole shape.
+  // The Observer Effect used to close it with a flat +15% global — the only row
+  // here that pointed at nothing in particular, and the only one gated on a
+  // second Lab, so it read as a tax on the tier rather than part of it.
   { key: "farm2", name: "Splice-Grown Mice", icon: "🧬",
     cost: 110000, unlock: { owned: [["farm", 13], ["lab", 1]] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
@@ -1017,10 +1022,6 @@ const UPGRADES = [
   { key: "factoryfactory", name: "Factory Factory", icon: "🪆",
     cost: 180000, unlock: { owned: [["factory", 8], ["lab", 1]] },
     effect: { type: "crossBuilding", building: "factory", per: "factory", pct: 5 } },
-  { key: "labobserver", name: "The Observer Effect", icon: "🔭",
-    cost: 300000, unlock: { owned: [["lab", 2]] },
-    effect: { type: "globalPct", pct: 15 } },
-
   // --- Petting ---
   // EVERY row here belongs to phase 1 — petting earns nothing once Hex is asleep
   // (see pet()'s night gate), so a petting upgrade that isn't affordable before
@@ -1085,9 +1086,6 @@ const UPGRADES = [
   { key: "cardboardbox", name: "Cardboard Box", icon: "📦",
     cost: 10000, unlock: { owned: ["factory", 3] },
     effect: { type: "clickPerBuilding", add: 10, per: "factory" } },
-  { key: "staticfur", name: "Static Fur", icon: "⚡",
-    cost: 20000, unlock: { requires: "whiskers", total: 20000 },
-    effect: { type: "clickShare", pct: 2 } },
   { key: "scratchpost2", name: "Reinforced Scratching Post", icon: "🪢",
     cost: 25000, unlock: { requires: "scratchpost", clicks: 260 },
     effect: { type: "clickMult", mult: 2 } },
@@ -1108,7 +1106,7 @@ const UPGRADES = [
   // name a window. (It used to be the Saucer of Milk; hence the key.)
   { key: "milk", name: "Window Perch", icon: "🪟",
     cost: 40000, unlock: { total: 40000 },
-    effect: { type: "goldenFreq", mult: 1.3 } },
+    effect: { type: "goldenFreq", mult: 1.5 } },
   // Window Perch #2 and #3. Two effects each, Cookie Clicker's grandma-synergy
   // shape: another window is both a better lookout (sooner) and a longer watch
   // (linger). goldenLife is PAIRED rather than sold alone on purpose — the spawn
@@ -1118,13 +1116,23 @@ const UPGRADES = [
   // and the pacing sim (which assumes every golden is caught) would score it at
   // zero gain and never buy it.
   //
+  // Rungs are 1.5 / 1.4 / 1.4 = ×2.94 across the line, up from 1.3 / 1.25 / 1.25
+  // = ×2.03, absorbing the ×1.5 that Mouse Magnet used to contribute. That row is
+  // gone and its strength had to land somewhere: golden frequency is not just a
+  // day bonus, it is the clock on Lucky Number 6's six-goldens gate, so deleting
+  // a third of the game's goldenFreq pushed the night's one economy spike ~1:30
+  // later. It also flattened the perches themselves — the marginal value of a
+  // frequency multiplier scales with the frequency you already have, so with the
+  // Magnet gone the pacing bot stopped buying the line at all and the third
+  // perch went unreachable at three of four tap rates.
+  //
   // All three perches are one gag, so the NAME has to carry it — it used to live
   // in flavor text, which meant three rows titled "Window Perch" with only the
   // flavor telling them apart. The arithmetic is in the titles now: three
   // perches, two windows. Never collapse these back to a bare "Window Perch".
   { key: "cattree", name: "Window Perch, Second Window", icon: "🪟",
     cost: 50000, unlock: { clicks: 620 },
-    effect: [{ type: "goldenFreq", mult: 1.25 }, { type: "goldenLife", add: 3 }] },
+    effect: [{ type: "goldenFreq", mult: 1.4 }, { type: "goldenLife", add: 3 }] },
   { key: "cardboardcastle", name: "Cardboard Castle", icon: "🏰",
     cost: 60000, unlock: { requires: "cardboardbox", owned: [["factory", 5]] },
     effect: { type: "clickPerBuilding", add: 35, per: "factory" } },
@@ -1133,7 +1141,7 @@ const UPGRADES = [
     effect: { type: "zoomTime", add: 4 } },
   { key: "windowperch", name: "Third Window Perch, Second Window", icon: "🪟",
     cost: 110000, unlock: { requires: "cattree", clicks: 820 },
-    effect: [{ type: "goldenFreq", mult: 1.25 }, { type: "goldenLife", add: 4 }] },
+    effect: [{ type: "goldenFreq", mult: 1.4 }, { type: "goldenLife", add: 4 }] },
   // The anticlimax is the joke: bought after churu hydroponics and a quantum
   // lab, and what it buys is the same kibble as yesterday. The title has to land
   // that — "Dry Food" alone reads as a straight item — so the effect stays the
@@ -1141,10 +1149,13 @@ const UPGRADES = [
   { key: "dryfood", name: "Dry Food, Same As Yesterday", icon: "🥣",
     cost: 130000, unlock: { clicks: 600 },
     effect: { type: "clickMult", mult: 2 } },
-  // Static Fur's second rung, not a fifth doubling — four ×2s is all the cost
-  // ceiling can space far enough apart. The mitts let you keep both hands in it
-  // however fast the operation is running, which is what a share of your /s per
-  // pet actually means.
+  // The ladder's only share-of-your-/s rung, and not a fifth doubling — four ×2s
+  // is all the cost ceiling can space far enough apart. The mitts let you keep
+  // both hands in it however fast the operation is running, which is what a
+  // share of your /s per pet actually means. (Static Fur was the other one and
+  // sat at 20k; the two together were the same purchase twice, once at a price
+  // where +2% of a tiny /s bought nothing.) The floor is still CLICK_CPS_SHARE,
+  // so pets keep their share of income whether or not this is bought.
   { key: "ovenmitts", name: "Bite-Proof Oven Mitts", icon: "🧤",
     cost: 160000, unlock: { clicks: 680 },
     effect: { type: "clickShare", pct: 2 } },
@@ -1183,22 +1194,14 @@ const UPGRADES = [
   // never the Factory. See hex-clicker-synergy-brief.md (now historical).
 
   // --- Bespoke ---
-  // (Hex's Undivided Focus, a flat +10% global, was removed here: it was a
-  // numbers-only row with no joke in the title and nothing to buy it FOR, and
-  // globalPct now has exactly one owner — The Observer Effect, which earns it by
-  // being the Lab tier's finale. The effect type is still live; don't delete it.)
-  { key: "magnet", name: "Mouse Magnet", icon: "🧲",
-    cost: 20000, unlock: { golden: 1 },
-    effect: { type: "goldenFreq", mult: 1.5 } },
-  // A night economy spike: a clean ×6 to ALL mouse generation (globalMult, so it
-  // multiplies the whole stack rather than adding to the +% sum). Triple-six
-  // theme carried by the name, the ×6, and the six-goldens gate. Gated on the
-  // night phase; cost is a GUESS — it wants to land as a mid-night power spike
-  // once night buildings are online, and it's the natural bridge if day
-  // buildings disappear at night. Retune against the day-buildings decision.
-  { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
-    cost: 2e6, unlock: { requires: "catnap", golden: 6 },
-    effect: { type: "globalMult", mult: 6 } },
+  // Empty, and worth keeping as a warning. Three rows have been retired from
+  // here — Hex's Undivided Focus (+10% global), The Observer Effect (+15%
+  // global), and Mouse Magnet (goldens 50% sooner) — and they had the same
+  // problem: a bare number with no joke in the title, sitting outside every
+  // ladder, so nothing about the shop told you why you'd want it. A row needs a
+  // line to belong to. The effect types they used are all still live and owned
+  // elsewhere: globalPct by A Breath of Fresh Air, goldenFreq by all three
+  // Window Perches, so nothing here freed any plumbing.
 
   // --- THE TWIST + night chain ---
   // Catnap Hypnalysis is the END OF PHASE 1, and it is priced to say so: at 1M
@@ -1243,6 +1246,20 @@ const UPGRADES = [
   { key: "deepsleep", name: "Deep Sleep", icon: "😴",
     cost: 1e6, unlock: { requires: "countingmice" },
     effect: { type: "trail", add: 8 } },
+  // Not part of the sleep-stage chain — it's the night's one economy row, gated
+  // on the phase plus six goldens rather than on the stage above it. Parked here
+  // by cost (2M, between Deep Sleep's 1M and REM's 4M) because that's where the
+  // shop and the dev dump both render it: they walk UPGRADES in array order, so
+  // a row's position in this table IS its position on the rail. It used to sit
+  // up in Bespoke, which listed it above the twist that unlocks it.
+  //
+  // A clean ×6 to ALL mouse generation (globalMult, so it multiplies the whole
+  // stack rather than blending into the +% sum). Triple-six theme carried by the
+  // name, the ×6, and the six-goldens gate. Cost is a GUESS — it wants to land
+  // as a mid-night power spike once night buildings are online.
+  { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
+    cost: 2e6, unlock: { requires: "catnap", golden: 6 },
+    effect: { type: "globalMult", mult: 6 } },
   { key: "remsleep", name: "REM Sleep", icon: "👀",
     cost: 4e6, unlock: { requires: "deepsleep" },
     effect: { type: "trail", add: 12 } },
@@ -1494,9 +1511,14 @@ function oneEffectText(e) {
     // constant string rendered all of Deep Sleep / REM / Lucid identically.
     case "trail":        return `Dream mice leave ${hl("+" + e.add)} more trail`;
     case "countMice":    return `The first mice appear on the wall`;
-    // THE twist. Without a case it fell to `default` and rendered blank — which
-    // only went unnoticed because Catnap Hypnalysis carried a flavor override.
-    case "night":        return `Hex falls asleep. The day ends`;
+    // THE twist, and the one row whose description is a QUESTION rather than a
+    // statement of effect. Everything else here follows the rule that the row
+    // tells you what you're buying and the NAME carries the joke; this one is
+    // the exception the rule exists to allow, because what you're buying is the
+    // thing the whole game has been withholding, and naming the mechanic
+    // ("Hex falls asleep. The day ends") spends the reveal a purchase early.
+    // Without a case at all it fell to `default` and rendered blank.
+    case "night":        return `What is Hex dreaming about?`;
     case "crossBuilding": return `${buildingName(e.building)} gains +${hl(e.pct + "%")} per ${buildingName(e.per)}`;
     case "clickPerBuilding": return `+${hl(fmt(e.add))} per pet for every ${buildingName(e.per)}`;
     default:             return "";

@@ -79,9 +79,10 @@
   }
   body.night {
     --ui-font: 'Baloo 2', system-ui, sans-serif;
-    --page-bg:
-      radial-gradient(90vw 55vh at 50% 12%, rgba(180,140,255,0.07), transparent 62%),
-      #06070c;
+    /* No --page-bg here on purpose. The night sky is painted by #nightSky, which
+       FADES in — two gradient stacks cannot be transitioned into one another, so
+       overriding this var would snap the whole screen from day to night on one
+       frame. body keeps the day background all game; #nightSky covers it. */
     --panel-bg: rgba(9,11,18,.93);
     --wood: none;
     --wood-line: #262b36;
@@ -113,6 +114,23 @@
     background: var(--page-bg);
     display: flex; flex-direction: column;
   }
+  /* The night sky, as a layer rather than a variable, so day->night can be a
+     DISSOLVE instead of a cut. z-index -1 puts it above body's background and
+     below every in-flow child, so it needs no cooperation from anything else.
+     Fixed, not absolute: it has to cover the whole viewport including behind the
+     fixed #hud and #dock, which body's background does too.
+     2.2s and no delay, so it runs from the moment the twist fires and is fully
+     dark at 2.2s — before the stars finish at 2.9s and well before the camera
+     starts moving at 3.3s. That ordering is the point: the world goes to night
+     first, THEN Hex is carried away from it. */
+  #nightSky {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
+    background:
+      radial-gradient(90vw 55vh at 50% 12%, rgba(180,140,255,0.07), transparent 62%),
+      #06070c;
+    transition: opacity 2.2s ease-in;
+  }
+  body.night #nightSky { opacity: 1; }
 
   /* ---- HUD ----
      An overlay, not a flow element — same reasoning as the shop tray. Before
@@ -167,6 +185,7 @@
     -webkit-mask-image: radial-gradient(circle at center, #000 0 14%, transparent 34%);
     mask-image: radial-gradient(circle at center, #000 0 14%, transparent 34%);
     animation: raySpin 90s linear infinite;
+    transition: opacity 1.8s ease-out;
   }
   @keyframes raySpin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { #rays { animation: none; } }
@@ -424,7 +443,12 @@
   }
   #wall { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
   body.night #wall { display: block; }
-  body.night #rays { display: none; }
+  /* Fades rather than `display: none`, which cannot be transitioned and took the
+     whole sunburst out on one frame. 1.8s, no delay: the spokes are gone before
+     #nightSky finishes darkening at 2.2s, so the day comes apart in the right
+     order — light first, then colour. It keeps spinning behind zero opacity,
+     which is one composited rotation and cheaper than fighting the animation. */
+  body.night #rays { opacity: 0; }
 
   /* ---- Night starfield ----
      A backdrop that says "night" the moment the room goes dark, independent of
@@ -806,6 +830,10 @@
     <div id="cps">per second: <b>0</b></div>
   </div>
 </div>
+
+<!-- Night sky. Empty and fixed behind everything; see its CSS for why the night
+     background is a fading layer instead of a --page-bg override. -->
+<div id="nightSky" aria-hidden="true"></div>
 
 <div id="stage">
   <!-- day-only sunburst (Cookie Clicker's spinning rays); sits under everything -->

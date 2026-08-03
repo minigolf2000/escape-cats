@@ -53,7 +53,7 @@
     <label>comet</label><input type="range" id="sQpink" min="0" max="5" value="5"><output id="oQpink">5</output>
     <label>orbit</label><input type="range" id="sQblue" min="0" max="4" value="4"><output id="oQblue">4</output>
     <label>giant</label><input type="range" id="sQgreen" min="0" max="4" value="4"><output id="oQgreen">4</output>
-    <label>dipper</label><input type="range" id="sQpurple" min="0" max="32" value="4"><output id="oQpurple">4</output>
+    <label>dipper</label><input type="range" id="sQpurple" min="0" max="16" value="6"><output id="oQpurple">6</output>
     <label>speed</label><input type="range" id="sSP" min="4" max="160" value="35"><output id="oSP">35</output>
     <label>trail</label><input type="range" id="sT" min="0" max="120" value="35"><output id="oT">35</output>
   </div>
@@ -66,13 +66,14 @@
 'use strict';
 // ---------- Reveal Lab v6 — one scene, one word layout ----------
 // The committed design: every GEOMETRICALLY CONTINUOUS shape is a crew — each word
-// letter, the orbit, each star. Mice never leave their shape (ping-pong patrol, so
-// open strokes have no wrap-around jump either). Yellow crews spell the word; the
-// other four colors crew the elements of a line-art scene about the word.
-// The word source (1-stroke), its layout (wide), its typeface (the wide cut) and
-// the trail width are all settled now, so the lab no longer offers them as
-// choices — what's left is the scene art plus the sim knobs. Positions stay a
-// pure function of (seed, index, simTime).
+// letter, the orbit, the whole asterism. Mice never leave their shape (ping-pong
+// patrol, so open strokes have no wrap-around jump either). Yellow crews spell the
+// word; the other four colors crew the elements of a line-art scene about it.
+// The word source (1-stroke), its layout (wide), its typeface (the wide cut), the
+// trail width, the phase spread and the zero noise are all settled now, so the lab
+// no longer offers them as choices — what's left is the scene art plus the
+// headcounts, speed and trail. Positions stay a pure function of
+// (seed, index, simTime).
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 let W = 0, H = 0;
@@ -126,7 +127,7 @@ addEventListener('resize', resize);
 const DEFAULT_SPEED = 35;      // scene units per second
 
 const S = {
-  count: { yellow: 9, pink: 5, blue: 4, green: 4, purple: 4 },
+  count: { yellow: 9, pink: 5, blue: 4, green: 4, purple: 6 },
   speed: DEFAULT_SPEED,          // scene units per second, one rate for every mouse
   trail: 35, seed: 7,
 };
@@ -351,11 +352,6 @@ function tourIsClosed(tour) {
   return Math.hypot(tour[0].x - tour[L - 1].x, tour[0].y - tour[L - 1].y) <= step * 0.5;
 }
 
-function star4(x, cx, cy, r) {
-  x.moveTo(cx, cy - r); x.quadraticCurveTo(cx, cy, cx + r, cy);
-  x.quadraticCurveTo(cx, cy, cx, cy + r); x.quadraticCurveTo(cx, cy, cx - r, cy);
-  x.quadraticCurveTo(cx, cy, cx, cy - r);
-}
 // ---------- 1-stroke alphabet ----------
 // A single-stroke ("engraver's") font for exactly the letters the moon scene
 // needs. Each glyph is ONE continuous pen path in a box `w` wide by 100 tall
@@ -437,16 +433,36 @@ const DIPPER = {
 };
 const DIPPER_BOX = [30, 44, 262, 92, 1.05];   // ox, oy, w, h, star scale
 const dipperAt = (ox, oy, w, h) => k => [ox + DIPPER[k][0] * w, oy + DIPPER[k][1] * h];
-function dipperFigure(x, ox, oy, w, h) {
-  const P = dipperAt(ox, oy, w, h);
-  for (const run of [['dubhe', 'merak', 'phecda', 'megrez', 'dubhe'],
-                     ['megrez', 'alioth', 'mizar', 'alkaid']]) {
-    run.forEach((k, i) => { const [px, py] = P(k); i ? x.lineTo(px, py) : x.moveTo(px, py); });
+
+// The whole asterism as ONE continuous stroke. The graph has exactly two
+// odd-degree nodes — Megrez (bowl 2 + handle 1) and Alkaid (1) — so an Euler path
+// exists between them, walking all seven edges exactly once with no retracing.
+// Every vertex is passed through, so the stars can be drawn INLINE, as a detour
+// the stroke makes on its way rather than as separate subpaths.
+//
+// That distinction is the whole cost of this shape. Drawn the obvious way —
+// figure plus seven free-standing stars — the tour was 1311 points, of which 1189
+// (91%) was chainPolys retracing back and forth along the figure to reach each
+// star in turn; the stars' own ink was only 55. As one Euler stroke with inline
+// spokes it is 121 points, no retrace: an 11x shorter walk for the same drawing.
+// Simplifying the star OUTLINE was never going to fix that — dropping the
+// sparkles for plain dots only reached 1039.
+const DIPPER_EULER = ['alkaid', 'mizar', 'alioth', 'megrez', 'dubhe', 'merak', 'phecda', 'megrez'];
+// Four spokes out and back from the vertex: reads as a star at hairline weight
+// because the points radiate, and costs nothing but its own 8r of travel.
+function dipperStar(x, cx, cy, r) {
+  for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+    x.lineTo(cx + dx * r, cy + dy * r); x.lineTo(cx, cy);
   }
 }
-function dipperStars(x, ox, oy, w, h, sc) {
+function bigDipper(x, ox, oy, w, h, sc) {
   const P = dipperAt(ox, oy, w, h);
-  for (const k of Object.keys(DIPPER)) { const [px, py] = P(k); star4(x, px, py, DIPPER[k][2] * sc); }
+  const drawn = new Set();          // Megrez is passed twice; star it once
+  DIPPER_EULER.forEach((k, i) => {
+    const [px, py] = P(k);
+    i ? x.lineTo(px, py) : x.moveTo(px, py);
+    if (!drawn.has(k)) { drawn.add(k); dipperStar(x, px, py, DIPPER[k][2] * sc); }
+  });
 }
 // Tail strands all leave the nucleus together and bow apart downstream; anchored
 // far apart at both ends they'd just be parallel rails, which reads as track.
@@ -480,18 +496,14 @@ const MOON_ELEMENTS = [
     x.moveTo(GIANT.x + 46, GIANT.y); x.arc(GIANT.x, GIANT.y, 46, 0, 6.283);
     x.moveTo(GIANT.x + 108, GIANT.y); x.ellipse(GIANT.x, GIANT.y, 108, 28, -0.3, 0, 6.283);
   } },
-  // Figure and stars are ONE element on purpose, so components() welds them (the
-  // stars sit exactly on the figure's vertices) and the asterism is a single
-  // crew. That means every purple mouse walks the whole constellation — bowl,
-  // handle and all seven stars — rather than being posted to one segment of it.
-  //
-  // The cost is bunching: a welded tour re-walks its own geometry to get from
-  // shape to shape, so mice spaced evenly along the TOUR can still land on the
-  // same pixels, and phase spreading cannot fix that. Splitting it into eight
-  // crews did fix it, but at the price of each mouse only ever tracing a
-  // fragment. Keeping the whole-constellation trace is the call; the lever for
-  // the bunching is simply fewer purple mice.
-  { color: 'purple', draw(x) { dipperFigure(x, ...DIPPER_BOX); dipperStars(x, ...DIPPER_BOX); } },
+  // One crew, one continuous stroke, so every purple mouse walks the whole
+  // constellation — bowl, handle and all seven stars — rather than being posted to
+  // a fragment of it. Being retrace-free also cures the bunching the old welded
+  // version had: mice spaced evenly along a tour that re-walked its own geometry
+  // could still land on the same pixels, and no amount of phase spreading fixed
+  // that. Nothing here is revisited, so even spacing along the tour is even
+  // spacing on screen.
+  { color: 'purple', draw(x) { bigDipper(x, ...DIPPER_BOX); } },
 ];
 
 // The locked-in layout: TO THE letterspaced across the frame, MOON huge beneath

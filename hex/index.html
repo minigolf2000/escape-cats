@@ -1075,8 +1075,7 @@ const game = {
   bought: {},       // upgrade key -> 1 once purchased
   unlocked: {},     // upgrade key -> 1 once revealed (sticky; never re-hides)
   // Deadline only — the multiplier is a constant (ZOOM_MULT), so the buff is
-  // entirely described by "until when". Storing the mult too meant a per-frame
-  // reset writing a value nothing could observe.
+  // entirely described by "until when".
   zoomUntil: 0,     // timestamp ms while Zoomies (pet power x ZOOM_MULT) is active
 };
 BUILDINGS.forEach(b => game.owned[b.id] = 0);
@@ -1204,9 +1203,8 @@ function clickBaseWith(m, owned) {
   return (m.clickFlat + baseCpsWith(m, owned) * m.clickShare) * m.clickMult;
 }
 function baseCps() { return baseCpsWith(mods, game.owned); }
-// Zoomies multiplies PETS, and it's the only buff left, so there's no longer a
-// buffed-vs-base split on mice/s — baseCps() IS the live rate. Buildings run
-// flat; a caught golden buys the room a tapping sprint instead.
+// Zoomies is the only buff and it multiplies PETS, so mice/s has no buffed
+// form: baseCps() is the live rate everywhere. Buildings run flat.
 function zoomBuff() { return performance.now() < game.zoomUntil ? ZOOM_MULT : 1; }
 function clickGain() {
   // DEV.teamMult is 1 outside ?debug — simulates the 4-player room this game
@@ -1841,17 +1839,13 @@ const goldenSaucerSVG = () => {
 // GOLDEN MOUSE — the fun spike. Spawns every ~40–90s, drifts, must be tapped
 // before it escapes. Catching it always triggers ZOOMIES: pet power x6 for 7s.
 // ---------------------------------------------------------------------------
-// One outcome, not a coin flip. This used to roll 70/30 between a pet buff
-// (then called Click Frenzy) and a mice/s buff (which owned the Zoomies name);
-// the mice/s half is retired and the pet buff inherited the better name. Two
-// reasons it lost: it multiplied a number nobody was touching, so a catch could
-// land as a pure no-op with nothing to do about it, and a 30% roll in a
-// 10-minute room means some teams never meet the mechanic at all. The pet buff
-// is the one that turns a catch into "EVERYONE TAP NOW" — a coordination sprint
-// the room can actually act on, which is the whole point of a coop escape game.
-// Both knobs named, because the pacing simulator reads them too — they were
-// previously spelled out a third time inside its rate model, so retuning
-// Zoomies here would have left the sim reporting a confidently wrong timeline.
+// Every catch gives the same buff — no roll, so a team meets the mechanic on
+// its first golden rather than on a 30% chance, which matters in a 10-minute
+// room. Zoomies multiplies PETS and nothing else: that makes a catch a
+// 7-second all-hands tapping sprint the room can act on, where a buff on idle
+// income would pay out the same whether anyone taps or not.
+// Both knobs are named because the pacing simulator reads them too — retuning
+// Zoomies here must not leave the sim reporting a stale timeline.
 const ZOOM_MULT = 6;            // Zoomies: pets x6...
 const ZOOM_MS = 7000;           // ...for 7s
 const GOLD_MARGIN = 10;         // px of stage edge the golden won't drift past
@@ -1860,14 +1854,13 @@ const GOLD_MEAN_S = (GOLD_MIN_S + GOLD_MAX_S) / 2;   // the sim's mean gap
 let goldTimer = 0, goldActive = false, goldLifeLeft = 0, goldVx = 0, goldVy = 0, goldX = 0, goldY = 0;
 // The reachable box, in #stage-local px. #stage is the full viewport height,
 // but #hud (the score) and #dock (the shop) are position:fixed overlays ON TOP
-// of it — so "inside the stage" is not the same as "tappable". Spawning or
-// drifting into either strip put the golden behind the score or under an open
-// shop, where the player can see a gold glow they cannot reach before it times
-// out. Measured live rather than off --hud-h/--dock-h: --dock-h is a pinned
-// approximation for centering Hex (it substitutes the upgrades cap for the real
-// height), and the dock's true height moves as the shop opens, collapses, and
-// recedes for the night cutscene. An overlay that's hidden or faded out isn't
-// occluding anything, so it doesn't count against the box.
+// of it — so "inside the stage" is not the same as "tappable", and the golden
+// must stay clear of both or it can't be caught. Measured live rather than off
+// --hud-h/--dock-h: --dock-h is a pinned approximation for centering Hex (it
+// substitutes the upgrades cap for the real height), and the dock's true height
+// moves as the shop opens, collapses, and recedes for the night cutscene. An
+// overlay that's hidden or faded out isn't occluding anything, so it doesn't
+// count against the box.
 function goldBounds() {
   const sr = stageEl.getBoundingClientRect();
   const gw = goldenEl.offsetWidth || 62, gh = goldenEl.offsetHeight || 62;
@@ -1929,10 +1922,10 @@ function moveGold(dt) {
   if (goldLifeLeft <= 0) { despawnGold(); return; }
   goldX += goldVx * dt; goldY += goldVy * dt;
   // Bounce off the same reachable box the spawn used, re-measured each frame so
-  // opening the shop mid-flight herds the golden up out of the way instead of
-  // letting it drift under the drawer. The box is derived from the element's
-  // real size (the night saucer differs from the day mouse, and offsetWidth
-  // ignores the hover animation's transform, so it's stable frame to frame).
+  // opening the shop mid-flight herds the golden up out of the way. The box is
+  // derived from the element's real size (the night saucer differs from the day
+  // mouse, and offsetWidth ignores the hover animation's transform, so it's
+  // stable frame to frame).
   const { minX, minY, maxX, maxY } = goldBounds();
   if (goldX < minX || goldX > maxX) { goldVx *= -1; goldX = Math.max(minX, Math.min(maxX, goldX)); }
   if (goldY < minY || goldY > maxY) { goldVy *= -1; goldY = Math.max(minY, Math.min(maxY, goldY)); }
@@ -2753,7 +2746,7 @@ function updateCat(t) {
   }
   // Dilated while awake AND excited: either a golden is actually out there, or
   // Zoomies is running (pets worth more) — the buff a caught golden leaves
-  // behind, so her eyes stay blown wide through the sprint instead of
+  // behind, so her eyes stay blown wide through the sprint rather than
   // snapping shut the instant the mouse is gone. Not during sleep even if a
   // saucer is drifting past, matching the branch above where asleep never looks
   // toward it either. #irisLeft/#irisRight's own CSS transition (.12s ease-out)
@@ -3083,8 +3076,8 @@ function simulateRun(opts = {}) {
     const base = baseCpsWith(m, owned);
     const I = GOLD_MEAN_S / m.goldenFreq;                   // mean spawn gap
     // Zoomies as steady-state uptime EV, standing in for zoomBuff(), which the
-    // sim can't call (it reads wall-clock). Pets only — mice/s is unbuffed now,
-    // so `base` goes into the return below with no golden term at all.
+    // sim can't call (it reads wall-clock). Pets only — mice/s is unbuffed, so
+    // `base` goes into the return below with no golden term at all.
     const gClk = useGold ? 1 + (ZOOM_MULT - 1) * (ZOOM_MS / 1000) / I : 1;
     // Petting earns nothing at night (the sleepy reaction is not a mechanic), so
     // the pet term drops to zero once the twist fires — matches pet()'s gate.

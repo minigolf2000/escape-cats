@@ -550,9 +550,9 @@ function mps() { // passive neon mice / second
   return c;
 }
 function zoomOn() { return G.econMs < G.zoomUntil; }
-// Pets only — Zoomies buys the room a tapping sprint, so it must NOT touch
-// mps(). A multiplier on idle income would pay out identically whether the
-// four of them tap or sit still, which is the opposite of a coordination beat.
+// Pets only — Zoomies is a tapping sprint, so it must NOT touch mps(). A
+// multiplier on idle income pays out the same whether the four of them tap or
+// sit still, which is the opposite of a coordination beat.
 function zMult() { return zoomOn() ? G.zoomMult : 1; }
 function perTap() {
   const base = Math.pow(2, G.claws) + G.whiskers * (BAL.whiskers.pct / 100) * mps();

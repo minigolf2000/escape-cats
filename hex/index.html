@@ -495,14 +495,11 @@
     transform: translateY(calc(1px * var(--ss))) rotate(225deg);
   }
 
-  /* Outside the collapsing drawer, so buildings stay on screen even when
-     Upgrades is shut. Divider and list travel together, and the section waits
-     for a real building — a header over nothing but a ??? teaser is chrome.
-     flex:none so it sizes to its own content (the capped #shop). */
-  #buildingSec {
-    flex: none; display: none;
-  }
-  #buildingSec.show { display: flex; flex-direction: column; }
+  /* Divider and list travel together, and the section waits for a real
+     building — a header over nothing but a ??? teaser is chrome. Plain blocks
+     inside #shopScroll: neither section caps or scrolls on its own anymore. */
+  #buildingSec { display: none; }
+  #buildingSec.show { display: block; }
   /* Night cutscene: recede the ENTIRE shop (including the pinned buildings) so
      nothing covers the wall reveal; restored when the beat ends. Only the target
      state belongs here — the fade itself is on #dock so it plays in both
@@ -519,16 +516,25 @@
   #upgradeSec:not(.show) + #buildingSec .shopDivider,
   #dock.collapsed .shopDivider { display: none; }
 
-  /* `overscroll-behavior: contain` so scrolling past the end of the list stops
-     here instead of bubbling into a document-level pull-refresh. max-height caps
-     it at ~3 rows (a row is ~57px) against a 4-building day list, so the partial
-     4th row peeking under the cap is the scroll affordance — the scrollbar
-     itself is hidden. Shorter lists just size to content. */
-  #shop { flex: 1 1 auto; min-height: 0; max-height: calc(180px * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; transition: max-height .25s ease; }
-  #shop::-webkit-scrollbar { width: 0; }
-  /* Collapsed: both lists shrink to nothing, leaving the titled SHOP rail alone
-     as a slim closed bar — tap it to reopen. */
-  #dock.collapsed #upgrades, #dock.collapsed #shop { max-height: 0; }
+  /* THE shop scroller — the only one. Upgrades and Buildings are plain blocks
+     inside it, so a single drag runs the whole shop end to end.
+     `overscroll-behavior: contain` so scrolling past the end stops here instead
+     of bubbling into a document-level pull-refresh. The cap is whichever is
+     smaller: ~3.3 rows of list, or 46% of the viewport — the px term keeps the
+     shop from swallowing a tall screen, the vh term keeps it off Hex on a short
+     one. Either way the partial row peeking under the cap is the scroll
+     affordance, since the scrollbar itself is hidden. Shorter lists size to
+     content. */
+  #shopScroll {
+    max-height: min(calc(300px * var(--ss)), 46vh);
+    overflow-y: auto; overscroll-behavior: contain;
+    position: relative; transition: max-height .25s ease;
+  }
+  #shopScroll::-webkit-scrollbar { width: 0; }
+  #shop { padding: 0; }
+  /* Collapsed: the scroller shrinks to nothing, leaving the titled SHOP rail
+     alone as a slim closed bar — tap it to reopen. */
+  #dock.collapsed #shopScroll { max-height: 0; }
   /* CC store rows: a dark inset strip, a framed icon, name over effect, price
      green when you can afford it and red when you can't — that red/green is the
      whole readout. Affordable rows brighten rather than getting a neon glow. */
@@ -629,33 +635,34 @@
 
   /* ---- Upgrades strip (only unlocked-and-unbought ones exist here, so the
      list is short; buying removes the row) ----
-     No padding or bottom border: the #upgrades scroller has to reach the section
-     edge so its bottom scroll-shadow sits flush with the wood divider, and the
-     divider already draws the line between them. */
-  #upgradeSec { flex: none; display: none; }
+     No padding or bottom border: the list has to reach the section edge so the
+     wood divider below sits flush against the last row, and the divider already
+     draws the line between them. */
+  #upgradeSec { display: none; }
   #upgradeSec.show { display: block; }
-  #upgrades { max-height: calc(10vh * var(--ss)); overflow-y: auto; overscroll-behavior: contain; padding: 0; position: relative; transition: max-height .25s ease; }
-  #upgrades::-webkit-scrollbar { width: 0; }
+  #upgrades { padding: 0; }
   .item.up { padding: 0 calc(11px * var(--ss)) 0 0; }
   .item.up .body { padding: calc(4px * var(--ss)) 0; }
   .item.up .nm { font-size: calc(12.5px * var(--ss)); }
   /* ---- Scroll shadow (locked affordance): a soft inner shadow at whichever
      edge still has content to scroll. Snug to the row edge because the scrollers
-     carry no vertical padding. .can-up / .can-down are toggled by the runtime. ---- */
-  #shop::before, #shop::after, #upgrades::before, #upgrades::after {
+     carry no vertical padding. .can-up / .can-down are toggled by the runtime.
+     One scroller, so one pair of shadows — they now mark the ends of the WHOLE
+     shop rather than of each list, which is the point of merging them. ---- */
+  #shopScroll::before, #shopScroll::after {
     content: ""; position: sticky; left: 0; right: 0; display: block;
     height: calc(16px * var(--ss)); pointer-events: none; z-index: 3;
   }
-  #shop::before, #upgrades::before {
+  #shopScroll::before {
     top: 0; margin-bottom: calc(-16px * var(--ss));
     background: linear-gradient(to bottom, rgba(0,0,0,.6), transparent); opacity: 0; transition: opacity .12s;
   }
-  #shop::after, #upgrades::after {
+  #shopScroll::after {
     bottom: 0; margin-top: calc(-16px * var(--ss));
     background: linear-gradient(to top, rgba(0,0,0,.6), transparent); opacity: 0; transition: opacity .12s;
   }
-  #shop.can-up::before, #upgrades.can-up::before { opacity: 1; }
-  #shop.can-down::after, #upgrades.can-down::after { opacity: 1; }
+  #shopScroll.can-up::before { opacity: 1; }
+  #shopScroll.can-down::after { opacity: 1; }
 </style>
 
 <div id="hud">
@@ -725,15 +732,22 @@
        two lists that actually collapse. Upgrades sit on top, Buildings pinned
        below their own rail; each list caps and scrolls on its own. -->
   <button type="button" id="shopToggle" class="shopHead"
-          aria-expanded="true" aria-controls="upgrades shop">
+          aria-expanded="true" aria-controls="shopScroll">
     <span class="shopTitle">Shop</span><span class="chev" aria-hidden="true"></span>
   </button>
-  <div id="upgradeSec">
-    <div id="upgrades"></div>
-  </div>
-  <div id="buildingSec">
-    <div class="shopDivider"></div>
-    <div id="shop"></div>
+  <!-- ONE scroller for both lists. Upgrades and Buildings used to scroll
+       independently, which meant the shop had two thumb-catching regions
+       stacked on each other and no way to get from the top of the upgrade list
+       to the bottom of the building list in one gesture. They are one list with
+       a plank between them now; only #shopScroll scrolls. -->
+  <div id="shopScroll">
+    <div id="upgradeSec">
+      <div id="upgrades"></div>
+    </div>
+    <div id="buildingSec">
+      <div class="shopDivider"></div>
+      <div id="shop"></div>
+    </div>
   </div>
 </div>
 
@@ -1003,7 +1017,7 @@ const UPGRADES = [
     cost: 50, unlock: { total: 200 },
     effect: { type: "clickFlat", add: 1 } },
   { key: "scratchpost", name: "Scratching Post", icon: "🪵",
-    cost: 3000, unlock: { clicks: 80 },
+    cost: 500, unlock: { clicks: 80 },
     effect: { type: "clickMult", mult: 2 } },
   { key: "clawsharp", name: "Cat Brush", icon: "🪮",
     cost: 5000, unlock: { clicks: 120 },
@@ -1476,6 +1490,7 @@ const $ = s => document.querySelector(s);
 const countEl = $("#count"), countIconEl = $("#countIcon"), cpsEl = $("#cps"), shopEl = $("#shop"), stageEl = $("#stage");
 const goldenEl = $("#golden"), buffEl = $("#buff");
 const upgradesEl = $("#upgrades"), upgradeSecEl = $("#upgradeSec");
+const shopScrollEl = $("#shopScroll");
 const buildingSecEl = $("#buildingSec"), dockEl = $("#dock"), hudEl = $("#hud");
 const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 
@@ -3710,15 +3725,16 @@ syncPhase(); // saves restore the phase for free
 initDev();
 countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refreshHud()'s job
 
-// Shop-skin runtime: drive the scroll shadows (.can-up / .can-down) on the two
-// scrolling lists. (Icon sizing is pure CSS — a fixed-width, full-height tile
+// Shop-skin runtime: drive the scroll shadows (.can-up / .can-down) on the shop
+// scroller. One scroller now — Upgrades and Buildings share it — so this watches
+// a single element. (Icon sizing is pure CSS — a fixed-width, full-height tile
 // per row.) All read-only measurement, so there's no layout feedback with the
 // game's own row refresh.
 // This used to also publish the dock/HUD heights as CSS vars for #catWrap to
 // center Hex against. It doesn't anymore: Hex is pinned to the sunburst (--sun-y)
 // and no longer tracks the shop at all, so those measurements had no consumer.
 (function () {
-  const scrollers = [shopEl, upgradesEl];
+  const scrollers = [shopScrollEl];
   function updAff(el) {
     el.classList.toggle("can-up", el.scrollTop > 1);
     el.classList.toggle("can-down", el.scrollTop + el.clientHeight < el.scrollHeight - 1);

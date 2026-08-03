@@ -1491,6 +1491,16 @@ const countEl = $("#count"), countIconEl = $("#countIcon"), cpsEl = $("#cps"), s
 const goldenEl = $("#golden"), buffEl = $("#buff");
 const upgradesEl = $("#upgrades"), upgradeSecEl = $("#upgradeSec");
 const shopScrollEl = $("#shopScroll");
+// Last touch anywhere in the shop, and how long a reveal will hold the list
+// still afterwards. Read by refreshUpgrades() — see the long note there for why
+// the hold is scoped to a tap burst instead of being always on. Capture phase
+// and passive: this only observes, and must still fire for rows that stop
+// propagation. 700ms outlasts the gap between taps in a mash (~250ms at 4/s)
+// without keeping the list frozen once a player's hands are off it.
+let lastShopTapAt = -Infinity;
+const SHOP_HOLD_MS = 700;
+shopScrollEl.addEventListener("pointerdown", () => { lastShopTapAt = performance.now(); },
+                             { capture: true, passive: true });
 const buildingSecEl = $("#buildingSec"), dockEl = $("#dock"), hudEl = $("#hud");
 const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 
@@ -1680,6 +1690,40 @@ function refreshUpgrades() {
   const sig = shown.map(u => u.key).join(",");
 
   if (sig !== upSig) {
+    // While a purchase burst is in flight, hold the shop's scroll position
+    // against the BOTTOM of its content across this rebuild, so the building
+    // rows never move under a tapping thumb.
+    //
+    // Upgrades sit above Buildings in one scroller now, and a building purchase
+    // routinely reveals a research — it crosses a lifetime-mice or owned-count
+    // gate. scrollTop is measured from the TOP, so the browser holds it fixed
+    // and everything below the insert drops by a row: the row you just tapped
+    // and are about to tap again. In a game that buys on a single click with no
+    // confirm, that's a mis-buy, and it was worth 75px here — most of a row.
+    //
+    // The browser's own scroll anchoring is meant to absorb exactly this and
+    // can't, twice over: it is suppressed while scrollTop is 0 (the usual state
+    // of a shop this length), and the rebuild below destroys every node it
+    // could have anchored to.
+    //
+    // ONLY during a tap burst, though. This function runs ~12x/sec off the
+    // frame loop, so an always-on hold fires for reveals nobody triggered — and
+    // since the list only ever grows, holding the bottom every time walks the
+    // scroller to the end and leaves it there. Measured: two upgrade rows on
+    // screen for the rest of the run, every new research revealed above the
+    // fold where it is never seen. A shop you can't be startled by is worth
+    // less than one you can't misfire in, but not much less. Idle reveals get
+    // the plain reflow, which puts the new row on screen.
+    //
+    // Distance-from-bottom rather than a scrollTop delta, so the case where the
+    // list is SHORTER than the cap comes out right for free: #dock is fixed to
+    // the bottom of the screen and simply grows upward, scrollTop clamps back
+    // to 0 on its own, and this is a no-op. It equally covers a row LEAVING the
+    // list when an upgrade is bought.
+    const hold = performance.now() - lastShopTapAt < SHOP_HOLD_MS;
+    // Guarded: reading scrollHeight forces layout, so don't pay for it when the
+    // shop is reflowing untouched.
+    const fromBottom = hold ? shopScrollEl.scrollHeight - shopScrollEl.scrollTop : 0;
     upSig = sig;
     upgradesEl.innerHTML = "";
     upRows = new Map();
@@ -1702,6 +1746,9 @@ function refreshUpgrades() {
     }
     upgradeSecEl.classList.toggle("show", shown.length > 0);
     syncDock();
+    // After the show/hide toggles above, so the layout being measured is final.
+    // Assigning past the scrollable range is fine — the browser clamps it.
+    if (hold) shopScrollEl.scrollTop = shopScrollEl.scrollHeight - fromBottom;
   }
 
   for (const u of shown) {

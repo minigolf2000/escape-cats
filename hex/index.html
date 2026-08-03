@@ -456,7 +456,7 @@
      Tapping the SHOP rail collapses/reopens the whole dock (#dock.collapsed).
      It's the ONLY hit target for that — the divider is inert, so a mistap while
      reaching for a row can't shut the shop. */
-  .shopHead, .shopDivider {
+  .shopHead, .secHead {
     flex: none; background: var(--wood), var(--panel-bg);
     border: 0;
     border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
@@ -506,15 +506,39 @@
      directions (see the transition note there). */
   #dock.cutscene-hidden { opacity: 0; pointer-events: none; }
 
-  /* Between Upgrades and Buildings, unlabelled — the rows below already say
-     which section they are. Scales with --ss like the rest of the shop so it
-     stays a plank instead of thinning to a pinstripe at the skin's scale. */
-  .shopDivider { height: calc(6px * var(--ss)); }
-  /* Only earns its keep between two lists. With Upgrades hidden it would stack
-     under the SHOP rail as a second bar, and collapsed it would hang below the
-     closed header — so a shut shop is exactly one rail. */
-  #upgradeSec:not(.show) + #buildingSec .shopDivider,
-  #dock.collapsed .shopDivider { display: none; }
+  /* Section headers. Sticky to the top of the scroller, so the one for the
+     section you're reading is always on screen — that's what carries the count.
+     Short: this is a caption, not a hit target (the SHOP rail above is the only
+     thing you tap to collapse), so it doesn't owe anyone 44pt. z-index clears
+     the scroll shadows at 3 so a pinned header sits over the gradient. */
+  .secHead {
+    position: sticky; top: 0; z-index: 4;
+    height: calc(15px * var(--ss));
+    display: flex; align-items: center; gap: calc(5px * var(--ss));
+    padding: 0 calc(10px * var(--ss));
+    font: 700 calc(8.5px * var(--ss))/1 var(--ui-font);
+    letter-spacing: .13em; text-transform: uppercase;
+    color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.5);
+  }
+  /* Tabular figures so the count doesn't jiggle the label as it ticks between
+     widths — the whole point is that it's glanceable, and digits that reflow
+     read as motion. */
+  .secCount {
+    opacity: .68; font-variant-numeric: tabular-nums; letter-spacing: .06em;
+  }
+  /* "N above" — the overflow affordance, and a real control: it scrolls the
+     shop back to the top. Shown ONLY on the header that's currently pinned
+     (.stuck) and only when rows are actually hidden above it, so it appears at
+     the top edge, one at a time, exactly where a "jump back" belongs. */
+  .jump {
+    margin-left: auto; -webkit-appearance: none; appearance: none;
+    background: rgba(0,0,0,.28); border: 1px solid var(--wood-line);
+    border-radius: 999px; color: var(--ink); cursor: var(--paw);
+    font: inherit; letter-spacing: .06em;
+    padding: calc(2px * var(--ss)) calc(6px * var(--ss));
+    line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .jump[hidden] { display: none; }
 
   /* THE shop scroller — the only one. Upgrades and Buildings are plain blocks
      inside it, so a single drag runs the whole shop end to end.
@@ -741,11 +765,25 @@
        to the bottom of the building list in one gesture. They are one list with
        a plank between them now; only #shopScroll scrolls. -->
   <div id="shopScroll">
+    <!-- Sticky counted section headers, the grouped-list convention every mobile
+         OS uses (UITableView section headers, Material subheaders): the label
+         tells you which section you're in, the count tells you how big it is,
+         and it stays pinned while you scroll that section. The Buildings one
+         replaces the old inert wood divider — same plank, now it says something.
+         .jump is the overflow affordance, and only the PINNED header shows one,
+         so exactly one is on screen at a time. -->
     <div id="upgradeSec">
+      <div class="secHead" id="upHead">
+        <span class="secName">Upgrades</span><span class="secCount" id="upCount">0</span>
+        <button type="button" class="jump" hidden></button>
+      </div>
       <div id="upgrades"></div>
     </div>
     <div id="buildingSec">
-      <div class="shopDivider"></div>
+      <div class="secHead" id="bHead">
+        <span class="secName">Buildings</span><span class="secCount" id="bCount">0</span>
+        <button type="button" class="jump" hidden></button>
+      </div>
       <div id="shop"></div>
     </div>
   </div>
@@ -1491,6 +1529,8 @@ const countEl = $("#count"), countIconEl = $("#countIcon"), cpsEl = $("#cps"), s
 const goldenEl = $("#golden"), buffEl = $("#buff");
 const upgradesEl = $("#upgrades"), upgradeSecEl = $("#upgradeSec");
 const shopScrollEl = $("#shopScroll");
+const upCountEl = $("#upCount"), bCountEl = $("#bCount");
+const secHeadEls = [$("#upHead"), $("#bHead")];
 // Last touch anywhere in the shop, and how long a reveal will hold the list
 // still afterwards. Read by refreshUpgrades() — see the long note there for why
 // the hold is scoped to a tap burst instead of being always on. Capture phase
@@ -1582,7 +1622,10 @@ function isRevealed(b, s) {
 const TEASE_WINDOW = 1;
 
 function refreshShop() {
-  let lockedRun = 0, anyRevealed = false;
+  // revealedN counts what the Buildings header advertises: rows you can
+  // actually buy. The ??? teaser is on screen but isn't one of them — counting
+  // it would promise a building that hasn't been revealed yet.
+  let lockedRun = 0, anyRevealed = false, revealedN = 0;
   for (let i = 0; i < BUILDINGS.length; i++) {
     const b = BUILDINGS[i], r = shopRows[i], owned = game.owned[b.id];
 
@@ -1602,7 +1645,7 @@ function refreshShop() {
 
     const revealed = isRevealed(b, game);
 
-    if (revealed) { anyRevealed = true; lockedRun = 0; } else lockedRun++;
+    if (revealed) { anyRevealed = true; revealedN++; lockedRun = 0; } else lockedRun++;
     const gone = lockedRun > TEASE_WINDOW;
 
     const price = costOf(b, owned);
@@ -1659,6 +1702,7 @@ function refreshShop() {
 
   // Revealed is keyed to lifetime mice, which only grows — so this flips on
   // once and stays. Unguarded: both of these are idempotent class toggles.
+  if (bCountEl.textContent !== String(revealedN)) bCountEl.textContent = revealedN;
   buildingSecEl.classList.toggle("show", anyRevealed);
   syncDock();
 }
@@ -1744,6 +1788,7 @@ function refreshUpgrades() {
       upgradesEl.appendChild(el);
       upRows.set(u.key, { el, cost: el.querySelector(".cost") });
     }
+    upCountEl.textContent = shown.length;
     upgradeSecEl.classList.toggle("show", shown.length > 0);
     syncDock();
     // After the show/hide toggles above, so the layout being measured is final.
@@ -3786,8 +3831,50 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
     el.classList.toggle("can-up", el.scrollTop > 1);
     el.classList.toggle("can-down", el.scrollTop + el.clientHeight < el.scrollHeight - 1);
   }
-  function tick() { scrollers.forEach(updAff); }
-  scrollers.forEach(el => el.addEventListener("scroll", () => updAff(el), { passive: true }));
+  // The counted headers' second job: tell you what you've scrolled PAST. A
+  // scrollbar is the usual answer to "how much is above" and this shop hides
+  // its own, so the pinned header carries the number instead — the same
+  // overflow-count idiom as a "+N more" chip, and tapping it goes back.
+  //
+  // Only the pinned header shows one. `stuck` is the standard read: a sticky
+  // element sitting exactly at its container's top edge has nowhere further to
+  // go. 1px of slack absorbs sub-pixel layout.
+  function updHeads() {
+    const top = shopScrollEl.getBoundingClientRect().top;
+    // Rows fully above the fold, counted once for the whole scroller — the two
+    // sections share it because the chip only ever renders on the pinned one.
+    // The height test is load-bearing, not defensive: the shop keeps a row in
+    // the DOM for every building and hides the ones that don't belong to this
+    // phase (`.gone`), and a display:none row measures as a zero rect at the
+    // origin, which reads as "above the fold" and inflates the count.
+    let above = 0;
+    for (const row of shopScrollEl.querySelectorAll(".item")) {
+      const r = row.getBoundingClientRect();
+      if (r.height > 0 && r.bottom <= top) above++;
+    }
+    for (const h of secHeadEls) {
+      // Pinned means sitting AT the top edge. Not merely at-or-above it: once a
+      // section scrolls fully past, its header goes with it and lands far above
+      // the edge, which a one-sided test reads as pinned — and then both
+      // headers claim the chip at once.
+      const stuck = Math.abs(h.getBoundingClientRect().top - top) < 1 && shopScrollEl.scrollTop > 1;
+      const chip = h.querySelector(".jump");
+      const show = stuck && above > 0;
+      if (show) {
+        const label = above + " above";
+        if (chip.textContent !== label) chip.textContent = label;
+        chip.setAttribute("aria-label", `Scroll back to the top of the shop, past ${above} rows`);
+      }
+      if (chip.hidden === show) chip.hidden = !show;
+    }
+  }
+  function tick() { scrollers.forEach(updAff); updHeads(); }
+  scrollers.forEach(el => el.addEventListener("scroll", () => { updAff(el); updHeads(); }, { passive: true }));
+  // Jump back to the top of the shop. `smooth` so it reads as travel — landing
+  // there instantly looks like the list changed rather than that you moved.
+  secHeadEls.forEach(h => h.querySelector(".jump").addEventListener("click", () => {
+    shopScrollEl.scrollTo({ top: 0, behavior: "smooth" });
+  }));
   if (window.ResizeObserver) { const ro = new ResizeObserver(tick); ro.observe(dockEl); }
   addEventListener("resize", tick);
   setInterval(tick, 300);

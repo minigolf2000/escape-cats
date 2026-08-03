@@ -1053,11 +1053,18 @@ const UPGRADES = [
   // ASCENDING COST, which is also shop order — refreshUpgrades renders UPGRADES
   // in array order, so the rail reads as one ladder. Keep it monotonic: a row
   // out of sequence shows up in the shop above things cheaper than it.
-  // 50, under its own 200 unlock, so the first upgrade anyone ever sees is
-  // already affordable the moment it appears — the opening beat is "there is a
-  // shop and you can use it", not a wait.
+  // The ONE row with no unlock condition at all (unlockText renders it
+  // "always"). It is on the rail in the first frame, before a single pet, so the
+  // opening reads as "there is a shop and here is the first thing in it" — and
+  // because the shop appears with it, the dock is up from the start instead of
+  // arriving once the Mouse Subscription reveals at 10 lifetime.
+  //
+  // It costs 50 against a pet worth 1, so it is a visible target for the first
+  // ~50 pets rather than something already affordable. That's the trade for
+  // ungating it, and it's the Cookie Clicker opening: the Cursor is on screen at
+  // 15 cookies from the first frame too.
   { key: "whiskers", name: "Cat Tree", icon: "🌳",
-    cost: 50, unlock: { total: 200 },
+    cost: 50, unlock: {},
     effect: { type: "clickFlat", add: 1 } },
   { key: "scratchpost", name: "Scratching Post", icon: "🪵",
     cost: 500, unlock: { clicks: 80 },

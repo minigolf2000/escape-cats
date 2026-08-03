@@ -11,7 +11,7 @@
      with the panel when rows are added. --ph is the CONTENT height; the safe-area
      inset is added on top (rather than eating into it) so a home bar can't squeeze
      the bottom row off. */
-  :root { --ph: 188px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
+  :root { --ph: 236px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
   #c { position: fixed; inset: 0 0 var(--deck) 0; width: 100%; height: calc(100% - var(--deck));
        touch-action: none; }
@@ -28,7 +28,9 @@
      deliberately rather than by accident. */
   #panel > * { flex: none; }
   .row { display: flex; gap: 6px; align-items: center; }
-  .sliders { display: grid; grid-template-columns: 54px 1fr 30px; gap: 2px 8px; align-items: center; }
+  /* 62px, not 54: "scene spd" wraps to two lines at 54 and silently makes that
+     row taller than the 22px --ph is budgeted against. */
+  .sliders { display: grid; grid-template-columns: 62px 1fr 30px; gap: 2px 8px; align-items: center; }
   .sliders label { text-align: right; color: #77808f; font-size: 11px; }
   .sliders output { font-variant-numeric: tabular-nums; color: #cdd5e3; font-size: 11px; }
   input[type=range] { width: 100%; height: 22px; accent-color: #ffd44d; margin: 0; }
@@ -51,7 +53,9 @@
     <label>comet</label><input type="range" id="sQpink" min="0" max="5" value="5"><output id="oQpink">5</output>
     <label>orbit</label><input type="range" id="sQblue" min="0" max="4" value="4"><output id="oQblue">4</output>
     <label>giant</label><input type="range" id="sQgreen" min="0" max="4" value="4"><output id="oQgreen">4</output>
-    <label>dipper</label><input type="range" id="sQpurple" min="0" max="32" value="16"><output id="oQpurple">16</output>
+    <label>dipper</label><input type="range" id="sQpurple" min="0" max="32" value="4"><output id="oQpurple">4</output>
+    <label>word spd</label><input type="range" id="sWS" min="10" max="400" value="100"><output id="oWS">100</output>
+    <label>scene spd</label><input type="range" id="sSS" min="10" max="400" value="100"><output id="oSS">100</output>
     <label>trail</label><input type="range" id="sT" min="0" max="120" value="35"><output id="oT">35</output>
   </div>
   <div class="row">
@@ -91,7 +95,8 @@ addEventListener('resize', resize);
 // divided. Defaults reproduce what the old total-of-60-at-30%-word allocation
 // produced, so the scene loads looking as it did.
 const S = {
-  count: { yellow: 9, pink: 5, blue: 4, green: 4, purple: 16 },
+  count: { yellow: 9, pink: 5, blue: 4, green: 4, purple: 4 },
+  wordSpd: 100, sceneSpd: 100,   // percent of the baseline rates below
   trail: 35, seed: 7,
 };
 const COUNT_KEYS = ['yellow', 'pink', 'blue', 'green', 'purple'];
@@ -441,16 +446,18 @@ const MOON_ELEMENTS = [
     x.moveTo(GIANT.x + 46, GIANT.y); x.arc(GIANT.x, GIANT.y, 46, 0, 6.283);
     x.moveTo(GIANT.x + 108, GIANT.y); x.ellipse(GIANT.x, GIANT.y, 108, 28, -0.3, 0, 6.283);
   } },
-  // The asterism is split into its FIGURE and its STARS as two elements, which
-  // is the only reason they end up as separate crews: the stars sit exactly on
-  // the figure's vertices, so components() welds the lot into one shape and one
-  // mouse pool. That single crew was the worst buncher in the scene, and no
-  // amount of phase spreading fixes it — its tour re-walks the same geometry
-  // repeatedly (bowl, back to Megrez, handle, back out to each star), so mice
-  // spaced evenly along the TOUR still land on the same pixels. Eight crews
-  // instead of one gives each star its own mouse and cuts the retracing.
-  { color: 'purple', draw(x) { dipperFigure(x, ...DIPPER_BOX); } },
-  { color: 'purple', draw(x) { dipperStars(x, ...DIPPER_BOX); } },
+  // Figure and stars are ONE element on purpose, so components() welds them (the
+  // stars sit exactly on the figure's vertices) and the asterism is a single
+  // crew. That means every purple mouse walks the whole constellation — bowl,
+  // handle and all seven stars — rather than being posted to one segment of it.
+  //
+  // The cost is bunching: a welded tour re-walks its own geometry to get from
+  // shape to shape, so mice spaced evenly along the TOUR can still land on the
+  // same pixels, and phase spreading cannot fix that. Splitting it into eight
+  // crews did fix it, but at the price of each mouse only ever tracing a
+  // fragment. Keeping the whole-constellation trace is the call; the lever for
+  // the bunching is simply fewer purple mice.
+  { color: 'purple', draw(x) { dipperFigure(x, ...DIPPER_BOX); dipperStars(x, ...DIPPER_BOX); } },
 ];
 
 // The locked-in layout: TO THE letterspaced across the frame, MOON huge beneath
@@ -476,6 +483,25 @@ const PALETTE = { yellow: '#ffd44d', blue: '#5fb0ff', pink: '#ff6fa5', green: '#
 // partial LETTER where the filled tour drew a partial patch, so it needs more
 // coverage to be unambiguous. The lab is only a predictor of the game if the two
 // agree, so change them together.
+// The word and the scenery are paced by DIFFERENT rules, which is why mice do not
+// all appear to move at one speed. Both are quoted in tour-POINTS per ms, and a
+// point is worth a different number of pixels in each tour.
+//
+//   Word: a fraction of the WHOLE WORD's ink per ms, so every letter advances at
+//   the same rate as a fraction of itself and all nine finish together. Letter
+//   tours are sampled at a fixed 4 units and then scaled to the letter's size, so
+//   MOON's points sit 2.23px apart against 0.95px for TO THE. Same 23 points/sec,
+//   therefore ~56 px/sec across MOON and ~24 px/sec across TO THE. The pixel
+//   difference is the consequence of finishing together, not a defect.
+//
+//   Scenery: a flat points/ms, on tours resampled to a uniform 6px, so shapes
+//   move at a genuinely constant ~26 px/sec and each one takes as long as its own
+//   length demands. (Small closed shapes read slightly slower — a tiny star's
+//   perimeter cannot be divided into exact 6px steps, so its points land ~4px
+//   apart, giving ~17 px/sec.)
+//
+// S.wordSpd / S.sceneSpd scale these at runtime; the legibility formula scales
+// with wordSpd so the readout stays honest.
 const WORD_PPMS_FRAC = 3.3e-5; // fraction of the whole word's ink per ms (legibility formula input)
 const SCENE_PPMS = 0.004;      // scenery patrol speed, tour-points per ms
 const HEADING_DT = 16;         // ms back-sample for facing direction (~1 frame at 60fps)
@@ -605,7 +631,8 @@ function posAt(m, t) {
   const crew = CREWS[m.crew];
   const L = crew.len;
   if (L < 2) { const p = sceneMap(crew.tour[0] || { x: 195, y: 310 }); return p; }
-  const ppms = crew.kind === 'word' ? WORD_PPMS_FRAC * WORD_LEN : SCENE_PPMS;
+  const ppms = (crew.kind === 'word' ? WORD_PPMS_FRAC * WORD_LEN * (S.wordSpd / 100)
+                                     : SCENE_PPMS * (S.sceneSpd / 100));
   const cyc = crew.closed ? L - 1 : 2 * (L - 1);
   let f = ((t * ppms + m.phase * cyc) % cyc + cyc) % cyc;
   if (!crew.closed && f > L - 1) f = cyc - f; // the return leg
@@ -724,6 +751,8 @@ function slider(id, out, key) {
   });
 }
 slider('sT', 'oT', 'trail');
+slider('sWS', 'oWS', 'wordSpd');
+slider('sSS', 'oSS', 'sceneSpd');
 for (const key of COUNT_KEYS) {
   const el = document.getElementById('sQ' + key), o = document.getElementById('oQ' + key);
   el.addEventListener('input', () => {
@@ -743,7 +772,9 @@ function updateStat() {
   const trailMs = S.trail * 80;
   let n = 0;
   for (const m of cast) if (CREWS[m.crew].kind === 'word') n++;
-  const cov = n * trailMs * WORD_PPMS_FRAC;
+  // Scales with word speed: coverage is ink laid per unit time, so a mouse that
+  // walks its letter twice as fast inks twice as much of it inside the trail.
+  const cov = n * trailMs * WORD_PPMS_FRAC * (S.wordSpd / 100);
   covEl.textContent = cov.toFixed(2) + '×';
   // Bands recalibrated against the settled 1-stroke source by reading the live
   // wall at each mouse count, not against `filled`'s old 0.85: a centreline word

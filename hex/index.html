@@ -324,6 +324,54 @@
     0%, 100% { transform: scale(1) translateY(0); }
     50%      { transform: scale(1.03) translateY(-1.5px); }
   }
+
+  /* Idle "zzz" — the sign that she is ASLEEP rather than merely small and still.
+     Breath alone can't carry that: it is 3% over 4s, deliberately below
+     conscious notice, which reads as alive but not as sleeping. Three z's drift
+     from her head on a stagger so one is always in flight.
+     Lives inside #catBreath, so it inherits the night pose's translate AND its
+     scale(.25) for free and stays pinned to her head through the zoom-out.
+     Two consequences, both easy to get wrong:
+     Every length here is in PRE-SCALE pixels — the 96px font lands at 24px on
+     screen. Keep that in step with the .25 above. 60px was the first try and
+     landed at 15px, which vanished into the starfield next to a 56px cat.
+     And #catBreath is the whole STAGE, not the cat: it is a flex box that
+     centres the 200x210 SVG. So the anchor is calc(50% ± px), offsets from that
+     centre, NOT from a box the size of the cat. Positioning against the box
+     directly parks the glyphs ~90px above her head, which happens to look
+     almost right and is entirely accidental — measure it, don't eyeball it.
+     +50px is 150 of 200 across, -85px is 20 of 210 down: her top right ear.
+     Delayed 3.1s to match #catBreath: the night opens on three timings each
+     waiting on the last, yawn then zoom then breathe, and this joins the end of
+     that queue rather than talking over the yawn. */
+  #sleepZ {
+    position: absolute; left: calc(50% + 50px); top: calc(50% - 85px); display: none;
+    font: 700 96px var(--ui-font); line-height: 1;
+    /* Brighter than --ink, which is body text grey and disappears into a sky
+       full of stars at this size. Warm white with the night's own violet glow,
+       so it reads as HERS rather than as another star. */
+    color: #e8ecf6; text-shadow: 0 0 22px rgba(180,140,255,.75), 0 0 6px rgba(0,0,0,.6);
+    pointer-events: none;
+  }
+  body.night #sleepZ { display: block; }
+  #sleepZ span { position: absolute; opacity: 0; animation: driftZ 3.6s ease-out infinite; }
+  /* 1.2s apart inside a 3.6s loop, so the three are evenly spaced forever. Each
+     is a little smaller and offset, which is what stops them reading as one
+     glyph stuttering in place. */
+  #sleepZ span:nth-child(1) { animation-delay: 3.1s; }
+  #sleepZ span:nth-child(2) { animation-delay: 4.3s; left: 14px; font-size: .78em; }
+  #sleepZ span:nth-child(3) { animation-delay: 5.5s; left: -8px; font-size: .6em; }
+  @keyframes driftZ {
+    0%   { opacity: 0; transform: translate(0, 0) rotate(-10deg) scale(.7); }
+    18%  { opacity: 1; }
+    65%  { opacity: .6; }
+    100% { opacity: 0; transform: translate(52px, -130px) rotate(12deg) scale(1.2); }
+  }
+  /* Motion is the whole point of this one, so there is nothing to keep when it
+     is refused — hide it rather than leaving three glyphs parked on her ear. */
+  @media (prefers-reduced-motion: reduce) {
+    body.night #sleepZ { display: none; }
+  }
   #wall { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
   body.night #wall { display: block; }
   body.night #rays { display: none; }
@@ -719,6 +767,9 @@
   <!-- Inlined from hex-cat.svg — keep in sync with that file (see its header comment). -->
   <div id="catWrap">
    <div id="catMotion"><div id="catPose"><div id="catBreath">
+    <!-- Idle sleep sign. aria-hidden: the night phase is announced elsewhere, and
+         three drifting glyphs are decoration, not information a reader needs. -->
+    <div id="sleepZ" aria-hidden="true"><span>z</span><span>z</span><span>z</span></div>
     <svg id="hexCat" role="button" aria-label="Pet Hex" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
      <g id="catFace">
       <!-- Head split so the ears can flick independently: a solid black FILL for

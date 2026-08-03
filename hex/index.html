@@ -324,6 +324,54 @@
     0%, 100% { transform: scale(1) translateY(0); }
     50%      { transform: scale(1.03) translateY(-1.5px); }
   }
+
+  /* Idle "zzz" — the sign that she is ASLEEP rather than merely small and still.
+     Breath alone can't carry that: it is 3% over 4s, deliberately below
+     conscious notice, which reads as alive but not as sleeping. Three z's drift
+     from her head on a stagger so one is always in flight.
+     Lives inside #catBreath, so it inherits the night pose's translate AND its
+     scale(.25) for free and stays pinned to her head through the zoom-out.
+     Two consequences, both easy to get wrong:
+     Every length here is in PRE-SCALE pixels — the 96px font lands at 24px on
+     screen. Keep that in step with the .25 above. 60px was the first try and
+     landed at 15px, which vanished into the starfield next to a 56px cat.
+     And #catBreath is the whole STAGE, not the cat: it is a flex box that
+     centres the 200x210 SVG. So the anchor is calc(50% ± px), offsets from that
+     centre, NOT from a box the size of the cat. Positioning against the box
+     directly parks the glyphs ~90px above her head, which happens to look
+     almost right and is entirely accidental — measure it, don't eyeball it.
+     +50px is 150 of 200 across, -85px is 20 of 210 down: her top right ear.
+     Delayed 3.1s to match #catBreath: the night opens on three timings each
+     waiting on the last, yawn then zoom then breathe, and this joins the end of
+     that queue rather than talking over the yawn. */
+  #sleepZ {
+    position: absolute; left: calc(50% + 50px); top: calc(50% - 85px); display: none;
+    font: 700 96px var(--ui-font); line-height: 1;
+    /* Brighter than --ink, which is body text grey and disappears into a sky
+       full of stars at this size. Warm white with the night's own violet glow,
+       so it reads as HERS rather than as another star. */
+    color: #e8ecf6; text-shadow: 0 0 22px rgba(180,140,255,.75), 0 0 6px rgba(0,0,0,.6);
+    pointer-events: none;
+  }
+  body.night #sleepZ { display: block; }
+  #sleepZ span { position: absolute; opacity: 0; animation: driftZ 3.6s ease-out infinite; }
+  /* 1.2s apart inside a 3.6s loop, so the three are evenly spaced forever. Each
+     is a little smaller and offset, which is what stops them reading as one
+     glyph stuttering in place. */
+  #sleepZ span:nth-child(1) { animation-delay: 3.1s; }
+  #sleepZ span:nth-child(2) { animation-delay: 4.3s; left: 14px; font-size: .78em; }
+  #sleepZ span:nth-child(3) { animation-delay: 5.5s; left: -8px; font-size: .6em; }
+  @keyframes driftZ {
+    0%   { opacity: 0; transform: translate(0, 0) rotate(-10deg) scale(.7); }
+    18%  { opacity: 1; }
+    65%  { opacity: .6; }
+    100% { opacity: 0; transform: translate(52px, -130px) rotate(12deg) scale(1.2); }
+  }
+  /* Motion is the whole point of this one, so there is nothing to keep when it
+     is refused — hide it rather than leaving three glyphs parked on her ear. */
+  @media (prefers-reduced-motion: reduce) {
+    body.night #sleepZ { display: none; }
+  }
   #wall { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
   body.night #wall { display: block; }
   body.night #rays { display: none; }
@@ -719,6 +767,9 @@
   <!-- Inlined from hex-cat.svg — keep in sync with that file (see its header comment). -->
   <div id="catWrap">
    <div id="catMotion"><div id="catPose"><div id="catBreath">
+    <!-- Idle sleep sign. aria-hidden: the night phase is announced elsewhere, and
+         three drifting glyphs are decoration, not information a reader needs. -->
+    <div id="sleepZ" aria-hidden="true"><span>z</span><span>z</span><span>z</span></div>
     <svg id="hexCat" role="button" aria-label="Pet Hex" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
      <g id="catFace">
       <!-- Head split so the ears can flick independently: a solid black FILL for
@@ -823,7 +874,8 @@ const BUILDINGS = [
   { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 10,     mps: 0.4,
     blurb: "A mouse every {every}" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1   },
-  // 85 mps, not Cookie Clicker's 47. The mps column mirrors CC's first
+  // base 10000 and 85 mps, both tuned against the same failure. The mps column
+  // mirrors Cookie Clicker's first
   // buildings, but the COST column doesn't: CC steps 15 → 100 → 1,100 → 12,000,
   // roughly ten-fold each, and ours steps 10 → 100 → 12,000 because the rung
   // between Farm and Factory (the old Quarry) was cut. That leaves the Farm a
@@ -833,9 +885,15 @@ const BUILDINGS = [
   // line down with it. 85 restores the intended shape — cost-per-mps 141 against
   // the Farm's 100, close enough that the Factory is what you graduate TO once
   // farms get expensive, which is the job the missing rung used to do. It is a
-  // NARROW band, so re-measure if it moves: at 70 the bot still bought zero
+  // The BASE came down from 12000 for the same reason, once the Factory ladder
+  // lost two of its five rungs: a shorter ladder tops out lower, so the building
+  // has to be cheaper to stock or the bot goes back to buying farms forever. At
+  // 8000 it overshot the other way — factories crowded farms out and the Farm's
+  // top rungs went unreachable instead. 10000 is the measured middle.
+  //
+  // It is a NARROW band, so re-measure if it moves: at 70 the bot still bought zero
   // factories, at 130 it bought almost nothing else.
-  { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 12000,  mps: 85 },
+  { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 10000,  mps: 85 },
   // The one day building that keeps producing after the night reset (see
   // baseCpsWith) — the design's "the Lab is still present" in the dream.
   //
@@ -955,8 +1013,10 @@ const UPGRADES = [
   // Farm carries that whole stretch on upgrades instead. Multipliers escalate
   // as the tech gets sillier — ×2 mechanical tweaks, ×3 precision/premium, ×4
   // full automation. Ascending so they reveal in sequence rather than all at
-  // once. (Splice-Grown Mice used to live here; it moved to the lab tier below,
-  // now gated behind Schrödinger's Lab.)
+  // once. Five rungs, not six — Zoomie Tractors was a second flat ×2 sitting
+  // between two others, so the rungs below it slid up into its slot rather than
+  // leaving a hole at 16k. (Splice-Grown Mice used to live here too; it moved to
+  // the lab tier below and is now Mice from Theory.)
   //
   // Owned thresholds are priced against what the day ACTUALLY buys, not a wish.
   // The old ladder asked for 75 and 100 Farms; the geometric curve puts 50 Farms
@@ -965,29 +1025,33 @@ const UPGRADES = [
   // across 3-16 pets/s), so that is where the ladder tops out. These gates are
   // measured, not chosen — re-measure them whenever building mps moves.
   { key: "farmplow", name: "Sisal Scratching Plows", icon: "🧶",
-    cost: 900, unlock: { owned: ["farm", 4] },
+    cost: 900, unlock: { owned: ["farm", 3] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmfeliway", name: "Feliway Sprinklers", icon: "💨",
-    cost: 5000, unlock: { owned: ["farm", 7] },
-    effect: { type: "buildingMult", building: "farm", mult: 2 } },
-  { key: "farmtractor", name: "Zoomie Tractors", icon: "🚜",
-    cost: 16000, unlock: { owned: ["farm", 10] },
+    cost: 5000, unlock: { owned: ["farm", 5] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmlaser", name: "Laser-Guided Planters", icon: "🎯",
-    cost: 45000, unlock: { owned: ["farm", 13] },
+    cost: 16000, unlock: { owned: ["farm", 7] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "farmchuru", name: "Churu Hydroponics", icon: "🍦",
-    cost: 130000, unlock: { owned: ["farm", 14] },
+    cost: 45000, unlock: { owned: ["farm", 9] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "farmdrone", name: "Autonomous Bug-Batting Drones", icon: "🚁",
-    cost: 400000, unlock: { owned: ["farm", 16] },
+    cost: 200000, unlock: { owned: ["farm", 11] },
     effect: { type: "buildingMult", building: "farm", mult: 4 } },
 
   // --- Mouse Factory ---
   // Same escalating ladder as the Farm (×2 mechanical → ×3 fancier → ×4 finale),
-  // all cat-toy-flavoured factory kit. Same measured-threshold rule as the Farm:
-  // a day ends holding ~9-10 Factories, so the ladder tops out at 9 rather than
-  // at the old 50 — which was ~5x the whole phase's spend in Factories alone.
+  // all cat-toy-flavoured factory kit. THREE rungs now, down from five: Laser
+  // Chaser Assembly Belt was a duplicate flat ×2 and Bioluminescent Dip Vats sat
+  // at 600k, past anything a day reaches. The survivors slid down into the
+  // vacated slots and their multipliers grew to ×3/×4/×5, because a 3-rung ladder
+  // multiplying to 60 cannot do the job the old 5-rung ×432 did — that collapse
+  // is why the base cost had to come down with it (see the BUILDINGS note).
+  //
+  // Same measured-threshold rule as the Farm: a day ends holding 11-15
+  // Factories, so the ladder tops out at 6 and every rung is reachable at every
+  // tap rate.
   //
   // Cost steps stay near 3x even though the gains are ×2/×3, for the reason the
   // petting ladder is built the way it is: by the time Factories carry the day's
@@ -996,19 +1060,13 @@ const UPGRADES = [
   // eight rows of the whole game inside three seconds.
   { key: "factory1", name: "Sisal Conveyor Tracks", icon: "🧵",
     cost: 20000, unlock: { owned: ["factory", 2] },
-    effect: { type: "buildingMult", building: "factory", mult: 2 } },
-  { key: "factory2", name: "Laser Chaser Assembly Belt", icon: "🔴",
-    cost: 50000, unlock: { owned: ["factory", 4] },
-    effect: { type: "buildingMult", building: "factory", mult: 2 } },
+    effect: { type: "buildingMult", building: "factory", mult: 3 } },
   { key: "factory3", name: "LED Weaving Looms", icon: "💡",
-    cost: 110000, unlock: { owned: ["factory", 6] },
-    effect: { type: "buildingMult", building: "factory", mult: 3 } },
-  { key: "factory4", name: "Pneumatic Crinkle Packagers", icon: "🎁",
-    cost: 220000, unlock: { owned: ["factory", 8] },
-    effect: { type: "buildingMult", building: "factory", mult: 3 } },
-  { key: "factory5", name: "Bioluminescent Dip Vats", icon: "🪼",
-    cost: 600000, unlock: { owned: ["factory", 9] },
+    cost: 50000, unlock: { owned: ["factory", 4] },
     effect: { type: "buildingMult", building: "factory", mult: 4 } },
+  { key: "factory4", name: "Pneumatic Crinkle Packagers", icon: "🎁",
+    cost: 160000, unlock: { owned: ["factory", 6] },
+    effect: { type: "buildingMult", building: "factory", mult: 5 } },
 
   // --- Schrödinger's Lab — fantastical cross-building tier ---
   // The Lab gets NO upgrades that boost itself. Instead, owning it unlocks a
@@ -1018,30 +1076,35 @@ const UPGRADES = [
   // spike once you've committed to the Lab. This tier is the last rung of phase
   // 1: it sits under Catnap Hypnalysis on cost so the capstone is still the
   // capstone, but above every other day ladder so buying a Lab reads as an
-  // escalation. ×3 across the board, fantastical flavour.
+  // escalation. Fantastical flavour, ×3 where it is a plain multiplier.
   //
-  // Every row is a boost to a NAMED building, which is the tier's whole shape.
-  // The Observer Effect used to close it with a flat +15% global — the only row
-  // here that pointed at nothing in particular, and the only one gated on a
-  // second Lab, so it read as a tax on the tier rather than part of it.
-  { key: "farm2", name: "Splice-Grown Mice", icon: "🧬",
-    cost: 110000, unlock: { owned: [["farm", 13], ["lab", 1]] },
+  // Exactly one row per day building now, which is the tier's whole shape: the
+  // Farm gets Mice from Theory, the Subscription gets 2 Second Shipping, and the
+  // Factory gets Factory Factory's synergy. Superposition Assembly Line was a
+  // second, redundant Factory ×3 and came out. The Observer Effect closed the
+  // tier with a flat +15% global before that — the only row pointing at nothing
+  // in particular, and the only one gated on a second Lab, so it read as a tax.
+  //
+  // "Mice from Theory" is the Lab's own description, promoted to a row title.
+  // The building's blurb said "synthesizes mice from theory" until blurbs were
+  // trimmed to the one row that teaches, and the phrase was too good to lose.
+  { key: "farm2", name: "Mice from Theory", icon: "🧬",
+    cost: 80000, unlock: { owned: [["farm", 9], ["lab", 1]] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "labparcels", name: "2 Second Shipping", icon: "🚀",
-    cost: 110000, unlock: { owned: [["shopper", 15], ["lab", 1]] },
+    cost: 80000, unlock: { owned: [["shopper", 15], ["lab", 1]] },
     effect: { type: "buildingMult", building: "shopper", mult: 3 } },
-  { key: "labfactory", name: "Superposition Assembly Line", icon: "⚛️",
-    cost: 150000, unlock: { owned: [["factory", 6], ["lab", 1]] },
-    effect: { type: "buildingMult", building: "factory", mult: 3 } },
   // A factory that makes factories: a SELF-synergy (crossBuilding with per ==
-  // building), so each Mouse Factory you own makes every Mouse Factory +5%
+  // building), so each Mouse Factory you own makes every Mouse Factory +8%
   // better. Total factory output becomes ~quadratic in count — a snowball that
   // rewards going wide. The only crossBuilding in the game; buy()'s recalc keeps
-  // its owned-dependent term live. At the ~9-10 factories a day now ends with
-  // that is ×1.45-1.5; watch it in the pacing sim if factory counts drift.
+  // its owned-dependent term live. 8% rather than 5% because this row is now the
+  // Lab tier's whole contribution to Factories; at the 11-15 a day ends with that
+  // is ×1.9-2.2. Watch it in the pacing sim if factory counts drift — 12% was
+  // measurably too much, pulling the day in by ~40s.
   { key: "factoryfactory", name: "Factory Factory", icon: "🪆",
-    cost: 180000, unlock: { owned: [["factory", 8], ["lab", 1]] },
-    effect: { type: "crossBuilding", building: "factory", per: "factory", pct: 5 } },
+    cost: 150000, unlock: { owned: [["factory", 8], ["lab", 1]] },
+    effect: { type: "crossBuilding", building: "factory", per: "factory", pct: 8 } },
   // --- Petting ---
   // EVERY row here belongs to phase 1 — petting earns nothing once Hex is asleep
   // (see pet()'s night gate), so a petting upgrade that isn't affordable before
@@ -1110,12 +1173,19 @@ const UPGRADES = [
   // brake, and aiming the line at the building nobody was stocking is the point.
   // Gated on owning factories as well: bought with none, these rows do nothing.
   // The Box is the classic ambush spot, the Castle is its upgrade, and locking
-  // Goomba in it leaves Hex the whole fort — so each `requires` the last.
+  // Goomba in it leaves Hex the whole fort — so they read as a sequence, but the
+  // gates are factory counts (3/5/7) and NOT `requires` links any more. That
+  // chain broke the line twice. Every row here is a PETTING upgrade, so at a low
+  // tap rate it is genuinely not worth buying — and a `requires` on a purchase
+  // turns "not worth buying" into "never revealed", taking the two rows behind it
+  // down as well. A visible row you choose to skip is fine; an invisible one is
+  // dead content. The counts alone keep the sequence in practice, since you pass
+  // 3 factories before 5 and 5 before 7.
   { key: "cardboardbox", name: "Cardboard Box", icon: "📦",
     cost: 10000, unlock: { owned: ["factory", 3] },
     effect: { type: "clickPerBuilding", add: 10, per: "factory" } },
   { key: "scratchpost2", name: "Reinforced Scratching Post", icon: "🪢",
-    cost: 25000, unlock: { requires: "scratchpost", clicks: 260 },
+    cost: 8000, unlock: { requires: "scratchpost", clicks: 200 },
     effect: { type: "clickMult", mult: 2 } },
   // Pounce Reflex and Chin Scritch are the Zoomies pair — the two rows that make
   // CATCHING a golden mouse matter more, rather than making every pet matter
@@ -1124,7 +1194,7 @@ const UPGRADES = [
   // bounded by the buff's own uptime no matter what else is stacked, which is
   // exactly why they're here rather than being two more doublings.
   { key: "pounce", name: "Pounce Reflex", icon: "🐾",
-    cost: 40000, unlock: { clicks: 320 },
+    cost: 25000, unlock: { clicks: 320 },
     effect: { type: "zoomMult", add: 3 } },
   // Window Perch #1 of the running gag (see #2/#3 below). A perch is where Hex
   // sits and WATCHES the window, so the three perches are the golden-mouse line:
@@ -1133,7 +1203,7 @@ const UPGRADES = [
   // setup the other two count off from, so it's the ONE perch that shouldn't
   // name a window. (It used to be the Saucer of Milk; hence the key.)
   { key: "milk", name: "Window Perch", icon: "🪟",
-    cost: 40000, unlock: { total: 40000 },
+    cost: 12000, unlock: { total: 12000 },
     effect: { type: "goldenFreq", mult: 1.5 } },
   // Window Perch #2 and #3. Two effects each, Cookie Clicker's grandma-synergy
   // shape: another window is both a better lookout (sooner) and a longer watch
@@ -1143,6 +1213,12 @@ const UPGRADES = [
   // zero to a room that catches everything. Alone it would read as a dead row,
   // and the pacing sim (which assumes every golden is caught) would score it at
   // zero gain and never buy it.
+  //
+  // Spaced 12k / 60k / 220k rather than the old 40k / 50k / 110k, where the first
+  // two were a quarter of a step apart and read as the same purchase twice. The
+  // third no longer `requires` the second, for the reason the cardboard line
+  // doesn't either: the pets gates (620 then 820) already order them, and a
+  // purchase-gate turns a skipped row into an invisible one.
   //
   // Rungs are 1.5 / 1.4 / 1.4 = ×2.94 across the line, up from 1.3 / 1.25 / 1.25
   // = ×2.03, absorbing the ×1.5 that Mouse Magnet used to contribute. That row is
@@ -1159,23 +1235,22 @@ const UPGRADES = [
   // flavor telling them apart. The arithmetic is in the titles now: three
   // perches, two windows. Never collapse these back to a bare "Window Perch".
   { key: "cattree", name: "Window Perch, Second Window", icon: "🪟",
-    cost: 50000, unlock: { clicks: 620 },
+    cost: 60000, unlock: { clicks: 620 },
     effect: [{ type: "goldenFreq", mult: 1.4 }, { type: "goldenLife", add: 3 }] },
-  // 35k, not the 60k this looked like it was worth. The number that matters here
-  // isn't the Castle's own payback — it's that Lock Goomba `requires` this row
-  // BOUGHT, so a run that skips the Castle never even reveals the jail. At 60k a
-  // 3-pets/s run bought the Box at 4:42 and then hit the stretch where it's
-  // banking for Catnap and only takes fast-payback rows, so the Castle never
-  // landed and the jail was dead content at that tap rate. Lowering the FACTORY
-  // gates instead did nothing, which is what proved it was the price.
+  // 35k, down from 60k, from back when Lock Goomba `required` this row BOUGHT and
+  // a run that skipped the Castle never revealed the jail. The requires links are
+  // gone (see the Box's note), so the price is no longer load-bearing for
+  // anything downstream — but it stays at 35k, because the reason it was skipped
+  // still holds: a 3-pets/s run reaches this point already banking for Catnap and
+  // only taking fast-payback rows.
   { key: "cardboardcastle", name: "Cardboard Castle", icon: "🏰",
-    cost: 35000, unlock: { requires: "cardboardbox", owned: [["factory", 5]] },
+    cost: 35000, unlock: { owned: ["factory", 5] },
     effect: { type: "clickPerBuilding", add: 35, per: "factory" } },
   { key: "chinscritch", name: "Chin Scritch", icon: "😌",
-    cost: 100000, unlock: { clicks: 520 },
+    cost: 80000, unlock: { clicks: 520 },
     effect: { type: "zoomTime", add: 4 } },
   { key: "windowperch", name: "Third Window Perch, Second Window", icon: "🪟",
-    cost: 110000, unlock: { requires: "cattree", clicks: 820 },
+    cost: 220000, unlock: { clicks: 820 },
     effect: [{ type: "goldenFreq", mult: 1.4 }, { type: "goldenLife", add: 4 }] },
   // The anticlimax is the joke: bought after churu hydroponics and a quantum
   // lab, and what it buys is the same kibble as yesterday. The title has to land
@@ -1195,7 +1270,7 @@ const UPGRADES = [
     cost: 160000, unlock: { clicks: 680 },
     effect: { type: "clickShare", pct: 2 } },
   { key: "jailgoomba", name: "Lock Goomba in Cardboard Castle", icon: "🚔",
-    cost: 180000, unlock: { requires: "cardboardcastle", owned: [["factory", 7]] },
+    cost: 180000, unlock: { owned: ["factory", 7] },
     effect: { type: "clickPerBuilding", add: 100, per: "factory" } },
   // Sequel to the original Cat Tree (whiskers) — same running-gag pattern as the
   // Window Perch trio, and the same rule: the title carries it, because a second
@@ -1213,7 +1288,7 @@ const UPGRADES = [
   // rather than pets alone, which is both the plainest reading of the name and
   // the one shape that can't set off another cascade this late in the day.
   { key: "freshair", name: "A Breath of Fresh Air", icon: "💨",
-    cost: 500000, unlock: { clicks: 1200 },
+    cost: 420000, unlock: { clicks: 1200 },
     effect: { type: "globalPct", pct: 25 } },
 
   // --- Cross-building synergies ---
@@ -1527,7 +1602,7 @@ function effectText(u) {
 // as good") — Cookie Clicker's own convention. Percentages skip it entirely:
 // they're usually additive across many stacking sources, where "+5%" stays
 // legible in a way "twice, and twice again" doesn't. Words run to six because
-// the live set uses ×4 (Import Direct, Dip Vats, Swatter Drones) and ×6 (Lucky
+// the live set uses ×4 (Import Direct, Swatter Drones) and ×6 (Lucky
 // Number 6), and "is ×4 as good" / "×6 as many" read like a typo mid-sentence.
 const multWord = m =>
   ({ 2: "twice", 3: "thrice", 4: "four times", 5: "five times", 6: "six times" })[m] || `×${m}`;

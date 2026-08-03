@@ -54,6 +54,11 @@
     --gold: #ffd44d;
     --neon: #57e6c9;
     --ss: 1.5;  /* shop skin scale (locked) */
+    /* Where the day sunburst converges inside #stage, and therefore where Hex
+       is parked: #rays hangs its center here and #catWrap offsets from the same
+       number. Above true center because the shop owns the bottom of the screen.
+       Move this one value and cat + background travel together. */
+    --sun-y: 33%;
     --paw: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAEuElEQVR4nOxXW0xbZRz/fb1QCi1lhaHAFhEYgtOpycIWBykjRhmXkGVmBLNEw8aDThPjBZ/MfPdFQwYbQclifDBuRAxhCyJpzMrD2LKUjnHZFgTCRdiA0tMWWjjH/3doa8ultJiFl/2S853v/L///ft/l6PCLkOFXcauO6CIhtnlsh9xOBwfLy0tZa0f4zQ+Rjz5iAIsEiZJshsFgbUyBlNAkEn1cXEJn/G+ICx+zxj7KEiiKz4eVYwZ5rbTHZEDgmDvINYTQ0PDsFh6UF5eipSUFHKCfSOKopLeX09P/4OOjusoKChATk42F2vX6RIq/rcDgiC8Doh3h4cfoqSkDF6vF2lpqbh50wyVSuUg4yqiaY8eLcTMzAzUajU6O68jOzuTpBWHdDqdLZz+CGpAfIO3PT0W2TjH5OQU7t8f4BnQ06fWarXJxjk4j8Vi8cmuHtpOeySr4Dne2O2LIUSn0xnoOxyhYy6X29djadgGGzJAlVxMc36XCstFiockickVbzQmhfDl5eUG+kajMWTs4MG8NfOM5ZCOYa6LdN5xux2m9fZYqOf2I6LIetY7JhHm5xeYyVSMhQU7DhzIQnf3H6ACHCUjanrSysoq0ddn40Zpevqg08WL2BjgqkIhvRkXZ7i1aQZEERc4raurm6r5OJqamv2RuIzGPWhv/w1tba30bvPRlV+RvTrev3LlR1y79gus1tvcOHdbnofGxiYUFh4H10lQUoAXtswApWqJXppjx4owNjYmR9Pfb4Ver+MKO4n97SD2H4h2z6fmNWo+CChluCFJKBEEJ03VqzItK+tFmM1/8u4yLc9YP68qKM2JTqdDQzuabNxHw8DAIPLzD1Nf0UKbj4eo5T6/z26yiiUy/jvx/kr5LLHZ7gUGHj0agcfjQUxMjIb0JlBwiyEOEGGBMrAcGxurSU19HlNT0z7PM9fmSiH9RP6ouFG+DEdGRjA4OCSP5ea+hMzMTJAcI55KMl7G6bxW/EhPT+fG5Qz4jYc4sBYxOiiCk+fO1aCh4TJKS99BUpJRzoTXu6K6erUV9fUNGB8fx2bIyHgB589/iFOnTqrUahWSk5NRXV1FG1MXamtrAjaCZUJy6Ha7M5aX3bdoh9vrp1Gl48mTeVRUVGJiYhKRgEfLC9VoTKTM/VfnKysrjzUa7WGtVjvqp4WsAhr4W6lUv0LdFr7yOM3j8aKqqjpi4xwTExM4c+Z9Mrgqf1PUc/Q0k+6Xg41vcIBDr9fPUJXW0FR8yr8vXmzEgwcPES36+/tx6dJluc+Y4hO9PqGWdM+u5wt3FpzgTW/vbewUvb13fD2xZCueMGcBK+atzRb2MAsLq9Xq7761FU+4DMjp2rdvP3aK1NTAWTQXtQNUNPxMQFFRIXYKvyzpsiBaB6gIZQfq6r7A6dPvIlpwGS4brGtTO1sN0DKMcToXW4jlPf7Nb0Rms5mevzA7+5juBwu0P8xBqVQiMdFAzx66pu2FyVRIkRcF7YLSz/HxfFUxT1QO+EHb85f0+hy+i0kUoI1D+lanM3wXjinCW7GkdLkcpbQpnqUDaT/NqYFEDZTahLVx2KldpG87XWBG6dxophvzDYpa3E53RA48TTz7NXvmwL8AAAD//6QjYfAAAAAGSURBVAMA8l/kFjMrX3YAAAAASUVORK5CYII=) 16 5, auto;
                   /* cat-paw cursor (desktop); mobile ignores it */
 
@@ -157,7 +162,7 @@
      shown at night (the theme vars are for colors; a display toggle doesn't
      need to round-trip through one). */
   #rays {
-    position: absolute; top: 33%; left: 50%; width: 190vmax; height: 190vmax;
+    position: absolute; top: var(--sun-y); left: 50%; width: 190vmax; height: 190vmax;
     margin: -95vmax 0 0 -95vmax; pointer-events: none; display: block;
     background: repeating-conic-gradient(from 0deg,
       rgba(255,255,255,.115) 0deg 5deg, transparent 5deg 11deg);
@@ -171,16 +176,24 @@
      against #hexCat's actual painted shapes (see its rule below), not this
      full-stage box, so a tap in the empty space around Hex (or between her
      ears) doesn't count as a pet. */
-  /* Biased upward, not centered: the buildings strip is now pinned to the
-     bottom of the screen (see #buildingSec), so Hex sits in the upper play area
-     to fill what used to be dead space and to stay clear of the pinned shop.
+  /* Biased upward, not centered: the buildings strip is pinned to the bottom of
+     the screen (see #buildingSec), so Hex sits in the upper play area to fill
+     what used to be dead space and to stay clear of the pinned shop.
      A static transform on this outer box only — the JS purr/dream (#catMotion)
      and the night zoom (#catPose) live inside and compose on top of it. */
   #catWrap {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    /* Centered in the space between the HUD and the top of the static shop; the
-       two heights are published as CSS vars by the shop-skin runtime (JS). */
-    transform: translateY(calc((var(--hud-h, 0px) - var(--dock-h, 0px)) / 2));
+    /* Parked on the sunburst's hub (--sun-y, the same anchor #rays is positioned
+       from), NOT centered in the leftover space above the shop. Both percentages
+       resolve against #stage, so Hex sits exactly where the background converges
+       and the two can never drift apart.
+
+       This is deliberately a CONSTANT. It used to center her between the HUD and
+       the top of the dock off measured --hud-h/--dock-h, which meant every shop
+       state change — opening, collapsing to the SHOP rail, the first building
+       section appearing — slid Hex up or down the screen. She's the thing you're
+       tapping; the shop moving must not move the target out from under a finger. */
+    transform: translateY(calc(var(--sun-y) - 50%));
   }
   /* At night the wall reveal owns Hex's position (see #catPose), so drop the day
      centering entirely. */
@@ -423,6 +436,14 @@
     display: none; flex-direction: column;
     background: transparent; backdrop-filter: blur(10px);
     padding-bottom: env(safe-area-inset-bottom);
+    /* Lives on the base rule, NOT on .cutscene-hidden, so the cutscene fade runs
+       BOTH ways. A transition declared only on the state class exists only while
+       that class is on: the browser reads the transition from the after-change
+       style, so adding it fades out, and removing it takes the rule (and the
+       transition with it) away in the same frame — the shop popped back at full
+       opacity. Declared here it survives the class going away and the shop eases
+       back in as the wall reveal settles. */
+    transition: opacity .3s ease;
   }
   #dock.show { display: flex; }
 
@@ -474,8 +495,10 @@
   }
   #buildingSec.show { display: flex; flex-direction: column; }
   /* Night cutscene: recede the ENTIRE shop (including the pinned buildings) so
-     nothing covers the wall reveal; restored when the beat ends. */
-  #dock.cutscene-hidden { opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+     nothing covers the wall reveal; restored when the beat ends. Only the target
+     state belongs here — the fade itself is on #dock so it plays in both
+     directions (see the transition note there). */
+  #dock.cutscene-hidden { opacity: 0; pointer-events: none; }
 
   /* Between Upgrades and Buildings, unlabelled — the rows below already say
      which section they are. Scales with --ss like the rest of the shop so it
@@ -3435,40 +3458,22 @@ syncPhase(); // saves restore the phase for free
 initDev();
 countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refreshHud()'s job
 
-// Shop-skin runtime: drive the scroll shadows (.can-up / .can-down) and publish
-// the dock/HUD heights so #catWrap can center Hex in the space above the static
-// shop. (Icon sizing is pure CSS — a fixed-width, full-height tile per row.)
-// All read-only
-// measurement, so there's no layout feedback with the game's own row refresh.
+// Shop-skin runtime: drive the scroll shadows (.can-up / .can-down) on the two
+// scrolling lists. (Icon sizing is pure CSS — a fixed-width, full-height tile
+// per row.) All read-only measurement, so there's no layout feedback with the
+// game's own row refresh.
+// This used to also publish the dock/HUD heights as CSS vars for #catWrap to
+// center Hex against. It doesn't anymore: Hex is pinned to the sunburst (--sun-y)
+// and no longer tracks the shop at all, so those measurements had no consumer.
 (function () {
-  const rootEl = document.documentElement;
-  const hudEl = $("#hud");
   const scrollers = [shopEl, upgradesEl];
-  function measure() {
-    // Pin Hex as if the Upgrades drawer always holds ~2 upgrades, so unlocking or
-    // buying upgrades never shifts her. Instead of the section's live height we
-    // substitute the #upgrades cap (10vh * --ss) — the height ~2 tall upgrade
-    // rows already reach — and only measure the Buildings section live. Only 0/1
-    // upgrade then sits slightly off, which is fine.
-    let dh = 0;
-    if (getComputedStyle(dockEl).display !== "none") {
-      const bh = getComputedStyle(buildingSecEl).display !== "none" ? buildingSecEl.offsetHeight : 0;
-      const ss = parseFloat(getComputedStyle(rootEl).getPropertyValue("--ss")) || 1;
-      const upPinned = Math.round(innerHeight * 0.10 * ss); // the #upgrades cap is the whole section
-      // The SHOP rail is a sibling of both sections, so neither term above covers
-      // it — measured live and added, or Hex centers into the header.
-      dh = shopToggleEl.offsetHeight + bh + upPinned;
-    }
-    rootEl.style.setProperty("--dock-h", dh + "px");
-    rootEl.style.setProperty("--hud-h", (hudEl ? hudEl.offsetHeight : 0) + "px");
-  }
   function updAff(el) {
     el.classList.toggle("can-up", el.scrollTop > 1);
     el.classList.toggle("can-down", el.scrollTop + el.clientHeight < el.scrollHeight - 1);
   }
-  function tick() { measure(); scrollers.forEach(updAff); }
+  function tick() { scrollers.forEach(updAff); }
   scrollers.forEach(el => el.addEventListener("scroll", () => updAff(el), { passive: true }));
-  if (window.ResizeObserver) { const ro = new ResizeObserver(tick); ro.observe(dockEl); if (hudEl) ro.observe(hudEl); }
+  if (window.ResizeObserver) { const ro = new ResizeObserver(tick); ro.observe(dockEl); }
   addEventListener("resize", tick);
   setInterval(tick, 300);
   tick();

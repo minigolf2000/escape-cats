@@ -977,12 +977,14 @@ const UPGRADES = [
     cost: 150e6, unlock: { requires: "whiskers", clicks: 3000 },
     effect: { type: "clickMult", mult: 2 },
     fx: "The cat tree got moved onto the table. Nobody asked why" },
-  // Pays off the Window Perch trio: three perches were bought for two windows and
-  // nobody ever opened one. Continues the ladder's +30e6 / +400-click step.
+  // Reads two ways on purpose: a breath of fresh air to anyone playing, and the
+  // daily asthma puff to anyone who knows the real Hex. Don't "fix" the wording
+  // toward either reading — it has to stay plain enough to carry both. Plain
+  // clicks gate, continuing the ladder's +30e6 / +400-click step.
   { key: "freshair", name: "A Breath of Fresh Air", icon: "💨",
-    cost: 180e6, unlock: { requires: "windowperch", clicks: 3400 },
+    cost: 180e6, unlock: { clicks: 3400 },
     effect: { type: "clickMult", mult: 2 },
-    fx: "Someone finally opened a window. All three perches approve" },
+    fx: "A puff of fresh air makes Hex a new cat" },
 
   // --- Cross-building synergies ---
   // (None right now.) Assisted Pounce and Thesis Subjects lived here — both used

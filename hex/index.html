@@ -908,24 +908,42 @@ const BUILDINGS = [
   // Knock-on: Labs keep earning at night, so day Labs now bootstrap the dream
   // harder than the seed holes below. Watch that in the sim if this moves again.
   { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 400 },
-  // Night buildings — hidden until Catnap flips the phase, then revealed by the same
-  // lifetime>=base rule. A SELF-CONTAINED ramp, not a topping on day income: after
-  // the reset income is night-only, bootstrapped by NIGHT_SEED_COUNT free Portals.
-  // Ratios are held near the DAY curve (~0.014 mps/base) so night ramps over a
-  // ~3-min sprint instead of exploding in seconds; every tier reveals before
-  // legibility (LEGIBLE_TOTAL 45M) so none is dead content. Tuned against the sim.
-  { id: "portal",     name: "Dimensional Mouse Hole", icon: "🌀", base: 10000,  mps: 160,    night: true },
-  { id: "timemachine",name: "Chrono Cattelite Courier", icon: "🛰️", base: 150000, mps: 2100,   night: true },
-  { id: "fractal",    name: "Constellation Cattery",    icon: "🌌", base: 2e6,    mps: 27000,  night: true },
-  { id: "antimatter", name: "Singularity Scratcher",    icon: "🕳️", base: 26e6,   mps: 375000, night: true },
+  // ---- Night buildings: DREAM is the mechanism, SPACE is the secret ----------
+  // The old set was Dimensional Mouse Hole / Chrono Cattelite Courier /
+  // Constellation Cattery / Singularity Scratcher, which handed the answer away for
+  // free: a team reads "constellation" and "singularity" off the shop rail before
+  // earning anything, and the wall's whole job is to make that space imagery an
+  // EARNED clue. So the buildings are dream-native now and every space reference
+  // lives behind the reveal.
+  //
+  // They also escalate rather than just scaling: a place -> a device -> a
+  // phenomenon -> a recursion, which is how dreams actually get stranger.
+  //
+  // SPACING IS x4, NOT the day curve's x13, and that is forced rather than chosen.
+  // Petting earns nothing at night (see pet()), so night income is buildings only,
+  // and a pure-building economy compounds far more slowly than one with paws in it.
+  // Modelled over a 5-minute night: at x13 only TWO tiers are ever affordable, at
+  // x5..x8 only three, and at x4 all four arrive — around 0:00, 0:51, 2:20 and 4:10.
+  // That is also why the old set looked fine in the sim and wasn't: it was riding
+  // pet income the night phase does not have.
+  //
+  // `gate` names the research that REVEALS the building. Reveal used to be
+  // lifetime >= base, which cannot work now that the flip resets lifetime to zero
+  // AND the bases are small — every tier would appear at once. Gating on a purchase
+  // also means the player can see they caused it, which a silent threshold never
+  // manages.
+  { id: "portal",  name: "Hole in the Wall",     icon: "🕳️", base: 2000,   mps: 60,   night: true },
+  { id: "spindle", name: "Sleep Spindle",        icon: "🧵", base: 8000,   mps: 240,  night: true, gate: "spindles" },
+  { id: "delta",   name: "Delta Wave",           icon: "🌊", base: 32000,  mps: 960,  night: true, gate: "deltawave" },
+  { id: "nested",  name: "Dream Within a Dream", icon: "🌀", base: 128000, mps: 3840, night: true, gate: "nesteddream" },
 ];
-// Night seed: the moment you fall asleep, a few dream-holes open on their own, so
-// night ALWAYS has a bootstrap income. Without it night deadlocks at zero — day
-// buildings idle, petting earns nothing, and teams almost never own a Lab (the
-// twist fires before anyone banks one). Granted on the day->night flip, matched
-// in both the live buy and the pacing sim. Keyed to the first night building.
+// Night seed: the moment you fall asleep a few holes are already open, so night is
+// never staring at zero income. This is what "the first Hole is free" means — the
+// flip grants them rather than pricing the first purchase at 0, which would make
+// EVERY hole free (cost is base * 1.15^owned, so a base of 0 stays 0 forever).
+// Granted on the day->night flip, matched in both the live buy and the pacing sim.
 const NIGHT_SEED_ID = BUILDINGS.find(b => b.night).id;
-const NIGHT_SEED_COUNT = 3;
+const NIGHT_SEED_COUNT = 4;
 const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
 // Zoomies, the golden-mouse buff (the mechanic itself lives with the golden
@@ -1342,20 +1360,74 @@ const UPGRADES = [
   { key: "catnap", name: "Catnap Hypnalysis", icon: "💤",
     cost: 1e6, unlock: { owned: [["lab", 1]] },
     effect: { type: "night" } },
-  // Counting Mice: the night's FIRST research. It doesn't ink anything — it flips
-  // the wall mice on (type: "countMice" → mods.countMice → wallMiceCount), so the
-  // dream mice literally begin appearing the moment you buy it. Everything below
-  // chains behind it, so the whole reveal sits downstream of this one purchase.
+  // ---- The night ladder ------------------------------------------------------
+  // EVERY change to the wall is a purchase. Thresholds were tried on paper and
+  // rejected: if the wall changes because lifetime mice silently crossed a number,
+  // the player cannot tell they caused it, and the whole phase reads as random
+  // weather. Trails especially — that is the single biggest visual beat in the game
+  // and it must be something someone bought.
+  //
+  // The ladder alternates ECONOMY and VISIBILITY, so the shop never asks twice in a
+  // row for the same kind of thing:
+  //
+  //   Counting Mice      the specks resolve into neon mice
+  //   Sleep Spindle      reveals building 2
+  //   Lucid Dreaming     TRAILS EXIST                      <- the hinge
+  //   Delta Wave         reveals building 3
+  //   Word of Mouse      the golden mice arrive
+  //   Deep Sleep         longer trails
+  //   Dream Within...    reveals building 4
+  //   Scent Trail        ink stops fading
+  //   REM Sleep          longer trails
+  //   Hypnagogia         longer trails
+  //
+  // Costs are GUESSES against a night that opens near 430 mps and ends near 65k.
+  // They want playtesting, not more arithmetic.
+
+  // Night opens with the mice ALREADY on the wall as anonymous points of light —
+  // colourless, shapeless, indistinguishable from the starfield. Counting Mice is
+  // what resolves them into creatures, and the name earns its keep twice: counting
+  // sheep is what you do falling asleep, and counting is exactly what you cannot do
+  // until the specks become things distinct enough to count.
+  //
+  // It is also just accurate cat vision. Cats are dichromatic and read motion before
+  // form and form before colour, so a dream that starts as bare moving specks is
+  // what Hex would really see; every upgrade after this is her dreaming BETTER than
+  // she can see awake.
   { key: "countingmice", name: "Counting Mice", icon: "💭",
-    cost: 300000, unlock: { requires: "catnap" },
-    effect: { type: "countMice" } },
-  // The reveal's ink: three sleep stages, each a deeper/wilder dream that draws
-  // longer dream-trails (Deep Sleep 8 → REM 12 → Lucid 15 = 35, the wall's tuned
-  // fullness). Chained so exactly one shows at a time; all three = legible.
-  // Costs are GUESSES against the night economy.
+    cost: 1400, unlock: { requires: "catnap" },
+    effect: { type: "neon" } },
+  { key: "spindles", name: "Sleep Spindle", icon: "🧵",
+    cost: 4000, unlock: { requires: "countingmice" },
+    effect: { type: "revealBuilding", building: "spindle" } },
+  // The hinge of the whole night: before this the mice leave nothing behind and the
+  // wall is unreadable in principle, not just in practice. After it the dream starts
+  // recording itself. Everything else on the visibility side only deepens this.
+  { key: "luciddreaming", name: "Lucid Dreaming", icon: "🌀",
+    cost: 13500, unlock: { requires: "spindles" },
+    effect: { type: "trail", add: 10 } },
+  { key: "deltawave", name: "Delta Wave", icon: "🌊",
+    cost: 36000, unlock: { requires: "luciddreaming" },
+    effect: { type: "revealBuilding", building: "delta" } },
+  // Word of mouth: the mice have to be told. This is the moment the mystery becomes
+  // visible at all — and only the START of it, since the nine letters then arrive
+  // one at a time in REVEAL_ORDER as the wall fills.
+  { key: "wordofmouse", name: "Word of Mouse", icon: "🗣️",
+    cost: 68000, unlock: { requires: "deltawave" },
+    effect: { type: "wordMice" } },
   { key: "deepsleep", name: "Deep Sleep", icon: "😴",
-    cost: 1e6, unlock: { requires: "countingmice" },
-    effect: { type: "trail", add: 8 } },
+    cost: 135000, unlock: { requires: "wordofmouse" },
+    effect: { type: "trail", add: 22 } },
+  { key: "nesteddream", name: "Dream Within a Dream", icon: "🌀",
+    cost: 270000, unlock: { requires: "deepsleep" },
+    effect: { type: "revealBuilding", building: "nested" } },
+  // Cats track by scent, and scent lingers — which is exactly the mechanic: ink
+  // stops being a rolling window and starts accumulating, so the wall holds a
+  // drawing instead of shimmering like a screensaver. Worth roughly as much
+  // coverage as tripling the trail, measured in the lab.
+  { key: "scenttrail", name: "Scent Trail", icon: "👣",
+    cost: 450000, unlock: { requires: "nesteddream" },
+    effect: { type: "persist", add: 60 } },
   // Not part of the sleep-stage chain — it's the night's one economy row, gated
   // on the phase plus six goldens rather than on the stage above it. Parked here
   // by cost (2M, between Deep Sleep's 1M and REM's 4M) because that's where the
@@ -1368,14 +1440,20 @@ const UPGRADES = [
   // name, the ×6, and the six-goldens gate. Cost is a GUESS — it wants to land
   // as a mid-night power spike once night buildings are online.
   { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
-    cost: 2e6, unlock: { requires: "catnap", golden: 6 },
+    cost: 120000, unlock: { requires: "catnap", golden: 6 },
     effect: { type: "globalMult", mult: 6 } },
+  // The last two rungs are paced by OWNERSHIP, not price. Once Dream Within a Dream
+  // is online night income runs away, and cost stops being a brake: pushing REM from
+  // 810k to 11M moved it by six seconds. Owned-count gates ride the 1.15 cost curve
+  // instead, which compounding cannot outrun, so the final beats stay spread.
   { key: "remsleep", name: "REM Sleep", icon: "👀",
-    cost: 4e6, unlock: { requires: "deepsleep" },
-    effect: { type: "trail", add: 12 } },
-  { key: "luciddreaming", name: "Lucid Dreaming", icon: "🌀",
-    cost: 12e6, unlock: { requires: "remsleep" },
-    effect: { type: "trail", add: 15 } },
+    cost: 900000, unlock: { requires: "scenttrail", owned: [["nested", 5]] },
+    effect: { type: "trail", add: 30 } },
+  // Hypnagogia is the threshold state between waking and sleep — the last rung, and
+  // the one that should tip the word over into readable.
+  { key: "hypnagogia", name: "Hypnagogia", icon: "🌙",
+    cost: 1.6e6, unlock: { requires: "remsleep", owned: [["nested", 14]] },
+    effect: { type: "trail", add: 36 } },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1451,7 +1529,13 @@ function foldMods(bought, owned) {
   const m = { building: {}, globalMult: 1, clickFlat: CLICK_BASE,
               clickShare: CLICK_CPS_SHARE, clickMult: 1, goldenFreq: 1, goldenLife: 0,
               zoomMult: ZOOM_MULT, zoomTime: ZOOM_S,
-              trail: 0, countMice: 0, night: 0 };
+              // Wall state, all of it bought rather than crossed into:
+              //   neon      the points resolve into coloured mice (Counting Mice)
+              //   trail     length of the inked tail (the sleep-stage ladder)
+              //   wordMice  the golden letter-mice exist at all (Word of Mouse)
+              //   persist   ink half-life; 0 = a rolling window (Scent Trail)
+              trail: 0, neon: 0, wordMice: 0, persist: 0, night: 0,
+              revealed: {} };
   BUILDINGS.forEach(b => m.building[b.id] = 1);
   let globalPct = 0, globalMul = 1;
   for (const u of UPGRADES) {
@@ -1478,7 +1562,10 @@ function foldMods(bought, owned) {
       else if (e.type === "trail") m.trail += e.add;
       // Pure toggle: Counting Mice flips the wall mice on. Folded as a mod (not
       // read by name anywhere) so the same rule feeds the live wall and the sim.
-      else if (e.type === "countMice") m.countMice = 1;
+      else if (e.type === "neon") m.neon = 1;
+      else if (e.type === "wordMice") m.wordMice = 1;
+      else if (e.type === "persist") m.persist += e.add;
+      else if (e.type === "revealBuilding") m.revealed[e.building] = 1;
       // The twist as a folded mod too, so baseCpsWith (which only gets m + owned,
       // not bought) can enforce the dream reset. Agrees with nightOf/nightActive
       // — both derive from the same `night` effect type.
@@ -1499,7 +1586,12 @@ function foldMods(bought, owned) {
 // of what a mods object contains. (Declaration-hoisted, so calling foldMods
 // here is fine.)
 const mods = foldMods({}, game.owned);
-function recalc() { Object.assign(mods, foldMods(game.bought, game.owned)); }
+function recalc() {
+  Object.assign(mods, foldMods(game.bought, game.owned));
+  // Word of Mouse adds nine crews to the cast, so the allocation has to be rebuilt
+  // when it lands. Cheap, and only once the wall exists at all.
+  if (nightInited) rebuildWallCast();
+}
 
 // The night phase is a pure function of the save — no separate flag to persist.
 // Derived from the table (which upgrade DECLARES `type: "night"`) rather than
@@ -1513,8 +1605,23 @@ const NIGHT_KEYS = UPGRADES.filter(u => [].concat(u.effect).some(e => e.type ===
 // player doesn't optimise past them) and by the dev presets (which must never
 // buy them by accident — `night` alone decides whether a preset is a day or a
 // night save).
+// Rows that belong to the night even though their effect isn't a story beat — the
+// night economy's own upgrades. Recognised by unlock chain rather than by key so a
+// new night row needs no edit here: anything gated behind the twist is night's.
+function nightOnlyUnlock(u) {
+  const seen = new Set();
+  let k = u.unlock && u.unlock.requires;
+  while (k && !seen.has(k)) {
+    if (NIGHT_KEYS.includes(k)) return true;
+    seen.add(k);
+    const parent = UPGRADES.find(x => x.key === k);
+    k = parent && parent.unlock && parent.unlock.requires;
+  }
+  return false;
+}
 const isStoryUpgrade = u => [].concat(u.effect).some(e =>
-  e.type === "night" || e.type === "trail" || e.type === "countMice");
+  e.type === "night" || e.type === "trail" || e.type === "neon" ||
+  e.type === "wordMice" || e.type === "persist" || e.type === "revealBuilding");
 function nightOf(bought) { return NIGHT_KEYS.some(k => bought[k]); }
 function nightActive() { return nightOf(game.bought); }
 
@@ -1535,7 +1642,9 @@ function buildingMpsWith(m, b) {
   // Lab (which caused the dream) and the surreal night buildings still run —
   // so a day building's carried-over count sits idle until you wake. Night
   // buildings can't be owned in daylight, so no reverse guard is needed.
-  if (m.night && !b.night && b.id !== "lab") return 0;
+  // Nothing from the day earns at night any more, the Lab included — nightReset
+  // wipes it, so an exemption here would pay out on buildings you no longer own.
+  if (m.night && !b.night) return 0;
   return b.mps * m.building[b.id] * m.globalMult * INCOME_SCALE;
 }
 function baseCpsWith(m, owned) {
@@ -1628,7 +1737,10 @@ function oneEffectText(e) {
     // Must print e.add: the three sleep stages differ ONLY in trail length, so a
     // constant string rendered all of Deep Sleep / REM / Lucid identically.
     case "trail":        return `Dream mice leave ${hl("+" + e.add)} more trail`;
-    case "countMice":    return `The first mice appear on the wall`;
+    case "neon":         return `The lights on the wall turn out to be mice`;
+    case "wordMice":     return `Golden mice join the wall`;
+    case "persist":      return `Dream trails stop fading`;
+    case "revealBuilding": return `Reveals ${hl(buildingName(e.building))}`;
     // THE twist, and the one row whose description is a QUESTION rather than a
     // statement of effect. Everything else here follows the rule that the row
     // tells you what you're buying and the NAME carries the joke; this one is
@@ -1811,8 +1923,43 @@ function buildShop() {
 // Takes (building, state) rather than an index into the live game, so the
 // pacing simulator can ask the real question about its own hypothetical state
 // instead of keeping a copy of this rule that drifts.
+// You don't keep your things in a dream. The flip wipes the day economy outright
+// rather than leaving it owned-but-idle, which read as broken rather than surreal,
+// and it wipes the BANK and the LIFETIME COUNT too so night is a genuine restart
+// rather than a victory lap spending a day-sized fortune.
+//
+// The Lab goes with the rest. It used to be exempt — the building that caused the
+// dream, still running inside it — but exempting one day building meant night opened
+// on ~2750 mps of carried income and the seed holes were decorative. Night now opens
+// on the holes alone.
+//
+// `bought` and `unlocked` survive: they are the record of what the room has figured
+// out, and re-locking day research would read as losing progress. Shared with the
+// pacing sim so both phases agree on what the reset costs.
+function nightReset(s) {
+  s.mice = 0;
+  s.total = 0;
+  for (const b of BUILDINGS) if (!b.night) s.owned[b.id] = 0;
+  s.owned[NIGHT_SEED_ID] += NIGHT_SEED_COUNT;
+}
+
 function isRevealed(b, s) {
-  return s.total >= b.base || s.owned[b.id] > 0;
+  // Day buildings are gone from the rail at night, and this is the one place that
+  // decides it. Without it the day tiers reveal again as night lifetime climbs past
+  // their bases — the pacing bot even re-bought the wiped Lab, chasing Catnap's
+  // already-satisfied owned-a-Lab gate.
+  if (!b.night && nightOf(s.bought)) return false;
+  if (s.owned[b.id] > 0) return true;
+  // Night tiers past the first appear when their research is bought, not when a
+  // lifetime total quietly passes their base — which could not work anyway now that
+  // the flip resets lifetime to zero and the bases are small enough that every tier
+  // would land at once.
+  if (b.gate) return !!s.bought[b.gate];
+  // The seed tier is on the rail from the moment night starts. It cannot use the
+  // lifetime rule either: lifetime is 0 at the flip and this is the only thing that
+  // earns, so gating it on income would deadlock the phase.
+  if (b.night) return nightOf(s.bought);
+  return s.total >= b.base;
 }
 
 // Cookie Clicker shows 2 teasers past your frontier (`lastLocked > 2`); we show
@@ -1834,7 +1981,7 @@ function refreshShop() {
     // Mirror at night: the day mouse-industry vanishes from the shelf (the Lab
     // persists into the dream). Same `gone` skip, so these rows also drop out of
     // the tease counting once night falls.
-    if (!b.night && b.id !== "lab" && nightActive()) {
+    if (!b.night && nightActive()) {
       if (r.gone !== true) { r.el.classList.add("gone"); r.gone = true; }
       continue;
     }
@@ -1927,7 +2074,13 @@ function buy(i) {
 let upRows = new Map(); // key -> {el, can, cost}
 let upSig = "";
 function refreshUpgrades() {
-  const shown = UPGRADES.filter(u => !game.bought[u.key] && isUnlocked(u));
+  // At night the day research is off the rail entirely. The day economy has been
+  // wiped, so those rows would price improvements to buildings you no longer own —
+  // and the twist reads as a fresh start only if the shop looks like one. Mirrors
+  // refreshShop, which already drops the day BUILDINGS at night.
+  const night = nightActive();
+  const shown = UPGRADES.filter(u => !game.bought[u.key] && isUnlocked(u)
+    && (!night || isStoryUpgrade(u) || nightOnlyUnlock(u)));
   const sig = shown.map(u => u.key).join(",");
 
   if (sig !== upSig) {
@@ -2020,10 +2173,9 @@ function buyUpgrade(key) {
   // as an array, and the phase flip would just never fire.
   syncPhase(); // no special-casing the night effect — phase follows the fold
   // The twist just fired LIVE (a real purchase flipped day->night, not a load or
-  // a dev preset — those call syncPhase directly). Take the screen for the beat,
-  // and open the seed dream-holes so night has an income to start from.
+  // a dev preset — those call syncPhase directly). Take the screen for the beat.
   if (!nightBefore && nightActive()) {
-    game.owned[NIGHT_SEED_ID] += NIGHT_SEED_COUNT;
+    nightReset(game);
     recalc();
     runNightCutscene();
   }
@@ -2478,7 +2630,7 @@ goldenEl.addEventListener("pointerdown", e => {
 // per-shape headcounts = WALL_COUNT (the word capped at one mouse per letter),
 // noise = locked 0 (wander() dropped entirely), speed = one uniform WALL.speed,
 // trail = mods.trail from the sleep-stage upgrades, and whether ANY mice show
-// at all is gated on mods.countMice (the Counting Mice research).
+// look like is bought (mods.neon, the Counting Mice research).
 // ---------------------------------------------------------------------------
 // The nine letters' staffing order, and the per-shape headcounts the ramp climbs
 // toward. Both are settled in the lab; see rebuildWallCast for how they combine.
@@ -2515,14 +2667,18 @@ const WALL_CAP = WALL_COUNT_KEYS.reduce((a, k) => a + WALL_COUNT[k], 0);
 const WALL = {
   seed: 7,          // multiplayer will derive this from the room; constant here
   maxMice: WALL_CAP, // the cast is the shapes' own headcounts, not a round number
-  mouseBase: 130000, // first wall mouse climbs on at the night threshold
-  // Re-derived for the smaller cast. At the old 1.09 the ramp finished at ~2.05M
-  // lifetime, so the wall filled up almost immediately and then never changed
-  // again; this puts the last of the 33 mice at LEGIBLE_TOTAL, which is where the
-  // word is supposed to become readable:
-  //   (3.0e7 / 130000) ^ (1/32) = 1.185
-  // Still a derivation rather than a playtested number — tune it.
-  mouseR: 1.185,
+  // Re-derived AGAIN for the night reset. Lifetime is zeroed at the flip now, so the
+  // old 130000 base would have meant an empty wall for most of the phase. Night
+  // lifetime runs 0 -> a few million over ~5 minutes, so the ramp is scaled to that:
+  //   base 2000 (about the first Hole's price) and (1.5e6 / 2000)^(1/32) = 1.23
+  // puts the last of the 33 mice near where the word should become readable.
+  mouseBase: 2000,
+  mouseR: 1.23,
+  // A couple are on the wall the instant night begins, before anything is earned or
+  // bought. They read as two more stars, which is the point: the reveal has to start
+  // from something already present but unreadable, or Counting Mice has nothing to
+  // resolve.
+  startMice: 2,
   speed: 20,        // scene units/sec, ONE rate for every mouse. A ceiling, not
                     // taste: past this they read as streaks instead of mice.
   trailDt: 80,
@@ -2532,56 +2688,58 @@ const WALL = {
 // Takes the total as a parameter so the pacing simulator can ask about
 // hypothetical futures; live callers pass game.total.
 function wallMiceFor(total) {
-  if (total < WALL.mouseBase) return 0;
-  return Math.min(WALL.maxMice,
-    1 + Math.floor(Math.log(total / WALL.mouseBase) / Math.log(WALL.mouseR)));
+  const n = total < WALL.mouseBase ? 0
+    : 1 + Math.floor(Math.log(total / WALL.mouseBase) / Math.log(WALL.mouseR));
+  return Math.min(WALL.maxMice, Math.max(WALL.startMice, n));
 }
-// Live count is gated on the Counting Mice research: no mice appear on the wall
-// until it's bought, even once lifetime total is past mouseBase. wallMiceFor
-// stays pure (total -> count) for the sim's milestone log; the gate lives here.
-function wallMiceCount() { return mods.countMice ? wallMiceFor(game.total) : 0; }
+// No research gate any more. The mice are on the wall from the moment night starts —
+// Counting Mice buys what they LOOK like, not whether they exist — so the count is a
+// pure function of night lifetime and the phase.
+function wallMiceCount() { return nightActive() ? wallMiceFor(game.total) : 0; }
 
-// "The word is legible" as a checkable economy state: the mice turned on
-// (Counting Mice), every trail stage bought, AND lifetime total at this
-// threshold (= the `legible` dev preset, ~68 of 90 wall mice). The wall renders
-// as a pure function of (total, trail, countMice), so this trio IS legibility —
-// there's no separate ink meter to simulate.
-// TRAIL_FULL sums the table instead of naming the last upgrade in the chain:
-// naming `luciddreaming` would only mean "all of them" because the rows happen
-// to chain via `requires`, so adding a stage or reordering would have made the
-// simulator declare legibility early and report a confidently wrong time.
-// countMice is checked explicitly too (not left implied by the chain) — no
-// mice, no word, no matter how full the trails would be.
-// LEGIBLE_TOTAL was calibrated by screenshotting the live wall across the OLD
-// mouse curve — 50 unreadable, 55 borderline, 59 the first clean read, 64
-// unambiguous of 90 — and set at 64 mice for margin. That calibration is VOID: the
-// cast is 33 mice now, the word carries 9 of them rather than ~19, and word trails
-// are a 1.8 hairline rather than 5px. It is kept as the point where the mouse ramp
-// finishes (mouseR is derived against it) and still needs re-deriving by eye.
-const LEGIBLE_TOTAL = 3.0e7;
+// "The word is legible" as a checkable state, computed from the SAME quantity the
+// wall actually draws rather than from a hand-set trail number.
+//
+// Coverage is word ink laid inside the visible window over the word's total ink:
+//   wordMice * (WALL.speed / 1000) * visibleMs / WORD_INK
+// and the 1-stroke word needs ~1.6 of it to read unambiguously, because a partial
+// centreline reads as a DIFFERENT letter (T->F, N->I, O->C, H->F) where the old
+// raster tour still shaded a recognisable patch.
+//
+// visibleMs is the rolling trail PLUS Scent Trail's persistence. Persisting ink
+// decays as 2^(-t/half), whose integral is half/ln2 ms of full-strength equivalent,
+// so that is what it contributes. Measured with the whole ladder owned: trail alone
+// reaches 1.32 and Scent Trail is what tips it to 1.91 — the persistence upgrade is
+// load-bearing for legibility, not a garnish.
+//
+// The previous version hard-coded "trail >= 119" AND checked m.countMice, an effect
+// type that no longer exists — so it silently evaluated to undefined and the pacing
+// sim could never report a legible time. Deriving it removes that failure mode.
+// Scent Trail's decay: ms of half-life per unit of `persist`. At 60 that is a 2.4s
+// half-life, which reads as the wall holding a drawing rather than a comet tail.
+const WALL_PERSIST_MS = 40;
+const LEGIBLE_COV = 1.6;
+// The word's total ink in scene units. Measured off the live wall (1067 for the wide
+// cut at this layout) rather than sampled at boot, because the pacing sim runs long
+// before loadWallScene has built any tours. Re-measure if the typeface or layout
+// moves: `WALL_WORD_INK` is the live value.
+const WORD_INK_EST = 1067;
 const TRAIL_FULL = UPGRADES.flatMap(u => [].concat(u.effect))
   .filter(e => e.type === "trail").reduce((a, e) => a + e.add, 0);
-// The OPTICAL requirement, which the economy currently cannot meet.
-//
-// Coverage — word ink laid inside the trail window, over the word's total ink — is
-//   mice * (WALL.speed / 1000) * (trail * WALL.trailDt) / WALL_WORD_INK
-// and the 1-stroke word needs ~1.6 of it to read unambiguously (a partial
-// centreline reads as a DIFFERENT letter: T->F, N->I, O->C, H->F). With 9 word
-// mice, speed 20 and this scene's word ink that solves to trail 119, measured
-// against the live wall.
-//
-// TRAIL_FULL is 35. So owning every trail stage in the game reaches coverage 0.47,
-// less than a third of what the word needs, and the wall CANNOT currently become
-// legible. isLegible checks this explicitly rather than trusting TRAIL_FULL, so the
-// pacing sim reports "never legible" (legibleAt null -> capped) instead of naming a
-// time at which the word is in fact still unreadable. Closing the gap is a trail-
-// upgrade design job: ~3.4x more trail in total, whether as bigger rungs on the
-// three existing stages or as more rungs.
-const WALL_TRAIL_FOR_LEGIBLE = 119;
+// How many of the nine golden mice are on the wall at a given lifetime total. The
+// cast interleaves colours by how full each one is, so at N of WALL_CAP mice roughly
+// N/WALL_CAP of every colour's quota has arrived.
+function wordMiceFor(total) {
+  return Math.floor(WALL_COUNT.yellow * wallMiceFor(total) / WALL_CAP);
+}
+function wallCoverage(m, total) {
+  if (!m.night || !m.wordMice) return 0;
+  const visibleMs = m.trail * WALL.trailDt
+    + (m.persist > 0 ? m.persist * WALL_PERSIST_MS / Math.LN2 : 0);
+  return wordMiceFor(total) * (WALL.speed / 1000) * visibleMs / WORD_INK_EST;
+}
 function isLegible(s) {
-  const m = foldMods(s.bought, s.owned);
-  return m.countMice && m.trail >= TRAIL_FULL
-      && m.trail >= WALL_TRAIL_FOR_LEGIBLE && s.total >= LEGIBLE_TOTAL;
+  return wallCoverage(foldMods(s.bought, s.owned), s.total) >= LEGIBLE_COV;
 }
 
 // Colors come from the shared MOUSE_COLORS table (see spawnMousePop) — the
@@ -2975,6 +3133,9 @@ const MOON_SCENE = {
 })();
 
 const wallCv = $("#wall"), wctx = wallCv.getContext('2d');
+// Offscreen layer for Scent Trail's persisting ink (see drawWall).
+const inkCv = document.createElement('canvas');
+const inkCtx = inkCv.getContext('2d');
 let wW = 0, wH = 0;
 // Scene->screen mapping is constant between resizes, so it's computed here
 // rather than inside wallSceneMap — that ran ~400k times/sec at full night
@@ -2986,6 +3147,12 @@ function resizeWall() {
   wW = wallCv.clientWidth; wH = wallCv.clientHeight;
   wallCv.width = Math.round(wW * dpr); wallCv.height = Math.round(wH * dpr);
   wctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  inkCv.width = wallCv.width; inkCv.height = wallCv.height;
+  inkCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // The layer is reallocated, so the record is gone and every mouse's last position
+  // is stale; without this the first post-resize frame draws one long false streak.
+  wallInkDirty = false;
+  for (const m of wallCast) m.lx = undefined;
   wallScale = Math.min(wW / 390, wH / 620);
   wallOffX = (wW - 390 * wallScale) / 2;
   wallOffY = (wH - 620 * wallScale) / 2;
@@ -3061,12 +3228,16 @@ function loadWallScene() {
 //    rather than one colour completing before the next begins.
 function rebuildWallCast() {
   wallCast = [];
-  const byColor = new Map(WALL_COUNT_KEYS.map(k => [MOUSE_COLORS[k], []]));
+  // Word of Mouse gates the golden crews out of the CAST, not just out of the
+  // drawing: before it there are no yellow mice to allocate, so the scenery colours
+  // get the whole headcount and the wall still looks populated.
+  const keys = WALL_COUNT_KEYS.filter(k => k !== 'yellow' || mods.wordMice);
+  const byColor = new Map(keys.map(k => [MOUSE_COLORS[k], []]));
   WALL_CREWS.forEach((c, idx) => { const g = byColor.get(c.color); if (g) g.push(idx); });
   const PAD = 14;
   // Per colour, the sequence of crews its mice join, in order.
   const queues = new Map();
-  for (const key of WALL_COUNT_KEYS) {
+  for (const key of keys) {
     const crews = byColor.get(MOUSE_COLORS[key]);
     if (!crews || !crews.length) continue;
     const want = WALL_COUNT[key];
@@ -3093,10 +3264,10 @@ function rebuildWallCast() {
     queues.set(key, seq.map(k => crews[k]));
   }
   // Interleave: repeatedly take from whichever colour is least full.
-  const taken = new Map(WALL_COUNT_KEYS.map(k => [k, 0]));
+  const taken = new Map(keys.map(k => [k, 0]));
   for (let i = 0; i < WALL_CAP; i++) {
     let pick = null, worst = Infinity;
-    for (const key of WALL_COUNT_KEYS) {
+    for (const key of keys) {
       const q = queues.get(key);
       if (!q || taken.get(key) >= q.length) continue;
       const filled = taken.get(key) / q.length;
@@ -3210,10 +3381,64 @@ function drawWallMouse(x, y, color, r, angle) {
 
 // Reused scratch points for the per-frame position math (see wallPosAt).
 const wallHead = { x: 0, y: 0 }, wallScratch = { x: 0, y: 0 };
+// Pre-Counting-Mice: a drifting light. Colourless and shapeless on purpose, so it
+// sits among the starfield rather than announcing itself as a creature.
+const WALL_POINT_COLOR = '#e9edf7';
+function drawWallPoint(x, y) {
+  wctx.globalAlpha = 0.28;
+  wctx.beginPath(); wctx.arc(x, y, 3.4, 0, 6.283);
+  wctx.fillStyle = WALL_POINT_COLOR; wctx.fill();
+  wctx.globalAlpha = 1;
+  wctx.beginPath(); wctx.arc(x, y, 1.5, 0, 6.283);
+  wctx.fillStyle = WALL_POINT_COLOR; wctx.fill();
+}
+let wallInkDirty = false, wallLastNow = 0;
 function drawWall(now) {
   if (!wW) resizeWall();
+  // Clamped to the cast, not just to WALL_CAP: before Word of Mouse the golden crews
+  // are not allocated at all, so the cast is 24 rather than 33 while the ramp still
+  // counts toward 33 — and the extra indices were undefined.
+  const N = Math.min(wallMiceCount(), wallCast.length);
+  const dt = wallLastNow ? Math.min(now - wallLastNow, 100) : 16;
+  wallLastNow = now;
+  const neon = !!mods.neon;
+
+  // SCENT TRAIL. The rolling trail is redrawn from scratch every frame and so can
+  // never accumulate; persistence needs a layer that survives the frame. It has to
+  // be a SEPARATE surface: the mice are redrawn every frame too, and anything
+  // surviving on the main canvas would smear their bodies into blobs instead of
+  // leaving a line behind them.
+  //
+  // Only ONE segment per mouse per frame goes onto it — where it actually moved —
+  // not the whole rolling tail. Redrawing the tail into an accumulating layer
+  // saturates the same pixels to opaque within a few frames.
+  if (mods.persist > 0 && N && WALL_CREWS.length) {
+    const fade = 1 - Math.pow(2, -dt / (mods.persist * WALL_PERSIST_MS));
+    inkCtx.globalCompositeOperation = 'destination-out';
+    inkCtx.fillStyle = `rgba(0,0,0,${fade})`;
+    inkCtx.fillRect(0, 0, wW, wH);
+    inkCtx.globalCompositeOperation = 'source-over';
+    inkCtx.lineWidth = WALL_INK_W; inkCtx.lineCap = 'round';
+    inkCtx.globalAlpha = 0.5;
+    for (let i = 0; i < N; i++) {
+      const m = wallCast[i];
+      wallPosAt(m, now, wallHead);
+      if (m.lx !== undefined && Math.abs(wallHead.x - m.lx) <= 16 && Math.abs(wallHead.y - m.ly) <= 16) {
+        inkCtx.strokeStyle = neon ? m.color : WALL_POINT_COLOR;
+        inkCtx.beginPath(); inkCtx.moveTo(m.lx, m.ly); inkCtx.lineTo(wallHead.x, wallHead.y); inkCtx.stroke();
+      }
+      m.lx = wallHead.x; m.ly = wallHead.y;
+    }
+    inkCtx.globalAlpha = 1;
+    wallInkDirty = true;
+  } else if (wallInkDirty) {
+    inkCtx.clearRect(0, 0, wW, wH);
+    for (const m of wallCast) m.lx = undefined;
+    wallInkDirty = false;
+  }
+
   wctx.clearRect(0, 0, wW, wH);
-  const N = wallMiceCount();
+  if (wallInkDirty) wctx.drawImage(inkCv, 0, 0, wW, wH);
   if (!N || !WALL_CREWS.length) return;
   const trailN = mods.trail, maxSeg = 16;
   // lineCap is invariant across every mouse and segment — set once per frame,
@@ -3231,6 +3456,7 @@ function drawWall(now) {
     if (trailN > 0) {
       wctx.strokeStyle = m.color; // invariant across this mouse's segments
       wctx.lineWidth = WALL_INK_W;
+      wctx.strokeStyle = neon ? m.color : WALL_POINT_COLOR;
       let px = wallHead.x, py = wallHead.y;
       for (let j = 1; j <= trailN; j++) {
         const p = wallPosAt(m, now - j * WALL.trailDt, wallScratch);
@@ -3256,15 +3482,16 @@ function drawWall(now) {
       if (m.dirX === undefined) { m.dirX = ux; m.dirY = uy; }
       else { m.dirX += (ux - m.dirX) * HEADING_EASE; m.dirY += (uy - m.dirY) * HEADING_EASE; }
     }
-    drawWallMouse(wallHead.x, wallHead.y, m.color, 3.1,
-                  m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX));
+    if (neon) drawWallMouse(wallHead.x, wallHead.y, m.color, 3.1,
+                            m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX));
+    else drawWallPoint(wallHead.x, wallHead.y);
   }
   // NOTE: legibility detection lived here and existed only to print the proctor
   // line. Removed with the text rather than left as dead code. The wall simply
   // becoming readable is the signal now. If the design doc's "gentle one-time
   // shimmer" gets built, the formula to re-add is the one behind
-  // WALL_TRAIL_FOR_LEGIBLE: word mice x (WALL.speed/1000) x trail ms /
-  // WALL_WORD_INK, crossing ~1.6.
+  // wallCoverage(): word mice x (WALL.speed/1000) x visible ms / word ink,
+  // crossing LEGIBLE_COV.
 }
 
 let nightInited = false;
@@ -3708,7 +3935,7 @@ const DEV_PRESETS = {
   "night":    { total: 450000, mice: 900000, clicks: 550, golden: 3,
                 owned: { shopper: 25, farm: 40, factory: 5, lab: 2 },
                 bought: ["catnap"] },
-  "legible":  { total: LEGIBLE_TOTAL, mice: 6e6, clicks: 1000, golden: 6,
+  "legible":  { total: 3e6, mice: 6e6, clicks: 1000, golden: 6,
                 owned: { shopper: 25, farm: 40, factory: 5, lab: 2, portal: 12, timemachine: 4 },
                 bought: ["catnap", "countingmice", "deepsleep", "remsleep", "luciddreaming"] },
 };
@@ -3805,7 +4032,7 @@ function devContentHTML() {
 // it. A greedy bot plays the REAL rules (foldMods / unlockMet / costOf /
 // wallMiceFor are shared, not copied — if the economy changes, the sim follows)
 // at a fixed pets/sec and reports a timestamped milestone timeline up to
-// legibility (isLegible: Counting Mice + all trail stages + LEGIBLE_TOTAL).
+// legibility (isLegible: coverage >= LEGIBLE_COV, see wallCoverage).
 //
 // What it models:
 //   - income integrated at 0.25s steps; petting at a steady `pps` pets/sec
@@ -3838,7 +4065,7 @@ function simulateRun(opts = {}) {
   const buyableB = b => {
     const night = nightOf(s.bought);
     if (b.night) return night && isRevealed(b, s);
-    if (b.id !== "lab" && night) return false;
+    if (night) return false;
     return isRevealed(b, s);
   };
   const isStory = isStoryUpgrade;
@@ -3852,10 +4079,13 @@ function simulateRun(opts = {}) {
   // because it's the strange expensive new thing that lights up four upgrade
   // rows. Derived from the table rather than naming "lab", so moving the gate to
   // another building needs no edit here.
-  const storyBuildings = {};
+  // Keyed by the gating upgrade, so a gate stops being chased once its upgrade is
+  // bought. Catnap's owned-a-Lab gate outlives the purchase otherwise, and since the
+  // reset wipes the Lab the bot would buy one again every night.
+  const storyGates = [];
   for (const u of UPGRADES) {
-    if (!isStory(u) || !u.unlock.owned) continue;
-    for (const [id, n] of ownedPairs(u.unlock)) storyBuildings[id] = Math.max(storyBuildings[id] || 0, n);
+    if (!isStory(u) || !u.unlock || !u.unlock.owned) continue;
+    for (const [id, n] of ownedPairs(u.unlock)) storyGates.push({ key: u.key, id, n });
   }
 
   // Goldens are off the table until the first one is due. Uses the midpoint of
@@ -3899,15 +4129,17 @@ function simulateRun(opts = {}) {
       if (s.mice >= u.cost) {
         s.mice -= u.cost; s.bought[u.key] = 1; log(`★ ${u.name}`);
         // Match the live seed: the twist opens a few dream-holes to bootstrap night.
-        if ([].concat(u.effect).some(e => e.type === "night")) s.owned[NIGHT_SEED_ID] += NIGHT_SEED_COUNT;
+        // Same wipe the live buy applies, so the sim's night is the real one.
+        if ([].concat(u.effect).some(e => e.type === "night")) nightReset(s);
       }
       else goalGap = Math.max(goalGap, u.cost - s.mice);
     }
     // ...and the buildings those story upgrades gate on, on the same terms:
     // bought on sight once revealed, saved for while out of reach.
-    for (const id in storyBuildings) {
-      const b = BUILDINGS.find(x => x.id === id);
-      while (s.owned[id] < storyBuildings[id] && isRevealed(b, s)) {
+    for (const g of storyGates) {
+      if (s.bought[g.key]) continue;
+      const b = BUILDINGS.find(x => x.id === g.id), id = g.id;
+      while (s.owned[id] < g.n && isRevealed(b, s)) {
         const cost = costOf(b, s.owned[id]);
         if (s.mice < cost) { goalGap = Math.max(goalGap, cost - s.mice); break; }
         s.mice -= cost; s.owned[id]++;
@@ -3930,6 +4162,10 @@ function simulateRun(opts = {}) {
       }
       for (const u of UPGRADES) {
         if (s.bought[u.key] || isStory(u) || !unlockMet(u, s)) continue;
+        // Day research is off the rail at night (refreshUpgrades hides it), and the
+        // day economy it improves has been wiped, so the bot must not spend on it
+        // either — otherwise the sim's night is paying for buildings it doesn't own.
+        if (nightOf(s.bought) && !nightOnlyUnlock(u)) continue;
         s.bought[u.key] = 1; const gain = rates(s.bought, s.owned).all - r0.all; delete s.bought[u.key];
         if (gain <= 0) continue;  // e.g. click upgrades at pps=0
         const score = Math.max(0, (u.cost - s.mice) / r0.all) + u.cost / gain;

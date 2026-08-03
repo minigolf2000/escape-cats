@@ -1893,16 +1893,56 @@ goldenEl.addEventListener("pointerdown", e => {
 // with one exception: each mouse carries a smoothed heading vector for its
 // facing, which is cosmetic and re-converges within a few frames. Lab knobs map to game
 // state — mice N = f(lifetime total) via the locked geometric accumulator,
-// word% = hardcoded constant, noise = locked 0 (wander() dropped entirely),
+// per-shape headcounts = WALL_COUNT (the word capped at one mouse per letter),
+// noise = locked 0 (wander() dropped entirely), speed = one uniform WALL.speed,
 // trail = mods.trail from the sleep-stage upgrades, and whether ANY mice show
 // at all is gated on mods.countMice (the Counting Mice research).
 // ---------------------------------------------------------------------------
+// The nine letters' staffing order, and the per-shape headcounts the ramp climbs
+// toward. Both are settled in the lab; see rebuildWallCast for how they combine.
+//
+// REVEAL_ORDER indexes the word's visible letters, spaces excluded. It is stored
+// ZERO-based while it was chosen against 1-based positions, so both are written out
+// to stop the two being confused:
+//
+//     1 2   3 4 5   6 7 8 9      <- as chosen: 5 8 1 4 9 3 2 7 6
+//     0 1   2 3 4   5 6 7 8      <- as indexed below
+//     T O   T H E   M O O N
+//
+// which stages as
+//
+//     1: ·· ··E ····      6: T· THE ··ON
+//     2: ·· ··E ··O·      7: TO THE ··ON
+//     3: T· ··E ··O·      8: TO THE ·OON
+//     4: T· ·HE ··O·      9: TO THE MOON
+//     5: T· ·HE ··ON
+//
+// The goal is to delay the moment a team can GUESS the rest, which is not the same
+// as revealing slowly. It INTERLEAVES the two lines so neither word completes until
+// step 6 (a finished word is a hard constraint on the phrase); it opens on the
+// cheapest letters, E being the commonest in English and a medial O the answer
+// word's least distinctive; and it holds M for last rather than N, which is the
+// counter-intuitive part and worth measurable difficulty — at step 8 the board
+// reads "?OON", admitting boon, coon, goon, loon, moon, noon, soon and toon, where
+// "MOO?" would admit only mood, moon, moor, moot and moos.
+const REVEAL_ORDER = [4, 7, 0, 3, 8, 2, 1, 6, 5];
+const WALL_COUNT = { yellow: 9, pink: 10, blue: 4, green: 4, purple: 6 };
+const WALL_COUNT_KEYS = ['yellow', 'pink', 'blue', 'green', 'purple'];
+const WALL_CAP = WALL_COUNT_KEYS.reduce((a, k) => a + WALL_COUNT[k], 0);
+
 const WALL = {
   seed: 7,          // multiplayer will derive this from the room; constant here
-  wordPct: 30,      // hardcoded by design — tune against playtests
-  maxMice: 90,      // the lab's full cast
+  maxMice: WALL_CAP, // the cast is the shapes' own headcounts, not a round number
   mouseBase: 130000, // first wall mouse climbs on at the night threshold
-  mouseR: 1.09,      // per-mouse geometric step on lifetime total — a GUESS
+  // Re-derived for the smaller cast. At the old 1.09 the ramp finished at ~2.05M
+  // lifetime, so the wall filled up almost immediately and then never changed
+  // again; this puts the last of the 33 mice at LEGIBLE_TOTAL, which is where the
+  // word is supposed to become readable:
+  //   (3.0e7 / 130000) ^ (1/32) = 1.185
+  // Still a derivation rather than a playtested number — tune it.
+  mouseR: 1.185,
+  speed: 20,        // scene units/sec, ONE rate for every mouse. A ceiling, not
+                    // taste: past this they read as streaks instead of mice.
   trailDt: 80,
 };
 // Locked formula shape: mouse k climbs on when lifetime total ever crossed
@@ -1930,37 +1970,59 @@ function wallMiceCount() { return mods.countMice ? wallMiceFor(game.total) : 0; 
 // simulator declare legibility early and report a confidently wrong time.
 // countMice is checked explicitly too (not left implied by the chain) — no
 // mice, no word, no matter how full the trails would be.
-// Re-measured for the 1-stroke word source by screenshotting the live wall
-// across the mouse curve: 50 mice unreadable, 55 borderline (the H loses its
-// left stem), 59 the first clean read, 64 unambiguous. Set at 64 mice for
-// margin — a room can't be asked to squint at the answer. Down from 4.5e7,
-// which the old raster source needed, so the run gets shorter rather than
-// being retuned to hold the old beat.
+// LEGIBLE_TOTAL was calibrated by screenshotting the live wall across the OLD
+// mouse curve — 50 unreadable, 55 borderline, 59 the first clean read, 64
+// unambiguous of 90 — and set at 64 mice for margin. That calibration is VOID: the
+// cast is 33 mice now, the word carries 9 of them rather than ~19, and word trails
+// are a 1.8 hairline rather than 5px. It is kept as the point where the mouse ramp
+// finishes (mouseR is derived against it) and still needs re-deriving by eye.
 const LEGIBLE_TOTAL = 3.0e7;
 const TRAIL_FULL = UPGRADES.flatMap(u => [].concat(u.effect))
   .filter(e => e.type === "trail").reduce((a, e) => a + e.add, 0);
+// The OPTICAL requirement, which the economy currently cannot meet.
+//
+// Coverage — word ink laid inside the trail window, over the word's total ink — is
+//   mice * (WALL.speed / 1000) * (trail * WALL.trailDt) / WALL_WORD_INK
+// and the 1-stroke word needs ~1.6 of it to read unambiguously (a partial
+// centreline reads as a DIFFERENT letter: T->F, N->I, O->C, H->F). With 9 word
+// mice, speed 20 and this scene's word ink that solves to trail 119, measured
+// against the live wall.
+//
+// TRAIL_FULL is 35. So owning every trail stage in the game reaches coverage 0.47,
+// less than a third of what the word needs, and the wall CANNOT currently become
+// legible. isLegible checks this explicitly rather than trusting TRAIL_FULL, so the
+// pacing sim reports "never legible" (legibleAt null -> capped) instead of naming a
+// time at which the word is in fact still unreadable. Closing the gap is a trail-
+// upgrade design job: ~3.4x more trail in total, whether as bigger rungs on the
+// three existing stages or as more rungs.
+const WALL_TRAIL_FOR_LEGIBLE = 119;
 function isLegible(s) {
   const m = foldMods(s.bought, s.owned);
-  return m.countMice && m.trail >= TRAIL_FULL && s.total >= LEGIBLE_TOTAL;
+  return m.countMice && m.trail >= TRAIL_FULL
+      && m.trail >= WALL_TRAIL_FOR_LEGIBLE && s.total >= LEGIBLE_TOTAL;
 }
 
 // Colors come from the shared MOUSE_COLORS table (see spawnMousePop) — the
 // wall used to keep its own separate palette object; deleted in favor of one
 // source of truth. Usage here is fixed-per-role, not random: see loadWallScene.
-// Fraction of the word's ink laid per ms — the legibility formula's input, and
-// the knob that decides how many mice it takes to read the word. Raised 2.2e-5
-// -> 3.3e-5 when the word moved to the 1-stroke source, because the two sources
-// FAIL differently: the old raster tour zigzagged across a filled glyph, so a
-// partial trail still shaded a recognisable 2D patch of the letter. A 1-stroke
-// tour is a centreline, so a partial trail draws a partial LETTER — and a
-// partial clean letter reads as a different letter (T->F, N->I, O->C, H->F).
-// Measured: unambiguous at coverage ~1.7 where the old source got by on ~1.2.
-// Coverage is linear in this, so 1.5x buys that back at the same mouse count.
-// Costs 1.5x word patrol speed (14.1 -> 21.2 tour-points/sec), which keeps the
-// turn rate near the scenery's and leaves the trail step at ~1.5px vs maxSeg 16.
-const WORD_PPMS_FRAC = 3.3e-5;
-const SCENE_PPMS = 0.004;      // scenery patrol speed, tour-points per ms
-const WORD_INK_W = 5;          // word trail width; scenery stays a 1.8 hairline
+//
+// SPEED AND INK WIDTH, both settled in the lab:
+//
+// The word and the scenery used to be paced by different rules, which made mice
+// visibly unequal. The word advanced by a fraction of the WHOLE WORD's ink per ms,
+// so all nine letters finished together, but because letter tours are sampled at a
+// fixed 4 units and then scaled to letter size, MOON's points sit 2.23 units apart
+// against 0.95 for TO THE — an identical 23 points/sec came out ~56 units/sec
+// across MOON and ~24 across TO THE, with the scenery at ~26. Now there is ONE
+// speed (WALL.speed) and each crew converts it through its own point spacing, so
+// the rate is uniform on screen. The cost, stated plainly: LETTERS NO LONGER
+// FINISH TOGETHER — a MOON letter is ~2.3x the ink of a TO THE letter and takes
+// ~2.3x as long to draw.
+//
+// Word trails were 5px against a 1.8 hairline for scenery. They are now the same
+// 1.8 as everything else: the word has to earn legibility from trail LENGTH rather
+// than from being painted fatter than the scene around it.
+const WALL_INK_W = 1.8;        // one hairline for every trail, word and scenery
 const HEADING_DT = 16;         // ms back-sample for facing direction (~1 frame at 60fps)
 const HEADING_EASE = 0.25;     // per-frame lerp toward the new heading vector
 
@@ -2073,26 +2135,52 @@ function components(polys) {
   }
   return [...groups.values()].map(chainPolys);
 }
-// Chain a group's subpaths end-to-nearest-end (reversing where that's closer) so
-// the patrol's glides between them stay short. Shared with the 1-stroke glyphs,
-// whose multi-subpath letters want exactly the same treatment.
+// Chain a group's subpaths into ONE walkable tour. A mouse interpolates between
+// consecutive tour points at a constant index rate, so any gap in the point
+// sequence is walked as a straight line at whatever speed the gap demands — a
+// visible jump across empty space. Joining subpaths end-to-nearest-end leaves
+// exactly such a gap at every seam, and the seams can be enormous: the comet's
+// tail strands all begin at the nucleus, so finishing one leaves the pen a
+// frame-width from where the next starts.
+//
+// So a mouse BACKTRACKS instead. Before starting the next subpath, retrace back
+// along the tour already emitted to whichever point sits closest to the new
+// subpath's start. Retracing costs nothing visually — the mouse is re-walking a
+// line its crew has already inked — and it leaves only a residual hop of at most
+// about JOIN_R, the same threshold that decided these subpaths were one shape.
+//
+// Rejoining within JOIN_R is a HARD FILTER and shortest-retrace-first breaks the
+// tie; it is deliberately not a cost function balancing the two, since trading a
+// long retrace for a shorter leap is exactly the jump this removes. Picking purely
+// by proximity instead compounds quadratically, because retracing to an arbitrary
+// point re-walks everything in between — on the Big Dipper that grew the tour to
+// 8196 points, a lap no mouse would finish. Shared with the 1-stroke glyphs, whose
+// deliberate retraces arrive as subpaths with coincident endpoints, where both the
+// retrace and the hop are zero-length and this reduces to plain concatenation.
 function chainPolys(g) {
   const restList = [...g];
-  const outPolys = [restList.shift()];
+  let out = [...restList.shift()];
+  const d2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
   while (restList.length) {
-    const tail = outPolys[outPolys.length - 1];
-    const end = tail[tail.length - 1];
-    let bi = 0, brev = false, bd = Infinity;
+    let bi = 0, brev = false, bj = out.length - 1;
+    let bBack = Infinity, bHop = Infinity;
     restList.forEach((p, i) => {
-      const d0 = (p[0].x - end.x) ** 2 + (p[0].y - end.y) ** 2;
-      const d1 = (p[p.length - 1].x - end.x) ** 2 + (p[p.length - 1].y - end.y) ** 2;
-      if (d0 < bd) { bd = d0; bi = i; brev = false; }
-      if (d1 < bd) { bd = d1; bi = i; brev = true; }
+      const heads = [p[0], p[p.length - 1]];
+      for (let h = 0; h < 2; h++) {
+        for (let j = 0; j < out.length; j++) {
+          const hop = d2(heads[h], out[j]), back = out.length - 1 - j;
+          const near = hop <= JOIN_R * JOIN_R, bestNear = bHop <= JOIN_R * JOIN_R;
+          const better = near !== bestNear ? near
+                       : near ? (back < bBack) : (hop < bHop);
+          if (better) { bBack = back; bHop = hop; bi = i; brev = h === 1; bj = j; }
+        }
+      }
     });
+    for (let k = out.length - 2; k >= bj; k--) out.push(out[k]);
     const nxt = restList.splice(bi, 1)[0];
-    outPolys.push(brev ? [...nxt].reverse() : nxt);
+    out = out.concat(brev ? [...nxt].reverse() : nxt);
   }
-  return outPolys.flat();
+  return out;
 }
 // Does this tour end where it started? A closed tour (a glyph's O, a die pip, a
 // free star, the ringed planet's disc) has no wrap discontinuity, so its crew
@@ -2111,11 +2199,6 @@ function tourIsClosed(tour) {
   const step = sum / (L - 1);
   if (!(step > 0)) return false;
   return Math.hypot(tour[0].x - tour[L - 1].x, tour[0].y - tour[L - 1].y) <= step * 0.5;
-}
-function star4(x, cx, cy, r) {
-  x.moveTo(cx, cy - r); x.quadraticCurveTo(cx, cy, cx + r, cy);
-  x.quadraticCurveTo(cx, cy, cx, cy + r); x.quadraticCurveTo(cx, cy, cx - r, cy);
-  x.quadraticCurveTo(cx, cy, cx, cy - r);
 }
 
 // ---------------------------------------------------------------------------
@@ -2139,26 +2222,23 @@ function star4(x, cx, cy, r) {
 // through its own centre three times. The patrol makes retraces free — the
 // mouse was going to come back this way regardless. O is authored closed, so
 // tourIsClosed() picks it up and its crew circles instead of ping-ponging.
+//
+// The WIDE cut, settled in the lab against narrower and squarer faces. Under the
+// uniform speed below this is NOT a free choice: a wider face is more ink to walk
+// at a fixed rate, so it both draws each letter slower and lowers the legibility
+// number. S/I/X/D are gone with the six-sided scene that needed them; the word is
+// the only thing this alphabet has to set.
 const GLYPHS = {
-  'T': { w: 62, draw(x) { x.moveTo(0, 0); x.lineTo(62, 0); x.lineTo(31, 0); x.lineTo(31, 100); } },
-  'O': { w: 68, draw(x) { x.moveTo(68, 50); x.ellipse(34, 50, 34, 50, 0, 0, 6.283); } },
-  'H': { w: 64, draw(x) { x.moveTo(0, 0); x.lineTo(0, 100); x.lineTo(0, 50);
-                          x.lineTo(64, 50); x.lineTo(64, 0); x.lineTo(64, 100); } },
-  'E': { w: 58, draw(x) { x.moveTo(58, 0); x.lineTo(0, 0); x.lineTo(0, 50); x.lineTo(46, 50);
-                          x.lineTo(0, 50); x.lineTo(0, 100); x.lineTo(58, 100); } },
-  'M': { w: 76, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(38, 58);
-                          x.lineTo(76, 0); x.lineTo(76, 100); } },
-  'N': { w: 66, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(66, 100); x.lineTo(66, 0); } },
-  'S': { w: 60, draw(x) { x.moveTo(56, 16); x.bezierCurveTo(46, 0, 8, 0, 6, 24);
-                          x.bezierCurveTo(4, 45, 52, 47, 54, 70);
-                          x.bezierCurveTo(56, 96, 14, 100, 2, 82); } },
-  'I': { w: 20, draw(x) { x.moveTo(10, 0); x.lineTo(10, 100); } },
-  'X': { w: 64, draw(x) { x.moveTo(0, 0); x.lineTo(32, 50); x.lineTo(64, 0); x.lineTo(32, 50);
-                          x.lineTo(0, 100); x.lineTo(32, 50); x.lineTo(64, 100); } },
-  'D': { w: 66, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0);
-                          x.bezierCurveTo(54, 0, 70, 24, 66, 50);
-                          x.bezierCurveTo(62, 76, 44, 100, 0, 100); } },
-  ' ': { w: 34, draw() {} },
+  'T': { w: 78, draw(x) { x.moveTo(0, 0); x.lineTo(78, 0); x.lineTo(39, 0); x.lineTo(39, 100); } },
+  'O': { w: 88, draw(x) { x.moveTo(88, 50); x.ellipse(44, 50, 44, 50, 0, 0, 6.283); } },
+  'H': { w: 80, draw(x) { x.moveTo(0, 0); x.lineTo(0, 100); x.lineTo(0, 50);
+                          x.lineTo(80, 50); x.lineTo(80, 0); x.lineTo(80, 100); } },
+  'E': { w: 72, draw(x) { x.moveTo(72, 0); x.lineTo(0, 0); x.lineTo(0, 50); x.lineTo(58, 50);
+                          x.lineTo(0, 50); x.lineTo(0, 100); x.lineTo(72, 100); } },
+  'M': { w: 96, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(48, 56);
+                          x.lineTo(96, 0); x.lineTo(96, 100); } },
+  'N': { w: 82, draw(x) { x.moveTo(0, 100); x.lineTo(0, 0); x.lineTo(82, 100); x.lineTo(82, 0); } },
+  ' ': { w: 40, draw() {} },
 };
 // Wider than a text font's tracking would be: these are single hairline strokes
 // that the trail then inks to roughly a letter's stroke width, so adjacent
@@ -2201,46 +2281,102 @@ function sampleStrokeWord(word) {
   return { letters, w: (x1 - x0) * k, h: (y1 - y0) * k };
 }
 
-// TO THE MOON — the committed scene (see hex-clicker-design.md)
+// ---------------------------------------------------------------------------
+// TO THE MOON — the committed scene, settled in the Reveal Lab.
+//
+// Every element pairs a LONG structure with a compact payload. Mice tracing long
+// shapes is what makes the reveal a mystery; a compact shape resolves the instant
+// a mouse laps it. But space is mostly empty and its bodies are localized, so the
+// way out is to draw the PATH rather than only the body — an orbit, a comet's tail
+// and a constellation figure all genuinely cross the frame.
+//
+// What this replaced: a rocket, a UFO, a launch-smoke bank and four free-standing
+// stars. Those were compact, so their crews resolved immediately, and the smoke
+// was the single largest crew soaking up scenery mice.
+
+// The Big Dipper in a unit box, radii tracking real magnitudes so it reads as the
+// asterism rather than as seven identical dots.
+const DIPPER = {
+  dubhe:  [0.00, 0.24, 6.5], merak: [0.07, 0.56, 5.5], phecda: [0.32, 0.60, 5],
+  megrez: [0.31, 0.37, 4],   alioth: [0.55, 0.30, 6],  mizar:  [0.77, 0.21, 5.5],
+  alkaid: [1.00, 0.00, 6.5],
+};
+const DIPPER_BOX = [30, 44, 262, 92, 1.05];   // ox, oy, w, h, star scale
+const dipperAt = (ox, oy, w, h) => k => [ox + DIPPER[k][0] * w, oy + DIPPER[k][1] * h];
+// The whole asterism as ONE continuous stroke. Its graph has exactly two
+// odd-degree nodes — Megrez (bowl 2 + handle 1) and Alkaid (1) — so an Euler path
+// exists between them walking all seven edges exactly once, with no retracing.
+// Every vertex is passed through, so the stars are drawn INLINE, as a detour the
+// stroke makes on its way rather than as separate subpaths.
+//
+// That distinction is this shape's whole cost. Drawn the obvious way — figure plus
+// seven free-standing stars — the tour came to 1311 points, of which 1189 (91%)
+// was chainPolys retracing along the figure to reach each star; the stars' own ink
+// was 55. As one Euler stroke with inline spokes it is 121 points and no retrace:
+// an 11x shorter walk for the same drawing. Being retrace-free is also what keeps
+// mice from bunching, since nothing in the tour is revisited, so even spacing
+// along it is even spacing on screen.
+const DIPPER_EULER = ['alkaid', 'mizar', 'alioth', 'megrez', 'dubhe', 'merak', 'phecda', 'megrez'];
+function dipperStar(x, cx, cy, r) {
+  for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+    x.lineTo(cx + dx * r, cy + dy * r); x.lineTo(cx, cy);
+  }
+}
+function bigDipper(x, ox, oy, w, h, sc) {
+  const P = dipperAt(ox, oy, w, h);
+  const drawn = new Set();          // Megrez is passed twice; star it once
+  DIPPER_EULER.forEach((k, i) => {
+    const [px, py] = P(k);
+    i ? x.lineTo(px, py) : x.moveTo(px, py);
+    if (!drawn.has(k)) { drawn.add(k); dipperStar(x, px, py, DIPPER[k][2] * sc); }
+  });
+}
+// Tail strands all leave the nucleus together and bow apart downstream. Anchored
+// far apart at both ends they draw parallel rails, which reads as track, not tail.
+function cometSweep(x, hx, hy, r, dx, dy, bows) {
+  x.moveTo(hx + r, hy); x.arc(hx, hy, r, 0, 6.283);
+  const L = Math.hypot(dx, dy), px = -dy / L, py = dx / L;
+  for (const b of bows) {
+    x.moveTo(hx + dx * 0.06, hy + dy * 0.06);
+    x.bezierCurveTo(hx + dx * 0.38 + px * b * 0.18, hy + dy * 0.38 + py * b * 0.18,
+                    hx + dx * 0.72 + px * b * 0.62, hy + dy * 0.72 + py * b * 0.62,
+                    hx + dx + px * b,               hy + dy + py * b);
+  }
+}
+// Where the giant sits on its orbit. Body and path are DIFFERENT colours on
+// purpose: as two same-colour ellipses of similar weight they read as one tangle
+// instead of as a planet standing on a path.
+const ORB = { cx: 196, cy: 458, rx: 186, ry: 76, rot: -0.08, at: 1.9 };
+const GIANT = (() => {
+  const c = Math.cos(ORB.rot), s = Math.sin(ORB.rot);
+  const ex = Math.cos(ORB.at) * ORB.rx, ey = Math.sin(ORB.at) * ORB.ry;
+  return { x: ORB.cx + ex * c - ey * s, y: ORB.cy + ex * s + ey * c };
+})();
+
 const MOON_SCENE = {
-  lines: [{ text: 'TO THE', cx: 195, cy: 262, size: 40 }, { text: 'MOON', cx: 195, cy: 322, size: 48 }],
+  // The WIDE spread: TO THE letterspaced across the frame, MOON large beneath it.
+  // `place(k, n, t)` positions the k-th VISIBLE letter of n (spaces yield no tour).
+  lines: [
+    { text: 'TO THE', place(k, n) {
+      const t = n < 2 ? 0 : k / (n - 1);
+      return { x: 75 + t * 240, y: 218, size: 34, rot: 0 };
+    } },
+    { text: 'MOON', place(k, n) {
+      const t = n < 2 ? 0 : k / (n - 1);
+      return { x: 63 + t * 264, y: 330, size: 78, rot: 0 };
+    } },
+  ],
   elements: [
+    { color: 'pink', draw(x) { cometSweep(x, 348, 88, 8, -300, 452, [-46, -6, 40]); } },
     { color: 'blue', draw(x) {
-      x.moveTo(84, 396); x.bezierCurveTo(210, 350, 330, 300, 312, 152);
-      x.moveTo(22, 500); x.bezierCurveTo(70, 150, 300, 66, 374, 176);
-      x.moveTo(326, 552); x.arc(310, 552, 15, 0, 6.283);
-      x.moveTo(340, 552); x.ellipse(310, 552, 30, 8, -0.32, 0, 6.283);
+      x.moveTo(ORB.cx + ORB.rx * Math.cos(ORB.rot), ORB.cy + ORB.rx * Math.sin(ORB.rot));
+      x.ellipse(ORB.cx, ORB.cy, ORB.rx, ORB.ry, ORB.rot, 0, 6.283);
     } },
-    // Green = the UFO only (saucer, dome, tractor beams). The launch smoke
-    // that used to roll across the whole bottom of the frame is gone — it was
-    // the single biggest crew, so it soaked up scenery mice that now spread
-    // across the remaining shapes instead.
     { color: 'green', draw(x) {
-      x.moveTo(94, 96); x.ellipse(70, 96, 24, 8, 0, 0, 6.283);
-      x.moveTo(82, 90); x.arc(70, 90, 12, 3.14, 0);
-      x.moveTo(60, 108); x.lineTo(56, 118); x.moveTo(70, 110); x.lineTo(70, 120);
-      x.moveTo(80, 108); x.lineTo(84, 118);
+      x.moveTo(GIANT.x + 46, GIANT.y); x.arc(GIANT.x, GIANT.y, 46, 0, 6.283);
+      x.moveTo(GIANT.x + 108, GIANT.y); x.ellipse(GIANT.x, GIANT.y, 108, 28, -0.3, 0, 6.283);
     } },
-    { color: 'purple', draw(x) {
-      x.moveTo(300, 62); x.quadraticCurveTo(374, 88, 350, 140);
-      x.moveTo(300, 62); x.quadraticCurveTo(330, 96, 350, 140);
-      x.moveTo(26, 158); x.lineTo(90, 104); x.lineTo(150, 152); x.lineTo(212, 100); x.lineTo(272, 150);
-      star4(x, 40, 300, 6); star4(x, 356, 250, 5); star4(x, 66, 470, 5); star4(x, 352, 430, 6);
-    } },
-    { color: 'pink', draw(x) {
-      x.save(); x.translate(110, 470); x.rotate(-0.6);
-      x.moveTo(-18, -30); x.quadraticCurveTo(-6, -66, 0, -70);
-      x.quadraticCurveTo(6, -66, 18, -30);
-      x.moveTo(-18, -30); x.lineTo(-18, 26); x.lineTo(18, 26); x.lineTo(18, -30);
-      x.moveTo(-18, 8); x.lineTo(-33, 34); x.lineTo(-18, 26);
-      x.moveTo(18, 8); x.lineTo(33, 34); x.lineTo(18, 26);
-      x.moveTo(11, -8); x.arc(0, -8, 11, 0, 6.283);
-      x.moveTo(-8, -16); x.lineTo(-6, -23); x.lineTo(-2, -18);
-      x.moveTo(2, -18); x.lineTo(6, -23); x.lineTo(8, -16);
-      x.moveTo(-7, 26); x.quadraticCurveTo(0, 46, 7, 26);
-      x.moveTo(-12, 26); x.quadraticCurveTo(0, 72, 12, 26);
-      x.restore();
-    } },
+    { color: 'purple', draw(x) { bigDipper(x, ...DIPPER_BOX); } },
   ],
 };
 
@@ -2274,69 +2410,137 @@ function resizeWall() {
 }
 window.addEventListener('resize', () => { if (nightActive()) resizeWall(); });
 
-let WALL_CREWS = [], WALL_WORD_LEN = 0, wallCast = [];
+// `step` is a crew's mean point spacing in scene units, which is what converts the
+// one wall speed into that crew's points/ms. WALL_WORD_INK is the word's total ink
+// in scene units — the denominator of the legibility estimate, which has to be a
+// DISTANCE now that speed is uniform, since a letter's points are worth more units
+// the larger it is set.
+let WALL_CREWS = [], WALL_WORD_LEN = 0, WALL_WORD_INK = 1, wallCast = [];
+function tourStep(tour) {
+  if (tour.length < 2) return 1;
+  let sum = 0;
+  for (let i = 1; i < tour.length; i++)
+    sum += Math.hypot(tour[i].x - tour[i - 1].x, tour[i].y - tour[i - 1].y);
+  return sum / (tour.length - 1) || 1;
+}
 function loadWallScene() {
   WALL_CREWS = []; WALL_WORD_LEN = 0;
   for (const ln of MOON_SCENE.lines) {
     const s = sampleStrokeWord(ln.text);
-    const scale = ln.size / 190;
-    for (const letterTour of s.letters) {
-      const tour = letterTour.map(p => ({
-        x: ln.cx + (p.x - s.w / 2) * scale,
-        y: ln.cy + (p.y - s.h / 2) * scale,
-      }));
+    // Per-letter placement: each letter is recentred on its OWN bbox and then
+    // scaled/rotated into the spot the layout chose for it, so a line can spread
+    // its letters across the frame instead of being set as one block.
+    s.letters.forEach((letterTour, k) => {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const p of letterTour) {
+        if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x;
+        if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y;
+      }
+      const pl = ln.place(k, s.letters.length);
+      const sc = pl.size / 190, rot = pl.rot || 0;
+      const cr = Math.cos(rot), sr = Math.sin(rot);
+      const lcx = (x0 + x1) / 2, lcy = (y0 + y1) / 2;
+      const tour = letterTour.map(p => {
+        const dx = (p.x - lcx) * sc, dy = (p.y - lcy) * sc;
+        return { x: pl.x + dx * cr - dy * sr, y: pl.y + dx * sr + dy * cr };
+      });
       WALL_CREWS.push({ color: MOUSE_COLORS.yellow, tour, len: tour.length,
-                       kind: 'word', closed: tourIsClosed(tour) });
+                       step: tourStep(tour), kind: 'word', closed: tourIsClosed(tour) });
       WALL_WORD_LEN += tour.length;
-    }
+    });
   }
   for (const e of MOON_SCENE.elements) {
     const tr = tracer(); e.draw(tr);
     const sampled = tr.polys.map(p => resamplePoly(p, 6)).filter(p => p.length > 1);
     for (const compTour of components(sampled)) {
       WALL_CREWS.push({ color: MOUSE_COLORS[e.color], tour: compTour, len: compTour.length,
-                       kind: 'scenery', closed: tourIsClosed(compTour) });
+                       step: tourStep(compTour), kind: 'scenery', closed: tourIsClosed(compTour) });
     }
   }
+  WALL_WORD_INK = WALL_CREWS.reduce((a, c) =>
+    a + (c.kind === 'word' ? (c.len - 1) * c.step : 0), 0) || 1;
   rebuildWallCast();
 }
 
-// Fixed 90-mouse cast; wallMiceCount() just draws the first N. Word% and seed
-// are constants, so the cast never rebuilds after night begins.
+// The cast is built in ARRIVAL ORDER and wallMiceCount() draws the first N, so the
+// order below IS the reveal: mouse k climbs onto the wall when lifetime total
+// crosses its rung. The full cast is WALL_CAP mice, not an arbitrary 90.
+//
+// Two rules decide it:
+//
+// 1. Per-COLOUR caps, each the shape's own count rather than a share of one pot.
+//    The word's cap is 9 — one golden mouse per letter — and its mice arrive in
+//    REVEAL_ORDER, so the letter staging is the progression itself. Within a
+//    colour, every shape is staffed before any shape gets a second mouse: sharing
+//    by tour length alone never staffs the small ones (the comet's nucleus is 10
+//    points against 429 for its tail fan, so its share rounds to zero and the
+//    circle is never drawn).
+// 2. Colours interleave by how FULL they are, so the scene develops together
+//    rather than one colour completing before the next begins.
 function rebuildWallCast() {
   wallCast = [];
-  const wordCrews = [], scenCrews = [];
-  WALL_CREWS.forEach((c, idx) => (c.kind === 'word' ? wordCrews : scenCrews).push(idx));
+  const byColor = new Map(WALL_COUNT_KEYS.map(k => [MOUSE_COLORS[k], []]));
+  WALL_CREWS.forEach((c, idx) => { const g = byColor.get(c.color); if (g) g.push(idx); });
   const PAD = 14;
-  const weights = scenCrews.map(i => WALL_CREWS[i].len + PAD);
-  const wSum = weights.reduce((a, b) => a + b, 0) || 1;
-  const assigned = scenCrews.map(() => 0);
-  let wordOrdinal = 0, scenOrdinal = 0;
-  for (let i = 0; i < WALL.maxMice; i++) {
-    const rng = mulberry32(WALL.seed + i * 7919);
-    const m = { i, p01: rng() };
-    if (rng() * 100 < WALL.wordPct && wordCrews.length) {
-      m.crew = wordCrews[wordOrdinal++ % wordCrews.length];
-    } else if (scenCrews.length) {
-      scenOrdinal++;
-      let bi = 0, bd = -Infinity;
-      for (let k = 0; k < scenCrews.length; k++) {
-        const deficit = scenOrdinal * (weights[k] / wSum) - assigned[k];
-        if (deficit > bd) { bd = deficit; bi = k; }
+  // Per colour, the sequence of crews its mice join, in order.
+  const queues = new Map();
+  for (const key of WALL_COUNT_KEYS) {
+    const crews = byColor.get(MOUSE_COLORS[key]);
+    if (!crews || !crews.length) continue;
+    const want = WALL_COUNT[key];
+    const weights = crews.map(k => WALL_CREWS[k].len + PAD);
+    const wSum = weights.reduce((a, b) => a + b, 0) || 1;
+    let seq;
+    if (key === 'yellow') {
+      const ord = REVEAL_ORDER.filter(k => k < crews.length);
+      seq = Array.from({ length: want }, (_, n) => ord.length ? ord[n % ord.length] : 0);
+    } else {
+      seq = crews.map((_, k) => k).sort((a, b) => weights[b] - weights[a]);
+      const counts = crews.map(() => 0);
+      for (const k of seq) counts[k]++;
+      while (seq.length < want) {
+        let bi = 0, bd = -Infinity;
+        for (let k = 0; k < crews.length; k++) {
+          const deficit = (seq.length + 1) * (weights[k] / wSum) - counts[k];
+          if (deficit > bd) { bd = deficit; bi = k; }
+        }
+        counts[bi]++; seq.push(bi);
       }
-      assigned[bi]++;
-      m.crew = scenCrews[bi];
-    } else m.crew = 0;
-    m.color = WALL_CREWS[m.crew].color;
-    wallCast.push(m);
+      seq = seq.slice(0, want);
+    }
+    queues.set(key, seq.map(k => crews[k]));
   }
+  // Interleave: repeatedly take from whichever colour is least full.
+  const taken = new Map(WALL_COUNT_KEYS.map(k => [k, 0]));
+  for (let i = 0; i < WALL_CAP; i++) {
+    let pick = null, worst = Infinity;
+    for (const key of WALL_COUNT_KEYS) {
+      const q = queues.get(key);
+      if (!q || taken.get(key) >= q.length) continue;
+      const filled = taken.get(key) / q.length;
+      if (filled < worst) { worst = filled; pick = key; }
+    }
+    if (pick == null) break;
+    const crew = queues.get(pick)[taken.get(pick)];
+    taken.set(pick, taken.get(pick) + 1);
+    const rng = mulberry32(WALL.seed + i * 7919);
+    wallCast.push({ i, p01: rng(), crew, color: WALL_CREWS[crew].color });
+  }
+  // Phases, SPREAD along the path. A ping-pong cycle visits every position twice,
+  // once outbound and once returning, so spacing phases across the whole cycle
+  // lands mice in coincident pairs — phase p and phase 1-p are the same point,
+  // moving opposite ways. Confining the spacing to the outbound half spreads them
+  // along the path instead. Closed tours map phase to position one-to-one and so
+  // take the full span.
   const byCrew = new Map();
   for (const m of wallCast) {
     if (!byCrew.has(m.crew)) byCrew.set(m.crew, []);
     byCrew.get(m.crew).push(m);
   }
-  for (const members of byCrew.values())
-    members.forEach((m, k) => { m.phase = k / members.length; });
+  for (const [idx, members] of byCrew)
+    members.forEach((m, k) => {
+      m.phase = (WALL_CREWS[idx].closed ? 1 : 0.5) * k / members.length;
+    });
 }
 
 // ping-pong along the crew's tour; noise is locked to 0 so no wander term.
@@ -2354,7 +2558,8 @@ function wallPosAt(m, t, out) {
     const p0 = crew.tour[0] || { x: 195, y: 310 };
     sx = p0.x; sy = p0.y;
   } else {
-    const ppms = crew.kind === 'word' ? WORD_PPMS_FRAC * WALL_WORD_LEN : SCENE_PPMS;
+    // One speed for every mouse: scene units/sec -> this crew's points/ms.
+    const ppms = (WALL.speed / 1000) / crew.step;
     // Closed tours loop (tour[L-1] IS tour[0], so the wrap is continuous);
     // open ones ping-pong back along themselves to avoid a wrap jump.
     const cyc = crew.closed ? L - 1 : 2 * (L - 1);
@@ -2443,7 +2648,7 @@ function drawWall(now) {
     wallPosAt(m, now, wallHead);
     if (trailN > 0) {
       wctx.strokeStyle = m.color; // invariant across this mouse's segments
-      wctx.lineWidth = WALL_CREWS[m.crew].kind === 'word' ? WORD_INK_W : 1.8;
+      wctx.lineWidth = WALL_INK_W;
       let px = wallHead.x, py = wallHead.y;
       for (let j = 1; j <= trailN; j++) {
         const p = wallPosAt(m, now - j * WALL.trailDt, wallScratch);
@@ -2472,11 +2677,12 @@ function drawWall(now) {
     drawWallMouse(wallHead.x, wallHead.y, m.color, 3.1,
                   m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX));
   }
-  // NOTE: legibility detection lived here — cov = (word mice) x (trail ms) x
-  // WORD_PPMS_FRAC, crossing 0.85 — and existed only to print the proctor
-  // line. Removed with the text rather than left as dead code. The wall
-  // simply becoming readable is the signal now. Re-add the same formula if
-  // the design doc's "gentle one-time shimmer" gets built.
+  // NOTE: legibility detection lived here and existed only to print the proctor
+  // line. Removed with the text rather than left as dead code. The wall simply
+  // becoming readable is the signal now. If the design doc's "gentle one-time
+  // shimmer" gets built, the formula to re-add is the one behind
+  // WALL_TRAIL_FOR_LEGIBLE: word mice x (WALL.speed/1000) x trail ms /
+  // WALL_WORD_INK, crossing ~1.6.
 }
 
 let nightInited = false;

@@ -444,6 +444,14 @@
     background: transparent; backdrop-filter: blur(10px);
     border-top: 1px solid var(--line);
     padding-bottom: env(safe-area-inset-bottom);
+    /* Lives on the base rule, NOT on .cutscene-hidden, so the cutscene fade runs
+       BOTH ways. A transition declared only on the state class exists only while
+       that class is on: the browser reads the transition from the after-change
+       style, so adding it fades out, and removing it takes the rule (and the
+       transition with it) away in the same frame — the shop popped back at full
+       opacity. Declared here it survives the class going away and the shop eases
+       back in as the wall reveal settles. */
+    transition: opacity .3s ease;
   }
   #dock.show { display: flex; }
 
@@ -496,8 +504,10 @@
   }
   #buildingSec.show { display: flex; flex-direction: column; }
   /* Night cutscene: recede the ENTIRE shop (including the pinned buildings) so
-     nothing covers the wall reveal; restored when the beat ends. */
-  #dock.cutscene-hidden { opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+     nothing covers the wall reveal; restored when the beat ends. Only the target
+     state belongs here — the fade itself is on #dock so it plays in both
+     directions (see the transition note there). */
+  #dock.cutscene-hidden { opacity: 0; pointer-events: none; }
 
   /* Between Upgrades and Buildings: no label, just the wood-grain rail that
      used to sit under "Buildings" text — the row content below already says

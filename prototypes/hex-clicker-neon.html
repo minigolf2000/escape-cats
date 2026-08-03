@@ -151,9 +151,9 @@ const BAL = {
   // wall-mouse k (1-indexed) climbs on at lifetime mice = mouseBase * mouseR^(k-1)
   mouseBase: 20, mouseR: 1.094, maxMice: 90,
   // durMs + the zoomMult ceiling track the shipped solo build (hex/index.html,
-  // ZOOM_MS / GOLD_MULT) — coop adds the partial-catch ramp, not a bigger peak.
-  gold: { firstMs: 35000, minGapMs: 40000, maxGapMs: 70000, crossMs: 4600, durMs: 9000 },
-  zoomMult: [1, 2, 3, 4, 6], // team zoomies multiplier by # of seats that tapped
+  // ZOOM_MS / ZOOM_MULT) — coop adds the partial-catch ramp, not a bigger peak.
+  gold: { firstMs: 35000, minGapMs: 40000, maxGapMs: 70000, crossMs: 4600, durMs: 7000 },
+  zoomMult: [1, 2, 3, 4, 7], // team PET multiplier by # of seats that tapped
   yellowPct: 30, noise: 0.10,
   word: 'TO THE MOON', // LOCKED reveal word & scene (SIX SIDED kept as concept art only)
 };
@@ -550,6 +550,9 @@ function mps() { // passive neon mice / second
   return c;
 }
 function zoomOn() { return G.econMs < G.zoomUntil; }
+// Pets only — Zoomies buys the room a tapping sprint, so it must NOT touch
+// mps(). A multiplier on idle income would pay out identically whether the
+// four of them tap or sit still, which is the opposite of a coordination beat.
 function zMult() { return zoomOn() ? G.zoomMult : 1; }
 function perTap() {
   const base = Math.pow(2, G.claws) + G.whiskers * (BAL.whiskers.pct / 100) * mps();
@@ -861,7 +864,7 @@ function frame(now) {
 
   const econDt = dt * G.timeScale;
   if (G.started) { G.runMs += econDt; G.econMs += econDt; }
-  const gain = mps() * zMult() * econDt / 1000;
+  const gain = mps() * econDt / 1000;
   G.mice += gain; G.lifetime += gain;
 
   // wall mice: climbing on is a pure function of lifetime neon mice earned
@@ -982,7 +985,7 @@ function frame(now) {
 
   // HUD
   countEl.textContent = fmt(G.mice);
-  const m = mps() * zMult();
+  const m = mps();
   cpsEl.textContent = m > 0
     ? `${fmt(m)}/s · ${fmt(perTap())}/pet · ${G.onWall} on the wall`
     : `${fmt(perTap())} per pet — tap Hex!`;

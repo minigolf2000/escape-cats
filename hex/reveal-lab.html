@@ -11,7 +11,7 @@
      with the panel when rows are added. --ph is the CONTENT height; the safe-area
      inset is added on top (rather than eating into it) so a home bar can't squeeze
      the bottom row off. */
-  :root { --ph: 146px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
+  :root { --ph: 218px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
   #c { position: fixed; inset: 0 0 var(--deck) 0; width: 100%; height: calc(100% - var(--deck));
        touch-action: none; }
@@ -44,9 +44,16 @@
 <canvas id="c"></canvas>
 <div id="panel">
   <div class="sliders">
-    <label>mice</label><input type="range" id="sN" min="1" max="90" value="60"><output id="oN">60</output>
-    <label>word %</label><input type="range" id="sY" min="10" max="80" value="30"><output id="oY">30</output>
+    <label>word</label><input type="range" id="sQyellow" min="0" max="40" value="13"><output id="oQyellow">13</output>
+    <label>comet</label><input type="range" id="sQpink" min="0" max="40" value="10"><output id="oQpink">10</output>
+    <label>orbit</label><input type="range" id="sQblue" min="0" max="40" value="4"><output id="oQblue">4</output>
+    <label>giant</label><input type="range" id="sQgreen" min="0" max="40" value="4"><output id="oQgreen">4</output>
+    <label>dipper</label><input type="range" id="sQpurple" min="0" max="40" value="29"><output id="oQpurple">29</output>
     <label>trail</label><input type="range" id="sT" min="0" max="60" value="35"><output id="oT">35</output>
+  </div>
+  <div class="mini" id="phase">
+    <button class="tbtn on" data-v="cluster">cluster</button>
+    <button class="tbtn" data-v="spread">spread</button>
   </div>
   <div class="row">
     <div class="stat" style="flex:1">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
@@ -78,7 +85,17 @@ addEventListener('resize', resize);
 // Noise is settled at zero: mice ride their tour exactly. Any off-tour wobble
 // blurs the very thing the trail is drawing, and the shapes are hairlines, so
 // there is no width to hide it in.
-const S = { N: 60, yellowPct: 30, trail: 35, seed: 7 };
+//
+// Headcount is per COLOUR rather than one total split by a word percentage: the
+// colours draw different amounts of ink over very different tour lengths, so the
+// interesting question is how many mice each shape needs, not how the pot is
+// divided. Defaults reproduce what the old total-of-60-at-30%-word allocation
+// produced, so the scene loads looking as it did.
+const S = {
+  count: { yellow: 13, pink: 10, blue: 4, green: 4, purple: 29 },
+  spread: false, trail: 35, seed: 7,
+};
+const COUNT_KEYS = ['yellow', 'pink', 'blue', 'green', 'purple'];
 
 // Every mouse inks the same hairline, word and scenery alike.
 const TRAIL_W = 1.8;
@@ -467,45 +484,51 @@ function sceneMap(p) {
 }
 
 // ---------- cast: every mouse belongs to exactly one crew, forever ----------
-// Deterministic greedy allocation: word mice fill letter crews round-robin; scenery
-// mice go to the scenery crew with the largest deficit vs its fair (length + pad)
-// share, so every pip and star gets staffed before big shapes get seconds.
+// Each COLOUR gets its own headcount, spent across that colour's crews by
+// largest deficit vs a fair (length + pad) share — so a colour split into
+// several shapes staffs every one of them before any shape gets seconds. The
+// word's letters are the yellow colour's crews and share its budget.
 let cast = [];
 function rebuildCast() {
   cast = [];
-  const wordCrews = [], scenCrews = [];
-  CREWS.forEach((c, idx) => (c.kind === 'word' ? wordCrews : scenCrews).push(idx));
+  const byColor = new Map(COUNT_KEYS.map(k => [PALETTE[k], []]));
+  CREWS.forEach((c, idx) => { const g = byColor.get(c.color); if (g) g.push(idx); });
   const PAD = 14;
-  const weights = scenCrews.map(i => CREWS[i].len + PAD);
-  const wSum = weights.reduce((a, b) => a + b, 0) || 1;
-  const assigned = scenCrews.map(() => 0);
-  let wordOrdinal = 0, scenOrdinal = 0;
-  for (let i = 0; i < 90; i++) {
-    const rng = mulberry32(S.seed + i * 7919);
-    const m = { i, p01: rng() };
-    if (rng() * 100 < S.yellowPct && wordCrews.length) {
-      m.crew = wordCrews[wordOrdinal++ % wordCrews.length];
-    } else if (scenCrews.length) {
-      scenOrdinal++;
+  let i = 0;
+  for (const key of COUNT_KEYS) {
+    const crews = byColor.get(PALETTE[key]);
+    if (!crews || !crews.length) continue;
+    const weights = crews.map(k => CREWS[k].len + PAD);
+    const wSum = weights.reduce((a, b) => a + b, 0) || 1;
+    const assigned = crews.map(() => 0);
+    for (let n = 0; n < S.count[key]; n++) {
       let bi = 0, bd = -Infinity;
-      for (let k = 0; k < scenCrews.length; k++) {
-        const deficit = scenOrdinal * (weights[k] / wSum) - assigned[k];
+      for (let k = 0; k < crews.length; k++) {
+        const deficit = (n + 1) * (weights[k] / wSum) - assigned[k];
         if (deficit > bd) { bd = deficit; bi = k; }
       }
       assigned[bi]++;
-      m.crew = scenCrews[bi];
-    } else m.crew = 0;
-    m.color = CREWS[m.crew].color;
-    cast.push(m);
+      const rng = mulberry32(S.seed + i * 7919);
+      cast.push({ i, p01: rng(), crew: crews[bi], color: CREWS[crews[bi]].color });
+      i++;
+    }
   }
-  // even phases within each crew
+  // Phases within a crew. A PING-PONG cycle visits every position twice — once
+  // outbound, once on the return leg — so spreading phases across the whole
+  // cycle lands mice in coincident pairs (phase p and phase 1-p are the same
+  // point, moving opposite ways). That pairing is the clustering. Confining the
+  // spread to the outbound half instead spaces them along the path itself.
+  // Closed tours map phase to position one-to-one, so both modes agree there.
   const byCrew = new Map();
   for (const m of cast) {
     if (!byCrew.has(m.crew)) byCrew.set(m.crew, []);
     byCrew.get(m.crew).push(m);
   }
-  for (const members of byCrew.values())
-    members.forEach((m, k) => { m.phase = k / members.length; });
+  for (const [idx, members] of byCrew)
+    members.forEach((m, k) => {
+      const span = (S.spread && !CREWS[idx].closed) ? 0.5 : 1;
+      m.phase = span * k / members.length;
+    });
 }
 
 // Patrol the crew's tour. CLOSED tours (a glyph's O, a die pip, a free star, the
@@ -588,7 +611,7 @@ function frame(now) {
 
   const trailN = S.trail, trailDt = 80;
   const maxSeg = 16; // a real patrol step is a few px per 80ms; longer = glide, no ink
-  for (let i = 0; i < S.N; i++) {
+  for (let i = 0; i < cast.length; i++) {
     const m = cast[i];
     const isWord = CREWS[m.crew].kind === 'word';
     if (trailN > 0) {
@@ -629,18 +652,30 @@ requestAnimationFrame(frame);
 resize();
 
 // ---------- controls ----------
-function slider(id, out, key, scale) {
+function slider(id, out, key) {
   const el = document.getElementById(id), o = document.getElementById(out);
   el.addEventListener('input', () => {
     o.textContent = el.value;
-    S[key] = scale ? el.value / 100 : +el.value;
-    if (key === 'yellowPct') rebuildCast();
+    S[key] = +el.value;
     updateStat();
   });
 }
-slider('sN', 'oN', 'N');
-slider('sY', 'oY', 'yellowPct');
 slider('sT', 'oT', 'trail');
+for (const key of COUNT_KEYS) {
+  const el = document.getElementById('sQ' + key), o = document.getElementById('oQ' + key);
+  el.addEventListener('input', () => {
+    o.textContent = el.value;
+    S.count[key] = +el.value;
+    rebuildCast(); updateStat();
+  });
+}
+document.getElementById('phase').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button');
+  if (!b) return;
+  for (const el of ev.currentTarget.children) el.classList.toggle('on', el === b);
+  S.spread = b.dataset.v === 'spread';
+  rebuildCast();
+});
 document.getElementById('reseed').addEventListener('click', () => {
   S.seed = (S.seed * 1103515245 + 12345) >>> 0;
   rebuildCast();
@@ -651,7 +686,7 @@ const covEl = document.getElementById('cov'), tagEl = document.getElementById('t
 function updateStat() {
   const trailMs = S.trail * 80;
   let n = 0;
-  for (let i = 0; i < S.N; i++) if (CREWS[cast[i].crew].kind === 'word') n++;
+  for (const m of cast) if (CREWS[m.crew].kind === 'word') n++;
   const cov = n * trailMs * WORD_PPMS_FRAC;
   covEl.textContent = cov.toFixed(2) + '×';
   // Bands recalibrated against the settled 1-stroke source by reading the live

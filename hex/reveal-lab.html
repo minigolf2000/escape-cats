@@ -11,7 +11,7 @@
      with the panel when rows are added. --ph is the CONTENT height; the safe-area
      inset is added on top (rather than eating into it) so a home bar can't squeeze
      the bottom row off. */
-  :root { --ph: 236px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
+  :root { --ph: 212px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
   #c { position: fixed; inset: 0 0 var(--deck) 0; width: 100%; height: calc(100% - var(--deck));
        touch-action: none; }
@@ -54,8 +54,7 @@
     <label>orbit</label><input type="range" id="sQblue" min="0" max="4" value="4"><output id="oQblue">4</output>
     <label>giant</label><input type="range" id="sQgreen" min="0" max="4" value="4"><output id="oQgreen">4</output>
     <label>dipper</label><input type="range" id="sQpurple" min="0" max="32" value="4"><output id="oQpurple">4</output>
-    <label>word spd</label><input type="range" id="sWS" min="10" max="400" value="100"><output id="oWS">100</output>
-    <label>scene spd</label><input type="range" id="sSS" min="10" max="400" value="100"><output id="oSS">100</output>
+    <label>speed</label><input type="range" id="sSP" min="4" max="160" value="35"><output id="oSP">35</output>
     <label>trail</label><input type="range" id="sT" min="0" max="120" value="35"><output id="oT">35</output>
   </div>
   <div class="row">
@@ -92,11 +91,43 @@ addEventListener('resize', resize);
 // Headcount is per COLOUR rather than one total split by a word percentage: the
 // colours draw different amounts of ink over very different tour lengths, so the
 // interesting question is how many mice each shape needs, not how the pot is
-// divided. Defaults reproduce what the old total-of-60-at-30%-word allocation
-// produced, so the scene loads looking as it did.
+// divided. Each colour's cap is its shape count — 9 letters, the comet's fan plus
+// its nucleus, and so on — except the dipper, which is one welded crew and so
+// capped only by how much bunching is tolerable.
+
+// ONE speed for every mouse, in scene units per second — settled. Every crew
+// converts it through its own point spacing (crew.step), so the rate is uniform
+// on screen no matter how a tour happens to be sampled.
+//
+// This replaced two separate pacing rules that made mice visibly unequal. The
+// word used to advance by a fraction of the WHOLE WORD's ink per ms, which kept
+// all nine letters finishing together but, because letter tours are sampled at a
+// fixed 4 units and then scaled to letter size, put MOON's points 2.23 units
+// apart against 0.95 for TO THE — the same 23 points/sec came out as ~56 units/sec
+// across MOON and ~24 across TO THE. Scenery used a flat points/ms on tours
+// resampled to a uniform 6 units, landing at ~26.
+//
+// The tradeoff of going uniform, stated plainly: letters NO LONGER FINISH
+// TOGETHER. A MOON letter carries about 2.3x the ink of a TO THE letter, so at
+// one speed it takes about 2.3x as long to draw. That is the cost of every mouse
+// moving alike.
+//
+// DEFAULT_SPEED is not arbitrary: it is the uniform rate that lays word ink down
+// at exactly the pace the old model did with all nine letters staffed. The game's
+// figure is 3.3e-5 of the word per ms; multiplied by the word's 698 tour points
+// and by the nine letters' summed point spacings, over nine mice, that comes to
+// ~35 units/sec. So the lab opens at the pace it had before.
+//
+// NOTE the lab now diverges from the live game (hex/index.html), which still
+// paces its word the old way. The legibility BANDS in updateStat were calibrated
+// against that model and still hold, since coverage is the same quantity measured
+// in distance rather than in fractions-of-the-word. But the lab only predicts the
+// game again once the game takes the same uniform-speed treatment.
+const DEFAULT_SPEED = 35;      // scene units per second
+
 const S = {
   count: { yellow: 9, pink: 5, blue: 4, green: 4, purple: 4 },
-  wordSpd: 100, sceneSpd: 100,   // percent of the baseline rates below
+  speed: DEFAULT_SPEED,          // scene units per second, one rate for every mouse
   trail: 35, seed: 7,
 };
 const COUNT_KEYS = ['yellow', 'pink', 'blue', 'green', 'purple'];
@@ -337,10 +368,13 @@ function star4(x, cx, cy, r) {
 // ping-pong patrol makes retraces free — the mouse was going to come back
 // this way regardless.
 //
-// The WIDE cut, settled after trying it against narrower and squarer faces. It
-// is a pure look choice: word mice run at WORD_PPMS_FRAC * WORD_LEN, so their
-// speed scales with total ink and the legibility number comes out the same
-// whatever the letters' width.
+// The WIDE cut, settled after trying it against narrower and squarer faces.
+//
+// This used to be a pure look choice, because word mice moved at a fraction of
+// the whole word's ink per ms and so sped up to compensate for a wider face. It
+// is NOT any more: under one uniform speed a wider face is simply more ink to
+// walk at a fixed rate, so it both draws each letter slower and lowers the
+// legibility number. Changing the face now changes the pacing.
 const GLYPHS = {
   'T': { w: 78, draw(x) { x.moveTo(0, 0); x.lineTo(78, 0); x.lineTo(39, 0); x.lineTo(39, 100); } },
   'O': { w: 88, draw(x) { x.moveTo(88, 50); x.ellipse(44, 50, 44, 50, 0, 0, 6.283); } },
@@ -483,32 +517,22 @@ const PALETTE = { yellow: '#ffd44d', blue: '#5fb0ff', pink: '#ff6fa5', green: '#
 // partial LETTER where the filled tour drew a partial patch, so it needs more
 // coverage to be unambiguous. The lab is only a predictor of the game if the two
 // agree, so change them together.
-// The word and the scenery are paced by DIFFERENT rules, which is why mice do not
-// all appear to move at one speed. Both are quoted in tour-POINTS per ms, and a
-// point is worth a different number of pixels in each tour.
-//
-//   Word: a fraction of the WHOLE WORD's ink per ms, so every letter advances at
-//   the same rate as a fraction of itself and all nine finish together. Letter
-//   tours are sampled at a fixed 4 units and then scaled to the letter's size, so
-//   MOON's points sit 2.23px apart against 0.95px for TO THE. Same 23 points/sec,
-//   therefore ~56 px/sec across MOON and ~24 px/sec across TO THE. The pixel
-//   difference is the consequence of finishing together, not a defect.
-//
-//   Scenery: a flat points/ms, on tours resampled to a uniform 6px, so shapes
-//   move at a genuinely constant ~26 px/sec and each one takes as long as its own
-//   length demands. (Small closed shapes read slightly slower — a tiny star's
-//   perimeter cannot be divided into exact 6px steps, so its points land ~4px
-//   apart, giving ~17 px/sec.)
-//
-// S.wordSpd / S.sceneSpd scale these at runtime; the legibility formula scales
-// with wordSpd so the readout stays honest.
-const WORD_PPMS_FRAC = 3.3e-5; // fraction of the whole word's ink per ms (legibility formula input)
-const SCENE_PPMS = 0.004;      // scenery patrol speed, tour-points per ms
 const HEADING_DT = 16;         // ms back-sample for facing direction (~1 frame at 60fps)
 const HEADING_EASE = 0.25;     // per-frame lerp toward the new heading vector
 
-// CREWS: [{ color, tour(scene-space pts), len, kind: 'word'|'scenery' }]
-let CREWS = [], WORD_LEN = 0;
+// CREWS: [{ color, tour(scene-space pts), len, step, kind: 'word'|'scenery' }]
+// `step` is the crew's mean point spacing in scene units, which is what converts
+// the one speed dial into this crew's points/ms. WORD_INK is the word's total ink
+// in scene units — the denominator of the legibility estimate.
+let CREWS = [], WORD_LEN = 0, WORD_INK = 1;
+// Mean spacing between consecutive tour points, in scene units.
+function tourStep(tour) {
+  if (tour.length < 2) return 1;
+  let sum = 0;
+  for (let i = 1; i < tour.length; i++)
+    sum += Math.hypot(tour[i].x - tour[i - 1].x, tour[i].y - tour[i - 1].y);
+  return sum / (tour.length - 1) || 1;
+}
 function loadScene() {
   CREWS = [];
   // word letters -> one crew each, placed per line
@@ -531,7 +555,7 @@ function loadScene() {
         const dx = (p.x - lcx) * sc, dy = (p.y - lcy) * sc;
         return { x: pl.x + dx * cr - dy * sr, y: pl.y + dx * sr + dy * cr };
       });
-      CREWS.push({ color: PALETTE.yellow, tour, len: tour.length,
+      CREWS.push({ color: PALETTE.yellow, tour, len: tour.length, step: tourStep(tour),
                    kind: 'word', closed: tourIsClosed(tour) });
       WORD_LEN += tour.length;
     });
@@ -542,9 +566,14 @@ function loadScene() {
     const sampled = tr.polys.map(p => resamplePoly(p, 6)).filter(p => p.length > 1);
     for (const compTour of components(sampled)) {
       CREWS.push({ color: PALETTE[e.color], tour: compTour, len: compTour.length,
-                   kind: 'scenery', closed: tourIsClosed(compTour) });
+                   step: tourStep(compTour), kind: 'scenery', closed: tourIsClosed(compTour) });
     }
   }
+  // Word ink in scene units, not points: with one uniform speed the coverage
+  // estimate has to be measured in distance, since a letter's points are worth
+  // more units the larger the letter is set.
+  WORD_INK = CREWS.reduce((a, c) =>
+    a + (c.kind === 'word' ? (c.len - 1) * c.step : 0), 0) || 1;
   rebuildCast(); updateStat();
 }
 
@@ -631,8 +660,8 @@ function posAt(m, t) {
   const crew = CREWS[m.crew];
   const L = crew.len;
   if (L < 2) { const p = sceneMap(crew.tour[0] || { x: 195, y: 310 }); return p; }
-  const ppms = (crew.kind === 'word' ? WORD_PPMS_FRAC * WORD_LEN * (S.wordSpd / 100)
-                                     : SCENE_PPMS * (S.sceneSpd / 100));
+  // One speed for everyone: scene units/sec -> this crew's points/ms.
+  const ppms = (S.speed / 1000) / crew.step;
   const cyc = crew.closed ? L - 1 : 2 * (L - 1);
   let f = ((t * ppms + m.phase * cyc) % cyc + cyc) % cyc;
   if (!crew.closed && f > L - 1) f = cyc - f; // the return leg
@@ -751,8 +780,7 @@ function slider(id, out, key) {
   });
 }
 slider('sT', 'oT', 'trail');
-slider('sWS', 'oWS', 'wordSpd');
-slider('sSS', 'oSS', 'sceneSpd');
+slider('sSP', 'oSP', 'speed');
 for (const key of COUNT_KEYS) {
   const el = document.getElementById('sQ' + key), o = document.getElementById('oQ' + key);
   el.addEventListener('input', () => {
@@ -772,9 +800,10 @@ function updateStat() {
   const trailMs = S.trail * 80;
   let n = 0;
   for (const m of cast) if (CREWS[m.crew].kind === 'word') n++;
-  // Scales with word speed: coverage is ink laid per unit time, so a mouse that
-  // walks its letter twice as fast inks twice as much of it inside the trail.
-  const cov = n * trailMs * WORD_PPMS_FRAC * (S.wordSpd / 100);
+  // Distance each word mouse inks inside the trail window, over the word's total
+  // ink. Same quantity the bands were calibrated against, measured in scene units
+  // now that speed is uniform rather than in fractions-of-the-word per ms.
+  const cov = n * (S.speed / 1000) * trailMs / WORD_INK;
   covEl.textContent = cov.toFixed(2) + '×';
   // Bands recalibrated against the settled 1-stroke source by reading the live
   // wall at each mouse count, not against `filled`'s old 0.85: a centreline word

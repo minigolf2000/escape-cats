@@ -808,8 +808,20 @@ const BUILDINGS = [
   // the shelf, so its .fx line is where a new player learns what "owning a
   // building" even means. Every other building inherits that lesson and gets by
   // on its name — see the .item .titleRow note for why the rest stay bare.
+  //
+  // {every} is substituted with the rate this building ACTUALLY earns, and the
+  // token is the whole point. The blurb used to hand-write "every 2.5 seconds",
+  // which is 1/mps straight off this column, and it was wrong from the moment
+  // INCOME_SCALE arrived — the real rate is mps x INCOME_SCALE, and the row
+  // printed that correct figure right beside the incorrect prose. Deriving it
+  // (see everyText) means the two cannot disagree again whichever dial moves.
+  //
+  // Budget is 21 characters AFTER substitution, measured: .fx has the quoted
+  // rate beside it, so 22+ wraps and the row grows to 97px against its
+  // neighbours' 61px. "A mouse every second" is 20 and stays one line at an 80px
+  // row. The old wrapping text is why this row used to be the tall one.
   { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 10,     mps: 0.4,
-    blurb: "Gets a mouse every 2.5 seconds" },
+    blurb: "A mouse every {every}" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1   },
   // 85 mps, not Cookie Clicker's 47. The mps column mirrors CC's first
   // buildings, but the COST column doesn't: CC steps 15 → 100 → 1,100 → 12,000,
@@ -867,11 +879,21 @@ const ZOOM_S = 7;               // ...for 7s
 // first buildings, whose pacing targets a weeks-long IDLE game; this is a
 // frantic ~7-min co-op for a team of 4. INCOME_SCALE multiplies all passive
 // income (and, via clickShare, the pet-share term with it — so the click/idle
-// balance is preserved) to land the run (to word-legible) at: a team of 4
-// mashing (~16 pets/s) ≈ 7:00, a strong team (~12/s) ≈ 7:30, a medium team
-// (~8/s) ≈ 8:30 — measured against the in-file sim. One dial, tune against
-// playtests. Applied in baseCpsWith so the pacing simulator sees it for free.
-const INCOME_SCALE = 2.7;
+// balance is preserved). One dial, tune against playtests. Applied in
+// baseCpsWith so the pacing simulator sees it for free.
+//
+// 2.5 rather than 2.7 for a reason that is about READING, not pacing: it makes
+// the Mouse Subscription earn exactly 1.00/s (0.4 x 2.5), so the first thing on
+// the shelf is "a mouse every second" and the shop opens on a round number
+// instead of 1.08. Changing this therefore changes that row's blurb, which is
+// derived from the same arithmetic — see everyText.
+//
+// Measured against the in-file sim at 2.5, whole run to the last night upgrade:
+// 16 pets/s (a team of four mashing) 7:01, 10/s 7:50, 8/s 6:38, 3/s (solo)
+// 10:47. Night length is lumpy rather than smooth, because Lucky Number 6 is
+// gated on catching six goldens and that count lands in steps — read these as
+// ±20s, and do not chase a few seconds by moving this dial.
+const INCOME_SCALE = 2.5;
 const SAVE_KEY = "hexclicker.v1";
 
 // ---------------------------------------------------------------------------
@@ -1663,6 +1685,18 @@ window.addEventListener("contextmenu", e => e.preventDefault());
 // ---------------------------------------------------------------------------
 // SHOP RENDER
 // ---------------------------------------------------------------------------
+// How often one of these earns a mouse, in words, from the rate the engine will
+// actually pay: mps x INCOME_SCALE, before any upgrade multiplier (nothing that
+// touches a building's rate is buyable while its blurb is still on screen — the
+// CSS hides .fx the moment you own one). "second" rather than "1 second" when it
+// lands on the nose, which is what INCOME_SCALE 2.5 is chosen to do for the
+// Mouse Subscription; anything else prints the real figure, however untidy, so a
+// changed dial shows up here instead of quietly making the blurb a lie.
+function everyText(b) {
+  const secs = 1 / (b.mps * INCOME_SCALE);
+  return Math.abs(secs - 1) < 0.005 ? "second" : `${fmt(secs)} seconds`;
+}
+
 let shopRows = [];
 function buildShop() {
   shopEl.innerHTML = "";
@@ -1680,7 +1714,7 @@ function buildShop() {
          <div class="titleRow">
            <div class="nm">${b.name}</div>
          </div>
-         ${b.blurb ? `<div class="fx">${b.blurb}</div>` : ""}
+         ${b.blurb ? `<div class="fx">${b.blurb.replace("{every}", everyText(b))}</div>` : ""}
          <div class="cost">${currencyIconSVG()}<span class="costNum"></span></div>
        </div>
        <div class="right"><div class="rate"></div><div class="own">0</div></div>`;

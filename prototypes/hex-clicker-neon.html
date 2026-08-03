@@ -150,8 +150,10 @@ const BAL = {
   trails:   { costs: [1200, 4500, 12000, 28000, 60000], segs: [0, 8, 16, 28, 42, 60] },
   // wall-mouse k (1-indexed) climbs on at lifetime mice = mouseBase * mouseR^(k-1)
   mouseBase: 20, mouseR: 1.094, maxMice: 90,
-  gold: { firstMs: 35000, minGapMs: 40000, maxGapMs: 70000, crossMs: 4600, durMs: 12000 },
-  zoomMult: [1, 2, 3.5, 5, 7], // team zoomies multiplier by # of seats that tapped
+  // durMs + the zoomMult ceiling track the shipped solo build (hex/index.html,
+  // ZOOM_MS / GOLD_MULT) — coop adds the partial-catch ramp, not a bigger peak.
+  gold: { firstMs: 35000, minGapMs: 40000, maxGapMs: 70000, crossMs: 4600, durMs: 9000 },
+  zoomMult: [1, 2, 3, 4, 6], // team zoomies multiplier by # of seats that tapped
   yellowPct: 30, noise: 0.10,
   word: 'TO THE MOON', // LOCKED reveal word & scene (SIX SIDED kept as concept art only)
 };
@@ -814,7 +816,7 @@ function fillSlot(seat) {
   const gp = goldPos();
   if (gp) addRing(gp.x, gp.y, PLAYERS[seat].color);
   if (seat === G.mySeat) toast('you caught it! team zoomies ×' + G.zoomMult);
-  else if (n === 4) toast('all four cats — ZOOMIES ×7!');
+  else if (n === 4) toast('all four cats — ZOOMIES ×' + BAL.zoomMult[4] + '!');
 }
 
 // ---------- input ----------

@@ -1138,8 +1138,15 @@ const UPGRADES = [
   { key: "cattree", name: "Window Perch, Second Window", icon: "🪟",
     cost: 50000, unlock: { clicks: 620 },
     effect: [{ type: "goldenFreq", mult: 1.4 }, { type: "goldenLife", add: 3 }] },
+  // 35k, not the 60k this looked like it was worth. The number that matters here
+  // isn't the Castle's own payback — it's that Lock Goomba `requires` this row
+  // BOUGHT, so a run that skips the Castle never even reveals the jail. At 60k a
+  // 3-pets/s run bought the Box at 4:42 and then hit the stretch where it's
+  // banking for Catnap and only takes fast-payback rows, so the Castle never
+  // landed and the jail was dead content at that tap rate. Lowering the FACTORY
+  // gates instead did nothing, which is what proved it was the price.
   { key: "cardboardcastle", name: "Cardboard Castle", icon: "🏰",
-    cost: 60000, unlock: { requires: "cardboardbox", owned: [["factory", 5]] },
+    cost: 35000, unlock: { requires: "cardboardbox", owned: [["factory", 5]] },
     effect: { type: "clickPerBuilding", add: 35, per: "factory" } },
   { key: "chinscritch", name: "Chin Scritch", icon: "😌",
     cost: 100000, unlock: { clicks: 520 },
@@ -1589,6 +1596,17 @@ let lastShopTapAt = -Infinity;
 const SHOP_HOLD_MS = 700;
 shopScrollEl.addEventListener("pointerdown", () => { lastShopTapAt = performance.now(); },
                              { capture: true, passive: true });
+// The last time the player SCROLLED the shop themselves, and how long that counts
+// as "looking at it". Separate from lastShopTapAt on purpose: tapping a building
+// row is not evidence you read the upgrade list above it, and the scroll hold
+// writes scrollTop itself — so both have to be excluded from this one. See
+// updSeen for what it gates.
+let lastShopLookAt = -Infinity;
+const SHOP_LOOK_MS = 1000;
+// Raised across the hold's own write to scrollTop. Cleared on the next frame:
+// scroll events fire before rAF, so a real scroll can't slip through the gap,
+// and a write that doesn't move the scroller (no event at all) still clears it.
+let programmaticScroll = false;
 const buildingSecEl = $("#buildingSec"), dockEl = $("#dock"), hudEl = $("#hud");
 const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 
@@ -1861,7 +1879,11 @@ function refreshUpgrades() {
     syncDock();
     // After the show/hide toggles above, so the layout being measured is final.
     // Assigning past the scrollable range is fine — the browser clamps it.
-    if (hold) shopScrollEl.scrollTop = shopScrollEl.scrollHeight - fromBottom;
+    if (hold) {
+      programmaticScroll = true;
+      shopScrollEl.scrollTop = shopScrollEl.scrollHeight - fromBottom;
+      requestAnimationFrame(() => { programmaticScroll = false; });
+    }
     // The set changed, so the unseen count did too. updSeen() only runs off the
     // scroll tick, and a reveal that nobody scrolls for would otherwise leave
     // the badge stale until the next 300ms poll.
@@ -2215,15 +2237,21 @@ const GOLD_MEAN_S = (GOLD_MIN_S + GOLD_MAX_S) / 2;   // the sim's mean gap
 // mouse/pet and the first building costs 10, so a 7s sprint landing at 0:40 is
 // worth ~10x the entire first purchase — it would erase the opening curve
 // before the player has read the shop.
-// Pulled in from 2:30–3:30 when Catnap Hypnalysis became the end of phase 1:
-// the whole DAY now finishes at 3:21 for a team of four mashing, so the old
-// window served a fast room its first golden with barely a minute of daylight
-// left. Goldens are day-only content in practice — Zoomies multiplies pets and
-// pets earn nothing once Hex is asleep — and the entire golden upgrade line
-// (three Window Perches, the Mouse Magnet, Pounce Reflex, Chin Scritch) has to
-// pay for itself inside that window or it is rows nobody sensibly buys. This
-// window has to move with the length of the day; it is not an absolute.
-const GOLD_FIRST_MIN_S = 110, GOLD_FIRST_MAX_S = 160;
+// Pulled in twice, 2:30–3:30 then 1:50–2:40, chasing a day that keeps getting
+// shorter: it now finishes at 2:48 for a team of four mashing, so even the second
+// window served a fast room its first golden with ~30s of daylight left. Goldens
+// are day-only content in practice — Zoomies multiplies pets and pets earn
+// nothing once Hex is asleep — and the whole golden line (three Window Perches,
+// Pounce Reflex, Chin Scritch) has to pay for itself inside that window or it is
+// rows nobody sensibly buys.
+//
+// This is also the strongest single lever on NIGHT length, which is not obvious
+// from here: Lucky Number 6 is gated on catching six goldens, so how early the
+// first one arrives sets when the night's ×6 lands. Cheapening the Cardboard
+// Castle above shortened the day slightly, which cost a fast room a golden and
+// pushed the 8-pets/s run from 7:12 to 8:42 — this window pulls it back to 7:04.
+// It has to move with the length of the day; it is not an absolute.
+const GOLD_FIRST_MIN_S = 90, GOLD_FIRST_MAX_S = 130;
 let goldTimer = 0, goldActive = false, goldLifeLeft = 0, goldVx = 0, goldVy = 0, goldX = 0, goldY = 0;
 // The reachable box, in #stage-local px. #stage is the full viewport height,
 // but #hud (the score) and #dock (the shop) are position:fixed overlays ON TOP
@@ -3947,10 +3975,25 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
     el.classList.toggle("can-up", el.scrollTop > 1);
     el.classList.toggle("can-down", el.scrollTop + el.clientHeight < el.scrollHeight - 1);
   }
-  // Mark upgrade rows seen as they come into view, which is what clears the
-  // badge. A row counts as seen once its MIDPOINT is inside the scroller's
-  // visible box — the row is then unambiguously on screen and readable, rather
-  // than a sliver under one of the edge fades.
+  // Mark upgrade rows seen, which is what clears the badge. Two conditions, and
+  // the second one is the whole point: the row's MIDPOINT is inside the visible
+  // box, AND the player has SCROLLED the shop in the last second.
+  //
+  // In-view alone does not work, and the reason is a conspiracy of two things
+  // that are individually reasonable. The rail is cost-ordered, and reveals run
+  // roughly cost-ascending, so a newly revealed row lands at the END of the
+  // upgrade block — and the end of the upgrade block is exactly what stays on
+  // screen when you scroll down to look at buildings. Measured with six rows and
+  // the shop at the bottom: rows 1-3 above the fold, rows 4-6 in view. So every
+  // new row was born in view and marked seen within one tick, and the badge
+  // never fired for anyone playing normally.
+  //
+  // Requiring a scroll is also the literal reading of the rule: a row that
+  // SCROLLS into view has been looked at, a row that appears under your eyes
+  // while they are on the cat has not. Tapping a shop row deliberately does NOT
+  // count — buying a building says nothing about having read the upgrades above
+  // it, and that tap is the single most common thing happening when a reveal
+  // fires.
   //
   // Polled off the same tick as the scroll shadows instead of an
   // IntersectionObserver: refreshUpgrades rebuilds every row whenever the
@@ -3959,6 +4002,12 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
   // anything while the shop is collapsed — max-height 0 leaves clientHeight 0,
   // so no midpoint is ever inside it.
   function updSeen() {
+    // A shop that fits needs no scrolling, so "you haven't scrolled to it" says
+    // nothing — every row is in front of you and a badge pointing at one would be
+    // noise. This is the whole early game, and the first frame in particular,
+    // where the rail holds one row.
+    const fits = shopScrollEl.scrollHeight <= shopScrollEl.clientHeight + 1;
+    if (!fits && performance.now() - lastShopLookAt > SHOP_LOOK_MS) return;
     const box = shopScrollEl.getBoundingClientRect();
     let changed = false;
     for (const [key, r] of upRows) {
@@ -3974,7 +4023,13 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
     if (changed) refreshBadge();
   }
   function tick() { scrollers.forEach(updAff); updSeen(); }
-  scrollers.forEach(el => el.addEventListener("scroll", () => { updAff(el); updSeen(); }, { passive: true }));
+  scrollers.forEach(el => el.addEventListener("scroll", () => {
+    // A scroll the player performed is the "looking at it" signal; the hold's own
+    // write is not, or buying a building would clear the badge for the very row
+    // that purchase just revealed.
+    if (!programmaticScroll) lastShopLookAt = performance.now();
+    updAff(el); updSeen();
+  }, { passive: true }));
   if (window.ResizeObserver) { const ro = new ResizeObserver(tick); ro.observe(dockEl); }
   addEventListener("resize", tick);
   setInterval(tick, 300);

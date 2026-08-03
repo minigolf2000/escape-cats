@@ -11,7 +11,7 @@
      with the panel when rows are added. --ph is the CONTENT height; the safe-area
      inset is added on top (rather than eating into it) so a home bar can't squeeze
      the bottom row off. */
-  :root { --ph: 218px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
+  :root { --ph: 188px; --deck: calc(var(--ph) + env(safe-area-inset-bottom)); }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #101216; }
   #c { position: fixed; inset: 0 0 var(--deck) 0; width: 100%; height: calc(100% - var(--deck));
        touch-action: none; }
@@ -44,16 +44,15 @@
 <canvas id="c"></canvas>
 <div id="panel">
   <div class="sliders">
-    <label>word</label><input type="range" id="sQyellow" min="0" max="40" value="13"><output id="oQyellow">13</output>
-    <label>comet</label><input type="range" id="sQpink" min="0" max="40" value="10"><output id="oQpink">10</output>
-    <label>orbit</label><input type="range" id="sQblue" min="0" max="40" value="4"><output id="oQblue">4</output>
-    <label>giant</label><input type="range" id="sQgreen" min="0" max="40" value="4"><output id="oQgreen">4</output>
-    <label>dipper</label><input type="range" id="sQpurple" min="0" max="40" value="29"><output id="oQpurple">29</output>
-    <label>trail</label><input type="range" id="sT" min="0" max="60" value="35"><output id="oT">35</output>
-  </div>
-  <div class="mini" id="phase">
-    <button class="tbtn on" data-v="cluster">cluster</button>
-    <button class="tbtn" data-v="spread">spread</button>
+    <!-- Caps are the shape counts, not taste limits: 9 = one golden mouse per
+         letter, 5 = comet tail fan + nucleus, 4 each for the orbit and the
+         giant. Only the dipper is still open. -->
+    <label>word</label><input type="range" id="sQyellow" min="0" max="9" value="9"><output id="oQyellow">9</output>
+    <label>comet</label><input type="range" id="sQpink" min="0" max="5" value="5"><output id="oQpink">5</output>
+    <label>orbit</label><input type="range" id="sQblue" min="0" max="4" value="4"><output id="oQblue">4</output>
+    <label>giant</label><input type="range" id="sQgreen" min="0" max="4" value="4"><output id="oQgreen">4</output>
+    <label>dipper</label><input type="range" id="sQpurple" min="0" max="32" value="16"><output id="oQpurple">16</output>
+    <label>trail</label><input type="range" id="sT" min="0" max="120" value="35"><output id="oT">35</output>
   </div>
   <div class="row">
     <div class="stat" style="flex:1">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
@@ -92,10 +91,36 @@ addEventListener('resize', resize);
 // divided. Defaults reproduce what the old total-of-60-at-30%-word allocation
 // produced, so the scene loads looking as it did.
 const S = {
-  count: { yellow: 13, pink: 10, blue: 4, green: 4, purple: 29 },
-  spread: false, trail: 35, seed: 7,
+  count: { yellow: 9, pink: 5, blue: 4, green: 4, purple: 16 },
+  trail: 35, seed: 7,
 };
 const COUNT_KEYS = ['yellow', 'pink', 'blue', 'green', 'purple'];
+
+// Order the nine letters of TO THE MOON get staffed in — index into the word's
+// visible letters, spaces excluded:
+//
+//     0 1   2 3 4   5 6 7 8
+//     T O   T H E   M O O N
+//
+// The design goal is to delay the moment a team can GUESS the rest, which is not
+// the same as revealing slowly. Three rules, in priority order:
+//
+// 1. Spend the uninformative letters first. THE is a function word that
+//    constrains nothing — a team reading "?? THE ????" knows only that there is
+//    a destination. E and H are also the cheapest letters to give away: E is the
+//    commonest letter in English, and H here is fully determined by THE.
+// 2. Never complete the answer word's outline early. MOON's two O's are its
+//    least distinctive letters (a doubled medial vowel), so they come before its
+//    consonants.
+// 3. Hold M for last, not N. This is the one counter-intuitive call, and it is
+//    worth a measurable amount of difficulty: "?OON" admits boon, coon, goon,
+//    loon, moon, noon, soon, toon — eight candidates — whereas "MOO?" admits
+//    only mood, moon, moor, moot, moos. Revealing N second-to-last therefore
+//    keeps the answer genuinely open one step longer than revealing M would.
+//
+// Ties inside a rule break toward NON-ADJACENT positions, because two adjacent
+// letters hand over a bigram, which constrains far more than two letters apart.
+const REVEAL_ORDER = [4, 3, 2, 0, 1, 6, 7, 8, 5];
 
 // Every mouse inks the same hairline, word and scenery alike.
 const TRAIL_W = 1.8;
@@ -366,12 +391,17 @@ const DIPPER = {
   megrez: [0.31, 0.37, 4],   alioth: [0.55, 0.30, 6],  mizar:  [0.77, 0.21, 5.5],
   alkaid: [1.00, 0.00, 6.5],
 };
-function bigDipper(x, ox, oy, w, h, sc) {
-  const P = k => [ox + DIPPER[k][0] * w, oy + DIPPER[k][1] * h];
+const DIPPER_BOX = [30, 44, 262, 92, 1.05];   // ox, oy, w, h, star scale
+const dipperAt = (ox, oy, w, h) => k => [ox + DIPPER[k][0] * w, oy + DIPPER[k][1] * h];
+function dipperFigure(x, ox, oy, w, h) {
+  const P = dipperAt(ox, oy, w, h);
   for (const run of [['dubhe', 'merak', 'phecda', 'megrez', 'dubhe'],
                      ['megrez', 'alioth', 'mizar', 'alkaid']]) {
     run.forEach((k, i) => { const [px, py] = P(k); i ? x.lineTo(px, py) : x.moveTo(px, py); });
   }
+}
+function dipperStars(x, ox, oy, w, h, sc) {
+  const P = dipperAt(ox, oy, w, h);
   for (const k of Object.keys(DIPPER)) { const [px, py] = P(k); star4(x, px, py, DIPPER[k][2] * sc); }
 }
 // Tail strands all leave the nucleus together and bow apart downstream; anchored
@@ -406,7 +436,16 @@ const MOON_ELEMENTS = [
     x.moveTo(GIANT.x + 46, GIANT.y); x.arc(GIANT.x, GIANT.y, 46, 0, 6.283);
     x.moveTo(GIANT.x + 108, GIANT.y); x.ellipse(GIANT.x, GIANT.y, 108, 28, -0.3, 0, 6.283);
   } },
-  { color: 'purple', draw(x) { bigDipper(x, 30, 44, 262, 92, 1.05); } },
+  // The asterism is split into its FIGURE and its STARS as two elements, which
+  // is the only reason they end up as separate crews: the stars sit exactly on
+  // the figure's vertices, so components() welds the lot into one shape and one
+  // mouse pool. That single crew was the worst buncher in the scene, and no
+  // amount of phase spreading fixes it — its tour re-walks the same geometry
+  // repeatedly (bowl, back to Megrez, handle, back out to each star), so mice
+  // spaced evenly along the TOUR still land on the same pixels. Eight crews
+  // instead of one gives each star its own mouse and cuts the retracing.
+  { color: 'purple', draw(x) { dipperFigure(x, ...DIPPER_BOX); } },
+  { color: 'purple', draw(x) { dipperStars(x, ...DIPPER_BOX); } },
 ];
 
 // The locked-in layout: TO THE letterspaced across the frame, MOON huge beneath
@@ -484,10 +523,17 @@ function sceneMap(p) {
 }
 
 // ---------- cast: every mouse belongs to exactly one crew, forever ----------
-// Each COLOUR gets its own headcount, spent across that colour's crews by
-// largest deficit vs a fair (length + pad) share — so a colour split into
-// several shapes staffs every one of them before any shape gets seconds. The
-// word's letters are the yellow colour's crews and share its budget.
+// Each COLOUR gets its own headcount, spent across that colour's crews.
+//
+// EVERY SHAPE IS STAFFED BEFORE ANY SHAPE GETS A SECOND MOUSE. Fair-share by
+// tour length alone never staffs the small shapes at all — the comet's nucleus
+// is 10 points against 429 for its tail fan, so its share of five mice rounds to
+// zero and the circle simply never gets drawn. Biggest-first within that pass,
+// so if a colour is short of mice the large shapes are the ones that get them.
+//
+// The word is the yellow colour's crews, one crew per letter, staffed in
+// REVEAL_ORDER — so the slider doubles as a reveal-stage control: at 3 mice you
+// see the letters the order gives away first, at 9 the whole phrase.
 let cast = [];
 function rebuildCast() {
   cast = [];
@@ -498,27 +544,40 @@ function rebuildCast() {
   for (const key of COUNT_KEYS) {
     const crews = byColor.get(PALETTE[key]);
     if (!crews || !crews.length) continue;
+    const want = S.count[key];
     const weights = crews.map(k => CREWS[k].len + PAD);
     const wSum = weights.reduce((a, b) => a + b, 0) || 1;
-    const assigned = crews.map(() => 0);
-    for (let n = 0; n < S.count[key]; n++) {
-      let bi = 0, bd = -Infinity;
-      for (let k = 0; k < crews.length; k++) {
-        const deficit = (n + 1) * (weights[k] / wSum) - assigned[k];
-        if (deficit > bd) { bd = deficit; bi = k; }
+    // seq[n] = which crew the n-th mouse of this colour joins
+    let seq;
+    if (key === 'yellow') {
+      const ord = REVEAL_ORDER.filter(k => k < crews.length);
+      seq = Array.from({ length: want }, (_, n) => ord.length ? ord[n % ord.length] : 0);
+    } else {
+      seq = crews.map((_, k) => k).sort((a, b) => weights[b] - weights[a]);
+      const counts = crews.map(() => 0);
+      for (const k of seq) counts[k]++;
+      while (seq.length < want) {
+        let bi = 0, bd = -Infinity;
+        for (let k = 0; k < crews.length; k++) {
+          const deficit = (seq.length + 1) * (weights[k] / wSum) - counts[k];
+          if (deficit > bd) { bd = deficit; bi = k; }
+        }
+        counts[bi]++; seq.push(bi);
       }
-      assigned[bi]++;
+      seq = seq.slice(0, want);
+    }
+    for (const k of seq) {
       const rng = mulberry32(S.seed + i * 7919);
-      cast.push({ i, p01: rng(), crew: crews[bi], color: CREWS[crews[bi]].color });
+      cast.push({ i, p01: rng(), crew: crews[k], color: CREWS[crews[k]].color });
       i++;
     }
   }
-  // Phases within a crew. A PING-PONG cycle visits every position twice — once
-  // outbound, once on the return leg — so spreading phases across the whole
-  // cycle lands mice in coincident pairs (phase p and phase 1-p are the same
-  // point, moving opposite ways). That pairing is the clustering. Confining the
-  // spread to the outbound half instead spaces them along the path itself.
-  // Closed tours map phase to position one-to-one, so both modes agree there.
+  // Phases within a crew, SPREAD along the path — settled. A ping-pong cycle
+  // visits every position twice, once outbound and once on the return leg, so
+  // spacing phases across the whole cycle lands mice in coincident pairs: phase
+  // p and phase 1-p are the same point, moving opposite ways. Confining the
+  // spacing to the outbound half spreads them along the path instead. Closed
+  // tours map phase to position one-to-one, so they take the full span.
   const byCrew = new Map();
   for (const m of cast) {
     if (!byCrew.has(m.crew)) byCrew.set(m.crew, []);
@@ -526,8 +585,7 @@ function rebuildCast() {
   }
   for (const [idx, members] of byCrew)
     members.forEach((m, k) => {
-      const span = (S.spread && !CREWS[idx].closed) ? 0.5 : 1;
-      m.phase = span * k / members.length;
+      m.phase = (CREWS[idx].closed ? 1 : 0.5) * k / members.length;
     });
 }
 
@@ -669,13 +727,6 @@ for (const key of COUNT_KEYS) {
     rebuildCast(); updateStat();
   });
 }
-document.getElementById('phase').addEventListener('click', (ev) => {
-  const b = ev.target.closest('button');
-  if (!b) return;
-  for (const el of ev.currentTarget.children) el.classList.toggle('on', el === b);
-  S.spread = b.dataset.v === 'spread';
-  rebuildCast();
-});
 document.getElementById('reseed').addEventListener('click', () => {
   S.seed = (S.seed * 1103515245 + 12345) >>> 0;
   rebuildCast();

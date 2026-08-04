@@ -15,8 +15,9 @@
     "dev:proctor": "npm run dev -w apps/proctor",
     "dev:lobby": "npm run dev -w apps/lobby",
     "build": "npm run build --workspaces --if-present",
-    "build:vercel": "npm run build --workspaces --if-present && node scripts/assemble.mjs",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "build:vercel": "npm run build --workspaces --if-present && node scripts/assemble.mjs && node scripts/check-routing.mjs",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check:routing": "node scripts/check-routing.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",

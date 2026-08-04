@@ -18,8 +18,10 @@ minutes, and unlock a code word to give the proctor.
 apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering split
                      into modules (see its src/README.md for the map)
 apps/angry-goomba/   Player client: Phaser 3 (renderer only — physics is server-side)
-apps/proctor/        Hidden proctor dashboard: QR codes, live progress, reset,
-                     rehearsal fast-forward
+apps/lobby/          Landing page: name entry, then the team the proctor put
+                     you on, with a link into each game
+apps/proctor/        Hidden proctor dashboard: team assignment, QR codes, live
+                     progress, reset, rehearsal fast-forward
 packages/shared/     Wire protocol, seeded RNG, goomba levels, and the WHOLE hex
                      game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
                      and the authoritative simulation (hex/sim.ts)
@@ -143,6 +145,7 @@ come from `vercel.json`, so there is nothing to override in the dashboard.
 
 | Path in `dist/` | Source | What |
 | --- | --- | --- |
+| `/` | `apps/lobby` | Team lobby (landing page) |
 | `/hex/` | `apps/hex-clicker` | Hex Clicker (coop) |
 | `/goomba/` | `apps/angry-goomba` | Angry Goomba (coop) |
 | `/proctor/` | `apps/proctor` | Proctor dashboard |
@@ -252,3 +255,41 @@ you intend to split those surfaces back out.
   economy — see the Deploying note).
 - Goomba client-side prediction of your own projectile if launch latency
   ever feels bad (it shouldn't on venue wifi).
+
+## Teams and the lobby
+
+Four teams, `t1`–`t4`. **A team id is also the PartyKit room id both games run
+in**, so once the proctor puts someone on `t2`, their hex room and their goomba
+room are both `t2` and nothing else has to agree on anything.
+
+The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
+lists everyone currently on that page and sorts them onto teams — per-person
+buttons, or **Auto-assign** to round-robin the unsorted starting from the
+smallest team. Once assigned, the player's page turns into their team name plus
+a link into each game.
+
+The lobby is the only state written to `room.storage`. A game room losing its
+memory costs one team its progress; the lobby losing its memory costs every team
+its identity mid-event, with no way to rebuild it except asking forty people who
+they are. Assignments change a handful of times per event, so it writes through
+on every change.
+
+### The origin constraint
+
+Player identity is a `pid` in `localStorage`, and **`localStorage` is
+per-origin**. The lobby's assignment only follows a player into a game if the
+game is served from the same origin as the lobby. On `cat-games-tau.vercel.app`
+it is. On `hexxygon.com` it is not — that origin has its own empty store, so the
+client mints a fresh pid and the server sees a stranger.
+
+Nothing server-side can bridge that: cookies are domain-scoped, every phone on
+venue wifi shares one NAT address, and fingerprinting is neither reliable nor
+welcome. The two ways to live with it:
+
+- **Serve the games from the lobby's origin.** Make the vanity domains redirect
+  to `cat-games-tau.vercel.app/hex/` instead of rewriting to it. One origin, one
+  pid, assignments follow players everywhere.
+- **Carry the team in the link.** What the lobby does today — its buttons point
+  at `<game>/?room=t2`, so the assignment rides in the URL and the origin stops
+  mattering. A player who types a vanity domain from scratch still arrives
+  unsorted.

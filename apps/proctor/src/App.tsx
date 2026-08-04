@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
 import QRCode from "react-qr-code";
+import { Lobby } from "./Lobby";
 import {
   UPGRADES,
   type GoombaServerMsg,
@@ -54,18 +55,22 @@ export function App() {
     return (
       <div className="setup">
         <h1>🐾 Escape Cats — Proctor</h1>
-        <p>Start a session for the next team.</p>
-        <div className="row">
-          <input
-            value={draft}
-            maxLength={8}
-            onChange={(e) => setDraft(e.target.value.toUpperCase().trim())}
-          />
-          <button onClick={() => setDraft(randomRoomCode())}>🎲</button>
-        </div>
-        <button className="primary" disabled={!draft} onClick={() => setRoom(draft)}>
-          Start session
-        </button>
+        <Lobby onOpenTeam={setRoom} />
+        <details className="adhoc">
+          <summary>Ad-hoc room</summary>
+          <p>For a rehearsal or a team that isn't in the lobby.</p>
+          <div className="row">
+            <input
+              value={draft}
+              maxLength={8}
+              onChange={(e) => setDraft(e.target.value.toUpperCase().trim())}
+            />
+            <button onClick={() => setDraft(randomRoomCode())}>🎲</button>
+          </div>
+          <button className="primary" disabled={!draft} onClick={() => setRoom(draft)}>
+            Start session
+          </button>
+        </details>
       </div>
     );
   }

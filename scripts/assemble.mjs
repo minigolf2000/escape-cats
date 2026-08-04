@@ -17,8 +17,12 @@ import { dirname, join, resolve } from "node:path";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outRoot = join(repoRoot, "dist");
 
-/** [source, destination-under-dist, human label] */
+/** [source, destination-under-dist, human label]. "." lands at the dist root —
+ * the lobby is the landing page, so it owns / rather than a subdirectory. It
+ * goes first so a later surface would visibly collide rather than be
+ * silently overwritten by it. */
 const SURFACES = [
+  ["apps/lobby/dist", ".", "Team lobby (landing page)"],
   ["apps/hex-clicker/dist", "hex", "Hex Clicker (coop)"],
   ["apps/angry-goomba/dist", "goomba", "Angry Goomba (coop)"],
   ["apps/proctor/dist", "proctor", "Proctor dashboard"],

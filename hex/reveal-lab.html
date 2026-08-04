@@ -512,7 +512,13 @@ const DIPPER = {
   megrez: [0.31, 0.37, 4],   alioth: [0.55, 0.30, 6],  mizar:  [0.77, 0.21, 5.5],
   alkaid: [1.00, 0.00, 6.5],
 };
-const DIPPER_BOX = [30, 44, 262, 92, 1.05];   // ox, oy, w, h, star scale
+// ox, oy, w, h, star scale — 0.855 of the 262x92 this was authored at. In step with
+// index.html, where the whole scene was compacted into the top half of the 390x620
+// box so the game's shop tray stops covering it; see the layout note on MOON_SCENE
+// there for why every y below sits where it does. The lab has no tray, so this looks
+// like gratuitous headroom here — it is not, and it should not be retuned against an
+// empty bottom.
+const DIPPER_BOX = [46, 20, 224, 79, 0.90];
 const dipperAt = (ox, oy, w, h) => k => [ox + DIPPER[k][0] * w, oy + DIPPER[k][1] * h];
 
 // The whole asterism as ONE continuous stroke. The graph has exactly two
@@ -560,14 +566,14 @@ function cometSweep(x, hx, hy, r, dx, dy, bows) {
 // Where the giant sits on its orbit. Body and path are DIFFERENT colors on
 // purpose: same-color ellipses of similar weight read as one tangle instead of
 // as a planet standing on a path.
-const ORB = { cx: 196, cy: 458, rx: 186, ry: 76, rot: -0.08, at: 1.9 };
+const ORB = { cx: 196, cy: 262, rx: 186, ry: 48, rot: -0.08, at: 0.974 };
 const GIANT = (() => {
   const c = Math.cos(ORB.rot), s = Math.sin(ORB.rot);
   const ex = Math.cos(ORB.at) * ORB.rx, ey = Math.sin(ORB.at) * ORB.ry;
   return { x: ORB.cx + ex * c - ey * s, y: ORB.cy + ex * s + ey * c };
 })();
 // Sized small because in the GAME the sleeping cat now poses to this orbit's centre
-// (see syncPoseVars in index.html) and a body the size of hers 93 units away read
+// (see syncPoseVars in index.html) and a body the size of hers 112 units away read
 // as a rival rather than as a planet going round her. The lab has no cat to crowd,
 // so if these look gratuitously small here, that is why — keep them in step with
 // index.html rather than retuning them against an empty middle.
@@ -575,7 +581,10 @@ const GIANT_R = 24;
 const GIANT_RING = { rx: 62, ry: 16, rot: -0.3 };
 
 const MOON_ELEMENTS = [
-  { color: 'pink', draw(x) { cometSweep(x, 348, 88, 8, -300, 452, [-46, -6, 40]); } },
+  // FOUR strands, not three: the sweep is 395 units long instead of 542 on the
+  // compacted layout, and the extra strand keeps the pink crew's tour the length it
+  // was rather than making the biggest crew on the wall resolve a third faster.
+  { color: 'pink', draw(x) { cometSweep(x, 352, 48, 8, -318, 234, [-48, -17, 13, 41]); } },
   { color: 'blue', draw(x) {
     x.moveTo(ORB.cx + ORB.rx * Math.cos(ORB.rot), ORB.cy + ORB.rx * Math.sin(ORB.rot));
     x.ellipse(ORB.cx, ORB.cy, ORB.rx, ORB.ry, ORB.rot, 0, 6.283);
@@ -607,11 +616,11 @@ const SCENE = {
   lines: [
     { text: 'TO THE', place(k, n) {
       const t = n < 2 ? 0 : k / (n - 1);
-      return { x: 75 + t * 240, y: 218, size: 34, rot: 0 };
+      return { x: 75 + t * 240, y: 106, size: 34, rot: 0 };
     } },
     { text: 'MOON', place(k, n) {
       const t = n < 2 ? 0 : k / (n - 1);
-      return { x: 63 + t * 264, y: 330, size: 78, rot: 0 };
+      return { x: 63 + t * 264, y: 168, size: 78, rot: 0 };
     } },
   ],
   elements: MOON_ELEMENTS,

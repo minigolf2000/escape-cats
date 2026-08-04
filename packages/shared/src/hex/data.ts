@@ -125,8 +125,19 @@ export const BUILDINGS: HexBuilding[] = [
   // EARNED clue. So the buildings are dream-native now and every space reference
   // lives behind the reveal.
   //
-  // They also escalate rather than just scaling: a place -> a device -> a
-  // phenomenon -> a recursion, which is how dreams actually get stranger.
+  // They also escalate rather than just scaling: a place -> a device -> a recursion,
+  // which is how dreams actually get stranger.
+  //
+  // THREE tiers, not four. The fourth was a second recursion sitting on top of this
+  // one (base 2.88M, 14400 mps) and it was eating the room: it revealed at a lifetime
+  // total the night reached with two minutes still to run, and from then on the shop
+  // was tall enough to cover the bottom half of the wall — which is the one thing the
+  // night phase exists to show. Its name is the one worth keeping, so it moved DOWN
+  // onto this row (see `delta` below) and the tier itself is gone. What that costs and
+  // what it buys is measured in the Scent Trail note further down; the short version is
+  // that the night's whole money supply fell 6.7x (567M lifetime to 103M) and the
+  // purchase cadence got BETTER for it, because the worst wait in the night was the
+  // hoard for a 2.88M building.
   //
   // Tiers reveal on lifetime >= base, exactly as they do in the day. They used to be
   // gated behind research that unlocked nothing but the right to buy them, which is
@@ -135,24 +146,23 @@ export const BUILDINGS: HexBuilding[] = [
   // THE SPACING IS THE PACING, now that nothing gates these. What decides when a tier
   // is worth buying is not its price but its COST PER MPS against the tier below: tier
   // n+1 only wins the marginal comparison once tier n's own curve has climbed past the
-  // ratio between them. So that ratio is the dial, and it is 4 → 20 → 50 → 200.
+  // ratio between them. So that ratio is the dial, and it is 4 → 20 → 50.
   //
   // The ratio has to GROW, not just be large, or the arrivals bunch up rather than
   // spreading out. Income compounds, so a constant ratio buys less and less waiting each
-  // time: at a flat x8 per tier the measured arrivals were 0:00, 0:14, 1:34, 2:21 — gaps
-  // of 14s, 80s, then 47s, the last one SHORTER than the one before. Escalating the
-  // ratio (x5, x2.5, x4 here) turns that into 0:00, 0:23, 1:11, 1:52 — a tier for every
-  // third of the night instead of three of them inside the first forty seconds.
+  // time: at a flat x8 per tier the measured arrivals were 0:00, 0:14, 1:34 — gaps of
+  // 14s then 80s off a night that was half over. Escalating the ratio (x5, x2.5 here)
+  // turns that into 0:00, 0:17, 1:15 — a tier for every third of the night instead of
+  // two of them inside the first fifteen seconds.
   //
-  // The last gap does not keep growing, and that is a ceiling rather than a miss: Dream
-  // Within a Dream is chased by Scent Trail's ownership gate the moment it is REVEALED, so
-  // its arrival is set by `total >= base` and not by the marginal comparison at all.
-  // Pushing its base from 2.88M to 8.64M moved the arrival by twelve seconds and added
-  // two and a half minutes of dead night behind it (cadence fell to 8 purchases per 30s
-  // from 25). 2.88M is where the tier arrives late without the tail going quiet.
+  // Do NOT try to buy the deleted tier's income back by rebasing this one. Measured:
+  // holding the 50 ratio and scaling `delta` up 4x (480k base, 9600 mps) restores the
+  // money supply and drops the night to 178 purchases from 273, because a tier four
+  // times dearer is a tier bought a quarter as often — and purchasing IS the action
+  // here (see below). 2x is the same trade at half strength: 242 purchases.
   //
   // Equal spacing was what the research gates had been hiding. At the same cost per mps
-  // for all four, the curves interleave into an aggregate growing about 1% per purchase
+  // for every tier, the curves interleave into an aggregate growing about 1% per purchase
   // and the bank refills faster than anyone can spend it: 96 purchases in the first 30
   // seconds and 2 per 30 seconds thereafter. The gates were staggering the tiers by
   // hand; the price ladder does it honestly.
@@ -185,15 +195,20 @@ export const BUILDINGS: HexBuilding[] = [
   // pets/s, night from the twist to a readable wall: 4:21 and 156 purchases before,
   // 3:07 and 233 after — the run is shorter AND has half again as much in it, which is
   // the whole point. Purchase rate 0.60/s to 1.25/s; worst gap 30.3s to 21.9s.
+  // (Those are the numbers for THIS change, on the four-tier ladder. The night's
+  // current figures are 2:45 and 273 purchases — see the Scent Trail note.)
   //
-  // The `id`s are save keys (see load()), so `spindle` and `delta` still carry the
-  // names these rows used to have (Sleep Spindle, Delta Wave — dropped for being
-  // accurate jargon that never joked). Do not "fix" the mismatch: renaming an id
-  // silently wipes that building from every existing save.
-  { id: "portal",  name: "Hole in the Wall",      icon: "🕳️", base: 480,     mps: 120,   night: true, growth: 1.035, firstFree: 1 },
-  { id: "spindle", name: "Ball of String Theory", icon: "🧵", base: 9600,    mps: 480,   night: true, growth: 1.035 },
-  { id: "delta",   name: "Slow Wave",             icon: "🌊", base: 120000,  mps: 2400,  night: true, growth: 1.035 },
-  { id: "nested",  name: "Dream Within a Dream",  icon: "🌀", base: 2880000, mps: 14400, night: true, growth: 1.035 },
+  // The `id`s are save keys, so `spindle` and `delta` carry names that have nothing to
+  // do with them: `spindle` was Sleep Spindle and `delta` was Delta Wave, then Slow
+  // Wave, and is now Dream Within a Dream — the name inherited from the tier deleted
+  // above it, because it was the best name on the rail and the tier under it was the
+  // weakest ("Slow Wave" is a sleep stage, not a joke). Do not "fix" the mismatch:
+  // renaming an id silently wipes that building from every existing save. `delta`'s
+  // NUMBERS are untouched by the inheritance — it is the same 120000/2400 row it was,
+  // now sitting at the top of the ladder instead of one from the top.
+  { id: "portal",  name: "Hole in the Wall",       icon: "🕳️", base: 480,    mps: 120,  night: true, growth: 1.035, firstFree: 1 },
+  { id: "spindle", name: "Ball of String Theory",  icon: "🧵", base: 9600,   mps: 480,  night: true, growth: 1.035 },
+  { id: "delta",   name: "Dream Within a Dream",   icon: "🌀", base: 120000, mps: 2400, night: true, growth: 1.035 },
 ];
 // The night opens on NOTHING: an empty bank, an empty wall, and one Hole in the Wall
 // priced at zero. That free copy is the entire bootstrap — nothing but buildings earns
@@ -229,9 +244,9 @@ export const ZOOM_S = 7;               // ...for 7s
 // instead of 1.08. Changing this therefore changes that row's blurb, which is
 // derived from the same arithmetic — see everyText.
 //
-// Measured against the in-file sim at 2.5, whole run to the last night upgrade:
-// 16 pets/s (a team of four mashing) 5:30, 10/s 6:14, 8/s 6:39, 3/s (solo) 8:19.
-// This dial only moves the DAY: night's income is buildings alone, so its 3:07 is
+// Measured against the pacing sim at 2.5, whole run to the last night upgrade:
+// 16 pets/s (a team of four mashing) 4:28, 10/s 4:59, 8/s 5:15, 3/s (solo) 6:30.
+// This dial only moves the DAY: night's income is buildings alone, so its 2:45 is
 // the same at every rate — the spread above is entirely how long the day takes to
 // reach the twist. Read as ±20s, and do not chase a few seconds by moving this.
 export const INCOME_SCALE = 2.5;
@@ -245,7 +260,7 @@ export const HEX_CODEWORD_DEFAULT = "TO THE MOON";
 
 // ---------------------------------------------------------------------------
 // UPGRADES — a flat authored list, no tier table. Cookie Clicker's tier system
-// exists to compress a 20-buildings x 15-tiers cross-product; ours is 4x2, so
+// exists to compress a 20-buildings x 15-tiers cross-product; ours is 4 day + 3 night, so
 // there's nothing to compress and every field is written out longhand.
 //
 //   unlock: what makes it appear. Sticky once met. Kinds, all AND-ed:
@@ -786,13 +801,13 @@ export const UPGRADES: HexUpgrade[] = [
   { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
     cost: 1.8e6, unlock: { requires: "countingmice", owned: [["portal", 6]] },
     effect: { type: "globalMult", mult: 6 } },
-  // ONE ownership gate at the very end, not two. This rung used to carry `nested 28` as
-  // well, which was fine while it sat behind a 7.5M Scent Trail at 2:35 — but with that
-  // row gone it hangs straight off Counting Mice, and the gate started the bot hoarding
-  // for 2.88M buildings at 1:40 instead of 2:35. Measured: a 30-second window with TWO
-  // purchases in it, in the middle of the mashing phase. Price alone paces this one now
-  // (7M lands it at 2:35, exactly where the deleted row used to sit) and the gate is the
-  // finale's alone.
+  // NO ownership gate, and the night's ladder now has none at all above Lucky Number 6's
+  // six Holes. This rung used to carry one (`nested 28`), and dropping it is the same
+  // lesson the finale below learned the hard way: an owned-count gate on a night building
+  // makes the bot hoard for that building from the moment it is revealed, which drains the
+  // stretch of night in front of the rung to pay for the rung. Measured when this row
+  // carried it: a 30-second window with TWO purchases in it, in the middle of the mashing
+  // phase. Price alone paces it — 7M lands it at 2:14 into the night.
   { key: "remsleep", name: "Lucid Dreaming IV", icon: "👀",
     cost: 7e6, unlock: { requires: "deepsleep" },
     effect: { type: "trail", add: 64 } },
@@ -812,18 +827,40 @@ export const UPGRADES: HexUpgrade[] = [
   // four trail rungs with no persistence reach 1.32 against a 1.6 threshold. Delete this
   // row rather than move it and the word can never be read at all.
   //
-  // Paced by OWNERSHIP, not price. Once Dream Within a Dream is online night income runs
-  // away and cost stops being a brake: multiplying the tail costs by FOUR once bought
-  // fifteen extra seconds. An owned-count gate rides the building cost curve instead,
-  // which compounding cannot outrun. 58 rather than the 14 it started at, because the
-  // shallower 1.035 curve means a player who reaches the top tier keeps buying it.
+  // Paced by PRICE, and that is a reversal: this row used to carry an owned-count gate
+  // (58 of the top tier) because "once Dream Within a Dream is online night income runs
+  // away and cost stops being a brake". That was true of the 14400-mps tier and is not
+  // true of the ladder without it. Income now climbs LINEARLY in copies owned while cost
+  // climbs as 1.035^n, so the curve outruns the bank on its own and a price is a real
+  // brake again.
+  //
+  // The gate had to go rather than move, and the reason is REVEAL TIME, not preference.
+  // An owned gate paces the finale only if the building it names is unaffordable when the
+  // gate appears — the deleted tier revealed at a 2.88M lifetime, two thirds of the way
+  // into the night. Every remaining tier reveals in the night's first half, so pointing
+  // the gate at one makes the whole night a savings plan for it. Measured, gate on 76
+  // `delta`: Lucid Dreaming II slid from 0:50 into the night to 2:18, then five rungs
+  // landed in the last 59 seconds — a two-minute dead stretch followed by a pile-up.
+  // A gate at 40 was the same shape at two thirds strength. There is no count that fixes
+  // it, so the brake is the number below.
+  //
+  // 60e6 (from 27M), which is what puts the finale at the end of a night whose money
+  // supply fell 6.7x with the tier. Measured at 16 pets/s, twist to a readable wall:
+  // 2:45 and 273 purchases at 1.65/s, worst gap 21.8s — against 3:17 and 231 at 1.17/s,
+  // worst gap 20.4s, before. Shorter, denser, and the same worst wait.
+  //
+  // That 21.8s is the ceiling this price is set by, and it is NOT this row's own hoard —
+  // it is the wait before the top tier arrives, which is where it has always been. Push
+  // the price up to buy the clock back and this row's hoard becomes the worst wait in the
+  // night instead: 100e6 gives a 2:58 night with a 30.8s gap, 150e6 a 3:13 night with a
+  // 41.1s gap. 30 seconds of run is the cheaper thing to lose.
   //
   // `key` stays `hypnagogia` — it is a save key, so renaming it would silently un-buy this
   // row for anyone mid-run. Footprints, and NOT the crescent moon this row used to carry:
   // the answer is TO THE MOON, so a moon on the shop rail leaks it the same way
   // Constellation Cattery did. Every icon on a night row has to pass that test.
   { key: "hypnagogia", name: "Scent Trail", icon: "👣",
-    cost: 27e6, unlock: { requires: "remsleep", owned: [["nested", 58]] },
+    cost: 60e6, unlock: { requires: "remsleep" },
     effect: { type: "persist", add: 60 } },
 ];
 

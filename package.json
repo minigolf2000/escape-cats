@@ -9,10 +9,9 @@
     "server"
   ],
   "scripts": {
-    "dev": "concurrently -k -n server,hex,goomba,proctor,lobby -c blue,magenta,yellow,green,cyan \"npm:dev:server\" \"npm:dev:hex\" \"npm:dev:goomba\" \"npm:dev:proctor\" \"npm:dev:lobby\"",
+    "dev": "concurrently -k -n server,hex,proctor,lobby -c blue,magenta,green,cyan \"npm:dev:server\" \"npm:dev:hex\" \"npm:dev:proctor\" \"npm:dev:lobby\"",
     "dev:server": "npm run dev -w server",
     "dev:hex": "npm run dev -w apps/hex-clicker",
-    "dev:goomba": "npm run dev -w apps/angry-goomba",
     "dev:proctor": "npm run dev -w apps/proctor",
     "dev:lobby": "npm run dev -w apps/lobby",
     "build": "npm run build --workspaces --if-present",

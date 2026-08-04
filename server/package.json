@@ -9,11 +9,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@escape-cats/shared": "*",
-    "matter-js": "^0.20.0"
+    "@escape-cats/shared": "*"
   },
   "devDependencies": {
-    "@types/matter-js": "^0.20.2",
     "partykit": "0.0.115"
   }
 }

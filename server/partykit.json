@@ -4,12 +4,10 @@
   "compatibilityDate": "2026-07-04",
   "main": "src/hex.ts",
   "parties": {
-    "goomba": "src/goomba.ts",
     "lobby": "src/lobby.ts"
   },
   "vars": {
     "HEX_CODEWORD": "TO THE MOON",
-    "GOOMBA_CODEWORD": "POUNCE",
     "PROCTOR_TOKEN": "dev-proctor"
   }
 }

@@ -24,12 +24,12 @@ const outRoot = join(repoRoot, "dist");
  * silently overwritten by it. */
 const SURFACES = [
   ["apps/lobby/dist", ".", "Team lobby (landing page)"],
-  // The two game paths are deliberately not /hex and /goomba: they are what
-  // the vanity domains redirect to, and a player who guesses the path would
-  // walk into a game without being sorted onto a team first.
+  // The game paths are deliberately not /hex and /goomba: they are what the
+  // vanity domains redirect to, and a player who guesses the path would walk
+  // into a game without being sorted onto a team first. /g00mBa's casing is
+  // load-bearing -- URL paths are case-sensitive, so /g00mba is a 404.
   ["apps/hex-clicker/dist", "hexxygon", "Hex Clicker (coop)"],
-  ["prototypes/goomba-rider.html", "g00mba", "Goomba Rider"],
-  ["apps/angry-goomba/dist", "goomba", "Angry Goomba (coop)"],
+  ["prototypes/goomba-rider.html", "g00mBa", "Goomba Rider"],
   ["apps/proctor/dist", "proctor", "Proctor dashboard"],
   ["hex", "solo-hex", "Hex Clicker (solo) + QR Studio"],
   ["prototypes", "prototypes", "Prototypes menu + Goomba Rider"],

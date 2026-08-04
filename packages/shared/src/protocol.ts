@@ -42,41 +42,5 @@ export type HexClientMsg =
   | { type: "reset" } // proctor only
   | { type: "speed"; mult: number }; // proctor only — dev time-scale
 
+
 export type HexServerMsg = { type: "state"; state: HexSnapshot };
-
-// ---------------------------------------------------------------------------
-// Angry Goomba
-// ---------------------------------------------------------------------------
-
-export type BodyKind = "ground" | "block" | "target" | "projectile";
-
-export interface BodySnapshot {
-  id: number;
-  kind: BodyKind;
-  shape: "box" | "circle";
-  x: number;
-  y: number;
-  angle: number;
-  w: number;
-  h: number;
-  r: number;
-}
-
-export interface GoombaState {
-  levelIndex: number;
-  totalLevels: number;
-  levelsCleared: number;
-  targetsRemaining: number;
-  players: PlayerInfo[];
-  progress: number;
-  codeword: string | null;
-}
-
-export type GoombaClientMsg =
-  | { type: "join"; name: string }
-  | { type: "launch"; angle: number; power: number } // radians, 0..1
-  | { type: "reset" }; // proctor only
-
-export type GoombaServerMsg =
-  | { type: "state"; state: GoombaState }
-  | { type: "snapshot"; t: number; bodies: BodySnapshot[] };

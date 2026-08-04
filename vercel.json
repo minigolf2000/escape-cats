@@ -46,7 +46,7 @@
         }
       ],
       "permanent": false,
-      "destination": "https://cat-games-tau.vercel.app/g00mba/:path*"
+      "destination": "https://cat-games-tau.vercel.app/g00mBa/:path*"
     },
     {
       "source": "/:path*",
@@ -57,7 +57,7 @@
         }
       ],
       "permanent": false,
-      "destination": "https://cat-games-tau.vercel.app/g00mba/:path*"
+      "destination": "https://cat-games-tau.vercel.app/g00mBa/:path*"
     }
   ],
   "rewrites": [

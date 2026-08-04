@@ -1,11 +1,11 @@
 // The team lobby — the one piece of state that outlives a single game room.
 //
-// A team id doubles as the PartyKit room id both games run in, so once the
-// proctor puts a player on "t2", that player's hex room and goomba room are
-// both "t2". Nothing else needs to agree on anything.
+// A team id doubles as the PartyKit room id the game runs in, so once the
+// proctor puts a player on "t2", that player's game room is "t2". Nothing
+// else needs to agree on anything.
 
 export interface Team {
-  /** Also the room id for both games. */
+  /** Also the game's room id. */
   id: string;
   name: string;
 }

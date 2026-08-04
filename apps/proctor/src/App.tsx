@@ -4,7 +4,6 @@ import QRCode from "react-qr-code";
 import { Lobby } from "./Lobby";
 import {
   UPGRADES,
-  type GoombaServerMsg,
   type HexServerMsg,
   type HexSnapshot,
   type PlayerInfo,
@@ -12,7 +11,6 @@ import {
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
 const HEX_URL = import.meta.env.VITE_HEX_URL ?? "http://localhost:5173";
-const GOOMBA_URL = import.meta.env.VITE_GOOMBA_URL ?? "http://localhost:5174";
 const TOKEN = import.meta.env.VITE_PROCTOR_TOKEN ?? "dev-proctor";
 
 function randomRoomCode(): string {
@@ -88,16 +86,6 @@ function Session({ room, onEnd }: { room: string; onEnd: () => void }) {
         }
       : null,
   );
-  const goomba = useGameSocket(room, "goomba", (msg: GoombaServerMsg): GameProgress | null =>
-    msg.type === "state"
-      ? {
-          progress: msg.state.progress,
-          players: msg.state.players,
-          detail: `${msg.state.levelsCleared}/${msg.state.totalLevels} levels · ${msg.state.targetsRemaining} targets left`,
-          codeword: msg.state.codeword,
-        }
-      : null,
-  );
 
   return (
     <div className="session">
@@ -113,11 +101,6 @@ function Session({ room, onEnd }: { room: string; onEnd: () => void }) {
           // Rehearsal fast-forward: accelerates income + golden cadence on the
           // server, never click feel. Resets to ×1 with the room.
           speeds={[1, 5, 20]}
-        />
-        <GamePanel
-          title="😾 Angry Goomba"
-          joinUrl={`${GOOMBA_URL}/?room=${room}`}
-          game={goomba}
         />
       </div>
     </div>

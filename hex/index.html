@@ -2372,7 +2372,7 @@ function onRailInPhase(u) {
 // chain (night's one economy row), so a leaf test would shut the shop over an unbought,
 // affordable, now permanently unreachable upgrade. It stays open while anything remains.
 // In practice the two agree — against the pacing bot Lucky 6 lands at 1:47 and
-// Hypnagogia closes the night at 3:07.
+// Scent Trail closes the night at 3:15.
 function shopSoldOut() {
   return nightActive() && UPGRADES.every(u => !onRailInPhase(u) || game.bought[u.key]);
 }
@@ -4846,12 +4846,17 @@ const DEV_PRESETS = {
   // ONE PURCHASE FROM THE END, for the shop's closing beat (runShopClose) — which is
   // otherwise a 3-minute night away and fires exactly once per save. Holds every night
   // row but the last, with the 58 Dream Within a Dream that gate it and the bank to
-  // press it. Buy Hypnagogia and the shop shuts.
+  // press it. Buy Scent Trail and the shop shuts.
+  //
+  // The list has to be EVERY other night row, so it needs editing whenever the ladder
+  // does: `scenttrail` used to be here and is gone (its persist moved onto the last rung,
+  // key `hypnagogia`), and `paperlantern` has to be here or the preset sits two purchases
+  // from the end and the beat never fires from it.
   "closing":  { total: 60e6, mice: 30e6, clicks: 1200, golden: 8,
                 owned: { shopper: 25, farm: 40, factory: 5, lab: 2,
                          portal: 60, spindle: 40, delta: 30, nested: 58 },
-                bought: ["catnap", "countingmice", "luciddreaming", "pawtwitch",
-                         "deepsleep", "scenttrail", "lucky6", "remsleep"] },
+                bought: ["catnap", "paperlantern", "luciddreaming", "pawtwitch",
+                         "deepsleep", "countingmice", "lucky6", "remsleep"] },
 };
 // Fill in the ordinary upgrades a save in this state would already hold: unlock
 // conditions met, and paid for out of a share of lifetime earnings. Story rows

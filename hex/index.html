@@ -59,6 +59,20 @@
        number. Above true center because the shop owns the bottom of the screen.
        Move this one value and cat + background travel together. */
     --sun-y: 33%;
+    /* NIGHT pose: where the sleeping cat sits, as screen px from the stage center.
+       Written every resize by syncPoseVars() from the wall's own scene->screen
+       mapping, because the target is a SCENE coordinate — the center of the blue
+       crew's orbit — and no fixed vh/px pair lands on it at more than one aspect
+       ratio. The values below are the old hand-set pose, kept as the fallback for
+       the window before the wall first sizes itself (and if it never does).
+       See `body.night #catPose` and syncPoseVars. */
+    --pose-x: 0px;
+    --pose-y: calc(39vh - 104px);
+    /* And how big she is once she gets there, as a multiplier on the night pose.
+       Also syncPoseVars'. 1 is "the size she has always been on a phone" — that is
+       not a coincidence, it's what the target is calibrated to, so every portrait
+       phone resolves this to exactly 1 and nothing about them changes. */
+    --pose-fit: 1;
 
     --ui-font: 'Baloo 2', system-ui, sans-serif;
     --page-bg:
@@ -312,10 +326,14 @@
      as the camera pulling back to take in the whole wall. Done as transform
      (not width/align-items) so it's one smooth GPU-composited move — the old
      version snapped, because align-items and width can't tween a flex reflow.
-     translateY is applied AFTER scale in the matrix, so the distance is in
-     real screen px and doesn't get quartered by the scale. #stage is exactly
-     100vh (both #hud and #dock are position:fixed, so #stage is body's only
-     in-flow child), which is what makes 50vh mean "the bottom edge". */
+     The translate is applied AFTER scale in the matrix, so the distance is in
+     real screen px and doesn't get quartered by the scale.
+     WHERE she lands is the orbit's center, and that is not expressible as a
+     constant: it's a point in the wall's 390x620 scene space, and the scene is
+     fitted with min(w/390, h/620), so the screen offset to it depends on the
+     viewport's SHAPE and not only its height. Hence the two custom properties —
+     syncPoseVars() recomputes them from the same mapping the canvas draws with,
+     so the cat and the ellipse around her can't drift apart on any screen. */
   /* The zoom WAITS, and for two things now: the yawn (YAWN_MS, 1300ms) and then
      a 2000ms hold at full size while the first zzz drift off her (see #sleepZ).
      1.3 + 2.0 = the 3.3s delay below.
@@ -328,9 +346,18 @@
      Delay only on the night rule, so waking (dev preset back to day) still snaps
      back immediately. Keep in sync with YAWN_MS + ZZZ_HOLD_MS. */
   body.night #catPose {
-    /* Independent of the day centering (#catWrap is neutralized at night): the
-       original wall-reveal pose, so the sleeping cat settles where it expects. */
-    transform: translateY(calc(39vh - 104px)) scale(.25);
+    /* Independent of the day centering (#catWrap is neutralized at night), so
+       these offsets are measured from the bare center of #stage — which is also
+       what the wall's scene box is centered on. That shared origin is the whole
+       reason the pose can be stated as a scene offset at all.
+       --pose-fit multiplies the .25 rather than sitting on a layer of its own, so
+       her final SIZE arrives as part of the camera move like her final position
+       does. Parked on #catBreath instead it applied from the first frame of the
+       phase, which meant the yawn and the zzz hold — the beat that plays at full
+       size, before the camera moves at all — were staged at the fitted size and
+       popped on the class flip. Nothing to see on a phone either way (the fit is
+       1 there); on a tablet it was a 31% jump. */
+    transform: translate(var(--pose-x), var(--pose-y)) scale(calc(.25 * var(--pose-fit)));
     transition-delay: 3.3s;
   }
   body.night #hexCat { filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
@@ -403,6 +430,13 @@
      at that point, with cubic-bezier(.22,.61,.36,1) evaluated into the VALUES so
      this animation can run `linear`. Product is .250 at every stop.
      Recompute these if the zoom's duration, easing or .25 ever move.
+     The pose ends at .25 * --pose-fit, not at a bare .25, and these stops cancel the
+     bare .25 only — so on a screen where the fit is not 1 the product drifts to that
+     factor over the 1.8s instead of holding flat, which lands the glyphs at
+     24px * fit and keeps them proportionate to the cat they belong to. That is the
+     end state we want; the cost is a slow size ease across the move rather than a
+     held size. Exact on every portrait phone, where the fit IS 1 — which is where
+     the 39px bulge above was measured and where it still cannot come back.
      #sleepZ's own box is 0x0 (its spans are absolute), so the default
      transform-origin is the emergence point itself — exactly what should stay
      put. `forwards` holds the end state instead of snapping back. */
@@ -3306,12 +3340,35 @@ function cometSweep(x, hx, hy, r, dx, dy, bows) {
 // Where the giant sits on its orbit. Body and path are DIFFERENT colours on
 // purpose: as two same-colour ellipses of similar weight they read as one tangle
 // instead of as a planet standing on a path.
+//
+// ORB.cx is one unit right of the scene's own centre (390/2 = 195), and that is
+// load-bearing rather than a rounding slip: the sleeping cat is centred on the
+// stage and now poses to this ellipse's CENTRE, so an orbit centred near x=195
+// costs nothing to aim at. Moving cx far off centre is legal but drags her
+// sideways with it (see syncPoseVars).
 const ORB = { cx: 196, cy: 458, rx: 186, ry: 76, rot: -0.08, at: 1.9 };
 const GIANT = (() => {
   const c = Math.cos(ORB.rot), s = Math.sin(ORB.rot);
   const ex = Math.cos(ORB.at) * ORB.rx, ey = Math.sin(ORB.at) * ORB.ry;
   return { x: ORB.cx + ex * c - ey * s, y: ORB.cy + ex * s + ey * c };
 })();
+// The giant's own size, small on purpose. Hex sleeps at the orbit's centre, and
+// the giant stands on the path 93 units away from her — at the original 46 body /
+// 108x28 ring it was WIDER than she is (92 units against her ~49) and its ring
+// swept to within ~15 units of her silhouette, so the two read as a pair of
+// similar bodies fighting over the same middle rather than as a cat with a planet
+// going round her. Halving the body while holding the ring's proportion near where
+// it was (2.35:1 then, 2.6:1 here — scaled, not restyled, so it is the same object
+// smaller) opens that to ~46 units of clear sky and settles the hierarchy.
+//
+// The cost, stated plainly: A SHORTER TOUR IS A FASTER TOUR. The green crew's walk
+// drops from ~126 sampled points to ~70, so with the same 4 mice the giant now
+// resolves in a bit over half the time — it gives itself up earlier in the reveal
+// than the comet or the asterism do. Lengthening the ring instead of scaling it
+// would buy that back, at the price of a body-to-ring ratio that stops reading as
+// a ringed planet; the pacing is the cheaper thing to lose.
+const GIANT_R = 24;
+const GIANT_RING = { rx: 62, ry: 16, rot: -0.3 };
 
 const MOON_SCENE = {
   // The WIDE spread: TO THE letterspaced across the frame, MOON large beneath it.
@@ -3333,8 +3390,9 @@ const MOON_SCENE = {
       x.ellipse(ORB.cx, ORB.cy, ORB.rx, ORB.ry, ORB.rot, 0, 6.283);
     } },
     { color: 'green', draw(x) {
-      x.moveTo(GIANT.x + 46, GIANT.y); x.arc(GIANT.x, GIANT.y, 46, 0, 6.283);
-      x.moveTo(GIANT.x + 108, GIANT.y); x.ellipse(GIANT.x, GIANT.y, 108, 28, -0.3, 0, 6.283);
+      x.moveTo(GIANT.x + GIANT_R, GIANT.y); x.arc(GIANT.x, GIANT.y, GIANT_R, 0, 6.283);
+      x.moveTo(GIANT.x + GIANT_RING.rx, GIANT.y);
+      x.ellipse(GIANT.x, GIANT.y, GIANT_RING.rx, GIANT_RING.ry, GIANT_RING.rot, 0, 6.283);
     } },
     { color: 'purple', draw(x) { bigDipper(x, ...DIPPER_BOX); } },
   ],
@@ -3356,6 +3414,11 @@ const wallCv = $("#wall"), wctx = wallCv.getContext('2d');
 // Offscreen layer for Scent Trail's persisting ink (see drawWall).
 const inkCv = document.createElement('canvas');
 const inkCtx = inkCv.getContext('2d');
+// The reference frame every scene coordinate above is authored in. Named rather
+// than inlined into resizeWall because the sleeping cat's pose is derived from a
+// scene point too (syncPoseVars), and the two derivations have to share the fit or
+// Hex and the ellipse she sits inside will disagree about where the middle is.
+const WALL_REF_W = 390, WALL_REF_H = 620;
 let wW = 0, wH = 0;
 // Scene->screen mapping is constant between resizes, so it's computed here
 // rather than inside wallSceneMap — that ran ~400k times/sec at full night
@@ -3373,9 +3436,64 @@ function resizeWall() {
   // is stale; without this the first post-resize frame draws one long false streak.
   wallInkDirty = false;
   for (const m of wallCast) m.lx = undefined;
-  wallScale = Math.min(wW / 390, wH / 620);
-  wallOffX = (wW - 390 * wallScale) / 2;
-  wallOffY = (wH - 620 * wallScale) / 2;
+  wallScale = Math.min(wW / WALL_REF_W, wH / WALL_REF_H);
+  wallOffX = (wW - WALL_REF_W * wallScale) / 2;
+  wallOffY = (wH - WALL_REF_H * wallScale) / 2;
+  syncPoseVars();
+}
+// Puts the sleeping cat at the CENTRE of the blue crew's orbit, by publishing that
+// point to CSS as an offset from the stage centre in screen px. It has to be CSS
+// rather than an inline transform: the pose composes with the 1.8s zoom-out easing
+// and the #sleepZ counter-scale, and those live in the stylesheet.
+//
+// #catPose flex-centres Hex on #stage, and #wall is inset:0 of that same #stage, so
+// both are centred on the identical point — which means the offset she needs is
+// just the scene-space offset from the scene's centre to ORB's, run through the
+// wall's own fit. Two things fall out of that which are worth knowing:
+//
+//   x: (196 - 195) * scale — ONE scene unit. She was already standing on the
+//      orbit's vertical axis before any of this; only the height was ever wrong.
+//   y: (458 - 310) * scale — and on a phone the fit is width-limited, so `scale` is
+//      w/390 and her pose now tracks the viewport's WIDTH. The old `39vh - 104px`
+//      was height-driven, which meant every mobile URL-bar show/hide slid her (and
+//      slid her through the 1.8s transition, 3.3s late). Width doesn't change when
+//      the URL bar does, so on the phones this game is actually played on she now
+//      holds still.
+//
+// It also publishes --pose-fit, and that one only became necessary BECAUSE of the
+// above. Her SIZE comes from `#hexCat { width: min(55%, 300px) }` — a fraction of
+// the VIEWPORT — while the orbit around her is fitted with min(w/390, h/620). Those
+// two agree on every portrait phone by luck of the numbers (below the 300px cap,
+// 55% of the width against a width-limited fit, so she is ~54 scene units wide on a
+// Fold and on a 14 Pro Max alike) and diverge badly the moment the fit goes
+// height-limited: a phone turned landscape put her at 120 scene units inside a
+// 186-unit ellipse with the giant 11px off her flank. That mismatch was invisible
+// while she sat below the orbit, and became the composition the instant she moved
+// into the middle of it. So her night size is stated once, in the same units as
+// everything else on the wall, and the multiplier is whatever it takes to get there.
+
+// Her on-screen width at night, in SCENE units. Written as the derivation rather
+// than as 53.625 because that is what makes "portrait phones are untouched" a fact
+// instead of a hope: it IS what the CSS width above already produces at the pose's
+// quarter scale on any phone under the 300px cap, so those phones resolve
+// --pose-fit to 1.0000 and nothing about them moves. Retune it freely — this is now
+// the authority on her night size, and the CSS width only decides the day's.
+const POSE_SCENE_W = 0.55 * WALL_REF_W * 0.25;
+// Called from resizeWall so it can never be computed off a stale mapping, and
+// reached on the night latch before the first painted frame (syncPhase -> resizeWall).
+function syncPoseVars() {
+  const st = document.documentElement.style;
+  st.setProperty('--pose-x', ((ORB.cx - WALL_REF_W / 2) * wallScale).toFixed(2) + 'px');
+  st.setProperty('--pose-y', ((ORB.cy - WALL_REF_H / 2) * wallScale).toFixed(2) + 'px');
+  // The COMPUTED width, deliberately not getBoundingClientRect(): the rect is
+  // post-transform, so reading it here would feed this frame's own --pose-fit back
+  // into the next one and creep on every resize. offsetWidth would dodge that too,
+  // but #hexCat is an <svg> and offsetWidth is an HTMLElement property — it comes
+  // back undefined and the NaN quietly lands on the fallback, which is exactly the
+  // failure this comment exists to stop someone re-introducing.
+  const layoutW = parseFloat(getComputedStyle(hexCatEl).width) * 0.25;   // 0.25 == `body.night #catPose`'s scale
+  st.setProperty('--pose-fit', layoutW > 0
+    ? (POSE_SCENE_W * wallScale / layoutW).toFixed(4) : '1');
 }
 window.addEventListener('resize', () => { if (nightActive()) resizeWall(); });
 

@@ -116,7 +116,12 @@ project** (every static surface). Vanity domains are routed inside
 `vercel.json`, not by splitting into more projects — so adding a domain or
 repointing one is a repo change, not dashboard clicking.
 
-### 1. PartyKit (do this first)
+### 1. PartyKit
+
+Can be done last if you just want the site up: the single-player surfaces
+(`/solo-hex/`, `/prototypes/`) need no server, and the coop apps build and
+deploy fine with a stub `VITE_PARTYKIT_HOST` — they render their join screen
+and only fail at the point of joining a room.
 
 ```sh
 npm run deploy -w server   # partykit deploy
@@ -149,10 +154,16 @@ the two games cannot drift onto different servers):
 
 ```
 VITE_PARTYKIT_HOST=escape-cats.<user>.partykit.dev
-VITE_HEX_URL=https://hex.<domain>
-VITE_GOOMBA_URL=https://goomba.<domain>
+VITE_HEX_URL=https://hexxygon.com
+VITE_GOOMBA_URL=https://g00.mba
 VITE_PROCTOR_TOKEN=<matches PROCTOR_TOKEN above>
 ```
+
+**Root Directory must be blank.** `vercel.json` overrides the dashboard's
+framework, build command and output directory, but it cannot set the root
+directory — it is read *from* it. A project pointed at `hex/` or `prototypes/`
+never sees this file, so `build:vercel` never runs and the hostname rewrites
+never apply.
 
 ### 3. Vanity domains
 
@@ -161,11 +172,18 @@ Attach the domain to the project in Vercel, then add a host rewrite in
 
 ```json
 {
-  "source": "/(.*)",
+  "source": "/:path*",
   "has": [{ "type": "host", "value": "hex.example.com" }],
-  "destination": "/hex/$1"
+  "destination": "/hex/:path*"
 }
 ```
+
+Use the `:path*` wildcard form, not `/(.*)` with `$1`. Vercel only substitutes
+`$1` when the source is an explicitly anchored regex; an unanchored source is
+parsed as path-to-regexp, where `$1` is not a substitution token, so every
+asset request would rewrite to a literal `/hex/$1` and 404. The root would
+still serve `index.html`, so the symptom is a page that loads and then fails
+to fetch its own JS.
 
 Two are wired already, both to the coop games — so these are the domains the
 proctor QR codes point at (`VITE_HEX_URL` / `VITE_GOOMBA_URL`):

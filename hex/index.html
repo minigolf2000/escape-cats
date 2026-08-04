@@ -1243,17 +1243,17 @@ const UPGRADES = [
     cost: 200, unlock: { owned: ["shopper", 5] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
   { key: "shopper2", name: "Subscribe & Save", icon: "🔁",
-    cost: 1800, unlock: { owned: ["shopper", 10] },
+    cost: 1800, unlock: { total: 3500, owned: ["shopper", 10] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
   // The subscription line's later tiers break from the flat ×2: each one cuts
   // deeper into the supply chain, so the mice-per-dollar gain grows. Liquidation
   // pallets (bulk, still through a middleman) → ×3; importing straight from the
   // factory (no middleman at all) → ×4, the deepest cut in the line.
   { key: "shopper3", name: "Wholesale Liquidation Pallets", icon: "🏷️",
-    cost: 8000, unlock: { owned: ["shopper", 15] },
+    cost: 8000, unlock: { total: 15000, owned: ["shopper", 15] },
     effect: { type: "buildingMult", building: "shopper", mult: 3 } },
   { key: "shopper4", name: "Import Direct from Manufacturer", icon: "🚢",
-    cost: 27000, unlock: { owned: ["shopper", 21] },
+    cost: 27000, unlock: { total: 50000, owned: ["shopper", 21] },
     effect: { type: "buildingMult", building: "shopper", mult: 4 } },
 
   // --- Mouse Farm ---
@@ -1274,19 +1274,19 @@ const UPGRADES = [
   // across 3-16 pets/s), so that is where the ladder tops out. These gates are
   // measured, not chosen — re-measure them whenever building mps moves.
   { key: "farmplow", name: "Sisal Scratching Plows", icon: "🧶",
-    cost: 400, unlock: { owned: ["farm", 3] },
+    cost: 400, unlock: { total: 800, owned: ["farm", 3] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmfeliway", name: "Feliway Sprinklers", icon: "💨",
-    cost: 2200, unlock: { owned: ["farm", 5] },
+    cost: 2200, unlock: { total: 4000, owned: ["farm", 5] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmlaser", name: "Laser-Guided Planters", icon: "🎯",
-    cost: 7200, unlock: { owned: ["farm", 7] },
+    cost: 7200, unlock: { total: 13000, owned: ["farm", 7] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "farmchuru", name: "Churu Hydroponics", icon: "🍦",
-    cost: 20000, unlock: { owned: ["farm", 9] },
+    cost: 20000, unlock: { total: 37000, owned: ["farm", 9] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "farmdrone", name: "Autonomous Bug-Batting Drones", icon: "🚁",
-    cost: 90000, unlock: { owned: ["farm", 11] },
+    cost: 90000, unlock: { total: 165000, owned: ["farm", 11] },
     effect: { type: "buildingMult", building: "farm", mult: 4 } },
 
   // --- Mouse Factory ---
@@ -1405,7 +1405,7 @@ const UPGRADES = [
     cost: 250, unlock: { clicks: 60 },
     effect: { type: "clickMult", mult: 2 } },
   { key: "clawsharp", name: "Cat Brush", icon: "🪮",
-    cost: 2200, unlock: { clicks: 110 },
+    cost: 2200, unlock: { total: 4000, clicks: 110 },
     effect: { type: "clickFlat", add: 5 } },
   // The Cardboard line is this game's Thousand Fingers: pets get better the more
   // Mouse Factories you own, because a factory is what the boxes ship in. Three
@@ -1434,7 +1434,7 @@ const UPGRADES = [
     cost: 4500, unlock: { owned: ["factory", 3] },
     effect: { type: "clickPerBuilding", add: 10, per: "factory" } },
   { key: "scratchpost2", name: "Reinforced Scratching Post", icon: "🪢",
-    cost: 3600, unlock: { requires: "scratchpost", clicks: 160 },
+    cost: 3600, unlock: { total: 7000, requires: "scratchpost", clicks: 160 },
     effect: { type: "clickMult", mult: 2 } },
   // Pounce Reflex and Chin Scritch are the Zoomies pair — the two rows that make
   // CATCHING a golden mouse matter more, rather than making every pet matter
@@ -1443,7 +1443,7 @@ const UPGRADES = [
   // bounded by the buff's own uptime no matter what else is stacked, which is
   // exactly why they're here rather than being two more doublings.
   { key: "pounce", name: "Pounce Reflex", icon: "🐾",
-    cost: 11000, unlock: { clicks: 220 },
+    cost: 11000, unlock: { total: 20000, clicks: 220 },
     effect: { type: "zoomMult", add: 3 } },
   // Window Perch #1 of the running gag (see #2/#3 below). A perch is where Hex
   // sits and WATCHES the window, so the three perches are the golden-mouse line:
@@ -1484,7 +1484,7 @@ const UPGRADES = [
   // flavor telling them apart. The arithmetic is in the titles now: three
   // perches, two windows. Never collapse these back to a bare "Window Perch".
   { key: "cattree", name: "Window Perch, Second Window", icon: "🪟",
-    cost: 27000, unlock: { clicks: 340 },
+    cost: 27000, unlock: { total: 50000, clicks: 340 },
     effect: [{ type: "goldenFreq", mult: 1.4 }, { type: "goldenLife", add: 3 }] },
   // 35k, down from 60k, from back when Lock Goomba `required` this row BOUGHT and
   // a run that skipped the Castle never revealed the jail. The requires links are
@@ -1496,17 +1496,17 @@ const UPGRADES = [
     cost: 16000, unlock: { owned: ["factory", 5] },
     effect: { type: "clickPerBuilding", add: 35, per: "factory" } },
   { key: "chinscritch", name: "Chin Scritch", icon: "😌",
-    cost: 36000, unlock: { clicks: 280 },
+    cost: 36000, unlock: { total: 65000, clicks: 280 },
     effect: { type: "zoomTime", add: 4 } },
   { key: "windowperch", name: "Third Window Perch, Second Window", icon: "🪟",
-    cost: 99000, unlock: { clicks: 460 },
+    cost: 99000, unlock: { total: 180000, clicks: 460 },
     effect: [{ type: "goldenFreq", mult: 1.4 }, { type: "goldenLife", add: 4 }] },
   // The anticlimax is the joke: bought after churu hydroponics and a quantum
   // lab, and what it buys is the same kibble as yesterday. The title has to land
   // that — "Dry Food" alone reads as a straight item — so the effect stays the
   // most ordinary thing in the shop.
   { key: "dryfood", name: "Dry Food, Same As Yesterday", icon: "🥣",
-    cost: 58000, unlock: { clicks: 300 },
+    cost: 58000, unlock: { total: 105000, clicks: 300 },
     effect: { type: "clickMult", mult: 2 } },
   // The ladder's only share-of-your-/s rung, and not a fifth doubling — four ×2s
   // is all the cost ceiling can space far enough apart. The mitts let you keep
@@ -1516,7 +1516,7 @@ const UPGRADES = [
   // where +2% of a tiny /s bought nothing.) The floor is still CLICK_CPS_SHARE,
   // so pets keep their share of income whether or not this is bought.
   { key: "ovenmitts", name: "Bite-Proof Oven Mitts", icon: "🧤",
-    cost: 72000, unlock: { clicks: 400 },
+    cost: 72000, unlock: { total: 130000, clicks: 400 },
     effect: { type: "clickShare", pct: 2 } },
   { key: "jailgoomba", name: "Lock Goomba in Cardboard Castle", icon: "🚔",
     cost: 81000, unlock: { owned: ["factory", 7] },
@@ -1526,7 +1526,7 @@ const UPGRADES = [
   // row titled plain "Cat Tree" is indistinguishable from the first in the shop.
   // The ladder's last doubling.
   { key: "cattreetable", name: "Cat Tree, On the Table", icon: "🌳",
-    cost: 144000, unlock: { requires: "whiskers", clicks: 520 },
+    cost: 144000, unlock: { total: 260000, requires: "whiskers", clicks: 520 },
     effect: { type: "clickMult", mult: 2 } },
   // Reads two ways on purpose: a breath of fresh air to anyone playing, and the
   // daily asthma puff to anyone who knows the real Hex. Don't "fix" the wording
@@ -1537,7 +1537,7 @@ const UPGRADES = [
   // rather than pets alone, which is both the plainest reading of the name and
   // the one shape that can't set off another cascade this late in the day.
   { key: "freshair", name: "A Breath of Fresh Air", icon: "💨",
-    cost: 189000, unlock: { clicks: 560 },
+    cost: 189000, unlock: { total: 340000, clicks: 560 },
     effect: { type: "globalPct", pct: 25 } },
 
   // --- Cross-building synergies ---

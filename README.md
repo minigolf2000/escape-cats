@@ -224,11 +224,23 @@ onto a team first. **`/g00mBa` is case-sensitive** — URL paths are, per RFC
 3986, and Vercel honours that — so `/g00mba` is a 404. The QR code carries the
 exact casing.
 
-**Do not change `base: "./"` in the vite configs.** It is what lets one build
-serve both from a vanity domain root (rewritten to `/hex/`) and from a path
-(`preview-url/hex/`). An absolute base breaks one of the two. It is safe only
-because no app routes on the path — rooms come from `?room=` — so adding
-path-based routing means revisiting this.
+**Each app's vite `base` must be absolute and match its `dist/` subdirectory**
+— `/hexxygon/`, `/proctor/`, `/` for the lobby. Do not make them relative.
+
+Vercel serves with `trailingSlash: false`, so a request for `/hexxygon/` is
+normalised to `/hexxygon`. Against that URL the browser resolves a `./assets/`
+reference to `/assets/` — the **lobby's** asset directory, not the app's. The
+HTML loads, its script 404s, and you get a white screen with nothing useful in
+the console.
+
+A relative base was correct when the vanity domains *rewrote* to these paths
+and an app could be served from a domain root. Since they *redirect* (#99),
+each app only ever lives at its own path, and an absolute base is both simpler
+and immune to the trailing slash.
+
+Watch out when testing this locally: `python -m http.server` redirects
+`/hexxygon` to `/hexxygon/`, the opposite of Vercel, so it will happily serve a
+build that is broken in production.
 
 `hex/vercel.json` and `prototypes/vercel.json` are leftovers from when those
 folders were their own Vercel projects. They are inert under the

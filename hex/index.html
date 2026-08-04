@@ -1193,28 +1193,25 @@ const BUILDINGS = [
   // names these rows used to have (Sleep Spindle, Delta Wave — dropped for being
   // accurate jargon that never joked). Do not "fix" the mismatch: renaming an id
   // silently wipes that building from every existing save.
-  { id: "portal",  name: "Hole in the Wall",      icon: "🕳️", base: 480,     mps: 120,   night: true, growth: 1.035 },
+  { id: "portal",  name: "Hole in the Wall",      icon: "🕳️", base: 480,     mps: 120,   night: true, growth: 1.035, firstFree: 1 },
   { id: "spindle", name: "Ball of String Theory", icon: "🧵", base: 9600,    mps: 480,   night: true, growth: 1.035 },
   { id: "delta",   name: "Slow Wave",             icon: "🌊", base: 120000,  mps: 2400,  night: true, growth: 1.035 },
   { id: "nested",  name: "Dream Within a Dream",  icon: "🌀", base: 2880000, mps: 14400, night: true, growth: 1.035 },
 ];
-// The night opens on a BANK, not on free buildings. Nothing at night earns except
-// buildings, so something has to break the 0-income deadlock, and the two candidates
-// are a discount on the first copies or a handful of mice up front. The discount was a
-// hole in the cost curve — copy n cost base * growth^(n - free), an exception living
-// inside the one formula that should have none — and it made the opening buys read as
-// free samples rather than purchases.
+// The night opens on NOTHING: an empty bank, an empty wall, and one Hole in the Wall
+// priced at zero. That free copy is the entire bootstrap — nothing but buildings earns
+// once Hex is asleep, so something has to break a 0-income start, and the two candidates
+// were a handful of mice up front or a copy that costs nothing.
 //
-// A bank has neither problem: the curve is now pure (`costOf` is one line), and the
-// player still buys every Hole they own. It also does the reveal bootstrap for free —
-// lifetime counts the grant, so the Hole is past its base the instant night starts and
-// the rail is live on the first frame instead of after a wait.
+// The bank was tried and gives the phase away: it opened on 1,600 mice already counted,
+// which reads as a handout rather than a start, and lifetime counting the grant put the
+// Hole past its reveal threshold before the player did anything. Zero is the honest
+// version — the player opens the dream's first hole themselves, and every mouse on the
+// wall after that is one they earned.
 //
-// 1600 is three Holes (480 + 497 + 515 = 1492) and change: three taps available
-// immediately, and 900/s earned before the fourth is due. It is nowhere near the
-// second tier's 9600, so it is still a reveal the player watches arrive —
-// about twenty seconds later, on a curve they built themselves.
-const NIGHT_SEED_MICE = 1600;
+// Cost: the second Hole is 480 against the first one's 300/s, so 1.6s of waiting before
+// the mashing starts. That is the same opening gap two free Holes used to buy at half
+// the mps, and it is the price of the wall being empty at 0:00.
 const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
 // Zoomies, the golden-mouse buff (the mechanic itself lives with the golden
@@ -1644,13 +1641,24 @@ const UPGRADES = [
   // now, the same way the day's do. What is left is a single clean line from anonymous
   // specks to a readable wall:
   //
-  //   Counting Mice         the specks resolve into neon mice
-  //   Lucid Dreaming        TRAILS EXIST                   <- the hinge
-  //   Running in Her Sleep  the mice speed up
+  //   Paper Lantern         THE STARS START TO HAVE TRAILS  <- the hinge
+  //   Lucid Dreaming        longer trails
+  //   Running in Her Sleep  they speed up
   //   Deep Sleep            longer trails
+  //   Counting Mice         THE STARS TURN OUT TO BE MICE   <- the twist inside the twist
+  //   Lucky Number 6        x6 income
   //   Scent Trail           ink stops fading
   //   REM Sleep             longer trails
   //   Hypnagogia            longer trails
+  //
+  // Counting Mice is LATE on purpose, and it changes what the whole phase is about. It
+  // used to land at 0:13, which meant the player spent 95% of the night watching mice
+  // they already knew were mice. Parked just before Lucky Number 6 instead, the wall
+  // spends a minute and a half as a drifting starfield that slowly draws something — and
+  // the trails are white until this fires, because drawWall inks in WALL_POINT_COLOR
+  // while `neon` is off, so the reveal recolours the whole drawing at once as well as
+  // resolving the sprites. Everything before it therefore has to be described WITHOUT
+  // the word "mice"; see wallNoun by oneEffectText.
   //
   // Costs are large because night's income is: the shallow 1.05 building curve means a
   // player owns ~60 Holes rather than ~40, so the whole curve sits far higher than it
@@ -1664,30 +1672,22 @@ const UPGRADES = [
   // final four rungs into ten seconds. Their ownership gates do the real pacing there —
   // see the note on them below. They want playtesting, not more arithmetic.
 
-  // Night opens with the mice ALREADY on the wall as anonymous points of light —
-  // colourless, shapeless, indistinguishable from the starfield. Counting Mice is
-  // what resolves them into creatures, and the name earns its keep twice: counting
-  // sheep is what you do falling asleep, and counting is exactly what you cannot do
-  // until the specks become things distinct enough to count.
-  //
-  // It is also just accurate cat vision. Cats are dichromatic and read motion before
-  // form and form before colour, so a dream that starts as bare moving specks is
-  // what Hex would really see; every upgrade after this is her dreaming BETTER than
-  // she can see awake.
-  //
-  // Priced so it CANNOT be the first thing bought: the opening bank buys three Holes
-  // and nothing else, so the only route here is building an income first — the
-  // drifting specks stay anonymous while the room builds the dream around them, and
-  // naming them is the reward. Lands ~15s into night against the pacing bot.
-  { key: "countingmice", name: "Counting Mice", icon: "💭",
-    cost: 50000, unlock: { requires: "catnap" },
-    effect: { type: "neon" } },
-  // The hinge of the whole night: before this the mice leave nothing behind and the
+  // The hinge of the whole night: before this the lights leave nothing behind and the
   // wall is unreadable in principle, not just in practice. After it the dream starts
-  // recording itself. Everything else on the visibility side only deepens this.
-  { key: "luciddreaming", name: "Lucid Dreaming", icon: "🌀",
-    cost: 115000, unlock: { requires: "countingmice" },
+  // recording itself.
+  //
+  // A paper lantern is a light you release and then WATCH GO — the trail is the whole
+  // reason anyone lets one off. That is exactly the mechanic, and the name can carry it
+  // without conceding what the lights are: at this point in the night the player is
+  // buying trails for stars.
+  { key: "paperlantern", name: "Paper Lantern", icon: "🏮",
+    cost: 50000, unlock: { requires: "catnap" },
     effect: { type: "trail", add: 10 } },
+  // Lucidity is knowing you are dreaming, so it belongs to a dream that has already
+  // started recording itself rather than to the moment it begins. Second trail rung.
+  { key: "luciddreaming", name: "Lucid Dreaming", icon: "🌀",
+    cost: 115000, unlock: { requires: "paperlantern" },
+    effect: { type: "trail", add: 12 } },
   // Dreaming cats twitch their paws as they run, and that is exactly the mechanic:
   // the dream mice speed up. Placed AFTER Lucid Dreaming on purpose — before trails
   // exist a speed change is only motion, but once the mice are inking, going faster
@@ -1728,12 +1728,31 @@ const UPGRADES = [
   { key: "deepsleep", name: "Deep Sleep", icon: "😴",
     cost: 1.15e6, unlock: { requires: "pawtwitch" },
     effect: { type: "trail", add: 22 } },
+  // Night opens with the wall ALREADY populated — anonymous points of light, colourless
+  // and shapeless, indistinguishable from the starfield behind them. By the time this
+  // lands they have been drawing for a minute and a half. Counting Mice is what resolves
+  // them into creatures, and the name earns its keep twice: counting sheep is what you
+  // do falling asleep, and counting is exactly what you cannot do until the specks
+  // become things distinct enough to count.
+  //
+  // It is also just accurate cat vision. Cats are dichromatic and read motion before
+  // form and form before colour, so a dream that starts as bare moving specks is what
+  // Hex would really see; every upgrade around this is her dreaming BETTER than she can
+  // see awake.
+  //
+  // Priced just under Lucky Number 6 so the reveal lands immediately before the night's
+  // one economy spike — the wall bursts into colour (1:40) and then the numbers do (1:56).
+  // Both came down from 2M/2.5M: a 2M sink here on top of Lucky Number 6's put a whole
+  // 30-second window on one purchase while the bot saved for the pair back to back.
+  { key: "countingmice", name: "Counting Mice", icon: "💭",
+    cost: 1.4e6, unlock: { requires: "deepsleep" },
+    effect: { type: "neon" } },
   // Cats track by scent, and scent lingers — which is exactly the mechanic: ink
   // stops being a rolling window and starts accumulating, so the wall holds a
   // drawing instead of shimmering like a screensaver. Worth roughly as much
   // coverage as tripling the trail, measured in the lab.
   { key: "scenttrail", name: "Scent Trail", icon: "👣",
-    cost: 7.5e6, unlock: { requires: "deepsleep" },
+    cost: 7.5e6, unlock: { requires: "countingmice" },
     effect: { type: "persist", add: 60 } },
   // Not part of the sleep-stage chain — it's the night's one economy row, gated on the
   // phase plus six HOLES rather than on the stage above it. Parked here by cost
@@ -1747,10 +1766,10 @@ const UPGRADES = [
   // night got faster: goldens arrive on a wall clock (first at ~1:50, then every ~65s),
   // so the sixth lands past the end of a 2-minute night and the row went unbuyable —
   // for a mashing team, while a slow solo player still got it. Exactly backwards. Six
-  // Holes is earned by the night's own action instead, and the price is what makes it
-  // land mid-night (1:47) rather than in the opening seconds.
+  // Holes is earned by the night's own action instead, and the price is what makes it land
+  // mid-night (1:56), right after Counting Mice, rather than in the opening seconds.
   { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
-    cost: 2.5e6, unlock: { requires: "catnap", owned: [["portal", 6]] },
+    cost: 1.8e6, unlock: { requires: "countingmice", owned: [["portal", 6]] },
     effect: { type: "globalMult", mult: 6 } },
   // The last two rungs are paced by OWNERSHIP, not price. Once Dream Within a Dream
   // is online night income runs away, and cost stops being a brake: multiplying all
@@ -1772,7 +1791,7 @@ const UPGRADES = [
   // a night row has to pass that test.
   { key: "hypnagogia", name: "Hypnagogia", icon: "🌫️",
     cost: 27e6, unlock: { requires: "remsleep", owned: [["nested", 58]] },
-    effect: { type: "trail", add: 36 } },
+    effect: { type: "trail", add: 24 } },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1834,12 +1853,21 @@ function load() {
 // ---------------------------------------------------------------------------
 // ECONOMY HELPERS
 // ---------------------------------------------------------------------------
-// One formula for every copy of every building, with no exceptions — night's opening
-// used to carve a `firstFree` hole in it and now opens on a bank instead
-// (NIGHT_SEED_MICE). `growth` is per-building, defaulting to the shared GROWTH; night
-// uses a shallower curve than day on purpose, see the night block in BUILDINGS.
+// `firstFree` is a COUNT of copies priced at zero, and it shifts the curve down by that
+// many steps rather than discounting it: copy n costs base * growth^(n - firstFree), so
+// the first PAID copy still costs exactly `base`. A base of 0 could not express this —
+// the curve multiplies the base, so every copy would stay free.
+//
+// It exists for one thing: night opens with an empty bank and nothing but buildings
+// earns, so without a copy priced at zero the phase cannot start at all. One free Hole
+// is the whole exception, and the player still buys it.
+//
+// `growth` is per-building, defaulting to the shared GROWTH; night uses a shallower
+// curve than day on purpose, see the night block in BUILDINGS.
 function costOf(b, owned) {
-  return Math.ceil(b.base * Math.pow(b.growth || GROWTH, owned));
+  const free = b.firstFree || 0;
+  if (owned < free) return 0;
+  return Math.ceil(b.base * Math.pow(b.growth || GROWTH, owned - free));
 }
 
 // Every bought upgrade is folded into `mods` here, and nothing else in the game
@@ -2067,6 +2095,8 @@ const multWord = m =>
   ({ 2: "twice", 3: "thrice", 4: "four times", 5: "five times", 6: "six times" })[m] || `×${m}`;
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const hl = s => `<b>${s}</b>`;
+// What the wall is, as far as the player knows. See the `trail` case below.
+const wallNoun = () => (mods.neon ? "Dream mice" : "The lights on the wall");
 function oneEffectText(e) {
   switch (e.type) {
     case "buildingMult": return `${buildingName(e.building)} is ${hl(multWord(e.mult))} as good`;
@@ -2084,12 +2114,27 @@ function oneEffectText(e) {
     case "goldenLife":   return `Golden mice linger +${hl(e.add + "s")} longer`;
     case "zoomMult":     return `Zoomies pet ${hl("+×" + e.add)} harder`;
     case "zoomTime":     return `Zoomies lasts +${hl(e.add + "s")} longer`;
-    // Must print e.add: the three sleep stages differ ONLY in trail length, so a
-    // constant string rendered all of Deep Sleep / REM / Lucid identically.
-    case "trail":        return `Dream mice leave ${hl("+" + e.add)} more trail`;
-    case "neon":         return `The lights on the wall turn out to be mice`;
-    case "persist":      return `Dream trails stop fading`;
-    case "speed":        return `The dream mice move quicker`;
+    // Must print e.add: the sleep stages differ ONLY in trail length, so a constant
+    // string rendered all of Deep Sleep / REM / Lucid identically.
+    //
+    // The NOUN follows what is on screen. Counting Mice lands late in the night now, so
+    // for most of the phase the player believes the wall is stars — and three rungs
+    // would give the reveal away in their own shop copy if they said "mice". Reading
+    // mods.neon here means the wording tracks any reordering of the ladder for free.
+    // mods.trail === 0 likewise: whichever rung comes FIRST says trails begin, and the
+    // rest say they get longer.
+    case "trail":        return mods.trail === 0
+      ? `${wallNoun()} start to leave trails`
+      : `${wallNoun()} leave ${hl("+" + e.add)} more trail`;
+    // The SECOND question-style row, for the same reason `night` is one (see below): the
+    // thing you are buying is a thing the game has been withholding, and naming the
+    // mechanic spends it before the player sees it. This mattered less when the research
+    // landed at 0:13 and there was nothing on the wall yet to spoil; now it sits unbought
+    // on the rail for half a minute while the lights are drawing, so "the lights turn out
+    // to be mice" would hand over the reveal for free.
+    case "neon":         return `How many of them are there?`;
+    case "persist":      return `The trails stop fading`;
+    case "speed":        return `${wallNoun()} move quicker`;
     // THE twist, and the one row whose description is a QUESTION rather than a
     // statement of effect. Everything else here follows the rule that the row
     // tells you what you're buying and the NAME carries the joke; this one is
@@ -2404,10 +2449,8 @@ function buildShop() {
 // Nothing is granted. The reset leaves bank, lifetime and holdings at literal zero;
 // the first Hole in the Wall being free is what un-deadlocks the phase.
 function nightReset(s) {
-  // Not zero: see NIGHT_SEED_MICE. Lifetime counts it too, which is what puts the
-  // Hole past its reveal threshold on the first frame of the dream.
-  s.mice = NIGHT_SEED_MICE;
-  s.total = NIGHT_SEED_MICE;
+  s.mice = 0;
+  s.total = 0;
   for (const b of BUILDINGS) if (!b.night) s.owned[b.id] = 0;
 }
 
@@ -2422,10 +2465,13 @@ function isRevealed(b, s) {
   // of the day.
   if (b.night && !nightOf(s.bought)) return false;
   if (s.owned[b.id] > 0) return true;
-  // ONE rule for both phases: a tier appears when lifetime earnings have been enough
-  // to afford it once. Night tiers used to need research that revealed them and did
-  // nothing else; the seed bank is what lets them share the day's rule, since lifetime
-  // is no longer 0 at the flip.
+  // A free copy is on the rail by definition, and this clause is what keeps the night
+  // from deadlocking: the dream opens at lifetime 0, so the rule below would hide the
+  // one row that can earn anything.
+  if (costOf(b, s.owned[b.id]) === 0) return true;
+  // ONE rule for both phases otherwise: a tier appears when lifetime earnings have been
+  // enough to afford it once. Night tiers used to need research that revealed them and
+  // did nothing else.
   return s.total >= b.base;
 }
 
@@ -3105,11 +3151,13 @@ const WALL = {
   // puts the last of the 33 mice near where the word should become readable.
   mouseBase: 2000,
   mouseR: 1.23,
-  // A couple are on the wall the instant night begins, before anything is earned or
-  // bought. They read as two more stars, which is the point: the reveal has to start
-  // from something already present but unreadable, or Counting Mice has nothing to
-  // resolve.
-  startMice: 2,
+  // ZERO. The dream opens on an empty wall and the first speck arrives once `mouseBase`
+  // has been earned — about two seconds in, off the free Hole. It used to be 2, and
+  // those two were not free stars: cast slot 1 is GOLDEN, so the wall opened with one
+  // of the nine letters already showing (the timeline read `board "·· ··E ····"` at
+  // 0:00). A letter handed over before the phase starts is the one thing REVEAL_ORDER
+  // exists to prevent.
+  startMice: 0,
   // Scene units/sec, ONE rate for every mouse. 20 is a hard CEILING rather than a
   // taste call: past it the mice stop reading as mice and become streaks. So Paw
   // Twitch cannot raise speed past the cap — it climbs TOWARD it, which is why night
@@ -4012,6 +4060,31 @@ function startWallNeon() {
   const span = Math.max(1, order.length - 1);
   order.forEach((o, k) => { o.m.neonDelay = WALL_NEON_RIPPLE * k / span; });
 }
+// How far through its own cross-fade one mouse is, or null when the beat is not running.
+// Shared by the sprite and by both ink paths, so a mouse's trail recolours on exactly the
+// same curve its body arrives on.
+function flipU(m, now) {
+  if (wallNeonAt === null) return null;
+  return Math.max(0, Math.min(1, (now - wallNeonAt - (m.neonDelay || 0)) / WALL_NEON_MS));
+}
+// Counting Mice now lands with trails already ~44 long, so the ink cannot just switch
+// palette on the frame `neon` flips — that reads as a hard cut across the whole wall
+// while the bodies are still fading in. Blending per mouse on its own `u` makes the
+// recolour part of the same gesture. Cheap: one lerp per mouse per frame, and only
+// during the ~1.5s the beat runs.
+function mixHex(a, b, t) {
+  const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16);
+  const r = Math.round((A >> 16) + ((B >> 16) - (A >> 16)) * t);
+  const g = Math.round(((A >> 8) & 255) + (((B >> 8) & 255) - ((A >> 8) & 255)) * t);
+  const c = Math.round((A & 255) + ((B & 255) - (A & 255)) * t);
+  return `rgb(${r},${g},${c})`;
+}
+// The colour a mouse's ink should be right now: its own colour once resolved, white
+// while it is still a speck, and a blend of the two during the beat.
+function wallInkColor(m, neon, u) {
+  if (u === null) return neon ? m.color : WALL_POINT_COLOR;
+  return mixHex(WALL_POINT_COLOR, m.color, u);
+}
 // Point out over the first half while swelling; mouse in over the last 70%, so the
 // two overlap in the middle and neither pixel ever goes empty.
 function drawWallFlip(m, x, y, u, angle) {
@@ -4026,6 +4099,30 @@ function drawWallFlip(m, x, y, u, angle) {
   const inn = Math.max(0, (u - 0.3) / 0.7);
   if (inn > 0) drawWallMouse(x, y, m.color, WALL_MOUSE_R * (0.5 + 0.5 * inn), angle, inn * inn);
 }
+// TRAIL GROWTH. The tail is not recorded, it is SAMPLED: segment j is where the mouse
+// was j * trailDt ago, recomputed from the tour every frame. So raising mods.trail used
+// to make the whole extension appear in one frame, sticking out behind the mouse across
+// ground it had already covered — the length changed but nothing was drawn.
+//
+// Widening the window at exactly ONE SAMPLE PER trailDt fixes it without recording
+// anything, and the arithmetic is why: the oldest sample shown sits at
+// now - trailN * trailDt, so if trailN climbs at 1/trailDt while `now` climbs at 1, that
+// product is CONSTANT. The tail tip stays frozen at the point the mouse occupied when the
+// upgrade landed, and the trail lengthens only as the head runs away from it — which is
+// the same thing as saying it only grows over new ground.
+//
+// Time to finish is therefore the honest one: the added length, played at the speed the
+// mouse actually travels. Paper Lantern's +10 takes 0.8s, Hypnagogia's +24 takes 1.9s.
+//
+// null until the first frame so a RESTORED save snaps to its full length instead of
+// spending eight seconds growing 98 samples of trail nobody bought just now — the same
+// rule wallNeonAt and `.booting` follow. Shrinking is instant: the only thing that
+// shrinks trail is a dev preset walking back to day, which is not a beat.
+let wallTrailShown = null;
+function wallGrowTrail(dt) {
+  if (wallTrailShown === null || wallTrailShown > mods.trail) { wallTrailShown = mods.trail; return; }
+  if (wallTrailShown < mods.trail) wallTrailShown = Math.min(mods.trail, wallTrailShown + dt / WALL.trailDt);
+}
 let wallInkDirty = false, wallLastNow = 0;
 function drawWall(now) {
   if (!wW) resizeWall();
@@ -4037,6 +4134,7 @@ function drawWall(now) {
   const dt = wallLastNow ? Math.min(now - wallLastNow, 100) : 16;
   wallLastNow = now;
   syncWallSpeed(now);
+  wallGrowTrail(dt);
   const neon = !!mods.neon;
   // Retired as soon as it has run its course, so the steady state is the same
   // straight drawWallMouse call it was before the beat existed.
@@ -4064,7 +4162,7 @@ function drawWall(now) {
       const m = wallCast[i];
       wallPosAt(m, now, wallHead);
       if (m.lx !== undefined && Math.abs(wallHead.x - m.lx) <= 16 && Math.abs(wallHead.y - m.ly) <= 16) {
-        inkCtx.strokeStyle = neon ? m.color : WALL_POINT_COLOR;
+        inkCtx.strokeStyle = wallInkColor(m, neon, flipping ? flipU(m, now) : null);
         inkCtx.beginPath(); inkCtx.moveTo(m.lx, m.ly); inkCtx.lineTo(wallHead.x, wallHead.y); inkCtx.stroke();
       }
       m.lx = wallHead.x; m.ly = wallHead.y;
@@ -4080,7 +4178,11 @@ function drawWall(now) {
   wctx.clearRect(0, 0, wW, wH);
   if (wallInkDirty) wctx.drawImage(inkCv, 0, 0, wW, wH);
   if (!N || !WALL_CREWS.length) return;
-  const trailN = mods.trail, maxSeg = 16;
+  // Fractional, and CEIL rather than floor for the loop bound: the final step is clamped
+  // to the fraction so the oldest point lands exactly at now - wallTrailShown * trailDt.
+  // Flooring instead left the tail tip sawtoothing over one sample's worth of travel
+  // (~1.3px) while it was supposed to be standing still.
+  const trailF = wallTrailShown, trailN = Math.ceil(trailF), maxSeg = 16;
   // lineCap is invariant across every mouse and segment — set once per frame,
   // not per segment (that was ~189k redundant assignments/sec at full state).
   // lineWidth can't be hoisted the same way any more: the 1-stroke word tours
@@ -4094,15 +4196,16 @@ function drawWall(now) {
     // sample and the mouse itself (drawWall used to compute it twice).
     wallPosAt(m, now, wallHead);
     if (trailN > 0) {
-      wctx.strokeStyle = m.color; // invariant across this mouse's segments
       wctx.lineWidth = WALL_INK_W;
-      wctx.strokeStyle = neon ? m.color : WALL_POINT_COLOR;
+      // invariant across this mouse's segments, so hoisted out of the inner loop
+      wctx.strokeStyle = wallInkColor(m, neon, flipping ? flipU(m, now) : null);
       let px = wallHead.x, py = wallHead.y;
       for (let j = 1; j <= trailN; j++) {
-        const p = wallPosAt(m, now - j * WALL.trailDt, wallScratch);
+        const back = j < trailF ? j : trailF;
+        const p = wallPosAt(m, now - back * WALL.trailDt, wallScratch);
         const far = Math.abs(p.x - px) > maxSeg || Math.abs(p.y - py) > maxSeg;
         if (!far) {
-          wctx.globalAlpha = 0.5 * (1 - j / trailN);
+          wctx.globalAlpha = 0.5 * (1 - back / trailF);
           wctx.beginPath(); wctx.moveTo(px, py); wctx.lineTo(p.x, p.y); wctx.stroke();
         }
         px = p.x; py = p.y;
@@ -4125,9 +4228,7 @@ function drawWall(now) {
     const ang = m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX);
     if (!neon) drawWallPoint(wallHead.x, wallHead.y);
     else if (!flipping) drawWallMouse(wallHead.x, wallHead.y, m.color, WALL_MOUSE_R, ang);
-    else drawWallFlip(m, wallHead.x, wallHead.y,
-                      Math.max(0, Math.min(1, (now - wallNeonAt - (m.neonDelay || 0)) / WALL_NEON_MS)),
-                      ang);
+    else drawWallFlip(m, wallHead.x, wallHead.y, flipU(m, now), ang);
   }
   // NOTE: legibility detection lived here and existed only to print the proctor
   // line. Removed with the text rather than left as dead code. The wall simply

@@ -1095,16 +1095,24 @@ const BUILDINGS = [
   // against 2.5s and 12.3s on the day curve. The per-30s profile sawtooths
   // (32 41 25 14 36 24 15 42 25 18) because each tier's research drops a fresh cheap
   // curve into the mix — the flurry is restored three times rather than decaying once.
-  { id: "portal",  name: "Hole in the Wall",     icon: "🕳️", base: 480,   mps: 60,   night: true, growth: 1.09, firstFree: true },
+  { id: "portal",  name: "Hole in the Wall",     icon: "🕳️", base: 480,   mps: 60,   night: true, growth: 1.09, firstFree: 2 },
   { id: "spindle", name: "Sleep Spindle",        icon: "🧵", base: 1920,  mps: 240,  night: true, growth: 1.09, gate: "spindles" },
   { id: "delta",   name: "Delta Wave",           icon: "🌊", base: 7680,  mps: 960,  night: true, growth: 1.09, gate: "deltawave" },
   { id: "nested",  name: "Dream Within a Dream", icon: "🌀", base: 30720, mps: 3840, night: true, growth: 1.09, gate: "nesteddream" },
 ];
-// No seed grant: night opens on ZERO holes and zero income, and the bootstrap is
-// that the first Hole is FREE (`firstFree` above). Same deadlock-avoidance the old
-// silently-granted seed holes bought, but as a purchase — the player opens the
-// dream's first hole themselves, which is the difference between an economy that
-// starts and an economy the player starts.
+// No seed grant: night opens on ZERO holes and zero income, and the bootstrap is that
+// the first TWO Holes are free (`firstFree: 2` above). Same deadlock-avoidance the old
+// silently-granted seed holes bought, but as purchases — the player opens the dream's
+// first holes themselves, which is the difference between an economy that starts and
+// an economy the player starts.
+//
+// Two rather than one because of the opening wait: the first paid Hole costs `base`
+// against whatever the free ones earn, so one free Hole meant 480/150 = 3.2s of
+// nothing, which played about twice as long as it should. Two free Holes halve it to
+// 1.6s and open on two instant taps, and cost only an 8% discount across the rest of
+// the tier — where dropping the base to 240 would have discounted the whole tier by
+// half, and doubling the Hole's mps would have left it permanently twice as good as
+// the tiers above it.
 const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
 // Zoomies, the golden-mouse buff (the mechanic itself lives with the golden
@@ -1710,15 +1718,22 @@ function load() {
 // ---------------------------------------------------------------------------
 // ECONOMY HELPERS
 // ---------------------------------------------------------------------------
-// `firstFree` prices a building's FIRST copy at zero and shifts the curve down one
-// step, so copy n costs base * growth^(n-1). A base of 0 could not do this — the
-// curve multiplies the base, so every copy would be free forever.
+// `firstFree` is a COUNT of copies priced at zero, and it shifts the curve down by
+// that many steps: copy n costs base * growth^(n - firstFree). A base of 0 could not
+// express this — the curve multiplies the base, so every copy would stay free.
+//
+// It is the lever for the OPENING WAIT specifically. The first paid copy costs `base`
+// against an income of firstFree * mps * INCOME_SCALE, so each extra free copy both
+// removes a wait and doubles the income paying for the next one — the 480/150 = 3.2s
+// gap after one free Hole becomes 480/300 = 1.6s after two. Cheaper than dropping the
+// base, which would discount the whole tier rather than just its first step.
 //
 // `growth` is per-building, defaulting to the shared GROWTH. Night uses a shallower
 // curve than day on purpose; see the night block in BUILDINGS.
 function costOf(b, owned) {
-  if (b.firstFree && owned === 0) return 0;
-  return Math.ceil(b.base * Math.pow(b.growth || GROWTH, owned - (b.firstFree ? 1 : 0)));
+  const free = b.firstFree || 0;
+  if (owned < free) return 0;
+  return Math.ceil(b.base * Math.pow(b.growth || GROWTH, owned - free));
 }
 
 // Every bought upgrade is folded into `mods` here, and nothing else in the game

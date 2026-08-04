@@ -19,6 +19,16 @@
       "source": "/(.*)",
       "has": [{ "type": "host", "value": "www.g00.mba" }],
       "destination": "/prototypes/goomba-rider.html"
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "hexxygon.com" }],
+      "destination": "/solo-hex/$1"
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.hexxygon.com" }],
+      "destination": "/solo-hex/$1"
     }
   ]
 }

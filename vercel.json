@@ -13,22 +13,22 @@
     {
       "source": "/(.*)",
       "has": [{ "type": "host", "value": "g00.mba" }],
-      "destination": "/prototypes/goomba-rider.html"
+      "destination": "/goomba/$1"
     },
     {
       "source": "/(.*)",
       "has": [{ "type": "host", "value": "www.g00.mba" }],
-      "destination": "/prototypes/goomba-rider.html"
+      "destination": "/goomba/$1"
     },
     {
       "source": "/(.*)",
       "has": [{ "type": "host", "value": "hexxygon.com" }],
-      "destination": "/solo-hex/$1"
+      "destination": "/hex/$1"
     },
     {
       "source": "/(.*)",
       "has": [{ "type": "host", "value": "www.hexxygon.com" }],
-      "destination": "/solo-hex/$1"
+      "destination": "/hex/$1"
     }
   ]
 }

@@ -851,6 +851,16 @@
     color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.45);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
   }
+  /* The wall rows that CHANGE something rather than giving more of it — see CRUX_KEYS.
+     Gold on the name, matching the effect values and the mouse count, because gold is
+     already this UI's word for "this is the number that matters". The glow is what
+     separates it from a merely-coloured label at 13.5px: the row has to catch an eye
+     that is mashing, not reading. Only the fill and shadow change, so it cannot shift
+     the row's metrics or reflow the rail. */
+  #upgrades .item.crux .nm {
+    color: var(--gold);
+    text-shadow: 0 1px 1px rgba(0,0,0,.45), 0 0 9px rgba(255,212,77,.55);
+  }
   .item .rate {
     flex: none; display: inline-flex; align-items: center; gap: 3px;
     font: 700 11px var(--ui-font); font-size: calc(9.5px * var(--ss)); color: var(--muted);
@@ -2111,6 +2121,28 @@ const hl = s => `<b>${s}</b>`;
 // ??? is only ever the pre-purchase state; nothing is permanently unexplained. `hl` so it
 // lands in gold like every other effect value and reads as authored rather than missing.
 const WALL_EFFECTS = new Set(['trail', 'neon', 'persist', 'speed']);
+// GOLDEN NAMES. Three wall rows are worth stopping for — Running in Her Sleep, Counting
+// Mice, Scent Trail — and what they have in common is not their position on the ladder
+// but that each one is the ONLY row of its kind. Five rungs sell `trail`, so any one of
+// them is more of what you already have; `speed`, `neon` and `persist` appear exactly
+// once each and change what the wall does rather than how much of it there is.
+//
+// Derived from that rather than listed by key, so the rule survives the ladder moving:
+// add a second speed rung and Running in Her Sleep stops being special, which is the
+// correct answer. Restricted to WALL_EFFECTS on purpose — Lucky Number 6's globalMult is
+// also unique among night rows, but it is the economy row and states its own effect, so
+// it needs no help being noticed.
+//
+// Every wall row shows ??? for its effect (see oneEffectText), so this is the only signal
+// separating "this changes the mystery" from "this is another increment", and a team with
+// nothing else to go on will read it.
+const CRUX_KEYS = (() => {
+  const seen = {};
+  for (const u of UPGRADES) for (const e of [].concat(u.effect))
+    if (WALL_EFFECTS.has(e.type)) seen[e.type] = (seen[e.type] || 0) + 1;
+  return new Set(UPGRADES.filter(u => [].concat(u.effect)
+    .some(e => WALL_EFFECTS.has(e.type) && seen[e.type] === 1)).map(u => u.key));
+})();
 // `reveal` is for the dev dump only — an opaque effect column makes the debug table
 // useless for the one person who needs the truth.
 function oneEffectText(e, reveal) {
@@ -2649,7 +2681,7 @@ function refreshUpgrades() {
     upRows = new Map();
     for (const u of shown) {
       const el = document.createElement("button");
-      el.className = "item up";
+      el.className = CRUX_KEYS.has(u.key) ? "item up crux" : "item up";
       // u.cost is a table constant, so the price is rendered once here rather
       // than rewritten through the affordability change-detector below — which
       // only ever wrote the same string back and implied the cost could change.

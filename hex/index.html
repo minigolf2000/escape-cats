@@ -628,7 +628,39 @@
        back in as the wall reveal settles. */
     transition: opacity .3s ease;
   }
+  /* FIRST APPEARANCE. The shop slides up from under the screen edge the moment
+     the Mouse Subscription reveals at 10 lifetime mice.
+     An animation rather than a transition, because the thing that changes here is
+     `display: none` -> `flex`, which cannot be transitioned at all. An animation
+     does fire the instant an element becomes rendered, which is exactly this
+     moment, so the reveal gets to be a move instead of a pop.
+     Gated on .dock-in, which syncDock adds only when the dock goes from hidden to
+     shown DURING PLAY. Hanging it off .show alone also fired on every page load,
+     because a resumed save adds .show before the first paint — measured sliding the
+     shop up again on reload, which makes the move an entrance for the page rather
+     than for the shop's arrival. Dev preset jumps would do the same.
+     It cannot repeat within a run anyway: a CSS animation only restarts if its
+     class is re-added, and nothing takes .show off once the buildings section is
+     up — that section is sticky on lifetime mice, so the dock stays shown even
+     when the upgrade list empties.
+     NO fill-mode, deliberately. `forwards` would pin opacity: 1 into the element's
+     own style and quietly break the night cutscene, which fades this same element
+     out through the transition declared above. With no fill, the styles revert to
+     the base rule the moment the animation ends and the cutscene works untouched.
+     translateY(100%) not a fixed px: the dock's height depends on how much shop
+     there is, and 100% is always exactly its own height, so it starts fully
+     offscreen whether it is one rail tall or four rows. */
   #dock.show { display: flex; }
+  #dock.show.dock-in { animation: dockIn .5s cubic-bezier(.16, .84, .44, 1); }
+  @keyframes dockIn {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  /* The slide is the whole effect, so there is nothing to keep at a reduced
+     setting — it just appears, which is what it did before. */
+  @media (prefers-reduced-motion: reduce) {
+    #dock.show.dock-in { animation: none; }
+  }
 
   /* Cookie Clicker wood framing, in two lengths: the titled SHOP cap and the
      inert Upgrades/Buildings divider. Cut from the same board here — three bands
@@ -2100,9 +2132,17 @@ const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 
 // Neither section knows about the other, so the dock's own visibility is
 // resolved here from both. Called only when a section actually flips.
+// True once the opening render is done. Read only by syncDock, to tell the shop
+// ARRIVING from the page merely being drawn: a resumed save already has a shop and
+// should not slide it in again, and neither should a dev preset jump.
+let booted = false;
 function syncDock() {
-  dockEl.classList.toggle("show",
-    upgradeSecEl.classList.contains("show") || buildingSecEl.classList.contains("show"));
+  const show = upgradeSecEl.classList.contains("show") || buildingSecEl.classList.contains("show");
+  // `.dock-in` is what actually carries the slide (see its CSS); .show only makes
+  // the dock displayed. Added on the transition into shown, and only in play —
+  // never left on, so a later hide/show can play it again if one ever happens.
+  if (show && !dockEl.classList.contains("show") && booted) dockEl.classList.add("dock-in");
+  dockEl.classList.toggle("show", show);
 }
 
 // The shop still can't be dragged or resized, but a tap on the titled SHOP rail
@@ -4950,5 +4990,8 @@ countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refre
 refreshHud();
 refreshShop();
 refreshUpgrades();
+// Opening render done. Anything that reveals the dock from here on is the shop
+// arriving in play, which is the only thing that should slide it up.
+booted = true;
 requestAnimationFrame(frame);
 </script>

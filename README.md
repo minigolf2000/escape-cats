@@ -81,13 +81,76 @@ Client env vars (Vite, set in `apps/*/.env.local`):
 Server vars (`server/partykit.json` for dev; `partykit deploy --var` or the
 dashboard for prod): `HEX_CODEWORD`, `GOOMBA_CODEWORD`, `PROCTOR_TOKEN`.
 
-## Deploying (when ready)
+## Deploying
 
-- Server: `cd server && npx partykit deploy` (free PartyKit/Cloudflare
-  account, one command; set real code words + proctor token as deploy vars).
-- Clients: `npm run build` and host `apps/*/dist` on any static host
-  (Cloudflare Pages / Netlify / Vercel), with `VITE_*` env vars pointed at
-  the deployed PartyKit host.
+Two deploys total: **one PartyKit worker** (both coop games) and **one Vercel
+project** (every static surface). Vanity domains are routed inside
+`vercel.json`, not by splitting into more projects — so adding a domain or
+repointing one is a repo change, not dashboard clicking.
+
+### 1. PartyKit (do this first)
+
+```sh
+npm run deploy -w server   # partykit deploy
+```
+
+One worker serves both games: `partykit.json` maps `main` → Hex and the
+`goomba` party → Angry Goomba, which is why the clients differ only by the
+`party` option (`apps/angry-goomba/src/net.ts`) and share one host. Set real
+`HEX_CODEWORD` / `GOOMBA_CODEWORD` / `PROCTOR_TOKEN` as deploy vars. Note the
+resulting hostname — every client build needs it.
+
+### 2. Vercel — one project
+
+Import the repo; leave **Root Directory** at the repo root. Build settings
+come from `vercel.json`, so there is nothing to override in the dashboard.
+
+`npm run build:vercel` builds the three Vite apps and then
+`scripts/assemble.mjs` collects every surface into one `dist/`:
+
+| Path in `dist/` | Source | What |
+| --- | --- | --- |
+| `/hex/` | `apps/hex-clicker` | Hex Clicker (coop) |
+| `/goomba/` | `apps/angry-goomba` | Angry Goomba (coop) |
+| `/proctor/` | `apps/proctor` | Proctor dashboard |
+| `/solo-hex/` | `hex/` | Hex Clicker (solo) + QR Studio |
+| `/prototypes/` | `prototypes/` | Prototypes menu + Goomba Rider |
+
+Env vars (all in this one project — `VITE_PARTYKIT_HOST` is set once here, so
+the two games cannot drift onto different servers):
+
+```
+VITE_PARTYKIT_HOST=escape-cats.<user>.partykit.dev
+VITE_HEX_URL=https://hex.<domain>
+VITE_GOOMBA_URL=https://goomba.<domain>
+VITE_PROCTOR_TOKEN=<matches PROCTOR_TOKEN above>
+```
+
+### 3. Vanity domains
+
+Attach the domain to the project in Vercel, then add a host rewrite in
+`vercel.json` pointing it at the right subdirectory:
+
+```json
+{
+  "source": "/(.*)",
+  "has": [{ "type": "host", "value": "hex.example.com" }],
+  "destination": "/hex/$1"
+}
+```
+
+`g00.mba` is already wired this way, to Goomba Rider.
+
+**Do not change `base: "./"` in the vite configs.** It is what lets one build
+serve both from a vanity domain root (rewritten to `/hex/`) and from a path
+(`preview-url/hex/`). An absolute base breaks one of the two. It is safe only
+because no app routes on the path — rooms come from `?room=` — so adding
+path-based routing means revisiting this.
+
+`hex/vercel.json` and `prototypes/vercel.json` are leftovers from when those
+folders were their own Vercel projects. They are inert under the
+single-project setup (only the root `vercel.json` is read); keep them only if
+you intend to split those surfaces back out.
 
 ## Next steps (deliberately not in the scaffold)
 

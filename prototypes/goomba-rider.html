@@ -1,0 +1,1551 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Goomba Rider</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #150a2a; }
+  #c { position: fixed; inset: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
+  #hud { position: fixed; inset: 0; pointer-events: none;
+         font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+         color: #f2ecff; }
+  #top { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
+         display: flex; align-items: center; justify-content: space-between; padding: 0 14px; gap: 8px; }
+  #lvl { font-weight: 700; font-size: 15px; letter-spacing: .02em; text-shadow: 0 2px 8px rgba(0,0,0,.6);
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #dots { display: flex; gap: 7px; pointer-events: auto; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #6b5a98; background: transparent; }
+  .dot.open { border-color: #ffd166; }
+  .dot.cur  { background: #ffd166; border-color: #ffd166; box-shadow: 0 0 10px rgba(255,209,102,.7); }
+  #inv { display: flex; gap: 4px; }
+  #inv svg { width: 27px; height: 27px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); transition: opacity .25s, transform .25s; }
+  #inv svg.used { opacity: .18; transform: scale(.82); }
+  #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 34px); left: 0; right: 0;
+          text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
+  button { pointer-events: auto; font: inherit; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  #play { position: absolute; right: 16px; bottom: max(16px, env(safe-area-inset-bottom));
+          min-width: 118px; height: 56px; border-radius: 28px; font-size: 19px; font-weight: 800;
+          color: #1b0f38; background: linear-gradient(180deg, #67f2d4, #3fd4b4);
+          box-shadow: 0 6px 18px rgba(87,230,201,.35), inset 0 -3px 0 rgba(0,0,0,.15); letter-spacing: .03em; }
+  #play.stop { background: linear-gradient(180deg, #ff7ec1, #ff5db1); box-shadow: 0 6px 18px rgba(255,93,177,.35), inset 0 -3px 0 rgba(0,0,0,.15); }
+  #play.next { background: linear-gradient(180deg, #ffe08a, #ffd166); box-shadow: 0 6px 18px rgba(255,209,102,.4), inset 0 -3px 0 rgba(0,0,0,.15); }
+  #clear { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom));
+           height: 44px; padding: 0 16px; border-radius: 22px; font-size: 14px; font-weight: 700;
+           color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
+  #gear { position: absolute; left: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 54px);
+          width: 44px; height: 44px; border-radius: 22px; font-size: 19px;
+          color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
+  #devp { position: absolute; left: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 106px);
+          pointer-events: auto; background: rgba(20,10,45,.94); border: 1.5px solid rgba(201,189,240,.35);
+          border-radius: 14px; padding: 12px 14px; display: none; flex-direction: column; gap: 8px;
+          font-size: 12px; color: #c9bdf0; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  #devp.show { display: flex; }
+  #devp label { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  #devp input[type=range] { width: 130px; accent-color: #57e6c9; }
+  #devp b { color: #ffd166; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+  .devrow { display: flex; gap: 6px; }
+  .devbtn { flex: 1; height: 32px; border-radius: 9px; font-size: 12px; font-weight: 700;
+            color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
+  .dot.custom { border-radius: 3px; transform: rotate(45deg); border-color: #57e6c9; }
+  .dot.custom.cur { background: #57e6c9; box-shadow: 0 0 10px rgba(87,230,201,.7); }
+  #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.9);
+           background: rgba(20,10,45,.92); border: 2px solid #ffd166; color: #ffe9b3;
+           padding: 14px 26px; border-radius: 18px; font-size: 20px; font-weight: 800; text-align: center;
+           opacity: 0; transition: opacity .18s, transform .18s; white-space: nowrap; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+  #toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  #hud:has(#title:not([style*="none"])) > :not(#title) { visibility: hidden; }
+  #hud.lab > :not(#labbar) { visibility: hidden; }
+  #labbar { position: absolute; left: 0; right: 0; bottom: max(14px, env(safe-area-inset-bottom));
+            display: none; justify-content: center; gap: 10px; pointer-events: auto; }
+  #hud.lab #labbar { display: flex; }
+  #labbar button { height: 42px; padding: 0 20px; border-radius: 21px; font-size: 14px; font-weight: 700;
+                   color: #1b0f38; background: linear-gradient(180deg, #67f2d4, #3fd4b4); }
+  #title { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+           gap: 14px; background: rgba(13,6,30,.86); pointer-events: auto; text-align: center; padding: 24px; }
+  #title h1 { margin: 0; font-size: clamp(34px, 9vw, 56px); letter-spacing: .01em;
+              background: linear-gradient(90deg, #ff5db1, #ffd166, #57e6c9); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #title .sub { color: #c9bdf0; font-size: 14px; margin-top: -8px; }
+  #title .how { color: #f2ecff; font-size: 15px; line-height: 1.75; max-width: 350px; }
+  #title .how b { color: #ffd166; }
+  #title .go { margin-top: 8px; height: 54px; padding: 0 34px; border-radius: 27px; font-size: 18px; font-weight: 800;
+               color: #1b0f38; background: linear-gradient(180deg, #67f2d4, #3fd4b4); }
+</style>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="top">
+    <div id="lvl"></div>
+    <div id="dots"></div>
+    <div id="inv">
+      <svg viewBox="0 0 32 32" fill="none" stroke="#ff5db1" stroke-width="3" stroke-linejoin="round"><path d="M16 27 C4 18 6 7 13 8 C15 8.5 16 10 16 11 C16 10 17 8.5 19 8 C26 7 28 18 16 27 Z"/></svg>
+      <svg viewBox="0 0 32 32" fill="none" stroke="#57e6c9" stroke-width="3" stroke-linejoin="round"><path d="M16 3 L20 12 L30 13 L22 19 L25 29 L16 23 L7 29 L10 19 L2 13 L12 12 Z"/></svg>
+      <svg viewBox="0 0 32 32" fill="none" stroke="#ffd166" stroke-width="3" stroke-linejoin="round"><path d="M5 20 Q5 10 9 9 L11 4 L14 8 Q16 7.5 18 8 L21 4 L23 9 Q27 10 27 20 Q27 27 16 27 Q5 27 5 20 Z"/></svg>
+      <svg viewBox="0 0 32 32" fill="none" stroke="#b18bff" stroke-width="3" stroke-linejoin="round"><path d="M18 3 L8 18 L14 18 L11 29 L24 13 L17 13 Z"/></svg>
+    </div>
+  </div>
+  <div id="hint"></div>
+  <button id="gear">⚙️</button>
+  <div id="devp">
+    <label>edit zoom <input id="ez" type="range" min="1" max="2.2" step="0.05"><b id="ezv"></b></label>
+    <label>run zoom <input id="rz" type="range" min="1" max="3" step="0.05"><b id="rzv"></b></label>
+    <div class="devrow">
+      <button class="devbtn" id="importBtn">📄 import SVG</button>
+      <button class="devbtn" id="verifyBtn">🧪 verify level</button>
+    </div>
+    <div class="devrow"><button class="devbtn" id="labBtn">🔬 level lab</button></div>
+    <input id="svgFile" type="file" accept=".svg,image/svg+xml" hidden>
+  </div>
+  <button id="clear">clear bands</button>
+  <button id="play">▶ PLAY</button>
+  <div id="toast"></div>
+  <div id="labbar"><button id="labClose">✕ close lab</button></div>
+  <div id="title">
+    <h1>GOOMBA RIDER</h1>
+    <div class="sub">a silly-bandz line rider · cat games party prototype</div>
+    <div class="how">
+      <b>Two fingers</b> (or click-drag) stretch a <b>silly band</b> of track.<br>
+      <b>One finger</b> drags to look around. Tap a band to take it back.<br>
+      Place up to <b>4</b>, hit <b>PLAY</b>, get her to the cake. 🎂
+    </div>
+    <button class="go">LET'S RIDE</button>
+  </div>
+</div>
+<script>
+'use strict';
+// ---------- Goomba Rider — line-rider clone where the track is silly bandz. ----------
+// Single-player prototype. Multiplayer plan: teams of FOUR, each player owns ONE band
+// (an intent: two endpoints); a team of three still gets the full budget — one player
+// places two bands, one per hand. Everyone holds their band in place at once, someone
+// hits PLAY, and the server runs this same deterministic sim (stepRun below is pure
+// state-in/state-out on purpose) and broadcasts. For the demo, one player places up to 4.
+// World space: x right, y DOWN (gravity is +y). Levels are portrait-leaning — most
+// parties play phones vertically.
+
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0;
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+if (!ctx.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r); this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r); this.closePath();
+  };
+}
+
+// ---------- physics constants ----------
+const G = 140;          // gravity, units/s^2
+const R = 2.2;          // Goomba's collision radius
+const START_VX = 20;    // the little push when PLAY is hit
+const MAX_SPEED = 120;
+const BAND_MAX = 58;    // one silly band's worth of stretch
+const BAND_MIN = 6;
+const MAX_BANDS = 4;    // team budget ceiling: 4 players x 1 band (3-player teams: someone uses two hands)
+const budgetOf = L => Math.min(MAX_BANDS, L.budget || MAX_BANDS);
+const SUB = 1 / 240;    // physics substep
+const RUN_MAX = 15;     // seconds before we call a run stuck
+const KIND_GROUND = 0, KIND_BAND = 1, KIND_CUSH = 2;
+const E_KIND  = [0.02, 0.32, 1.30];   // restitution: ground, band, cushion (springs!)
+const FR_KIND = [0.18, 0.06, 0.02];   // friction
+const POP_R = 6;                      // party-popper trigger radius (generous — poppers forgive)
+const POP_R2 = (POP_R + R) * (POP_R + R);
+const POP_COOLDOWN = 0.8;
+const PLANT_R = 7.5;                  // snake-plant pickup radius (generous — party hands)
+const UPDRAFT_A = 205;                // balloon-arch updraft: beats gravity, so she floats up
+const BUMP_R = 5.5, BUMP_E = 1.18, BUMP_MIN = 58;  // piñata bumper: pinball-style radial kick
+
+// ---------- levels ----------
+// terrain: polylines (walls/cliffs are just steep segments). cushions: horizontal
+// bouncy pillows {x,y,w}. pops: party poppers {x,y,deg,spd} that re-launch Goomba
+// along their aim. goal: the cake. solution: a band set that clears the level
+// (used by tests + tuning, never shown).
+// Levels aim for roughly portrait-phone proportions (~1:2), so fitting the level
+// to a vertical screen is the nice zoom by construction.
+// The set is a FUN HOUSE, not a ski hill: every level features at least one bouncy
+// toy, and snake plants make the cake a routing problem — one band can reach a place,
+// but it can't make her pass three scattered plants.
+const LEVELS = [
+  { name: '1 · Snake Plant Slalom', budget: 3,
+    hint: 'grab every snake plant before the cake — slalom her down the shaft',
+    hint2: 'bank her off each band toward the next plant',
+    start: [10, 22],
+    terrain: [ [[-4, 20], [30, 30]],
+               [[6, 34], [6, 204], [104, 210], [104, 34]] ],
+    goal: [96, 205],
+    plants: [[32, 72], [76, 118], [32, 164]],
+    solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],
+                [[87, 132.3], [45.9, 160.8]] ] },
+
+  // Judge concept "SLOW RISE": fast fall past the visible cake, then three seconds of
+  // floaty nothing in the balloon column — the comedy pause — then a kicker band
+  // flicks her out and gravity snaps back on. The only tempo change in the game.
+  { name: '2 · Slow Rise', budget: 2,
+    hint: 'she falls right past the cake… the balloons bring her back',
+    hint2: 'a kicker INSIDE the column flicks her out at the height you choose',
+    start: [8, 12],
+    terrain: [ [[-6, 10], [30, 20]],
+               [[6, 58], [40, 62]],
+               [[62, 30], [62, 150]],
+               [[106, 20], [106, 190]] ],
+    goal: [14, 55],
+    updrafts: [ { x: 62, y: 44, w: 44, h: 146 } ],
+    plants: [[96, 54]],
+    solution: [ [[83.1, 185.4], [40.4, 156.2]], [[106.6, 22.8], [100.7, 14]] ] },
+
+  // Judge concept "THE SKIM": build speed in a chute, popper fires her nearly flat
+  // through a long low slot, and the bands are lifts that keep her skimming between
+  // ceiling and cushion floor. Sustained tension instead of one instant.
+  { name: '3 · The Skim', budget: 3, maxSpeed: 135,
+    hint: 'keep her skimming through the slot — every sag needs a lift',
+    hint2: 'small flat bands under her path stop her clipping the pillows',
+    start: [8, 12],
+    terrain: [ [[-6, 10], [26, 22]],
+               [[26, 22], [10, 56], [14, 96], [32, 112], [44, 118]],
+               [[46, 102], [148, 108]],
+               [[150, 126], [162, 176], [150, 186], [128, 180]] ],
+    goal: [148, 179],
+    cushions: [ { x: 46, y: 138, w: 100 } ],
+    // one plant LOW (dip toward the pillows), one HIGH (needs a bounce peak) — a
+    // collectible on the line she'd fly anyway is a chime, not a constraint
+    plants: [[74, 134], [116, 112]],
+    pops: [ { x: 48, y: 122, deg: -6, spd: 112 } ],
+    solution: [ [[123.5, 98.3], [99.1, 130.1]] ] },
+
+  // The finale the party asked for: a sealed pinball box. She rattles off piñatas and
+  // pillow floors, the plants gate the cake, and the only exit is the drain hole.
+  // Bands are deflector plates steering the chaos. Losing is funnier than winning.
+  { name: '4 · The Puzzle Box', budget: 4, maxSpeed: 140,
+    hint: 'route her through the chaos: every plant, then out the drain',
+    hint2: 'bands are deflector plates — steer the ricochets toward the hole',
+    start: [8, 12],
+    terrain: [ [[-6, 10], [32, 20]],
+               [[46, 28], [104, 32]],
+               [[8, 42], [8, 182], [40, 188]],
+               [[64, 188], [104, 182], [104, 32]],
+               [[36, 196], [52, 210], [68, 198]] ],
+    goal: [52, 206],
+    plants: [[28, 70], [78, 104], [16, 164]],
+    bumpers: [ { x: 56, y: 62 }, { x: 84, y: 78 }, { x: 22, y: 106 },
+               { x: 62, y: 128 }, { x: 88, y: 152 } ],
+    cushions: [ { x: 10, y: 180, w: 28 }, { x: 66, y: 180, w: 36 } ],
+    solution: [ [[59.8, 75.3], [14, 71.3]], [[38.1, 93.3], [4.9, 112.8]] ] },
+
+  { name: '5 · Piñata Alley', budget: 3,
+    hint: 'piñatas hit BACK — bank her through the plants and out the bottom',
+    hint2: 'bumpers add speed; aim her in and let them do the rest',
+    start: [8, 14],
+    terrain: [ [[-6, 12], [38, 24]],
+               [[4, 30], [4, 190], [106, 196], [106, 30]] ],
+    goal: [96, 191],
+    plants: [[24, 92], [86, 150]],
+    // curtains, not obstacles: the gaps are narrower than she is, so she MUST bounce
+    bumpers: [ { x: 16, y: 62 }, { x: 34, y: 62 }, { x: 52, y: 62 },
+               { x: 70, y: 62 }, { x: 88, y: 62 },
+               { x: 25, y: 122 }, { x: 43, y: 122 }, { x: 61, y: 122 },
+               { x: 79, y: 122 }, { x: 97, y: 122 } ],
+    solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
+
+  { name: '6 · Pillow Fort',
+    hint: 'the pillow is comfy. TOO comfy.',
+    hint2: 'lay a band across the shaft — she’ll land on it and slide out',
+    start: [8, 10],
+    terrain: [ [[-5, 8], [46, 20]],
+               [[96, 40], [96, 190]],
+               [[52, 44], [52, 120]],
+               [[0, 144], [24, 168], [48, 160]] ],
+    goal: [24, 165],
+    cushions: [ { x: 56, y: 190, w: 40 } ],
+    solution: [ [[58, 126], [95, 102]] ] },
+
+  { name: '7 · Balloon Arch', budget: 2,
+    hint: 'the balloon column is the only way up — decide where she leaves it',
+    hint2: 'slant a band across the top of the column to fling her out sideways',
+    start: [8, 12],
+    terrain: [ [[-6, 10], [40, 24]],
+               [[108, 30], [108, 192]],
+               [[18, 48], [58, 52]],
+               [[20, 60], [56, 66]] ],
+    goal: [28, 58],
+    cushions: [ { x: 62, y: 190, w: 46 } ],
+    updrafts: [ { x: 60, y: 40, w: 48, h: 150 } ],
+    solution: [ [[101.5, 26.7], [107.1, 34.4]] ] },
+
+  { name: '8 · Pop Goes Goomba',
+    hint: 'party poppers do the lifting — your band does the aiming',
+    hint2: 'ramp her into the bottom popper; the rest is physics',
+    start: [8, 54],
+    terrain: [ [[-5, 52], [46, 62]],
+               [[40, -14], [66, -8]] ],
+    goal: [48, -13],
+    cushions: [ { x: 36, y: 150, w: 36 } ],
+    pops: [ { x: 98, y: 126, deg: -96, spd: 142 },
+            { x: 94, y: 80, deg: -97, spd: 142 },
+            { x: 85, y: 34, deg: -102, spd: 142 } ],
+    solution: [ [[54, 80], [92, 118]] ] },
+
+];
+
+function initLevel(L) { // world bounds + popper aim vectors + start-pad angle
+  L.cushions = L.cushions || []; L.pops = L.pops || [];
+  L.plants = L.plants || []; L.updrafts = L.updrafts || []; L.bumpers = L.bumpers || [];
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  const eat = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+  for (const poly of L.terrain) for (const [x, y] of poly) eat(x, y);
+  for (const c of L.cushions) { eat(c.x, c.y); eat(c.x + c.w, c.y); }
+  for (const pp of L.pops) { eat(pp.x - 6, pp.y - 6); eat(pp.x + 6, pp.y + 6); }
+  for (const m of L.plants) eat(m[0], m[1]);
+  for (const u of L.updrafts) { eat(u.x, u.y); eat(u.x + u.w, u.y + u.h); }
+  for (const bp of L.bumpers) { eat(bp.x - BUMP_R, bp.y - BUMP_R); eat(bp.x + BUMP_R, bp.y + BUMP_R); }
+  eat(L.goal[0], L.goal[1]); eat(L.start[0], L.start[1]);
+  L.bounds = { x0: x0 - 8, y0: y0 - 16, x1: x1 + 8, y1: y1 + 8 };
+  for (const pp of L.pops) {
+    const rad = pp.deg * Math.PI / 180;
+    pp.ux = Math.cos(rad); pp.uy = Math.sin(rad);
+    pp.vx = pp.ux * pp.spd; pp.vy = pp.uy * pp.spd;
+  }
+  L.startAngle = 0;
+  for (const poly of L.terrain) for (let i = 0; i + 1 < poly.length; i++) {
+    const [ax, ay] = poly[i], [bx, by] = poly[i + 1];
+    if (L.start[0] >= Math.min(ax, bx) && L.start[0] <= Math.max(ax, bx) && Math.abs(bx - ax) > 1)
+      { L.startAngle = Math.atan2(by - ay, bx - ax); break; }
+  }
+  return L;
+}
+LEVELS.forEach(initLevel);
+
+// ---------- SVG level import ----------
+// Draw a level in Figma (or any vector tool), export SVG, drag the file onto the
+// game. Conventions (layer names, case-insensitive; everything else with a stroke
+// becomes terrain):
+//   start    circle/point  where Goomba begins
+//   goal     circle/point  the cake
+//   cushion  a line/rect   bouncy pillow (its top edge)
+//   pop      a line        party popper: line START = position, direction = aim,
+//                          length = power (world len × 2.5, clamped 60–120)
+//   sol      lines         optional solution bands, used by the verify button
+//   guide/note/frame       ignored
+// Coordinates are normalized so the level is 200 world-units tall — a 390×844
+// phone frame in Figma becomes a perfectly tuned level footprint.
+function matMul(m, n) {
+  return [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1],
+          m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
+          m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+}
+function parseTransform(str) {
+  let m = [1, 0, 0, 1, 0, 0];
+  if (!str) return m;
+  for (const [, fn, argStr] of str.matchAll(/(\w+)\s*\(([^)]*)\)/g)) {
+    const a = argStr.split(/[\s,]+/).filter(Boolean).map(Number);
+    if (fn === 'translate') m = matMul(m, [1, 0, 0, 1, a[0] || 0, a[1] || 0]);
+    else if (fn === 'scale') m = matMul(m, [a[0], 0, 0, a.length > 1 ? a[1] : a[0], 0, 0]);
+    else if (fn === 'matrix') m = matMul(m, a);
+    else if (fn === 'rotate') {
+      const r = (a[0] || 0) * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
+      const cx = a[1] || 0, cy = a[2] || 0;
+      m = matMul(m, [1, 0, 0, 1, cx, cy]);
+      m = matMul(m, [c, s, -s, c, 0, 0]);
+      m = matMul(m, [1, 0, 0, 1, -cx, -cy]);
+    }
+  }
+  return m;
+}
+function elMatrix(el) {
+  const chain = [];
+  for (let n = el; n && n.getAttribute; n = n.parentNode) chain.unshift(n);
+  let m = [1, 0, 0, 1, 0, 0];
+  for (const n of chain) m = matMul(m, parseTransform(n.getAttribute('transform')));
+  return m;
+}
+const applyMat = (m, [x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+function parsePathPts(d) { // path data → array of polylines (curves flattened)
+  const tok = d.match(/[a-df-zA-DF-Z]|-?\.?\d+(?:\.\d+)?(?:e-?\d+)?/gi) || [];
+  const polys = []; let poly = null, i = 0, cmd = '';
+  let x = 0, y = 0, sx = 0, sy = 0, pcx = 0, pcy = 0;
+  const num = () => +tok[i++];
+  const put = (px, py) => { if (poly) poly.push([px, py]); };
+  const bez3 = (x1, y1, x2, y2, x3, y3) => {
+    for (let k = 1; k <= 6; k++) {
+      const t = k / 6, u = 1 - t;
+      put(u * u * u * x + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3,
+          u * u * u * y + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3);
+    }
+    pcx = x2; pcy = y2; x = x3; y = y3;
+  };
+  const bez2 = (x1, y1, x2, y2) => {
+    for (let k = 1; k <= 6; k++) {
+      const t = k / 6, u = 1 - t;
+      put(u * u * x + 2 * u * t * x1 + t * t * x2, u * u * y + 2 * u * t * y1 + t * t * y2);
+    }
+    pcx = x1; pcy = y1; x = x2; y = y2;
+  };
+  while (i < tok.length) {
+    if (/[a-zA-Z]/.test(tok[i])) cmd = tok[i++];
+    const rel = cmd === cmd.toLowerCase() && cmd !== 'z' && cmd !== 'Z';
+    const C = cmd.toUpperCase();
+    if (C === 'M') {
+      const nx = num() + (rel ? x : 0), ny = num() + (rel ? y : 0);
+      x = sx = nx; y = sy = ny;
+      poly = [[x, y]]; polys.push(poly);
+      cmd = rel ? 'l' : 'L';
+    } else if (C === 'L') { x = num() + (rel ? x : 0); y = num() + (rel ? y : 0); put(x, y); }
+    else if (C === 'H') { x = num() + (rel ? x : 0); put(x, y); }
+    else if (C === 'V') { y = num() + (rel ? y : 0); put(x, y); }
+    else if (C === 'C') {
+      const x1 = num() + (rel ? x : 0), y1 = num() + (rel ? y : 0);
+      const x2 = num() + (rel ? x : 0), y2 = num() + (rel ? y : 0);
+      bez3(x1, y1, x2, y2, num() + (rel ? x : 0), num() + (rel ? y : 0));
+    } else if (C === 'S') {
+      const x1 = 2 * x - pcx, y1 = 2 * y - pcy;
+      const x2 = num() + (rel ? x : 0), y2 = num() + (rel ? y : 0);
+      bez3(x1, y1, x2, y2, num() + (rel ? x : 0), num() + (rel ? y : 0));
+    } else if (C === 'Q') {
+      const x1 = num() + (rel ? x : 0), y1 = num() + (rel ? y : 0);
+      bez2(x1, y1, num() + (rel ? x : 0), num() + (rel ? y : 0));
+    } else if (C === 'T') { bez2(2 * x - pcx, 2 * y - pcy, num() + (rel ? x : 0), num() + (rel ? y : 0)); }
+    else if (C === 'A') { i += 5; x = num() + (rel ? x : 0); y = num() + (rel ? y : 0); put(x, y); } // arc → chord
+    else if (C === 'Z') { put(sx, sy); x = sx; y = sy; }
+    else i++; // unknown, skip token
+  }
+  return polys.filter(p => p.length > 1);
+}
+function svgToLevel(svgText) {
+  const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+  if (doc.querySelector('parsererror')) throw new Error('not a valid SVG file');
+  const nameOf = el => {
+    for (let n = el; n && n.getAttribute; n = n.parentNode) {
+      const nm = n.getAttribute('data-name') || n.getAttribute('id');
+      if (nm) return nm.toLowerCase();
+    }
+    return '';
+  };
+  const hasStroke = el => {
+    for (let n = el; n && n.getAttribute; n = n.parentNode) {
+      const s = n.getAttribute('stroke') || (n.getAttribute('style') || '').match(/stroke:\s*([^;]+)/)?.[1];
+      if (s && s !== 'none') return true;
+    }
+    return false;
+  };
+  const terrain = [], cushLines = [], popLines = [], sols = [];
+  const plantPts = [], bumpPts = [], upRects = [];
+  let start = null, goal = null;
+  for (const el of doc.querySelectorAll('path,line,polyline,polygon,rect,circle,ellipse')) {
+    const name = nameOf(el), m = elMatrix(el), tag = el.tagName.toLowerCase();
+    if (/guide|note|frame|bg|background/.test(name)) continue;
+    let polys = [];
+    if (tag === 'line')
+      polys = [[[+el.getAttribute('x1'), +el.getAttribute('y1')], [+el.getAttribute('x2'), +el.getAttribute('y2')]]];
+    else if (tag === 'polyline' || tag === 'polygon') {
+      const nums = (el.getAttribute('points') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      const pts = [];
+      for (let k = 0; k + 1 < nums.length; k += 2) pts.push([nums[k], nums[k + 1]]);
+      if (tag === 'polygon' && pts.length) pts.push(pts[0]);
+      polys = [pts];
+    } else if (tag === 'rect') {
+      const rx = +el.getAttribute('x') || 0, ry = +el.getAttribute('y') || 0;
+      const rw = +el.getAttribute('width') || 0, rh = +el.getAttribute('height') || 0;
+      polys = [[[rx, ry], [rx + rw, ry], [rx + rw, ry + rh], [rx, ry + rh], [rx, ry]]];
+    } else if (tag === 'circle' || tag === 'ellipse')
+      polys = [[[+el.getAttribute('cx') || 0, +el.getAttribute('cy') || 0]]];
+    else if (tag === 'path')
+      polys = parsePathPts(el.getAttribute('d') || '');
+    polys = polys.map(p => p.map(pt => applyMat(m, pt))).filter(p => p.length);
+    if (!polys.length) continue;
+    const first = polys[0][0];
+    if (name.startsWith('start')) start = first;
+    else if (name.startsWith('goal') || name.startsWith('cake')) goal = first;
+    else if (name.startsWith('cushion')) cushLines.push(polys[0]);
+    else if (name.startsWith('pop')) popLines.push(polys[0]);
+    else if (name.startsWith('plant') || name.startsWith('snake') || name.startsWith('mouse')) plantPts.push(first);
+    else if (name.startsWith('bump') || name.startsWith('pinata') || name.startsWith('piñata')) bumpPts.push(first);
+    else if (name.startsWith('updraft') || name.startsWith('balloon')) upRects.push(polys[0]);
+    else if (name.startsWith('sol') || name.startsWith('band')) sols.push(...polys);
+    else if (polys[0].length > 1 && (hasStroke(el) || name.startsWith('terrain') || name.startsWith('wall') || name.startsWith('slope')))
+      terrain.push(...polys);
+  }
+  const missing = [!start && 'a "start" point', !goal && 'a "goal" point', !terrain.length && 'terrain strokes'].filter(Boolean);
+  if (missing.length) throw new Error('SVG is missing ' + missing.join(', '));
+  // normalize: level becomes 200 world-units tall
+  let x0 = 1e9, y0 = 1e9, y1 = -1e9;
+  const eat = ([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); };
+  terrain.flat().forEach(eat); cushLines.flat().forEach(eat); popLines.flat().forEach(eat);
+  plantPts.forEach(eat); bumpPts.forEach(eat); upRects.flat().forEach(eat);
+  eat(start); eat(goal);
+  const s = 200 / Math.max(50, y1 - y0);
+  const tx = ([x, y]) => [+((x - x0) * s).toFixed(1), +((y - y0) * s).toFixed(1)];
+  const level = {
+    name: '✦ · Custom', custom: true,
+    hint: 'imported level — stretch bands and hit PLAY',
+    hint2: 'edit the SVG and drop it in again to iterate',
+    start: tx(start), goal: tx(goal),
+    terrain: terrain.map(p => p.map(tx)),
+    cushions: cushLines.map(p => {
+      const pts = p.map(tx);
+      const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
+      return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(6, Math.max(...xs) - Math.min(...xs)) };
+    }),
+    pops: popLines.map(p => {
+      const a = tx(p[0]), b = tx(p[p.length - 1]);
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      return { x: a[0], y: a[1], deg: Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI,
+               spd: Math.max(60, Math.min(120, len * 2.5)) };
+    }),
+    plants: plantPts.map(tx),
+    bumpers: bumpPts.map(p => { const q = tx(p); return { x: q[0], y: q[1] }; }),
+    updrafts: upRects.map(p => {
+      const pts = p.map(tx), xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
+      return { x: Math.min(...xs), y: Math.min(...ys),
+               w: Math.max(10, Math.max(...xs) - Math.min(...xs)),
+               h: Math.max(10, Math.max(...ys) - Math.min(...ys)) };
+    }),
+    solution: sols.map(p => [p[0], p[p.length - 1]].map(tx)),
+  };
+  return initLevel(level);
+}
+
+// ---------- band geometry ----------
+const SNAP = 5; // endpoints near terrain snap onto it (slightly buried, so no tip-bonk)
+function snapEnd(L, x, y) {
+  // lips and ledge corners are vertices — players aim for those, so vertices win
+  let best = null, bestD2 = SNAP * SNAP;
+  for (const poly of L.terrain) for (const [vx, vy] of poly) {
+    const d2 = (x - vx) * (x - vx) + (y - vy) * (y - vy);
+    if (d2 < bestD2) { bestD2 = d2; best = [vx, vy + 0.8]; }
+  }
+  if (best) return best;
+  bestD2 = SNAP * SNAP;
+  for (const poly of L.terrain) for (let i = 0; i + 1 < poly.length; i++) {
+    const ax = poly[i][0], ay = poly[i][1], bx = poly[i + 1][0], by = poly[i + 1][1];
+    const abx = bx - ax, aby = by - ay, l2 = abx * abx + aby * aby || 1e-6;
+    let t = ((x - ax) * abx + (y - ay) * aby) / l2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const qx = ax + abx * t, qy = ay + aby * t;
+    const d2 = (x - qx) * (x - qx) + (y - qy) * (y - qy);
+    if (d2 < bestD2) { bestD2 = d2; best = [qx, qy + 0.8]; }
+  }
+  return best || [x, y];
+}
+function snapBand(L, bd) {
+  const a = snapEnd(L, bd.ax, bd.ay), b = snapEnd(L, bd.bx, bd.by);
+  return { ...bd, ax: a[0], ay: a[1], bx: b[0], by: b[1] };
+}
+function bandPoints(bd) { // a placed band sags a little, like real rubber
+  const dx = bd.bx - bd.ax, dy = bd.by - bd.ay, len = Math.hypot(dx, dy);
+  const sag = Math.min(3.5, len * 0.05);
+  const cx = (bd.ax + bd.bx) / 2, cy = (bd.ay + bd.by) / 2 + sag;
+  const pts = [];
+  for (let i = 0; i <= 8; i++) {
+    const t = i / 8, u = 1 - t;
+    pts.push([u * u * bd.ax + 2 * u * t * cx + t * t * bd.bx,
+              u * u * bd.ay + 2 * u * t * cy + t * t * bd.by]);
+  }
+  return pts;
+}
+function segsFor(L, bands) {
+  const segs = [];
+  for (const poly of L.terrain)
+    for (let i = 0; i + 1 < poly.length; i++)
+      segs.push({ ax: poly[i][0], ay: poly[i][1], bx: poly[i + 1][0], by: poly[i + 1][1], kind: KIND_GROUND, band: -1, cush: -1 });
+  L.cushions.forEach((c, ci) =>
+    segs.push({ ax: c.x, ay: c.y, bx: c.x + c.w, by: c.y, kind: KIND_CUSH, band: -1, cush: ci }));
+  bands.forEach((bd, bi) => {
+    const pts = bandPoints(bd);
+    for (let i = 0; i + 1 < pts.length; i++)
+      segs.push({ ax: pts[i][0], ay: pts[i][1], bx: pts[i + 1][0], by: pts[i + 1][1], kind: KIND_BAND, band: bi, cush: -1 });
+  });
+  return segs;
+}
+
+// ---------- the sim (pure-ish: everything lives on `st`) ----------
+function makeRun(L, bands) {
+  return {
+    L, segs: segsFor(L, bands),
+    p: { x: L.start[0], y: L.start[1] }, v: { x: START_VX, y: 0 },
+    face: 1, boardA: L.startAngle, grounded: false, onBand: -1,
+    t: 0, slowT: 0, result: null, snap: { x: L.start[0], y: L.start[1], t: 0 },
+    bandHits: bands.map(() => 0),
+    cushHits: L.cushions.map(() => 0),
+    popT: L.pops.map(() => -9),
+    got: L.plants.map(() => false), gotN: 0, lifting: false,
+    bumpT: L.bumpers.map(() => -9), events: [],
+  };
+}
+function stepRun(st, dt) {
+  if (st.result) return;
+  st.t += dt;
+  st.v.y += G * dt;
+  // balloon arch: a column of lift she floats up through — long, steerable hang time
+  st.lifting = false;
+  for (const u of st.L.updrafts)
+    if (st.p.x > u.x && st.p.x < u.x + u.w && st.p.y > u.y && st.p.y < u.y + u.h) {
+      st.v.y -= UPDRAFT_A * dt; st.lifting = true;
+    }
+  const cap = st.L.maxSpeed || MAX_SPEED; // later levels run hotter — the night crescendos
+  const sp0 = Math.hypot(st.v.x, st.v.y);
+  if (sp0 > cap) { st.v.x *= cap / sp0; st.v.y *= cap / sp0; }
+  st.p.x += st.v.x * dt; st.p.y += st.v.y * dt;
+
+  st.grounded = false; st.onBand = -1;
+  let tanX = 0, tanY = 0;
+  for (const s of st.segs) {
+    const abx = s.bx - s.ax, aby = s.by - s.ay, l2 = abx * abx + aby * aby || 1e-6;
+    let t = ((st.p.x - s.ax) * abx + (st.p.y - s.ay) * aby) / l2;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const qx = s.ax + abx * t, qy = s.ay + aby * t;
+    let nx = st.p.x - qx, ny = st.p.y - qy;
+    const d = Math.hypot(nx, ny);
+    if (d < R && d > 1e-9) {
+      nx /= d; ny /= d;
+      st.p.x = qx + nx * R; st.p.y = qy + ny * R;
+      const vn = st.v.x * nx + st.v.y * ny;
+      if (vn < 0) {
+        st.v.x -= (1 + E_KIND[s.kind]) * vn * nx;
+        st.v.y -= (1 + E_KIND[s.kind]) * vn * ny;
+        if (s.band >= 0) st.bandHits[s.band] = 1;
+        if (s.cush >= 0) st.cushHits[s.cush] = 1;
+      }
+      const fr = FR_KIND[s.kind] * dt;
+      const tx = -ny, ty = nx, vt = st.v.x * tx + st.v.y * ty;
+      st.v.x -= vt * fr * tx; st.v.y -= vt * fr * ty;
+      st.grounded = true; tanX = abx; tanY = aby;
+      if (s.band >= 0) st.onBand = s.band;
+    }
+  }
+
+  const L = st.L;
+  // piñata bumpers: pinball-style radial kick, adds energy — pure chaos and spectacle
+  for (let i = 0; i < L.bumpers.length; i++) {
+    const bp = L.bumpers[i];
+    let nx = st.p.x - bp.x, ny = st.p.y - bp.y;
+    const d = Math.hypot(nx, ny);
+    if (d < BUMP_R + R && d > 1e-9) {
+      nx /= d; ny /= d;
+      st.p.x = bp.x + nx * (BUMP_R + R); st.p.y = bp.y + ny * (BUMP_R + R);
+      const vn = st.v.x * nx + st.v.y * ny;
+      st.v.x -= (1 + BUMP_E) * vn * nx; st.v.y -= (1 + BUMP_E) * vn * ny;
+      const sp2 = Math.hypot(st.v.x, st.v.y);
+      if (sp2 < BUMP_MIN) { st.v.x = nx * BUMP_MIN; st.v.y = ny * BUMP_MIN; }
+      st.bumpT[i] = st.t; st.events.push(['bump', st.p.x, st.p.y, st.t]);
+    }
+  }
+  // neon plants: collect every one before the cake unlocks
+  for (let i = 0; i < L.plants.length; i++) {
+    if (st.got[i]) continue;
+    const dx = st.p.x - L.plants[i][0], dy = st.p.y - L.plants[i][1];
+    if (dx * dx + dy * dy < (PLANT_R + R) * (PLANT_R + R)) {
+      st.got[i] = true; st.gotN++; st.events.push(['plant', L.plants[i][0], L.plants[i][1], st.t]);
+    }
+  }
+  // party poppers: fly close and she gets re-launched along the popper's aim
+  for (let i = 0; i < L.pops.length; i++) {
+    if (st.t - st.popT[i] < POP_COOLDOWN) continue;
+    const pp = L.pops[i];
+    const dx = st.p.x - pp.x, dy = st.p.y - pp.y;
+    if (dx * dx + dy * dy < POP_R2) {
+      // A popper redirects rather than overwrites: it sets DIRECTION, but carries her
+      // arrival speed through (with pp.spd as a floor). If it replaced velocity outright
+      // it would erase everything the players did upstream — and in a 4-player run the
+      // whole point is being able to say "that was MY band."
+      st.p.x = pp.x; st.p.y = pp.y;
+      const arrive = Math.hypot(st.v.x, st.v.y);
+      const sp2 = Math.min(st.L.maxSpeed || MAX_SPEED, Math.max(arrive, pp.spd * 0.82));
+      st.v.x = pp.ux * sp2; st.v.y = pp.uy * sp2;
+      st.popT[i] = st.t; st.events.push(['pop', pp.x, pp.y, st.t]);
+    }
+  }
+
+  const sp = Math.hypot(st.v.x, st.v.y);
+  if (Math.abs(st.v.x) > 1) st.face = st.v.x >= 0 ? 1 : -1;
+  if (st.grounded && sp < 12) st.v.x += st.face * 10 * dt; // tiny snowboard pump, keeps the party moving
+  // board angle: follow the ground, else follow the flight
+  let target;
+  if (st.grounded && (tanX || tanY)) {
+    if (tanX * st.face < 0) { tanX = -tanX; tanY = -tanY; }
+    target = Math.atan2(tanY, tanX);
+  } else target = Math.atan2(st.v.y, st.v.x * st.face) * 0.35 * st.face;
+  let da = target - st.boardA;
+  while (da > Math.PI) da -= 2 * Math.PI;
+  while (da < -Math.PI) da += 2 * Math.PI;
+  st.boardA += da * Math.min(1, 14 * dt);
+
+  // outcomes
+  const b = L.bounds;
+  if (sp < 3.5) st.slowT += dt; else st.slowT = 0;
+  const gdx = st.p.x - L.goal[0], gdy = st.p.y - L.goal[1];
+  if (gdx * gdx + gdy * gdy < 81 && st.gotN === L.plants.length) { st.result = 'win'; return; }
+  if (st.p.y > b.y1 + 25) st.result = 'fall';
+  else if (st.p.x < b.x0 - 12) st.result = 'left';
+  else if (st.p.x > b.x1 + 30) st.result = 'flew';
+  else if (st.slowT > 1.4) st.result = 'stall';
+  else if (st.t > RUN_MAX) st.result = 'loop';
+  else if (st.t - st.snap.t > 3.5) { // trapped in a bowl/corner, or boinging in place
+    const sdx = st.p.x - st.snap.x, sdy = st.p.y - st.snap.y;
+    if (sdx * sdx + sdy * sdy < 64 || Math.abs(sdx) < 6) st.result = 'loop';
+    else st.snap = { x: st.p.x, y: st.p.y, t: st.t };
+  }
+}
+// headless sim for tests/tuning: window.__gr.simulate(levelIdx, [[[ax,ay],[bx,by]],...])
+function simulate(li, bandPairs) {
+  const L = LEVELS[li];
+  const bands = (bandPairs || []).map(([a, b]) =>
+    snapBand(L, { ax: a[0], ay: a[1], bx: b[0], by: b[1] }));
+  const st = makeRun(L, bands);
+  const traj = [];
+  let acc = 0;
+  while (!st.result && st.t < RUN_MAX + 1) {
+    stepRun(st, SUB);
+    acc += SUB;
+    if (acc >= 1 / 30) { acc = 0; traj.push([+st.p.x.toFixed(2), +st.p.y.toFixed(2)]); }
+  }
+  return { result: st.result || 'timeout', t: +st.t.toFixed(2), traj };
+}
+
+// ---------- game state ----------
+const BAND_COLORS = ['#ff5db1', '#57e6c9', '#ffd166', '#b18bff'];
+const BAND_DARK   = ['#c23a85', '#2fae95', '#d0a53e', '#7f5ad9'];
+let level = Math.min(+(localStorage.getItem('goombarider.lvl') || 0), LEVELS.length - 1);
+let unlocked = +(localStorage.getItem('goombarider.max') || 0);
+let state = 'title';          // title | edit | run | win
+let bands = [];               // {ax,ay,bx,by,color}
+let run = null;               // active sim state
+let preview = null;           // {ax,ay,bx,by,ok} while stretching
+let fails = 0, tGlobal = 0, toastT = 0;
+let cam = { x: 0, y: 0, s: 10 }, pan = { x: 0, y: 0 }, shake = 0;
+let parts = [], confetti = [], cushAnim = [], popPrev = null;
+
+const DEV = Object.assign({ ez: 1.15, rz: 1.9 },
+  JSON.parse(localStorage.getItem('goombarider.dev') || '{}'));
+
+const $ = id => document.getElementById(id);
+const lvlEl = $('lvl'), hintEl = $('hint'), dotsEl = $('dots'), invEl = $('inv'),
+      playBtn = $('play'), clearBtn = $('clear'), toastEl = $('toast'), titleEl = $('title'),
+      gearBtn = $('gear'), devpEl = $('devp'), ezEl = $('ez'), rzEl = $('rz'),
+      ezvEl = $('ezv'), rzvEl = $('rzv');
+
+function fitScale(L) {
+  const b = L.bounds;
+  return Math.min(W / (b.x1 - b.x0), (H - 120) / (b.y1 - b.y0)) * 0.96;
+}
+function clampCam(x, y, s, b) {
+  const hw = W / 2 / s, hh = H / 2 / s;
+  return {
+    x: (b.x1 - b.x0) < 2 * hw ? (b.x0 + b.x1) / 2 : Math.max(b.x0 + hw, Math.min(b.x1 - hw, x)),
+    y: (b.y1 - b.y0) < 2 * hh ? (b.y0 + b.y1) / 2 : Math.max(b.y0 + hh, Math.min(b.y1 - hh, y)),
+    s,
+  };
+}
+function loadLevel(i) {
+  level = i; bands = []; run = null; preview = null; fails = 0;
+  state = state === 'title' ? 'title' : 'edit';
+  const L = LEVELS[level];
+  const b = L.bounds;
+  pan = { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 };
+  Object.assign(cam, clampCam(pan.x, pan.y, fitScale(L) * DEV.ez, b));
+  cushAnim = L.cushions.map(() => 0); popPrev = null;
+  localStorage.setItem('goombarider.lvl', level);
+  toastEl.classList.remove('show');
+  syncHud();
+}
+function syncHud() {
+  const L = LEVELS[level];
+  lvlEl.textContent = L.name;
+  hintEl.textContent =
+    state === 'run' ? '' :
+    state === 'win' ? 'LEVEL CLEAR! 🎉' :
+    (fails >= 3 && L.hint2 ? '💡 ' + L.hint2 : L.hint);
+  dotsEl.innerHTML = '';
+  LEVELS.forEach((Li, i) => {
+    const d = document.createElement('div');
+    const open = i <= unlocked || Li.custom;
+    d.className = 'dot' + (Li.custom ? ' custom' : '') + (i === level ? ' cur' : open ? ' open' : '');
+    if (open) d.onclick = () => { if (state !== 'run') { loadLevel(i); } };
+    dotsEl.appendChild(d);
+  });
+  const budget = budgetOf(L);
+  [...invEl.children].forEach((svg, i) => {
+    svg.style.display = i < budget ? '' : 'none';
+    svg.classList.toggle('used', i < bands.length);
+  });
+  playBtn.textContent = state === 'run' ? '■ STOP' : state === 'win' ? (level < LEVELS.length - 1 ? 'NEXT ▸' : '↺ AGAIN') : '▶ PLAY';
+  playBtn.className = state === 'run' ? 'stop' : state === 'win' ? 'next' : '';
+  clearBtn.style.display = (state === 'edit' && bands.length) ? '' : 'none';
+}
+function toast(msg, ms) {
+  toastEl.textContent = msg; toastEl.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('show'), ms || 1400);
+}
+
+const FAIL_MSG = {
+  fall: 'Goomba fell! 🙀', left: 'she rolled away! 🙀', flew: 'overshot the party! 🙀',
+  stall: 'ran out of zoom… 😿', loop: 'she’s stuck! try different bands 😹',
+  timeout: 'she’s stuck! try different bands 😹',
+};
+
+function startRun() {
+  run = makeRun(LEVELS[level], bands);
+  popPrev = run.popT.slice();
+  state = 'run'; syncHud();
+}
+function endRun(result) {
+  if (run) pan = { x: run.p.x, y: run.p.y }; // leave the camera where the action ended
+  if (result === 'win') {
+    state = 'win';
+    unlocked = Math.max(unlocked, Math.min(level + 1, LEVELS.length - 1));
+    localStorage.setItem('goombarider.max', unlocked);
+    const L = LEVELS[level];
+    for (let i = 0; i < 90; i++) confetti.push({
+      x: L.goal[0], y: L.goal[1] - 4,
+      vx: (Math.random() - 0.5) * 70, vy: -Math.random() * 70 - 15,
+      c: BAND_COLORS[i % 4], r: Math.random() * 6.28, vr: (Math.random() - .5) * 10,
+      life: 2.2 + Math.random(),
+    });
+    toast('LEVEL CLEAR! 🎉', 1800);
+  } else {
+    state = 'edit'; fails++; shake = 1;
+    if (result) toast(FAIL_MSG[result] || 'try again!');
+  }
+  run = null; syncHud();
+}
+
+playBtn.onclick = () => {
+  if (state === 'edit') startRun();
+  else if (state === 'run') endRun(null);
+  else if (state === 'win') {
+    if (level < LEVELS.length - 1) loadLevel(level + 1);
+    else { state = 'edit'; loadLevel(0); }
+  }
+};
+clearBtn.onclick = () => { if (state === 'edit') { bands = []; syncHud(); } };
+titleEl.querySelector('.go').onclick = () => { titleEl.style.display = 'none'; state = 'edit'; syncHud(); };
+window.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); playBtn.onclick(); } });
+
+// dev panel: live zoom tuning, persisted
+function saveDev() { localStorage.setItem('goombarider.dev', JSON.stringify(DEV)); }
+function syncDev() {
+  ezEl.value = DEV.ez; rzEl.value = DEV.rz;
+  ezvEl.textContent = DEV.ez.toFixed(2) + 'x'; rzvEl.textContent = DEV.rz.toFixed(2) + 'x';
+}
+gearBtn.onclick = () => devpEl.classList.toggle('show');
+ezEl.oninput = () => { DEV.ez = +ezEl.value; syncDev(); saveDev(); };
+rzEl.oninput = () => { DEV.rz = +rzEl.value; syncDev(); saveDev(); };
+syncDev();
+
+// SVG level import: drag a Figma-exported .svg onto the page, or use the dev panel
+function installCustomLevel(svgText) {
+  const L = svgToLevel(svgText); // throws with a readable message on bad input
+  const idx = LEVELS.findIndex(x => x.custom);
+  if (idx >= 0) LEVELS[idx] = L; else LEVELS.push(L);
+  localStorage.setItem('goombarider.customsvg', svgText);
+  loadLevel(LEVELS.indexOf(L));
+  toast('✦ custom level loaded!', 1600);
+}
+function importSVGFile(file) {
+  if (!file || !/svg/i.test(file.type + file.name)) { toast('drop an .svg file 🙏', 1200); return; }
+  file.text().then(text => {
+    try { installCustomLevel(text); }
+    catch (err) { toast('⚠️ ' + err.message, 2600); }
+  });
+}
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); importSVGFile(e.dataTransfer.files[0]); });
+$('importBtn').onclick = () => $('svgFile').click();
+$('svgFile').onchange = e => { importSVGFile(e.target.files[0]); e.target.value = ''; };
+function openLab() {
+  if (state === 'run') endRun(null);
+  labVerdicts.clear();
+  state = 'lab';
+  document.getElementById('hud').classList.add('lab');
+  devpEl.classList.remove('show');
+}
+function closeLab(i) {
+  document.getElementById('hud').classList.remove('lab');
+  state = 'edit';
+  loadLevel(i === undefined ? level : i);
+}
+$('labBtn').onclick = openLab;
+$('labClose').onclick = () => closeLab();
+function labTap(px, py) {
+  for (const c of labCells) {
+    if (px < c.x || px > c.x + c.w || py < c.y || py > c.y + c.h) continue;
+    if (px > c.x + c.w - 30 && py < c.y + 28) { // the ★ corner
+      labStars.has(c.i) ? labStars.delete(c.i) : labStars.add(c.i);
+      localStorage.setItem('goombarider.stars', JSON.stringify([...labStars]));
+    } else closeLab(c.i);
+    return true;
+  }
+  return false;
+}
+$('verifyBtn').onclick = () => {
+  const L = LEVELS[level];
+  const bare = simulate(level, []);
+  const sol = L.solution && L.solution.length ? simulate(level, L.solution) : null;
+  const bareOk = bare.result !== 'win';
+  const solOk = sol && sol.result === 'win';
+  toast(`bare: ${bare.result} ${bareOk ? '✓' : '✗ too easy!'}` +
+        (sol ? ` · solution: ${sol.result} ${solOk ? '✓' : '✗'}` : ' · no sol lines in SVG'), 3200);
+};
+try { // restore a previously imported custom level
+  const saved = localStorage.getItem('goombarider.customsvg');
+  if (saved) LEVELS.push(svgToLevel(saved));
+} catch { localStorage.removeItem('goombarider.customsvg'); }
+
+// ---------- input: two fingers stretch a band; one finger pans; drag works on desktop ----------
+const toWorld = (px, py) => ({ x: (px - W / 2) / cam.s + cam.x, y: (py - H / 2) / cam.s + cam.y });
+const touches = new Map(); // id -> {cx,cy} client coords (world derived per use)
+let mouseDrag = null, tapInfo = null, panning = false;
+
+function previewFrom(a, b) {
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  preview = snapBand(LEVELS[level], { ax: a.x, ay: a.y, bx: b.x, by: b.y });
+  preview.ok = len >= BAND_MIN && len <= BAND_MAX && bands.length < budgetOf(LEVELS[level]);
+  preview.len = len;
+}
+function previewFromTouches() {
+  const [p, q] = [...touches.values()];
+  previewFrom(toWorld(p.cx, p.cy), toWorld(q.cx, q.cy));
+}
+function placePreview() {
+  if (preview && preview.ok) {
+    bands.push(snapBand(LEVELS[level],
+      { ax: preview.ax, ay: preview.ay, bx: preview.bx, by: preview.by, color: bands.length % 4 }));
+    syncHud();
+  } else if (preview && preview.len > BAND_MAX) toast('too stretchy! 🫨', 900);
+  preview = null;
+}
+function tryDelete(w) {
+  for (let i = bands.length - 1; i >= 0; i--) {
+    const pts = bandPoints(bands[i]);
+    for (let j = 0; j + 1 < pts.length; j++) {
+      const ax = pts[j][0], ay = pts[j][1], bx = pts[j + 1][0], by = pts[j + 1][1];
+      const abx = bx - ax, aby = by - ay, l2 = abx * abx + aby * aby || 1e-6;
+      let t = ((w.x - ax) * abx + (w.y - ay) * aby) / l2; t = Math.max(0, Math.min(1, t));
+      const dx = w.x - ax - abx * t, dy = w.y - ay - aby * t;
+      if (dx * dx + dy * dy < 16) { bands.splice(i, 1); syncHud(); return true; }
+    }
+  }
+  return false;
+}
+
+cv.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (state === 'lab') { const t = e.changedTouches[0]; labTap(t.clientX, t.clientY); return; }
+  if (state !== 'edit') return;
+  for (const t of e.changedTouches) touches.set(t.identifier, { cx: t.clientX, cy: t.clientY });
+  if (touches.size === 1) {
+    const t = e.changedTouches[0];
+    tapInfo = { x: t.clientX, y: t.clientY, t: performance.now() };
+    panning = false;
+  }
+  if (touches.size === 2) { tapInfo = null; panning = false; previewFromTouches(); }
+}, { passive: false });
+cv.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (state !== 'edit') return;
+  for (const t of e.changedTouches) {
+    const rec = touches.get(t.identifier);
+    if (!rec) continue;
+    if (touches.size === 1) {
+      if (tapInfo && Math.hypot(t.clientX - tapInfo.x, t.clientY - tapInfo.y) > 10)
+        { panning = true; tapInfo = null; }
+      if (panning) {
+        pan.x -= (t.clientX - rec.cx) / cam.s;
+        pan.y -= (t.clientY - rec.cy) / cam.s;
+      }
+    }
+    rec.cx = t.clientX; rec.cy = t.clientY;
+  }
+  if (touches.size === 2) previewFromTouches();
+}, { passive: false });
+cv.addEventListener('touchend', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) touches.delete(t.identifier);
+  if (state !== 'edit') { touches.clear(); return; }
+  if (preview && touches.size < 2) placePreview();
+  if (tapInfo && touches.size === 0) {
+    const t = e.changedTouches[0];
+    if (performance.now() - tapInfo.t < 300 && Math.hypot(t.clientX - tapInfo.x, t.clientY - tapInfo.y) < 12)
+      tryDelete(toWorld(t.clientX, t.clientY));
+    tapInfo = null;
+  }
+  if (touches.size === 0) panning = false;
+}, { passive: false });
+cv.addEventListener('touchcancel', () => { touches.clear(); preview = null; tapInfo = null; panning = false; });
+
+cv.addEventListener('mousedown', e => {
+  if (state === 'lab') { labTap(e.clientX, e.clientY); return; }
+  if (state !== 'edit') return;
+  mouseDrag = { a: toWorld(e.clientX, e.clientY), px: e.clientX, py: e.clientY, t: performance.now() };
+});
+window.addEventListener('mousemove', e => {
+  if (!mouseDrag || state !== 'edit') return;
+  if (Math.hypot(e.clientX - mouseDrag.px, e.clientY - mouseDrag.py) > 10)
+    previewFrom(mouseDrag.a, toWorld(e.clientX, e.clientY));
+});
+window.addEventListener('mouseup', e => {
+  if (!mouseDrag) return;
+  if (state === 'edit') {
+    if (preview) placePreview();
+    else if (performance.now() - mouseDrag.t < 350) tryDelete(toWorld(e.clientX, e.clientY));
+  }
+  mouseDrag = null; preview = null;
+});
+cv.addEventListener('wheel', e => {
+  if (state !== 'edit') return;
+  e.preventDefault();
+  pan.x += e.deltaX / cam.s; pan.y += e.deltaY / cam.s;
+}, { passive: false });
+
+// ---------- rendering ----------
+let camOX = 0, camOY = 0; // lab mode draws levels into grid cells by offsetting the camera
+const sxp = x => (x - cam.x) * cam.s + W / 2 + camOX;
+const syp = y => (y - cam.y) * cam.s + H / 2 + camOY;
+
+const ambient = [];
+for (let i = 0; i < 34; i++) ambient.push({
+  x: Math.random(), y: Math.random(), s: 2 + Math.random() * 3,
+  c: BAND_COLORS[i % 4], vy: 6 + Math.random() * 12, sway: Math.random() * 6.28,
+});
+
+function drawBackground(dt) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#241245'); g.addColorStop(0.6, '#170b30'); g.addColorStop(1, '#12081f');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (let row = 0; row < 2; row++) {
+    const y0 = 26 + row * 34, sagg = 22 + row * 8, x0 = -20, x1 = W + 20;
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x0, y0);
+    ctx.quadraticCurveTo(W / 2, y0 + sagg * 2, x1, y0); ctx.stroke();
+    const n = Math.floor(W / 54);
+    for (let i = 1; i < n; i++) {
+      const t = i / n, u = 1 - t;
+      const bx = u * u * x0 + 2 * u * t * (W / 2) + t * t * x1;
+      const by = u * u * y0 + 2 * u * t * (y0 + sagg * 2) + t * t * y0;
+      const c = BAND_COLORS[(i + row) % 4];
+      const tw = 0.55 + 0.45 * Math.sin(tGlobal * 2.2 + i * 1.7 + row);
+      ctx.fillStyle = c; ctx.globalAlpha = 0.35 + 0.5 * tw;
+      ctx.beginPath(); ctx.arc(bx, by + 4, 3, 0, 6.28); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+  for (const a of ambient) {
+    a.y += a.vy * dt / H; a.sway += dt * 2;
+    if (a.y > 1.05) { a.y = -0.05; a.x = Math.random(); }
+    ctx.save();
+    ctx.translate(a.x * W + Math.sin(a.sway) * 14, a.y * H);
+    ctx.rotate(a.sway);
+    ctx.fillStyle = a.c; ctx.globalAlpha = 0.35;
+    ctx.fillRect(-a.s / 2, -a.s / 4, a.s, a.s / 2);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawTerrain(L) {
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (const poly of L.terrain) {
+    ctx.strokeStyle = 'rgba(243,233,214,0.14)'; ctx.lineWidth = 4.4 * cam.s;
+    ctx.beginPath();
+    poly.forEach(([x, y], i) => i ? ctx.lineTo(sxp(x), syp(y)) : ctx.moveTo(sxp(x), syp(y)));
+    ctx.stroke();
+    ctx.strokeStyle = '#f3e9d6'; ctx.lineWidth = 1.5 * cam.s;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,93,177,0.55)'; ctx.lineWidth = 0.5 * cam.s;
+    ctx.setLineDash([2 * cam.s, 7 * cam.s]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawBand(bd, colorIdx, excite, ghost) {
+  const pts = bandPoints(bd);
+  const jig = excite * Math.sin(tGlobal * 32) * 1.2;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const path = () => {
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => {
+      const wob = i > 0 && i < pts.length - 1 ? jig * Math.sin(i * 1.3) : 0;
+      i ? ctx.lineTo(sxp(x), syp(y + wob)) : ctx.moveTo(sxp(x), syp(y + wob));
+    });
+  };
+  ctx.globalAlpha = ghost ? 0.75 : 1;
+  ctx.strokeStyle = ghost && !preview.ok ? '#ff4a4a' : BAND_DARK[colorIdx];
+  if (ghost) ctx.setLineDash(preview.ok ? [] : [6, 6]);
+  ctx.lineWidth = 1.5 * cam.s; path(); ctx.stroke();
+  ctx.strokeStyle = ghost && !preview.ok ? '#ff8f8f' : BAND_COLORS[colorIdx];
+  ctx.lineWidth = 0.8 * cam.s; path(); ctx.stroke();
+  ctx.setLineDash([]);
+  for (const [x, y] of [pts[0], pts[8]]) {
+    ctx.fillStyle = BAND_COLORS[colorIdx];
+    ctx.beginPath(); ctx.arc(sxp(x), syp(y), 0.9 * cam.s, 0, 6.28); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.beginPath(); ctx.arc(sxp(x) - 0.25 * cam.s, syp(y) - 0.25 * cam.s, 0.3 * cam.s, 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawCushion(c, squish) {
+  const u = Math.max(cam.s, 2.2);
+  const x = sxp(c.x + c.w / 2), y = syp(c.y), w = c.w * cam.s;
+  const sy = 1 - 0.3 * squish, sx = 1 + 0.25 * squish;
+  ctx.save(); ctx.translate(x, y); ctx.scale(sx, sy);
+  ctx.fillStyle = '#ff9dce';
+  ctx.beginPath(); ctx.roundRect(-w / 2, -0.6 * u, w, 3.4 * u, 1.7 * u); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath(); ctx.roundRect(-w / 2 + 0.8 * u, -0.1 * u, w - 1.6 * u, 0.7 * u, 0.35 * u); ctx.fill();
+  ctx.fillStyle = '#e074ae'; // button dimples
+  const nb = Math.max(2, Math.round(c.w / 14));
+  for (let i = 1; i <= nb; i++) {
+    ctx.beginPath(); ctx.arc(-w / 2 + (w * i) / (nb + 1), 1.5 * u, 0.35 * u, 0, 6.28); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPopper(pp, i) {
+  const u = Math.max(cam.s, 2.2);
+  const x = sxp(pp.x), y = syp(pp.y);
+  const rad = Math.atan2(pp.vy, pp.vx);
+  const pulse = 0.8 + 0.2 * Math.sin(tGlobal * 4 + i * 2);
+  ctx.save(); ctx.translate(x, y);
+  // trigger ring
+  ctx.strokeStyle = 'rgba(255,209,102,0.55)'; ctx.lineWidth = 0.35 * u;
+  ctx.setLineDash([1.2 * u, 1.4 * u]); ctx.lineDashOffset = -tGlobal * 6 * u;
+  ctx.beginPath(); ctx.arc(0, 0, POP_R * cam.s * pulse, 0, 6.28); ctx.stroke();
+  ctx.setLineDash([]);
+  // cone pointing along the aim
+  ctx.rotate(rad);
+  const grad = ctx.createLinearGradient(-3 * u, 0, 1.5 * u, 0);
+  grad.addColorStop(0, '#ffd166'); grad.addColorStop(0.5, '#ff5db1'); grad.addColorStop(1, '#b18bff');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(-3.2 * u, -0.5 * u); ctx.lineTo(1.6 * u, -1.7 * u);
+  ctx.lineTo(1.6 * u, 1.7 * u); ctx.lineTo(-3.2 * u, 0.5 * u);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.ellipse(1.6 * u, 0, 0.5 * u, 1.7 * u, 0, 0, 6.28); ctx.fill();
+  // aim arrow
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 0.35 * u; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(2.6 * u, 0); ctx.lineTo(5.2 * u, 0);
+  ctx.moveTo(4.4 * u, -0.8 * u); ctx.lineTo(5.2 * u, 0); ctx.lineTo(4.4 * u, 0.8 * u); ctx.stroke();
+  ctx.restore();
+}
+
+function drawPlant(mx, my, taken, i) {
+  if (taken) return;
+  const u = Math.max(cam.s, 2.2), x = sxp(mx), y = syp(my);
+  const sway = Math.sin(tGlobal * 2.2 + i * 1.7) * 0.08;
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = 'rgba(87,230,201,0.13)';
+  ctx.beginPath(); ctx.arc(0, -1.2 * u, 4.6 * u, 0, 6.28); ctx.fill();
+  // pot
+  ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 0.4 * u; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-1.5 * u, 1.0 * u); ctx.lineTo(-1.1 * u, 2.6 * u);
+  ctx.lineTo(1.1 * u, 2.6 * u); ctx.lineTo(1.5 * u, 1.0 * u); ctx.closePath(); ctx.stroke();
+  // snake-plant blades: tall, tapering, gently swaying
+  ctx.strokeStyle = '#57e6c9'; ctx.lineWidth = 0.42 * u;
+  ctx.rotate(sway);
+  for (const [bx, h, lean] of [[-1.0, 3.4, -0.55], [-0.35, 4.6, -0.15], [0.3, 4.0, 0.3], [0.95, 3.0, 0.6]]) {
+    ctx.beginPath();
+    ctx.moveTo(bx * u, 1.0 * u);
+    ctx.quadraticCurveTo((bx + lean * 0.4) * u, (1.0 - h * 0.6) * u, (bx + lean) * u, (1.0 - h) * u);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawUpdraft(u0) {
+  const x = sxp(u0.x), y = syp(u0.y), w = u0.w * cam.s, h = u0.h * cam.s;
+  const g = ctx.createLinearGradient(0, y + h, 0, y);
+  g.addColorStop(0, 'rgba(177,139,255,0.03)'); g.addColorStop(1, 'rgba(177,139,255,0.20)');
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(177,139,255,0.35)'; ctx.lineWidth = 1.2;
+  ctx.setLineDash([6, 8]); ctx.beginPath();
+  ctx.moveTo(x, y + h); ctx.lineTo(x, y); ctx.moveTo(x + w, y + h); ctx.lineTo(x + w, y);
+  ctx.stroke(); ctx.setLineDash([]);
+  // balloons rising up the column
+  const n = Math.max(3, Math.round(u0.w / 9));
+  for (let i = 0; i < n; i++) {
+    const ph = ((tGlobal * 0.32 + i * 0.37) % 1);
+    const bx = x + w * ((i + 0.5) / n) + Math.sin(tGlobal * 1.6 + i * 2) * 0.1 * w;
+    const by = y + h * (1 - ph);
+    const rr = 1.5 * Math.max(cam.s, 2.2);
+    ctx.globalAlpha = Math.min(1, ph * 4) * (1 - ph * 0.55);
+    ctx.fillStyle = BAND_COLORS[i % 4];
+    ctx.beginPath(); ctx.ellipse(bx, by, rr * 0.8, rr, 0, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(bx, by + rr); ctx.lineTo(bx, by + rr * 2.1); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawBumper(bp, hot) {
+  const u = Math.max(cam.s, 2.2), x = sxp(bp.x), y = syp(bp.y);
+  const pop = 1 + hot * 0.35;
+  ctx.save(); ctx.translate(x, y); ctx.scale(pop, pop);
+  ctx.fillStyle = 'rgba(255,93,177,0.15)';
+  ctx.beginPath(); ctx.arc(0, 0, (BUMP_R + 2.5) * cam.s, 0, 6.28); ctx.fill();
+  const g = ctx.createRadialGradient(-BUMP_R * u * 0.3, -BUMP_R * u * 0.3, BUMP_R * u * 0.15,
+                                     0, 0, BUMP_R * u);
+  g.addColorStop(0, '#ffd166'); g.addColorStop(0.55, '#ff5db1'); g.addColorStop(1, '#c23a85');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, BUMP_R * cam.s, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = hot > 0.05 ? '#fff' : 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = (0.5 + hot) * u;
+  ctx.beginPath(); ctx.arc(0, 0, BUMP_R * cam.s, 0, 6.28); ctx.stroke();
+  // piñata frill
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 0.35 * u;
+  for (let i = 0; i < 6; i++) {
+    const a = i * 1.047 + tGlobal * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * BUMP_R * cam.s * 0.45, Math.sin(a) * BUMP_R * cam.s * 0.45);
+    ctx.lineTo(Math.cos(a) * BUMP_R * cam.s * 0.85, Math.sin(a) * BUMP_R * cam.s * 0.85);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCake(L) {
+  const x = sxp(L.goal[0]), y = syp(L.goal[1]), u = Math.max(cam.s, 2.6);
+  const pulse = 1 + Math.sin(tGlobal * 3) * 0.05;
+  ctx.save(); ctx.translate(x, y + 2 * u); ctx.scale(pulse, pulse);
+  ctx.fillStyle = 'rgba(255,209,102,0.12)';
+  ctx.beginPath(); ctx.arc(0, -2 * u, 7.5 * u, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#cfc4ec'; ctx.beginPath(); ctx.ellipse(0, 0.4 * u, 4.6 * u, 0.8 * u, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#ff9dce'; ctx.beginPath(); ctx.roundRect(-3.6 * u, -2.6 * u, 7.2 * u, 3 * u, 0.8 * u); ctx.fill();
+  ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.roundRect(-2.4 * u, -4.6 * u, 4.8 * u, 2.2 * u, 0.7 * u); ctx.fill();
+  ctx.fillStyle = '#fff';
+  for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.arc(i * u, -2.6 * u, 0.55 * u, 0, 6.28); ctx.fill(); }
+  ctx.fillStyle = '#57e6c9'; ctx.fillRect(-0.3 * u, -6.2 * u, 0.6 * u, 1.6 * u);
+  const fl = 1 + Math.sin(tGlobal * 11) * 0.25;
+  ctx.fillStyle = '#ffb54a';
+  ctx.beginPath(); ctx.ellipse(0, -6.8 * u, 0.45 * u * fl, 0.8 * u * fl, 0, 0, 6.28); ctx.fill();
+  ctx.restore();
+  // locked until every snake plant is collected
+  const left = L.plants.length - (run ? run.gotN : 0);
+  if (left > 0) {
+    ctx.save(); ctx.translate(x, y - 9.5 * u);
+    ctx.fillStyle = 'rgba(20,10,45,0.85)';
+    ctx.beginPath(); ctx.roundRect(-3.4 * u, -1.6 * u, 6.8 * u, 3.2 * u, 1.2 * u); ctx.fill();
+    ctx.strokeStyle = '#57e6c9'; ctx.lineWidth = 0.28 * u; ctx.stroke();
+    ctx.fillStyle = '#57e6c9';
+    ctx.font = `700 ${2.3 * u}px ui-rounded, system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🌱' + left, 0, 0.1 * u);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
+}
+
+function drawGoomba(px, py, angle, face, grounded, airborne, idle) {
+  const u = Math.max(cam.s, 2.4); // keep her readable when the camera is zoomed way out
+  ctx.save();
+  ctx.translate(sxp(px), syp(py));
+  ctx.rotate(angle);
+  ctx.scale(face, 1);
+  const crouch = grounded ? 1 : 0.88;
+  const bob = idle ? Math.sin(tGlobal * 2.4) * 0.14 * u : 0;
+  ctx.fillStyle = '#8f6cf0';
+  ctx.beginPath(); ctx.roundRect(-4.2 * u, R * u * 0.72, 8.4 * u, 0.85 * u, 0.5 * u); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath(); ctx.roundRect(-3.4 * u, R * u * 0.72 + 0.15 * u, 2.4 * u, 0.25 * u, 0.15 * u); ctx.fill();
+  ctx.strokeStyle = '#e8853d'; ctx.lineWidth = 1.0 * u; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-1.8 * u, 0.3 * u + bob);
+  ctx.quadraticCurveTo(-3.6 * u, -0.4 * u + bob,
+    -3.9 * u, (airborne ? -2.6 : -1.9) * u + Math.sin(tGlobal * 6) * 0.4 * u + bob);
+  ctx.stroke();
+  ctx.fillStyle = '#e8853d';
+  ctx.beginPath(); ctx.ellipse(-0.3 * u, (-0.4 + bob / u) * u, 2.3 * u, 1.9 * u * crouch, 0, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#c96a24'; ctx.lineWidth = 0.32 * u;
+  ctx.beginPath();
+  ctx.moveTo(-1.6 * u, -1.7 * u * crouch + bob); ctx.lineTo(-1.3 * u, -0.9 * u + bob);
+  ctx.moveTo(-0.6 * u, -2.0 * u * crouch + bob); ctx.lineTo(-0.4 * u, -1.1 * u + bob);
+  ctx.stroke();
+  ctx.fillStyle = '#e8853d';
+  ctx.beginPath(); ctx.arc(1.7 * u, (-1.6 + bob / u) * u, 1.5 * u, 0, 6.28); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0.7 * u, -2.6 * u + bob); ctx.lineTo(0.9 * u, -3.9 * u + bob); ctx.lineTo(1.7 * u, -2.9 * u + bob);
+  ctx.moveTo(2.1 * u, -3.0 * u + bob); ctx.lineTo(2.7 * u, -4.0 * u + bob); ctx.lineTo(3.0 * u, -2.7 * u + bob);
+  ctx.fill();
+  ctx.strokeStyle = '#c96a24'; ctx.lineWidth = 0.28 * u;
+  ctx.beginPath(); ctx.moveTo(1.0 * u, -3.4 * u + bob); ctx.lineTo(1.15 * u, -2.95 * u + bob); ctx.stroke();
+  ctx.strokeStyle = '#ff5db1'; ctx.lineWidth = 0.55 * u;
+  ctx.beginPath();
+  ctx.moveTo(1.1 * u, -0.6 * u + bob);
+  ctx.quadraticCurveTo(0 * u, -0.2 * u + bob,
+    (-1.4 - (airborne ? 0.8 : 0.2)) * u, (-0.1 + Math.sin(tGlobal * 9) * 0.25) * u + bob);
+  ctx.stroke();
+  const wide = airborne ? 1.5 : 1;
+  ctx.fillStyle = '#4d3319';
+  ctx.beginPath();
+  ctx.arc(1.45 * u, -1.8 * u + bob, 0.19 * u * wide, 0, 6.28);
+  ctx.arc(2.45 * u, -1.8 * u + bob, 0.19 * u * wide, 0, 6.28);
+  ctx.fill();
+  ctx.strokeStyle = '#4d3319'; ctx.lineWidth = 0.14 * u;
+  ctx.beginPath();
+  ctx.moveTo(1.75 * u, -1.35 * u + bob); ctx.lineTo(1.95 * u, -1.2 * u + bob); ctx.lineTo(2.15 * u, -1.35 * u + bob);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawStartPad(L) {
+  const u = cam.s, x = sxp(L.start[0]), y = syp(L.start[1] + R + 0.5);
+  ctx.strokeStyle = 'rgba(87,230,201,0.5)'; ctx.lineWidth = 0.4 * u;
+  ctx.setLineDash([1.2 * u, 1.2 * u]);
+  ctx.beginPath(); ctx.arc(x, y - R * u, (R + 1.6) * u + Math.sin(tGlobal * 2.5) * 0.4 * u, 0, 6.28); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ---------- level lab: every level at a glance, with live sim verdicts ----------
+// Triage tool — tap a card to play it, tap its ★ to shortlist. The verdicts come
+// from the real sim: "bare" must NOT win (or the level is free) and "sol" must win.
+let labCells = [], labStars = new Set(JSON.parse(localStorage.getItem('goombarider.stars') || '[]'));
+const labVerdicts = new Map();
+function labVerdict(i) {
+  if (!labVerdicts.has(i)) {
+    const L = LEVELS[i];
+    const bare = simulate(i, []).result;
+    const sol = L.solution && L.solution.length ? simulate(i, L.solution).result : null;
+    labVerdicts.set(i, { bare, sol, ok: bare !== 'win' && sol === 'win' });
+  }
+  return labVerdicts.get(i);
+}
+function drawLab() {
+  ctx.fillStyle = '#100722'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.font = '700 15px ui-rounded, system-ui, sans-serif';
+  ctx.fillStyle = '#f2ecff';
+  ctx.fillText('Level Lab', 16, 30);
+  ctx.font = '12px ui-rounded, system-ui, sans-serif';
+  ctx.fillStyle = '#8a80b0';
+  ctx.fillText('tap a card to play · ★ to shortlist', 16, 48);
+
+  const cols = W > H ? 3 : 2;
+  const rows = Math.ceil(LEVELS.length / cols);
+  const padX = 12, top = 62, bottom = 70;
+  const cw = (W - padX * (cols + 1)) / cols;
+  const ch = Math.min((H - top - bottom - 12 * (rows - 1)) / rows, cw * 1.5);
+  labCells = [];
+  LEVELS.forEach((L, i) => {
+    const c = i % cols, r = (i / cols) | 0;
+    const x = padX + c * (cw + padX), y = top + r * (ch + 12);
+    labCells.push({ i, x, y, w: cw, h: ch });
+    const v = labVerdict(i);
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.clip();
+    ctx.fillStyle = '#180d31'; ctx.fillRect(x, y, cw, ch);
+    // the level itself, fitted into the card
+    const b = L.bounds, bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+    const inner = 16;
+    cam.s = Math.min((cw - inner) / bw, (ch - inner - 22) / bh);
+    cam.x = (b.x0 + b.x1) / 2; cam.y = (b.y0 + b.y1) / 2;
+    camOX = x + cw / 2 - W / 2; camOY = y + (ch - 22) / 2 + 11 - H / 2;
+    L.updrafts.forEach(drawUpdraft);
+    drawTerrain(L);
+    L.cushions.forEach(cu => drawCushion(cu, 0));
+    L.pops.forEach((pp, k) => drawPopper(pp, k));
+    L.bumpers.forEach(bp => drawBumper(bp, 0));
+    L.plants.forEach((m, k) => drawPlant(m[0], m[1], false, k));
+    drawCake(L);
+    (L.solution || []).forEach((s, k) => drawBand(
+      snapBand(L, { ax: s[0][0], ay: s[0][1], bx: s[1][0], by: s[1][1] }), k % 4, 0, false));
+    camOX = camOY = 0;
+    ctx.restore();
+    // frame + labels
+    ctx.strokeStyle = i === level ? '#ffd166' : 'rgba(201,189,240,0.22)';
+    ctx.lineWidth = i === level ? 2.5 : 1.5;
+    ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
+    ctx.font = '700 12px ui-rounded, system-ui, sans-serif';
+    ctx.fillStyle = '#f2ecff';
+    ctx.fillText(L.name.length > 18 ? L.name.slice(0, 17) + '…' : L.name, x + 9, y + ch - 8);
+    ctx.font = '10px ui-rounded, system-ui, sans-serif';
+    ctx.fillStyle = v.ok ? '#57e6c9' : '#ff8f8f';
+    ctx.fillText(`${v.ok ? '✓' : '✗'} bare:${v.bare} · up to ${budgetOf(L)}`, x + 9, y + 16);
+    ctx.font = '13px ui-rounded, system-ui, sans-serif';
+    ctx.fillStyle = labStars.has(i) ? '#ffd166' : 'rgba(201,189,240,0.3)';
+    ctx.fillText('★', x + cw - 20, y + 18);
+  });
+}
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - (frame.last || now)) / 1000); frame.last = now;
+  tGlobal += dt;
+  if (state === 'card') return;   // a ride card is on screen; don't paint over it
+  if (state === 'lab') { drawLab(); return; }
+  const L = LEVELS[level];
+
+  if (state === 'run' && run) {
+    frame.acc = (frame.acc || 0) + dt;
+    while (frame.acc > SUB) {
+      frame.acc -= SUB;
+      stepRun(run, SUB);
+      if (run.result) { endRun(run.result); break; }
+    }
+    if (run) {
+      if (run.onBand >= 0 && Math.random() < 0.5)
+        parts.push({ x: run.p.x, y: run.p.y + R, vx: -run.v.x * 0.15, vy: -12,
+                     c: BAND_COLORS[bands[run.onBand] ? bands[run.onBand].color : 0], life: 0.5 });
+      run.cushHits.forEach((h, i) => { if (h) { cushAnim[i] = 1; run.cushHits[i] = 0; } });
+      run.popT.forEach((t, i) => { // popper just fired → confetti blast
+        if (popPrev && t !== popPrev[i]) {
+          const pp = L.pops[i];
+          for (let k = 0; k < 22; k++) confetti.push({
+            x: pp.x, y: pp.y,
+            vx: pp.vx * 0.25 + (Math.random() - 0.5) * 40, vy: pp.vy * 0.25 - Math.random() * 20,
+            c: BAND_COLORS[k % 4], r: Math.random() * 6.28, vr: (Math.random() - .5) * 12,
+            life: 0.8 + Math.random() * 0.5,
+          });
+        }
+      });
+      popPrev = run.popT.slice();
+    }
+  }
+  for (const b of bands) if (run && run.bandHits[bands.indexOf(b)]) b.excited = 1;
+  bands.forEach(b => { b.excited = Math.max(0, (b.excited || 0) - dt * 1.6); });
+  cushAnim = cushAnim.map(v => Math.max(0, v - dt * 2.2));
+
+  // camera: pannable zoomed edit view; chase cam during runs (dev panel tunes both)
+  const fs = fitScale(L), b = L.bounds;
+  let target;
+  if (state === 'run' && run) {
+    target = clampCam(run.p.x + run.face * 8, run.p.y, fs * DEV.rz, b);
+  } else {
+    target = clampCam(pan.x, pan.y, fs * DEV.ez, b);
+    pan.x = target.x; pan.y = target.y; // keep pan inside bounds so it doesn't drift
+  }
+  const k = Math.min(1, (panning ? 14 : 5) * dt);
+  cam.x += (target.x - cam.x) * k; cam.y += (target.y - cam.y) * k; cam.s += (target.s - cam.s) * k;
+
+  drawBackground(dt);
+  ctx.save();
+  if (shake > 0) { shake = Math.max(0, shake - dt * 3); ctx.translate((Math.random() - .5) * 10 * shake, (Math.random() - .5) * 10 * shake); }
+
+  L.updrafts.forEach(drawUpdraft);
+  drawTerrain(L);
+  L.cushions.forEach((c, i) => drawCushion(c, cushAnim[i] || 0));
+  L.pops.forEach((pp, i) => drawPopper(pp, i));
+  L.bumpers.forEach((bp, i) => drawBumper(bp, run ? Math.max(0, 1 - (run.t - run.bumpT[i]) * 4) : 0));
+  L.plants.forEach((m, i) => drawPlant(m[0], m[1], run ? run.got[i] : false, i));
+  drawCake(L);
+  bands.forEach(bd => drawBand(bd, bd.color, bd.excited || 0, false));
+  if (preview && state === 'edit') drawBand(preview, bands.length % 4, 0, true);
+  if (state !== 'run') drawStartPad(L);
+
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.life -= dt;
+    if (p.life <= 0) { parts.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    ctx.fillStyle = p.c; ctx.globalAlpha = Math.min(1, p.life * 2.5);
+    ctx.beginPath(); ctx.arc(sxp(p.x), syp(p.y), 0.4 * cam.s, 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const p = confetti[i]; p.life -= dt;
+    if (p.life <= 0) { confetti.splice(i, 1); continue; }
+    p.vy += 60 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.vr * dt;
+    ctx.save(); ctx.translate(sxp(p.x), syp(p.y)); ctx.rotate(p.r);
+    ctx.fillStyle = p.c; ctx.globalAlpha = Math.min(1, p.life);
+    ctx.fillRect(-0.6 * cam.s, -0.3 * cam.s, 1.2 * cam.s, 0.6 * cam.s);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  if (state === 'run' && run)
+    drawGoomba(run.p.x, run.p.y, run.boardA * run.face, run.face, run.grounded, !run.grounded, false);
+  else
+    drawGoomba(L.start[0], L.start[1], L.startAngle, 1, true, false, true);
+
+  ctx.restore();
+}
+
+// Ride card: the level with her actual traced path drawn over it. The shape of the ride
+// IS the fun in a line rider, so this is what gets reviewed — by us and by playtesters.
+function rideCard(li, bandPairs, label) {
+  const L = LEVELS[li];
+  state = 'card';
+  document.getElementById('hud').style.display = 'none';
+  const bds = (bandPairs || L.solution || []).map(([a, b]) =>
+    snapBand(L, { ax: a[0], ay: a[1], bx: b[0], by: b[1] }));
+  const st = makeRun(L, bds);
+  const path = [];
+  let acc = 0, top = 1e9, fastest = 0, air = 0;
+  while (!st.result && st.t < RUN_MAX + 1) {
+    const wasGround = st.grounded;
+    stepRun(st, SUB);
+    if (!wasGround) air += SUB;
+    top = Math.min(top, st.p.y);
+    fastest = Math.max(fastest, Math.hypot(st.v.x, st.v.y));
+    acc += SUB;
+    if (acc >= 1 / 60) { acc = 0; path.push([st.p.x, st.p.y, st.grounded ? 1 : 0]); }
+  }
+  const b = L.bounds;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cam.s = Math.min(W / (b.x1 - b.x0), (H - 90) / (b.y1 - b.y0)) * 0.94;
+  cam.x = (b.x0 + b.x1) / 2; cam.y = (b.y0 + b.y1) / 2 + 24 / cam.s;
+  camOX = camOY = 0;
+  drawBackground(0.016);
+  L.updrafts.forEach(drawUpdraft);
+  drawTerrain(L);
+  L.cushions.forEach(c => drawCushion(c, 0));
+  L.pops.forEach((pp, i) => drawPopper(pp, i));
+  L.bumpers.forEach(bp => drawBumper(bp, 0));
+  L.plants.forEach((m, i) => drawPlant(m[0], m[1], false, i));
+  drawCake(L);
+  bds.forEach((bd, i) => drawBand(bd, i % 4, 0, false));
+  // the traced path: bright where airborne, dim where riding a surface
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const air of [0, 1]) {
+    ctx.strokeStyle = air ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.30)';
+    ctx.lineWidth = air ? 2.6 : 1.6;
+    ctx.beginPath();
+    let pen = false;
+    for (const [px, py, g] of path) {
+      if ((g ? 0 : 1) !== air) { pen = false; continue; }
+      const sx2 = sxp(px), sy2 = syp(py);
+      pen ? ctx.lineTo(sx2, sy2) : ctx.moveTo(sx2, sy2);
+      pen = true;
+    }
+    ctx.stroke();
+  }
+  for (const [kind, ex, ey] of st.events) { // where the mechanics actually fired
+    ctx.strokeStyle = kind === 'pop' ? '#ffd166' : kind === 'bump' ? '#ff5db1' : '#57e6c9';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(sxp(ex), syp(ey), 9, 0, 6.28); ctx.stroke();
+  }
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(sxp(st.p.x), syp(st.p.y), 4, 0, 6.28); ctx.fill();
+  ctx.font = '700 15px ui-rounded, system-ui, sans-serif';
+  ctx.fillStyle = '#f2ecff';
+  ctx.fillText(label || L.name, 14, 26);
+  ctx.font = '11px ui-rounded, system-ui, sans-serif';
+  ctx.fillStyle = st.result === 'win' ? '#57e6c9' : '#ff8f8f';
+  ctx.fillText(`${st.result} · ${st.t.toFixed(1)}s · ${(100 * air / Math.max(st.t, .01)).toFixed(0)}% airborne` +
+    ` · top speed ${fastest.toFixed(0)} · bands ${bds.length}` +
+    (L.plants.length ? ` · plants ${st.gotN}/${L.plants.length}` : ''), 14, 44);
+  return { result: st.result, t: +st.t.toFixed(2), airPct: +(100 * air / Math.max(st.t, .01)).toFixed(0),
+           topSpeed: +fastest.toFixed(0), events: st.events.length, plants: `${st.gotN}/${L.plants.length}` };
+}
+
+window.__gr = { simulate, LEVELS, BAND_MAX, DEV, svgToLevel, rideCard,
+  importSVG: text => installCustomLevel(text),
+  closeCard() { document.getElementById('hud').style.display = ''; state = 'edit'; syncHud(); },
+  // dev/test controls for driving the live game headlessly
+  place(pairs) { bands = pairs.map(([a, b], i) => snapBand(LEVELS[level],
+    { ax: a[0], ay: a[1], bx: b[0], by: b[1], color: i % 4 })); syncHud(); },
+  play() { playBtn.onclick(); },
+  skipTitle() { titleEl.style.display = 'none'; state = 'edit'; syncHud(); },
+  goto(i) { loadLevel(i); },
+  state: () => ({ state, level, bands: bands.length, run: run && { x: run.p.x, y: run.p.y } }),
+};
+
+loadLevel(level);
+syncHud();
+requestAnimationFrame(frame);
+</script>

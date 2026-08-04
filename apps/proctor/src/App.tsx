@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
 import QRCode from "react-qr-code";
-import type { GoombaServerMsg, HexServerMsg, PlayerInfo } from "@escape-cats/shared";
+import {
+  UPGRADES,
+  type GoombaServerMsg,
+  type HexServerMsg,
+  type HexSnapshot,
+  type PlayerInfo,
+} from "@escape-cats/shared";
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
 const HEX_URL = import.meta.env.VITE_HEX_URL ?? "http://localhost:5173";
@@ -21,6 +27,23 @@ interface GameProgress {
   players: PlayerInfo[];
   detail: string;
   codeword: string | null;
+}
+
+const mmss = (ms: number) => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+function hexDetail(s: HexSnapshot): string {
+  const phase = s.nightAt ? "🌙 night" : "☀️ day";
+  const boughtN = Object.keys(s.bought).length;
+  const elapsed = mmss(s.serverTime - s.startedAt);
+  return [
+    `${phase} · ${elapsed}`,
+    `${Math.floor(s.mice).toLocaleString()} mice · ${Math.round(s.cps).toLocaleString()}/s`,
+    `${boughtN}/${UPGRADES.length} upgrades` +
+      (s.speed !== 1 ? ` · ⏩×${s.speed}` : ""),
+  ].join("\n");
 }
 
 export function App() {
@@ -55,7 +78,7 @@ function Session({ room, onEnd }: { room: string; onEnd: () => void }) {
       ? {
           progress: msg.state.progress,
           players: msg.state.players,
-          detail: `${Math.floor(msg.state.points).toLocaleString()} points · ${msg.state.toyCount} toys`,
+          detail: hexDetail(msg.state),
           codeword: msg.state.codeword,
         }
       : null,
@@ -82,6 +105,9 @@ function Session({ room, onEnd }: { room: string; onEnd: () => void }) {
           title="🐱 Hex Clicker"
           joinUrl={`${HEX_URL}/?room=${room}`}
           game={hex}
+          // Rehearsal fast-forward: accelerates income + golden cadence on the
+          // server, never click feel. Resets to ×1 with the room.
+          speeds={[1, 5, 20]}
         />
         <GamePanel
           title="😾 Angry Goomba"
@@ -97,7 +123,11 @@ function useGameSocket<M>(
   room: string,
   party: string | undefined,
   toProgress: (msg: M) => GameProgress | null,
-): { progress: GameProgress | null; reset: () => void } {
+): {
+  progress: GameProgress | null;
+  reset: () => void;
+  send: (msg: unknown) => void;
+} {
   const [progress, setProgress] = useState<GameProgress | null>(null);
   const socketRef = useRef<PartySocket | null>(null);
   const toProgressRef = useRef(toProgress);
@@ -120,6 +150,7 @@ function useGameSocket<M>(
 
   return {
     progress,
+    send: (msg) => socketRef.current?.send(JSON.stringify(msg)),
     reset: () => {
       if (confirm("Reset this game for the current room?")) {
         socketRef.current?.send(JSON.stringify({ type: "reset" }));
@@ -132,10 +163,16 @@ function GamePanel({
   title,
   joinUrl,
   game,
+  speeds,
 }: {
   title: string;
   joinUrl: string;
-  game: { progress: GameProgress | null; reset: () => void };
+  game: {
+    progress: GameProgress | null;
+    reset: () => void;
+    send: (msg: unknown) => void;
+  };
+  speeds?: number[];
 }) {
   const p = game.progress;
   return (
@@ -167,9 +204,20 @@ function GamePanel({
       ) : (
         <p className="detail">Connecting…</p>
       )}
-      <button className="danger" onClick={game.reset}>
-        Reset game
-      </button>
+      <div className="actions">
+        {speeds && (
+          <span className="speeds">
+            {speeds.map((n) => (
+              <button key={n} onClick={() => game.send({ type: "speed", mult: n })}>
+                ×{n}
+              </button>
+            ))}
+          </span>
+        )}
+        <button className="danger" onClick={game.reset}>
+          Reset game
+        </button>
+      </div>
     </section>
   );
 }

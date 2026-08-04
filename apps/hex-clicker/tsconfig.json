@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "jsx": "react-jsx"
+    // The ported game modules are plain JS (they came verbatim from the
+    // prototype); only the typed seams (net.ts, solo.ts) are checked.
+    "allowImportingTsExtensions": true
   },
-  "include": ["src"]
+  "include": ["src/**/*.ts"]
 }

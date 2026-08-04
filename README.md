@@ -4,9 +4,10 @@ Two cooperative 4-player mini games for a puzzle escape room, starring Hex
 and Goomba. Players join by scanning a QR code, play together for ~10
 minutes, and unlock a code word to give the proctor.
 
-- **Hex Clicker** — a cooperative cookie-clicker. One shared point pool,
-  shared upgrades. Every upgrade releases a mouse toy that wanders the
-  screen; as toys accumulate, their paths gradually spell out the code word.
+- **Hex Clicker** — a cooperative cookie-clicker. One shared mouse pool,
+  shared buildings and upgrades. Petting Hex mints mice; buying the twist
+  puts her to sleep, and the night wall's drifting dream-mice gradually ink
+  the code word — identically on every phone.
 - **Angry Goomba** — cooperative Angry-Birds-style physics. No failure, no
   projectile limits; knock down five fortresses together to reveal the code
   word.
@@ -14,12 +15,32 @@ minutes, and unlock a code word to give the proctor.
 ## Layout
 
 ```
-apps/hex-clicker/    Player client: React + a canvas overlay for mouse toys
+apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering split
+                     into modules (see its src/README.md for the map)
 apps/angry-goomba/   Player client: Phaser 3 (renderer only — physics is server-side)
-apps/proctor/        Hidden proctor dashboard: QR codes, live progress bars, reset
-packages/shared/     Wire protocol, balance config, levels, seeded RNG
+apps/proctor/        Hidden proctor dashboard: QR codes, live progress, reset,
+                     rehearsal fast-forward
+packages/shared/     Wire protocol, seeded RNG, goomba levels, and the WHOLE hex
+                     game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
+                     and the authoritative simulation (hex/sim.ts)
 server/              PartyKit room server (both games, one deploy)
+hex/                 The original single-player prototype — FROZEN as reference
 ```
+
+## Where things live (so a retune touches one file)
+
+- **Balance** — buildings, upgrades, costs, click math, wall ramp:
+  `packages/shared/src/hex/data.ts` (+ `rules.ts` for derived rules). The
+  server, the phones, and the client's `?solo` practice mode all import it,
+  so there is exactly one copy to edit.
+- **Game logic** — what a pet/purchase/golden-catch does: `packages/shared/src/hex/sim.ts`
+  (the PartyKit server is a thin websocket wrapper around it).
+- **Art & rendering** — client-only, one module per system:
+  `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`.
+- **The prototype** (`hex/index.html`) is frozen. It was the tuning bench;
+  that job moved to the multiplayer client's `?solo&speed=N` mode, which runs
+  the same shared sim in-page. Don't retune the prototype — it no longer
+  feeds anything.
 
 ## Architecture decisions (agreed up front)
 
@@ -39,7 +60,7 @@ server/              PartyKit room server (both games, one deploy)
 6. **Code words stay server-side** until unlocked (see `server/partykit.json`
    vars; override per deployment).
 7. **10 minutes is a completion target, not a timer** — achieved through
-   balance. All economy/level tuning lives in `packages/shared/src/balance.ts`
+   balance. All economy/level tuning lives in `packages/shared/src/hex/data.ts`
    and `levels.ts`, never in game code.
 8. **Seat reclaim** — each phone has a persistent player id in localStorage,
    so a locked phone or dropped wifi rejoins the same seat.
@@ -68,6 +89,13 @@ the same wifi (the vite servers listen on the LAN; point
 Simulate 4 players locally with 4 browser tabs — but note the persistent
 player id is per-browser-profile, so use different profiles/incognito
 windows to appear as different players.
+
+For balance work on Hex, `?solo` runs the shared sim in the page with no
+server at all, and `?speed=N` fast-forwards it — so
+`localhost:5173/?solo&speed=20` walks a whole run in about 20 seconds. This
+replaces the frozen prototype's `?debug` panel; the proctor's ×1/×5/×20
+buttons do the same thing to a real room. `window.__hex` exposes the state
+mirror and a `send()` for driving the game from a console or a test.
 
 ## Configuration
 
@@ -167,10 +195,16 @@ you intend to split those surfaces back out.
 
 ## Next steps (deliberately not in the scaffold)
 
-- The actual letter-stroke reveal in `packages/shared/src/seeded.ts`
-  (`toyPathAt` is a seeded wanderer with a TODO where the word logic goes).
-- Art, sound, and juice everywhere (everything is emoji-and-rectangles).
-- Balance playtests (add a dev-only time-scale knob to the hex server).
+- **Room state is not persisted.** The hex sim lives in the Durable Object's
+  memory, so an eviction or a redeploy mid-session resets a team to zero. It
+  wants a throttled write to `room.storage` plus a rehydrate in `onStart` that
+  credits elapsed time (capped, or a room left open overnight hands the next
+  team a fortune). This is the one gap that can spoil a live session.
+- Art, sound, and juice for **Goomba** (still emoji-and-rectangles; hex has
+  its own art).
 - Per-session code words configured from the proctor dashboard.
+- Deploying the PartyKit worker on push (there is no git integration, so
+  `packages/shared` can ship to Vercel while the server still runs the old
+  economy — see the Deploying note).
 - Goomba client-side prediction of your own projectile if launch latency
   ever feels bad (it shouldn't on venue wifi).

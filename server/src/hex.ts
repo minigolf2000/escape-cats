@@ -1,30 +1,27 @@
 import type * as Party from "partykit/server";
 import {
-  HEX_BALANCE,
-  upgradeCost,
-  hashString,
+  HexSim,
+  SNAPSHOT_TICK_MS,
   type HexClientMsg,
   type HexServerMsg,
-  type HexState,
 } from "@escape-cats/shared";
 import { Roster } from "./connections";
 
-const TICK_MS = 500;
-
+// The room server is transport only: every game rule lives in the shared
+// HexSim (packages/shared/src/hex/sim.ts), which the client's ?solo mode runs
+// too. If you're changing what a purchase or a pet does, change the sim.
 export default class HexServer implements Party.Server {
   private roster = new Roster();
-  private points = 0;
-  private totalClicks = 0;
-  private upgrades: Record<string, number> = {};
-  private unlocked = false;
+  private sim = new HexSim(Date.now());
   private ticker: ReturnType<typeof setInterval> | null = null;
-  private lastTick = 0;
 
   constructor(readonly room: Party.Room) {}
 
   onStart() {
-    this.lastTick = Date.now();
-    this.ticker = setInterval(() => this.tick(), TICK_MS);
+    this.ticker = setInterval(() => {
+      this.sim.tick(Date.now());
+      this.broadcast();
+    }, SNAPSHOT_TICK_MS);
   }
 
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
@@ -44,66 +41,44 @@ export default class HexServer implements Party.Server {
     } catch {
       return;
     }
+    const now = Date.now();
+    const proctor = this.roster.isProctor(sender);
     switch (msg.type) {
       case "join":
         this.roster.rename(sender, String(msg.name).slice(0, 24));
         break;
-      case "clicks": {
-        if (this.roster.isProctor(sender)) return;
-        const n = Math.max(0, Math.min(50, Math.floor(msg.count)));
-        this.totalClicks += n;
-        this.points += n * HEX_BALANCE.clickPower;
+      case "pets":
+        // No broadcast: four phones flushing taps at 10Hz would mean ~40 full
+        // snapshots/sec fanned out to the room, and pets only move numbers the
+        // phones already show optimistically. The next tick (250ms) carries it.
+        if (!proctor) this.sim.pets(msg.count, now);
+        return;
+      case "buyBuilding":
+        if (!proctor) this.sim.buyBuilding(String(msg.id), now);
         break;
-      }
-      case "buy": {
-        if (this.roster.isProctor(sender)) return;
-        const def = HEX_BALANCE.upgrades.find((u) => u.id === msg.upgradeId);
-        if (!def) return;
-        const owned = this.upgrades[def.id] ?? 0;
-        const cost = upgradeCost(def, owned);
-        if (this.points < cost) return;
-        this.points -= cost;
-        this.upgrades[def.id] = owned + 1;
+      case "buyUpgrade":
+        if (!proctor) this.sim.buyUpgrade(String(msg.key), now);
         break;
-      }
+      case "catchGold":
+        if (!proctor) this.sim.catchGold(msg.id, now);
+        break;
       case "reset":
-        if (!this.roster.isProctor(sender)) return;
-        this.points = 0;
-        this.totalClicks = 0;
-        this.upgrades = {};
-        this.unlocked = false;
+        if (!proctor) return;
+        this.sim.reset(now);
         this.roster.reset();
         break;
+      case "speed": {
+        // Dev time-scale for rehearsals: accelerates income + golden cadence,
+        // never click feel. Proctor only, clamped to something sane.
+        if (!proctor) return;
+        const m = Number(msg.mult);
+        this.sim.state.speed = Number.isFinite(m)
+          ? Math.max(0.25, Math.min(50, m))
+          : 1;
+        break;
+      }
     }
-    this.checkUnlock();
     this.broadcast();
-  }
-
-  private tick() {
-    const now = Date.now();
-    const dt = (now - this.lastTick) / 1000;
-    this.lastTick = now;
-    this.points += this.pointsPerSecond() * dt;
-    this.checkUnlock();
-    this.broadcast();
-  }
-
-  private pointsPerSecond(): number {
-    return HEX_BALANCE.upgrades.reduce(
-      (sum, u) => sum + u.cps * (this.upgrades[u.id] ?? 0),
-      0,
-    );
-  }
-
-  private toyCount(): number {
-    return HEX_BALANCE.upgrades.reduce(
-      (sum, u) => sum + (u.addsToy ? this.upgrades[u.id] ?? 0 : 0),
-      0,
-    );
-  }
-
-  private checkUnlock() {
-    if (this.points >= HEX_BALANCE.unlockPoints) this.unlocked = true;
   }
 
   private proctorToken(): string {
@@ -111,21 +86,11 @@ export default class HexServer implements Party.Server {
   }
 
   private broadcast() {
-    const state: HexState = {
-      points: Math.floor(this.points),
-      pointsPerSecond: this.pointsPerSecond(),
-      clickPower: HEX_BALANCE.clickPower,
-      totalClicks: this.totalClicks,
-      upgrades: this.upgrades,
-      toyCount: this.toyCount(),
-      players: this.roster.list(),
-      progress: Math.min(1, this.points / HEX_BALANCE.unlockPoints),
-      codeword: this.unlocked
-        ? ((this.room.env.HEX_CODEWORD as string) ?? "WHISKERS")
-        : null,
-      seed: hashString(this.room.id),
-      serverTime: Date.now(),
-    };
+    const state = this.sim.snapshot(
+      Date.now(),
+      this.roster.list(),
+      this.room.env.HEX_CODEWORD as string | undefined,
+    );
     const msg: HexServerMsg = { type: "state", state };
     this.room.broadcast(JSON.stringify(msg));
   }

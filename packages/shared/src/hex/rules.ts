@@ -1,0 +1,355 @@
+// Pure rules of Hex Clicker, ported from the prototype (hex/index.html).
+// Everything here is a pure function of game-shaped state, so the PartyKit
+// server, the client's rendering, the ?solo mode, and any future pacing
+// simulator all price the same rules instead of copies that drift.
+
+import {
+  BUILDINGS,
+  UPGRADES,
+  GROWTH,
+  CLICK_BASE,
+  CLICK_CPS_SHARE,
+  ZOOM_MULT,
+  ZOOM_S,
+  INCOME_SCALE,
+  type HexBuilding,
+  type HexUpgrade,
+  type HexEffect,
+  type HexUnlock,
+} from "./data";
+
+/** The game-shaped core every rule reads. Both the server sim and the client
+ * mirror satisfy this. */
+export interface HexCore {
+  mice: number;
+  total: number; // lifetime earned, never decreases (except the night reset)
+  clicks: number;
+  goldCaught: number;
+  owned: Record<string, number>;
+  bought: Record<string, 1>;
+}
+
+export interface HexMods {
+  building: Record<string, number>;
+  globalMult: number;
+  clickFlat: number;
+  clickShare: number;
+  clickMult: number;
+  goldenFreq: number;
+  goldenLife: number;
+  zoomMult: number;
+  zoomTime: number;
+  trail: number;
+  neon: number;
+  persist: number;
+  speed: number;
+  night: number;
+}
+
+const effectsOf = (u: HexUpgrade): HexEffect[] =>
+  Array.isArray(u.effect) ? u.effect : [u.effect];
+
+// `firstFree` is a COUNT of copies priced at zero, and it shifts the curve down by
+// that many steps rather than discounting it: copy n costs base * growth^(n - free),
+// so the first PAID copy still costs exactly `base`. It exists for one thing: night
+// opens with an empty bank and nothing but buildings earns, so without a copy priced
+// at zero the phase cannot start at all.
+export function costOf(b: HexBuilding, owned: number): number {
+  const free = b.firstFree || 0;
+  if (owned < free) return 0;
+  return Math.ceil(b.base * Math.pow(b.growth || GROWTH, owned - free));
+}
+
+// The night phase is a pure function of the save — no separate flag to persist.
+// Derived from the table (which upgrade DECLARES `type: "night"`) rather than
+// hardcoding its key: the rule is that nothing asks "do I own upgrade X?" by name.
+export const NIGHT_KEYS = UPGRADES.filter((u) =>
+  effectsOf(u).some((e) => e.type === "night"),
+).map((u) => u.key);
+
+const isStoryUpgrade = (u: HexUpgrade): boolean =>
+  effectsOf(u).some(
+    (e) =>
+      e.type === "night" ||
+      e.type === "trail" ||
+      e.type === "neon" ||
+      e.type === "persist" ||
+      e.type === "speed",
+  );
+
+// Rows that belong to the night even though their effect isn't a story beat —
+// recognised by unlock chain rather than by key so a new night row needs no edit.
+function nightOnlyUnlock(u: HexUpgrade): boolean {
+  const seen = new Set<string>();
+  let k = u.unlock && u.unlock.requires;
+  while (k && !seen.has(k)) {
+    if (NIGHT_KEYS.includes(k)) return true;
+    seen.add(k);
+    const parent = UPGRADES.find((x) => x.key === k);
+    k = parent && parent.unlock && parent.unlock.requires;
+  }
+  return false;
+}
+
+export const NIGHT_ROW_KEYS = new Set<string>();
+for (const u of UPGRADES)
+  if (isStoryUpgrade(u) || nightOnlyUnlock(u)) NIGHT_ROW_KEYS.add(u.key);
+
+export function nightOf(bought: Record<string, 1 | undefined>): boolean {
+  return NIGHT_KEYS.some((k) => bought[k]);
+}
+
+/** Does this row belong on the shop rail in the current phase? At night the
+ * day research is off the rail entirely — the day economy has been wiped, so
+ * those rows would price improvements to buildings you no longer own. */
+export function onRail(
+  u: HexUpgrade,
+  bought: Record<string, 1 | undefined>,
+): boolean {
+  return !nightOf(bought) || NIGHT_ROW_KEYS.has(u.key);
+}
+
+/** NOTHING LEFT TO SELL — every row this phase would ever show is bought.
+ * Only ever true at night (day rows outnumber what a day can buy), and the
+ * cue for the shop's one-way closing beat. */
+export function allRailBought(s: HexCore): boolean {
+  return (
+    nightOf(s.bought) && UPGRADES.every((u) => !onRail(u, s.bought) || s.bought[u.key])
+  );
+}
+
+// Every bought upgrade is folded into a mods object here, and nothing else in
+// the game ever asks "do I own upgrade X?". Recomputed on buy/load only.
+export function foldMods(
+  bought: Record<string, 1 | undefined>,
+  owned: Record<string, number>,
+): HexMods {
+  const night = NIGHT_KEYS.some((k) => bought[k]);
+  const m: HexMods = {
+    building: {},
+    globalMult: 1,
+    clickFlat: CLICK_BASE,
+    clickShare: CLICK_CPS_SHARE,
+    clickMult: 1,
+    goldenFreq: 1,
+    goldenLife: 0,
+    zoomMult: ZOOM_MULT,
+    zoomTime: ZOOM_S,
+    // Wall state, all of it bought rather than crossed into:
+    //   neon      the points resolve into coloured mice (Counting Mice)
+    //   trail     length of the inked tail (the sleep-stage ladder)
+    //   persist   ink half-life; 0 = a rolling window (Scent Trail)
+    trail: 0,
+    neon: 0,
+    persist: 0,
+    speed: 0,
+    night: 0,
+  };
+  BUILDINGS.forEach((b) => (m.building[b.id] = 1));
+  let globalPct = 0,
+    globalMul = 1;
+  for (const u of UPGRADES) {
+    if (!bought[u.key]) continue;
+    for (const e of effectsOf(u)) {
+      // A DAY upgrade contributes no income at night: the twist is a hard reset
+      // and a separate economy, so day globalPct/buildingMult must not keep
+      // multiplying night's buildings (see the prototype's foldMods note).
+      const dayRowAtNight = night && !NIGHT_ROW_KEYS.has(u.key);
+      if (e.type === "buildingMult") {
+        if (!dayRowAtNight) m.building[e.building] *= e.mult;
+      } else if (e.type === "globalPct") {
+        if (!dayRowAtNight) globalPct += e.pct;
+      } else if (e.type === "globalMult") {
+        if (!dayRowAtNight) globalMul *= e.mult;
+      } else if (e.type === "clickFlat") m.clickFlat += e.add;
+      else if (e.type === "clickShare") m.clickShare += e.pct / 100;
+      else if (e.type === "clickMult") m.clickMult *= e.mult;
+      else if (e.type === "goldenFreq") m.goldenFreq *= e.mult;
+      else if (e.type === "goldenLife") m.goldenLife += e.add;
+      else if (e.type === "zoomMult") m.zoomMult += e.add;
+      else if (e.type === "zoomTime") m.zoomTime += e.add;
+      else if (e.type === "trail") m.trail += e.add;
+      else if (e.type === "neon") m.neon = 1;
+      else if (e.type === "persist") m.persist += e.add;
+      else if (e.type === "speed") m.speed += e.add;
+      else if (e.type === "night") m.night = 1;
+      else if (e.type === "crossBuilding")
+        m.building[e.building] *= 1 + (e.pct / 100) * (owned[e.per] || 0);
+      else if (e.type === "clickPerBuilding")
+        m.clickFlat += e.add * (owned[e.per] || 0);
+    }
+  }
+  m.globalMult = (1 + globalPct / 100) * globalMul;
+  return m;
+}
+
+// Order of operations mirrors Cookie Clicker's: per-building multipliers apply
+// inside the per-building term, the global multiplier applies on top, and
+// timed buffs sit outside everything.
+export function buildingMpsWith(m: HexMods, b: HexBuilding): number {
+  // Dream reset: at night the daytime mouse-industry stops earning.
+  if (m.night && !b.night) return 0;
+  return b.mps * m.building[b.id] * m.globalMult * INCOME_SCALE;
+}
+
+export function baseCpsWith(m: HexMods, owned: Record<string, number>): number {
+  let s = 0;
+  for (const b of BUILDINGS) s += buildingMpsWith(m, b) * (owned[b.id] || 0);
+  return s;
+}
+
+/** Pre-buff click value: flat + a share of income, times the click multiplier. */
+export function clickBaseWith(m: HexMods, owned: Record<string, number>): number {
+  return (m.clickFlat + baseCpsWith(m, owned) * m.clickShare) * m.clickMult;
+}
+
+// ---------------------------------------------------------------------------
+// UNLOCKS / REVEALS
+// ---------------------------------------------------------------------------
+const ownedPairs = (c: HexUnlock): [string, number][] =>
+  typeof c.owned![0] === "string"
+    ? [c.owned as [string, number]]
+    : (c.owned as [string, number][]);
+
+export function unlockMet(u: HexUpgrade, s: HexCore): boolean {
+  const c = u.unlock;
+  if (c.owned) {
+    for (const [id, n] of ownedPairs(c)) if ((s.owned[id] || 0) < n) return false;
+  }
+  if (c.total != null && s.total < c.total) return false;
+  if (c.clicks != null && s.clicks < c.clicks) return false;
+  if (c.golden != null && s.goldCaught < c.golden) return false;
+  if (c.requires && !s.bought[c.requires]) return false;
+  return true;
+}
+
+export function isRevealed(b: HexBuilding, s: HexCore): boolean {
+  // Day buildings are gone from the rail at night, and vice versa.
+  if (!b.night && nightOf(s.bought)) return false;
+  if (b.night && !nightOf(s.bought)) return false;
+  if ((s.owned[b.id] || 0) > 0) return true;
+  // A free copy is on the rail by definition — keeps the night from deadlocking.
+  if (costOf(b, s.owned[b.id] || 0) === 0) return true;
+  // ONE rule for both phases otherwise: a tier appears when lifetime earnings
+  // have been enough to afford it once.
+  return s.total >= b.base;
+}
+
+// ---------------------------------------------------------------------------
+// GOLDEN MOUSE — spawn windows (the buff itself lives in mods.zoom*)
+// ---------------------------------------------------------------------------
+export const GOLD_MIN_S = 40,
+  GOLD_MAX_S = 90; // spawn window
+// The FIRST golden of a run waits longer, landing ~1:50–2:40 — late in the
+// opening era, "a taste". See the prototype's note on why.
+export const GOLD_FIRST_MIN_S = 90,
+  GOLD_FIRST_MAX_S = 130;
+/** Seconds a golden stays on screen before escaping. */
+export const goldLifeS = (m: HexMods): number => 9 + m.goldenLife;
+
+// ---------------------------------------------------------------------------
+// NIGHT WALL RAMP + LEGIBILITY — the win condition, computable server-side.
+// ---------------------------------------------------------------------------
+// Per-shape headcounts, settled in the reveal lab. yellow spells the word.
+export const WALL_COUNT: Record<string, number> = {
+  yellow: 9,
+  pink: 10,
+  blue: 4,
+  green: 4,
+  purple: 6,
+};
+export const WALL_COUNT_KEYS = ["yellow", "pink", "blue", "green", "purple"];
+export const WALL_CAP = WALL_COUNT_KEYS.reduce((a, k) => a + WALL_COUNT[k], 0);
+
+export const WALL = {
+  maxMice: WALL_CAP,
+  // Night lifetime runs 0 -> a few million over ~5 minutes; base 2000 (about the
+  // first Hole's price) and (1.5e6 / 2000)^(1/32) = 1.23 puts the last of the 33
+  // mice near where the word should become readable.
+  mouseBase: 2000,
+  mouseR: 1.23,
+  // ZERO: the dream opens on an empty wall (cast slot 1 is GOLDEN — a starting
+  // mouse would hand over a letter before the phase starts).
+  startMice: 0,
+  // Scene units/sec, ONE rate for every mouse. 12 is the pace at which the wall
+  // reads as a swarm of drifting specks rather than a set of streaks.
+  speedBase: 12,
+  speedMax: 20,
+  trailDt: 80,
+};
+
+export function wallSpeed(m: HexMods): number {
+  return Math.min(WALL.speedMax, WALL.speedBase + (m.speed || 0));
+}
+
+// Locked formula shape: mouse k climbs on when lifetime total ever crossed
+// mouseBase * mouseR^(k-1). Monotonic in total, so spending never undoes it.
+export function wallMiceFor(total: number): number {
+  const n =
+    total < WALL.mouseBase
+      ? 0
+      : 1 + Math.floor(Math.log(total / WALL.mouseBase) / Math.log(WALL.mouseR));
+  return Math.min(WALL.maxMice, Math.max(WALL.startMice, n));
+}
+
+// Scent Trail's decay: ms of half-life per unit of `persist`.
+export const WALL_PERSIST_MS = 40;
+export const LEGIBLE_COV = 1.6;
+// The word's total ink in scene units, measured off the live wall.
+export const WORD_INK_EST = 1067;
+
+/** How many of the nine golden mice are on the wall at a given lifetime total. */
+export function wordMiceFor(total: number): number {
+  return Math.floor((WALL_COUNT.yellow * wallMiceFor(total)) / WALL_CAP);
+}
+
+// Coverage is word ink laid inside the visible window over the word's total ink;
+// the 1-stroke word needs ~1.6 of it to read unambiguously. visibleMs is the
+// rolling trail PLUS Scent Trail's persistence (2^(-t/half) integrates to
+// half/ln2 ms of full-strength equivalent).
+export function wallCoverage(m: HexMods, total: number): number {
+  if (!m.night) return 0;
+  const visibleMs =
+    m.trail * WALL.trailDt +
+    (m.persist > 0 ? (m.persist * WALL_PERSIST_MS) / Math.LN2 : 0);
+  return (wordMiceFor(total) * (wallSpeed(m) / 1000) * visibleMs) / WORD_INK_EST;
+}
+
+export function isLegible(s: HexCore): boolean {
+  return wallCoverage(foldMods(s.bought, s.owned), s.total) >= LEGIBLE_COV;
+}
+
+// ---------------------------------------------------------------------------
+// THE TWIST — the hard reset into the dream economy.
+// ---------------------------------------------------------------------------
+export function nightReset(s: HexCore & { zoomUntil?: number }): void {
+  s.mice = 0;
+  s.total = 0;
+  for (const b of BUILDINGS) if (!b.night) s.owned[b.id] = 0;
+  // A golden caught in the last seconds of the day leaves Zoomies running — a
+  // multiplier on the one mechanic the night doesn't have. It ends with the day.
+  if (s.zoomUntil !== undefined) s.zoomUntil = 0;
+}
+
+// ---------------------------------------------------------------------------
+// SHOP TEXT DERIVATIONS shared by the client (the proctor may want them too).
+// ---------------------------------------------------------------------------
+// The wall rows are the MYSTERY, so they do not describe themselves — every
+// effect that touches the wall renders as ??? in the shop.
+export const WALL_EFFECTS = new Set(["trail", "neon", "persist", "speed"]);
+
+// GOLDEN NAMES: wall rows that are the ONLY row of their kind change what the
+// wall does rather than how much of it there is — they get the crux styling.
+export const CRUX_KEYS = (() => {
+  const seen: Record<string, number> = {};
+  for (const u of UPGRADES)
+    for (const e of effectsOf(u))
+      if (WALL_EFFECTS.has(e.type)) seen[e.type] = (seen[e.type] || 0) + 1;
+  return new Set(
+    UPGRADES.filter((u) =>
+      effectsOf(u).some((e) => WALL_EFFECTS.has(e.type) && seen[e.type] === 1),
+    ).map((u) => u.key),
+  );
+})();
+
+export { effectsOf };

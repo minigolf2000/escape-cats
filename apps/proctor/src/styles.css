@@ -123,6 +123,19 @@ button {
 .detail {
   font-size: 14px;
   opacity: 0.7;
+  white-space: pre-line; /* the hex panel's detail is a short multi-line readout */
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.speeds button {
+  margin-right: 4px;
 }
 
 .players span {

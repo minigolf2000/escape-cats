@@ -3,9 +3,14 @@
 The **Hex Clicker** single-player prototype, packaged as its own deploy root so
 it can sit at the root of a domain.
 
-`index.html` is the game — a single self-contained file with no build step, no
-dependencies, and no server. This is the game's canonical home (it used to live
-at `prototypes/hex-clicker.html`); edit it here.
+> **FROZEN.** The game graduated to the multiplayer app: rules and balance now
+> live in `packages/shared/src/hex/` and the client in `apps/hex-clicker/`.
+> Retunes and art changes go THERE (one copy, shared by server + phones +
+> the client's `?solo` practice mode). This file stays as the reference the
+> port was made from — don't edit it expecting the real game to change.
+
+`index.html` is the prototype — a single self-contained file with no build
+step, no dependencies, and no server.
 
 Also hosted from this root (each a self-contained, zero-dependency file, so
 they cost nothing to keep here and ride along on the same deploy):

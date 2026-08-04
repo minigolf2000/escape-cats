@@ -1,6 +1,8 @@
 // Wire protocol shared by clients, the proctor dashboard, and the PartyKit server.
 // Everything is JSON over WebSocket. Server state is authoritative; clients
-// only ever send intents (clicks, purchases, launches).
+// only ever send intents (pets, purchases, launches).
+
+import type { HexSimState } from "./hex/sim";
 
 export interface PlayerInfo {
   id: string;
@@ -12,34 +14,35 @@ export interface PlayerInfo {
 // Hex Clicker
 // ---------------------------------------------------------------------------
 
-export interface HexState {
-  /** Shared point pool for the whole team. */
-  points: number;
-  pointsPerSecond: number;
-  clickPower: number;
-  totalClicks: number;
-  /** upgradeId -> number owned (shared, cooperative). */
-  upgrades: Record<string, number>;
-  /** Mouse toys collected so far; drives the code-word reveal animation. */
-  toyCount: number;
+/** Full authoritative snapshot, broadcast on every tick (~4Hz) and after every
+ * intent. Clients extrapolate income between snapshots with the same shared
+ * rules, so the counter stays smooth. */
+export interface HexSnapshot extends HexSimState {
   players: PlayerInfo[];
-  /** 0..1 toward the code-word unlock. */
-  progress: number;
-  /** null until unlocked — the word never leaves the server before that. */
-  codeword: string | null;
-  /** Room seed: all phones render the identical deterministic toy animation. */
-  seed: number;
-  /** Server clock (ms epoch) so clients can sync the animation timeline. */
+  /** Server clock (ms epoch) at send — clients sync the wall's shared timeline
+   * (and Zoomies deadlines) to it. */
   serverTime: number;
+  /** 0..1 for the proctor progress bar. */
+  progress: number;
+  /** Mice/second the bank is actually accruing (base rate × dev speed) —
+   * stamped by the authority so dashboards don't re-run the economy fold. */
+  cps: number;
+  /** null until the wall is legible — the word never leaves the server before
+   * that. (The night wall's painted word is client art; this is the checkable
+   * answer the proctor sees.) */
+  codeword: string | null;
 }
 
 export type HexClientMsg =
   | { type: "join"; name: string }
-  | { type: "clicks"; count: number } // batched client-side
-  | { type: "buy"; upgradeId: string }
-  | { type: "reset" }; // proctor only
+  | { type: "pets"; count: number } // batched client-side
+  | { type: "buyBuilding"; id: string }
+  | { type: "buyUpgrade"; key: string }
+  | { type: "catchGold"; id: number }
+  | { type: "reset" } // proctor only
+  | { type: "speed"; mult: number }; // proctor only — dev time-scale
 
-export type HexServerMsg = { type: "state"; state: HexState };
+export type HexServerMsg = { type: "state"; state: HexSnapshot };
 
 // ---------------------------------------------------------------------------
 // Angry Goomba

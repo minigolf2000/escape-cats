@@ -7,7 +7,7 @@
     "goomba": "src/goomba.ts"
   },
   "vars": {
-    "HEX_CODEWORD": "WHISKERS",
+    "HEX_CODEWORD": "TO THE MOON",
     "GOOMBA_CODEWORD": "POUNCE",
     "PROCTOR_TOKEN": "dev-proctor"
   }

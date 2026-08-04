@@ -11,14 +11,9 @@
   },
   "dependencies": {
     "@escape-cats/shared": "*",
-    "partysocket": "^1.3.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "partysocket": "^1.3.0"
   },
   "devDependencies": {
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.2.0",
     "vite": "^7.3.6"
   }
 }

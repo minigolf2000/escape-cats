@@ -4,9 +4,10 @@ Two cooperative 4-player mini games for a puzzle escape room, starring Hex
 and Goomba. Players join by scanning a QR code, play together for ~10
 minutes, and unlock a code word to give the proctor.
 
-- **Hex Clicker** — a cooperative cookie-clicker. One shared point pool,
-  shared upgrades. Every upgrade releases a mouse toy that wanders the
-  screen; as toys accumulate, their paths gradually spell out the code word.
+- **Hex Clicker** — a cooperative cookie-clicker. One shared mouse pool,
+  shared buildings and upgrades. Petting Hex mints mice; buying the twist
+  puts her to sleep, and the night wall's drifting dream-mice gradually ink
+  the code word — identically on every phone.
 - **Angry Goomba** — cooperative Angry-Birds-style physics. No failure, no
   projectile limits; knock down five fortresses together to reveal the code
   word.
@@ -14,12 +15,32 @@ minutes, and unlock a code word to give the proctor.
 ## Layout
 
 ```
-apps/hex-clicker/    Player client: React + a canvas overlay for mouse toys
+apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering split
+                     into modules (see its src/README.md for the map)
 apps/angry-goomba/   Player client: Phaser 3 (renderer only — physics is server-side)
-apps/proctor/        Hidden proctor dashboard: QR codes, live progress bars, reset
-packages/shared/     Wire protocol, balance config, levels, seeded RNG
+apps/proctor/        Hidden proctor dashboard: QR codes, live progress, reset,
+                     rehearsal fast-forward
+packages/shared/     Wire protocol, seeded RNG, goomba levels, and the WHOLE hex
+                     game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
+                     and the authoritative simulation (hex/sim.ts)
 server/              PartyKit room server (both games, one deploy)
+hex/                 The original single-player prototype — FROZEN as reference
 ```
+
+## Where things live (so a retune touches one file)
+
+- **Balance** — buildings, upgrades, costs, click math, wall ramp:
+  `packages/shared/src/hex/data.ts` (+ `rules.ts` for derived rules). The
+  server, the phones, and the client's `?solo` practice mode all import it,
+  so there is exactly one copy to edit.
+- **Game logic** — what a pet/purchase/golden-catch does: `packages/shared/src/hex/sim.ts`
+  (the PartyKit server is a thin websocket wrapper around it).
+- **Art & rendering** — client-only, one module per system:
+  `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`.
+- **The prototype** (`hex/index.html`) is frozen. It was the tuning bench;
+  that job moved to the multiplayer client's `?solo&speed=N` mode, which runs
+  the same shared sim in-page. Don't retune the prototype — it no longer
+  feeds anything.
 
 ## Architecture decisions (agreed up front)
 

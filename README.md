@@ -167,10 +167,16 @@ never apply.
 
 ### 3. Vanity domains
 
-Attach the domain to the project in Vercel, then add a host rewrite in
-`vercel.json` pointing it at the right subdirectory:
+Attach the domain to the project in Vercel, then add **two** host rewrites in
+`vercel.json` pointing it at the right subdirectory — one for the bare root,
+one for everything below it:
 
 ```json
+{
+  "source": "/",
+  "has": [{ "type": "host", "value": "hex.example.com" }],
+  "destination": "/hex/index.html"
+},
 {
   "source": "/:path*",
   "has": [{ "type": "host", "value": "hex.example.com" }],
@@ -178,12 +184,26 @@ Attach the domain to the project in Vercel, then add a host rewrite in
 }
 ```
 
-Use the `:path*` wildcard form, not `/(.*)` with `$1`. Vercel only substitutes
-`$1` when the source is an explicitly anchored regex; an unanchored source is
-parsed as path-to-regexp, where `$1` is not a substitution token, so every
-asset request would rewrite to a literal `/hex/$1` and 404. The root would
-still serve `index.html`, so the symptom is a page that loads and then fails
-to fetch its own JS.
+The root rule must come first — Vercel takes the first matching rewrite.
+
+Both rules are load-bearing, and each covers a case the other cannot:
+
+- **The `/:path*` rule cannot serve the bare root.** With zero path segments
+  the destination resolves to `/hex/`, a directory rather than a file. Rewrites
+  run *after* the filesystem check, so the directory-index lookup that turns
+  `/hex/` into `/hex/index.html` has already been passed — the rewrite
+  destination is resolved as an exact output path, and 404s. `assemble.mjs`
+  writes no `dist/index.html`, so nothing catches the request first. Symptom:
+  every deep link works, the domain root alone 404s.
+- **Use `:path*`, not `/(.*)` with `$1`.** Vercel only substitutes `$1` when
+  the source is an explicitly anchored regex; an unanchored source is parsed as
+  path-to-regexp, where `$1` is not a substitution token, so every request
+  rewrites to a literal `/hex/$1` and 404s — including the root.
+
+Conversely, do **not** fix the root by adding a `dist/index.html` landing page.
+The filesystem check runs before rewrites, so a root index would win over the
+`"source": "/"` rules and every vanity domain would serve the landing page
+instead of its game.
 
 Two are wired already, both to the coop games — so these are the domains the
 proctor QR codes point at (`VITE_HEX_URL` / `VITE_GOOMBA_URL`):

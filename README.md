@@ -139,17 +139,20 @@ Attach the domain to the project in Vercel, then add a host rewrite in
 }
 ```
 
-Two are wired already, both to the standalone single-player builds — neither
-needs PartyKit, so both are fully playable before the server is deployed:
+Two are wired already, both to the coop games — so these are the domains the
+proctor QR codes point at (`VITE_HEX_URL` / `VITE_GOOMBA_URL`):
 
 | Domain | Serves |
 | --- | --- |
-| `g00.mba` | Goomba Rider (`/prototypes/goomba-rider.html`) |
-| `hexxygon.com` | Hex Clicker solo + QR Studio (`/solo-hex/`) |
+| `hexxygon.com` | Hex Clicker (coop) — `/hex/` |
+| `g00.mba` | Angry Goomba (coop) — `/goomba/` |
 
-When the coop versions of these games are ready, decide whether these domains
-move to `/goomba/` and `/hex/` or whether the coop games get their own — it's
-a one-line change to the `destination` either way.
+Both need PartyKit deployed to be playable. Until then the domains resolve
+and serve the app, which shows its "scan the room QR code" screen; joining a
+room is what needs the server.
+
+The single-player builds stay on paths — `/solo-hex/` and `/prototypes/` —
+and need no server at all.
 
 **Do not change `base: "./"` in the vite configs.** It is what lets one build
 serve both from a vanity domain root (rewritten to `/hex/`) and from a path

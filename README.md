@@ -1,31 +1,27 @@
 # Escape Cats 🐾
 
-Two cooperative 4-player mini games for a puzzle escape room, starring Hex
-and Goomba. Players join by scanning a QR code, play together for ~10
-minutes, and unlock a code word to give the proctor.
+A cooperative 4-player mini game for a puzzle escape room, starring Hex.
+Players are sorted onto a team in the lobby, play together for ~10 minutes,
+and unlock a code word to give the proctor.
 
 - **Hex Clicker** — a cooperative cookie-clicker. One shared mouse pool,
   shared buildings and upgrades. Petting Hex mints mice; buying the twist
   puts her to sleep, and the night wall's drifting dream-mice gradually ink
   the code word — identically on every phone.
-- **Angry Goomba** — cooperative Angry-Birds-style physics. No failure, no
-  projectile limits; knock down five fortresses together to reveal the code
-  word.
 
 ## Layout
 
 ```
 apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering split
                      into modules (see its src/README.md for the map)
-apps/angry-goomba/   Player client: Phaser 3 (renderer only — physics is server-side)
 apps/lobby/          Landing page: name entry, then the team the proctor put
-                     you on, with a link into each game
+                     you on, with a link into the game
 apps/proctor/        Hidden proctor dashboard: team assignment, QR codes, live
                      progress, reset, rehearsal fast-forward
-packages/shared/     Wire protocol, seeded RNG, goomba levels, and the WHOLE hex
+packages/shared/     Wire protocol, seeded RNG, and the WHOLE hex
                      game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
                      and the authoritative simulation (hex/sim.ts)
-server/              PartyKit room server (both games, one deploy)
+server/              PartyKit server: the game room and the team lobby
 hex/                 The original single-player prototype — FROZEN as reference
 ```
 
@@ -49,13 +45,10 @@ hex/                 The original single-player prototype — FROZEN as referenc
 1. **Monorepo** — the hard part (join/presence/reset/reveal plumbing) is
    shared; the games are apps on top of it.
 2. **Mobile web, no install** — QR scan → URL → playing in seconds.
-   Hex Clicker is portrait; Angry Goomba is landscape.
+   Hex Clicker is portrait.
 3. **Server-authoritative rooms** (PartyKit / Cloudflare). Clients send
-   intents (clicks, purchases, launches); the server owns all game state.
-   Goomba's Matter.js physics runs on the server at 30Hz and broadcasts
-   snapshots at 15Hz; clients interpolate.
-4. **Shared cooperative state** — one point pool in Hex Clicker,
-   one shared world in Goomba, simultaneous free-fire.
+   intents (clicks, purchases); the server owns all game state.
+4. **Shared cooperative state** — one point pool in Hex Clicker.
 5. **Deterministic synced toy animation** — toy positions are a pure
    function of (room seed, toy index, server-synced clock), so all four
    phones show the identical reveal pattern with zero position traffic.
@@ -80,7 +73,6 @@ This starts everything:
 | ------------- | ------------------------------------------ |
 | PartyKit dev  | 127.0.0.1:1999                             |
 | Hex Clicker   | http://localhost:5173/?room=TEST           |
-| Angry Goomba  | http://localhost:5174/?room=TEST           |
 | Proctor       | http://localhost:5175 (token `dev-proctor`) |
 
 Open the proctor page, start a session, and scan the QR codes with phones on
@@ -104,12 +96,11 @@ mirror and a `send()` for driving the game from a console or a test.
 Client env vars (Vite, set in `apps/*/.env.local`):
 
 - `VITE_PARTYKIT_HOST` — host:port of the PartyKit server (default `127.0.0.1:1999`)
-- `VITE_HEX_URL`, `VITE_GOOMBA_URL` — public game URLs the proctor QR codes
-  point at (proctor app only)
+- `VITE_HEX_URL` — public game URL the proctor QR code points at
 - `VITE_PROCTOR_TOKEN` — must match the server's `PROCTOR_TOKEN`
 
 Server vars (`server/partykit.json` for dev; `partykit deploy --var` or the
-dashboard for prod): `HEX_CODEWORD`, `GOOMBA_CODEWORD`, `PROCTOR_TOKEN`.
+dashboard for prod): `HEX_CODEWORD`, `PROCTOR_TOKEN`.
 
 ## Deploying
 
@@ -129,11 +120,9 @@ and only fail at the point of joining a room.
 npm run deploy -w server   # partykit deploy
 ```
 
-One worker serves both games: `partykit.json` maps `main` → Hex and the
-`goomba` party → Angry Goomba, which is why the clients differ only by the
-`party` option (`apps/angry-goomba/src/net.ts`) and share one host. Set real
-`HEX_CODEWORD` / `GOOMBA_CODEWORD` / `PROCTOR_TOKEN` as deploy vars. Note the
-resulting hostname — every client build needs it.
+One worker serves both parties: `partykit.json` maps `main` → Hex Clicker and
+the `lobby` party → the team lobby. Set real `HEX_CODEWORD` / `PROCTOR_TOKEN`
+as deploy vars. Note the resulting hostname — every client build needs it.
 
 ### 2. Vercel — one project
 
@@ -147,19 +136,17 @@ come from `vercel.json`, so there is nothing to override in the dashboard.
 | --- | --- | --- |
 | `/` | `apps/lobby` | Team lobby (landing page) |
 | `/hexxygon/` | `apps/hex-clicker` | Hex Clicker (coop) |
-| `/g00mba/` | `prototypes/goomba-rider.html` | Goomba Rider |
-| `/goomba/` | `apps/angry-goomba` | Angry Goomba (coop) |
+| `/g00mBa/` | `prototypes/goomba-rider.html` | Goomba Rider |
 | `/proctor/` | `apps/proctor` | Proctor dashboard |
 | `/solo-hex/` | `hex/` | Hex Clicker (solo) + QR Studio |
 | `/prototypes/` | `prototypes/` | Prototypes menu + Goomba Rider |
 
 Env vars (all in this one project — `VITE_PARTYKIT_HOST` is set once here, so
-the two games cannot drift onto different servers):
+every surface points at one server):
 
 ```
 VITE_PARTYKIT_HOST=escape-cats.<user>.partykit.dev
 VITE_HEX_URL=https://hexxygon.com
-VITE_GOOMBA_URL=https://cat-games-tau.vercel.app/goomba
 VITE_PROCTOR_TOKEN=<matches PROCTOR_TOKEN above>
 ```
 
@@ -215,7 +202,7 @@ rewriting to it:
 | Domain | Redirects to | Serves |
 | --- | --- | --- |
 | `hexxygon.com` | `/hexxygon/` | Hex Clicker coop |
-| `g00.mba` | `/g00mba/` | Goomba Rider |
+| `g00.mba` | `/g00mBa/` | Goomba Rider |
 
 Redirect, not rewrite, is the whole point: it puts every player on one origin,
 so the `localStorage` pid the lobby assigned a team to is the same pid the game
@@ -225,9 +212,11 @@ empty store, and the team would not follow. See "The origin constraint" below.
 They are 307s, not 308s -- a permanent redirect is cached by the browser
 indefinitely and would be painful to walk back.
 
-The paths are `/hexxygon` and `/g00mba` rather than `/hex` and `/goomba` so
+The paths are `/hexxygon` and `/g00mBa` rather than `/hex` and `/goomba` so
 that a player who guesses a path cannot walk into a game without being sorted
-onto a team first.
+onto a team first. **`/g00mBa` is case-sensitive** — URL paths are, per RFC
+3986, and Vercel honours that — so `/g00mba` is a 404. The QR code carries the
+exact casing.
 
 **Do not change `base: "./"` in the vite configs.** It is what lets one build
 serve both from a vanity domain root (rewritten to `/hex/`) and from a path
@@ -247,26 +236,22 @@ you intend to split those surfaces back out.
   wants a throttled write to `room.storage` plus a rehydrate in `onStart` that
   credits elapsed time (capped, or a room left open overnight hands the next
   team a fortune). This is the one gap that can spoil a live session.
-- Art, sound, and juice for **Goomba** (still emoji-and-rectangles; hex has
-  its own art).
 - Per-session code words configured from the proctor dashboard.
 - Deploying the PartyKit worker on push (there is no git integration, so
   `packages/shared` can ship to Vercel while the server still runs the old
   economy — see the Deploying note).
-- Goomba client-side prediction of your own projectile if launch latency
-  ever feels bad (it shouldn't on venue wifi).
 
 ## Teams and the lobby
 
-Four teams, `t1`–`t4`. **A team id is also the PartyKit room id both games run
-in**, so once the proctor puts someone on `t2`, their hex room and their goomba
-room are both `t2` and nothing else has to agree on anything.
+Four teams, `t1`–`t4`. **A team id is also the PartyKit room id the game runs
+in**, so once the proctor puts someone on `t2`, their game room is `t2` and
+nothing else has to agree on anything.
 
 The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
 lists everyone currently on that page and sorts them onto teams — per-person
 buttons, or **Auto-assign** to round-robin the unsorted starting from the
 smallest team. Once assigned, the player's page turns into their team name plus
-a link into each game.
+a link into the game.
 
 The lobby is the only state written to `room.storage`. A game room losing its
 memory costs one team its progress; the lobby losing its memory costs every team

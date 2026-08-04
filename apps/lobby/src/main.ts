@@ -9,7 +9,6 @@ import "./styles.css";
 const PARTYKIT_HOST =
   import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
 const HEX_URL = import.meta.env.VITE_HEX_URL ?? "http://localhost:5173";
-const GOOMBA_URL = import.meta.env.VITE_GOOMBA_URL ?? "http://localhost:5174";
 
 const PID_KEY = "escape-cats-pid";
 const NAME_KEY = "escape-cats-name";
@@ -132,7 +131,6 @@ function teamScreen(team: string) {
         .map((p) => escapeHtml(p.name))
         .join(", ") || "- just you so far"}</p>
       <a class="primary" href="${HEX_URL}/?room=${encodeURIComponent(team)}">Play Hex Clicker</a>
-      <a class="primary" href="${GOOMBA_URL}/?room=${encodeURIComponent(team)}">Play Angry Goomba</a>
       <button id="rename" class="link">Not ${escapeHtml(myName())}?</button>
     </div>
   `;

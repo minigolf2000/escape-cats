@@ -14,14 +14,15 @@
 
   THE TWIST: buying the Catnap Hypnalysis upgrade (gated on the lab's reveal) puts
   Hex to sleep and flips the game into a NIGHT PHASE. The reveal wall from
-  reveal-lab.html renders behind her: researching Counting Mice makes the first
-  wall mice appear (their count is a pure function of lifetime mice earned) to
-  patrol the TO THE MOON scene, and the sleep-stage upgrades (Deep Sleep, REM
-  Sleep, Lucid Dreaming) grow the glowing dream-trails that ink the word — Hex's
-  imagination getting more vivid. Word% is a hardcoded constant, noise
-  is locked to zero. Night buildings dwarf day production; day buildings and
-  mps carry over. End state per the design doc: the word is read off the wall
-  to a human proctor — no win screen.
+  reveal-lab.html renders behind her: the mice are already patrolling the TO THE
+  MOON scene as anonymous points of light (their count is a pure function of
+  lifetime mice earned), Counting Mice resolves them into creatures, and the
+  sleep-stage upgrades (Lucid Dreaming, Deep Sleep, REM Sleep) grow the glowing
+  dream-trails that ink the word — Hex's imagination getting more vivid. Word% is
+  a hardcoded constant, noise is locked to zero. The flip is a HARD RESET: the day
+  economy is wiped and night runs its own four buildings, with petting earning
+  nothing and purchasing as the only action. End state per the design doc: the
+  word is read off the wall to a human proctor — no win screen.
 
   Why raw HTML: this is a prototype (see prototypes/README.md). Zero deps, zero
   build, edit-and-refresh. The economy lives in one plain `game` object and the
@@ -1063,56 +1064,65 @@ const BUILDINGS = [
   // They also escalate rather than just scaling: a place -> a device -> a
   // phenomenon -> a recursion, which is how dreams actually get stranger.
   //
-  // SPACING IS x4, NOT the day curve's x13, and that is forced rather than chosen.
-  // Petting earns nothing at night (see pet()), so night income is buildings only,
-  // and a pure-building economy compounds far more slowly than one with paws in it.
-  // Modelled over a 5-minute night: at x13 only TWO tiers are ever affordable, at
-  // x5..x8 only three, and at x4 all four arrive — around 0:00, 0:51, 2:20 and 4:10.
-  // That is also why the old set looked fine in the sim and wasn't: it was riding
-  // pet income the night phase does not have.
+  // Tiers reveal on lifetime >= base, exactly as they do in the day. They used to be
+  // gated behind research that unlocked nothing but the right to buy them, which is
+  // buying a recipe rather than buying a thing — not a mechanic this game has.
   //
-  // `gate` names the research that REVEALS the building. Reveal used to be
-  // lifetime >= base, which cannot work now that the flip resets lifetime to zero
-  // AND the bases are small — every tier would appear at once. Gating on a purchase
-  // also means the player can see they caused it, which a silent threshold never
-  // manages.
+  // COST SPACES x8 WHILE mps SPACES x4, and the gap between those two numbers is what
+  // paces the night now that nothing gates it. Cost per mps therefore climbs by tier
+  // (4, 8, 16, 32), so a higher tier is not worth buying until the one below has
+  // climbed its own curve past it — the tiers stagger themselves, and each one that
+  // comes online drops a fresh cheap curve into the mix and restarts the flurry.
+  // Measured: the four tiers first get bought around 0:00, 0:05, 0:20 and 0:35.
+  //
+  // Equal spacing was what the gates were hiding. At x4/x4 every tier costs the same
+  // per mps, so the four curves interleave into an aggregate that grows 1.05^(1/4) —
+  // about 1.2% per purchase — and the bank refills faster than a player can spend it:
+  // 96 purchases in the first 30 seconds and 2 per 30 seconds thereafter. The research
+  // gates were staggering the tiers by hand; the price ladder does it honestly.
   //
   // PURCHASING IS NIGHT'S MASHING ACTION. Petting earns nothing once Hex is asleep,
   // so the repeated physical thing a player does has to become buying — which the
   // day curve actively prevents. Two numbers do that work, and both are deliberate:
   //
-  //   growth 1.09, not 1.15. Cost climbs as growth^n while income from copies climbs
+  //   growth 1.05, not 1.15. Cost climbs as growth^n while income from copies climbs
   //   linearly in n, so a steep curve means the gap between affordable purchases
   //   grows without bound. This is exactly what Cookie Clicker papers over with
   //   buy-10, which we do not want: the answer here is to flatten the curve so the
-  //   next copy stays reachable instead of batching the taps.
+  //   next copy stays reachable instead of batching the taps. This is the dial that
+  //   changes the SHAPE of the cadence; the mps column below only translates it.
   //
-  //   base = 8x mps, not 33x. The ratio IS the opening wait: one Hole earns
-  //   mps * INCOME_SCALE, so a base of 33x meant 12 seconds of nothing before the
-  //   second Hole. At 8x the first few land about a second apart.
+  //   base = 4x mps on the first tier. The ratio IS the gap between copies: one Hole
+  //   earns mps * INCOME_SCALE, so a base of 33x meant 12 seconds of nothing before
+  //   the second Hole. At 4x the first few land a fraction of a second apart.
   //
-  // Measured over a 5-minute night: median gap between purchases 1.0s and worst 3.3s,
-  // against 2.5s and 12.3s on the day curve. The per-30s profile sawtooths
-  // (32 41 25 14 36 24 15 42 25 18) because each tier's research drops a fresh cheap
-  // curve into the mix — the flurry is restored three times rather than decaying once.
-  { id: "portal",  name: "Hole in the Wall",     icon: "🕳️", base: 480,   mps: 60,   night: true, growth: 1.09, firstFree: 2 },
-  { id: "spindle", name: "Sleep Spindle",        icon: "🧵", base: 1920,  mps: 240,  night: true, growth: 1.09, gate: "spindles" },
-  { id: "delta",   name: "Delta Wave",           icon: "🌊", base: 7680,  mps: 960,  night: true, growth: 1.09, gate: "deltawave" },
-  { id: "nested",  name: "Dream Within a Dream", icon: "🌀", base: 30720, mps: 3840, night: true, growth: 1.09, gate: "nesteddream" },
+  // mps is 2x what it was, which is the night running twice as fast: every threshold
+  // arrives in half the time and the gap between affordable purchases halves with it.
+  // Measured against the pacing bot at 16 pets/s, night from the twist to a readable
+  // wall: 4:21 before, 2:09 after, at the same ~156 purchases — so the purchase RATE
+  // doubles rather than the run just being cut short.
+  { id: "portal",  name: "Hole in the Wall",     icon: "🕳️", base: 480,    mps: 120,  night: true, growth: 1.05 },
+  { id: "spindle", name: "Sleep Spindle",        icon: "🧵", base: 3840,   mps: 480,  night: true, growth: 1.05 },
+  { id: "delta",   name: "Delta Wave",           icon: "🌊", base: 30720,  mps: 1920, night: true, growth: 1.05 },
+  { id: "nested",  name: "Dream Within a Dream", icon: "🌀", base: 245760, mps: 7680, night: true, growth: 1.05 },
 ];
-// No seed grant: night opens on ZERO holes and zero income, and the bootstrap is that
-// the first TWO Holes are free (`firstFree: 2` above). Same deadlock-avoidance the old
-// silently-granted seed holes bought, but as purchases — the player opens the dream's
-// first holes themselves, which is the difference between an economy that starts and
-// an economy the player starts.
+// The night opens on a BANK, not on free buildings. Nothing at night earns except
+// buildings, so something has to break the 0-income deadlock, and the two candidates
+// are a discount on the first copies or a handful of mice up front. The discount was a
+// hole in the cost curve — copy n cost base * growth^(n - free), an exception living
+// inside the one formula that should have none — and it made the opening buys read as
+// free samples rather than purchases.
 //
-// Two rather than one because of the opening wait: the first paid Hole costs `base`
-// against whatever the free ones earn, so one free Hole meant 480/150 = 3.2s of
-// nothing, which played about twice as long as it should. Two free Holes halve it to
-// 1.6s and open on two instant taps, and cost only an 8% discount across the rest of
-// the tier — where dropping the base to 240 would have discounted the whole tier by
-// half, and doubling the Hole's mps would have left it permanently twice as good as
-// the tiers above it.
+// A bank has neither problem: the curve is now pure (`costOf` is one line), and the
+// player still buys every Hole they own. It also does the reveal bootstrap for free —
+// lifetime counts the grant, so the Hole is past its base the instant night starts and
+// the rail is live on the first frame instead of after a wait.
+//
+// 1600 is three Holes (480 + 524 + 571 = 1575) and change: three taps available
+// immediately, and 900/s earned before the fourth is due. Deliberately short of the
+// Spindle's 1920 so the second tier is still a reveal the player watches arrive a
+// couple of seconds later, rather than a row that was always there.
+const NIGHT_SEED_MICE = 1600;
 const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
 // Zoomies, the golden-mouse buff (the mechanic itself lives with the golden
@@ -1134,10 +1144,10 @@ const ZOOM_S = 7;               // ...for 7s
 // derived from the same arithmetic — see everyText.
 //
 // Measured against the in-file sim at 2.5, whole run to the last night upgrade:
-// 16 pets/s (a team of four mashing) 7:01, 10/s 7:50, 8/s 6:38, 3/s (solo)
-// 10:47. Night length is lumpy rather than smooth, because Lucky Number 6 is
-// gated on catching six goldens and that count lands in steps — read these as
-// ±20s, and do not chase a few seconds by moving this dial.
+// 16 pets/s (a team of four mashing) 4:03, 10/s 4:47, 8/s 5:13, 3/s (solo) 6:52.
+// This dial only moves the DAY: night's income is buildings alone, so its 1:40 is
+// the same at every rate — the spread above is entirely how long the day takes to
+// reach the twist. Read as ±20s, and do not chase a few seconds by moving this.
 const INCOME_SCALE = 2.5;
 const SAVE_KEY = "hexclicker.v1";
 
@@ -1536,23 +1546,31 @@ const UPGRADES = [
   // weather. Trails especially — that is the single biggest visual beat in the game
   // and it must be something someone bought.
   //
-  // The ladder alternates ECONOMY and VISIBILITY, so the shop never asks twice in a
-  // row for the same kind of thing:
+  // Every rung is VISIBILITY. It used to alternate with rows whose only effect was to
+  // reveal the next building, and those are gone: paying for permission to buy a thing
+  // is a different game's mechanic, and the buildings reveal themselves on lifetime
+  // now, the same way the day's do. What is left is a single clean line from anonymous
+  // specks to a readable wall:
   //
   //   Counting Mice      the specks resolve into neon mice
-  //   Sleep Spindle      reveals building 2
   //   Lucid Dreaming     TRAILS EXIST                      <- the hinge
-  //   Delta Wave         reveals building 3
+  //   Paw Twitch         the mice speed up
   //   Deep Sleep         longer trails
-  //   Dream Within...    reveals building 4
   //   Scent Trail        ink stops fading
   //   REM Sleep          longer trails
   //   Hypnagogia         longer trails
   //
-  // Costs are GUESSES, and they are large because night's income is: the shallow
-  // 1.09 building curve means a player owns ~90 Holes rather than ~40, so the whole
-  // curve sits far higher than it did. Scaled ~17x from the first pass to hold the
-  // ladder across a 4-5 minute night. They want playtesting, not more arithmetic.
+  // Costs are large because night's income is: the shallow 1.05 building curve means a
+  // player owns ~60 Holes rather than ~40, so the whole curve sits far higher than it
+  // did.
+  //
+  // The first six rungs are HALVED from the pass before this one — the other half of
+  // running the night twice as fast, since doubling mps alone brings every rung forward
+  // without changing how many purchases fit between them. The last three (Scent Trail,
+  // REM, Hypnagogia) are deliberately NOT halved: by the time they are live, Lucky
+  // Number 6's x6 has landed and income is running away, and halving them collapsed the
+  // final four rungs into ten seconds. Their ownership gates do the real pacing there —
+  // see the note on them below. They want playtesting, not more arithmetic.
 
   // Night opens with the mice ALREADY on the wall as anonymous points of light —
   // colourless, shapeless, indistinguishable from the starfield. Counting Mice is
@@ -1565,21 +1583,18 @@ const UPGRADES = [
   // what Hex would really see; every upgrade after this is her dreaming BETTER than
   // she can see awake.
   //
-  // Priced so it CANNOT be the first thing bought: night opens at zero, so the only
-  // route to 6,000 is opening several Holes first — the drifting specks stay
-  // anonymous while the room builds the dream around them, and naming them is the
-  // reward for getting an income going.
+  // Priced so it CANNOT be the first thing bought: the opening bank buys three Holes
+  // and nothing else, so the only route here is building an income first — the
+  // drifting specks stay anonymous while the room builds the dream around them, and
+  // naming them is the reward. Lands ~15s into night against the pacing bot.
   { key: "countingmice", name: "Counting Mice", icon: "💭",
-    cost: 100000, unlock: { requires: "catnap" },
+    cost: 50000, unlock: { requires: "catnap" },
     effect: { type: "neon" } },
-  { key: "spindles", name: "Sleep Spindle", icon: "🧵",
-    cost: 70000, unlock: { requires: "countingmice" },
-    effect: { type: "revealBuilding", building: "spindle" } },
   // The hinge of the whole night: before this the mice leave nothing behind and the
   // wall is unreadable in principle, not just in practice. After it the dream starts
   // recording itself. Everything else on the visibility side only deepens this.
   { key: "luciddreaming", name: "Lucid Dreaming", icon: "🌀",
-    cost: 230000, unlock: { requires: "spindles" },
+    cost: 115000, unlock: { requires: "countingmice" },
     effect: { type: "trail", add: 10 } },
   // Dreaming cats twitch their paws as they run, and that is exactly the mechanic:
   // the dream mice speed up. Placed AFTER Lucid Dreaming on purpose — before trails
@@ -1591,11 +1606,8 @@ const UPGRADES = [
   // stops. Anything past 20 reads as streaks rather than mice, so there is nothing
   // further to sell.
   { key: "pawtwitch", name: "Paw Twitch", icon: "🐾",
-    cost: 375000, unlock: { requires: "luciddreaming" },
+    cost: 190000, unlock: { requires: "luciddreaming" },
     effect: { type: "speed", add: 8 } },
-  { key: "deltawave", name: "Delta Wave", icon: "🌊",
-    cost: 600000, unlock: { requires: "pawtwitch" },
-    effect: { type: "revealBuilding", building: "delta" } },
   // There was a Word of Mouse row here — a research that put the nine golden
   // letter-mice on the wall. Deleted, because it could not do the job it was
   // written for. Its comment promised "the nine letters then arrive one at a time
@@ -1619,43 +1631,45 @@ const UPGRADES = [
   // ladder already calls its hinge. The mystery beat moves onto the row that was
   // always doing the work, instead of sitting on a row that only changed a headcount.
   { key: "deepsleep", name: "Deep Sleep", icon: "😴",
-    cost: 2.3e6, unlock: { requires: "deltawave" },
+    cost: 1.15e6, unlock: { requires: "pawtwitch" },
     effect: { type: "trail", add: 22 } },
-  { key: "nesteddream", name: "Dream Within a Dream", icon: "🌀",
-    cost: 4.5e6, unlock: { requires: "deepsleep" },
-    effect: { type: "revealBuilding", building: "nested" } },
   // Cats track by scent, and scent lingers — which is exactly the mechanic: ink
   // stops being a rolling window and starts accumulating, so the wall holds a
   // drawing instead of shimmering like a screensaver. Worth roughly as much
   // coverage as tripling the trail, measured in the lab.
   { key: "scenttrail", name: "Scent Trail", icon: "👣",
-    cost: 7.5e6, unlock: { requires: "nesteddream" },
+    cost: 7.5e6, unlock: { requires: "deepsleep" },
     effect: { type: "persist", add: 60 } },
-  // Not part of the sleep-stage chain — it's the night's one economy row, gated
-  // on the phase plus six goldens rather than on the stage above it. Parked here
-  // by cost (2M, between Deep Sleep's 1M and REM's 4M) because that's where the
-  // shop and the dev dump both render it: they walk UPGRADES in array order, so
-  // a row's position in this table IS its position on the rail. It used to sit
-  // up in Bespoke, which listed it above the twist that unlocks it.
+  // Not part of the sleep-stage chain — it's the night's one economy row, gated on the
+  // phase plus six HOLES rather than on the stage above it. Parked here by cost
+  // (between Deep Sleep and Scent Trail) because that's where the shop and the dev dump
+  // both render it: they walk UPGRADES in array order, so a row's position in this
+  // table IS its position on the rail.
   //
-  // A clean ×6 to ALL mouse generation (globalMult, so it multiplies the whole
-  // stack rather than blending into the +% sum). Triple-six theme carried by the
-  // name, the ×6, and the six-goldens gate. Cost is a GUESS — it wants to land
-  // as a mid-night power spike once night buildings are online.
+  // A clean ×6 to ALL mouse generation (globalMult, so it multiplies the whole stack
+  // rather than blending into the +% sum). Triple-six theme carried by the name, the
+  // ×6, and the six-holes gate. It used to be six GOLDENS, and that gate broke when the
+  // night got faster: goldens arrive on a wall clock (first at ~1:50, then every ~65s),
+  // so the sixth lands past the end of a 2-minute night and the row went unbuyable —
+  // for a mashing team, while a slow solo player still got it. Exactly backwards. Six
+  // Holes is earned by the night's own action instead, and the 1M price is what makes
+  // it land mid-night rather than in the opening seconds.
   { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
-    cost: 2e6, unlock: { requires: "catnap", golden: 6 },
+    cost: 2.5e6, unlock: { requires: "catnap", owned: [["portal", 6]] },
     effect: { type: "globalMult", mult: 6 } },
   // The last two rungs are paced by OWNERSHIP, not price. Once Dream Within a Dream
-  // is online night income runs away, and cost stops being a brake: pushing REM from
-  // 810k to 11M moved it by six seconds. Owned-count gates ride the 1.15 cost curve
-  // instead, which compounding cannot outrun, so the final beats stay spread.
+  // is online night income runs away, and cost stops being a brake: multiplying all
+  // three tail costs by FOUR bought fifteen extra seconds. Owned-count gates ride the
+  // building cost curve instead, which compounding cannot outrun, so the final beats
+  // stay spread. Raised to 12 and 26 (from 5 and 14) because a Dream Within a Dream is
+  // cheaper relative to night's income than it was.
   { key: "remsleep", name: "REM Sleep", icon: "👀",
-    cost: 15e6, unlock: { requires: "scenttrail", owned: [["nested", 5]] },
+    cost: 15e6, unlock: { requires: "scenttrail", owned: [["nested", 12]] },
     effect: { type: "trail", add: 30 } },
   // Hypnagogia is the threshold state between waking and sleep — the last rung, and
   // the one that should tip the word over into readable.
   { key: "hypnagogia", name: "Hypnagogia", icon: "🌙",
-    cost: 27e6, unlock: { requires: "remsleep", owned: [["nested", 14]] },
+    cost: 27e6, unlock: { requires: "remsleep", owned: [["nested", 26]] },
     effect: { type: "trail", add: 36 } },
 ];
 
@@ -1718,22 +1732,12 @@ function load() {
 // ---------------------------------------------------------------------------
 // ECONOMY HELPERS
 // ---------------------------------------------------------------------------
-// `firstFree` is a COUNT of copies priced at zero, and it shifts the curve down by
-// that many steps: copy n costs base * growth^(n - firstFree). A base of 0 could not
-// express this — the curve multiplies the base, so every copy would stay free.
-//
-// It is the lever for the OPENING WAIT specifically. The first paid copy costs `base`
-// against an income of firstFree * mps * INCOME_SCALE, so each extra free copy both
-// removes a wait and doubles the income paying for the next one — the 480/150 = 3.2s
-// gap after one free Hole becomes 480/300 = 1.6s after two. Cheaper than dropping the
-// base, which would discount the whole tier rather than just its first step.
-//
-// `growth` is per-building, defaulting to the shared GROWTH. Night uses a shallower
-// curve than day on purpose; see the night block in BUILDINGS.
+// One formula for every copy of every building, with no exceptions — night's opening
+// used to carve a `firstFree` hole in it and now opens on a bank instead
+// (NIGHT_SEED_MICE). `growth` is per-building, defaulting to the shared GROWTH; night
+// uses a shallower curve than day on purpose, see the night block in BUILDINGS.
 function costOf(b, owned) {
-  const free = b.firstFree || 0;
-  if (owned < free) return 0;
-  return Math.ceil(b.base * Math.pow(b.growth || GROWTH, owned - free));
+  return Math.ceil(b.base * Math.pow(b.growth || GROWTH, owned));
 }
 
 // Every bought upgrade is folded into `mods` here, and nothing else in the game
@@ -1780,7 +1784,7 @@ function nightOnlyUnlock(u) {
 const NIGHT_ROW_KEYS = new Set();
 const isStoryUpgrade = u => [].concat(u.effect).some(e =>
   e.type === "night" || e.type === "trail" || e.type === "neon" ||
-  e.type === "persist" || e.type === "speed" || e.type === "revealBuilding");
+  e.type === "persist" || e.type === "speed");
 for (const u of UPGRADES) if (isStoryUpgrade(u) || nightOnlyUnlock(u)) NIGHT_ROW_KEYS.add(u.key);
 function nightOf(bought) { return NIGHT_KEYS.some(k => bought[k]); }
 function nightActive() { return nightOf(game.bought); }
@@ -1798,8 +1802,7 @@ function foldMods(bought, owned) {
               //   persist   ink half-life; 0 = a rolling window (Scent Trail)
               // Nothing here decides WHICH mice are on the wall — the cast is the
               // same 33 all night, and the ramp alone says how many have arrived.
-              trail: 0, neon: 0, persist: 0, speed: 0, night: 0,
-              revealed: {} };
+              trail: 0, neon: 0, persist: 0, speed: 0, night: 0 };
   BUILDINGS.forEach(b => m.building[b.id] = 1);
   let globalPct = 0, globalMul = 1;
   for (const u of UPGRADES) {
@@ -1838,7 +1841,6 @@ function foldMods(bought, owned) {
       else if (e.type === "neon") m.neon = 1;
       else if (e.type === "persist") m.persist += e.add;
       else if (e.type === "speed") m.speed += e.add;
-      else if (e.type === "revealBuilding") m.revealed[e.building] = 1;
       // The twist as a folded mod too, so baseCpsWith (which only gets m + owned,
       // not bought) can enforce the dream reset. Agrees with nightOf/nightActive
       // — both derive from the same `night` effect type.
@@ -1986,7 +1988,6 @@ function oneEffectText(e) {
     case "neon":         return `The lights on the wall turn out to be mice`;
     case "persist":      return `Dream trails stop fading`;
     case "speed":        return `The dream mice move quicker`;
-    case "revealBuilding": return `Reveals ${hl(buildingName(e.building))}`;
     // THE twist, and the one row whose description is a QUESTION rather than a
     // statement of effect. Everything else here follows the rule that the row
     // tells you what you're buying and the NAME carries the joke; this one is
@@ -2240,8 +2241,10 @@ function buildShop() {
 // Nothing is granted. The reset leaves bank, lifetime and holdings at literal zero;
 // the first Hole in the Wall being free is what un-deadlocks the phase.
 function nightReset(s) {
-  s.mice = 0;
-  s.total = 0;
+  // Not zero: see NIGHT_SEED_MICE. Lifetime counts it too, which is what puts the
+  // Hole past its reveal threshold on the first frame of the dream.
+  s.mice = NIGHT_SEED_MICE;
+  s.total = NIGHT_SEED_MICE;
   for (const b of BUILDINGS) if (!b.night) s.owned[b.id] = 0;
 }
 
@@ -2251,16 +2254,15 @@ function isRevealed(b, s) {
   // their bases — the pacing bot even re-bought the wiped Lab, chasing Catnap's
   // already-satisfied owned-a-Lab gate.
   if (!b.night && nightOf(s.bought)) return false;
+  // The mirror, and it has to be here rather than only in refreshShop: buy() and the
+  // pacing bot both ask this question, and a night tier is past its base for the whole
+  // of the day.
+  if (b.night && !nightOf(s.bought)) return false;
   if (s.owned[b.id] > 0) return true;
-  // Night tiers past the first appear when their research is bought, not when a
-  // lifetime total quietly passes their base — which could not work anyway now that
-  // the flip resets lifetime to zero and the bases are small enough that every tier
-  // would land at once.
-  if (b.gate) return !!s.bought[b.gate];
-  // The seed tier is on the rail from the moment night starts. It cannot use the
-  // lifetime rule either: lifetime is 0 at the flip and this is the only thing that
-  // earns, so gating it on income would deadlock the phase.
-  if (b.night) return nightOf(s.bought);
+  // ONE rule for both phases: a tier appears when lifetime earnings have been enough
+  // to afford it once. Night tiers used to need research that revealed them and did
+  // nothing else; the seed bank is what lets them share the day's rule, since lifetime
+  // is no longer 0 at the flip.
   return s.total >= b.base;
 }
 
@@ -4566,10 +4568,18 @@ function devContentHTML() {
 function simulateRun(opts = {}) {
   const pps = opts.pps != null ? opts.pps : 3;
   const useGold = opts.goldens !== false;
-  const capS = opts.cap || 3600, dt = 0.25;
+  // dt is a parameter because the two questions want different resolutions: run
+  // LENGTH is happy at a quarter-second, but purchase CADENCE at night is measured in
+  // fractions of a second and 0.25 quantises every gap it is trying to report.
+  const capS = opts.cap || 3600, dt = opts.dt || 0.25;
   const s = { mice: 0, total: 0, clicks: 0, goldCaught: 0, owned: {}, bought: {} };
   BUILDINGS.forEach(b => s.owned[b.id] = 0);
   const events = [];
+  // Every purchase, not just the logged beats: `events` is the human-readable story
+  // and deliberately skips the 300-odd building buys, which are exactly what the
+  // mashing question is about.
+  const buys = [];
+  const onBuy = what => buys.push({ t: +t.toFixed(3), what });
   let t = 0, earnedPet = 0, earnedCps = 0, goldAcc = 0, lastWall = 0, legibleAt = null;
 
   // Buyable only if it's productive in the current phase: night buildings need
@@ -4640,7 +4650,7 @@ function simulateRun(opts = {}) {
     for (const u of UPGRADES) {
       if (s.bought[u.key] || !isStory(u) || !unlockMet(u, s)) continue;
       if (s.mice >= u.cost) {
-        s.mice -= u.cost; s.bought[u.key] = 1; log(`★ ${u.name}`);
+        s.mice -= u.cost; s.bought[u.key] = 1; log(`★ ${u.name}`); onBuy(u.key);
         // Match the live seed: the twist opens a few dream-holes to bootstrap night.
         // Same wipe the live buy applies, so the sim's night is the real one.
         if ([].concat(u.effect).some(e => e.type === "night")) nightReset(s);
@@ -4655,7 +4665,7 @@ function simulateRun(opts = {}) {
       while (s.owned[id] < g.n && isRevealed(b, s)) {
         const cost = costOf(b, s.owned[id]);
         if (s.mice < cost) { goalGap = Math.max(goalGap, cost - s.mice); break; }
-        s.mice -= cost; s.owned[id]++;
+        s.mice -= cost; s.owned[id]++; onBuy(id);
         if (s.owned[id] === 1) log(`first ${b.name}`);
       }
     }
@@ -4674,7 +4684,7 @@ function simulateRun(opts = {}) {
         const wait = cost > s.mice ? (cost - s.mice) / r0.all : 0;
         const score = wait + cost / gain;
         if (!best || score < best.score) best = { cost, score, pay: cost / gain,
-          buy: () => { s.owned[b.id]++; if (s.owned[b.id] === 1) log(`first ${b.name}`); } };
+          buy: () => { s.owned[b.id]++; onBuy(b.id); if (s.owned[b.id] === 1) log(`first ${b.name}`); } };
       }
       for (const u of UPGRADES) {
         if (s.bought[u.key] || isStory(u) || !unlockMet(u, s)) continue;
@@ -4687,7 +4697,7 @@ function simulateRun(opts = {}) {
         const uWait = u.cost > s.mice ? (u.cost - s.mice) / r0.all : 0;
         const score = uWait + u.cost / gain;
         if (!best || score < best.score) best = { cost: u.cost, score, pay: u.cost / gain,
-          buy: () => { s.bought[u.key] = 1; log(`upgrade ${u.name}`); } };
+          buy: () => { s.bought[u.key] = 1; onBuy(u.key); log(`upgrade ${u.name}`); } };
       }
       if (!best || s.mice < best.cost) break;
       if (goalGap > 0 && best.pay > goalGap / r0.all) break;  // saving for the story
@@ -4701,7 +4711,7 @@ function simulateRun(opts = {}) {
     if (isLegible(s)) { legibleAt = t; log("WORD LEGIBLE"); break; }
   }
   const petPct = (earnedPet + earnedCps) > 0 ? 100 * earnedPet / (earnedPet + earnedCps) : 0;
-  return { events, legibleAt, capS, capped: legibleAt == null, petPct, pps, useGold, end: s };
+  return { events, buys, legibleAt, capS, capped: legibleAt == null, petPct, pps, useGold, end: s };
 }
 
 const simMMSS = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;

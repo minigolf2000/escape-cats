@@ -1657,8 +1657,8 @@ const UPGRADES = [
   // spends a minute and a half as a drifting starfield that slowly draws something — and
   // the trails are white until this fires, because drawWall inks in WALL_POINT_COLOR
   // while `neon` is off, so the reveal recolours the whole drawing at once as well as
-  // resolving the sprites. Everything before it therefore has to be described WITHOUT
-  // the word "mice"; see wallNoun by oneEffectText.
+  // resolving the sprites. None of these rows say what they do in any case; see
+  // WALL_EFFECTS by oneEffectText.
   //
   // Costs are large because night's income is: the shallow 1.05 building curve means a
   // player owns ~60 Holes rather than ~40, so the whole curve sits far higher than it
@@ -2082,8 +2082,8 @@ const buildingName = id => (BUILDINGS.find(b => b.id === id) || { name: id }).na
 //
 // Must map over the array form, not read `.type` off it — an array's .type is
 // undefined, which would hit `default` and render a blank effect line.
-function effectText(u) {
-  return [].concat(u.effect).map(oneEffectText).filter(Boolean).join(" · ");
+function effectText(u, reveal) {
+  return [].concat(u.effect).map(e => oneEffectText(e, reveal)).filter(Boolean).join(" · ");
 }
 // Word-form only reads naturally for small round multipliers ("twice/thrice
 // as good") — Cookie Clicker's own convention. Percentages skip it entirely:
@@ -2095,9 +2095,26 @@ const multWord = m =>
   ({ 2: "twice", 3: "thrice", 4: "four times", 5: "five times", 6: "six times" })[m] || `×${m}`;
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const hl = s => `<b>${s}</b>`;
-// What the wall is, as far as the player knows. See the `trail` case below.
-const wallNoun = () => (mods.neon ? "Dream mice" : "The lights on the wall");
-function oneEffectText(e) {
+// The wall rows are the MYSTERY, so they do not describe themselves. Every effect that
+// touches the wall — trails, their length, their persistence, the speed, and the mice
+// resolving at all — renders as ??? instead, and the player finds out by buying it and
+// looking up. It's the same reasoning that made Catnap Hypnalysis a question rather than
+// a statement, applied to the whole phase behind it: the point of night is that a team is
+// working out what they are looking at, and a row that says "+30 more trail" hands over
+// both the mechanic and the fact that there is ink to be had.
+//
+// Uniform on purpose. One bespoke row among eight ???s is a flag saying "this is the
+// important one" — Counting Mice in particular has to be indistinguishable from the trail
+// rungs or the twist is findable by elimination.
+//
+// Safe because a bought upgrade LEAVES the rail (see the filter in refreshUpgrades), so
+// ??? is only ever the pre-purchase state; nothing is permanently unexplained. `hl` so it
+// lands in gold like every other effect value and reads as authored rather than missing.
+const WALL_EFFECTS = new Set(['trail', 'neon', 'persist', 'speed']);
+// `reveal` is for the dev dump only — an opaque effect column makes the debug table
+// useless for the one person who needs the truth.
+function oneEffectText(e, reveal) {
+  if (WALL_EFFECTS.has(e.type) && !reveal) return hl('???');
   switch (e.type) {
     case "buildingMult": return `${buildingName(e.building)} is ${hl(multWord(e.mult))} as good`;
     case "globalPct":    return `+${hl(e.pct + "%")} mice per second`;
@@ -2114,27 +2131,16 @@ function oneEffectText(e) {
     case "goldenLife":   return `Golden mice linger +${hl(e.add + "s")} longer`;
     case "zoomMult":     return `Zoomies pet ${hl("+×" + e.add)} harder`;
     case "zoomTime":     return `Zoomies lasts +${hl(e.add + "s")} longer`;
+    // Everything below this line is reachable only with `reveal` — the dev dump. Kept
+    // written out rather than deleted because it is the authoritative statement of what
+    // each row does, and the debug table is where that gets checked.
+    //
     // Must print e.add: the sleep stages differ ONLY in trail length, so a constant
     // string rendered all of Deep Sleep / REM / Lucid identically.
-    //
-    // The NOUN follows what is on screen. Counting Mice lands late in the night now, so
-    // for most of the phase the player believes the wall is stars — and three rungs
-    // would give the reveal away in their own shop copy if they said "mice". Reading
-    // mods.neon here means the wording tracks any reordering of the ladder for free.
-    // mods.trail === 0 likewise: whichever rung comes FIRST says trails begin, and the
-    // rest say they get longer.
-    case "trail":        return mods.trail === 0
-      ? `${wallNoun()} start to leave trails`
-      : `${wallNoun()} leave ${hl("+" + e.add)} more trail`;
-    // The SECOND question-style row, for the same reason `night` is one (see below): the
-    // thing you are buying is a thing the game has been withholding, and naming the
-    // mechanic spends it before the player sees it. This mattered less when the research
-    // landed at 0:13 and there was nothing on the wall yet to spoil; now it sits unbought
-    // on the rail for half a minute while the lights are drawing, so "the lights turn out
-    // to be mice" would hand over the reveal for free.
-    case "neon":         return `How many of them are there?`;
+    case "trail":        return `Wall mice leave ${hl("+" + e.add)} more trail`;
+    case "neon":         return `The lights on the wall turn out to be mice`;
     case "persist":      return `The trails stop fading`;
-    case "speed":        return `${wallNoun()} move quicker`;
+    case "speed":        return `Wall mice move quicker`;
     // THE twist, and the one row whose description is a QUESTION rather than a
     // statement of effect. Everything else here follows the rule that the row
     // tells you what you're buying and the NAME carries the joke; this one is
@@ -4870,7 +4876,7 @@ function devContentHTML() {
     const state = game.bought[u.key] ? "BOUGHT" : (isUnlocked(u) ? "available" : "locked");
     return `<tr class="${game.bought[u.key] ? "done" : ""}"><td>${u.icon} ${u.name}</td>
             <td class="n">${fmt(u.cost)}</td><td>${unlockText(u)}</td>
-            <td>${effectText(u)}</td><td class="s">${state}</td></tr>`;
+            <td>${effectText(u, true)}</td><td class="s">${state}</td></tr>`;
   }).join("");
   return `<h4>Buildings (${BUILDINGS.length})</h4>
     <table><thead><tr><th>name</th><th>base</th><th>mps</th><th>phase</th><th>state</th></tr></thead>

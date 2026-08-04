@@ -21,8 +21,11 @@
   dream-trails that ink the word — Hex's imagination getting more vivid. Word% is
   a hardcoded constant, noise is locked to zero. The flip is a HARD RESET: the day
   economy is wiped and night runs its own four buildings, with petting earning
-  nothing and purchasing as the only action. End state per the design doc: the
-  word is read off the wall to a human proctor — no win screen.
+  nothing and purchasing as the only action. Buying the last upgrade on the rail
+  closes the shop for good (shopSoldOut / runShopClose): the wall's cast is capped
+  and every trail is bought by then, so the tray shuts, shows a SOLD OUT sign and
+  slides off the screen rather than going on taking money for nothing. End state per
+  the design doc: the word is read off the wall to a human proctor — no win screen.
 
   Why raw HTML: this is a prototype (see prototypes/README.md). Zero deps, zero
   build, edit-and-refresh. The economy lives in one plain `game` object and the
@@ -644,6 +647,11 @@
      already a light-to-dark gradient, and a second lit edge on top of the first
      is what turns a short rail into a stack of hairlines.
 
+     Wood is a DAY material and only a day material: body.night sets `--wood: none`,
+     so at night these same two bands fall back to --panel-bg and read as dark glass
+     hairlined with --wood-line. One rule, two materials — which is why the class
+     names below say `shopHead`/`shopDivider` rather than naming the timber.
+
      Tapping the SHOP rail collapses/reopens the whole dock (#dock.collapsed).
      It's the ONLY hit target for that — the divider is inert, so a mistap while
      reaching for a row can't shut the shop. */
@@ -668,11 +676,14 @@
     padding: 0; -webkit-appearance: none; appearance: none; border-radius: 0;
     width: 100%; cursor: pointer; color: var(--ink);
   }
-  .shopTitle {
+  /* Both rail labels, styled together so the closed sign is the same stamp as the
+     open one — only the word changes. */
+  .shopTitle, .soldTitle {
     font: 700 11px var(--ui-font); font-size: calc(10.5px * var(--ss));
     letter-spacing: .14em; text-transform: uppercase; line-height: 1;
     text-shadow: 0 1px 1px rgba(0,0,0,.5);
   }
+  .soldTitle { display: none; }
   /* Border-corner caret rather than a glyph — scales with --ss, no font
      dependency. Points down while open (tapping pushes the shop toward the
      screen edge it lives on), up when collapsed. The translateY re-centers it:
@@ -683,8 +694,52 @@
     transform: translateY(calc(-2px * var(--ss))) rotate(45deg);
     transition: transform .25s ease;
   }
-  #dock.collapsed .shopHead .chev {
+  /* .closing rides the same rotation as a hand-collapsed shop: the last purchase
+     shutting the tray should look like the tray shutting, not like a new gesture. */
+  #dock.collapsed .shopHead .chev,
+  #dock.closing .shopHead .chev {
     transform: translateY(calc(1px * var(--ss))) rotate(225deg);
+  }
+
+  /* ---- SOLD OUT: the night's last purchase closes the shop for good ----
+     The last upgrade on the rail is also the last thing the game has to sell —
+     the wall's cast is capped and every trail is bought, so no further building
+     changes anything you can see. So the shop shuts rather than sitting there
+     taking money for nothing. Three states, in order (see runShopClose):
+
+       .closing   the scroller eases shut on its own max-height transition
+       .sold-out  the rail relabels itself to the closed sign and goes inert
+       .dock-out  the whole dock slides off the bottom edge...
+       .retired   ...and is gone, so nothing floats over the wall for the final read
+
+     Deliberately NOT folded into .collapsed: that class is the player's own
+     open/shut toggle, and a permanent state parked in it would reopen on one
+     stray tap. */
+  #dock.closing #shopScroll, #dock.sold-out #shopScroll { max-height: 0; }
+  #dock.sold-out .shopTitle, #dock.sold-out .chev { display: none; }
+  #dock.sold-out .soldTitle { display: inline; }
+  /* Dimmed and cursor-default, the same "this is not a control" reading a locked
+     building row gets (.item.locked). The button is also disabled in JS — this is
+     the half of that a player can see. */
+  #dock.sold-out .shopHead { opacity: .55; cursor: default; }
+  /* The exit, mirroring dockIn. `forwards` HERE is correct where it was wrong on
+     dockIn (see the note there): this is the dock's terminal state, so pinning the
+     end frame is the point — it holds the tray offscreen for the frame between the
+     animation ending and .retired landing, instead of letting it pop back into view.
+     Eased the other way round too: dockIn decelerates INTO its resting place, so the
+     exit accelerates OUT of it. A plain accelerate curve, not a mirrored one — the
+     first shape tried here (.4,0,.9,.5) held the tray inside the screen for 400 of its
+     500ms and then yanked the last half of the travel through in one frame. */
+  #dock.dock-out { animation: dockOut .5s cubic-bezier(.4, 0, 1, 1) forwards; }
+  @keyframes dockOut {
+    from { transform: translateY(0);    opacity: 1; }
+    to   { transform: translateY(100%); opacity: 0; }
+  }
+  #dock.retired { display: none; }
+  /* Same call as dockIn: the slide is the whole effect, so there is nothing to keep
+     at a reduced setting — the dock simply stops being there when .retired lands. */
+  @media (prefers-reduced-motion: reduce) {
+    #dock.dock-out { animation: none; }
   }
 
   /* Divider and list travel together, and the section waits for a real
@@ -965,7 +1020,12 @@
        plank; both share a single scroller. -->
   <button type="button" id="shopToggle" class="shopHead"
           aria-expanded="true" aria-controls="shopScroll">
-    <span class="shopTitle">Shop</span><span class="chev" aria-hidden="true"></span>
+    <span class="shopTitle">Shop</span>
+    <!-- The closed sign. Permanently in the DOM, picked by #dock.sold-out, exactly
+         like a building row's ??? (.lockedNm): the state swap is a class, so no
+         refresh path ever writes rail text and the sign cannot flash the wrong
+         word for a frame. -->
+    <span class="soldTitle">Sold Out</span><span class="chev" aria-hidden="true"></span>
     <!-- Unseen-upgrade count. aria-hidden because the rail's accessible name is
          relabelled with the same number (see refreshBadge) — left visible it
          reads out as the bare digit tacked onto "Shop". -->
@@ -2123,7 +2183,27 @@ const starsEl = $("#stars"), cutsceneVeilEl = $("#cutsceneVeil");
 // ARRIVING from the page merely being drawn: a resumed save already has a shop and
 // should not slide it in again, and neither should a dev preset jump.
 let booted = false;
+// Where the closing beat has got to: null while the shop is open and for sale,
+// then "closing" -> "sign" -> "retired". Purely presentational — it is recovered
+// from shopSoldOut() on boot, never saved (see the note there).
+let shopClosePhase = null;
 function syncDock() {
+  // NOTHING LEFT TO SELL — the dock stops being the sections' business. The beat plays
+  // once (runShopClose, fired by the purchase itself) and then the dock is gone for
+  // good, so a building revealing itself can't reach in and resize a closing tray or
+  // raise a retired one.
+  if (shopSoldOut()) {
+    // Arrived this way rather than got here by buying: a reload or a dev preset lands
+    // on the end state with no beat, the same rule the night cutscene follows —
+    // restored state paints, it never replays.
+    if (!shopClosePhase) retireShop();
+    return;
+  }
+  // Not sold out, so any closure hanging off the dock is stale. Only a backward dev
+  // preset reaches this (real play never un-buys an upgrade), and it is what keeps the
+  // dev panel's own rule true of the shop as well as of the phase: a preset re-derives
+  // the state instead of needing a hand-written inverse.
+  if (shopClosePhase) reopenShop();
   const show = upgradeSecEl.classList.contains("show") || buildingSecEl.classList.contains("show");
   // `.dock-in` is what actually carries the slide (see its CSS); .show only makes
   // the dock displayed. Added on the transition into shown, and only in play —
@@ -2139,6 +2219,10 @@ function syncDock() {
 // pre-static-redesign tray).
 const shopToggleEl = $("#shopToggle");
 function toggleShop() {
+  // A sold-out shop does not reopen. The rail is `disabled` from the first frame of
+  // the close so this can't be reached by tapping — kept as the guard for anything
+  // that calls the toggle directly (the dev bar, a keyboard shortcut later).
+  if (shopClosePhase) return;
   const expanded = !dockEl.classList.toggle("collapsed");
   shopToggleEl.setAttribute("aria-expanded", String(expanded));
 }
@@ -2154,8 +2238,37 @@ shopToggleEl.addEventListener("click", toggleShop);
 // 31 over a two-row night shop, and because the phantom rows could never be
 // scrolled into view the count could never be discharged — a permanent unclearable
 // notification pointing at content the phase had removed.
+// NIGHT_ROW_KEYS is built from exactly this pair of tests over exactly this table
+// (see its declaration), so asking the Set is the same question with the chain walk
+// already paid for — once at load instead of per row per tick. It was spelled out
+// longhand here while this function had one caller; it now has three, two of which
+// run off the frame loop, and nightOnlyUnlock does a UPGRADES.find per link.
 function onRailInPhase(u) {
-  return !nightActive() || isStoryUpgrade(u) || nightOnlyUnlock(u);
+  return !nightActive() || NIGHT_ROW_KEYS.has(u.key);
+}
+
+// NOTHING LEFT TO SELL — every row this phase would ever show is bought.
+//
+// Derived from the table and the save, like nightOf() above it, so there is no flag
+// to persist and a reload lands in the right state for free. And derived rather than
+// keyed to Hypnagogia by name: the file's rule is that nothing asks "do I own upgrade
+// X?", so a new tail rung must not be able to silently leave the shop closed over
+// something still for sale.
+//
+// Why closing is honest here: past the last upgrade the wall cannot change. Its cast
+// caps at WALL_CAP (~1.5M lifetime, see WALL.mouseBase/mouseR), every `trail` add and
+// Scent Trail's persistence are owned, and Paw Twitch has already pinned speed at
+// WALL.speedMax — while Hypnagogia's own gate (58 Dream Within a Dream) puts lifetime
+// an order of magnitude past the cap. Buildings bought after this point move a number
+// in the HUD and nothing else on screen.
+//
+// "Every rail row", NOT "the end of the sleep chain": Lucky Number 6 sits outside that
+// chain (night's one economy row), so a leaf test would shut the shop over an unbought,
+// affordable, now permanently unreachable upgrade. It stays open while anything remains.
+// In practice the two agree — against the pacing bot Lucky 6 lands at 1:47 and
+// Hypnagogia closes the night at 3:07.
+function shopSoldOut() {
+  return nightActive() && UPGRADES.every(u => !onRailInPhase(u) || game.bought[u.key]);
 }
 
 // How many unlocked, unbought upgrades you have never had on screen. Every
@@ -2430,6 +2543,13 @@ function buy(i) {
 let upRows = new Map(); // key -> {el, can, cost}
 let upSig = "";
 function refreshUpgrades() {
+  // FROZEN WHILE THE SHOP IS SHUTTING. The purchase that sells out the shop also
+  // empties this list, and the two happen in the same frame: unfrozen, #upgradeSec
+  // un-shows before the collapse begins, so the dock's height drops from three rows
+  // to buildings-only in one frame and THEN eases shut — the tray jumps, then closes.
+  // Held here, the row you just bought stays put and the whole thing shuts as one
+  // piece. runShopClose calls this again on the far side of the .25s to flush it.
+  if (shopClosePhase === "closing") return;
   // At night the day research is off the rail entirely (see onRailInPhase). The day
   // economy has been wiped, so those rows would price improvements to buildings you
   // no longer own — and the twist reads as a fresh start only if the shop looks like
@@ -2544,6 +2664,11 @@ function buyUpgrade(key) {
     recalc();
     runNightCutscene();
   }
+  // ...and the other end of the night: the purchase that empties the rail closes the
+  // shop. Same live-edge rule as the twist above — a load or a preset that arrives
+  // sold out is retired by syncDock without a beat. Before the refreshes below, so the
+  // rebuild is already frozen when they run.
+  if (!shopClosePhase && shopSoldOut()) runShopClose();
   refreshHud(); refreshShop(); refreshUpgrades(); save();
 }
 
@@ -4083,6 +4208,94 @@ function runNightCutscene() {
   }, YAWN_MS + ZZZ_HOLD_MS + 1800);
 }
 
+// CLOSING THE SHOP, once and for the rest of the run. Fired from buyUpgrade on the
+// live edge only (the purchase that satisfies shopSoldOut), so a reload or a dev
+// preset that is already sold out skips straight to retireShop via syncDock.
+//
+// Three beats, and each of them is answering the same question — what does a player
+// who just bought the last thing in the game need to be told?
+//   1. the tray eases shut, so the purchase visibly ENDS something;
+//   2. the rail relabels itself SOLD OUT and holds, so the ending has a word on it;
+//   3. the dock leaves, because the night's actual finale is reading the word off the
+//      wall, and #dock is a fixed, backdrop-filter'd band across the bottom of it.
+// Stopping after 2 would leave a permanent blurred strip over the thing the whole
+// phase is about.
+//
+// Durations mirror the CSS rather than listening for transitionend/animationend, the
+// same trade runNightCutscene makes: an event-driven version has a dead end (a
+// transition that never fires because the property is already at its target leaves the
+// list frozen forever), and this beat must not be able to strand the shop.
+const SHOP_CLOSE_MS = 250;   // #shopScroll's max-height transition
+const SHOP_SIGN_MS = 1800;   // how long the closed sign holds before the dock leaves
+const SHOP_OUT_MS = 500;     // the dockOut animation
+// Bumped by every start and every abandonment of the beat, and captured by the timeout
+// chain below so an orphaned stage can't land on a shop that has moved on. The only way
+// to orphan one is a backward dev preset (reopenShop), which is exactly the case the
+// dev panel documents as allowed — real play never leaves the beat once it starts.
+let shopCloseGen = 0;
+function runShopClose() {
+  if (shopClosePhase) return;
+  shopClosePhase = "closing";
+  const gen = ++shopCloseGen;
+  // Disabled from the first frame, not at the end: the rail is a live control right
+  // up to here, and a tap landing during the close would collapse the dock out from
+  // under its own animation. Everything a screen reader is told about this rail is
+  // rewritten here too — it has stopped being an expandable region and become a sign.
+  shopToggleEl.disabled = true;
+  shopToggleEl.removeAttribute("aria-expanded");
+  shopToggleEl.removeAttribute("aria-controls");
+  // Not "Shop, N new upgrades" ever again. refreshBadge only writes this label when
+  // its count CHANGES, and the count is 0 from now to the end of the run (every row
+  // is bought), so it cannot overwrite this.
+  shopToggleEl.setAttribute("aria-label", "Shop sold out — nothing left to buy");
+  // `.dock-in` is a spent one-shot (nothing removes it after the entrance), and it
+  // would win the cascade over .dock-out below — `#dock.show.dock-in` is the more
+  // specific selector, so the dock would keep an already-finished `animation: dockIn`
+  // and simply vanish where it should slide. Taken off here, at the top of the beat.
+  dockEl.classList.remove("dock-in");
+  dockEl.classList.add("closing");
+  setTimeout(() => {
+    if (gen !== shopCloseGen) return;
+    shopClosePhase = "sign";
+    dockEl.classList.remove("closing");
+    dockEl.classList.add("sold-out");
+    // The list has been frozen through the collapse; flush it now that the scroller
+    // is shut, so the rows are gone before the tray slides off with them.
+    refreshUpgrades();
+    setTimeout(() => {
+      if (gen !== shopCloseGen) return;
+      dockEl.classList.add("dock-out");
+      setTimeout(() => { if (gen === shopCloseGen) retireShop(); }, SHOP_OUT_MS);
+    }, SHOP_SIGN_MS);
+  }, SHOP_CLOSE_MS);
+}
+// The terminal state, and the one syncDock jumps straight to for a save that was
+// already sold out when it loaded. Idempotent: it is both the end of the beat above
+// and the boot path.
+function retireShop() {
+  shopClosePhase = "retired";
+  shopCloseGen++;
+  dockEl.classList.remove("closing", "dock-out", "collapsed", "dock-in", "show");
+  dockEl.classList.add("sold-out", "retired");
+  shopToggleEl.disabled = true;
+  shopToggleEl.removeAttribute("aria-expanded");
+  shopToggleEl.removeAttribute("aria-controls");
+  shopToggleEl.setAttribute("aria-label", "Shop sold out — nothing left to buy");
+}
+// Un-closing, which real play cannot reach: nothing un-buys an upgrade. It exists for
+// the dev bar's backward preset jumps, so that "presets re-derive the state" stays true
+// of the shop as well as of the phase — otherwise one jump to the end of the game
+// leaves every later preset with no shop at all, for the rest of the page's life.
+function reopenShop() {
+  shopClosePhase = null;
+  shopCloseGen++;   // orphans any stage of the beat still queued
+  dockEl.classList.remove("closing", "sold-out", "dock-out", "retired");
+  shopToggleEl.disabled = false;
+  shopToggleEl.setAttribute("aria-expanded", String(!dockEl.classList.contains("collapsed")));
+  shopToggleEl.setAttribute("aria-controls", "shopScroll");
+  shopToggleEl.setAttribute("aria-label", "Shop");
+}
+
 // ---------------------------------------------------------------------------
 // CAT rendering — the SVG (#hexCat) is static markup; this just toggles
 // classes/state on it per frame (squash bounce, blink, Zoomies recolor).
@@ -4468,6 +4681,15 @@ const DEV_PRESETS = {
   "legible":  { total: 3e6, mice: 6e6, clicks: 1000, golden: 6,
                 owned: { shopper: 25, farm: 40, factory: 5, lab: 2, portal: 12, timemachine: 4 },
                 bought: ["catnap", "countingmice", "deepsleep", "remsleep", "luciddreaming"] },
+  // ONE PURCHASE FROM THE END, for the shop's closing beat (runShopClose) — which is
+  // otherwise a 3-minute night away and fires exactly once per save. Holds every night
+  // row but the last, with the 58 Dream Within a Dream that gate it and the bank to
+  // press it. Buy Hypnagogia and the shop shuts.
+  "closing":  { total: 60e6, mice: 30e6, clicks: 1200, golden: 8,
+                owned: { shopper: 25, farm: 40, factory: 5, lab: 2,
+                         portal: 60, spindle: 40, delta: 30, nested: 58 },
+                bought: ["catnap", "countingmice", "luciddreaming", "pawtwitch",
+                         "deepsleep", "scenttrail", "lucky6", "remsleep"] },
 };
 // Fill in the ordinary upgrades a save in this state would already hold: unlock
 // conditions met, and paid for out of a share of lifetime earnings. Story rows

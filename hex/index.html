@@ -1068,43 +1068,56 @@ const BUILDINGS = [
   // gated behind research that unlocked nothing but the right to buy them, which is
   // buying a recipe rather than buying a thing — not a mechanic this game has.
   //
-  // COST SPACES x8 WHILE mps SPACES x4, and the gap between those two numbers is what
-  // paces the night now that nothing gates it. Cost per mps therefore climbs by tier
-  // (4, 8, 16, 32), so a higher tier is not worth buying until the one below has
-  // climbed its own curve past it — the tiers stagger themselves, and each one that
-  // comes online drops a fresh cheap curve into the mix and restarts the flurry.
-  // Measured: the four tiers first get bought around 0:00, 0:05, 0:20 and 0:35.
+  // THE SPACING IS THE PACING, now that nothing gates these. What decides when a tier
+  // is worth buying is not its price but its COST PER MPS against the tier below: tier
+  // n+1 only wins the marginal comparison once tier n's own curve has climbed past the
+  // ratio between them. So that ratio is the dial, and it is 4 → 20 → 40 → 200.
   //
-  // Equal spacing was what the gates were hiding. At x4/x4 every tier costs the same
-  // per mps, so the four curves interleave into an aggregate that grows 1.05^(1/4) —
-  // about 1.2% per purchase — and the bank refills faster than a player can spend it:
-  // 96 purchases in the first 30 seconds and 2 per 30 seconds thereafter. The research
-  // gates were staggering the tiers by hand; the price ladder does it honestly.
+  // The ratio has to GROW, not just be large, or the arrivals bunch up rather than
+  // spreading out. Income compounds, so a constant ratio buys less and less waiting
+  // each time: at a flat x4 per tier the measured arrivals were 0:00, 0:14, 1:34, 2:21
+  // — gaps of 14s, 80s, then 47s, the last one SHORTER than the one before. Escalating
+  // the ratio (x5, x2, x5 here) turns that into 0:00, 0:23, 1:02, 2:01 — gaps of 23s,
+  // 39s, 59s, each arrival a bigger event than the last.
+  //
+  // Equal spacing was what the research gates had been hiding. At the same cost per mps
+  // for all four, the curves interleave into an aggregate growing about 1% per purchase
+  // and the bank refills faster than anyone can spend it: 96 purchases in the first 30
+  // seconds and 2 per 30 seconds thereafter. The gates were staggering the tiers by
+  // hand; the price ladder does it honestly.
+  //
+  // The cost of escalation is that the stretch BEFORE each arrival goes quiet — the
+  // tier you own has priced itself out and the next is not affordable yet. That is what
+  // `growth` below is holding open.
   //
   // PURCHASING IS NIGHT'S MASHING ACTION. Petting earns nothing once Hex is asleep,
   // so the repeated physical thing a player does has to become buying — which the
   // day curve actively prevents. Two numbers do that work, and both are deliberate:
   //
-  //   growth 1.05, not 1.15. Cost climbs as growth^n while income from copies climbs
+  //   growth 1.035, not 1.15. Cost climbs as growth^n while income from copies climbs
   //   linearly in n, so a steep curve means the gap between affordable purchases
   //   grows without bound. This is exactly what Cookie Clicker papers over with
   //   buy-10, which we do not want: the answer here is to flatten the curve so the
-  //   next copy stays reachable instead of batching the taps. This is the dial that
-  //   changes the SHAPE of the cadence; the mps column below only translates it.
+  //   next copy stays reachable instead of batching the taps.
+  //
+  //   It is also what keeps the escalating tier spacing above from costing cadence.
+  //   Measured on the same ladder, 1.05 → 1.035 moves the purchase rate from 0.84/s
+  //   to 1.21/s and the worst gap from 21.7s to 19.5s: a shallower curve means the
+  //   tier you already own is still buyable while you wait for the next one. The
+  //   trade is that a player ends the night owning ~90 Holes rather than ~68.
   //
   //   base = 4x mps on the first tier. The ratio IS the gap between copies: one Hole
   //   earns mps * INCOME_SCALE, so a base of 33x meant 12 seconds of nothing before
   //   the second Hole. At 4x the first few land a fraction of a second apart.
   //
-  // mps is 2x what it was, which is the night running twice as fast: every threshold
-  // arrives in half the time and the gap between affordable purchases halves with it.
-  // Measured against the pacing bot at 16 pets/s, night from the twist to a readable
-  // wall: 4:21 before, 2:09 after, at the same ~156 purchases — so the purchase RATE
-  // doubles rather than the run just being cut short.
-  { id: "portal",  name: "Hole in the Wall",     icon: "🕳️", base: 480,    mps: 120,  night: true, growth: 1.05 },
-  { id: "spindle", name: "Sleep Spindle",        icon: "🧵", base: 3840,   mps: 480,  night: true, growth: 1.05 },
-  { id: "delta",   name: "Delta Wave",           icon: "🌊", base: 30720,  mps: 1920, night: true, growth: 1.05 },
-  { id: "nested",  name: "Dream Within a Dream", icon: "🌀", base: 245760, mps: 7680, night: true, growth: 1.05 },
+  // mps is 2x what it was before this pass. Measured against the pacing bot at 16
+  // pets/s, night from the twist to a readable wall: 4:21 and 156 purchases before,
+  // 2:44 and 198 after — the run is shorter AND has more in it, which is the whole
+  // point. Purchase rate 0.60/s to 1.21/s; worst gap between purchases 30.3s to 19.5s.
+  { id: "portal",  name: "Hole in the Wall",     icon: "🕳️", base: 480,     mps: 120,   night: true, growth: 1.035 },
+  { id: "spindle", name: "Sleep Spindle",        icon: "🧵", base: 9600,    mps: 480,   night: true, growth: 1.035 },
+  { id: "delta",   name: "Delta Wave",           icon: "🌊", base: 96000,   mps: 2400,  night: true, growth: 1.035 },
+  { id: "nested",  name: "Dream Within a Dream", icon: "🌀", base: 2880000, mps: 14400, night: true, growth: 1.035 },
 ];
 // The night opens on a BANK, not on free buildings. Nothing at night earns except
 // buildings, so something has to break the 0-income deadlock, and the two candidates
@@ -1118,10 +1131,10 @@ const BUILDINGS = [
 // lifetime counts the grant, so the Hole is past its base the instant night starts and
 // the rail is live on the first frame instead of after a wait.
 //
-// 1600 is three Holes (480 + 524 + 571 = 1575) and change: three taps available
-// immediately, and 900/s earned before the fourth is due. Deliberately short of the
-// Spindle's 1920 so the second tier is still a reveal the player watches arrive a
-// couple of seconds later, rather than a row that was always there.
+// 1600 is three Holes (480 + 497 + 515 = 1492) and change: three taps available
+// immediately, and 900/s earned before the fourth is due. It is nowhere near the
+// Spindle's 9600, so the second tier is still a reveal the player watches arrive —
+// about twenty seconds later, on a curve they built themselves.
 const NIGHT_SEED_MICE = 1600;
 const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
@@ -1144,8 +1157,8 @@ const ZOOM_S = 7;               // ...for 7s
 // derived from the same arithmetic — see everyText.
 //
 // Measured against the in-file sim at 2.5, whole run to the last night upgrade:
-// 16 pets/s (a team of four mashing) 4:03, 10/s 4:47, 8/s 5:13, 3/s (solo) 6:52.
-// This dial only moves the DAY: night's income is buildings alone, so its 1:40 is
+// 16 pets/s (a team of four mashing) 5:37, 10/s 6:21, 8/s 6:47, 3/s (solo) 8:26.
+// This dial only moves the DAY: night's income is buildings alone, so its 3:14 is
 // the same at every rate — the spread above is entirely how long the day takes to
 // reach the twist. Read as ±20s, and do not chase a few seconds by moving this.
 const INCOME_SCALE = 2.5;
@@ -1661,15 +1674,18 @@ const UPGRADES = [
   // is online night income runs away, and cost stops being a brake: multiplying all
   // three tail costs by FOUR bought fifteen extra seconds. Owned-count gates ride the
   // building cost curve instead, which compounding cannot outrun, so the final beats
-  // stay spread. Raised to 12 and 26 (from 5 and 14) because a Dream Within a Dream is
-  // cheaper relative to night's income than it was.
+  // stay spread. Raised to 28 and 58 (from 5 and 14) because the shallower 1.035 curve
+  // means a player who reaches the top tier keeps buying it: at 16 and 32 these two fired
+  // within nine seconds of Scent Trail, three reveals in one breath at the end of the
+  // night. At 28 and 58 the last three beats span 39s. This is the ONLY dial that moves
+  // them — see the note above on price having stopped working here.
   { key: "remsleep", name: "REM Sleep", icon: "👀",
-    cost: 15e6, unlock: { requires: "scenttrail", owned: [["nested", 12]] },
+    cost: 15e6, unlock: { requires: "scenttrail", owned: [["nested", 28]] },
     effect: { type: "trail", add: 30 } },
   // Hypnagogia is the threshold state between waking and sleep — the last rung, and
   // the one that should tip the word over into readable.
   { key: "hypnagogia", name: "Hypnagogia", icon: "🌙",
-    cost: 27e6, unlock: { requires: "remsleep", owned: [["nested", 26]] },
+    cost: 27e6, unlock: { requires: "remsleep", owned: [["nested", 58]] },
     effect: { type: "trail", add: 36 } },
 ];
 

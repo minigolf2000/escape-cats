@@ -11,24 +11,24 @@
   ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "has": [{ "type": "host", "value": "g00.mba" }],
-      "destination": "/goomba/$1"
+      "destination": "/goomba/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "has": [{ "type": "host", "value": "www.g00.mba" }],
-      "destination": "/goomba/$1"
+      "destination": "/goomba/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "has": [{ "type": "host", "value": "hexxygon.com" }],
-      "destination": "/hex/$1"
+      "destination": "/hex/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "has": [{ "type": "host", "value": "www.hexxygon.com" }],
-      "destination": "/hex/$1"
+      "destination": "/hex/:path*"
     }
   ]
 }

@@ -2137,10 +2137,7 @@ function baseCps() { return baseCpsWith(mods, game.owned); }
 // form: baseCps() is the live rate everywhere. Buildings run flat.
 function zoomBuff() { return performance.now() < game.zoomUntil ? mods.zoomMult : 1; }
 function clickGain() {
-  // DEV.teamMult is 1 outside ?debug — simulates the 4-player room this game
-  // actually ships for, since solo dev testing can't reproduce "four people
-  // tapping" any other way.
-  return clickBaseWith(mods, game.owned) * zoomBuff() * DEV.teamMult;
+  return clickBaseWith(mods, game.owned) * zoomBuff();
 }
 
 // ---------------------------------------------------------------------------
@@ -3958,6 +3955,20 @@ function loadWallScene() {
   rebuildWallCast();
 }
 
+// Where a crew's spread STARTS on its own tour. Without this every crew begins at
+// its tour's point 0, and two crews that are the same shape at the same size then
+// move as one animation played twice — MOON's two O's are exactly that: one closed
+// loop each, one mouse each, identical scale, so the pair circled in lockstep for
+// the whole night. The rotation is per crew, so the letters are drawn out of step
+// with each other while each letter's own mice stay evenly spread along it.
+//
+// Golden-ratio spacing rather than a seeded draw: consecutive crews land ~0.618 of
+// a lap apart, which is as far from agreeing as two offsets get, and the sequence
+// never revisits a value — so the scene has no accidental pairs anywhere in it, not
+// just in MOON. It also keeps position a pure function of (crew, index, time), with
+// nothing to save and nothing to re-roll.
+const crewPhase = idx => ((idx + 1) * 0.6180339887498949) % 1;
+
 // The cast is built in ARRIVAL ORDER and wallMiceCount() draws the first N, so the
 // order below IS the reveal: mouse k climbs onto the wall when lifetime total
 // crosses its rung. The full cast is WALL_CAP mice, not an arbitrary 90.
@@ -4034,15 +4045,21 @@ function rebuildWallCast() {
   // moving opposite ways. Confining the spacing to the outbound half spreads them
   // along the path instead. Closed tours map phase to position one-to-one and so
   // take the full span.
+  //
+  // Then the whole crew is ROTATED by crewPhase(idx), which is what stops identical
+  // glyphs moving as one. See the note on crewPhase.
   const byCrew = new Map();
   for (const m of wallCast) {
     if (!byCrew.has(m.crew)) byCrew.set(m.crew, []);
     byCrew.get(m.crew).push(m);
   }
-  for (const [idx, members] of byCrew)
+  for (const [idx, members] of byCrew) {
+    const closed = WALL_CREWS[idx].closed, span = closed ? 1 : 0.5;
+    const off = crewPhase(idx) * span;
     members.forEach((m, k) => {
-      m.phase = (WALL_CREWS[idx].closed ? 1 : 0.5) * k / members.length;
+      m.phase = (span * k / members.length + off) % span;
     });
+  }
 }
 
 // ping-pong along the crew's tour; noise is locked to 0 so no wander term.
@@ -4864,8 +4881,7 @@ let last = performance.now(), hudTick = 0, saveTick = 0;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
 
-  // income (DEV.speed is 1 outside ?debug — a pure pass-through)
-  const inc = baseCps() * dt * DEV.speed;
+  const inc = baseCps() * dt;
   if (inc > 0) { game.mice += inc; game.total += inc; }
 
   // buff pill countdown
@@ -4888,7 +4904,7 @@ function frame(now) {
   if (night) { if (goldActive) despawnGold(); }
   else {
     moveGold(dt);
-    if (!goldActive) { goldTimer -= dt * DEV.speed; if (goldTimer <= 0) spawnGold(); }
+    if (!goldActive) { goldTimer -= dt; if (goldTimer <= 0) spawnGold(); }
   }
 
   updateCat(now);
@@ -4910,13 +4926,25 @@ window.addEventListener("pagehide", save);
 
 // ---------------------------------------------------------------------------
 // DEV TOOLS — open the game with ?debug (or #debug) to get a floating panel:
-// time-scale (accelerates income + golden cadence, never click feel), grant
-// buttons (pay into mice AND total, like real earning), and state presets for
-// jumping around the pacing curve. Presets can go BACKWARD, which real play
+// grant buttons (pay into mice AND total, like real earning), a jump button per
+// STORY BEAT, and the content dump. Presets can go BACKWARD, which real play
 // never does — syncPhase() handles that for free by re-deriving the phase
 // rather than needing a hand-written inverse of the forward transition.
+//
+// It used to carry three more rows and they are gone on purpose, because the panel
+// is read by artists at least as often as by anyone tuning the economy:
+//
+//   speed ×1/×10/×50   a time-scale on income and the golden cadence. For getting
+//                      somewhere it only did what the grants and the jumps do, and
+//                      it lied about the thing an artist opens this panel for: every
+//                      animation on the wall is paced in real ms, so at ×50 the beats
+//                      still played at 1× while the game raced past them.
+//   team ×1/×4         multiplied every pet by 4 to fake a four-player room. A
+//                      balance question, and the jumps answer it better.
+//   sim idle/3/s/10/s  the pacing simulator's timeline, printed into the panel.
+//                      Still here, just from the console — see the note by the
+//                      Object.assign in initDev.
 // ---------------------------------------------------------------------------
-const DEV = { speed: 1, teamMult: 1 };
 // What share of a preset's LIFETIME earnings has gone on upgrades. Used to
 // decide which rows a save at that point in the run would already hold — see
 // devDerivedBought. 0.25 is a guess in the right shape: a real run spends most
@@ -4927,36 +4955,64 @@ const DEV_BOUGHT_SHARE = 0.25;
 // every retune (the ladder moved three times in a day), and the version that
 // listed none left every jump showing a shop full of 50-mice rows that a save at
 // that point would obviously have bought. Those are derived instead.
+//
+// ONE PRESET PER STORY BEAT, in the order the game tells them. They used to be
+// named for where they sat on the pacing curve (`early`, `midday`, `pre-night`),
+// which is the right index for tuning an economy and the wrong one for looking at
+// the game: the beats are what anyone opens this panel to see, and half of them
+// were unreachable without knowing which row to buy next.
+//
+// The rule that makes them useful: A BEAT THAT PLAYS IS PARKED ONE PURCHASE SHORT.
+// The three one-shot animations — the night cutscene, the Counting Mice ripple, the
+// shop closing — each fire exactly once per save and are minutes apart in real play,
+// so the preset hands you the state and the bank and leaves the row on the rail for
+// you to press. Beats that are a STATE rather than an event (the day, the opening
+// wall, the finished word) are the state itself.
+//
+// Each of those three lists every night row bought SO FAR, so they need editing when
+// the ladder does — there is no way around that while `requires` pins the order.
 const DEV_PRESETS = {
-  "fresh":    { total: 0, mice: 0, clicks: 0 },
-  "early":    { total: 600, mice: 350, clicks: 60,
-                owned: { shopper: 5, farm: 3 } },
+  // The opening: Hex awake in the sunburst, an empty shop, nothing earned.
+  "day":      { total: 0, mice: 0, clicks: 0 },
+  // Mid-day, the shop busy and the building tiers climbing — the day at full tilt.
   "midday":   { total: 30000, mice: 12000, clicks: 220,
                 owned: { shopper: 18, farm: 20 } },
-  // Bank has to clear Catnap's 1M, or the preset drops you at the twist without
-  // the means to press it — which is the one thing this preset exists to test.
-  "pre-night":{ total: 1500000, mice: 1200000, clicks: 1100,
+  // ONE PURCHASE FROM THE TWIST. A Lab is owned, so Catnap Hypnalysis is on the rail,
+  // and the bank clears its 1M — press it and the night cutscene plays: Hex yawns
+  // herself to sleep, the zzz hold, and the camera pulls back to the wall.
+  "catnap":   { total: 1500000, mice: 1200000, clicks: 1100,
                 owned: { shopper: 30, farm: 35, factory: 12, lab: 1 } },
-  "night":    { total: 450000, mice: 900000, clicks: 550, golden: 3,
-                owned: { shopper: 25, farm: 40, factory: 5, lab: 2 },
+  // THE WALL OPENS. Night lifetime is deliberately small — the ramp is still filling,
+  // so this is a dozen anonymous white specks drifting over an unlit scene, which is
+  // what the phase actually looks like for its first half minute. No day buildings:
+  // the flip wipes them (see nightReset), and a preset that kept them would be paying
+  // night income the real phase never has. The bank clears Lucid Dreaming I's 50k, so
+  // the next beat — the specks starting to leave trails — is one press away too.
+  "night":    { total: 30000, mice: 120000, clicks: 550, golden: 3,
+                owned: { portal: 10, spindle: 3 },
                 bought: ["catnap"] },
-  "legible":  { total: 3e6, mice: 6e6, clicks: 1000, golden: 6,
-                owned: { shopper: 25, farm: 40, factory: 5, lab: 2, portal: 12, timemachine: 4 },
-                bought: ["catnap", "countingmice", "deepsleep", "remsleep", "luciddreaming"] },
-  // ONE PURCHASE FROM THE END, for the shop's closing beat (runShopClose) — which is
-  // otherwise a 3-minute night away and fires exactly once per save. Holds every night
-  // row but the last, with the 58 Dream Within a Dream that gate it and the bank to
-  // press it. Buy Scent Trail and the shop shuts.
-  //
-  // The list has to be EVERY other night row, so it needs editing whenever the ladder
-  // does: `scenttrail` used to be here and is gone (its persist moved onto the last rung,
-  // key `hypnagogia`), and `paperlantern` has to be here or the preset sits two purchases
-  // from the end and the beat never fires from it.
-  "closing":  { total: 60e6, mice: 30e6, clicks: 1200, golden: 8,
-                owned: { shopper: 25, farm: 40, factory: 5, lab: 2,
-                         portal: 60, spindle: 40, delta: 30, nested: 58 },
-                bought: ["catnap", "paperlantern", "luciddreaming", "deepsleep",
-                         "countingmice", "lucky6", "remsleep"] },
+  // ONE PURCHASE FROM COUNTING MICE, the twist inside the twist. Both early Lucid
+  // Dreaming rungs are in, so the wall is a full 33 mice drawing at trail 64 — about
+  // half the coverage the word needs — and the bank clears 1.15M. Press it and the
+  // specks resolve into mice in a ripple outward from Hex, recolouring the whole
+  // drawing as they go.
+  "mice":     { total: 1.6e6, mice: 1.4e6, clicks: 900, golden: 5,
+                owned: { portal: 25, spindle: 12, delta: 4 },
+                bought: ["catnap", "paperlantern", "luciddreaming"] },
+  // ONE PURCHASE FROM THE END. Every night row but Scent Trail, with the 58 Dream
+  // Within a Dream its gate wants and the bank to press it. Buying it does both of
+  // the night's closing beats at once: the ink stops fading and the word becomes
+  // readable, and the rail empties and the shop shuts (runShopClose).
+  "finale":   { total: 60e6, mice: 30e6, clicks: 1200, golden: 8,
+                owned: { portal: 60, spindle: 40, delta: 30, nested: 58 },
+                bought: ["catnap", "paperlantern", "luciddreaming", "countingmice",
+                         "deepsleep", "lucky6", "remsleep"] },
+  // AFTER it: the finished night. The whole ladder bought, so the wall holds a
+  // readable TO THE MOON and the shop is closed for good.
+  "legible":  { total: 90e6, mice: 40e6, clicks: 1400, golden: 8,
+                owned: { portal: 60, spindle: 40, delta: 30, nested: 58 },
+                bought: ["catnap", "paperlantern", "luciddreaming", "countingmice",
+                         "deepsleep", "lucky6", "remsleep", "hypnagogia"] },
 };
 // Fill in the ordinary upgrades a save in this state would already hold: unlock
 // conditions met, and paid for out of a share of lifetime earnings. Story rows
@@ -5274,48 +5330,32 @@ function initDev() {
   bar.innerHTML =
     `<details id="devPanel" open><summary>🛠 debug</summary>
      <div class="r">tools <a href="reveal-lab.html" target="_blank" rel="noopener noreferrer">🌙 reveal lab</a></div>
-     <div class="r">speed <button data-sp="1" class="on">×1</button><button data-sp="10">×10</button><button data-sp="50">×50</button></div>
-     <div class="r">team <button data-team="1" class="on">×1</button><button data-team="4">×4</button></div>
      <div class="r">grant <button data-g="1e4">+10K</button><button data-g="1e6">+1M</button><button data-g="1e8">+100M</button></div>
      <div class="r">jump ${Object.keys(DEV_PRESETS).map(k => `<button data-p="${k}">${k}</button>`).join("")}</div>
-     <div class="r">sim <button data-sim="0">idle</button><button data-sim="3">solo 3/s</button><button data-sim="10">team 10/s</button></div>
      <details id="devList"><summary>buildings &amp; upgrades</summary><div id="devContent"></div></details>
      </details>`;
   document.body.appendChild(bar);
   const list = bar.querySelector("#devList"), content = bar.querySelector("#devContent");
-  // `toggle` fires as a queued task, so a sim click that opens the panel and
-  // then writes results would get clobbered by this handler. pendingPane lets
-  // the sim hand its HTML across that async gap; default stays the content dump.
-  let pendingPane = null;
   list.addEventListener("toggle", () => {
     bar.classList.toggle("wide", list.open);
-    if (!list.open) return;
-    content.innerHTML = pendingPane || devContentHTML();
-    pendingPane = null;
+    if (list.open) content.innerHTML = devContentHTML();
   });
   bar.addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    if (b.dataset.sp) {
-      DEV.speed = +b.dataset.sp;
-      bar.querySelectorAll("[data-sp]").forEach(x => x.classList.toggle("on", x === b));
-    } else if (b.dataset.team) {
-      // Simulates a 4-player room: every pet counts as 4 (see clickGain).
-      // Doesn't touch cps/buildings — this is purely "what does tapping feel
-      // like with a team behind it," not a balance change.
-      DEV.teamMult = +b.dataset.team;
-      bar.querySelectorAll("[data-team]").forEach(x => x.classList.toggle("on", x === b));
-    } else if (b.dataset.g) {
+    if (b.dataset.g) {
       const n = +b.dataset.g;
       game.mice += n; game.total += n; // grants earn, they don't counterfeit
       refreshHud(); refreshShop(); refreshUpgrades();
-    } else if (b.dataset.sim != null) {
-      pendingPane = simHTML(simulateRun({ pps: +b.dataset.sim }));
-      if (list.open) { content.innerHTML = pendingPane; pendingPane = null; }
-      else list.open = true;
     } else if (b.dataset.p) {
       devApply(b.dataset.p);
     }
   });
+  // THE PACING SIM IS STILL HERE, it just isn't a button any more: the panel is
+  // read by artists as often as by anyone tuning the economy, and a wall of
+  // timestamps is noise to that reader. From the console:
+  //     simHTML(simulateRun({ pps: 3 }))   // markup, as the panel used to render it
+  //     simulateRun({ pps: 3 }).events     // the timeline itself
+  Object.assign(window, { simulateRun, simHTML });
 
   // Tiered collapse, persisted: the outer panel (devPanel) and the data tables
   // (devList) each remember their open state across reloads, so a dev who keeps

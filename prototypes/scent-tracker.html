@@ -16,8 +16,11 @@
     -webkit-font-smoothing: antialiased;
   }
   /* Canvases are appended at runtime, so they land after the HUD in DOM order and would
-     paint over it. Explicit layers instead of relying on source order. */
-  canvas { position: fixed; inset: 0; touch-action: none; z-index: 0; }
+     paint over it — hence the explicit layer. Deliberately NOT stretched with inset/100%:
+     XR8 owns this canvas's dimensions (see fitCanvas), and CSS stretching a canvas whose
+     backing store is a different size is exactly how you get a smeared or letterboxed
+     camera feed. */
+  canvas { position: fixed; top: 0; left: 0; z-index: 0; touch-action: none; }
 
   /* ---- boot screen ---- */
   #boot { position: fixed; inset: 0; z-index: 20; overflow-y: auto; padding: max(26px, env(safe-area-inset-top)) 20px 40px;
@@ -29,8 +32,6 @@
   .tag { display: inline-block; margin-bottom: 14px; padding: 3px 10px; font-size: 11px;
          letter-spacing: 0.08em; text-transform: uppercase; color: var(--neon-2);
          border: 1px solid rgba(255,93,177,0.35); border-radius: 999px; background: rgba(255,93,177,0.06); }
-  h2 { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
-       margin: 24px 0 10px; font-weight: 600; }
   .card { display: block; width: 100%; text-align: left; padding: 15px 16px; margin-bottom: 10px;
           background: var(--panel); border: 1px solid var(--line); border-radius: 16px; color: inherit;
           font: inherit; cursor: pointer; }
@@ -38,17 +39,12 @@
   .card b { display: block; font-size: 16px; margin-bottom: 3px; }
   .card b .m { color: var(--neon); font-size: 11px; letter-spacing: 0.1em; margin-right: 7px; }
   .card span { color: var(--muted); font-size: 13px; line-height: 1.45; }
-  .pick { display: flex; gap: 8px; margin-bottom: 6px; }
-  .pick button { flex: 1; padding: 11px 8px; border-radius: 12px; font: inherit; font-size: 13px; font-weight: 600;
-                 background: var(--panel); border: 1px solid var(--line); color: var(--muted); cursor: pointer; }
-  .pick button.on { color: #08120f; background: var(--neon); border-color: var(--neon); }
-  .pick button:disabled { opacity: 0.35; cursor: default; }
   #diag { margin-top: 16px; padding: 13px 15px; border-radius: 14px; font-size: 13px; line-height: 1.5;
           border: 1px solid var(--line); background: rgba(255,255,255,0.02); color: var(--muted); }
   #diag.bad { border-color: rgba(255,93,177,0.4); color: #ffc9e5; background: rgba(255,93,177,0.07); }
   #diag code { color: var(--neon); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 
-  /* ---- in-session HUD (also the WebXR dom-overlay root) ---- */
+  /* ---- in-session HUD ---- */
   #hud { position: fixed; inset: 0; z-index: 10; display: none; flex-direction: column; justify-content: space-between;
          padding: max(14px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
          pointer-events: none; }
@@ -82,17 +78,10 @@
     <p class="sub">
       The phone is a lens: a trail of glowing motes lies on your floor and drifts toward
       somewhere hidden. Follow it.<br><br>
+      Runs on 8th Wall's own SLAM, so iPhone and Android both work.
       Spec and rationale in <b>scent-tracker-design.md</b>.
     </p>
 
-    <h2>Tracker</h2>
-    <div class="pick">
-      <button id="be-8w">8th Wall<br><small>iOS + Android</small></button>
-      <button id="be-xr">WebXR<br><small>Android only</small></button>
-    </div>
-    <p class="sub" id="be-note" style="font-size:12.5px;margin:8px 0 0"></p>
-
-    <h2>Mode</h2>
     <button class="card" id="go-rig">
       <b><span class="m">M0</span>Drift rig</b>
       <span>Run this first. Drop an anchor on a piece of tape, walk your route, come back
@@ -131,12 +120,13 @@
   </div>
 </div>
 
-<!-- 8th Wall's engine binary. Free, no key, no login since the Feb 2026 open-sourcing.
-     Loaded eagerly because XR8 fires `xrloaded` once and we need to catch it. For a real
-     deploy, VENDOR THIS FILE into the repo rather than hot-linking a CDN — see the notes
-     in scent-tracker-design.md on third-party runtime risk. -->
+<!-- 8th Wall's engine binary (SLAM + image targets) and its helper library. Free, no key,
+     no login since the Feb 2026 open-sourcing. For a real deploy, VENDOR BOTH FILES into
+     the repo rather than hot-linking a CDN — see the notes in scent-tracker-design.md. -->
 <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js"
         async crossorigin="anonymous" data-preload-chunks="slam"></script>
+<script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js"
+        async crossorigin="anonymous"></script>
 
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js" } }
@@ -146,7 +136,7 @@ import * as THREE from 'three';
 
 // XR8.Threejs.pipelineModule() resolves three.js off the GLOBAL rather than through
 // imports, and throws "window.THREE does not exist" otherwise. We load three as an ES
-// module, so publish it by hand. Must happen before the pipeline module is constructed.
+// module, so publish it by hand, before the pipeline module is constructed.
 window.THREE = THREE;
 
 // ---------- Scent Tracker — hold the phone up, a trail of motes lies on the floor and
@@ -156,11 +146,11 @@ window.THREE = THREE;
 //   M0 "rig"   — a measuring instrument, not a game. Quantifies tracking drift in a room.
 //   M1 "trail" — walk-to-author a route, then follow it.
 //
-// TWO TRACKERS behind one seam (see BACKENDS below):
-//   webxr    — Chrome/Android only, ARCore underneath. Best tracking, no image targets
-//              (WebXR's image tracking module never shipped).
-//   eightwall— 8th Wall's own SLAM in WebAssembly. Works in iOS Safari, which is the
-//              whole point, and ships image targets.
+// TRACKER: 8th Wall only. A WebXR/ARCore backend lived here and measurably tracked better,
+// but WebXR does not exist on iOS and 75% of the players are on iPhones, so it was cut
+// rather than maintained for a quarter of the room. Everything below is engine-agnostic
+// apart from the `tracker` object; git history has the WebXR implementation if the split
+// ever changes.
 //
 // The design doc argues the trail's job is to hide tracking error rather than fight it.
 // Three choices do that work, and they're the ones not to "clean up":
@@ -169,12 +159,10 @@ window.THREE = THREE;
 //     never on screen to be noticed
 //   · on tracking loss we stop drawing and say so, in character.
 //
-// IMAGE TARGETS AND "PERSISTENCE": a route is stored in TARGET SPACE when a target has
-// been seen — i.e. as offsets from the marker, not from wherever the session happened to
-// start. That one change is what makes the route (a) survive reload, (b) mean the same
-// thing on a second phone, and (c) snap back into place when the marker is re-sighted.
-// The storage itself is a JSON array in localStorage; it is the coordinate frame that is
-// load-bearing, not the database.
+// IMAGE TARGETS AND "PERSISTENCE": a route is stored in TARGET SPACE once a target has
+// been seen — offsets from the marker, not from wherever the session happened to start.
+// That change of frame is what makes a route survive reload, mean the same thing on a
+// second phone, and snap back when the marker is re-sighted. localStorage is incidental.
 
 // ---------- tunables (all of them, in one place) ----------
 const CFG = {
@@ -186,7 +174,7 @@ const CFG = {
                                               // trail reads as lying ON it rather than hovering
              sway: 0.05, swayRate: 0.8,
              size: 30 },                      // px at 1m
-  route:   { spacing: 0.15 },                 // resample step
+  route:   { spacing: 0.15 },
   goal:    { radius: 0.75, feelRange: 4.0 },  // "a place, not a point"
   rig:     { poleHeight: 0.6 },
   target:  { reanchorMin: 0.02 },             // only report a correction above 2cm
@@ -202,36 +190,27 @@ const IMAGE_TARGETS = [
 
 const store = {
   key: (t) => `scent-tracker/route/${t || 'session'}`,
-  save(targetName, pts) {
-    try { localStorage.setItem(this.key(targetName), JSON.stringify(pts.map(p => [p.x, p.y, p.z]))); } catch {}
-  },
-  load(targetName) {
+  save(n, pts) { try { localStorage.setItem(this.key(n), JSON.stringify(pts.map(p => [p.x, p.y, p.z]))); } catch {} },
+  load(n) {
     try {
-      const raw = localStorage.getItem(this.key(targetName));
-      return raw ? JSON.parse(raw).map(a => new THREE.Vector3(a[0], a[1], a[2])) : null;
+      const r = localStorage.getItem(this.key(n));
+      return r ? JSON.parse(r).map(a => new THREE.Vector3(a[0], a[1], a[2])) : null;
     } catch { return null; }
   },
-  clear(targetName) { try { localStorage.removeItem(this.key(targetName)); } catch {} },
 };
 
 // ---------- shared three.js scaffolding ----------
 let renderer, scene, camera, reticle, clock;
-let mode = null;                 // 'rig' | 'trail' | 'preview'
-let backend = null;              // the active entry from BACKENDS
-let floorY = 0;
+let mode = null, floorY = 0;
+let label = '8th Wall';
 
 const el = (id) => document.getElementById(id);
 const hud = el('hud'), statusEl = el('status'), pillEl = el('pill');
 const B = [el('b1'), el('b2'), el('b3'), el('b4')];
 
-// Per-frame world state the backends fill in and the modes read. One shape, two trackers.
 const world = {
-  t: 0, dt: 0,
-  camPos: new THREE.Vector3(),
-  tracked: false,
-  floorHit: null,        // THREE.Vector3 | null — floor point under the crosshair
-  sawOnlyWalls: false,
-  target: null,          // { name, matrix: Matrix4, visible: bool, seenAt: number }
+  t: 0, dt: 0, camPos: new THREE.Vector3(), tracked: false,
+  floorHit: null, sawOnlyWalls: false, target: null, rawHits: undefined, hitKinds: null,
 };
 
 function makeReticle() {
@@ -291,7 +270,6 @@ class Trail {
     this.heat = 0; this.fade = 0; this.fadeTarget = 1;
   }
 
-  // route.js — resample the tapped crumbs into an evenly-spaced Catmull-Rom path
   build(crumbs) {
     this.dispose();
     if (crumbs.length < 2) return false;
@@ -357,14 +335,12 @@ class Trail {
     return { s: best * this.spacing, dist: Math.sqrt(bestD) };
   }
 
-  // The reveal window. Everything outside [-behind, +ahead] is invisible, which is what
-  // makes accumulated drift unobservable: you can't compare what you can't see.
+  // The reveal window: you cannot see drift in a path that is never drawn.
   static window(rel) {
     const { behind, ahead } = CFG.reveal;
     if (rel < -behind || rel > ahead) return 0;
-    const inF  = THREE.MathUtils.smoothstep(rel, -behind, -behind * 0.45);
-    const outF = 1 - THREE.MathUtils.smoothstep(rel, ahead * 0.5, ahead);
-    return inF * outF;
+    return THREE.MathUtils.smoothstep(rel, -behind, -behind * 0.45)
+         * (1 - THREE.MathUtils.smoothstep(rel, ahead * 0.5, ahead));
   }
 
   update(t, dt, playerPos, heat) {
@@ -375,20 +351,17 @@ class Trail {
 
     const boost = 1 + 0.9 * this.heat;
     const { s: sPlayer } = this.nearestS(playerPos);
-    const pos = this.obj.geometry.attributes.position;
-    const alp = this.obj.geometry.attributes.aAlpha;
+    const pos = this.obj.geometry.attributes.position, alp = this.obj.geometry.attributes.aAlpha;
     const arr = pos.array, aArr = alp.array;
 
     for (let i = 0; i < this.motes.length; i++) {
       const m = this.motes[i];
       const w = Trail.window(m.s - sPlayer);
       if (w <= 0.001 || this.fade <= 0.001) { aArr[i] = 0; continue; }
-
       const cyc = (t * CFG.trail.riseRate + m.seed) % 1;
       const seg = this.at(m.s);
       const sway = Math.sin(t * CFG.trail.swayRate + m.seed * 6.283) * CFG.trail.sway;
-      const off = m.lat + sway;
-      const k = i * 3;
+      const off = m.lat + sway, k = i * 3;
       arr[k]     = seg.p.x + (seg.q.x - seg.p.x) * seg.t + seg.perp.x * off;
       arr[k + 1] = seg.p.y + (seg.q.y - seg.p.y) * seg.t + cyc * m.rise;
       arr[k + 2] = seg.p.z + (seg.q.z - seg.p.z) * seg.t + seg.perp.z * off;
@@ -408,30 +381,23 @@ class Trail {
 }
 
 // ======================================================================================
-// BACKENDS — the only code that knows which tracker is running.
-//
-// Contract:
-//   available()        -> Promise<bool>
-//   start(mode)        -> Promise<void>   creates renderer/scene/camera, starts the loop,
-//                                         and calls tick() each frame with `world` filled
-//   stop()             -> void
-//   hasImageTargets    -> bool
+// TRACKER — the only code that knows about XR8.
 // ======================================================================================
 
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const _q = new THREE.Quaternion(), _n = new THREE.Vector3();
 
-// Tried in order until one returns hits. Surfaces first (they carry a normal, so the
-// wall filter can work), then feature points, then whatever the default is.
+// Tried in order until one returns hits. Surfaces first (they carry a normal, so the wall
+// filter can work), then feature points, then whatever the default is.
 const HIT_VARIANTS = [
   ['DETECTED_SURFACE', 'ESTIMATED_SURFACE'],
   ['DETECTED_SURFACE', 'ESTIMATED_SURFACE', 'FEATURE_POINT'],
   null,
 ];
 
-// Shared floor filter. Both trackers hit vertical surfaces too, and indoors the nearest
-// hit is very often a WALL — that puts crumbs at chest height and ramps the trail into
-// the plaster. Take the first hit whose surface normal is within ~32° of up.
+// The tracker hits vertical surfaces too, and indoors the nearest hit is very often a
+// WALL — that puts crumbs at chest height and ramps the trail into the plaster. Take the
+// first hit whose surface normal is within ~32° of up.
 function pickFloorHit(hits) {
   for (const h of hits) {
     if (!h) continue;
@@ -447,205 +413,154 @@ function pickFloorHit(hits) {
   return null;
 }
 
-const BACKENDS = {
-  // ---------------------------------------------------------------- WebXR (Android only)
-  webxr: {
-    label: 'WebXR', hasImageTargets: false,
-    session: null, hitTestSource: null, refSpace: null, lostSince: 0,
+// A canvas whose backing store does not match its CSS box renders the camera feed into a
+// corner of the screen — which is exactly what happened before XRExtras was wired in.
+// FullWindowCanvas is 8th Wall's own fix; this is the fallback for when xrextras fails to
+// load, so the page degrades to "correct but unmanaged" rather than "broken".
+function fitCanvas(canvas) {
+  const dpr = Math.min(devicePixelRatio, 2);
+  canvas.style.width = innerWidth + 'px';
+  canvas.style.height = innerHeight + 'px';
+  canvas.width = Math.round(innerWidth * dpr);
+  canvas.height = Math.round(innerHeight * dpr);
+}
 
-    async available() {
-      if (!navigator.xr) return false;
-      try { return await navigator.xr.isSessionSupported('immersive-ar'); } catch { return false; }
-    },
+const tracker = {
+  canvas: null, status: null, running: false,
 
-    async start() {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-      renderer.setSize(innerWidth, innerHeight);
-      renderer.xr.enabled = true;
-      renderer.xr.setReferenceSpaceType('local-floor');
-      document.body.appendChild(renderer.domElement);
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.01, 40);
-      commonScene();
+  async available() { return !!(await xr8Ready()); },
 
-      const session = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['local-floor', 'hit-test'],
-        optionalFeatures: ['dom-overlay'],
-        domOverlay: { root: hud },
-      });
-      this.session = session;
-      await renderer.xr.setSession(session);
+  async start() {
+    const XR8 = await xr8Ready();
+    if (!XR8) throw new Error('XR8 failed to load — check the CDN is reachable');
+    const XRExtras = window.XRExtras;
 
-      const viewerSpace = await session.requestReferenceSpace('viewer');
-      try {
-        this.hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-      } catch (err) {
-        setStatus(`Hit-test unavailable: <code>${err?.message || err}</code>`, '');
-      }
-      session.addEventListener('end', () => onSessionEnded());
-      session.addEventListener('select', primaryAction);
-      renderer.setAnimationLoop((ms, frame) => this.frame(ms, frame));
-    },
+    const canvas = document.createElement('canvas');
+    this.canvas = canvas;
+    fitCanvas(canvas);
+    document.body.appendChild(canvas);
 
-    frame(ms, xrFrame) {
-      if (!xrFrame) return;
-      world.t = ms / 1000;
-      world.dt = Math.min(0.05, clock.getDelta());
-      this.refSpace = renderer.xr.getReferenceSpace();
-      const pose = xrFrame.getViewerPose(this.refSpace);
+    // Absolute scale so one unit is one metre — every number the drift rig prints depends
+    // on it.
+    XR8.XrController.configure({
+      scale: 'absolute',
+      disableWorldTracking: false,
+      ...(IMAGE_TARGETS.length ? { imageTargetData: await loadTargetData() } : {}),
+    });
 
-      // A null viewer pose means the runtime has lost the world. Hold the fade a beat
-      // after recovery so a 100ms blip doesn't strobe the trail.
-      const t = world.t;
-      if (!pose) this.lostSince = this.lostSince || t;
-      else if (this.lostSince && t - this.lostSince > 0.3) this.lostSince = 0;
-      world.tracked = !!pose && !this.lostSince;
-
-      world.floorHit = null;
-      world.sawOnlyWalls = false;
-      if (pose) {
-        const p = pose.transform.position;
-        world.camPos.set(p.x, p.y, p.z);
-        if (this.hitTestSource && world.tracked) {
-          const raw = xrFrame.getHitTestResults(this.hitTestSource);
-          const hits = raw.map(h => {
-            const hp = h.getPose(this.refSpace);
-            return hp ? { pos: hp.transform.position, rot: hp.transform.orientation } : null;
-          });
-          world.floorHit = pickFloorHit(hits);
-          world.sawOnlyWalls = !world.floorHit && raw.length > 0;
+    const self = this;
+    const modules = [
+      XR8.GlTextureRenderer.pipelineModule(),   // draws the camera feed
+      XR8.Threejs.pipelineModule(),             // creates scene/camera/renderer
+      XR8.XrController.pipelineModule(),        // SLAM
+    ];
+    if (XRExtras) {
+      // FullWindowCanvas is the one that actually matters — it keeps the canvas, the GL
+      // viewport and the three.js renderer agreeing about the window size, through
+      // rotations and browser-chrome changes.
+      if (XRExtras.FullWindowCanvas) modules.push(XRExtras.FullWindowCanvas.pipelineModule());
+      if (XRExtras.Loading) modules.push(XRExtras.Loading.pipelineModule());
+      if (XRExtras.RuntimeError) modules.push(XRExtras.RuntimeError.pipelineModule());
+    }
+    modules.push({
+      name: 'scent-tracker',
+      onStart() {
+        const three = XR8.Threejs.xrScene();
+        scene = three.scene; camera = three.camera; renderer = three.renderer;
+        commonScene();
+        self.running = true;
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); primaryAction(); }, { passive: false });
+        if (!XRExtras?.FullWindowCanvas) {
+          addEventListener('resize', () => { fitCanvas(canvas); renderer.setSize(innerWidth, innerHeight); });
         }
-      }
-      tick();
-      renderer.render(scene, camera);
-    },
+      },
+      onUpdate() { self.frame(); },
+      listeners: [
+        { event: 'reality.imagefound',    process: (e) => self.onTarget(e.detail, true) },
+        { event: 'reality.imageupdated',  process: (e) => self.onTarget(e.detail, true) },
+        { event: 'reality.imagelost',     process: (e) => self.onTarget(e.detail, false) },
+        { event: 'reality.trackingstatus', process: (e) => { self.status = e.detail?.status; } },
+      ],
+    });
 
-    stop() { try { this.session?.end(); } catch {} },
+    XR8.addCameraPipelineModules(modules);
+    XR8.run({ canvas });
   },
 
-  // ------------------------------------------------------- 8th Wall (iOS + Android)
-  // XR8 owns the camera feed, the render loop and the three.js scene, so this backend
-  // hands control over rather than driving. Everything above the seam is unchanged.
-  eightwall: {
-    label: '8th Wall', hasImageTargets: true, running: false,
-
-    async available() { return !!(await xr8Ready()); },
-
-    async start() {
-      const XR8 = await xr8Ready();
-      if (!XR8) throw new Error('XR8 failed to load (CDN blocked?)');
-
-      const canvas = document.createElement('canvas');
-      document.body.appendChild(canvas);
-
-      // Absolute scale so one unit is one metre, matching WebXR's local-floor and every
-      // measurement the drift rig prints.
-      XR8.XrController.configure({
-        scale: 'absolute',
-        disableWorldTracking: false,
-        ...(IMAGE_TARGETS.length ? { imageTargetData: await loadTargetData() } : {}),
-      });
-
-      const self = this;
-      XR8.addCameraPipelineModules([
-        XR8.GlTextureRenderer.pipelineModule(),   // draws the camera feed
-        XR8.Threejs.pipelineModule(),             // creates scene/camera/renderer
-        XR8.XrController.pipelineModule(),        // SLAM
-        {
-          name: 'scent-tracker',
-          onStart() {
-            const three = XR8.Threejs.xrScene();
-            scene = three.scene; camera = three.camera; renderer = three.renderer;
-            commonScene();
-            self.running = true;
-            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); primaryAction(); }, { passive: false });
-          },
-          onUpdate() { self.frame(); },
-          listeners: [
-            { event: 'reality.imagefound',   process: (e) => self.onTarget(e.detail, true) },
-            { event: 'reality.imageupdated', process: (e) => self.onTarget(e.detail, true) },
-            { event: 'reality.imagelost',    process: (e) => self.onTarget(e.detail, false) },
-            { event: 'reality.trackingstatus', process: (e) => { self.status = e.detail?.status; } },
-          ],
-        },
-      ]);
-      XR8.run({ canvas });
-    },
-
-    // An image target sighting is an absolute position fix. Re-seeing one wipes whatever
-    // drift has accumulated since the last sighting — that jump is the whole demo, so we
-    // measure it and report it rather than hiding it.
-    onTarget(detail, visible) {
-      if (!detail?.name) return;
-      const m = new THREE.Matrix4();
-      if (visible) {
-        m.compose(
-          new THREE.Vector3(detail.position.x, detail.position.y, detail.position.z),
-          new THREE.Quaternion(detail.rotation.x, detail.rotation.y, detail.rotation.z, detail.rotation.w),
-          new THREE.Vector3(1, 1, 1)
-        );
+  // An image target sighting is an absolute position fix. Re-seeing one wipes whatever
+  // drift has accumulated since the last sighting — that jump is the whole demo, so we
+  // measure it and report it rather than hiding it.
+  onTarget(detail, visible) {
+    if (!detail?.name) return;
+    const m = new THREE.Matrix4();
+    if (visible) {
+      m.compose(
+        new THREE.Vector3(detail.position.x, detail.position.y, detail.position.z),
+        new THREE.Quaternion(detail.rotation.x, detail.rotation.y, detail.rotation.z, detail.rotation.w),
+        new THREE.Vector3(1, 1, 1)
+      );
+    }
+    const prev = world.target;
+    if (visible && prev && prev.name === detail.name) {
+      const a = new THREE.Vector3().setFromMatrixPosition(prev.matrix);
+      const b = new THREE.Vector3().setFromMatrixPosition(m);
+      const slip = a.distanceTo(b);
+      if (slip > CFG.target.reanchorMin) {
+        flash(`re-anchored on “${detail.name}” — corrected ${(slip * 100).toFixed(0)}cm`, true);
       }
-      const prev = world.target;
-      if (visible && prev && prev.name === detail.name) {
-        const a = new THREE.Vector3().setFromMatrixPosition(prev.matrix);
-        const b = new THREE.Vector3().setFromMatrixPosition(m);
-        const slip = a.distanceTo(b);
-        if (slip > CFG.target.reanchorMin) {
-          flash(`re-anchored on “${detail.name}” — corrected ${(slip * 100).toFixed(0)}cm`, true);
-        }
-      } else if (visible && !prev) {
-        flash(`anchored to “${detail.name}”`, true);
-      }
-      world.target = visible
-        ? { name: detail.name, matrix: m, visible: true, seenAt: world.t }
-        : (prev ? { ...prev, visible: false } : null);
-      if (visible) trailGame.onTargetSeen();
-    },
-
-    frame() {
-      const XR8 = window.XR8;
-      world.t = performance.now() / 1000;
-      world.dt = Math.min(0.05, clock.getDelta());
-      camera.getWorldPosition(world.camPos);
-      world.tracked = this.status !== 'LIMITED' && this.status !== 'NOT_AVAILABLE';
-
-      world.floorHit = null;
-      world.sawOnlyWalls = false;
-      if (world.tracked) {
-        // Screen centre, normalised. The accepted type strings vary between engine
-        // versions, so try the variants in descending order of quality and remember which
-        // one this build actually honours. `hitKinds` is surfaced in the rig readout so a
-        // wrong guess here shows up as a number rather than a mystery.
-        let raw = [];
-        for (const kinds of HIT_VARIANTS) {
-          try {
-            raw = (kinds ? XR8.XrController.hitTest(0.5, 0.5, kinds) : XR8.XrController.hitTest(0.5, 0.5)) || [];
-          } catch { continue; }
-          if (raw.length) { this.hitKinds = kinds ? kinds.join('+') : 'default'; break; }
-        }
-        this.rawHits = raw.length;
-        const hits = raw.map(h => ({ pos: h.position, rot: h.rotation }));
-        world.floorHit = pickFloorHit(hits);
-        world.sawOnlyWalls = !world.floorHit && raw.length > 0;
-      }
-      tick();
-      // XR8.Threejs renders for us — no renderer.render() here.
-    },
-
-    stop() { try { window.XR8?.stop?.(); } catch {} this.running = false; },
+    } else if (visible && !prev) {
+      flash(`anchored to “${detail.name}”`, true);
+    }
+    world.target = visible
+      ? { name: detail.name, matrix: m, visible: true, seenAt: world.t }
+      : (prev ? { ...prev, visible: false } : null);
+    if (visible) trailGame.onTargetSeen();
   },
+
+  frame() {
+    const XR8 = window.XR8;
+    world.t = performance.now() / 1000;
+    world.dt = Math.min(0.05, clock.getDelta());
+    camera.getWorldPosition(world.camPos);
+    world.tracked = this.status !== 'LIMITED' && this.status !== 'NOT_AVAILABLE';
+
+    world.floorHit = null;
+    world.sawOnlyWalls = false;
+    if (world.tracked) {
+      // Screen centre, normalised. The accepted type strings vary between engine
+      // versions, so try the variants and keep whichever this build honours. The raw
+      // count is surfaced in the readout so a bad guess reads as a number rather than a
+      // reticle that never appears.
+      let raw = [];
+      for (const kinds of HIT_VARIANTS) {
+        try {
+          raw = (kinds ? XR8.XrController.hitTest(0.5, 0.5, kinds) : XR8.XrController.hitTest(0.5, 0.5)) || [];
+        } catch { continue; }
+        if (raw.length) { world.hitKinds = kinds ? kinds.join('+') : 'default'; break; }
+      }
+      world.rawHits = raw.length;
+      const hits = raw.map(h => ({ pos: h.position, rot: h.rotation }));
+      world.floorHit = pickFloorHit(hits);
+      world.sawOnlyWalls = !world.floorHit && raw.length > 0;
+    }
+    tick();
+    // XR8.Threejs renders for us — no renderer.render() here.
+  },
+
+  stop() { try { window.XR8?.stop?.(); } catch {} this.running = false; },
 };
 
-function xr8Ready() {
+function scriptReady(globalName, eventName) {
   return new Promise((resolve) => {
-    if (window.XR8) return resolve(window.XR8);
+    if (window[globalName]) return resolve(window[globalName]);
     let done = false;
-    const ok = () => { if (!done) { done = true; resolve(window.XR8 || null); } };
-    window.addEventListener('xrloaded', ok, { once: true });
-    setTimeout(ok, 6000);   // CDN blocked or offline
+    const ok = () => { if (!done) { done = true; resolve(window[globalName] || null); } };
+    if (eventName) window.addEventListener(eventName, ok, { once: true });
+    const poll = setInterval(() => { if (window[globalName]) { clearInterval(poll); ok(); } }, 120);
+    setTimeout(() => { clearInterval(poll); ok(); }, 8000);
   });
 }
+const xr8Ready = () => scriptReady('XR8', 'xrloaded');
 
 async function loadTargetData() {
   const out = [];
@@ -677,8 +592,8 @@ const rig = {
     floorY = this.anchor.y;
     this.walked = 0; this.lastCam = null;
 
-    // Deliberately tall and thin: you need to see it from the far side of the flat,
-    // and a pole makes lateral slide obvious in a way a floor decal doesn't.
+    // Tall and thin on purpose: a pole makes lateral slide obvious from across the room
+    // in a way a floor decal never does.
     const g = new THREE.Group();
     const pole = new THREE.Mesh(
       new THREE.CylinderGeometry(0.008, 0.008, CFG.rig.poleHeight, 8),
@@ -711,10 +626,7 @@ const rig = {
     buzz([15, 45, 15]);
   },
 
-  reset() {
-    this.clearMarker();
-    this.anchor = null; this.trials = []; this.walked = 0; this.lastCam = null;
-  },
+  reset() { this.clearMarker(); this.anchor = null; this.trials = []; this.walked = 0; this.lastCam = null; },
 
   clearMarker() {
     if (!this.marker) return;
@@ -738,9 +650,7 @@ const rig = {
       : 'Now walk your real route — hold the phone <b>badly</b>: lower it, pocket it, walk fast.<br>' +
         'Come back, aim at <span class="hi">the same tape</span>, and hit Measure.';
 
-    let out = `${backend.label}`;
-    if (backend.rawHits !== undefined) out += ` · hits ${backend.rawHits} (${backend.hitKinds || 'none'})`;
-    out += '\n';
+    let out = `${label} · hits ${world.rawHits ?? '—'} (${world.hitKinds || 'none'})\n`;
     if (this.anchor) out += `walked ${this.walked.toFixed(1)} m\n`;
     if (this.trials.length) {
       const hs = this.trials.map(t => t.h).sort((a, b) => a - b);
@@ -762,16 +672,11 @@ const rig = {
 const trailGame = {
   crumbs: [],            // world space, the live truth
   crumbsTarget: null,    // target space, once a target has been seen — the portable form
-  boundTo: null,         // name of the target the route is expressed against
+  boundTo: null,
   dots: null, phase: 'author', trail: new Trail(),
   goal: null, goalRing: null, found: false, foundAt: 0, buzzAt: 0,
 
-  enter() {
-    this.reset();
-    // A previously saved route only means anything once its target is in view, so we load
-    // it lazily in onTargetSeen() rather than here.
-    this.paintButtons();
-  },
+  enter() { this.reset(); this.paintButtons(); },
 
   paintButtons() {
     if (this.phase === 'author') {
@@ -802,8 +707,8 @@ const trailGame = {
 
   undo() { if (this.phase === 'author') { this.crumbs.pop(); this.rebind(); this.redraw(); } },
 
-  // Re-express the route in target space and persist it. THIS is the step that makes a
-  // route portable — the storage is incidental, the change of frame is the point.
+  // Re-express the route in TARGET SPACE. This change of frame is what makes a route
+  // portable across reloads and phones; the storage is incidental.
   rebind() {
     const tg = world.target;
     if (!tg) return;
@@ -814,7 +719,7 @@ const trailGame = {
   },
 
   // Target re-sighted: rebuild world positions from target space. If the tracker had
-  // drifted, the trail visibly snaps back — which is exactly the thing worth feeling.
+  // drifted, the trail visibly snaps back — which is the thing worth feeling.
   onTargetSeen() {
     const tg = world.target;
     if (!tg) return;
@@ -828,15 +733,16 @@ const trailGame = {
     }
     if (this.boundTo !== tg.name) return;
     this.crumbs = this.crumbsTarget.map(c => c.clone().applyMatrix4(tg.matrix));
-    if (this.phase === 'play') { this.trail.build(this.crumbs); this.goal = this.crumbs[this.crumbs.length - 1].clone(); this.makeGoalRing(); }
-    else this.redraw();
+    if (this.phase === 'play') {
+      this.trail.build(this.crumbs);
+      this.goal = this.crumbs[this.crumbs.length - 1].clone();
+      this.makeGoalRing();
+    } else this.redraw();
   },
 
   play() {
     if (this.crumbs.length < 2 || !this.trail.build(this.crumbs)) return;
-    this.phase = 'play';
-    this.found = false;
-    this.trail.fadeTarget = 1;
+    this.phase = 'play'; this.found = false; this.trail.fadeTarget = 1;
     this.goal = this.crumbs[this.crumbs.length - 1].clone();
     this.showDots(false);
     this.makeGoalRing();
@@ -845,10 +751,7 @@ const trailGame = {
 
   edit() {
     this.phase = 'author';
-    this.trail.dispose();
-    this.clearGoalRing();
-    this.showDots(true);
-    this.paintButtons();
+    this.trail.dispose(); this.clearGoalRing(); this.showDots(true); this.paintButtons();
   },
 
   reset() {
@@ -912,12 +815,10 @@ const trailGame = {
       B[1].disabled = !this.crumbs.length;
       B[2].disabled = this.crumbs.length < 2;
       const n = this.crumbs.length;
-      let out = `${backend.label} · ${n} crumb${n === 1 ? '' : 's'}`;
-      if (backend.hasImageTargets) {
-        out += world.target
-          ? `\nbound to “${world.target.name}”${world.target.visible ? ' (in view)' : ' (out of view)'}`
-          : `\nno image target seen yet — route is session-local`;
-      }
+      let out = `${label} · ${n} crumb${n === 1 ? '' : 's'} · hits ${world.rawHits ?? '—'}`;
+      out += world.target
+        ? `\nbound to “${world.target.name}”${world.target.visible ? ' (in view)' : ' (out of view)'}`
+        : `\nno image target seen yet — route is session-local`;
       setStatus(
         n === 0 ? 'Walk to where the trail should <b>start</b>.<br>Aim at the floor and tap <span class="hi">Drop</span>.'
                 : 'Keep walking and dropping crumbs.<br>The <span class="hi">last one</span> is the hidden place.',
@@ -949,7 +850,7 @@ const trailGame = {
 
     if (this.found) { setStatus('<b>Found it.</b> 🐾<br>The scent ends here.', ''); return; }
     const words = heat > 0.75 ? 'overpowering' : heat > 0.45 ? 'strong' : heat > 0.15 ? 'noticeable' : 'faint';
-    setStatus('Follow the motes.', `${backend.label}\nscent: ${words}`);
+    setStatus('Follow the motes.', `${label}\nscent: ${words}`);
   },
 };
 
@@ -987,13 +888,12 @@ const preview = {
     camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.01, 40);
     commonScene();
 
-    backend = { label: 'preview', hasImageTargets: false };
+    label = 'preview';
     mode = 'preview';
     floorY = 0;
     el('boot').style.display = 'none';
     hud.classList.add('on');
 
-    // A demo S-curve, roughly apartment-scale.
     const crumbs = [];
     for (let i = 0; i <= 7; i++) {
       const u = i / 7;
@@ -1003,9 +903,8 @@ const preview = {
     trailGame.play();
 
     // A visible floor on purpose: the point of the preview is judging whether the motes
-    // read as lying ON the floor, and you can't judge that against a black void.
-    // Not a GridHelper — its 1px hairlines antialias away to nothing at the grazing angle
-    // you actually view a floor from. A mipmapped + anisotropic texture survives it.
+    // read as lying ON the floor. Not a GridHelper — its 1px hairlines antialias away to
+    // nothing at the grazing angle you actually view a floor from.
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(40, 40).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ map: gridTexture() })
@@ -1032,7 +931,7 @@ const preview = {
   },
 };
 
-// ---------- per-frame glue, shared by both backends ----------
+// ---------- per-frame glue ----------
 const LOST_MSG = 'the scent is faint — look around slowly';
 let flashUntil = 0;
 
@@ -1057,7 +956,6 @@ function show(text, good) {
   pillEl.classList.toggle('good', !!good);
   pillEl.classList.add('on');
 }
-
 function flash(text, good) { show(text, good); flashUntil = world.t + 2.5; buzz([12, 40, 12]); }
 
 function primaryAction() {
@@ -1084,30 +982,23 @@ function setButtons(defs) {
 
 function buzz(pattern) { try { navigator.vibrate?.(pattern); } catch {} }
 
-// Taps on the overlay must not also fire an XR `select` — otherwise every button press
-// double-fires as a world tap.
-hud.addEventListener('beforexrselect', (e) => e.preventDefault());
-
 // ---------- session lifecycle ----------
-let chosen = 'eightwall';
-
 async function startSession(which) {
   mode = which;
-  backend = BACKENDS[chosen];
   el('boot').style.display = 'none';
   hud.classList.add('on');
   try {
-    await backend.start();
+    await tracker.start();
     (which === 'rig' ? rig : trailGame).enter();
   } catch (err) {
     console.error(err);
     el('boot').style.display = '';
     hud.classList.remove('on');
-    showDiag(`Couldn't start ${backend.label}: <code>${err?.message || err}</code>`, true);
+    showDiag(`Couldn't start ${label}: <code>${err?.message || err}</code>`, true);
   }
 }
 
-function endSession() { backend?.stop?.(); onSessionEnded(); }
+function endSession() { tracker.stop(); onSessionEnded(); }
 
 function onSessionEnded() {
   try { renderer?.setAnimationLoop(null); } catch {}
@@ -1115,7 +1006,6 @@ function onSessionEnded() {
   el('boot').style.display = '';
   rig.reset(); trailGame.reset();
   mode = null;
-  // Both backends build their own renderer/scene, so drop the canvas and start clean.
   document.querySelectorAll('canvas').forEach(c => c.remove());
   renderer = scene = camera = null;
 }
@@ -1127,52 +1017,27 @@ function showDiag(html, bad) {
   d.classList.toggle('bad', !!bad);
 }
 
-function pickBackend(name) {
-  chosen = name;
-  el('be-8w').classList.toggle('on', name === 'eightwall');
-  el('be-xr').classList.toggle('on', name === 'webxr');
-  const b = BACKENDS[name];
-  el('be-note').innerHTML = name === 'eightwall'
-    ? 'Its own SLAM in WebAssembly — the only option that runs on iPhone. Supports image targets.'
-    : 'ARCore underneath: the best tracking available on the web, but Android only and no image targets.';
-  const on = !!b.ok;
-  el('go-rig').disabled = !on;
-  el('go-trail').disabled = !on;
-}
-
 (async () => {
-  const [xrOk, wallOk] = await Promise.all([
-    BACKENDS.webxr.available(), BACKENDS.eightwall.available(),
-  ]);
-  BACKENDS.webxr.ok = xrOk;
-  BACKENDS.eightwall.ok = wallOk;
-  el('be-xr').disabled = !xrOk;
-  el('be-8w').disabled = !wallOk;
-
-  const lines = [
-    `WebXR AR: ${xrOk ? 'yes' : 'no'}`,
-    `8th Wall: ${wallOk ? 'loaded' : 'did not load'}`,
-    `image targets configured: ${IMAGE_TARGETS.length}`,
-  ];
+  const [XR8, XRExtras] = await Promise.all([xr8Ready(), scriptReady('XRExtras')]);
+  const ok = !!XR8;
+  el('go-rig').disabled = !ok;
+  el('go-trail').disabled = !ok;
   showDiag(
-    lines.join(' · ') +
-    (wallOk || xrOk
+    `engine: ${XR8 ? 'loaded' : 'did not load'} · helpers: ${XRExtras ? 'loaded' : 'missing (fallback sizing)'} · ` +
+    `image targets: ${IMAGE_TARGETS.length}` +
+    (ok
       ? '<br><br><b>Run the drift rig first.</b> It takes half an hour and it tells you whether the trail will hold together in this particular room.'
-      : '<br><br>Neither tracker is available. If this is iOS, 8th Wall should still work — check that the CDN is reachable. The preview runs regardless.'),
-    !(wallOk || xrOk));
-
-  pickBackend(wallOk ? 'eightwall' : 'webxr');
+      : '<br><br>The engine did not load — check the CDN is reachable. The preview runs regardless.'),
+    !ok);
 })();
 
-el('be-8w').onclick = () => pickBackend('eightwall');
-el('be-xr').onclick = () => pickBackend('webxr');
 el('go-rig').onclick = () => startSession('rig');
 el('go-trail').onclick = () => startSession('trail');
 el('go-preview').onclick = () => preview.enter();
 
-// Live tuning handle. Attach devtools to the phone (chrome://inspect on Android, or
-// Safari's Develop menu for iOS) and poke CFG mid-session — e.g. __scent.CFG.reveal.ahead
-// = 5 — then rebuild with __scent.trail.play(). Beats redeploying to change one number.
-window.__scent = { CFG, rig, trail: trailGame, preview, world, store, three: THREE,
-                   get backend() { return backend; }, get scene() { return scene; } };
+// Live tuning handle. Attach devtools to the phone (chrome://inspect on Android, Safari's
+// Develop menu for iOS) and poke CFG mid-session — e.g. __scent.CFG.reveal.ahead = 5 —
+// then rebuild with __scent.trail.play(). Beats redeploying to change one number.
+window.__scent = { CFG, rig, trail: trailGame, preview, world, store, tracker, three: THREE,
+                   get scene() { return scene; } };
 </script>

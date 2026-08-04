@@ -15,6 +15,7 @@
     "dev:goomba": "npm run dev -w apps/angry-goomba",
     "dev:proctor": "npm run dev -w apps/proctor",
     "build": "npm run build --workspaces --if-present",
+    "build:vercel": "npm run build --workspaces --if-present && node scripts/assemble.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {

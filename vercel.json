@@ -1,0 +1,24 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "g00.mba" }],
+      "destination": "/prototypes/goomba-rider.html"
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.g00.mba" }],
+      "destination": "/prototypes/goomba-rider.html"
+    }
+  ]
+}

@@ -1475,7 +1475,6 @@ const UPGRADES = [
   //   Sleep Spindle      reveals building 2
   //   Lucid Dreaming     TRAILS EXIST                      <- the hinge
   //   Delta Wave         reveals building 3
-  //   Word of Mouse      the golden mice arrive
   //   Deep Sleep         longer trails
   //   Dream Within...    reveals building 4
   //   Scent Trail        ink stops fading
@@ -1529,14 +1528,30 @@ const UPGRADES = [
   { key: "deltawave", name: "Delta Wave", icon: "🌊",
     cost: 600000, unlock: { requires: "pawtwitch" },
     effect: { type: "revealBuilding", building: "delta" } },
-  // Word of mouth: the mice have to be told. This is the moment the mystery becomes
-  // visible at all — and only the START of it, since the nine letters then arrive
-  // one at a time in REVEAL_ORDER as the wall fills.
-  { key: "wordofmouse", name: "Word of Mouse", icon: "🗣️",
-    cost: 1.15e6, unlock: { requires: "deltawave" },
-    effect: { type: "wordMice" } },
+  // There was a Word of Mouse row here — a research that put the nine golden
+  // letter-mice on the wall. Deleted, because it could not do the job it was
+  // written for. Its comment promised "the nine letters then arrive one at a time
+  // in REVEAL_ORDER as the wall fills", but it gated the golden crews out of the
+  // CAST, and the cast is drawn as a prefix: buying it rebuilt the cast from 24 to
+  // 33 while the ramp had long since counted past 33, so all nine letters popped on
+  // in a single frame. Measured with the pacing sim, that frame was 8:09 of a night
+  // that opens at 5:12 and ends legible at 9:39 — the mice the whole phase is about
+  // arriving 86% of the way through it, all at once, which is exactly the "they
+  // appear at the end" the reveal order was designed to avoid.
+  //
+  // So the golden mice now follow the same rule as every other colour: they are on
+  // the wall from the moment night starts, arriving on their own rungs of the shared
+  // ramp, interleaved with the scenery (see rebuildWallCast — yellow lands in cast
+  // slots 1, 7, 10, 14, 17, 22, 24, 29 and 32, roughly one letter per four mice).
+  // REVEAL_ORDER finally means something: it is the live letter staging, not a
+  // constant the game read once and then overrode.
+  //
+  // This does NOT give the word away early. A golden mouse with no trail behind it
+  // is a moving dot, so the word stays unreadable until Lucid Dreaming — which the
+  // ladder already calls its hinge. The mystery beat moves onto the row that was
+  // always doing the work, instead of sitting on a row that only changed a headcount.
   { key: "deepsleep", name: "Deep Sleep", icon: "😴",
-    cost: 2.3e6, unlock: { requires: "wordofmouse" },
+    cost: 2.3e6, unlock: { requires: "deltawave" },
     effect: { type: "trail", add: 22 } },
   { key: "nesteddream", name: "Dream Within a Dream", icon: "🌀",
     cost: 4.5e6, unlock: { requires: "deepsleep" },
@@ -1690,8 +1705,7 @@ function nightOnlyUnlock(u) {
 const NIGHT_ROW_KEYS = new Set();
 const isStoryUpgrade = u => [].concat(u.effect).some(e =>
   e.type === "night" || e.type === "trail" || e.type === "neon" ||
-  e.type === "wordMice" || e.type === "persist" || e.type === "speed" ||
-  e.type === "revealBuilding");
+  e.type === "persist" || e.type === "speed" || e.type === "revealBuilding");
 for (const u of UPGRADES) if (isStoryUpgrade(u) || nightOnlyUnlock(u)) NIGHT_ROW_KEYS.add(u.key);
 function nightOf(bought) { return NIGHT_KEYS.some(k => bought[k]); }
 function nightActive() { return nightOf(game.bought); }
@@ -1706,9 +1720,10 @@ function foldMods(bought, owned) {
               // Wall state, all of it bought rather than crossed into:
               //   neon      the points resolve into coloured mice (Counting Mice)
               //   trail     length of the inked tail (the sleep-stage ladder)
-              //   wordMice  the golden letter-mice exist at all (Word of Mouse)
               //   persist   ink half-life; 0 = a rolling window (Scent Trail)
-              trail: 0, neon: 0, wordMice: 0, persist: 0, speed: 0, night: 0,
+              // Nothing here decides WHICH mice are on the wall — the cast is the
+              // same 33 all night, and the ramp alone says how many have arrived.
+              trail: 0, neon: 0, persist: 0, speed: 0, night: 0,
               revealed: {} };
   BUILDINGS.forEach(b => m.building[b.id] = 1);
   let globalPct = 0, globalMul = 1;
@@ -1746,7 +1761,6 @@ function foldMods(bought, owned) {
       // Pure toggle: Counting Mice flips the wall mice on. Folded as a mod (not
       // read by name anywhere) so the same rule feeds the live wall and the sim.
       else if (e.type === "neon") m.neon = 1;
-      else if (e.type === "wordMice") m.wordMice = 1;
       else if (e.type === "persist") m.persist += e.add;
       else if (e.type === "speed") m.speed += e.add;
       else if (e.type === "revealBuilding") m.revealed[e.building] = 1;
@@ -1770,11 +1784,12 @@ function foldMods(bought, owned) {
 // of what a mods object contains. (Declaration-hoisted, so calling foldMods
 // here is fine.)
 const mods = foldMods({}, game.owned);
+// No wall rebuild here any more. Word of Mouse used to add nine crews to the cast
+// mid-night, so every recalc had to re-run the allocation in case that was the buy
+// that landed; with the golden mice in the cast from the start, the cast depends on
+// nothing a purchase can change and loadWallScene's single build is the only one.
 function recalc() {
   Object.assign(mods, foldMods(game.bought, game.owned));
-  // Word of Mouse adds nine crews to the cast, so the allocation has to be rebuilt
-  // when it lands. Cheap, and only once the wall exists at all.
-  if (nightInited) rebuildWallCast();
 }
 
 
@@ -1891,7 +1906,6 @@ function oneEffectText(e) {
     // constant string rendered all of Deep Sleep / REM / Lucid identically.
     case "trail":        return `Dream mice leave ${hl("+" + e.add)} more trail`;
     case "neon":         return `The lights on the wall turn out to be mice`;
-    case "wordMice":     return `Golden mice join the wall`;
     case "persist":      return `Dream trails stop fading`;
     case "speed":        return `The dream mice move quicker`;
     case "revealBuilding": return `Reveals ${hl(buildingName(e.building))}`;
@@ -2912,16 +2926,18 @@ function wallMiceFor(total) {
     : 1 + Math.floor(Math.log(total / WALL.mouseBase) / Math.log(WALL.mouseR));
   return Math.min(WALL.maxMice, Math.max(WALL.startMice, n));
 }
-// No research gate any more. The mice are on the wall from the moment night starts —
-// Counting Mice buys what they LOOK like, not whether they exist — so the count is a
-// pure function of night lifetime and the phase.
+// No research gate any more, and that now holds for the GOLDEN mice too — the last
+// research that gated a mouse into existence (Word of Mouse) is gone. Every mouse is
+// on the wall from the moment night starts; Counting Mice buys what they LOOK like,
+// not whether they exist. So the count is a pure function of night lifetime and the
+// phase, and one number describes the whole wall.
 function wallMiceCount() { return nightActive() ? wallMiceFor(game.total) : 0; }
 
 // "The word is legible" as a checkable state, computed from the SAME quantity the
 // wall actually draws rather than from a hand-set trail number.
 //
 // Coverage is word ink laid inside the visible window over the word's total ink:
-//   wordMice * (wallSpeed / 1000) * visibleMs / WORD_INK
+//   wordMiceFor(total) * (wallSpeed / 1000) * visibleMs / WORD_INK
 // and the 1-stroke word needs ~1.6 of it to read unambiguously, because a partial
 // centreline reads as a DIFFERENT letter (T->F, N->I, O->C, H->F) where the old
 // raster tour still shaded a recognisable patch.
@@ -2948,12 +2964,17 @@ const TRAIL_FULL = UPGRADES.flatMap(u => [].concat(u.effect))
   .filter(e => e.type === "trail").reduce((a, e) => a + e.add, 0);
 // How many of the nine golden mice are on the wall at a given lifetime total. The
 // cast interleaves colours by how full each one is, so at N of WALL_CAP mice roughly
-// N/WALL_CAP of every colour's quota has arrived.
+// N/WALL_CAP of every colour's quota has arrived. This is an ESTIMATE of what the
+// cast does, not the cast itself — exact enough for the coverage figure below, and it
+// stays a pure function of `total` so the pacing sim can ask about futures.
 function wordMiceFor(total) {
   return Math.floor(WALL_COUNT.yellow * wallMiceFor(total) / WALL_CAP);
 }
+// Night is the only gate left. There used to be a second one for the golden mice
+// existing at all, which meant coverage read a flat 0 for most of the night and then
+// jumped; now it climbs with the ramp from the phase's first second.
 function wallCoverage(m, total) {
-  if (!m.night || !m.wordMice) return 0;
+  if (!m.night) return 0;
   const visibleMs = m.trail * WALL.trailDt
     + (m.persist > 0 ? m.persist * WALL_PERSIST_MS / Math.LN2 : 0);
   return wordMiceFor(total) * (wallSpeed(m) / 1000) * visibleMs / WORD_INK_EST;
@@ -3448,10 +3469,11 @@ function loadWallScene() {
 //    rather than one colour completing before the next begins.
 function rebuildWallCast() {
   wallCast = [];
-  // Word of Mouse gates the golden crews out of the CAST, not just out of the
-  // drawing: before it there are no yellow mice to allocate, so the scenery colours
-  // get the whole headcount and the wall still looks populated.
-  const keys = WALL_COUNT_KEYS.filter(k => k !== 'yellow' || mods.wordMice);
+  // Every colour, always. A Word of Mouse research used to filter yellow out of this
+  // list until bought, which meant the nine letters could only ever arrive together,
+  // in the frame of the purchase — see the note where that row used to be. The cast
+  // is now a constant: the ramp alone decides how much of it has shown up.
+  const keys = WALL_COUNT_KEYS;
   const byColor = new Map(keys.map(k => [MOUSE_COLORS[k], []]));
   WALL_CREWS.forEach((c, idx) => { const g = byColor.get(c.color); if (g) g.push(idx); });
   const PAD = 14;
@@ -3625,9 +3647,10 @@ function drawWallPoint(x, y) {
 let wallInkDirty = false, wallLastNow = 0;
 function drawWall(now) {
   if (!wW) resizeWall();
-  // Clamped to the cast, not just to WALL_CAP: before Word of Mouse the golden crews
-  // are not allocated at all, so the cast is 24 rather than 33 while the ramp still
-  // counts toward 33 — and the extra indices were undefined.
+  // Clamped to the cast rather than to WALL_CAP. These agree now that no purchase can
+  // shrink the cast, but the clamp is what stops the ramp indexing past it: the cast
+  // is empty until loadWallScene runs, and a scene with fewer crews than headcount
+  // (a layout edit, a dropped element) would leave the tail indices undefined.
   const N = Math.min(wallMiceCount(), wallCast.length);
   const dt = wallLastNow ? Math.min(now - wallLastNow, 100) : 16;
   wallLastNow = now;

@@ -1,11 +1,16 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  // Relative base is load-bearing for the single-project deploy: the same
-  // build is served both at a vanity domain root (hexxygon.com/, which
-  // redirects to /hexxygon/) and at a path (preview-url/hexxygon/). Only a
-  // relative base resolves assets correctly in both. Safe because nothing here
-  // routes on the path — the room comes from ?room= (see net.ts).
-  base: "./",
+  // Absolute base, matching the dist/ subdirectory this app is assembled into.
+  //
+  // It must NOT be relative. Vercel serves with trailingSlash:false, so
+  // /hexxygon/ is normalised to /hexxygon -- and against that URL a "./assets/"
+  // reference resolves to /assets/, which is the lobby's asset directory, not
+  // this app's. The page loads and the script 404s: a white screen.
+  //
+  // A relative base was correct while the vanity domains REWROTE here and the
+  // app could be served from a domain root. They redirect now (#99), so this
+  // app only ever lives at /hexxygon/.
+  base: "/hexxygon/",
   server: { host: true },
 });

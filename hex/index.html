@@ -243,10 +243,28 @@
        section appearing — slid Hex up or down the screen. She's the thing you're
        tapping; the shop moving must not move the target out from under a finger. */
     transform: translateY(calc(var(--sun-y) - 50%));
+    /* Transitioned for ONE reason: the night rule below drops this offset, and
+       dropping it instantly was a teleport. See that rule. */
+    transition: transform 1.8s cubic-bezier(.22, .61, .36, 1);
   }
   /* At night the wall reveal owns Hex's position (see #catPose), so drop the day
-     centering entirely. */
+     centering entirely — but drop it as a MOVE, not as a cut.
+     This offset is -17% of the stage (--sun-y 33% against a centred box), which
+     on a 390x844 phone is 143px: half of her entire journey from the sunburst to
+     the centre of the orbit (measured 278 -> 422 -> 570). It used to be spent in
+     the single frame `night` landed on, before the yawn had even started, so the
+     camera move that followed covered only the remaining half and the beat read
+     as a jump-cut with a glide stapled to it.
+     Duration and easing are #catPose's, deliberately: the two translates — this
+     one unscaled, that one inside the zoom — compose, so identical clocks are
+     what make them sum to a single continuous move. Change one, change both, or
+     her path picks up a kink halfway down. */
   body.night #catWrap { transform: none; }
+  /* Choreography, so it hangs off .dissolving exactly like #catPose's — she yawns
+     and lets the first zzz go where the player left her, and only THEN does the
+     camera carry her down to the wall. A restored night save never gets the class,
+     so it opens already in place instead of stalling 3.3s before it moves. */
+  body.dissolving #catWrap { transition-delay: 3.3s; }
   /* Four nested layers, one transform each, because they animate on wildly
      different clocks and CSS can't run two durations on one property:
        #catMotion — purr + dream twitch (JS, per-frame, NO transition)
@@ -604,8 +622,15 @@
        style, so adding it fades out, and removing it takes the rule (and the
        transition with it) away in the same frame — the shop popped back at full
        opacity. Declared here it survives the class going away and the shop eases
-       back in as the wall reveal settles. */
-    transition: opacity .3s ease;
+       back in as the wall reveal settles.
+       The SLIDE is the other half of the same beat: the shop leaves the way it
+       arrived (dockIn, below) — down through the screen edge it lives on — rather
+       than dissolving where it stands. Same .5s as that entrance. The easing
+       written here is the RETURN leg's, matching dockIn's; the exit overrides it
+       on .cutscene-hidden, which works for the same cascade reason the note above
+       describes — the browser reads a transition from the AFTER-change style, so a
+       timing function stated on the state class is the one used going in to it. */
+    transition: opacity .5s ease, transform .5s cubic-bezier(.16, .84, .44, 1);
   }
   /* FIRST APPEARANCE. The shop slides up from under the screen edge the moment
      the Mouse Subscription reveals at 10 lifetime mice.
@@ -747,11 +772,43 @@
      inside #shopScroll: neither section caps or scrolls on its own anymore. */
   #buildingSec { display: none; }
   #buildingSec.show { display: block; }
-  /* Night cutscene: recede the ENTIRE shop (including the pinned buildings) so
-     nothing covers the wall reveal; restored when the beat ends. Only the target
-     state belongs here — the fade itself is on #dock so it plays in both
-     directions (see the transition note there). */
-  #dock.cutscene-hidden { opacity: 0; pointer-events: none; }
+  /* Night cutscene: clear the ENTIRE shop (including the pinned buildings) off the
+     screen so nothing covers the wall reveal; restored when the beat ends. It
+     SHUTS — slides down out of the bottom edge, the reverse of the dockIn
+     entrance — instead of dissolving in place, so the tray reads as closing for
+     the night rather than as art quietly switching off.
+     Only the target state belongs here: the durations live on #dock so they play
+     in both directions (see the transition note there). The exit's EASING is the
+     one thing that is genuinely one-way, which is why it is stated here — and it
+     is ease-OUT, not the usual choice for an exit, for a reason worth keeping.
+     The tray is fading on the same .5s clock, so every millisecond
+     of travel it spends near the end of the move is travel nobody can see. The
+     standard accelerate-away ease-in puts it there: measured, ~20% of the distance
+     covered by the time opacity is already through half its fade, which comes out
+     looking like the fade it replaced. Front-loading the motion instead has it
+     16% down at 98ms (opacity .84) and half gone by 212ms (.51) — it visibly
+     LEAVES, and the fade becomes the tail of a move rather than the move itself.
+     translateY(100%) is the dock's own height whatever the shop is currently tall,
+     same as dockIn's. The fade stays alongside it as the unconditional half of
+     "gone": it is what still hides the shop under prefers-reduced-motion, where the
+     slide is cut. */
+  #dock.cutscene-hidden {
+    opacity: 0; transform: translateY(100%); pointer-events: none;
+    transition-timing-function: ease-out;
+  }
+  /* The slide is decoration on top of a fade that already does the job, so drop
+     just the slide — same call as dockIn's entrance above. */
+  @media (prefers-reduced-motion: reduce) {
+    #dock { transition: opacity .3s ease; }
+    #dock.cutscene-hidden { transform: none; }
+  }
+  /* The way BACK is a moving hit target for its half-second, and every row in
+     there spends mice on a single tap with no confirm — so the shop does not
+     accept one until it has stopped moving. The cutscene veil can't cover this:
+     it comes off at the same moment, and it has to, because petting is meant to
+     resume the instant the beat ends. This is that same idea scoped to the one
+     element still in flight. See runNightCutscene (DOCK_SLIDE_MS). */
+  #dock.settling { pointer-events: none; }
 
   /* Between Upgrades and Buildings, unlabelled — the rows below already say
      which section they are. Scales with --ss like the rest of the shop so it
@@ -4343,10 +4400,15 @@ function makeStars() {
 // The night-transition CUTSCENE. Fired once, only on the live day->night edge (a
 // player buying the twist) — never on load/reconnect or a dev preset, so a
 // returning player drops straight into night without replaying the beat. It
-// takes the screen: the whole static shop recedes, a transparent veil locks ALL
-// input (petting included), the existing yawn->zoom->reveal plays, then input
-// frees and the shop fades back in.
+// takes the screen: the whole static shop slides shut, a transparent veil locks
+// ALL input (petting included), the existing yawn->zoom->reveal plays, then input
+// frees and the shop slides back in.
 let cutsceneLock = false;
+// How long #dock takes to slide out and back. Mirrors the .5s transition on
+// #dock — the only thing read from here is how long the returning shop stays
+// inert (see #dock.settling), so an over-estimate is harmless and an
+// under-estimate hands the player a row that is still moving.
+const DOCK_SLIDE_MS = 500;
 function runNightCutscene() {
   if (cutsceneLock) return;
   cutsceneLock = true;
@@ -4354,17 +4416,19 @@ function runNightCutscene() {
   // is added by buyUpgrade BEFORE syncPhase, for the ordering reason documented
   // there. It is removed at the end of the beat below. A restored night save never
   // gets it, so it has no choreography to wait through.
-  dockEl.classList.add("cutscene-hidden"); // recede the whole static shop for the reveal
+  dockEl.classList.add("cutscene-hidden"); // shut the whole static shop for the reveal
   cutsceneVeilEl.classList.add("on"); // nothing selectable while the beat plays
   // Duration read here (not a top-level const) so it can reference YAWN_MS, which
   // is declared further down. Kept in sync with the CSS, and it is now a sum of
   // three beats rather than two: YAWN_MS (1300) + ZZZ_HOLD_MS (2000, she holds
   // still at full size while the first zzz drift off) + the #catPose zoom
   // (1800ms) = the moment the camera settles. The veil has to outlast all three,
-  // or the shop fades back in over a cat who is still mid-move.
+  // or the shop comes back in over a cat who is still mid-move.
   setTimeout(() => {
     cutsceneVeilEl.classList.remove("on");
-    dockEl.classList.remove("cutscene-hidden");
+    dockEl.classList.remove("cutscene-hidden"); // slides back up as the reveal settles
+    dockEl.classList.add("settling");           // ...and stays untappable until it lands
+    setTimeout(() => dockEl.classList.remove("settling"), DOCK_SLIDE_MS);
     document.body.classList.remove("dissolving");
     cutsceneLock = false;
   }, YAWN_MS + ZZZ_HOLD_MS + 1800);

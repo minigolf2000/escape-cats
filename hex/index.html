@@ -577,9 +577,9 @@
     z-index: 3; will-change: transform, opacity;
   }
 
-  /* golden mouse — art injected by spawnGold(), the same gilded mouse in both
-     phases. Nothing downstream hardcodes these dimensions; moveGold() measures
-     the element instead. */
+  /* golden mouse — art injected by spawnGold(), day only (frame() won't spawn one
+     once Hex is asleep). Nothing downstream hardcodes these dimensions; moveGold()
+     measures the element instead. */
   #golden {
     position: absolute; width: 62px; height: 62px; display: none; place-items: center;
     cursor: pointer; filter: drop-shadow(0 0 14px rgba(255,212,77,.85));
@@ -2036,8 +2036,9 @@ function foldMods(bought, owned) {
       // and makes night impossible to tune — a Hole earned 1,125/s instead of 162
       // purely because of how much day research a team happened to buy, so the
       // purchase cadence varied per run and no base could be chosen for it. Golden and
-      // click effects are untouched: goldens still spawn in the dream, and petting is
-      // already inert there.
+      // click effects are untouched because zeroing them would change nothing: both
+      // are day-only downstream — no golden spawns once Hex is asleep, and petting is
+      // inert there — so they cannot reach the night's economy to distort it.
       const dayRowAtNight = night && !NIGHT_ROW_KEYS.has(u.key);
       if (e.type === "buildingMult") { if (!dayRowAtNight) m.building[e.building] *= e.mult; }
       else if (e.type === "globalPct") { if (!dayRowAtNight) globalPct += e.pct; }
@@ -2570,6 +2571,12 @@ function nightReset(s) {
   s.mice = 0;
   s.total = 0;
   for (const b of BUILDINGS) if (!b.night) s.owned[b.id] = 0;
+  // A golden caught in the last seconds of the day leaves Zoomies running, and the
+  // buff pill would then count a ×6 on pet power down over the cutscene — a
+  // multiplier on the one mechanic the night doesn't have. No golden spawns past
+  // this point (see frame()), so that catch is the last one there can be: it ends
+  // with the day that produced it.
+  s.zoomUntil = 0;
 }
 
 function isRevealed(b, s) {
@@ -3112,17 +3119,19 @@ const GOLD_MEAN_S = (GOLD_MIN_S + GOLD_MAX_S) / 2;   // the sim's mean gap
 // Pulled in twice, 2:30–3:30 then 1:50–2:40, chasing a day that keeps getting
 // shorter: it now finishes at 2:48 for a team of four mashing, so even the second
 // window served a fast room its first golden with ~30s of daylight left. Goldens
-// are day-only content in practice — Zoomies multiplies pets and pets earn
-// nothing once Hex is asleep — and the whole golden line (three Window Perches,
-// Pounce Reflex, Chin Scritch) has to pay for itself inside that window or it is
-// rows nobody sensibly buys.
+// are day-only — Zoomies multiplies pets and pets earn nothing once Hex is asleep
+// — and the whole golden line (three Window Perches, Pounce Reflex, Chin Scritch)
+// has to pay for itself inside that window or it is rows nobody sensibly buys.
+// That used to be true only in practice, with a golden still drifting over the
+// night as an unpaid prop; frame() now refuses to spawn one after the twist.
 //
-// This is also the strongest single lever on NIGHT length, which is not obvious
-// from here: Lucky Number 6 is gated on catching six goldens, so how early the
-// first one arrives sets when the night's ×6 lands. Cheapening the Cardboard
-// Castle above shortened the day slightly, which cost a fast room a golden and
-// pushed the 8-pets/s run from 7:12 to 8:42 — this window pulls it back to 7:04.
-// It has to move with the length of the day; it is not an absolute.
+// So this is a DAY dial and nothing else. It was once the strongest single lever on
+// NIGHT length too, back when Lucky Number 6 was gated on catching six goldens and
+// the first spawn therefore set when the night's ×6 landed; that gate is six HOLES
+// now (see the row's own note) and nothing on the far side of the twist reads this
+// window any more. It still has to move with the length of the day — cheapening the
+// Cardboard Castle above once cost a fast room a golden and pushed the 8-pets/s run
+// from 7:12 to 8:42, which this window pulled back to 7:04 — it is not an absolute.
 const GOLD_FIRST_MIN_S = 90, GOLD_FIRST_MAX_S = 130;
 let goldTimer = 0, goldActive = false, goldLifeLeft = 0, goldVx = 0, goldVy = 0, goldX = 0, goldY = 0;
 // The reachable box, in #stage-local px. #stage is the full viewport height,
@@ -3163,8 +3172,9 @@ function scheduleGold(first) {
 function spawnGold() {
   goldActive = true;
   goldLifeLeft = 9 + mods.goldenLife; // seconds on screen (goldenLife upgrades extend this)
-  // Same art in both phases. Night used to fly a saucer with the mouse as its
-  // pilot; it was tried and cut, so there is nothing phase-dependent here now.
+  // One art, and it is the day's, because the day is the only place this runs.
+  // Night used to fly a saucer with the mouse as its pilot; that was tried and cut,
+  // and now nothing spawns at night at all — so there is no phase to branch on.
   goldenEl.innerHTML = goldenMouseSVG();
   // Spawn inside the reachable box (set AFTER the art above, so offsetWidth
   // reflects the size this spawn actually uses).
@@ -4852,12 +4862,23 @@ function frame(now) {
     buffEl.style.display = "none";
   }
 
-  moveGold(dt);
-  if (!goldActive) { goldTimer -= dt * DEV.speed; if (goldTimer <= 0) spawnGold(); }
+  // Goldens are DAY-ONLY, and this is the gate that makes it so. Catching one grants
+  // Zoomies, and Zoomies multiplies PET power — which mints nothing once Hex is
+  // asleep (see pet()). So a golden at night was a tappable prop paying out zero,
+  // drifting over the reveal while it did it. No spawn and no timer while night is
+  // up, and one still in flight when the twist lands leaves the stage with the day.
+  // The gate is dynamic rather than a one-time teardown because nightActive() is a
+  // pure function of what's been bought: a reset returns to day, and to goldens.
+  const night = nightActive();
+  if (night) { if (goldActive) despawnGold(); }
+  else {
+    moveGold(dt);
+    if (!goldActive) { goldTimer -= dt * DEV.speed; if (goldTimer <= 0) spawnGold(); }
+  }
 
   updateCat(now);
   updatePops(dt);
-  if (nightActive()) drawWall(now);
+  if (night) drawWall(now);
 
   // throttle HUD/shop updates to ~12fps (cheap, avoids layout thrash)
   hudTick += dt;
@@ -5079,10 +5100,13 @@ function simulateRun(opts = {}) {
     for (const [id, n] of ownedPairs(u.unlock)) storyGates.push({ key: u.key, id, n });
   }
 
-  // Goldens are off the table until the first one is due. Uses the midpoint of
-  // the first-spawn window, matching how the rest of the model reads mean
-  // rather than rolled timings.
-  const goldsLive = () => useGold && t >= (GOLD_FIRST_MIN_S + GOLD_FIRST_MAX_S) / 2;
+  // Goldens are off the table until the first one is due, and off it again for good
+  // once the twist fires — frame() stops spawning them at night, so a sim that kept
+  // counting them would report a goldCaught the live game can no longer reach. Uses
+  // the midpoint of the first-spawn window, matching how the rest of the model reads
+  // mean rather than rolled timings.
+  const goldsLive = bought => useGold && !nightOf(bought)
+    && t >= (GOLD_FIRST_MIN_S + GOLD_FIRST_MAX_S) / 2;
 
   // Steady-state earn rates for an arbitrary hypothetical (bought, owned).
   // Composition comes from baseCpsWith/clickBaseWith — the same functions the
@@ -5097,7 +5121,7 @@ function simulateRun(opts = {}) {
     // before the first spawn can land (`t` is read live off the loop below):
     // over a 10-minute target that intro wait is a quarter of the run, so
     // averaging goldens across it would flatter the early curve.
-    const gClk = goldsLive() ? 1 + (m.zoomMult - 1) * m.zoomTime / I : 1;
+    const gClk = goldsLive(bought) ? 1 + (m.zoomMult - 1) * m.zoomTime / I : 1;
     // Petting earns nothing at night (the sleepy reaction is not a mechanic), so
     // the pet term drops to zero once the twist fires — matches pet()'s gate.
     const pet = nightOf(bought) ? 0 : pps * clickBaseWith(m, owned) * gClk;
@@ -5110,7 +5134,7 @@ function simulateRun(opts = {}) {
     s.mice += r.all * dt; s.total += r.all * dt;
     earnedCps += r.cps * dt; earnedPet += r.pet * dt;
     s.clicks += pps * dt;
-    if (goldsLive()) { goldAcc += dt / r.I; s.goldCaught = Math.floor(goldAcc); }
+    if (goldsLive(s.bought)) { goldAcc += dt / r.I; s.goldCaught = Math.floor(goldAcc); }
     t += dt;
 
     // Story purchases first; remember the gap if one is pending but unaffordable.

@@ -1863,6 +1863,9 @@ const mods = foldMods({}, game.owned);
 // mid-night, so every recalc had to re-run the allocation in case that was the buy
 // that landed; with the golden mice in the cast from the start, the cast depends on
 // nothing a purchase can change and loadWallScene's single build is the only one.
+// That also retires the reason the mice used to jump on a purchase: the allocation was
+// deterministic so crews and phases came out identical, but each rebuild replaced the
+// mouse OBJECTS, dropping the smoothed heading and the persist layer's last position.
 function recalc() {
   Object.assign(mods, foldMods(game.bought, game.owned));
 }
@@ -2464,9 +2467,13 @@ function buyUpgrade(key) {
   const u = UPGRADES.find(x => x.key === key);
   if (!u || game.bought[u.key] || !isUnlocked(u) || game.mice < u.cost) return;
   const nightBefore = nightActive();
+  const neonBefore = !!mods.neon;
   game.mice -= u.cost;
   game.bought[u.key] = 1;
   recalc();
+  // Counting Mice, bought live. Only this path animates: load and the dev presets
+  // call recalc/syncPhase directly, so a refresh finds the mice already neon.
+  if (!neonBefore && mods.neon && nightInited) startWallNeon();
   // Normalised defensively: night upgrades are singular today, so `.type`
   // happens to work — but it silently reads undefined the day one is authored
   // as an array, and the phase flip would just never fire.
@@ -3682,10 +3689,11 @@ function rebuildWallCast() {
       if (filled < worst) { worst = filled; pick = key; }
     }
     if (pick == null) break;
-    const crew = queues.get(pick)[taken.get(pick)];
-    taken.set(pick, taken.get(pick) + 1);
+    const ord = taken.get(pick);
+    const crew = queues.get(pick)[ord];
+    taken.set(pick, ord + 1);
     const rng = mulberry32(WALL.seed + i * 7919);
-    wallCast.push({ i, p01: rng(), crew, color: WALL_CREWS[crew].color });
+    wallCast.push({ i, p01: rng(), crew, color: WALL_CREWS[crew].color, key: pick, ord });
   }
   // Phases, SPREAD along the path. A ping-pong cycle visits every position twice,
   // once outbound and once returning, so spacing phases across the whole cycle
@@ -3711,6 +3719,20 @@ function rebuildWallCast() {
 // pure GC pressure — the thing that shows up as periodic frame drops on a
 // phone rather than a uniformly lower framerate. Lerp in scene space, map to
 // screen once at the end (was mapping both endpoints, then lerping).
+// DISTANCE TRAVELLED, not elapsed time. Phase used to be `t * speed`, which means
+// changing the speed dial rescales the whole of history: Paw Twitch (+8) multiplied
+// every mouse's position along its tour by 20/12 at once and teleported the entire
+// wall. Integrating instead — units accumulated so far, plus the new rate from here
+// on — makes a speed change continuous for every mouse and every crew at once.
+let wallUnitBase = 0, wallUnitAnchor = 0, wallUnitRate = 0; // rate in scene units/ms
+const wallUnits = t => wallUnitBase + (t - wallUnitAnchor) * wallUnitRate;
+// Called once per frame, so it picks the change up on the frame AFTER recalc: the
+// base is banked at the OLD rate, which is exactly the position already on screen.
+function syncWallSpeed(now) {
+  const rate = wallSpeed(mods) / 1000;
+  if (rate === wallUnitRate) return;
+  wallUnitBase = wallUnits(now); wallUnitAnchor = now; wallUnitRate = rate;
+}
 function wallPosAt(m, t, out) {
   const crew = WALL_CREWS[m.crew];
   const L = crew.len;
@@ -3719,12 +3741,12 @@ function wallPosAt(m, t, out) {
     const p0 = crew.tour[0] || { x: 195, y: 310 };
     sx = p0.x; sy = p0.y;
   } else {
-    // One speed for every mouse: scene units/sec -> this crew's points/ms.
-    const ppms = (wallSpeed(mods) / 1000) / crew.step;
+    // Scene units -> this crew's points. One speed for every mouse.
+    const pts = wallUnits(t) / crew.step;
     // Closed tours loop (tour[L-1] IS tour[0], so the wrap is continuous);
     // open ones ping-pong back along themselves to avoid a wrap jump.
     const cyc = crew.closed ? L - 1 : 2 * (L - 1);
-    let f = ((t * ppms + m.phase * cyc) % cyc + cyc) % cyc;
+    let f = ((pts + m.phase * cyc) % cyc + cyc) % cyc;
     if (!crew.closed && f > L - 1) f = cyc - f;
     const idx = Math.min(L - 2, Math.floor(f)), frac = f - idx;
     const a = crew.tour[idx], b = crew.tour[idx + 1];
@@ -3755,9 +3777,13 @@ const WALL_MOUSE_R = 1.55;
 // heading to rotate it toward; 0 keeps the old unrotated look. Rotating in place
 // via translate/rotate rather than baking it into P() keeps the body/tail/ear
 // geometry below character-for-character identical to mouseSVG's.
-function drawWallMouse(x, y, color, r, angle) {
+// `alpha` (default 1) multiplies the whole sprite rather than any one part: the
+// Counting Mice cross-fade needs the body, outline, ear and eye to arrive
+// together, and the save/restore already scoping the transform scopes it for free.
+function drawWallMouse(x, y, color, r, angle, alpha) {
   const s = r / 10, cx = 30.5, cy = 14;
   wctx.save();
+  if (alpha !== undefined) wctx.globalAlpha = alpha;
   wctx.translate(x, y);
   wctx.rotate(angle || 0);
   const P = (px, py) => [(px - cx) * s, (py - cy) * s];
@@ -3802,13 +3828,61 @@ const wallHead = { x: 0, y: 0 }, wallScratch = { x: 0, y: 0 };
 // Pre-Counting-Mice: a drifting light. Colourless and shapeless on purpose, so it
 // sits among the starfield rather than announcing itself as a creature.
 const WALL_POINT_COLOR = '#e9edf7';
-function drawWallPoint(x, y) {
-  wctx.globalAlpha = 0.28;
-  wctx.beginPath(); wctx.arc(x, y, 3.4, 0, 6.283);
+// `a` fades the whole speck and `rs` scales it; both default to 1 so the steady
+// pre-Counting-Mice state is untouched. The cross-fade uses them to swell the
+// speck as it goes out, so the light looks like it BECAME the mouse rather than
+// two sprites trading places on the same pixel.
+function drawWallPoint(x, y, a, rs) {
+  const s = rs === undefined ? 1 : rs, m = a === undefined ? 1 : a;
+  wctx.globalAlpha = 0.28 * m;
+  wctx.beginPath(); wctx.arc(x, y, 3.4 * s, 0, 6.283);
+  wctx.fillStyle = WALL_POINT_COLOR; wctx.fill();
+  wctx.globalAlpha = m;
+  wctx.beginPath(); wctx.arc(x, y, 1.5 * s, 0, 6.283);
   wctx.fillStyle = WALL_POINT_COLOR; wctx.fill();
   wctx.globalAlpha = 1;
-  wctx.beginPath(); wctx.arc(x, y, 1.5, 0, 6.283);
-  wctx.fillStyle = WALL_POINT_COLOR; wctx.fill();
+}
+
+// COUNTING MICE. The upgrade that turns the drifting specks into neon mice is the
+// night's first real reveal, so it gets a beat instead of a swap between two
+// frames. Each speck swells, sheds a spark ring, and resolves into its mouse —
+// and they go in order of distance from the sleeping cat, so the change ripples
+// outward from Hex rather than landing everywhere at once.
+//
+// wallNeonAt is set ONLY by the live purchase (see buyUpgrade). A reload with the
+// upgrade already owned leaves it null and draws neon immediately: same principle
+// as `.booting` and the night cutscene — earned beats play once, restored state
+// never replays them.
+const WALL_NEON_MS = 620;      // per-mouse cross-fade
+const WALL_NEON_RIPPLE = 900;  // ms for the ripple to reach the outermost mouse
+let wallNeonAt = null;
+function startWallNeon() {
+  if (!wW) resizeWall();
+  wallNeonAt = performance.now();
+  // Origin is Hex, not the middle of the canvas — the cat sits well below centre, and
+  // the point of the beat is that the counting is coming from them.
+  const wr = wallCv.getBoundingClientRect(), cr = hexCatEl.getBoundingClientRect();
+  const cx = cr.left + cr.width / 2 - wr.left, cy = cr.top + cr.height / 2 - wr.top;
+  const order = wallCast.map(m => {
+    wallPosAt(m, wallNeonAt, wallScratch);
+    return { m, d: Math.hypot(wallScratch.x - cx, wallScratch.y - cy) };
+  }).sort((a, b) => a.d - b.d);
+  const span = Math.max(1, order.length - 1);
+  order.forEach((o, k) => { o.m.neonDelay = WALL_NEON_RIPPLE * k / span; });
+}
+// Point out over the first half while swelling; mouse in over the last 70%, so the
+// two overlap in the middle and neither pixel ever goes empty.
+function drawWallFlip(m, x, y, u, angle) {
+  const out = 1 - Math.min(1, u / 0.5), pop = Math.sin(Math.PI * Math.min(1, u / 0.5));
+  if (out > 0) drawWallPoint(x, y, out * out, 1 + 0.8 * pop);
+  if (pop > 0.02) { // spark ring — the moment of becoming
+    wctx.globalAlpha = 0.5 * pop * (1 - u);
+    wctx.strokeStyle = m.color; wctx.lineWidth = 0.9;
+    wctx.beginPath(); wctx.arc(x, y, 2 + 6 * u, 0, 6.283); wctx.stroke();
+    wctx.globalAlpha = 1;
+  }
+  const inn = Math.max(0, (u - 0.3) / 0.7);
+  if (inn > 0) drawWallMouse(x, y, m.color, WALL_MOUSE_R * (0.5 + 0.5 * inn), angle, inn * inn);
 }
 let wallInkDirty = false, wallLastNow = 0;
 function drawWall(now) {
@@ -3820,7 +3894,12 @@ function drawWall(now) {
   const N = Math.min(wallMiceCount(), wallCast.length);
   const dt = wallLastNow ? Math.min(now - wallLastNow, 100) : 16;
   wallLastNow = now;
+  syncWallSpeed(now);
   const neon = !!mods.neon;
+  // Retired as soon as it has run its course, so the steady state is the same
+  // straight drawWallMouse call it was before the beat existed.
+  if (wallNeonAt !== null && now - wallNeonAt > WALL_NEON_MS + WALL_NEON_RIPPLE) wallNeonAt = null;
+  const flipping = neon && wallNeonAt !== null;
 
   // SCENT TRAIL. The rolling trail is redrawn from scratch every frame and so can
   // never accumulate; persistence needs a layer that survives the frame. It has to
@@ -3901,9 +3980,12 @@ function drawWall(now) {
       if (m.dirX === undefined) { m.dirX = ux; m.dirY = uy; }
       else { m.dirX += (ux - m.dirX) * HEADING_EASE; m.dirY += (uy - m.dirY) * HEADING_EASE; }
     }
-    if (neon) drawWallMouse(wallHead.x, wallHead.y, m.color, WALL_MOUSE_R,
-                            m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX));
-    else drawWallPoint(wallHead.x, wallHead.y);
+    const ang = m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX);
+    if (!neon) drawWallPoint(wallHead.x, wallHead.y);
+    else if (!flipping) drawWallMouse(wallHead.x, wallHead.y, m.color, WALL_MOUSE_R, ang);
+    else drawWallFlip(m, wallHead.x, wallHead.y,
+                      Math.max(0, Math.min(1, (now - wallNeonAt - (m.neonDelay || 0)) / WALL_NEON_MS)),
+                      ang);
   }
   // NOTE: legibility detection lived here and existed only to print the proctor
   // line. Removed with the text rather than left as dead code. The wall simply

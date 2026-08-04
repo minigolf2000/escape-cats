@@ -1951,6 +1951,20 @@ function toggleShop() {
 }
 shopToggleEl.addEventListener("click", toggleShop);
 
+// Does this row belong on the rail in the CURRENT phase? One definition, shared by
+// the shop that renders rows and the badge that counts them — they had a copy each,
+// and only the shop's knew about night.
+//
+// The bug that forced this out: `unlocked` is sticky and `seen` is only set when a
+// row's midpoint scrolls into view, so at the flip every day upgrade that was
+// unlocked-but-unbought stayed counted while no longer being drawn. The badge read
+// 31 over a two-row night shop, and because the phantom rows could never be
+// scrolled into view the count could never be discharged — a permanent unclearable
+// notification pointing at content the phase had removed.
+function onRailInPhase(u) {
+  return !nightActive() || isStoryUpgrade(u) || nightOnlyUnlock(u);
+}
+
 // How many unlocked, unbought upgrades you have never had on screen. Every
 // unbought upgrade is new — they're one-time purchases, so there's no "new since
 // last visit" to compute; the only question is whether you've seen this one yet.
@@ -1958,7 +1972,8 @@ shopToggleEl.addEventListener("click", toggleShop);
 // out of step with the rows that actually exist.
 function refreshBadge() {
   let n = 0;
-  for (const u of UPGRADES) if (!game.bought[u.key] && game.unlocked[u.key] && !game.seen[u.key]) n++;
+  for (const u of UPGRADES)
+    if (!game.bought[u.key] && game.unlocked[u.key] && !game.seen[u.key] && onRailInPhase(u)) n++;
   if (n === badgeN) return;
   badgeN = n;
   if (n > 0) newBadgeEl.textContent = n;
@@ -2190,13 +2205,11 @@ function buy(i) {
 let upRows = new Map(); // key -> {el, can, cost}
 let upSig = "";
 function refreshUpgrades() {
-  // At night the day research is off the rail entirely. The day economy has been
-  // wiped, so those rows would price improvements to buildings you no longer own —
-  // and the twist reads as a fresh start only if the shop looks like one. Mirrors
-  // refreshShop, which already drops the day BUILDINGS at night.
-  const night = nightActive();
-  const shown = UPGRADES.filter(u => !game.bought[u.key] && isUnlocked(u)
-    && (!night || isStoryUpgrade(u) || nightOnlyUnlock(u)));
+  // At night the day research is off the rail entirely (see onRailInPhase). The day
+  // economy has been wiped, so those rows would price improvements to buildings you
+  // no longer own — and the twist reads as a fresh start only if the shop looks like
+  // one. Mirrors refreshShop, which already drops the day BUILDINGS at night.
+  const shown = UPGRADES.filter(u => !game.bought[u.key] && isUnlocked(u) && onRailInPhase(u));
   const sig = shown.map(u => u.key).join(",");
 
   if (sig !== upSig) {

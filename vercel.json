@@ -6,52 +6,72 @@
   "headers": [
     {
       "source": "/(.*)",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "hexxygon.com"
+        }
+      ],
+      "permanent": false,
+      "destination": "https://cat-games-tau.vercel.app/hexxygon/:path*"
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.hexxygon.com"
+        }
+      ],
+      "permanent": false,
+      "destination": "https://cat-games-tau.vercel.app/hexxygon/:path*"
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "g00.mba"
+        }
+      ],
+      "permanent": false,
+      "destination": "https://cat-games-tau.vercel.app/g00mba/:path*"
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.g00.mba"
+        }
+      ],
+      "permanent": false,
+      "destination": "https://cat-games-tau.vercel.app/g00mba/:path*"
     }
   ],
   "rewrites": [
     {
-      "source": "/",
-      "has": [{ "type": "host", "value": "g00.mba" }],
-      "destination": "/prototypes/goomba-rider.html"
+      "source": "/qr-studio",
+      "destination": "/solo-hex/qr-studio.html"
     },
     {
-      "source": "/",
-      "has": [{ "type": "host", "value": "www.g00.mba" }],
-      "destination": "/prototypes/goomba-rider.html"
+      "source": "/reveal-lab",
+      "destination": "/solo-hex/reveal-lab.html"
     },
     {
-      "source": "/",
-      "has": [{ "type": "host", "value": "hexxygon.com" }],
-      "destination": "/hex/index.html"
-    },
-    {
-      "source": "/",
-      "has": [{ "type": "host", "value": "www.hexxygon.com" }],
-      "destination": "/hex/index.html"
-    },
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "g00.mba" }],
-      "destination": "/prototypes/goomba-rider.html"
-    },
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "www.g00.mba" }],
-      "destination": "/prototypes/goomba-rider.html"
-    },
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "hexxygon.com" }],
-      "destination": "/hex/:path*"
-    },
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "www.hexxygon.com" }],
-      "destination": "/hex/:path*"
-    },
-    { "source": "/qr-studio", "destination": "/solo-hex/qr-studio.html" },
-    { "source": "/reveal-lab", "destination": "/solo-hex/reveal-lab.html" },
-    { "source": "/proctor", "destination": "/proctor/index.html" }
+      "source": "/proctor",
+      "destination": "/proctor/index.html"
+    }
   ]
 }

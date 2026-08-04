@@ -146,7 +146,8 @@ come from `vercel.json`, so there is nothing to override in the dashboard.
 | Path in `dist/` | Source | What |
 | --- | --- | --- |
 | `/` | `apps/lobby` | Team lobby (landing page) |
-| `/hex/` | `apps/hex-clicker` | Hex Clicker (coop) |
+| `/hexxygon/` | `apps/hex-clicker` | Hex Clicker (coop) |
+| `/g00mba/` | `prototypes/goomba-rider.html` | Goomba Rider |
 | `/goomba/` | `apps/angry-goomba` | Angry Goomba (coop) |
 | `/proctor/` | `apps/proctor` | Proctor dashboard |
 | `/solo-hex/` | `hex/` | Hex Clicker (solo) + QR Studio |
@@ -208,26 +209,25 @@ The filesystem check runs before rewrites, so a root index would win over the
 `"source": "/"` rules and every vanity domain would serve the landing page
 instead of its game.
 
-Two are wired already, each pointed at whichever build of that game is the
-real one today:
+The two vanity domains **redirect** (307) into this origin rather than
+rewriting to it:
 
-| Domain | Serves | Needs PartyKit? |
+| Domain | Redirects to | Serves |
 | --- | --- | --- |
-| `hexxygon.com` | Hex Clicker coop — `/hex/` | yes, to join a room |
-| `g00.mba` | Goomba Rider — `/prototypes/goomba-rider.html` | no |
+| `hexxygon.com` | `/hexxygon/` | Hex Clicker coop |
+| `g00.mba` | `/g00mba/` | Goomba Rider |
 
-The asymmetry is deliberate. Hex's coop client is the finished game, so its
-domain points there. Goomba's coop client is still a scaffold while Goomba
-Rider is the developed one, so `g00.mba` serves the prototype until the coop
-version overtakes it — at which point it becomes a one-line `destination`
-change.
+Redirect, not rewrite, is the whole point: it puts every player on one origin,
+so the `localStorage` pid the lobby assigned a team to is the same pid the game
+sees. A rewrite would leave each vanity domain as its own origin with its own
+empty store, and the team would not follow. See "The origin constraint" below.
 
-Because `g00.mba` is Goomba Rider, it is **not** `VITE_GOOMBA_URL`. That var
-is the coop Angry Goomba URL the proctor's QR code points at, which lives at
-`/goomba/` on the project domain until it earns a vanity domain of its own.
+They are 307s, not 308s -- a permanent redirect is cached by the browser
+indefinitely and would be painful to walk back.
 
-`g00.mba` rewrites every path to the one self-contained Goomba Rider file, so
-it has no deep links; `hexxygon.com` forwards paths through to `/hex/`.
+The paths are `/hexxygon` and `/g00mba` rather than `/hex` and `/goomba` so
+that a player who guesses a path cannot walk into a game without being sorted
+onto a team first.
 
 **Do not change `base: "./"` in the vite configs.** It is what lets one build
 serve both from a vanity domain root (rewritten to `/hex/`) and from a path

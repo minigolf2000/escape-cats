@@ -2,15 +2,16 @@
  * Assemble every deployable surface into a single dist/ tree.
  *
  * The whole repo ships as ONE Vercel project. Each surface lands in its own
- * subdirectory here; vercel.json then rewrites incoming hostnames onto those
- * subdirectories, so a vanity domain serves its app from the domain root
- * while preview deployments reach the same build by path.
+ * subdirectory here. The vanity domains REDIRECT into those subdirectories
+ * rather than rewriting to them, so every surface is served from one origin --
+ * which is what lets a player's localStorage pid, and therefore the team the
+ * proctor put them on, follow them from the lobby into a game.
  *
  * Two kinds of surface:
  *   - Vite apps  — built by `npm run build --workspaces`, dist/ copied here.
  *   - Static     — no build step, folder copied verbatim.
  */
-import { cp, mkdir, rm, access } from "node:fs/promises";
+import { cp, mkdir, rm, access, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
@@ -23,7 +24,11 @@ const outRoot = join(repoRoot, "dist");
  * silently overwritten by it. */
 const SURFACES = [
   ["apps/lobby/dist", ".", "Team lobby (landing page)"],
-  ["apps/hex-clicker/dist", "hex", "Hex Clicker (coop)"],
+  // The two game paths are deliberately not /hex and /goomba: they are what
+  // the vanity domains redirect to, and a player who guesses the path would
+  // walk into a game without being sorted onto a team first.
+  ["apps/hex-clicker/dist", "hexxygon", "Hex Clicker (coop)"],
+  ["prototypes/goomba-rider.html", "g00mba", "Goomba Rider"],
   ["apps/angry-goomba/dist", "goomba", "Angry Goomba (coop)"],
   ["apps/proctor/dist", "proctor", "Proctor dashboard"],
   ["hex", "solo-hex", "Hex Clicker (solo) + QR Studio"],
@@ -47,7 +52,13 @@ for (const [from, to, label] of SURFACES) {
       `assemble: missing ${from} — did \`npm run build --workspaces\` run first?`,
     );
   }
-  await cp(src, join(outRoot, to), { recursive: true });
+  // A single-file surface becomes <dest>/index.html, so it is reachable at a
+  // bare directory path like the built apps are.
+  const dest = (await stat(src)).isDirectory()
+    ? join(outRoot, to)
+    : join(outRoot, to, "index.html");
+  await mkdir(dirname(dest), { recursive: true });
+  await cp(src, dest, { recursive: true });
   console.log(`  ${from}  ->  dist/${to}   (${label})`);
 }
 

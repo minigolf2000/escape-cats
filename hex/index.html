@@ -2041,6 +2041,37 @@ let badgeN = -1;
 // or the copy/share menu, so blocking it document-wide is safe.
 window.addEventListener("contextmenu", e => e.preventDefault());
 
+// ...and the BUZZ that comes with that long press, which the line above cannot
+// reach. On Android, Chromium's gesture recognizer performs the system
+// LONG_PRESS haptic as soon as it decides a held touch is a long press and hands
+// it to the page's usual long-press machinery (context menu, text selection,
+// paste popup). Cancelling those downstream — contextmenu above, `user-select:
+// none` in the CSS — removes what you'd SEE and leaves what you FEEL: the phone
+// still kicks mid-tap, which is the one thing a native app would never do.
+// The only lever a page has left is to make sure the gesture is never recognized
+// on that touch in the first place. A touchstart that calls preventDefault()
+// marks the whole touch sequence as consumed by the page, so no tap, long-press
+// or scroll gesture is generated from it — no long press, no haptic.
+//
+// Because "no gestures" is the whole point, two kinds of target have to opt out:
+//   - #shopScroll, which needs the scroll gesture (a consumed sequence won't
+//     pan, so preventing it here would freeze the shop list); and
+//   - native controls — the shop rail, shop rows, the dev bar's buttons,
+//     <summary>, the reveal-lab link — which are driven by `click`, and a
+//     consumed sequence never synthesizes one.
+// Everything left is stage: Hex, the golden mouse, the HUD, the veil. Those run
+// on `pointerdown`, which fires ahead of touchstart and is untouched by this, so
+// petting and golden taps keep their exact timing. Long-pressing a shop row can
+// still buzz — inside a scroller there's no way to refuse the gesture without
+// refusing the scroll — but holding Hex, which is where a mash actually lingers,
+// no longer does.
+const NATIVE_TOUCH = "#shopScroll, button, a, summary, input, select, textarea";
+window.addEventListener("touchstart", e => {
+  const t = e.target;
+  if (t instanceof Element && t.closest(NATIVE_TOUCH)) return;
+  e.preventDefault();
+}, { capture: true, passive: false });
+
 
 // ---------------------------------------------------------------------------
 // SHOP RENDER

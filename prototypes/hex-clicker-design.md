@@ -18,7 +18,7 @@ _Last updated: 2026-08-03._
 
 - **Theme — neon line-art on near-black.** The whole game orbits a real neon
   mouse toy Hex the cat loves. Everything is drawn as two-pass neon strokes
-  (soft glow + bright core); single-theme by choice (see `lineart-sketches.html`).
+  (soft glow + bright core); single-theme by choice.
 
 - **Currency — neon mice.** You pet Hex, she bats the neon mouse; you collect
   **neon mice**. The number is a means to the reveal, not the goal itself.
@@ -30,11 +30,10 @@ _Last updated: 2026-08-03._
   The formula shape is locked; the constants are open.
 
 - **Reveal word & scene — `TO THE MOON`.** This is _the_ code word and scene for
-  Hex Clicker: rocket, crescent moon, orbit swoosh, little green visitors (see
-  the moon panel in `lineart-sketches.html`). The **SIX SIDED** art is kept as a
-  concept-art reference only (in `lineart-sketches.html` / `reveal-lab.html`) —
-  it does not ship as a second scene. `reveal-lab.html` keeps both scenes because
-  it's a tuning instrument, not the game.
+  Hex Clicker: rocket, crescent moon, orbit swoosh, little green visitors. It is
+  the only scene anywhere — `reveal-lab.html` narrowed to it in v6 (four word
+  layouts, one scene) and the game inks nothing else. The early **SIX SIDED** and
+  **ENIGMA** concept panels are retired; they live in git history only.
 
 - **Mouse accumulator — lifetime neon mice.** Wall-mouse _k_ climbs on when
   cumulative neon mice ever earned crosses a geometric threshold

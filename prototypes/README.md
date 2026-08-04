@@ -20,7 +20,10 @@ One non-game tool lives here too:
 
 **Retired:** Stack Cats, Yarn Flick, Laser Dash and Salad Cat were cut — each
 was a one-commit experiment that answered its question and was never returned
-to. They're recoverable from git history if a mechanic is worth revisiting.
+to. `lineart-sketches.html` went with them: the theme it studied is committed
+and shipping, and of its three panels only TO THE MOON survived into the game.
+All are recoverable from git history if a mechanic or a panel is worth
+revisiting.
 
 ## Playtesting
 

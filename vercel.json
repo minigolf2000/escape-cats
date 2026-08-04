@@ -49,6 +49,9 @@
       "source": "/:path*",
       "has": [{ "type": "host", "value": "www.hexxygon.com" }],
       "destination": "/hex/:path*"
-    }
+    },
+    { "source": "/qr-studio", "destination": "/solo-hex/qr-studio.html" },
+    { "source": "/reveal-lab", "destination": "/solo-hex/reveal-lab.html" },
+    { "source": "/proctor", "destination": "/proctor/index.html" }
   ]
 }

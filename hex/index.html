@@ -1012,18 +1012,16 @@ const BUILDINGS = [
   // AND the bases are small — every tier would appear at once. Gating on a purchase
   // also means the player can see they caused it, which a silent threshold never
   // manages.
-  { id: "portal",  name: "Hole in the Wall",     icon: "🕳️", base: 2000,   mps: 60,   night: true },
+  { id: "portal",  name: "Hole in the Wall",     icon: "🕳️", base: 2000,   mps: 60,   night: true, firstFree: true },
   { id: "spindle", name: "Sleep Spindle",        icon: "🧵", base: 8000,   mps: 240,  night: true, gate: "spindles" },
   { id: "delta",   name: "Delta Wave",           icon: "🌊", base: 32000,  mps: 960,  night: true, gate: "deltawave" },
   { id: "nested",  name: "Dream Within a Dream", icon: "🌀", base: 128000, mps: 3840, night: true, gate: "nesteddream" },
 ];
-// Night seed: the moment you fall asleep a few holes are already open, so night is
-// never staring at zero income. This is what "the first Hole is free" means — the
-// flip grants them rather than pricing the first purchase at 0, which would make
-// EVERY hole free (cost is base * 1.15^owned, so a base of 0 stays 0 forever).
-// Granted on the day->night flip, matched in both the live buy and the pacing sim.
-const NIGHT_SEED_ID = BUILDINGS.find(b => b.night).id;
-const NIGHT_SEED_COUNT = 4;
+// No seed grant: night opens on ZERO holes and zero income, and the bootstrap is
+// that the first Hole is FREE (`firstFree` above). Same deadlock-avoidance the old
+// silently-granted seed holes bought, but as a purchase — the player opens the
+// dream's first hole themselves, which is the difference between an economy that
+// starts and an economy the player starts.
 const CLICK_BASE = 1;           // mice per pet before bonuses
 const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
 // Zoomies, the golden-mouse buff (the mechanic itself lives with the golden
@@ -1474,8 +1472,13 @@ const UPGRADES = [
   // form and form before colour, so a dream that starts as bare moving specks is
   // what Hex would really see; every upgrade after this is her dreaming BETTER than
   // she can see awake.
+  //
+  // Priced so it CANNOT be the first thing bought: night opens at zero, so the only
+  // route to 6,000 is opening several Holes first — the drifting specks stay
+  // anonymous while the room builds the dream around them, and naming them is the
+  // reward for getting an income going.
   { key: "countingmice", name: "Counting Mice", icon: "💭",
-    cost: 1400, unlock: { requires: "catnap" },
+    cost: 6000, unlock: { requires: "catnap" },
     effect: { type: "neon" } },
   { key: "spindles", name: "Sleep Spindle", icon: "🧵",
     cost: 4000, unlock: { requires: "countingmice" },
@@ -1607,7 +1610,13 @@ function load() {
 // ---------------------------------------------------------------------------
 // ECONOMY HELPERS
 // ---------------------------------------------------------------------------
-function costOf(b, owned) { return Math.ceil(b.base * Math.pow(GROWTH, owned)); }
+// `firstFree` prices a building's FIRST copy at zero and shifts the 1.15 curve down
+// one step, so copy n costs base * GROWTH^(n-1). A base of 0 could not do this —
+// the curve multiplies the base, so every copy would be free forever.
+function costOf(b, owned) {
+  if (b.firstFree && owned === 0) return 0;
+  return Math.ceil(b.base * Math.pow(GROWTH, owned - (b.firstFree ? 1 : 0)));
+}
 
 // Every bought upgrade is folded into `mods` here, and nothing else in the game
 // ever asks "do I own upgrade X?" — that's the one structural thing worth
@@ -1880,7 +1889,15 @@ function fmt(n, floats = 1) {
   const out = n < 10
     ? dropDeadZeros(n.toFixed(floats))
     : Math.floor(n).toLocaleString("en-US");
-  return neg && out !== "0" ? "-" + out : out;
+  const signed = neg && out !== "0" ? "-" + out : out;
+  // Night's numbers all read as MILLIONS. Pure presentation: the stored values are
+  // untouched (the flip already hard-resets the economy, so night's numbers share no
+  // surface with day's) — the dream is simply a place where you'd believe you have
+  // 2,000M mice. Applied here, in the one formatter every player-facing count runs
+  // through, rather than at each call site. The only fmt user that is NOT a mouse
+  // count (secsText's "N seconds") renders on day-only zoom rows, which the night
+  // shop hides.
+  return nightActive() ? signed + "M" : signed;
 }
 
 // ---------------------------------------------------------------------------
@@ -2031,11 +2048,13 @@ function buildShop() {
 // `bought` and `unlocked` survive: they are the record of what the room has figured
 // out, and re-locking day research would read as losing progress. Shared with the
 // pacing sim so both phases agree on what the reset costs.
+//
+// Nothing is granted. The reset leaves bank, lifetime and holdings at literal zero;
+// the first Hole in the Wall being free is what un-deadlocks the phase.
 function nightReset(s) {
   s.mice = 0;
   s.total = 0;
   for (const b of BUILDINGS) if (!b.night) s.owned[b.id] = 0;
-  s.owned[NIGHT_SEED_ID] += NIGHT_SEED_COUNT;
 }
 
 function isRevealed(b, s) {
@@ -2123,7 +2142,9 @@ function refreshShop() {
     if (textStale) {
       r.ownN = owned;
       r.rateEach = rateEach;
-      r.costNum.textContent = fmt(price);
+      // A zero price renders as the word, not as "0M" — the free first Hole is a
+      // beat, and a price of nothing should read as an invitation rather than a sum.
+      r.costNum.textContent = price === 0 ? "free" : fmt(price);
       if (revealed) {
         r.own.textContent = owned;
         // Cookie Clicker's two tooltip lines, split by whether you own any yet:
@@ -4267,7 +4288,10 @@ function simulateRun(opts = {}) {
         const cost = costOf(b, s.owned[b.id]);
         s.owned[b.id]++; const gain = rates(s.bought, s.owned).all - r0.all; s.owned[b.id]--;
         if (gain <= 0) continue;
-        const score = Math.max(0, (cost - s.mice) / r0.all) + cost / gain;
+        // Guarded wait term: at night's open income is 0, and an affordable (or
+        // free) purchase must not compute (0-0)/0 = NaN and poison the comparison.
+        const wait = cost > s.mice ? (cost - s.mice) / r0.all : 0;
+        const score = wait + cost / gain;
         if (!best || score < best.score) best = { cost, score, pay: cost / gain,
           buy: () => { s.owned[b.id]++; if (s.owned[b.id] === 1) log(`first ${b.name}`); } };
       }
@@ -4279,7 +4303,8 @@ function simulateRun(opts = {}) {
         if (nightOf(s.bought) && !nightOnlyUnlock(u)) continue;
         s.bought[u.key] = 1; const gain = rates(s.bought, s.owned).all - r0.all; delete s.bought[u.key];
         if (gain <= 0) continue;  // e.g. click upgrades at pps=0
-        const score = Math.max(0, (u.cost - s.mice) / r0.all) + u.cost / gain;
+        const uWait = u.cost > s.mice ? (u.cost - s.mice) / r0.all : 0;
+        const score = uWait + u.cost / gain;
         if (!best || score < best.score) best = { cost: u.cost, score, pay: u.cost / gain,
           buy: () => { s.bought[u.key] = 1; log(`upgrade ${u.name}`); } };
       }

@@ -5,9 +5,5 @@
   "main": "src/hex.ts",
   "parties": {
     "lobby": "src/lobby.ts"
-  },
-  "vars": {
-    "HEX_CODEWORD": "TO THE MOON",
-    "PROCTOR_TOKEN": "dev-proctor"
   }
 }

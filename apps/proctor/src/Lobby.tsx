@@ -8,7 +8,6 @@ import {
 } from "@escape-cats/shared";
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
-const TOKEN = import.meta.env.VITE_PROCTOR_TOKEN ?? "dev-proctor";
 
 /**
  * Live view of everyone sitting on the landing page, with the controls to sort
@@ -25,7 +24,7 @@ export function Lobby({ onOpenTeam }: { onOpenTeam: (teamId: string) => void }) 
       host: PARTYKIT_HOST,
       room: "main",
       party: "lobby",
-      query: { role: "proctor", token: TOKEN },
+      query: { role: "proctor" },
     });
     socketRef.current = socket;
     const onOpen = () => setOnline(true);

@@ -6,7 +6,7 @@
 // read from a clock here — that keeps the sim deterministic enough to test and
 // lets the server stamp everything from one Date.now() per message.
 
-import { BUILDINGS, UPGRADES, HEX_CODEWORD_DEFAULT } from "./data";
+import { BUILDINGS, UPGRADES, HEX_CODEWORD } from "./data";
 import type { HexSnapshot, PlayerInfo } from "../protocol";
 import {
   type HexCore,
@@ -239,20 +239,15 @@ export class HexSim {
   /** Assemble the wire snapshot. The ONE place this happens — the room server
    * and the ?solo mode both call it, so derived fields (progress, cps) and the
    * codeword gate ("the word never leaves before the wall is legible") cannot
-   * drift between them. `codeword` overrides the default answer (the server
-   * passes its HEX_CODEWORD env var; see HEX_CODEWORD_DEFAULT's note). */
-  snapshot(
-    now: number,
-    players: PlayerInfo[],
-    codeword: string = HEX_CODEWORD_DEFAULT,
-  ): HexSnapshot {
+   * drift between them. */
+  snapshot(now: number, players: PlayerInfo[]): HexSnapshot {
     return {
       ...this.state,
       players,
       serverTime: now,
       progress: this.progress(),
       cps: this.baseCps() * this.state.speed,
-      codeword: this.state.legibleAt ? codeword : null,
+      codeword: this.state.legibleAt ? HEX_CODEWORD : null,
     };
   }
 

@@ -11,7 +11,6 @@ import {
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
 const HEX_URL = import.meta.env.VITE_HEX_URL ?? "http://localhost:5173";
-const TOKEN = import.meta.env.VITE_PROCTOR_TOKEN ?? "dev-proctor";
 
 function randomRoomCode(): string {
   const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // no I/O — QR text stays unambiguous
@@ -126,7 +125,7 @@ function useGameSocket<M>(
       host: PARTYKIT_HOST,
       room,
       party,
-      query: { role: "proctor", token: TOKEN },
+      query: { role: "proctor" },
     });
     socketRef.current = socket;
     socket.addEventListener("message", (e) => {

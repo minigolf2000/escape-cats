@@ -40,7 +40,7 @@ export default class LobbyServer implements Party.Server {
   }
 
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
-    const meta = this.roster.register(conn, ctx, this.proctorToken());
+    const meta = this.roster.register(conn, ctx);
     if (this.isPlayerDevice(meta.role, ctx)) {
       // Don't let a reconnect with the default name overwrite a name the
       // player already gave us.
@@ -53,10 +53,10 @@ export default class LobbyServer implements Party.Server {
   }
 
   /**
-   * Roster downgrades a failed proctor to role "player" with a connection-id
-   * pid. That is harmless in a game room, but here it would persist a phantom
-   * "Cat" into the roster that the proctor then has to sort — permanently, and
-   * once per mistyped token. A real player device always sends its own pid and
+   * Only a genuine player device gets persisted into the roster. Anything else
+   * connecting without a pid — a curious browser tab, a health check — would
+   * otherwise leave a phantom "Cat" that the proctor has to sort, permanently
+   * and once per visit. A real player device always sends its own pid and
    * never claims a role.
    */
   private isPlayerDevice(
@@ -187,9 +187,5 @@ export default class LobbyServer implements Party.Server {
       "names",
       Object.fromEntries(this.names.entries()),
     );
-  }
-
-  private proctorToken(): string {
-    return (this.room.env.PROCTOR_TOKEN as string) ?? "dev-proctor";
   }
 }

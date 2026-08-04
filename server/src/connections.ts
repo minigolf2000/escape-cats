@@ -13,20 +13,21 @@ export interface ConnMeta {
  * Players carry a persistent `pid` (client-generated, stored in
  * localStorage) so a phone that locks or drops wifi reclaims its seat on
  * reconnect instead of appearing as a fifth player. Proctor connections
- * authenticate with ?role=proctor&token=... and are spectators, never
- * players.
+ * declare ?role=proctor and are spectators, never players.
+ *
+ * The role is a claim, not a credential — anyone can append it. That is
+ * deliberate: the proctor page is a static asset, so any token it sent would
+ * ship in its own bundle and gate nothing. The only powers the role carries
+ * are reset and speed on your own room, which is not worth defending here.
  */
 export class Roster {
   private meta = new Map<string, ConnMeta>(); // connection.id -> meta
   private players = new Map<string, PlayerInfo>(); // pid -> info
 
-  register(conn: Party.Connection, ctx: Party.ConnectionContext, proctorToken: string): ConnMeta {
+  register(conn: Party.Connection, ctx: Party.ConnectionContext): ConnMeta {
     const url = new URL(ctx.request.url);
-    const isProctor =
-      url.searchParams.get("role") === "proctor" &&
-      url.searchParams.get("token") === proctorToken;
     const m: ConnMeta = {
-      role: isProctor ? "proctor" : "player",
+      role: url.searchParams.get("role") === "proctor" ? "proctor" : "player",
       pid: url.searchParams.get("pid") ?? conn.id,
       name: url.searchParams.get("name") ?? "Cat",
     };

@@ -139,7 +139,17 @@ Attach the domain to the project in Vercel, then add a host rewrite in
 }
 ```
 
-`g00.mba` is already wired this way, to Goomba Rider.
+Two are wired already, both to the standalone single-player builds — neither
+needs PartyKit, so both are fully playable before the server is deployed:
+
+| Domain | Serves |
+| --- | --- |
+| `g00.mba` | Goomba Rider (`/prototypes/goomba-rider.html`) |
+| `hexxygon.com` | Hex Clicker solo + QR Studio (`/solo-hex/`) |
+
+When the coop versions of these games are ready, decide whether these domains
+move to `/goomba/` and `/hex/` or whether the coop games get their own — it's
+a one-line change to the `destination` either way.
 
 **Do not change `base: "./"` in the vite configs.** It is what lets one build
 serve both from a vanity domain root (rewritten to `/hex/`) and from a path

@@ -155,7 +155,7 @@ the two games cannot drift onto different servers):
 ```
 VITE_PARTYKIT_HOST=escape-cats.<user>.partykit.dev
 VITE_HEX_URL=https://hexxygon.com
-VITE_GOOMBA_URL=https://g00.mba
+VITE_GOOMBA_URL=https://cat-games-tau.vercel.app/goomba
 VITE_PROCTOR_TOKEN=<matches PROCTOR_TOKEN above>
 ```
 
@@ -205,20 +205,26 @@ The filesystem check runs before rewrites, so a root index would win over the
 `"source": "/"` rules and every vanity domain would serve the landing page
 instead of its game.
 
-Two are wired already, both to the coop games — so these are the domains the
-proctor QR codes point at (`VITE_HEX_URL` / `VITE_GOOMBA_URL`):
+Two are wired already, each pointed at whichever build of that game is the
+real one today:
 
-| Domain | Serves |
-| --- | --- |
-| `hexxygon.com` | Hex Clicker (coop) — `/hex/` |
-| `g00.mba` | Angry Goomba (coop) — `/goomba/` |
+| Domain | Serves | Needs PartyKit? |
+| --- | --- | --- |
+| `hexxygon.com` | Hex Clicker coop — `/hex/` | yes, to join a room |
+| `g00.mba` | Goomba Rider — `/prototypes/goomba-rider.html` | no |
 
-Both need PartyKit deployed to be playable. Until then the domains resolve
-and serve the app, which shows its "scan the room QR code" screen; joining a
-room is what needs the server.
+The asymmetry is deliberate. Hex's coop client is the finished game, so its
+domain points there. Goomba's coop client is still a scaffold while Goomba
+Rider is the developed one, so `g00.mba` serves the prototype until the coop
+version overtakes it — at which point it becomes a one-line `destination`
+change.
 
-The single-player builds stay on paths — `/solo-hex/` and `/prototypes/` —
-and need no server at all.
+Because `g00.mba` is Goomba Rider, it is **not** `VITE_GOOMBA_URL`. That var
+is the coop Angry Goomba URL the proctor's QR code points at, which lives at
+`/goomba/` on the project domain until it earns a vanity domain of its own.
+
+`g00.mba` rewrites every path to the one self-contained Goomba Rider file, so
+it has no deep links; `hexxygon.com` forwards paths through to `/hex/`.
 
 **Do not change `base: "./"` in the vite configs.** It is what lets one build
 serve both from a vanity domain root (rewritten to `/hex/`) and from a path

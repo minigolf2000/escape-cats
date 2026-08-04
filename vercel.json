@@ -13,12 +13,12 @@
     {
       "source": "/",
       "has": [{ "type": "host", "value": "g00.mba" }],
-      "destination": "/goomba/index.html"
+      "destination": "/prototypes/goomba-rider.html"
     },
     {
       "source": "/",
       "has": [{ "type": "host", "value": "www.g00.mba" }],
-      "destination": "/goomba/index.html"
+      "destination": "/prototypes/goomba-rider.html"
     },
     {
       "source": "/",
@@ -33,12 +33,12 @@
     {
       "source": "/:path*",
       "has": [{ "type": "host", "value": "g00.mba" }],
-      "destination": "/goomba/:path*"
+      "destination": "/prototypes/goomba-rider.html"
     },
     {
       "source": "/:path*",
       "has": [{ "type": "host", "value": "www.g00.mba" }],
-      "destination": "/goomba/:path*"
+      "destination": "/prototypes/goomba-rider.html"
     },
     {
       "source": "/:path*",

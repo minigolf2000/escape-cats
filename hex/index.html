@@ -111,6 +111,20 @@
     --title-shadow: 0 0 18px rgba(255,212,77,.4);
   }
   * { box-sizing: border-box; }
+  /* RESTORING A NIGHT SAVE MUST NOT REPLAY THE TWIST.
+     The phase is applied by syncPhase() during boot, and every day->night rule below
+     is a TRANSITION on a base element — so adding body.night animates them, and a
+     player who refreshed mid-dream watched the whole dissolve again: the sky fading
+     in over 2.2s, the rays fading out over 1.8s, and the camera holding still for a
+     3.3s delay before pulling back. Five seconds of daytime turning into night, on
+     every reload.
+     `.booting` is on in the markup and removed one frame after the phase is set, so
+     a restored save simply PAINTS in its phase. Blanket rule on purpose: enumerating
+     the animated properties is how one gets missed the next time a beat is added. */
+  body.booting *, body.booting *::before, body.booting *::after {
+    transition: none !important;
+    animation: none !important;
+  }
   html, body {
     margin: 0; height: 100%; overflow: hidden;
     font: 500 13px var(--ui-font); color: var(--ink);
@@ -356,10 +370,16 @@
        phase, which meant the yawn and the zzz hold — the beat that plays at full
        size, before the camera moves at all — were staged at the fitted size and
        popped on the class flip. Nothing to see on a phone either way (the fit is
-       1 there); on a tablet it was a 31% jump. */
+       1 there); on a tablet it was a 31% jump.
+       No transition-delay here: it is choreography, so it hangs off .dissolving
+       below rather than off `night`, where it also stalled a restored save. */
     transform: translate(var(--pose-x), var(--pose-y)) scale(calc(.25 * var(--pose-fit)));
-    transition-delay: 3.3s;
   }
+  /* The delay is CHOREOGRAPHY, so it hangs off the cutscene rather than off `night`.
+     On `night` it also applied to a restored save, where there is no yawn and no zzz
+     to wait for — just a stall before the camera moved. Same for the breath, the zzz
+     and the starfield below. */
+  body.dissolving #catPose { transition-delay: 3.3s; }
   body.night #hexCat { filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
   #hexCat.asleep #eyeLeft, #hexCat.asleep #eyeRight { transform: scaleY(.07); }
 
@@ -371,7 +391,8 @@
      inside the HOLD instead, and that is worth keeping rather than chasing the
      zoom again: she is still full size there, so a 3% rise and fall is actually
      legible, right where the beat is asking the player to notice she's asleep. */
-  body.night #catBreath { animation: breathe 4s ease-in-out 3.1s infinite; }
+  body.night #catBreath { animation: breathe 4s ease-in-out infinite; }
+  body.night.dissolving #catBreath { animation-delay: 3.1s; }
   @keyframes breathe {
     0%, 100% { transform: scale(1) translateY(0); }
     50%      { transform: scale(1.03) translateY(-1.5px); }
@@ -493,7 +514,8 @@
      during the HOLD, which is better — the room goes dark around a cat who is
      still full size, and only then does the camera pull back. */
   #stars { position: absolute; inset: 0; overflow: hidden; pointer-events: none;
-    opacity: 0; transition: opacity 1.6s ease-in 1.3s; }
+    opacity: 0; transition: opacity 1.6s ease-in; }
+  body.dissolving #stars { transition-delay: 1.3s; }
   body.night #stars { opacity: 1; }
   /* Each star: a pale dot that breathes between its base opacity (--o) and a
      dim floor, on its own staggered clock (--dur/--delay) so the field shimmers
@@ -964,6 +986,10 @@
 
 <script>
 "use strict";
+// FIRST statement of the script, before anything can paint: suppress every transition
+// and animation while the save is restored, so a night save APPEARS in its phase
+// rather than dissolving into it. Cleared one frame after syncPhase() in BOOT below.
+document.body.classList.add("booting");
 
 // ---------------------------------------------------------------------------
 // BALANCE — the whole economy lives here. Base cost & mps mirror Cookie
@@ -2429,10 +2455,17 @@ function buyUpgrade(key) {
   // Normalised defensively: night upgrades are singular today, so `.type`
   // happens to work — but it silently reads undefined the day one is authored
   // as an array, and the phase flip would just never fire.
+  // `dissolving` carries the cutscene's transition DELAYS, and it has to be on the
+  // body BEFORE the phase class lands. syncPhase -> resizeWall reads clientWidth,
+  // which forces a style flush, so the transform transition starts inside syncPhase;
+  // adding the class afterwards (from runNightCutscene) was too late and the camera
+  // pulled back immediately instead of holding through the yawn and the zzz.
+  const liveFlip = !nightBefore && nightOf(game.bought);
+  if (liveFlip) document.body.classList.add("dissolving");
   syncPhase(); // no special-casing the night effect — phase follows the fold
   // The twist just fired LIVE (a real purchase flipped day->night, not a load or
   // a dev preset — those call syncPhase directly). Take the screen for the beat.
-  if (!nightBefore && nightActive()) {
+  if (liveFlip) {
     nightReset(game);
     recalc();
     runNightCutscene();
@@ -3916,6 +3949,10 @@ let cutsceneLock = false;
 function runNightCutscene() {
   if (cutsceneLock) return;
   cutsceneLock = true;
+  // `dissolving` (the beat's transition delays — see #catPose / #catBreath / #stars)
+  // is added by buyUpgrade BEFORE syncPhase, for the ordering reason documented
+  // there. It is removed at the end of the beat below. A restored night save never
+  // gets it, so it has no choreography to wait through.
   dockEl.classList.add("cutscene-hidden"); // recede the whole static shop for the reveal
   cutsceneVeilEl.classList.add("on"); // nothing selectable while the beat plays
   // Duration read here (not a top-level const) so it can reference YAWN_MS, which
@@ -3927,6 +3964,7 @@ function runNightCutscene() {
   setTimeout(() => {
     cutsceneVeilEl.classList.remove("on");
     dockEl.classList.remove("cutscene-hidden");
+    document.body.classList.remove("dissolving");
     cutsceneLock = false;
   }, YAWN_MS + ZZZ_HOLD_MS + 1800);
 }
@@ -4695,6 +4733,13 @@ recalc();
 scheduleGold(game.goldCaught === 0);
 buildShop();
 syncPhase(); // saves restore the phase for free
+// The restored phase is now in the DOM. Flush styles so the browser adopts it with
+// transitions still suppressed, then drop `.booting` on the next frame so everything
+// the player does from here animates normally. Without the forced flush the class
+// removal can coalesce into the same style recalculation as syncPhase's class add,
+// and the dissolve plays anyway — which is the whole bug.
+void document.body.offsetHeight;
+requestAnimationFrame(() => document.body.classList.remove('booting'));
 initDev();
 countIconEl.innerHTML = currencyIconSVG(); // static art, set once — not refreshHud()'s job
 

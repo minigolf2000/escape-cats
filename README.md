@@ -60,7 +60,7 @@ hex/                 The original single-player prototype — FROZEN as referenc
 6. **Code words stay server-side** until unlocked (see `server/partykit.json`
    vars; override per deployment).
 7. **10 minutes is a completion target, not a timer** — achieved through
-   balance. All economy/level tuning lives in `packages/shared/src/balance.ts`
+   balance. All economy/level tuning lives in `packages/shared/src/hex/data.ts`
    and `levels.ts`, never in game code.
 8. **Seat reclaim** — each phone has a persistent player id in localStorage,
    so a locked phone or dropped wifi rejoins the same seat.
@@ -89,6 +89,13 @@ the same wifi (the vite servers listen on the LAN; point
 Simulate 4 players locally with 4 browser tabs — but note the persistent
 player id is per-browser-profile, so use different profiles/incognito
 windows to appear as different players.
+
+For balance work on Hex, `?solo` runs the shared sim in the page with no
+server at all, and `?speed=N` fast-forwards it — so
+`localhost:5173/?solo&speed=20` walks a whole run in about 20 seconds. This
+replaces the frozen prototype's `?debug` panel; the proctor's ×1/×5/×20
+buttons do the same thing to a real room. `window.__hex` exposes the state
+mirror and a `send()` for driving the game from a console or a test.
 
 ## Configuration
 
@@ -188,10 +195,16 @@ you intend to split those surfaces back out.
 
 ## Next steps (deliberately not in the scaffold)
 
-- The actual letter-stroke reveal in `packages/shared/src/seeded.ts`
-  (`toyPathAt` is a seeded wanderer with a TODO where the word logic goes).
-- Art, sound, and juice everywhere (everything is emoji-and-rectangles).
-- Balance playtests (add a dev-only time-scale knob to the hex server).
+- **Room state is not persisted.** The hex sim lives in the Durable Object's
+  memory, so an eviction or a redeploy mid-session resets a team to zero. It
+  wants a throttled write to `room.storage` plus a rehydrate in `onStart` that
+  credits elapsed time (capped, or a room left open overnight hands the next
+  team a fortune). This is the one gap that can spoil a live session.
+- Art, sound, and juice for **Goomba** (still emoji-and-rectangles; hex has
+  its own art).
 - Per-session code words configured from the proctor dashboard.
+- Deploying the PartyKit worker on push (there is no git integration, so
+  `packages/shared` can ship to Vercel while the server still runs the old
+  economy — see the Deploying note).
 - Goomba client-side prediction of your own projectile if launch latency
   ever feels bad (it shouldn't on venue wifi).

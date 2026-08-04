@@ -8,6 +8,7 @@ import {
   BUILDINGS,
   foldMods,
   nightOf,
+  allRailBought,
   baseCpsWith,
   clickBaseWith,
   unlockMet,
@@ -92,6 +93,11 @@ export function wallSeed() {
 // the round-trip window are dropped rather than reconciled: on venue wifi the
 // error is a fraction of one tap.
 // ---------------------------------------------------------------------------
+// Must cover a tap's whole round trip: PET_FLUSH_MS (100, net.ts) until the
+// batch leaves, SNAPSHOT_TICK_MS (250, shared sim — pets ride the tick, they
+// don't trigger a broadcast) until a snapshot carries it, plus RTT margin.
+// Shorter and the counter dips once per batch; longer and it double-counts
+// taps the snapshot already includes. Retune alongside those two constants.
 const OPTIMISTIC_MS = 400;
 let optimistic = []; // {at: perfNow, gain}
 export function petCredit(gain) {
@@ -138,6 +144,7 @@ export function applySnapshot(snap) {
 
   const nightBefore = nightOf(game.bought);
   const neonBefore = !!mods.neon;
+  const soldOutBefore = allRailBought(game);
   const goldBefore = prevGoldId;
 
   if (edges.reset) {
@@ -168,6 +175,7 @@ export function applySnapshot(snap) {
   const nightAfter = nightOf(game.bought);
   edges.nightFlip = !first && !nightBefore && nightAfter;
   edges.neonOn = !first && !neonBefore && !!mods.neon;
+  edges.soldOut = !first && !soldOutBefore && allRailBought(game);
   const gid = snap.gold ? snap.gold.id : null;
   if (gid !== goldBefore) {
     if (gid !== null) edges.goldSpawn = snap.gold;

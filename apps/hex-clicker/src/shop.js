@@ -8,12 +8,14 @@ import {
   BUILDINGS,
   UPGRADES,
   INCOME_SCALE,
-  NIGHT_ROW_KEYS,
   CRUX_KEYS,
   WALL_EFFECTS,
   costOf,
   isRevealed,
   buildingMpsWith,
+  onRail,
+  allRailBought,
+  effectsOf,
 } from "@escape-cats/shared";
 import {
   shopEl,
@@ -96,19 +98,14 @@ function toggleShop() {
 }
 shopToggleEl.addEventListener("click", toggleShop);
 
-// Does this row belong on the rail in the CURRENT phase? One definition,
-// shared by the shop that renders rows and the badge that counts them.
-function onRailInPhase(u) {
-  return !nightActive() || NIGHT_ROW_KEYS.has(u.key);
-}
+// Does this row belong on the rail in the CURRENT phase? The shared rule —
+// the sim's wire guard and the sold-out test are the same predicate.
+const onRailInPhase = (u) => onRail(u, game.bought);
 
 // NOTHING LEFT TO SELL — every row this phase would ever show is bought.
 // Derived from the table and the state, so a rejoin lands right for free.
 export function shopSoldOut() {
-  return (
-    nightActive() &&
-    UPGRADES.every((u) => !onRailInPhase(u) || game.bought[u.key])
-  );
+  return allRailBought(game);
 }
 
 // How many unlocked, unbought upgrades you have never had on screen.
@@ -143,8 +140,7 @@ const buildingName = (id) =>
   (BUILDINGS.find((b) => b.id === id) || { name: id }).name;
 
 export function effectText(u) {
-  return []
-    .concat(u.effect)
+  return effectsOf(u)
     .map((e) => oneEffectText(e))
     .filter(Boolean)
     .join(" · ");
@@ -441,6 +437,15 @@ const SHOP_OUT_MS = 500; // the dockOut animation
 // Bumped by every start and every abandonment of the beat, so an orphaned
 // stage can't land on a shop that has moved on (a proctor reset mid-beat).
 let shopCloseGen = 0;
+// The rail stops being an expandable region and becomes a sign — shared by
+// the closing beat's first frame and the rejoin path's instant retire.
+function disableRail() {
+  shopToggleEl.disabled = true;
+  shopToggleEl.removeAttribute("aria-expanded");
+  shopToggleEl.removeAttribute("aria-controls");
+  shopToggleEl.setAttribute("aria-label", "Shop sold out — nothing left to buy");
+}
+
 export function runShopClose() {
   if (shopClosePhase) return;
   shopClosePhase = "closing";
@@ -448,10 +453,7 @@ export function runShopClose() {
   // Disabled from the first frame: the rail is a live control right up to
   // here, and a tap landing during the close would collapse the dock out from
   // under its own animation.
-  shopToggleEl.disabled = true;
-  shopToggleEl.removeAttribute("aria-expanded");
-  shopToggleEl.removeAttribute("aria-controls");
-  shopToggleEl.setAttribute("aria-label", "Shop sold out — nothing left to buy");
+  disableRail();
   // `.dock-in` is a spent one-shot and would win the cascade over .dock-out.
   dockEl.classList.remove("dock-in");
   dockEl.classList.add("closing");
@@ -479,10 +481,7 @@ export function retireShop() {
   shopCloseGen++;
   dockEl.classList.remove("closing", "dock-out", "collapsed", "dock-in", "show");
   dockEl.classList.add("sold-out", "retired");
-  shopToggleEl.disabled = true;
-  shopToggleEl.removeAttribute("aria-expanded");
-  shopToggleEl.removeAttribute("aria-controls");
-  shopToggleEl.setAttribute("aria-label", "Shop sold out — nothing left to buy");
+  disableRail();
 }
 
 // Un-closing, reached only by a proctor reset (real play never un-buys).

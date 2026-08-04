@@ -38,7 +38,6 @@ import {
   initShopSkin,
   setBooted,
   syncDock,
-  shopSoldOut,
   shopClosePhase,
   runShopClose,
   reopenShop,
@@ -48,7 +47,7 @@ import { spawnGold, despawnGold, moveGold, initGoldenInput } from "./golden.js";
 import { updatePops } from "./fx.js";
 import { updateCat } from "./cat.js";
 import { syncPhase, runNightCutscene, isNightInited } from "./phase.js";
-import { drawWall, startWallNeon } from "./wall.js";
+import { drawWall, startWallNeon, resetWallClock } from "./wall.js";
 import { currencyIconSVG } from "./art.js";
 
 // ---------------------------------------------------------------------------
@@ -72,7 +71,6 @@ window.addEventListener(
 // SNAPSHOT WIRING
 // ---------------------------------------------------------------------------
 let inited = false;
-let wasSoldOut = false;
 
 function onSnapshot(snap) {
   const e = applySnapshot(snap);
@@ -82,12 +80,13 @@ function onSnapshot(snap) {
   } else {
     if (e.reset) {
       // Proctor reset: the whole room starts over. Phase re-derives to day,
-      // the shop reopens, and any beat in flight is abandoned.
+      // the shop reopens, the wall clock forgets the old night's anchor, and
+      // any beat in flight is abandoned.
       document.body.classList.remove("dissolving");
       reopenShop();
       despawnGold();
+      resetWallClock();
       syncPhase();
-      wasSoldOut = false;
     }
     if (e.nightFlip) {
       // THE TWIST, live: same ordering as the prototype's buy path —
@@ -99,32 +98,23 @@ function onSnapshot(snap) {
       runNightCutscene();
     }
     if (e.neonOn && isNightInited()) startWallNeon();
+    // The purchase that empties the rail closes the shop — an edge, so a
+    // rejoin that arrives already sold out retires it silently (syncDock).
+    if (e.soldOut && !shopClosePhase) runShopClose();
     if (e.goldSpawn) spawnGold(e.goldSpawn);
     if (e.goldGone) despawnGold();
   }
 
-  // The purchase that empties the rail closes the shop — an edge, so a rejoin
-  // that arrives already sold out retires it without the beat (syncDock).
-  const soldOut = shopSoldOut();
-  if (soldOut && !wasSoldOut && inited && !e.first && !shopClosePhase)
-    runShopClose();
-  wasSoldOut = soldOut;
-
   updateTeam();
-  if (inited) {
-    refreshHud();
-    refreshShop();
-    refreshUpgrades();
-  }
+  // No direct refresh calls: the frame loop repaints within ≤83ms, which is
+  // the same 12fps cadence every other HUD/shop write already runs at.
+  hudTick = 1;
 }
 
 function initGame() {
   inited = true;
   buildShop();
   syncPhase(); // a rejoin restores the phase with no beat, like a saved game
-  if (game.zoomUntil > performance.now()) {
-    /* buff pill picks it up on the first frame */
-  }
   countIconEl.innerHTML = currencyIconSVG(); // static art, set once
   initShopSkin();
   initPetInput();
@@ -133,7 +123,6 @@ function initGame() {
   refreshShop();
   refreshUpgrades();
   syncDock();
-  wasSoldOut = shopSoldOut();
   gateEl.classList.add("hidden");
   // The restored phase is in the DOM. Flush styles so the browser adopts it
   // with transitions still suppressed, then drop `.booting` next frame.
@@ -143,13 +132,20 @@ function initGame() {
   requestAnimationFrame(frame);
 }
 
+let teamHtml = "";
 function updateTeam() {
-  teamEl.innerHTML = players
+  // Rebuilt per snapshot but written only on change — the roster shifts a
+  // handful of times per session, not 4x/second.
+  const html = players
     .map(
       (p) =>
         `<span class="${p.connected ? "" : "off"}">${escapeHtml(p.name)}</span>`,
     )
     .join(" · ");
+  if (html !== teamHtml) {
+    teamHtml = html;
+    teamEl.innerHTML = html;
+  }
 }
 const escapeHtml = (s) =>
   s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);

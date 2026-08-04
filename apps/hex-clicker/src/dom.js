@@ -42,7 +42,6 @@ export const mouthEl = $("#mouth");
 // Multiplayer shell
 export const gateEl = $("#gate");
 export const gateRoomEl = $("#gateRoom");
-export const gateNameEl = $("#gateName");
 export const gateErrEl = $("#gateErr");
 export const roomInputEl = $("#roomInput");
 export const nameInputEl = $("#nameInput");

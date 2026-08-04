@@ -10,7 +10,7 @@
 
 import { mulberry32 } from "@escape-cats/shared";
 import { stageEl, goldenEl, hudEl, dockEl } from "./dom.js";
-import { game, mods, wallNow } from "./state.js";
+import { mods, wallNow } from "./state.js";
 import { floatNum } from "./fx.js";
 import { transport } from "./net";
 import { mouseParts } from "./art.js";

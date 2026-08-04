@@ -2,10 +2,8 @@
 // replaces the old single-file prototype as the tuning bench — one sim, one
 // set of rules, whichever side of the wire it runs on.
 
-import { HexSim, type HexSnapshot } from "@escape-cats/shared";
+import { HexSim, SNAPSHOT_TICK_MS, type HexSnapshot } from "@escape-cats/shared";
 import { transport } from "./net";
-
-const TICK_MS = 250;
 
 export function startSolo(opts: {
   onSnapshot: (snap: HexSnapshot) => void;
@@ -17,38 +15,33 @@ export function startSolo(opts: {
   const speed = Number(new URLSearchParams(location.search).get("speed"));
   if (Number.isFinite(speed) && speed > 0) sim.state.speed = Math.min(50, speed);
 
-  const snapshot = (): HexSnapshot => ({
-    ...sim.state,
-    players: [],
-    serverTime: Date.now(),
-    progress: sim.progress(),
-    codeword: sim.state.legibleAt ? "TO THE MOON" : null,
-  });
-
   let pendingPets = 0;
-  setInterval(() => {
-    const now = Date.now();
+  const flushPets = (now: number) => {
     if (pendingPets > 0) {
       sim.pets(pendingPets, now);
       pendingPets = 0;
     }
-    sim.tick(now);
-    opts.onSnapshot(snapshot());
-  }, TICK_MS);
+  };
+  const emit = () => opts.onSnapshot(sim.snapshot(Date.now(), []));
+
+  setInterval(() => {
+    flushPets(Date.now());
+    sim.tick(Date.now());
+    emit();
+  }, SNAPSHOT_TICK_MS);
+
+  // First snapshot synchronously: the page must be fully interactive (gate
+  // down, pet listener live) before the first finger lands, not a tick later.
+  emit();
 
   transport.queuePet = () => {
     pendingPets++;
   };
-  // First snapshot synchronously: the page must be fully interactive (gate
-  // down, pet listener live) before the first finger lands, not a tick later.
-  opts.onSnapshot(snapshot());
-
   transport.send = (msg) => {
     const now = Date.now();
-    if (pendingPets > 0) {
-      sim.pets(pendingPets, now);
-      pendingPets = 0;
-    }
+    // Purchases must land AFTER the taps already queued, or the sim may
+    // reject them for a bank the pets have actually filled.
+    flushPets(now);
     switch (msg.type) {
       case "buyBuilding":
         sim.buyBuilding(msg.id, now);
@@ -63,6 +56,6 @@ export function startSolo(opts: {
         sim.reset(now);
         break;
     }
-    opts.onSnapshot(snapshot());
+    emit();
   };
 }

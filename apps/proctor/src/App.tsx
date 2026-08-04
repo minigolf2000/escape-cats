@@ -3,8 +3,6 @@ import PartySocket from "partysocket";
 import QRCode from "react-qr-code";
 import {
   UPGRADES,
-  foldMods,
-  baseCpsWith,
   type GoombaServerMsg,
   type HexServerMsg,
   type HexSnapshot,
@@ -38,12 +36,11 @@ const mmss = (ms: number) => {
 
 function hexDetail(s: HexSnapshot): string {
   const phase = s.nightAt ? "🌙 night" : "☀️ day";
-  const mps = baseCpsWith(foldMods(s.bought, s.owned), s.owned);
   const boughtN = Object.keys(s.bought).length;
   const elapsed = mmss(s.serverTime - s.startedAt);
   return [
     `${phase} · ${elapsed}`,
-    `${Math.floor(s.mice).toLocaleString()} mice · ${Math.round(mps).toLocaleString()}/s`,
+    `${Math.floor(s.mice).toLocaleString()} mice · ${Math.round(s.cps).toLocaleString()}/s`,
     `${boughtN}/${UPGRADES.length} upgrades` +
       (s.speed !== 1 ? ` · ⏩×${s.speed}` : ""),
   ].join("\n");

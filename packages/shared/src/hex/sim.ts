@@ -6,11 +6,12 @@
 // read from a clock here — that keeps the sim deterministic enough to test and
 // lets the server stamp everything from one Date.now() per message.
 
-import { BUILDINGS, UPGRADES } from "./data";
+import { BUILDINGS, UPGRADES, HEX_CODEWORD_DEFAULT } from "./data";
+import type { HexSnapshot, PlayerInfo } from "../protocol";
 import {
   type HexCore,
   type HexMods,
-  NIGHT_ROW_KEYS,
+  onRail,
   costOf,
   foldMods,
   nightOf,
@@ -19,7 +20,6 @@ import {
   clickBaseWith,
   unlockMet,
   isRevealed,
-  isLegible,
   wallCoverage,
   LEGIBLE_COV,
   GOLD_MIN_S,
@@ -54,6 +54,10 @@ export interface HexSimState extends HexCore {
 
 /** Max pets creditable in one batch message — a tap-storm ceiling per flush. */
 export const PETS_BATCH_MAX = 50;
+
+/** How often the authority ticks income and broadcasts a snapshot — shared by
+ * the room server and the client's ?solo mode so their pacing is identical. */
+export const SNAPSHOT_TICK_MS = 250;
 
 /** Lifetime total at which a day is "about done" (bank + Lab + Catnap) — only
  * used for the proctor's progress bar, never by game rules. */
@@ -137,7 +141,12 @@ export class HexSim {
   }
 
   private checkLegible(now: number): void {
-    if (!this.state.legibleAt && isLegible(this.state))
+    // Against the CACHED mods — recalc() keeps them current on every purchase,
+    // and this runs on the sim's hottest path (every tick and pets batch).
+    if (
+      !this.state.legibleAt &&
+      wallCoverage(this.mods, this.state.total) >= LEGIBLE_COV
+    )
       this.state.legibleAt = now;
   }
 
@@ -207,11 +216,9 @@ export class HexSim {
   buyUpgrade(key: string, now: number): boolean {
     const u = UPGRADES.find((x) => x.key === key);
     if (!u || this.state.bought[u.key] || !unlockMet(u, this.state)) return false;
-    // Phase enforcement, same rule as the shop rail: at night the day research
-    // is off the rail entirely (the day economy has been wiped, so those rows
-    // would price improvements to buildings you no longer own). The client
-    // never shows them; this guards the wire.
-    if (this.night() && !NIGHT_ROW_KEYS.has(u.key)) return false;
+    // Phase enforcement, same rule the shop rail renders by: the client never
+    // shows off-phase rows; this guards the wire.
+    if (!onRail(u, this.state.bought)) return false;
     if (this.state.mice < u.cost) return false;
     const nightBefore = this.night();
     this.state.mice -= u.cost;
@@ -227,6 +234,26 @@ export class HexSim {
     }
     this.checkLegible(now);
     return true;
+  }
+
+  /** Assemble the wire snapshot. The ONE place this happens — the room server
+   * and the ?solo mode both call it, so derived fields (progress, cps) and the
+   * codeword gate ("the word never leaves before the wall is legible") cannot
+   * drift between them. `codeword` overrides the default answer (the server
+   * passes its HEX_CODEWORD env var; see HEX_CODEWORD_DEFAULT's note). */
+  snapshot(
+    now: number,
+    players: PlayerInfo[],
+    codeword: string = HEX_CODEWORD_DEFAULT,
+  ): HexSnapshot {
+    return {
+      ...this.state,
+      players,
+      serverTime: now,
+      progress: this.progress(),
+      cps: this.baseCps() * this.state.speed,
+      codeword: this.state.legibleAt ? codeword : null,
+    };
   }
 
   catchGold(id: number, now: number): boolean {

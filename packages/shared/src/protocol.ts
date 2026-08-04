@@ -24,6 +24,9 @@ export interface HexSnapshot extends HexSimState {
   serverTime: number;
   /** 0..1 for the proctor progress bar. */
   progress: number;
+  /** Mice/second the bank is actually accruing (base rate × dev speed) —
+   * stamped by the authority so dashboards don't re-run the economy fold. */
+  cps: number;
   /** null until the wall is legible — the word never leaves the server before
    * that. (The night wall's painted word is client art; this is the checkable
    * answer the proctor sees.) */

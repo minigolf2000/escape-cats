@@ -67,7 +67,7 @@ export const NIGHT_KEYS = UPGRADES.filter((u) =>
   effectsOf(u).some((e) => e.type === "night"),
 ).map((u) => u.key);
 
-export const isStoryUpgrade = (u: HexUpgrade): boolean =>
+const isStoryUpgrade = (u: HexUpgrade): boolean =>
   effectsOf(u).some(
     (e) =>
       e.type === "night" ||
@@ -97,6 +97,25 @@ for (const u of UPGRADES)
 
 export function nightOf(bought: Record<string, 1 | undefined>): boolean {
   return NIGHT_KEYS.some((k) => bought[k]);
+}
+
+/** Does this row belong on the shop rail in the current phase? At night the
+ * day research is off the rail entirely — the day economy has been wiped, so
+ * those rows would price improvements to buildings you no longer own. */
+export function onRail(
+  u: HexUpgrade,
+  bought: Record<string, 1 | undefined>,
+): boolean {
+  return !nightOf(bought) || NIGHT_ROW_KEYS.has(u.key);
+}
+
+/** NOTHING LEFT TO SELL — every row this phase would ever show is bought.
+ * Only ever true at night (day rows outnumber what a day can buy), and the
+ * cue for the shop's one-way closing beat. */
+export function allRailBought(s: HexCore): boolean {
+  return (
+    nightOf(s.bought) && UPGRADES.every((u) => !onRail(u, s.bought) || s.bought[u.key])
+  );
 }
 
 // Every bought upgrade is folded into a mods object here, and nothing else in
@@ -187,7 +206,7 @@ export function clickBaseWith(m: HexMods, owned: Record<string, number>): number
 // ---------------------------------------------------------------------------
 // UNLOCKS / REVEALS
 // ---------------------------------------------------------------------------
-export const ownedPairs = (c: HexUnlock): [string, number][] =>
+const ownedPairs = (c: HexUnlock): [string, number][] =>
   typeof c.owned![0] === "string"
     ? [c.owned as [string, number]]
     : (c.owned as [string, number][]);
@@ -221,7 +240,6 @@ export function isRevealed(b: HexBuilding, s: HexCore): boolean {
 // ---------------------------------------------------------------------------
 export const GOLD_MIN_S = 40,
   GOLD_MAX_S = 90; // spawn window
-export const GOLD_MEAN_S = (GOLD_MIN_S + GOLD_MAX_S) / 2;
 // The FIRST golden of a run waits longer, landing ~1:50–2:40 — late in the
 // opening era, "a taste". See the prototype's note on why.
 export const GOLD_FIRST_MIN_S = 90,

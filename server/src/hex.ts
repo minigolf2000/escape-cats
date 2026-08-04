@@ -1,17 +1,15 @@
 import type * as Party from "partykit/server";
 import {
   HexSim,
+  SNAPSHOT_TICK_MS,
   type HexClientMsg,
   type HexServerMsg,
-  type HexSnapshot,
 } from "@escape-cats/shared";
 import { Roster } from "./connections";
 
 // The room server is transport only: every game rule lives in the shared
 // HexSim (packages/shared/src/hex/sim.ts), which the client's ?solo mode runs
 // too. If you're changing what a purchase or a pet does, change the sim.
-const TICK_MS = 250;
-
 export default class HexServer implements Party.Server {
   private roster = new Roster();
   private sim = new HexSim(Date.now());
@@ -23,7 +21,7 @@ export default class HexServer implements Party.Server {
     this.ticker = setInterval(() => {
       this.sim.tick(Date.now());
       this.broadcast();
-    }, TICK_MS);
+    }, SNAPSHOT_TICK_MS);
   }
 
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
@@ -50,8 +48,11 @@ export default class HexServer implements Party.Server {
         this.roster.rename(sender, String(msg.name).slice(0, 24));
         break;
       case "pets":
+        // No broadcast: four phones flushing taps at 10Hz would mean ~40 full
+        // snapshots/sec fanned out to the room, and pets only move numbers the
+        // phones already show optimistically. The next tick (250ms) carries it.
         if (!proctor) this.sim.pets(msg.count, now);
-        break;
+        return;
       case "buyBuilding":
         if (!proctor) this.sim.buyBuilding(String(msg.id), now);
         break;
@@ -85,17 +86,11 @@ export default class HexServer implements Party.Server {
   }
 
   private broadcast() {
-    const state: HexSnapshot = {
-      ...this.sim.state,
-      players: this.roster.list(),
-      serverTime: Date.now(),
-      progress: this.sim.progress(),
-      // The word never leaves the server until the wall is legible. (The wall's
-      // painted word is client art and must match this — see server/README.)
-      codeword: this.sim.state.legibleAt
-        ? ((this.room.env.HEX_CODEWORD as string) ?? "TO THE MOON")
-        : null,
-    };
+    const state = this.sim.snapshot(
+      Date.now(),
+      this.roster.list(),
+      this.room.env.HEX_CODEWORD as string | undefined,
+    );
     const msg: HexServerMsg = { type: "state", state };
     this.room.broadcast(JSON.stringify(msg));
   }

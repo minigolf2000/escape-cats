@@ -743,11 +743,24 @@ function syncWallSpeed(now) {
   // timestamp (game.nightAt), so wallUnits(t) is the same pure function of the
   // shared clock on every phone — anchored at "this phone's first night frame"
   // the drawings would sit at per-device offsets along their tours.
+  //
+  // KNOWN LIMIT, fine today: a LATER rate change re-anchors at each phone's
+  // own frame, and a phone joining after it replays the night at the new rate
+  // — per-device offsets return. No speed rung exists (the table sells none),
+  // so the first spin-up is the only transition; if speed upgrades come back,
+  // move the (base, anchor) pair into HexSimState so the sim banks it on the
+  // purchase and the snapshot carries it.
   if (wallUnitRate === 0 && game.nightAt) {
     wallUnitBase = 0; wallUnitAnchor = game.nightAt; wallUnitRate = rate;
     return;
   }
   wallUnitBase = wallUnits(now); wallUnitAnchor = now; wallUnitRate = rate;
+}
+
+// A proctor reset starts a new run whose night will have a new anchor; forget
+// the old one so the next spin-up re-anchors at the new twist's timestamp.
+export function resetWallClock() {
+  wallUnitBase = 0; wallUnitAnchor = 0; wallUnitRate = 0;
 }
 function wallPosAt(m, t, out) {
   const crew = WALL_CREWS[m.crew];

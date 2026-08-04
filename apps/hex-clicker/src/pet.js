@@ -4,7 +4,7 @@
 // entirely local theatre.
 
 import { stageEl, hexCatEl } from "./dom.js";
-import { game, nightActive, clickGain, petCredit } from "./state.js";
+import { nightActive, clickGain, petCredit } from "./state.js";
 import { fmt } from "./format.js";
 import { floatNum, spawnMousePop } from "./fx.js";
 import { refreshHud } from "./shop.js";

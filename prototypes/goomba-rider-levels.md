@@ -88,7 +88,7 @@ nothing. Lengthening the boring part is metric-gaming — the grind doesn't coun
 create routing pressure when they're *expensive* — off the greedy path, costing speed or
 height or another plant. Put one low near a hazard and one high needing a bounce.
 
-**Collectibles beat geometry for forcing multi-band.** Scattered neon mice make the cake
+**Collectibles beat geometry for forcing multi-band.** Scattered snake plants make the cake
 a *routing* problem instead of a reachability one: one band can drop her down a shaft, but
 it can't make her pass three separate points. This is a far more natural way to require
 four bands (and so four players) than any of the geometry tricks below.

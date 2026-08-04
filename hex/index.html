@@ -514,17 +514,21 @@
      among, not as its own bigger creature — night is a pulled-back camera, so
      the golden mouse belongs at that same distance. The pilot is the shared
      silhouette at SAUCER_MOUSE_SCALE 0.58 inside a 64-wide viewBox; a wall mouse
-     is ~15.2px wide (drawWallMouse r=3.1), and measuring the rendered pilot puts
-     the box at ~36 to match it. moveGold() measures the element, so shrinking
-     the box just moves the whole saucer to that scale, pilot and all. (Tradeoff:
-     a ~36px tap target is on the small side — bump this if it plays as too
-     fiddly to catch.)
+     is ~7.6px wide (drawWallMouse at WALL_MOUSE_R), and the rendered saucer
+     matches it at ~18 across.
+
+     The BOX stays 36 and the art is what halves, because the box is also the
+     hit target and the bounce box moveGold() measures — 36 was already noted as
+     small for a thumb, and an 18px one would be genuinely unfair to catch. So
+     the saucer now flies inside a ring of transparent slop: same catchability,
+     half the creature.
 
      It also gets its own idle. goldPulse's ±6deg tumble and 1.14 punch-in read
      as a plush toy being squeezed: right for a mouse, wrong for a machine. A
      saucer should hover — so it banks half as far, bobs instead of scaling, and
      takes longer to do it. Same glow, different physics. */
   #golden.saucer { width: 36px; height: 36px; animation: saucerHover 2.6s ease-in-out infinite; }
+  #golden.saucer svg { width: 50%; }
   @keyframes saucerHover {
     0%,100% { transform: translateY(2px) rotate(-3deg); }
     50%     { transform: translateY(-3px) rotate(3deg); }
@@ -2489,14 +2493,15 @@ const currencyIconSVG = () =>
 const mouseSVG = c =>
   `<svg viewBox="0 0 54 28" xmlns="http://www.w3.org/2000/svg">${mouseParts(c)}</svg>`;
 
-// Sized to match the wall mice's actual rendered footprint (drawWallMouse at
-// r=3.1), not Hex's own .25 zoom ratio — those are two independent shrinks
-// (a CSS transform on a 200-unit SVG vs. a hand-scaled canvas redraw with its
-// own approximated stroke widths), so they don't come out equal by
-// coincidence. Measured directly: the wall mouse is ~15.2x7.2 CSS px; this
-// particle's native (unscaled) art is ~31x14.4 CSS px tight-bbox — ratio
-// ~0.49-0.50 either dimension. If drawWallMouse's r or its stroke-width
-// approximations change, re-measure rather than assume this still holds.
+// Originally sized to match the wall mice's rendered footprint — the wall mouse
+// measured ~15.2x7.2 CSS px against this particle's ~31x14.4 native tight-bbox,
+// hence 0.5. That match no longer holds: WALL_MOUSE_R halved the wall mice to
+// ~7.6px and this stayed put, so a night pop is now about twice a wall mouse.
+// Deliberate. The pop is tap feedback in the foreground, spawned at the finger
+// and gone in under a second, so it answers to legibility at arm's length
+// rather than to the wall's camera distance; matching the wall would leave a
+// ~7px smear that reads as nothing at all. Drop this to 0.25 if the two are
+// ever meant to line up again.
 const NIGHT_POP_SCALE = 0.5;
 
 const pops = [];
@@ -3542,6 +3547,16 @@ function wallPosAt(m, t, out) {
   out.y = wallOffY + sy * wallScale;
   return out;
 }
+// Half the 3.1 the wall shipped with. Night is a pulled-back camera and the
+// mice were reading closer than the scene wanted; at 1.55 the body is ~7.6px
+// wide and the wall reads as a swarm at distance rather than a parade of
+// individuals. drawWallMouse's stroke widths are all r-relative, so they thin
+// with it — at this size the keyline is sub-pixel in CSS units and survives
+// only as an anti-aliased edge. That is the intended look, not a rounding
+// accident. Sizes quoted elsewhere (#golden.saucer, NIGHT_POP_SCALE) are
+// measured against this, so re-measure them if it moves again.
+const WALL_MOUSE_R = 1.55;
+
 // Same silhouette as mouseSVG (the click-pop particle) — body blob with a
 // white keyline, one ear, a dark eye dot, a curled tail — reproduced here as
 // canvas path calls by scaling/translating mouseSVG's own 54x28 coordinate
@@ -3697,7 +3712,7 @@ function drawWall(now) {
       if (m.dirX === undefined) { m.dirX = ux; m.dirY = uy; }
       else { m.dirX += (ux - m.dirX) * HEADING_EASE; m.dirY += (uy - m.dirY) * HEADING_EASE; }
     }
-    if (neon) drawWallMouse(wallHead.x, wallHead.y, m.color, 3.1,
+    if (neon) drawWallMouse(wallHead.x, wallHead.y, m.color, WALL_MOUSE_R,
                             m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX));
     else drawWallPoint(wallHead.x, wallHead.y);
   }

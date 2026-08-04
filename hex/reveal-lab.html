@@ -549,6 +549,13 @@ const GIANT = (() => {
   const ex = Math.cos(ORB.at) * ORB.rx, ey = Math.sin(ORB.at) * ORB.ry;
   return { x: ORB.cx + ex * c - ey * s, y: ORB.cy + ex * s + ey * c };
 })();
+// Sized small because in the GAME the sleeping cat now poses to this orbit's centre
+// (see syncPoseVars in index.html) and a body the size of hers 93 units away read
+// as a rival rather than as a planet going round her. The lab has no cat to crowd,
+// so if these look gratuitously small here, that is why — keep them in step with
+// index.html rather than retuning them against an empty middle.
+const GIANT_R = 24;
+const GIANT_RING = { rx: 62, ry: 16, rot: -0.3 };
 
 const MOON_ELEMENTS = [
   { color: 'pink', draw(x) { cometSweep(x, 348, 88, 8, -300, 452, [-46, -6, 40]); } },
@@ -557,8 +564,9 @@ const MOON_ELEMENTS = [
     x.ellipse(ORB.cx, ORB.cy, ORB.rx, ORB.ry, ORB.rot, 0, 6.283);
   } },
   { color: 'green', draw(x) {
-    x.moveTo(GIANT.x + 46, GIANT.y); x.arc(GIANT.x, GIANT.y, 46, 0, 6.283);
-    x.moveTo(GIANT.x + 108, GIANT.y); x.ellipse(GIANT.x, GIANT.y, 108, 28, -0.3, 0, 6.283);
+    x.moveTo(GIANT.x + GIANT_R, GIANT.y); x.arc(GIANT.x, GIANT.y, GIANT_R, 0, 6.283);
+    x.moveTo(GIANT.x + GIANT_RING.rx, GIANT.y);
+    x.ellipse(GIANT.x, GIANT.y, GIANT_RING.rx, GIANT_RING.ry, GIANT_RING.rot, 0, 6.283);
   } },
   // One crew, one continuous stroke, so every purple mouse walks the whole
   // constellation — bowl, handle and all seven stars — rather than being posted to

@@ -374,32 +374,49 @@ function components(polys) {
 // nearest rejoin. Shared with the 1-stroke glyphs, whose deliberate retraces
 // arrive as separate subpaths whose endpoints coincide exactly — there both the
 // retrace and the hop are zero-length and this reduces to plain concatenation.
+//
+// The remaining degree of freedom is WHERE a subpath may be picked up. An open
+// stroke has two ends and no more, but a CLOSED one is a cycle, and its start
+// point is an artefact of where the draw call happened to begin rather than a
+// feature of the shape. Honouring that seam is what stranded the ringed planet:
+// components() groups its ring with its disc because the two curves genuinely
+// cross, yet the ring's seam sits out at the end of its major axis, 38 units
+// clear of the disc. Nothing was within JOIN_R, so the fallback took the smallest
+// leap on offer and the crew's tour carried a single 38-unit step among 6-unit
+// ones — walked at 6x speed, since a mouse advances at a constant POINTS rate.
+// A cycle is therefore re-cut to begin wherever it rejoins best.
 function chainPolys(g) {
   const restList = [...g];
   let out = [...restList.shift()];
   const d2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+  // Re-cut a cycle to start (and end) at index k. p[L-1] repeats p[0], so the
+  // wrapped tail skips p[0] and the new seam inherits p[0]->p[1]'s spacing.
+  const recut = (p, k) => k ? p.slice(k).concat(p.slice(1, k + 1)) : p;
   while (restList.length) {
-    let bi = 0, brev = false, bj = out.length - 1;
+    let bi = 0, bent = 0, bcyc = false, bj = out.length - 1;
     let bBack = Infinity, bHop = Infinity;   // retrace length (in steps), rejoin gap
     restList.forEach((p, i) => {
-      const heads = [p[0], p[p.length - 1]];
-      for (let h = 0; h < 2; h++) {
+      const cyc = tourIsClosed(p);
+      // Legal entry points: every point of a cycle, or an open stroke's two ends.
+      const entries = cyc ? p.length - 1 : 2;
+      for (let h = 0; h < entries; h++) {
+        const head = cyc ? p[h] : (h ? p[p.length - 1] : p[0]);
         for (let j = 0; j < out.length; j++) {
-          const hop = d2(heads[h], out[j]), back = out.length - 1 - j;
+          const hop = d2(head, out[j]), back = out.length - 1 - j;
           const near = hop <= JOIN_R * JOIN_R, bestNear = bHop <= JOIN_R * JOIN_R;
           // A reachable rejoin always beats an unreachable one; among reachable
           // ones the shortest walk back wins, among unreachable ones the
           // smallest leap does.
           const better = near !== bestNear ? near
                        : near ? (back < bBack) : (hop < bHop);
-          if (better) { bBack = back; bHop = hop; bi = i; brev = h === 1; bj = j; }
+          if (better) { bBack = back; bHop = hop; bi = i; bent = h; bcyc = cyc; bj = j; }
         }
       }
     });
     // Walk back over what we've drawn until we're beside the new subpath.
     for (let k = out.length - 2; k >= bj; k--) out.push(out[k]);
     const nxt = restList.splice(bi, 1)[0];
-    out = out.concat(brev ? [...nxt].reverse() : nxt);
+    out = out.concat(bcyc ? recut(nxt, bent) : (bent ? [...nxt].reverse() : nxt));
   }
   return out;
 }
@@ -565,7 +582,12 @@ const MOON_ELEMENTS = [
   } },
   { color: 'green', draw(x) {
     x.moveTo(GIANT.x + GIANT_R, GIANT.y); x.arc(GIANT.x, GIANT.y, GIANT_R, 0, 6.283);
-    x.moveTo(GIANT.x + GIANT_RING.rx, GIANT.y);
+    // ON the ring, at its ROTATED angle-0 point, as the blue orbit above does.
+    // `GIANT.x + rx` is that point only for an unrotated ellipse; at rot -0.3 it is
+    // 18 units off the curve, so the subpath opened with a stray spur in from empty
+    // space and stopped reading as a cycle to chainPolys and tourIsClosed.
+    x.moveTo(GIANT.x + GIANT_RING.rx * Math.cos(GIANT_RING.rot),
+             GIANT.y + GIANT_RING.rx * Math.sin(GIANT_RING.rot));
     x.ellipse(GIANT.x, GIANT.y, GIANT_RING.rx, GIANT_RING.ry, GIANT_RING.rot, 0, 6.283);
   } },
   // One crew, one continuous stroke, so every purple mouse walks the whole

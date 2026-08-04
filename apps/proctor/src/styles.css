@@ -152,3 +152,132 @@ button {
   font-weight: 800;
   color: #5fd35f;
 }
+
+/* ---- Lobby (team assignment) ---- */
+.lobby {
+  text-align: left;
+  margin: 8px 0 20px;
+}
+.lobby-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lobby h2 {
+  margin: 0 0 4px;
+  font-size: 19px;
+}
+.lobby h3 {
+  margin: 16px 0 6px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8a90a2;
+}
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #6b3040;
+  vertical-align: middle;
+}
+.dot.on {
+  background: #57e6c9;
+}
+.muted {
+  color: #8a90a2;
+  font-size: 13px;
+}
+.roster {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.roster li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid #1e2230;
+}
+.roster li.offline .pname {
+  color: #5d6272;
+  text-decoration: line-through;
+}
+.pname {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pick {
+  display: flex;
+  gap: 5px;
+  flex: none;
+}
+.chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #2b3040;
+  background: #12141b;
+  color: #8a90a2;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chip.on {
+  background: #57e6c9;
+  border-color: #57e6c9;
+  color: #06231d;
+}
+.teams {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.team-col {
+  background: #12141b;
+  border: 1px solid #1e2230;
+  border-radius: 12px;
+  padding: 12px;
+}
+.team-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.lobby-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+button.small {
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 9px;
+  border: 1px solid #2b3040;
+  background: #12141b;
+  color: #e8eaf0;
+  cursor: pointer;
+  margin-top: 8px;
+}
+button.small:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.adhoc {
+  margin-top: 24px;
+  text-align: left;
+  color: #8a90a2;
+}
+.adhoc summary {
+  cursor: pointer;
+  font-size: 14px;
+}

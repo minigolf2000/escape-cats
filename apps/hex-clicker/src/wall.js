@@ -365,6 +365,47 @@ function sampleStrokeWord(word) {
 // What this replaced: a rocket, a UFO, a launch-smoke bank and four free-standing
 // stars. Those were compact, so their crews resolved immediately, and the smoke
 // was the single largest crew soaking up scenery mice.
+//
+// ---- THE LAYOUT IS SET BY THE SHOP, NOT BY THE FRAME ----------------------
+// Every y below is squeezed into the TOP HALF of the 390x620 reference box, and
+// the empty band under it is not slack — it is the shop's footprint, expressed in
+// scene units so this file can reason about it.
+//
+// The chain: #dock is a fixed overlay 436px tall on the 390x844 phone everything
+// here is calibrated to (48px rail + a 46vh scroller), so only the top 408px of
+// the stage is ever unobscured. resizeWall() contain-fits this box and CENTRES
+// it, which on that phone means scale 1 and wallOffY 112 — so screen y 408 is
+// scene y 296, and anything below 296 spends the night behind frosted glass.
+// Centring is also what makes the empty band WORK: a scene that ends at 320 in a
+// 620 box is lifted by (620-320)/2 = 150 units of bottom padding, which is the
+// whole mechanism. Shorten the content and it rises on its own.
+//
+// It used to run to scene y 565 of 620, i.e. 51% of the drawing was under the
+// shop — including all of MOON, the entire orbit, the ringed giant, and Hex
+// herself, who sleeps at the orbit's centre and sat 148 units BELOW the stage's
+// middle. Now the content ends at 320, only the orbit's lower arc and the giant's
+// bottom half are behind the dock (9% of it), and Hex clears the dock's top edge
+// by ~6px. The word — the thing the phase exists to make readable — is entirely
+// in the clear.
+//
+// What paid for it, stated plainly, because these are the pacing costs:
+//   - the comet's sweep is 395 units long instead of 542. Its crew is the biggest
+//     on the wall (10 mice), so a shorter tour is a faster reveal; a FOURTH tail
+//     strand buys the ink back (4 x 395 vs 3 x 542 is 1580 against 1626), and it
+//     reads as a denser tail rather than a shorter one.
+//   - the Big Dipper is scaled to 0.855, so the purple crew's tour drops ~121
+//     points to ~103 and the asterism gives itself up about 15% sooner.
+//   - the orbit's ry is 48 instead of 76. That is a tighter halo around Hex — 20
+//     units of clear sky above and below her instead of 48 — and 7% off the blue
+//     crew's walk.
+// The two word sizes are UNTOUCHED, deliberately: they set WORD_INK_EST, which
+// the legibility estimate divides by, and the reveal's whole tuning hangs off it.
+// Compact the scenery, never the word.
+//
+// On a shorter phone (375x667) the fit is 0.96 and offY 35, which slides the
+// whole thing up under a ~68px HUD: the Dipper's topmost spokes pass behind the
+// score. Accepted — #hud is a text overlay with its own shadow, and the
+// alternative is Hex back under the shop.
 
 // The Big Dipper in a unit box, radii tracking real magnitudes so it reads as the
 // asterism rather than as seven identical dots.
@@ -373,7 +414,13 @@ const DIPPER = {
   megrez: [0.31, 0.37, 4],   alioth: [0.55, 0.30, 6],  mizar:  [0.77, 0.21, 5.5],
   alkaid: [1.00, 0.00, 6.5],
 };
-const DIPPER_BOX = [30, 44, 262, 92, 1.05];   // ox, oy, w, h, star scale
+// ox, oy, w, h, star scale. Scaled to 0.855 of the 262x92 it was authored at (and
+// the star scale with it, so it is the same asterism smaller rather than a restyled
+// one) — the height came out of the scene's budget, and w had to follow or the
+// Dipper flattens: its own y range is 0.6 of the box, so squeezing h alone turned a
+// 4.8:1 asterism into a 7:1 smear. See the layout note above for what the shorter
+// tour costs the purple crew.
+const DIPPER_BOX = [46, 20, 224, 79, 0.90];
 const dipperAt = (ox, oy, w, h) => k => [ox + DIPPER[k][0] * w, oy + DIPPER[k][1] * h];
 // The whole asterism as ONE continuous stroke. Its graph has exactly two
 // odd-degree nodes — Megrez (bowl 2 + handle 1) and Alkaid (1) — so an Euler path
@@ -424,20 +471,42 @@ function cometSweep(x, hx, hy, r, dx, dy, bows) {
 // stage and now poses to this ellipse's CENTRE, so an orbit centred near x=195
 // costs nothing to aim at. Moving cx far off centre is legal but drags her
 // sideways with it (see syncPoseVars).
-const ORB = { cx: 196, cy: 458, rx: 186, ry: 76, rot: -0.08, at: 1.9 };
+//
+// cy is the single most consequential number in the scene, because it is HEX's
+// position: 262 puts her 48 units above the stage's middle, where she is visible
+// all night. It used to be 458, which put her 148 units BELOW the middle — behind
+// the shop for the whole phase, only appearing when the tray recedes for the final
+// read. Everything else here was laid out around getting this number up.
+//
+// ry 48, not 76, and `at` on the RIGHT of the ellipse rather than the left:
+//   ry pays for cy. The orbit is 96 units tall now against Hex's ~56, so she has
+//   20 units of clear sky above and below inside it instead of 48. Tighter reads as
+//   a halo rather than a running track; much tighter and the ellipse starts
+//   tracing her outline.
+//   `at` is what keeps the giant off her. The distance from her centre to the
+//   giant is sqrt((cos(at)*rx)^2 + (sin(at)*ry)^2) — rotation preserves length, so
+//   `rot` does not enter it — and shrinking ry alone would have dragged the giant
+//   in from 93 units to 76. 0.974 trades ry for rx and lands it at 112, on the
+//   ellipse's right shoulder, where its 62-unit ring stops 21 units short of Hex's
+//   silhouette instead of crossing under it. The side matters for a second reason:
+//   the comet sweeps down-LEFT, so its tail used to end on top of a lower-left
+//   giant once both shapes were pulled into the same shorter frame.
+const ORB = { cx: 196, cy: 262, rx: 186, ry: 48, rot: -0.08, at: 0.974 };
 const GIANT = (() => {
   const c = Math.cos(ORB.rot), s = Math.sin(ORB.rot);
   const ex = Math.cos(ORB.at) * ORB.rx, ey = Math.sin(ORB.at) * ORB.ry;
   return { x: ORB.cx + ex * c - ey * s, y: ORB.cy + ex * s + ey * c };
 })();
 // The giant's own size, small on purpose. Hex sleeps at the orbit's centre, and
-// the giant stands on the path 93 units away from her — at the original 46 body /
+// the giant stands on the path 112 units away from her — at the original 46 body /
 // 108x28 ring it was WIDER than she is (92 units against her ~49) and its ring
 // swept to within ~15 units of her silhouette, so the two read as a pair of
 // similar bodies fighting over the same middle rather than as a cat with a planet
 // going round her. Halving the body while holding the ring's proportion near where
 // it was (2.35:1 then, 2.6:1 here — scaled, not restyled, so it is the same object
-// smaller) opens that to ~46 units of clear sky and settles the hierarchy.
+// smaller) settles the hierarchy; ORB.at then does the rest, and on the shorter
+// scene the ring's whole 119-unit width now clears her x range rather than passing
+// under her (see ORB above).
 //
 // The cost, stated plainly: A SHORTER TOUR IS A FASTER TOUR. The green crew's walk
 // drops from ~126 sampled points to ~70, so with the same 4 mice the giant now
@@ -451,18 +520,30 @@ const GIANT_RING = { rx: 62, ry: 16, rot: -0.3 };
 const MOON_SCENE = {
   // The WIDE spread: TO THE letterspaced across the frame, MOON large beneath it.
   // `place(k, n, t)` positions the k-th VISIBLE letter of n (spaces yield no tour).
+  //
+  // `y` is each letter's MIDLINE, not its baseline (loadWallScene recentres every
+  // letter on its own bbox), and a line's ink is size * 137/190 tall — so MOON at 78
+  // spans 140..196 and the 15 units under it are the clearance to the orbit's highest
+  // point, which lands at x=247, directly beneath MOON's second O. The two SIZES are
+  // load-bearing in a way the y's are not: they set the word's total ink, which
+  // WORD_INK_EST hardcodes and the legibility estimate divides by. Move a y freely;
+  // re-measure if you move a size.
   lines: [
     { text: 'TO THE', place(k, n) {
       const t = n < 2 ? 0 : k / (n - 1);
-      return { x: 75 + t * 240, y: 218, size: 34, rot: 0 };
+      return { x: 75 + t * 240, y: 106, size: 34, rot: 0 };
     } },
     { text: 'MOON', place(k, n) {
       const t = n < 2 ? 0 : k / (n - 1);
-      return { x: 63 + t * 264, y: 330, size: 78, rot: 0 };
+      return { x: 63 + t * 264, y: 168, size: 78, rot: 0 };
     } },
   ],
   elements: [
-    { color: 'pink', draw(x) { cometSweep(x, 348, 88, 8, -300, 452, [-46, -6, 40]); } },
+    // FOUR tail strands, not three, and that is what keeps the pink crew's tour the
+    // length it was after the sweep lost 147 units of reach to the shorter frame.
+    // The outermost bow decides the frame's left edge: at -318/234 the +41 strand
+    // ends at x=10, so widening the fan any further walks it off the canvas.
+    { color: 'pink', draw(x) { cometSweep(x, 352, 48, 8, -318, 234, [-48, -17, 13, 41]); } },
     { color: 'blue', draw(x) {
       x.moveTo(ORB.cx + ORB.rx * Math.cos(ORB.rot), ORB.cy + ORB.rx * Math.sin(ORB.rot));
       x.ellipse(ORB.cx, ORB.cy, ORB.rx, ORB.ry, ORB.rot, 0, 6.283);
@@ -502,6 +583,17 @@ const inkCtx = inkCv.getContext('2d');
 // than inlined into resizeWall because the sleeping cat's pose is derived from a
 // scene point too (syncPoseVars), and the two derivations have to share the fit or
 // Hex and the ellipse she sits inside will disagree about where the middle is.
+//
+// H is 620 while the scene's ink stops at 320, and that half-empty box is the
+// LAYOUT. The fit below centres it, so the padding under the drawing is what lifts
+// the drawing clear of the shop — see the layout note on MOON_SCENE for the whole
+// derivation. Two consequences worth knowing before touching this number:
+//   - Shrinking H to "fit the art" does the opposite of what it looks like. On any
+//     portrait phone the fit is width-limited, so H does not change the SCALE at
+//     all; it only changes wallOffY, and a shorter box centres lower. H 360 would
+//     drop the scene 130px straight back down behind the dock.
+//   - 390x620 is also the aspect that keeps the fit width-limited in portrait,
+//     which is what holds --pose-fit at 1.0 on phones (see POSE_SCENE_W).
 const WALL_REF_W = 390, WALL_REF_H = 620;
 let wW = 0, wH = 0;
 // Scene->screen mapping is constant between resizes, so it's computed here
@@ -537,7 +629,12 @@ export function resizeWall() {
 //
 //   x: (196 - 195) * scale — ONE scene unit. She was already standing on the
 //      orbit's vertical axis before any of this; only the height was ever wrong.
-//   y: (458 - 310) * scale — and on a phone the fit is width-limited, so `scale` is
+//   y: (262 - 310) * scale — NEGATIVE now, 48 units up rather than the 148 down it
+//      was, which is the whole point of the shorter scene: she used to be parked
+//      behind the shop tray and is now above it by ~6px on a 390x844 phone. That
+//      margin is thin, so treat ORB.cy as a number the dock's height is watching:
+//      grow #shopScroll's 46vh cap and this is the first thing it eats.
+//      On a phone the fit is width-limited, so `scale` is
 //      w/390 and her pose now tracks the viewport's WIDTH. The old `39vh - 104px`
 //      was height-driven, which meant every mobile URL-bar show/hide slid her (and
 //      slid her through the 1.8s transition, 3.3s late). Width doesn't change when

@@ -144,6 +144,11 @@
 <script type="module">
 import * as THREE from 'three';
 
+// XR8.Threejs.pipelineModule() resolves three.js off the GLOBAL rather than through
+// imports, and throws "window.THREE does not exist" otherwise. We load three as an ES
+// module, so publish it by hand. Must happen before the pipeline module is constructed.
+window.THREE = THREE;
+
 // ---------- Scent Tracker — hold the phone up, a trail of motes lies on the floor and
 // ---------- leads somewhere. Spec + rationale: ./scent-tracker-design.md
 //
@@ -416,6 +421,14 @@ class Trail {
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const _q = new THREE.Quaternion(), _n = new THREE.Vector3();
 
+// Tried in order until one returns hits. Surfaces first (they carry a normal, so the
+// wall filter can work), then feature points, then whatever the default is.
+const HIT_VARIANTS = [
+  ['DETECTED_SURFACE', 'ESTIMATED_SURFACE'],
+  ['DETECTED_SURFACE', 'ESTIMATED_SURFACE', 'FEATURE_POINT'],
+  null,
+];
+
 // Shared floor filter. Both trackers hit vertical surfaces too, and indoors the nearest
 // hit is very often a WALL — that puts crumbs at chest height and ramps the trail into
 // the plaster. Take the first hit whose surface normal is within ~32° of up.
@@ -600,13 +613,18 @@ const BACKENDS = {
       world.floorHit = null;
       world.sawOnlyWalls = false;
       if (world.tracked) {
-        // Screen centre, normalised. Type names differ across engine versions, so ask for
-        // the specific surface types and fall back to whatever the engine will give.
+        // Screen centre, normalised. The accepted type strings vary between engine
+        // versions, so try the variants in descending order of quality and remember which
+        // one this build actually honours. `hitKinds` is surfaced in the rig readout so a
+        // wrong guess here shows up as a number rather than a mystery.
         let raw = [];
-        try {
-          raw = XR8.XrController.hitTest(0.5, 0.5, ['DETECTED_SURFACE', 'ESTIMATED_SURFACE']) || [];
-          if (!raw.length) raw = XR8.XrController.hitTest(0.5, 0.5) || [];
-        } catch { try { raw = XR8.XrController.hitTest(0.5, 0.5) || []; } catch {} }
+        for (const kinds of HIT_VARIANTS) {
+          try {
+            raw = (kinds ? XR8.XrController.hitTest(0.5, 0.5, kinds) : XR8.XrController.hitTest(0.5, 0.5)) || [];
+          } catch { continue; }
+          if (raw.length) { this.hitKinds = kinds ? kinds.join('+') : 'default'; break; }
+        }
+        this.rawHits = raw.length;
         const hits = raw.map(h => ({ pos: h.position, rot: h.rotation }));
         world.floorHit = pickFloorHit(hits);
         world.sawOnlyWalls = !world.floorHit && raw.length > 0;
@@ -720,7 +738,9 @@ const rig = {
       : 'Now walk your real route — hold the phone <b>badly</b>: lower it, pocket it, walk fast.<br>' +
         'Come back, aim at <span class="hi">the same tape</span>, and hit Measure.';
 
-    let out = `${backend.label}\n`;
+    let out = `${backend.label}`;
+    if (backend.rawHits !== undefined) out += ` · hits ${backend.rawHits} (${backend.hitKinds || 'none'})`;
+    out += '\n';
     if (this.anchor) out += `walked ${this.walked.toFixed(1)} m\n`;
     if (this.trials.length) {
       const hs = this.trials.map(t => t.h).sort((a, b) => a - b);

@@ -25,7 +25,7 @@ export default class HexServer implements Party.Server {
   }
 
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
-    this.roster.register(conn, ctx, this.proctorToken());
+    this.roster.register(conn, ctx);
     this.broadcast();
   }
 
@@ -81,16 +81,8 @@ export default class HexServer implements Party.Server {
     this.broadcast();
   }
 
-  private proctorToken(): string {
-    return (this.room.env.PROCTOR_TOKEN as string) ?? "dev-proctor";
-  }
-
   private broadcast() {
-    const state = this.sim.snapshot(
-      Date.now(),
-      this.roster.list(),
-      this.room.env.HEX_CODEWORD as string | undefined,
-    );
+    const state = this.sim.snapshot(Date.now(), this.roster.list());
     const msg: HexServerMsg = { type: "state", state };
     this.room.broadcast(JSON.stringify(msg));
   }

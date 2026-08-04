@@ -52,8 +52,12 @@ hex/                 The original single-player prototype — FROZEN as referenc
 5. **Deterministic synced toy animation** — toy positions are a pure
    function of (room seed, toy index, server-synced clock), so all four
    phones show the identical reveal pattern with zero position traffic.
-6. **Code words stay server-side** until unlocked (see `server/partykit.json`
-   vars; override per deployment).
+6. **The code word is gated, not secret.** The server withholds it until the
+   wall is legible, but the word itself is a plain constant in
+   `packages/shared/src/hex/data.ts` — it ships in the client bundle regardless
+   (`?solo` runs the sim in-page), and the wall art is hand-placed glyphs for
+   that exact string. Nothing here is a security boundary; see also the
+   proctor role in `server/src/connections.ts`.
 7. **10 minutes is a completion target, not a timer** — achieved through
    balance. All economy/level tuning lives in `packages/shared/src/hex/data.ts`
    and `levels.ts`, never in game code.
@@ -73,7 +77,7 @@ This starts everything:
 | ------------- | ------------------------------------------ |
 | PartyKit dev  | 127.0.0.1:1999                             |
 | Hex Clicker   | http://localhost:5173/?room=TEST           |
-| Proctor       | http://localhost:5175 (token `dev-proctor`) |
+| Proctor       | http://localhost:5175                      |
 
 Open the proctor page, start a session, and scan the QR codes with phones on
 the same wifi (the vite servers listen on the LAN; point
@@ -97,10 +101,13 @@ Client env vars (Vite, set in `apps/*/.env.local`):
 
 - `VITE_PARTYKIT_HOST` — host:port of the PartyKit server (default `127.0.0.1:1999`)
 - `VITE_HEX_URL` — public game URL the proctor QR code points at
-- `VITE_PROCTOR_TOKEN` — must match the server's `PROCTOR_TOKEN`
 
-Server vars (`server/partykit.json` for dev; `partykit deploy --var` or the
-dashboard for prod): `HEX_CODEWORD`, `PROCTOR_TOKEN`.
+The server takes no vars. The code word is a constant
+(`HEX_CODEWORD` in `packages/shared/src/hex/data.ts`, paired with the wall
+art), and the proctor identifies itself with `?role=proctor` — a claim, not a
+credential. Anyone who opens `/proctor` can run a session; that is accepted,
+not overlooked. Nothing here defends against a determined player, and the
+only powers on offer are reset and speed on a room you are already in.
 
 ## Deploying
 
@@ -121,8 +128,8 @@ npm run deploy -w server   # partykit deploy
 ```
 
 One worker serves both parties: `partykit.json` maps `main` → Hex Clicker and
-the `lobby` party → the team lobby. Set real `HEX_CODEWORD` / `PROCTOR_TOKEN`
-as deploy vars. Note the resulting hostname — every client build needs it.
+the `lobby` party → the team lobby. There are no deploy vars to set. Note the
+resulting hostname — every client build needs it.
 
 ### 2. Vercel — one project
 
@@ -147,7 +154,6 @@ every surface points at one server):
 ```
 VITE_PARTYKIT_HOST=escape-cats.<user>.partykit.dev
 VITE_HEX_URL=https://hexxygon.com
-VITE_PROCTOR_TOKEN=<matches PROCTOR_TOKEN above>
 ```
 
 **Root Directory must be blank.** `vercel.json` overrides the dashboard's

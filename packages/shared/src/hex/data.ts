@@ -251,12 +251,16 @@ export const ZOOM_S = 7;               // ...for 7s
 // reach the twist. Read as ±20s, and do not chase a few seconds by moving this.
 export const INCOME_SCALE = 2.5;
 
-// THE ANSWER. The night wall paints this word (the glyph layout in the
-// client's wall module is hand-placed art for exactly this string), and the
-// proctor's checkable codeword defaults to it. A deployment can override the
-// codeword via the server's HEX_CODEWORD env var, but the painted wall will
-// still spell this — change them together or not at all.
-export const HEX_CODEWORD_DEFAULT = "TO THE MOON";
+// THE ANSWER. The night wall paints this word — the glyph layout in the
+// client's wall module is hand-placed art for exactly this string, so this
+// constant and that art are one unit: change them together or not at all.
+//
+// Deliberately a plain constant and not a deploy secret. It ships in the
+// client bundle either way (?solo runs the sim in-page), so an env var only
+// bought the appearance of secrecy while adding a way for the configured word
+// and the painted wall to disagree. The puzzle is protected by the legibility
+// gate in HexSim.snapshot, not by hiding this string.
+export const HEX_CODEWORD = "TO THE MOON";
 
 // ---------------------------------------------------------------------------
 // UPGRADES — a flat authored list, no tier table. Cookie Clicker's tier system

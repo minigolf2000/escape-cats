@@ -1710,18 +1710,22 @@ const UPGRADES = [
   //
   //   Lucid Dreaming I      THE STARS START TO HAVE TRAILS  <- the hinge
   //   Lucid Dreaming II     longer trails
-  //   Running in Her Sleep  they speed up
   //   Lucid Dreaming III    longer trails
   //   Counting Mice         THE STARS TURN OUT TO BE MICE   <- the twist inside the twist
   //   Lucky Number 6        x6 income
   //   Lucid Dreaming IV     longer trails
   //   Scent Trail           INK STOPS FADING, WORD READABLE <- the finale
   //
-  // Four numbered rungs, and four rows that each happen once. The numerals exist because
+  // Four numbered rungs, and three rows that each happen once. The numerals exist because
   // the four ARE the same purchase four times and the ??? descriptions cannot say so; see
-  // the block on them below. Three of the four singular rows get gold names for the same
-  // reason, derived from the same count (CRUX_KEYS) — Lucky Number 6 is the fourth and
+  // the block on them below. Two of the three singular rows get gold names for the same
+  // reason, derived from the same count (CRUX_KEYS) — Lucky Number 6 is the third and
   // stays plain, because it is the economy row and states its own effect in words.
+  //
+  // There was a speed rung here (Running in Her Sleep, +8, between II and III). Deleted,
+  // and the speed it used to buy is NOT absorbed into WALL.speedBase: 12 is the pace the
+  // wall wants. The coverage it was quietly providing is paid for by the trail rungs
+  // instead — see the note on speedBase, and the 98 -> 180 budget below.
   //
   // Counting Mice is LATE on purpose, and it changes what the whole phase is about. It
   // used to land at 0:13, which meant the player spent 95% of the night watching mice
@@ -1759,29 +1763,26 @@ const UPGRADES = [
   // lights leave nothing behind and the wall is unreadable in principle, not just in
   // practice. After it the dream starts recording itself. The other three only deepen it.
   //
-  // 14/20/28/36 rather than the old 10/12/22/30 — same 98 total, but the series now
-  // escalates, so the numeral and the size agree.
+  // 26/38/52/64, escalating so the numeral and the size agree. The TOTAL (180) is set by
+  // legibility rather than taste: at speed 12 the wall needs trail x 80 + persist x 57.7 ms
+  // of visible ink to cross 1.6 coverage, and 180 puts the four rungs alone at 1.46 — just
+  // under — with Scent Trail's persistence tipping it to 1.81. That ordering is the point:
+  // the word must not become readable until the last purchase, and it must become readable
+  // ON it. 197 would break the first half of that, 160 the second.
+  //
+  // It was 98 while a speed rung carried 8 of the 20 units/sec; with speed held at 12 the
+  // same readability has to come from length. In DRAWN terms the tail only grows a tenth,
+  // 157 scene units to 173, because a slower mouse covers less ground per sample.
   { key: "paperlantern", name: "Lucid Dreaming I", icon: "🏮",
     cost: 50000, unlock: { requires: "catnap" },
-    effect: { type: "trail", add: 14 } },
+    effect: { type: "trail", add: 26 } },
+  // 1M, not the 115k it was, to put this at 0:50. It is a big jump from I's 50k and that is
+  // the point: the first stretch of night is meant to be buildings only while the one thing
+  // on the rail sits out of reach. The cost of hitting 0:50 is a dip to ~10 purchases in
+  // the 0:30-1:00 window while the bank fills; 700k lands it at 0:44 with ~17 instead.
   { key: "luciddreaming", name: "Lucid Dreaming II", icon: "🌀",
-    cost: 115000, unlock: { requires: "paperlantern" },
-    effect: { type: "trail", add: 20 } },
-  // Dreaming cats twitch their paws as they run, and that is exactly the mechanic:
-  // the dream mice speed up. Placed AFTER Lucid Dreaming on purpose — before trails
-  // exist a speed change is only motion, but once the mice are inking, going faster
-  // visibly fills the wall in quicker. Coverage is linear in speed, so this is a
-  // legibility upgrade wearing a charm upgrade's clothes.
-  //
-  // One rung, not a ladder: it takes speed from the opening 12 to the 20 ceiling and
-  // stops. Anything past 20 reads as streaks rather than mice, so there is nothing
-  // further to sell.
-  //
-  // `pawtwitch` is a save key (and `deepsleep` requires it), so it keeps the name
-  // this row used to have.
-  { key: "pawtwitch", name: "Running in Her Sleep", icon: "🐾",
-    cost: 190000, unlock: { requires: "luciddreaming" },
-    effect: { type: "speed", add: 8 } },
+    cost: 1e6, unlock: { requires: "paperlantern" },
+    effect: { type: "trail", add: 38 } },
   // There was a Word of Mouse row here — a research that put the nine golden
   // letter-mice on the wall. Deleted, because it could not do the job it was
   // written for. Its comment promised "the nine letters then arrive one at a time
@@ -1805,8 +1806,8 @@ const UPGRADES = [
   // ladder already calls its hinge. The mystery beat moves onto the row that was
   // always doing the work, instead of sitting on a row that only changed a headcount.
   { key: "deepsleep", name: "Lucid Dreaming III", icon: "😴",
-    cost: 1.15e6, unlock: { requires: "pawtwitch" },
-    effect: { type: "trail", add: 28 } },
+    cost: 1.15e6, unlock: { requires: "luciddreaming" },
+    effect: { type: "trail", add: 52 } },
   // Night opens with the wall ALREADY populated — anonymous points of light, colourless
   // and shapeless, indistinguishable from the starfield behind them. By the time this
   // lands they have been drawing for a minute and a half. Counting Mice is what resolves
@@ -1852,7 +1853,7 @@ const UPGRADES = [
   // finale's alone.
   { key: "remsleep", name: "Lucid Dreaming IV", icon: "👀",
     cost: 7e6, unlock: { requires: "countingmice" },
-    effect: { type: "trail", add: 36 } },
+    effect: { type: "trail", add: 64 } },
   // THE FINALE, and the only rung that is not more of something. Cats track by scent and
   // scent lingers, which is exactly the mechanic: ink stops being a rolling window and
   // starts accumulating, so the wall holds a drawing instead of shimmering like a
@@ -2202,17 +2203,17 @@ const hl = s => `<b>${s}</b>`;
 // ??? is only ever the pre-purchase state; nothing is permanently unexplained. `hl` so it
 // lands in gold like every other effect value and reads as authored rather than missing.
 const WALL_EFFECTS = new Set(['trail', 'neon', 'persist', 'speed']);
-// GOLDEN NAMES. Three wall rows are worth stopping for — Running in Her Sleep, Counting
-// Mice, Scent Trail — and what they have in common is not their position on the ladder
-// but that each one is the ONLY row of its kind. Five rungs sell `trail`, so any one of
-// them is more of what you already have; `speed`, `neon` and `persist` appear exactly
-// once each and change what the wall does rather than how much of it there is.
+// GOLDEN NAMES. Some wall rows are worth stopping for, and what they have in common is
+// not their position on the ladder but that each is the ONLY row of its kind. Four rungs
+// sell `trail`, so any one of them is more of what you already have; `neon` and `persist`
+// appear exactly once each and change what the wall does rather than how much of it there
+// is. Today that means Counting Mice and Scent Trail.
 //
-// Derived from that rather than listed by key, so the rule survives the ladder moving:
-// add a second speed rung and Running in Her Sleep stops being special, which is the
-// correct answer. Restricted to WALL_EFFECTS on purpose — Lucky Number 6's globalMult is
-// also unique among night rows, but it is the economy row and states its own effect, so
-// it needs no help being noticed.
+// Derived rather than listed by key, and the payoff already showed up once: deleting the
+// speed rung dropped this from three names to two with no edit here, which is the correct
+// answer — `speed` was only ever special because it happened once. Restricted to
+// WALL_EFFECTS on purpose: Lucky Number 6's globalMult is also unique among night rows,
+// but it is the economy row and states its own effect, so it needs no help being noticed.
 //
 // Every wall row shows ??? for its effect (see oneEffectText), so this is the only signal
 // separating "this changes the mystery" from "this is another increment", and a team with
@@ -2421,8 +2422,9 @@ function onRailInPhase(u) {
 //
 // Why closing is honest here: past the last upgrade the wall cannot change. Its cast
 // caps at WALL_CAP (~1.5M lifetime, see WALL.mouseBase/mouseR), every `trail` add and
-// Scent Trail's persistence are owned, and Paw Twitch has already pinned speed at
-// WALL.speedMax — while Hypnagogia's own gate (58 Dream Within a Dream) puts lifetime
+// Scent Trail's persistence are owned, and speed is a constant (WALL.speedBase) rather
+// than something still for sale — while the last rung's own gate (58 Dream Within a
+// Dream) puts lifetime
 // an order of magnitude past the cap. Buildings bought after this point move a number
 // in the HUD and nothing else on screen.
 //
@@ -3286,12 +3288,19 @@ const WALL = {
   // 0:00). A letter handed over before the phase starts is the one thing REVEAL_ORDER
   // exists to prevent.
   startMice: 0,
-  // Scene units/sec, ONE rate for every mouse. 20 is a hard CEILING rather than a
-  // taste call: past it the mice stop reading as mice and become streaks. So Paw
-  // Twitch cannot raise speed past the cap — it climbs TOWARD it, which is why night
-  // has to open slower than the settled value. Drifting specks that speed up as Hex's
-  // paws start twitching is the beat; opening at the ceiling would leave the upgrade
-  // nothing to give.
+  // Scene units/sec, ONE rate for every mouse, and now a CONSTANT — the rung that used to
+  // climb it (Running in Her Sleep, +8) is gone. 12 is a KEPT choice, not a leftover: it
+  // is the pace at which the wall reads as a swarm of drifting specks rather than a set of
+  // streaks, and it is what the phase is supposed to look like.
+  //
+  // Keeping it costs coverage, because coverage is linear in speed: 12 instead of 20 is a
+  // 40% cut to every mouse's ink, and at the old trail budget the finished wall reached
+  // 1.15 against a 1.6 legibility threshold — the word could never have been read. The
+  // trail rungs pay for it instead (98 -> 180, see the Lucid Dreaming block), which buys
+  // readability out of the dial the player is actually watching.
+  //
+  // speedMax stays even with nothing raising speed: past 20 the mice stop reading as mice,
+  // so wallSpeed still clamps and a future rung cannot overshoot it.
   speedBase: 12,
   speedMax: 20,
   trailDt: 80,
@@ -4038,7 +4047,7 @@ function rebuildWallCast() {
 // phone rather than a uniformly lower framerate. Lerp in scene space, map to
 // screen once at the end (was mapping both endpoints, then lerping).
 // DISTANCE TRAVELLED, not elapsed time. Phase used to be `t * speed`, which means
-// changing the speed dial rescales the whole of history: Running in Her Sleep (+8)
+// changing the speed dial rescales the whole of history: the old speed rung (+8)
 // multiplied every mouse's position along its tour by 20/12 at once and teleported
 // the entire wall. Integrating instead — units accumulated so far, plus the new
 // rate from here on — makes a speed change continuous for every mouse and crew.
@@ -4940,8 +4949,8 @@ const DEV_PRESETS = {
   "closing":  { total: 60e6, mice: 30e6, clicks: 1200, golden: 8,
                 owned: { shopper: 25, farm: 40, factory: 5, lab: 2,
                          portal: 60, spindle: 40, delta: 30, nested: 58 },
-                bought: ["catnap", "paperlantern", "luciddreaming", "pawtwitch",
-                         "deepsleep", "countingmice", "lucky6", "remsleep"] },
+                bought: ["catnap", "paperlantern", "luciddreaming", "deepsleep",
+                         "countingmice", "lucky6", "remsleep"] },
 };
 // Fill in the ordinary upgrades a save in this state would already hold: unlock
 // conditions met, and paid for out of a share of lifetime earnings. Story rows

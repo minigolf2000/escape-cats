@@ -238,9 +238,23 @@ and an app could be served from a domain root. Since they *redirect* (#99),
 each app only ever lives at its own path, and an absolute base is both simpler
 and immune to the trailing slash.
 
-Watch out when testing this locally: `python -m http.server` redirects
-`/hexxygon` to `/hexxygon/`, the opposite of Vercel, so it will happily serve a
-build that is broken in production.
+`vercel.json` sets **`trailingSlash: true`**, so directory URLs keep their
+slash. That is what hand-authored HTML in `prototypes/` and `hex/` assumes: a
+sibling link like `goomba-rider.html` resolves correctly from `/prototypes/`
+but points at the site root from `/prototypes`. Paths carrying a file
+extension are excluded from the redirect, which is why the `/qr-studio` style
+rewrites are registered in both slashed and unslashed forms.
+
+Do not test this with `python -m http.server`. It redirects `/hexxygon` to
+`/hexxygon/`, the opposite of Vercel's default, so it will happily serve a
+build that is broken in production — which is exactly how two of these
+shipped.
+
+Instead run **`npm run check:routing`**, which resolves every surface through
+a router implementing `vercel.json` (trailing slash, then redirects, then
+rewrites, then the filesystem) and follows each page's own links and assets.
+It runs as part of `build:vercel`, so a routing regression fails the Vercel
+build rather than reaching a player's phone.
 
 `hex/vercel.json` and `prototypes/vercel.json` are leftovers from when those
 folders were their own Vercel projects. They are inert under the

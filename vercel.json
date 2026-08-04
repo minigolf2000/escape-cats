@@ -3,6 +3,7 @@
   "framework": null,
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "dist",
+  "trailingSlash": true,
   "headers": [
     {
       "source": "/(.*)",
@@ -66,11 +67,23 @@
       "destination": "/solo-hex/qr-studio.html"
     },
     {
+      "source": "/qr-studio/",
+      "destination": "/solo-hex/qr-studio.html"
+    },
+    {
       "source": "/reveal-lab",
       "destination": "/solo-hex/reveal-lab.html"
     },
     {
+      "source": "/reveal-lab/",
+      "destination": "/solo-hex/reveal-lab.html"
+    },
+    {
       "source": "/proctor",
+      "destination": "/proctor/index.html"
+    },
+    {
+      "source": "/proctor/",
       "destination": "/proctor/index.html"
     }
   ]

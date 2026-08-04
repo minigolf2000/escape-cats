@@ -815,6 +815,10 @@ function onSessionEnded() {
 // ---------- frame loop ----------
 let lostSince = 0;
 const camPos = new THREE.Vector3();
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const hitQuat = new THREE.Quaternion();
+const hitNormal = new THREE.Vector3();
+const LOST_MSG = 'the scent is faint — look around slowly';
 
 function frame(ms, xrFrame) {
   const t = ms / 1000;
@@ -832,25 +836,46 @@ function frame(ms, xrFrame) {
   else if (lostSince && t - lostSince > 0.3) lostSince = 0;  // hold the fade a beat after recovery
   const degraded = !tracked || !!lostSince;
   trailGame.trail.fadeTarget = degraded ? 0 : 1;
-  lostEl.classList.toggle('on', degraded);
 
-  if (!pose) { reticle.visible = false; renderer.render(scene, camera); return; }
+  if (!pose) {
+    reticle.visible = false;
+    lostEl.textContent = LOST_MSG;
+    lostEl.classList.add('on');
+    renderer.render(scene, camera);
+    return;
+  }
 
   // Hit test → where on the floor the crosshair is pointing. Skipped while degraded:
   // a hit computed against a world we've just lost is not a place worth dropping a
   // crumb, so we'd rather offer nothing than something wrong.
+  //
+  // ARCore hit-tests vertical planes too, so the nearest hit is often a WALL — indoors
+  // that means crumbs at chest height and a trail ramping up into the plaster. Every
+  // mode here wants the floor specifically, so reject hits whose surface normal isn't
+  // roughly up, and take the first one that survives rather than blindly hits[0].
   reticleHit = null;
+  let wallOnly = false;
   if (hitTestSource && !degraded) {
     const hits = xrFrame.getHitTestResults(hitTestSource);
-    if (hits.length) {
-      const hp = hits[0].getPose(xrRefSpace);
-      if (hp) {
-        reticle.position.set(hp.transform.position.x, hp.transform.position.y, hp.transform.position.z);
-        reticleHit = reticle.position.clone();
-      }
+    for (const h of hits) {
+      const hp = h.getPose(xrRefSpace);
+      if (!hp) continue;
+      const o = hp.transform.orientation;
+      hitQuat.set(o.x, o.y, o.z, o.w);
+      hitNormal.set(0, 1, 0).applyQuaternion(hitQuat);
+      if (hitNormal.dot(WORLD_UP) < 0.85) continue;   // ~32° of tilt allowed; a wall is 90°
+      reticle.position.set(hp.transform.position.x, hp.transform.position.y, hp.transform.position.z);
+      reticleHit = reticle.position.clone();
+      break;
     }
+    wallOnly = !reticleHit && hits.length > 0;
   }
   reticle.visible = !!reticleHit;
+
+  // One transient line, shared: tracking loss outranks an aim hint.
+  if (degraded) lostEl.textContent = LOST_MSG;
+  else if (wallOnly) lostEl.textContent = 'that’s a wall — aim at the floor';
+  lostEl.classList.toggle('on', degraded || wallOnly);
 
   const p = pose.transform.position;
   camPos.set(p.x, p.y, p.z);

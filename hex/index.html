@@ -1710,8 +1710,8 @@ const UPGRADES = [
   //
   //   Lucid Dreaming I      THE STARS START TO HAVE TRAILS  <- the hinge
   //   Lucid Dreaming II     longer trails
-  //   Lucid Dreaming III    longer trails
   //   Counting Mice         THE STARS TURN OUT TO BE MICE   <- the twist inside the twist
+  //   Lucid Dreaming III    longer trails
   //   Lucky Number 6        x6 income
   //   Lucid Dreaming IV     longer trails
   //   Scent Trail           INK STOPS FADING, WORD READABLE <- the finale
@@ -1783,6 +1783,31 @@ const UPGRADES = [
   { key: "luciddreaming", name: "Lucid Dreaming II", icon: "🌀",
     cost: 1e6, unlock: { requires: "paperlantern" },
     effect: { type: "trail", add: 38 } },
+  // Night opens with the wall ALREADY populated — anonymous points of light, colourless
+  // and shapeless, indistinguishable from the starfield behind them. By the time this
+  // lands they have been drawing for over a minute. Counting Mice is what resolves them
+  // into creatures, and the name earns its keep twice: counting sheep is what you do
+  // falling asleep, and counting is exactly what you cannot do until the specks become
+  // things distinct enough to count.
+  //
+  // It is also just accurate cat vision. Cats are dichromatic and read motion before
+  // form and form before colour, so a dream that starts as bare moving specks is what
+  // Hex would really see; every upgrade around this is her dreaming BETTER than she can
+  // see awake.
+  //
+  // TRADED WITH Lucid Dreaming III — this row took its 1.15M and its slot in the chain,
+  // and III took the 1.4M. Swapping the PRICES alone could not do it: `requires` pins the
+  // order whatever the cost, so the cheaper row simply became affordable the instant the
+  // dearer one landed and the two bunched to eleven seconds apart. The chain had to swap
+  // with them.
+  //
+  // The reveal lands at 1:12 instead of 1:40, on a wall drawn to 0.52 coverage rather than
+  // 0.94 — less ink to recolour, so a smaller bang, bought for 28 more seconds of colour
+  // afterwards and a one-two the old order could not make: the lights turn out to be mice,
+  // and then the very next purchase doubles what they are drawing with.
+  { key: "countingmice", name: "Counting Mice", icon: "💭",
+    cost: 1.15e6, unlock: { requires: "luciddreaming" },
+    effect: { type: "neon" } },
   // There was a Word of Mouse row here — a research that put the nine golden
   // letter-mice on the wall. Deleted, because it could not do the job it was
   // written for. Its comment promised "the nine letters then arrive one at a time
@@ -1806,27 +1831,8 @@ const UPGRADES = [
   // ladder already calls its hinge. The mystery beat moves onto the row that was
   // always doing the work, instead of sitting on a row that only changed a headcount.
   { key: "deepsleep", name: "Lucid Dreaming III", icon: "😴",
-    cost: 1.15e6, unlock: { requires: "luciddreaming" },
+    cost: 1.4e6, unlock: { requires: "countingmice" },
     effect: { type: "trail", add: 52 } },
-  // Night opens with the wall ALREADY populated — anonymous points of light, colourless
-  // and shapeless, indistinguishable from the starfield behind them. By the time this
-  // lands they have been drawing for a minute and a half. Counting Mice is what resolves
-  // them into creatures, and the name earns its keep twice: counting sheep is what you
-  // do falling asleep, and counting is exactly what you cannot do until the specks
-  // become things distinct enough to count.
-  //
-  // It is also just accurate cat vision. Cats are dichromatic and read motion before
-  // form and form before colour, so a dream that starts as bare moving specks is what
-  // Hex would really see; every upgrade around this is her dreaming BETTER than she can
-  // see awake.
-  //
-  // Priced just under Lucky Number 6 so the reveal lands immediately before the night's
-  // one economy spike — the wall bursts into colour (1:40) and then the numbers do (1:56).
-  // Both came down from 2M/2.5M: a 2M sink here on top of Lucky Number 6's put a whole
-  // 30-second window on one purchase while the bot saved for the pair back to back.
-  { key: "countingmice", name: "Counting Mice", icon: "💭",
-    cost: 1.4e6, unlock: { requires: "deepsleep" },
-    effect: { type: "neon" } },
   // Not part of the sleep-stage chain — it's the night's one economy row, gated on the
   // phase plus six HOLES rather than on the stage above it. Parked here by cost
   // (between Counting Mice and Lucid Dreaming IV) because that's where the shop and the dev dump
@@ -1852,7 +1858,7 @@ const UPGRADES = [
   // (7M lands it at 2:35, exactly where the deleted row used to sit) and the gate is the
   // finale's alone.
   { key: "remsleep", name: "Lucid Dreaming IV", icon: "👀",
-    cost: 7e6, unlock: { requires: "countingmice" },
+    cost: 7e6, unlock: { requires: "deepsleep" },
     effect: { type: "trail", add: 64 } },
   // THE FINALE, and the only rung that is not more of something. Cats track by scent and
   // scent lingers, which is exactly the mechanic: ink stops being a rolling window and

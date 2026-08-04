@@ -1153,10 +1153,15 @@ const BUILDINGS = [
   // pets/s, night from the twist to a readable wall: 4:21 and 156 purchases before,
   // 3:07 and 233 after — the run is shorter AND has half again as much in it, which is
   // the whole point. Purchase rate 0.60/s to 1.25/s; worst gap 30.3s to 21.9s.
-  { id: "portal",  name: "Hole in the Wall",     icon: "🕳️", base: 480,     mps: 120,   night: true, growth: 1.035 },
-  { id: "spindle", name: "Sleep Spindle",        icon: "🧵", base: 9600,    mps: 480,   night: true, growth: 1.035 },
-  { id: "delta",   name: "Delta Wave",           icon: "🌊", base: 120000,  mps: 2400,  night: true, growth: 1.035 },
-  { id: "nested",  name: "Dream Within a Dream", icon: "🌀", base: 2880000, mps: 14400, night: true, growth: 1.035 },
+  //
+  // The `id`s are save keys (see load()), so `spindle` and `delta` still carry the
+  // names these rows used to have (Sleep Spindle, Delta Wave — dropped for being
+  // accurate jargon that never joked). Do not "fix" the mismatch: renaming an id
+  // silently wipes that building from every existing save.
+  { id: "portal",  name: "Hole in the Wall",      icon: "🕳️", base: 480,     mps: 120,   night: true, growth: 1.035 },
+  { id: "spindle", name: "Ball of String Theory", icon: "🧵", base: 9600,    mps: 480,   night: true, growth: 1.035 },
+  { id: "delta",   name: "Slow Wave",             icon: "🌊", base: 120000,  mps: 2400,  night: true, growth: 1.035 },
+  { id: "nested",  name: "Dream Within a Dream",  icon: "🌀", base: 2880000, mps: 14400, night: true, growth: 1.035 },
 ];
 // The night opens on a BANK, not on free buildings. Nothing at night earns except
 // buildings, so something has to break the 0-income deadlock, and the two candidates
@@ -1172,7 +1177,7 @@ const BUILDINGS = [
 //
 // 1600 is three Holes (480 + 497 + 515 = 1492) and change: three taps available
 // immediately, and 900/s earned before the fourth is due. It is nowhere near the
-// Spindle's 9600, so the second tier is still a reveal the player watches arrive —
+// second tier's 9600, so it is still a reveal the player watches arrive —
 // about twenty seconds later, on a curve they built themselves.
 const NIGHT_SEED_MICE = 1600;
 const CLICK_BASE = 1;           // mice per pet before bonuses
@@ -1604,13 +1609,13 @@ const UPGRADES = [
   // now, the same way the day's do. What is left is a single clean line from anonymous
   // specks to a readable wall:
   //
-  //   Counting Mice      the specks resolve into neon mice
-  //   Lucid Dreaming     TRAILS EXIST                      <- the hinge
-  //   Paw Twitch         the mice speed up
-  //   Deep Sleep         longer trails
-  //   Scent Trail        ink stops fading
-  //   REM Sleep          longer trails
-  //   Hypnagogia         longer trails
+  //   Counting Mice         the specks resolve into neon mice
+  //   Lucid Dreaming        TRAILS EXIST                   <- the hinge
+  //   Running in Her Sleep  the mice speed up
+  //   Deep Sleep            longer trails
+  //   Scent Trail           ink stops fading
+  //   REM Sleep             longer trails
+  //   Hypnagogia            longer trails
   //
   // Costs are large because night's income is: the shallow 1.05 building curve means a
   // player owns ~60 Holes rather than ~40, so the whole curve sits far higher than it
@@ -1657,7 +1662,10 @@ const UPGRADES = [
   // One rung, not a ladder: it takes speed from the opening 12 to the 20 ceiling and
   // stops. Anything past 20 reads as streaks rather than mice, so there is nothing
   // further to sell.
-  { key: "pawtwitch", name: "Paw Twitch", icon: "🐾",
+  //
+  // `pawtwitch` is a save key (and `deepsleep` requires it), so it keeps the name
+  // this row used to have.
+  { key: "pawtwitch", name: "Running in Her Sleep", icon: "🐾",
     cost: 190000, unlock: { requires: "luciddreaming" },
     effect: { type: "speed", add: 8 } },
   // There was a Word of Mouse row here — a research that put the nine golden
@@ -1723,7 +1731,11 @@ const UPGRADES = [
     effect: { type: "trail", add: 30 } },
   // Hypnagogia is the threshold state between waking and sleep — the last rung, and
   // the one that should tip the word over into readable.
-  { key: "hypnagogia", name: "Hypnagogia", icon: "🌙",
+  //
+  // Fog, not the crescent moon it used to be: the answer is TO THE MOON, so a moon
+  // on the shop rail leaks it the same way Constellation Cattery did. Every icon on
+  // a night row has to pass that test.
+  { key: "hypnagogia", name: "Hypnagogia", icon: "🌫️",
     cost: 27e6, unlock: { requires: "remsleep", owned: [["nested", 58]] },
     effect: { type: "trail", add: 36 } },
 ];
@@ -3810,10 +3822,10 @@ function rebuildWallCast() {
 // phone rather than a uniformly lower framerate. Lerp in scene space, map to
 // screen once at the end (was mapping both endpoints, then lerping).
 // DISTANCE TRAVELLED, not elapsed time. Phase used to be `t * speed`, which means
-// changing the speed dial rescales the whole of history: Paw Twitch (+8) multiplied
-// every mouse's position along its tour by 20/12 at once and teleported the entire
-// wall. Integrating instead — units accumulated so far, plus the new rate from here
-// on — makes a speed change continuous for every mouse and every crew at once.
+// changing the speed dial rescales the whole of history: Running in Her Sleep (+8)
+// multiplied every mouse's position along its tour by 20/12 at once and teleported
+// the entire wall. Integrating instead — units accumulated so far, plus the new
+// rate from here on — makes a speed change continuous for every mouse and crew.
 let wallUnitBase = 0, wallUnitAnchor = 0, wallUnitRate = 0; // rate in scene units/ms
 const wallUnits = t => wallUnitBase + (t - wallUnitAnchor) * wallUnitRate;
 // Called once per frame, so it picks the change up on the frame AFTER recalc: the

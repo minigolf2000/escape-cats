@@ -14,21 +14,33 @@
   // Binding names are load-bearing: routePartykitRequest kebab-cases them to
   // match the :party segment of /parties/:party/:room. `Main` -> "main" is
   // partysocket's default party (the game rooms); `Lobby` -> "lobby" is what
-  // the landing page and proctor connect to. Renaming a binding changes the
-  // wire protocol, so don't tidy these into matching the class names.
+  // the landing page and proctor connect to; `Chat` -> "chat" is the per-team
+  // channel, roomed by team id exactly as the game is. Renaming a binding
+  // changes the wire protocol, so don't tidy these into matching the class
+  // names.
   "durable_objects": {
     "bindings": [
       { "name": "Main", "class_name": "HexServer" },
-      { "name": "Lobby", "class_name": "LobbyServer" }
+      { "name": "Lobby", "class_name": "LobbyServer" },
+      { "name": "Chat", "class_name": "ChatServer" }
     ]
   },
 
   // SQLite-backed DOs — the only class type available on the free plan, and
   // what `ctx.storage.get/put` persists into.
+  //
+  // Migrations are APPEND-ONLY and each tag runs once: a new class needs its
+  // own new tag, never an edit to v1. (Renaming a class is the dangerous
+  // direction — DO storage is keyed to the class, so a rename orphans every
+  // room in it.)
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["HexServer", "LobbyServer"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["ChatServer"]
     }
   ],
 

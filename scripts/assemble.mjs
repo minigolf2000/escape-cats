@@ -31,6 +31,9 @@ const SURFACES = [
   ["apps/hex-clicker/dist", "hexxygon", "Hex Clicker (coop)"],
   ["prototypes/goomba-rider.html", "g00mBa", "Goomba Rider"],
   ["apps/proctor/dist", "proctor", "Proctor dashboard"],
+  // Chat must live on THIS origin, not behind a vanity domain: it reads the
+  // same localStorage pid the lobby wrote, and localStorage is per-origin.
+  ["apps/chat/dist", "chat", "Per-team chat"],
   ["hex", "solo-hex", "Frozen hex prototype + QR Studio"],
   // Its own surface so g00.mba/ar has somewhere short to land. The file also
   // ships inside prototypes/ below; duplication is the same deal Goomba Rider

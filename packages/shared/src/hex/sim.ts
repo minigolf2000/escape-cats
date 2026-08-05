@@ -1,5 +1,5 @@
 // The authoritative Hex Clicker simulation. The PartyKit server wraps one of
-// these per room (network transport only); the client's ?solo mode runs one
+// these per room (network transport only); the client's ?debug mode runs one
 // in-page. There is exactly one implementation of "what a purchase does".
 //
 // All timestamps are epoch milliseconds supplied by the caller (`now`), never
@@ -7,6 +7,7 @@
 // lets the server stamp everything from one Date.now() per message.
 
 import { BUILDINGS, UPGRADES, HEX_CODEWORD } from "./data";
+import { debugDerivedBought, type HexPreset } from "./presets";
 import type { HexSnapshot, PlayerInfo, TapEvent } from "../protocol";
 import {
   type HexCore,
@@ -90,7 +91,7 @@ const OFFLINE_CREDIT_MS = 30_000;
 export const PETS_BATCH_MAX = 50;
 
 /** How often the authority ticks income and broadcasts a snapshot — shared by
- * the room server and the client's ?solo mode so their pacing is identical. */
+ * the room server and the client's ?debug mode so their pacing is identical. */
 export const SNAPSHOT_TICK_MS = 250;
 
 /** Lifetime total at which a day is "about done" (bank + Lab + Catnap) — only
@@ -202,6 +203,39 @@ export class HexSim {
     this.recalc();
     this.lastTick = now;
     this.scheduleGold(true);
+  }
+
+  /** Debug-only: mint mice from nothing. Counts toward lifetime total, so it
+   * moves the wall ramp and unlock thresholds exactly like earned income. */
+  grant(amount: number, now: number): void {
+    const n = Math.max(0, Number(amount) || 0);
+    if (n === 0) return;
+    this.state.mice += n;
+    this.state.total += n;
+    this.checkLegible(now);
+  }
+
+  /** Debug-only: jump the run to a story beat. Runs through reset() first, so
+   * runId bumps and clients treat the jump as a fresh boot (unlocks, seen
+   * flags and FX state all re-derive rather than leaking across the jump). */
+  applyPreset(p: HexPreset, now: number): void {
+    this.reset(now);
+    const s = this.state;
+    s.total = p.total;
+    s.mice = p.mice;
+    s.clicks = p.clicks ?? 0;
+    s.goldCaught = p.golden ?? 0;
+    Object.assign(s.owned, p.owned);
+    for (const k of p.bought ?? []) s.bought[k] = 1;
+    debugDerivedBought(s);
+    this.recalc();
+    if (this.night()) {
+      // The preset IS the flip: stamp it now so elapsed-time UI reads sanely,
+      // and clear any golden — they are day-only (see tick()).
+      s.nightAt = now;
+      s.gold = null;
+    }
+    this.checkLegible(now);
   }
 
   night(): boolean {
@@ -332,7 +366,7 @@ export class HexSim {
   }
 
   /** Assemble the wire snapshot. The ONE place this happens — the room server
-   * and the ?solo mode both call it, so derived fields (progress, cps) and the
+   * and the ?debug mode both call it, so derived fields (progress, cps) and the
    * codeword gate ("the word never leaves before the wall is legible") cannot
    * drift between them. */
   snapshot(now: number, players: PlayerInfo[], taps: TapEvent[] = []): HexSnapshot {

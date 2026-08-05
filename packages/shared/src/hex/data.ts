@@ -2,7 +2,7 @@
 // (tuning comments included — they are the balance documentation) from the
 // single-player prototype at hex/index.html, which is now a frozen reference.
 // This file is the ONE place balance lives: the PartyKit server, the
-// multiplayer client, and the client's ?solo mode all import it.
+// multiplayer client, and the client's ?debug mode all import it.
 
 export interface HexBuilding {
   id: string;
@@ -256,7 +256,7 @@ export const INCOME_SCALE = 2.5;
 // constant and that art are one unit: change them together or not at all.
 //
 // Deliberately a plain constant and not a deploy secret. It ships in the
-// client bundle either way (?solo runs the sim in-page), so an env var only
+// client bundle either way (?debug runs the sim in-page), so an env var only
 // bought the appearance of secrecy while adding a way for the configured word
 // and the painted wall to disagree. The puzzle is protected by the legibility
 // gate in HexSim.snapshot, not by hiding this string.

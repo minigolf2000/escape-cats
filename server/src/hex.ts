@@ -13,7 +13,7 @@ import { Roster } from "./connections";
 const PERSIST_MS = 5_000;
 
 // The room server is transport only: every game rule lives in the shared
-// HexSim (packages/shared/src/hex/sim.ts), which the client's ?solo mode runs
+// HexSim (packages/shared/src/hex/sim.ts), which the client's ?debug mode runs
 // too. If you're changing what a purchase or a pet does, change the sim.
 export class HexServer extends Server<Env> {
   private roster = new Roster();

@@ -239,6 +239,21 @@ The filesystem check runs before rewrites, so a root index would win over the
 `"source": "/"` rules and every vanity domain would serve the landing page
 instead of its game.
 
+**The same root gap in the *redirect* form fails silently and much worse.**
+There now IS a `dist/index.html` (the lobby), so a missing `"source": "/"` rule
+does not 404 — the root quietly serves the lobby, while that page's own
+`/assets/*` requests still match `/:path*` and get redirected cross-origin.
+Vite marks those tags `crossorigin`, the redirected origin sends no
+`Access-Control-Allow-Origin`, and the browser blocks the script and the
+stylesheet. `#app` never populates, so the symptom is a **pure white page with
+nothing in the console except CORS errors** — which reads like a broken build,
+not a routing bug. `check-routing.mjs` asserts the expected landing path for
+every vanity root specifically to catch this; keep those expectations current.
+
+`vercel.json` also cannot carry comments — it is strict JSON and Vercel's
+schema rejects unknown keys, so a `"comment"` field fails the deployment with a
+link to the project-configuration docs. Explanations go here instead.
+
 The two vanity domains **redirect** (307) into this origin rather than
 rewriting to it:
 

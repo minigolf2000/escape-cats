@@ -29,7 +29,7 @@ import {
   wallNow,
   players,
 } from "./state.js";
-import { connectRoom, roomFromUrl, soloFromUrl, transport } from "./net";
+import { connectRoom, playerId, roomFromUrl, soloFromUrl, transport } from "./net";
 import { startSolo } from "./solo";
 import {
   buildShop,
@@ -46,6 +46,7 @@ import {
 import { initPetInput } from "./pet.js";
 import { spawnGold, despawnGold, moveGold, initGoldenInput } from "./golden.js";
 import { updatePops } from "./fx.js";
+import { clearMateTaps, enqueueMateTaps, updateMateTaps } from "./mates.js";
 import { updateCat } from "./cat.js";
 import { syncPhase, runNightCutscene, isNightInited } from "./phase.js";
 import { drawWall, startWallNeon, resetWallClock } from "./wall.js";
@@ -73,8 +74,20 @@ window.addEventListener(
 // ---------------------------------------------------------------------------
 let inited = false;
 
+/** This phone's roster slot — the same index the server derives colours from. */
+function mySlot(snap) {
+  const pid = playerId();
+  return (snap.players || []).findIndex((p) => p.id === pid);
+}
+
 function onSnapshot(snap) {
   const e = applySnapshot(snap);
+
+  // Teammates' taps ride the snapshot but are drawn on their own timestamps,
+  // not on its arrival — see mates.js. My own slot is skipped: pet.js already
+  // popped those at my fingertip.
+  if (e.reset) clearMateTaps();
+  else enqueueMateTaps(snap.taps, snap.serverTime, mySlot(snap));
 
   if (e.first) {
     initGame();
@@ -178,6 +191,7 @@ function frame(now) {
   if (!night) moveGold(dt);
   updateCat(now);
   updatePops(dt);
+  updateMateTaps();
   // The wall draws against the SHARED clock — all phones, one timeline.
   if (night) drawWall(wallNow());
 

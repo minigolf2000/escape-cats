@@ -4,6 +4,7 @@ import {
   SNAPSHOT_TICK_MS,
   type HexClientMsg,
   type HexServerMsg,
+  type TapEvent,
 } from "@escape-cats/shared";
 import { Roster } from "./connections";
 
@@ -16,6 +17,10 @@ export default class HexServer implements Party.Server {
   /** conn.id -> highest `pets` batch seq received, and the last one acked. */
   private petSeq = new Map<string, number>();
   private petAcked = new Map<string, number>();
+  /** Taps since the last broadcast, stamped in server time. Presentation only:
+   * the bank already counted them, these just let every phone replay a
+   * teammate's rhythm. Cleared on every broadcast. */
+  private taps: TapEvent[] = [];
   private ticker: ReturnType<typeof setInterval> | null = null;
 
   constructor(readonly room: Party.Room) {}
@@ -52,13 +57,29 @@ export default class HexServer implements Party.Server {
       case "join":
         this.roster.rename(sender, String(msg.name).slice(0, 24));
         break;
-      case "pets":
+      case "pets": {
         this.petSeq.set(sender.id, Number(msg.seq) || 0);
+        const me = this.roster.get(sender);
+        if (!proctor && me) {
+          const slot = this.roster.slot(me.pid);
+          // Offsets are ms before the client sent the batch, so they preserve
+          // the spacing between taps. Everything shifts later by the one-way
+          // latency, which is uniform and therefore invisible in the rhythm.
+          const offsets = Array.isArray(msg.offsets) ? msg.offsets : [];
+          for (let i = 0; i < msg.count; i++) {
+            const off = Number(offsets[i]);
+            this.taps.push({
+              slot,
+              at: now + (Number.isFinite(off) ? Math.min(0, off) : 0),
+            });
+          }
+        }
         // No broadcast: four phones flushing taps at 10Hz would mean ~40 full
         // snapshots/sec fanned out to the room, and pets only move numbers the
         // phones already show optimistically. The next tick (250ms) carries it.
         if (!proctor) this.sim.pets(msg.count, now);
         return;
+      }
       case "buyBuilding":
         if (!proctor) this.sim.buyBuilding(String(msg.id), now);
         break;
@@ -100,7 +121,8 @@ export default class HexServer implements Party.Server {
         this.petAcked.set(conn.id, seq);
       }
     }
-    const state = this.sim.snapshot(Date.now(), this.roster.list());
+    const state = this.sim.snapshot(Date.now(), this.roster.list(), this.taps);
+    this.taps = [];
     const msg: HexServerMsg = { type: "state", state };
     this.room.broadcast(JSON.stringify(msg));
   }

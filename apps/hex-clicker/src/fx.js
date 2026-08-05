@@ -18,12 +18,12 @@ export function floatNum(x, y, text) {
 
 const pops = [];
 const POP_MAX = 40; // hard cap so a Zoomies tap-storm can't flood the DOM on mobile
-export function spawnMousePop(x, y) {
+export function spawnMousePop(x, y, color) {
   if (pops.length >= POP_MAX) pops.shift().el.remove();
   const el = document.createElement("div");
   el.className = "mousePop";
   el.innerHTML = mouseSVG(
-    MOUSE_COLOR_LIST[(Math.random() * MOUSE_COLOR_LIST.length) | 0],
+    color ?? MOUSE_COLOR_LIST[(Math.random() * MOUSE_COLOR_LIST.length) | 0],
   );
   stageEl.appendChild(el);
   const dir = Math.random() < 0.5 ? -1 : 1; // face the direction of travel

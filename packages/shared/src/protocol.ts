@@ -35,7 +35,7 @@ export interface HexSnapshot extends HexSimState {
 
 export type HexClientMsg =
   | { type: "join"; name: string }
-  | { type: "pets"; count: number } // batched client-side
+  | { type: "pets"; count: number; seq: number } // batched client-side
   | { type: "buyBuilding"; id: string }
   | { type: "buyUpgrade"; key: string }
   | { type: "catchGold"; id: number }
@@ -43,4 +43,9 @@ export type HexClientMsg =
   | { type: "speed"; mult: number }; // proctor only — dev time-scale
 
 
-export type HexServerMsg = { type: "state"; state: HexSnapshot };
+export type HexServerMsg =
+  | { type: "state"; state: HexSnapshot }
+  /** Highest `pets` batch seq from THIS connection that the next snapshot
+   * already includes. The client drops its in-flight taps on this rather than
+   * guessing a round-trip window. */
+  | { type: "petAck"; seq: number };

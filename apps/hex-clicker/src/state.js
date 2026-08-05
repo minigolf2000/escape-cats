@@ -88,26 +88,38 @@ export function wallSeed() {
 }
 
 // ---------------------------------------------------------------------------
-// OPTIMISTIC PETS — a tap credits the display immediately; the server's
-// snapshot replaces it as soon as the batch round-trips. Entries older than
-// the round-trip window are dropped rather than reconciled: on venue wifi the
-// error is a fraction of one tap.
+// OPTIMISTIC PETS — a tap credits the display immediately and is held until
+// the server acknowledges the batch that carried it.
 // ---------------------------------------------------------------------------
-// Must cover a tap's whole round trip: PET_FLUSH_MS (100, net.ts) until the
-// batch leaves, SNAPSHOT_TICK_MS (250, shared sim — pets ride the tick, they
-// don't trigger a broadcast) until a snapshot carries it, plus RTT margin.
-// Shorter and the counter dips once per batch; longer and it double-counts
-// taps the snapshot already includes. Retune alongside those two constants.
-const OPTIMISTIC_MS = 400;
-let optimistic = []; // {at: perfNow, gain}
-export function petCredit(gain) {
+// This used to expire entries after a fixed window that had to equal the whole
+// round trip: PET_FLUSH_MS (100) + SNAPSHOT_TICK_MS (250) + RTT. With ?solo the
+// RTT is zero so any window worked, but over a real connection the budget left
+// ~50ms for the network. Overshoot and the entry died before its snapshot
+// arrived (bank dips one tap); undershoot and it was still counted after the
+// snapshot included it (bank reads high). Both happened, tap by tap, which is
+// what made the counter jitter.
+//
+// Now the server tells us exactly which batches a snapshot contains, so the
+// arithmetic is exact at any latency. The timestamp survives only as a
+// backstop: if an ack is lost — a reconnect mid-flight — an entry must not
+// inflate the bank forever.
+const OPTIMISTIC_BACKSTOP_MS = 5000;
+let optimistic = []; // {seq, gain, at: perfNow}
+
+export function petCredit(gain, seq) {
   game.mice += gain;
   game.total += gain;
   game.clicks += 1;
-  optimistic.push({ at: performance.now(), gain });
+  optimistic.push({ seq, gain, at: performance.now() });
 }
+
+/** Every batch at or below `seq` is baked into the snapshot that follows. */
+export function ackPets(seq) {
+  optimistic = optimistic.filter((o) => o.seq > seq);
+}
+
 function optimisticGain() {
-  const cut = performance.now() - OPTIMISTIC_MS;
+  const cut = performance.now() - OPTIMISTIC_BACKSTOP_MS;
   optimistic = optimistic.filter((o) => o.at > cut);
   return optimistic.reduce((a, o) => a + o.gain, 0);
 }

@@ -1,6 +1,6 @@
 // Pure rules of Hex Clicker, ported from the prototype (hex/index.html).
 // Everything here is a pure function of game-shaped state, so the PartyKit
-// server, the client's rendering, the ?solo mode, and any future pacing
+// server, the client's rendering, the ?debug mode, and any future pacing
 // simulator all price the same rules instead of copies that drift.
 
 import {

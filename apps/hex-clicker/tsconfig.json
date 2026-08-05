@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     // The ported game modules are plain JS (they came verbatim from the
-    // prototype); only the typed seams (net.ts, solo.ts) are checked.
+    // prototype); only the typed seams (net.ts, debug.ts) are checked.
     "allowImportingTsExtensions": true
   },
   "include": ["src/**/*.ts"]

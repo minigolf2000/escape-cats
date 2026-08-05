@@ -95,6 +95,15 @@ server at all, and `?speed=N` fast-forwards it — so
 the only mode besides the real game; the proctor's ×1/×5/×20 buttons do the
 same thing to a real room. (`?solo` was the interim name and still works.)
 
+`?debug` also mounts a floating **🛠 panel** — grant buttons, story-beat jumps
+(`day` → `legible`, see `packages/shared/src/hex/presets.ts`), time scale and
+reset. This is the old prototype panel ported onto the SHIPPED economy: presets
+drive the real `HexSim`, so what you tune here is what players get. The panel's
+controls call the sim directly and exist only in this mode — nothing
+debug-related is in the wire protocol, so there is no path to a real room.
+`window.__hexSim` exposes the sim itself (the mirror in `__hex.game` drops
+server-private fields like `legibleAt`); use it for console-driven tuning.
+
 Modes are **query params, never paths**. `?debug` modifies the same page rather
 than naming a different one, params compose (`?debug&speed=20`) where path
 segments don't, and a path would need a rewrite per mode on a static host —
@@ -182,7 +191,7 @@ come from `vercel.json`, so there is nothing to override in the dashboard.
 | `/hexxygon/` | `apps/hex-clicker` | Hex Clicker (coop) |
 | `/g00mBa/` | `prototypes/goomba-rider.html` | Goomba Rider |
 | `/proctor/` | `apps/proctor` | Proctor dashboard |
-| `/solo-hex/` | `hex/` | Hex Clicker (solo) + QR Studio |
+| `/solo-hex/` | `hex/` | Frozen hex prototype + QR Studio (path predates the solo→debug rename) |
 | `/prototypes/` | `prototypes/` | Prototypes menu + Goomba Rider |
 
 Env vars (all in this one project — `VITE_PARTYKIT_HOST` is set once here, so

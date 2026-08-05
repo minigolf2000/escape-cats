@@ -2,11 +2,15 @@ import type * as Party from "partykit/server";
 import {
   HexSim,
   SNAPSHOT_TICK_MS,
+  type HexPersistedV1,
   type HexClientMsg,
   type HexServerMsg,
   type TapEvent,
 } from "@escape-cats/shared";
 import { Roster } from "./connections";
+
+/** Write-behind cadence for the room's saved game. */
+const PERSIST_MS = 5_000;
 
 // The room server is transport only: every game rule lives in the shared
 // HexSim (packages/shared/src/hex/sim.ts), which the client's ?solo mode runs
@@ -22,14 +26,28 @@ export default class HexServer implements Party.Server {
    * teammate's rhythm. Cleared on every broadcast. */
   private taps: TapEvent[] = [];
   private ticker: ReturnType<typeof setInterval> | null = null;
+  private persister: ReturnType<typeof setInterval> | null = null;
 
   constructor(readonly room: Party.Room) {}
 
-  onStart() {
+  async onStart() {
+    // Rehydrate BEFORE the ticker exists — PartyKit holds connections until
+    // onStart resolves, so no snapshot of the blank sim can ever leak out.
+    const saved = await this.room.storage.get<HexPersistedV1>("hex");
+    if (saved?.v === 1) this.sim.restore(saved, Date.now());
     this.ticker = setInterval(() => {
       this.sim.tick(Date.now());
       this.broadcast();
     }, SNAPSHOT_TICK_MS);
+    // Write-behind, not write-through: the sim mutates 4x/sec on its own
+    // (income), so per-change writes would be nearly per-tick writes. A 5s
+    // cadence bounds an eviction's loss to 5s of a 10-minute game — and the
+    // restore's offline credit covers most of even that.
+    this.persister = setInterval(() => void this.persist(), PERSIST_MS);
+  }
+
+  private persist() {
+    return this.room.storage.put("hex", this.sim.persisted(Date.now()));
   }
 
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
@@ -93,6 +111,9 @@ export default class HexServer implements Party.Server {
         if (!proctor) return;
         this.sim.reset(now);
         this.roster.reset();
+        // Write-through, alone of all mutations: rehydrating the PREVIOUS run
+        // after an eviction would silently undo the proctor's reset.
+        void this.persist();
         break;
       case "speed": {
         // Dev time-scale for rehearsals: accelerates income + golden cadence,

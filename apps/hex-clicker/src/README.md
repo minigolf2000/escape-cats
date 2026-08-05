@@ -9,7 +9,7 @@ verbatim where possible; the typed seams are TS.
 | `main.js`   | boot, join gate, frame loop, and the snapshot→UI-beat wiring          |
 | `state.js`  | the server-state mirror, snapshot EDGES, shared clock, optimistic pets |
 | `net.ts`    | PartySocket transport + pet batching (typed)                          |
-| `debug.ts`  | `?debug` practice mode — the shared HexSim running in-page (typed)    |
+| `debug.ts`  | `?debug` mode — the shared HexSim running in-page, no server (typed)  |
 | `shop.js`   | dock, building rows, upgrade rail, HUD, badge/seen, sold-out beat     |
 | `wall.js`   | the night reveal: tracer, glyphs, moon scene, cast, canvas drawing    |
 | `cat.js`    | Hex herself — blink, gaze, ears, purr, yawn, dream twitches           |
@@ -26,4 +26,4 @@ The markup + CSS are in `index.html`, ported verbatim from the prototype plus
 the multiplayer shell (join gate, team strip, reconnect toast) at the bottom.
 
 Debug: `window.__hex` exposes the mirror + `send()` for console/Playwright
-driving. `?debug&speed=20` fast-forwards a practice run.
+driving. `?debug&speed=20` fast-forwards a debug run.

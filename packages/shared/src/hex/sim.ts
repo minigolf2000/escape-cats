@@ -52,6 +52,40 @@ export interface HexSimState extends HexCore {
   speed: number;
 }
 
+/**
+ * The wire-format for a room's saved game — everything a Durable Object
+ * eviction would otherwise erase. Versioned so a deploy that changes the shape
+ * refuses stale data instead of rehydrating garbage into a live room.
+ *
+ * Deliberately absent:
+ *  - mods       — derived (foldMods) on restore, so a rebalance deploy applies
+ *                 to live rooms instead of freezing the old table.
+ *  - gold       — wall-clock lifetimes mean it is expired after any gap;
+ *                 restore reschedules instead. Costs one missed golden.
+ *  - speed      — asymmetric risk: losing a rehearsal ×20 is one click to
+ *                 redo; INHERITING one into a live session ruins the session.
+ *  - lastTick / gold timer — restart-local by definition.
+ */
+export interface HexPersistedV1 {
+  v: 1;
+  /** Epoch ms of the write — the anchor for capped offline credit on load. */
+  savedAt: number;
+  runId: number;
+  startedAt: number;
+  nightAt: number | null;
+  legibleAt: number | null;
+  zoomUntil: number;
+  /** So a restored room can't reissue a golden id a client already saw. */
+  goldSeq: number;
+  core: HexCore;
+}
+
+/** Cap on income credited for the gap a save spans. Covers the unsaved tail
+ * (up to one flush interval of real play) plus a short eviction; long gaps are
+ * NOT a passive-income faucet — elapsed time stays wall-clock, only the bank
+ * is nudged. In a ~10 minute game 30s cannot shortcut anyone to a win. */
+const OFFLINE_CREDIT_MS = 30_000;
+
 /** Max pets creditable in one batch message — a tap-storm ceiling per flush. */
 export const PETS_BATCH_MAX = 50;
 
@@ -90,6 +124,67 @@ export class HexSim {
     this.mods = foldMods({}, this.state.owned);
     this.lastTick = now;
     this.scheduleGold(true);
+  }
+
+  /** Snapshot of everything worth surviving an eviction. Pure — storage I/O
+   * stays in the room server, so ?debug (no storage) shares this code path
+   * for free and the round-trip is unit-testable without a server. */
+  persisted(now: number): HexPersistedV1 {
+    const s = this.state;
+    return {
+      v: 1,
+      savedAt: now,
+      runId: s.runId,
+      startedAt: s.startedAt,
+      nightAt: s.nightAt,
+      legibleAt: s.legibleAt,
+      zoomUntil: s.zoomUntil,
+      goldSeq: this.goldSeq,
+      core: {
+        mice: s.mice,
+        total: s.total,
+        clicks: s.clicks,
+        goldCaught: s.goldCaught,
+        owned: { ...s.owned },
+        bought: { ...s.bought },
+      },
+    };
+  }
+
+  /** Rebuild from a save. Seeded from freshCore() so a building added by a
+   * rebalance deploy exists (at 0) even in rooms saved before it did. */
+  restore(p: HexPersistedV1, now: number): void {
+    const core = freshCore();
+    Object.assign(core.owned, p.core.owned);
+    this.state = {
+      ...core,
+      mice: p.core.mice,
+      total: p.core.total,
+      clicks: p.core.clicks,
+      goldCaught: p.core.goldCaught,
+      bought: { ...p.core.bought },
+      runId: p.runId,
+      startedAt: p.startedAt,
+      zoomUntil: p.zoomUntil,
+      gold: null,
+      nightAt: p.nightAt,
+      legibleAt: p.legibleAt,
+      speed: 1,
+    };
+    this.goldSeq = p.goldSeq;
+    this.recalc();
+    this.lastTick = now;
+    this.scheduleGold(true);
+    // Capped credit for the gap, at the RESTORED build rate. Elapsed time is
+    // wall-clock on purpose: an eviction makes the proctor's timer jump, and
+    // nothing else — the reveal keys off total, not elapsed time.
+    const gapSec =
+      Math.min(Math.max(0, now - p.savedAt), OFFLINE_CREDIT_MS) / 1000;
+    const inc = this.baseCps() * gapSec;
+    if (inc > 0) {
+      this.state.mice += inc;
+      this.state.total += inc;
+    }
   }
 
   reset(now: number): void {

@@ -1,9 +1,14 @@
 // Transport: one interface, two backends. A PartyKit room for the real game,
-// or the shared HexSim running in-page for ?debug practice. Either way the
+// or the shared HexSim running in-page for ?debug. Either way the
 // game code only ever sees snapshots arriving and intents leaving.
 
 import PartySocket from "partysocket";
-import type { HexClientMsg, HexServerMsg, HexSnapshot } from "@escape-cats/shared";
+import type {
+  HexClientMsg,
+  HexServerMsg,
+  HexSnapshot,
+  LobbyServerMsg,
+} from "@escape-cats/shared";
 
 export const PARTYKIT_HOST =
   import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
@@ -30,7 +35,7 @@ export function roomFromUrl(): string | null {
   return new URLSearchParams(location.search).get("room");
 }
 
-/** ?debug — the practice bench: the shared sim in-page, no server, no room.
+/** ?debug — the shared sim in-page, no server, no room.
  * ?solo was the old name for the same thing and still works, so a bookmark or
  * a printed link from before the rename doesn't dead-end. */
 export function debugFromUrl(): boolean {
@@ -107,4 +112,36 @@ export function connectRoom(opts: {
     tapTimes.push(performance.now());
     return batchSeq + 1; // the batch this tap will leave in
   };
+}
+
+/**
+ * Watch the lobby for this phone's team assignment. Connecting also REGISTERS
+ * the phone in the lobby roster (same pid+name contract the landing page
+ * uses), so a player who lands here unsorted appears on the proctor's list and
+ * slots in the moment the proctor taps them onto a team — the "error screen"
+ * is really a waiting room.
+ */
+export function watchTeam(opts: {
+  name: string;
+  onTeam: (team: string, name: string) => void;
+  onStatus: (up: boolean) => void;
+}): void {
+  const pid = playerId();
+  const socket = new PartySocket({
+    host: PARTYKIT_HOST,
+    room: "main",
+    party: "lobby",
+    query: { pid, name: opts.name },
+  });
+  socket.addEventListener("open", () => opts.onStatus(true));
+  socket.addEventListener("close", () => opts.onStatus(false));
+  socket.addEventListener("message", (e) => {
+    const msg: LobbyServerMsg = JSON.parse(e.data as string);
+    if (msg.type !== "lobby") return;
+    const me = msg.snapshot.players.find((p) => p.pid === pid);
+    if (me?.team) {
+      socket.close();
+      opts.onTeam(me.team, me.name);
+    }
+  });
 }

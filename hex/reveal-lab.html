@@ -43,7 +43,8 @@
           color: #8d96a8; font: 600 11px -apple-system, system-ui, sans-serif; }
   .tbtn.on { background: #3d63c9; color: #eef2ff; }
   /* HEX, asleep in the middle of the orbit. The game poses her there for the whole
-     night (index.html's syncPoseVars) and the scene is composed AROUND her — the
+     night (syncPoseVars in apps/hex-clicker/src/wall.js) and the scene is composed
+     AROUND her — the
      giant was shrunk so it would stop reading as her rival, and the Counting Mice
      ripple starts from her — so a lab with an empty middle is judging a different
      picture than the one that ships. Static on purpose: this is a positioning
@@ -59,7 +60,8 @@
   }
 </style>
 <canvas id="c"></canvas>
-<!-- Copied from index.html's #hexCat, shapes untouched, minus everything the lab
+<!-- Copied from the game's #hexCat (apps/hex-clicker/index.html), shapes untouched,
+     minus everything the lab
      has no use for: the ids the game's idle animations pivot on are kept so the
      paths stay diffable against hers, the interaction (role/aria/pointer) is not,
      since nothing here is pettable. -->
@@ -159,12 +161,13 @@ function resize() {
 addEventListener('resize', resize);
 
 // Hex's night pose, stated the way the game states it (index.html's POSE_SCENE_W
-// and syncPoseVars): centred on the ORBIT'S CENTRE, POSE_SCENE_W scene units wide.
+// and syncPoseVars, in apps/hex-clicker/src/wall.js): centred on the ORBIT'S CENTRE,
+// POSE_SCENE_W scene units wide.
 // Both numbers are in scene units, so she rides the same min(w/390, h/620) fit as
 // everything else on the wall and stays inside her ellipse at any aspect ratio —
 // which is the whole reason the game moved to expressing her size this way rather
 // than as a share of the viewport.
-const POSE_SCENE_W = 0.55 * 390 * 0.25;   // 53.625 — keep in step with index.html
+const POSE_SCENE_W = 0.55 * 390 * 0.25;   // 53.625 — keep in step with wall.js
 const hexEl = document.getElementById('hex');
 function placeHex() {
   const s = Math.min(W / 390, H / 620);
@@ -249,9 +252,9 @@ const S = {
   // Hex dreaming BETTER than she can actually see.
   neon: true,
 };
-// THE REVEAL LADDER, as the game actually sells it now. This is a port of
-// index.html's night rows, not a design of the lab's own, and the order is the
-// whole point of it:
+// THE REVEAL LADDER, as the game actually sells it now. This is a port of the night
+// rows in packages/shared/src/hex/data.ts — the shared table the server and every
+// client read — not a design of the lab's own, and the order is the whole point:
 //
 //   dark      night opens on an empty wall that fills with drifting white specks
 //   LD I      THE SPECKS START LEAVING TRAILS   <- the hinge; still white
@@ -293,7 +296,8 @@ const POINT_COLOR = '#e9edf7';
 // 4s half-life, which reads as the wall holding a drawing rather than a comet tail.
 const PERSIST_MS = 40;
 const COUNT_KEYS = ['yellow', 'pink', 'blue', 'green', 'purple'];
-// The wall's staffing ORDER, ported from the game (index.html's rebuildWallCast).
+// The wall's staffing ORDER, ported from the game (rebuildWallCast in
+// apps/hex-clicker/src/wall.js).
 // There is no per-colour dial there: ONE ramp decides how many mice have climbed
 // onto the wall, and the colours interleave by how FULL each is, so the scene
 // develops together rather than one colour finishing before the next begins. This
@@ -327,7 +331,8 @@ function rampCounts(n) {
 // a lap apart, which is as far from agreeing as two offsets get, and the sequence
 // never repeats a value — so there are no accidental twins anywhere in the scene,
 // not just in MOON. Position also stays a pure function of (crew, index, time).
-// Kept identical in index.html; change them together.
+// Kept identical in the game's wall.js and in the frozen hex/index.html; change all
+// three together.
 const crewPhase = idx => ((idx + 1) * 0.6180339887498949) % 1;
 
 // Order the nine letters of TO THE MOON get staffed in. Indices are into the
@@ -922,7 +927,8 @@ function posAt(m, t) {
   return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
 }
 
-// Half the 3.1 the lab shipped with, matching the game's WALL_MOUSE_R. Night is a
+// Half the 3.1 the lab shipped with, matching WALL_MOUSE_R in the game's wall.js.
+// Night is a
 // pulled-back camera and the mice were reading closer than the scene wanted; at
 // 1.55 the body is ~7.6px wide and the wall reads as a swarm at distance rather
 // than a parade of individuals. drawMouse's stroke widths are all r-relative, so
@@ -1001,7 +1007,7 @@ function drawPoint(x, y, a, rs) {
   ctx.globalAlpha = 1;
 }
 
-// COUNTING MICE, the beat — ported from the game (index.html's drawWallFlip), since
+// COUNTING MICE, the beat — ported from the game (drawWallFlip in wall.js), since
 // the lab exists to judge exactly this kind of thing and could only show the before
 // and the after. The row that turns the specks into mice is the night's first real
 // reveal, so it gets a gesture rather than a swap between two frames: each speck

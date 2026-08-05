@@ -730,6 +730,21 @@ export function loadWallScene() {
   rebuildWallCast();
 }
 
+// Where a crew's spread STARTS on its own tour. Without this every crew begins at
+// its tour's point 0, and two crews that are the same shape at the same size then
+// move as one animation played twice — MOON's two O's are exactly that: one closed
+// loop each, one mouse each, identical scale, so the pair circled in lockstep for
+// the whole night. The rotation is per crew, so the letters are drawn out of step
+// with each other while each letter's own mice stay evenly spread along it.
+//
+// Golden-ratio spacing rather than a seeded draw: consecutive crews land ~0.618 of
+// a lap apart, which is as far from agreeing as two offsets get, and the sequence
+// never revisits a value — so the scene has no accidental pairs anywhere in it, not
+// just in MOON. It also keeps position a pure function of (crew, index, time), with
+// nothing to save, nothing to re-roll, and nothing for the server to send: every
+// client derives the same wall from the same seed.
+const crewPhase = idx => ((idx + 1) * 0.6180339887498949) % 1;
+
 // The cast is built in ARRIVAL ORDER and wallMiceCount() draws the first N, so the
 // order below IS the reveal: mouse k climbs onto the wall when lifetime total
 // crosses its rung. The full cast is WALL_CAP mice, not an arbitrary 90.
@@ -806,15 +821,21 @@ function rebuildWallCast() {
   // moving opposite ways. Confining the spacing to the outbound half spreads them
   // along the path instead. Closed tours map phase to position one-to-one and so
   // take the full span.
+  //
+  // Then the whole crew is ROTATED by crewPhase(idx), which is what stops identical
+  // glyphs moving as one. See the note on crewPhase.
   const byCrew = new Map();
   for (const m of wallCast) {
     if (!byCrew.has(m.crew)) byCrew.set(m.crew, []);
     byCrew.get(m.crew).push(m);
   }
-  for (const [idx, members] of byCrew)
+  for (const [idx, members] of byCrew) {
+    const closed = WALL_CREWS[idx].closed, span = closed ? 1 : 0.5;
+    const off = crewPhase(idx) * span;
     members.forEach((m, k) => {
-      m.phase = (WALL_CREWS[idx].closed ? 1 : 0.5) * k / members.length;
+      m.phase = (span * k / members.length + off) % span;
     });
+  }
 }
 
 // ping-pong along the crew's tour; noise is locked to 0 so no wander term.

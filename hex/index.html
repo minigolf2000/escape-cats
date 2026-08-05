@@ -3967,6 +3967,10 @@ function loadWallScene() {
 // never revisits a value — so the scene has no accidental pairs anywhere in it, not
 // just in MOON. It also keeps position a pure function of (crew, index, time), with
 // nothing to save and nothing to re-roll.
+//
+// This file is the FROZEN reference (see hex/README.md); the copy that ships is in
+// apps/hex-clicker/src/wall.js. Kept in step here so the reference still matches what
+// the port does.
 const crewPhase = idx => ((idx + 1) * 0.6180339887498949) % 1;
 
 // The cast is built in ARRIVAL ORDER and wallMiceCount() draws the first N, so the

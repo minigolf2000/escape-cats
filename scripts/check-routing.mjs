@@ -27,6 +27,11 @@ const exists = async (p) => access(p).then(() => true, () => false);
 function matchSource(source, pathname) {
   if (source.endsWith("/:path*")) {
     const prefix = source.slice(0, -"/:path*".length);
+    // `/:path*` does NOT match the bare root on Vercel, however much it looks
+    // like it should. This checker used to claim it did, which is exactly why
+    // it passed while hexxygon.com/ served the wrong app and rendered white.
+    // The root needs its own `source: "/"` rule, listed first.
+    if (prefix === "" && pathname === "/") return null;
     if (pathname === prefix || pathname === prefix + "/") return { path: "" };
     if (pathname.startsWith(prefix + "/"))
       return { path: pathname.slice(prefix.length + 1) };
@@ -104,34 +109,54 @@ function refsOf(html, pageUrl) {
   return out;
 }
 
+/**
+ * [entry, host, expected-landing-path?]
+ *
+ * The third element is what makes a vanity domain check meaningful. Without it
+ * this script only asked "does this resolve to a file that exists, and do its
+ * refs resolve" — and a vanity root that lands on the WRONG app answers yes to
+ * both. That is precisely how hexxygon.com/ shipped serving the lobby instead
+ * of Hex Clicker: every assertion passed while production rendered white.
+ */
 const ENTRIES = [
-  ["/", "cat-games-tau.vercel.app"],
-  ["/hexxygon", "cat-games-tau.vercel.app"],
-  ["/proctor", "cat-games-tau.vercel.app"],
-  ["/g00mBa", "cat-games-tau.vercel.app"],
-  ["/prototypes", "cat-games-tau.vercel.app"],
-  ["/solo-hex", "cat-games-tau.vercel.app"],
-  ["/qr-studio", "cat-games-tau.vercel.app"],
-  ["/reveal-lab", "cat-games-tau.vercel.app"],
-  ["/", "hexxygon.com"],
-  ["/", "www.hexxygon.com"],
-  ["/", "g00.mba"],
+  // The origin root legitimately serves the lobby from the dist root.
+  ["/", "cat-games-tau.vercel.app", "/"],
+  ["/hexxygon", "cat-games-tau.vercel.app", "/hexxygon/"],
+  ["/proctor", "cat-games-tau.vercel.app", "/proctor/"],
+  ["/g00mBa", "cat-games-tau.vercel.app", "/g00mBa/"],
+  ["/prototypes", "cat-games-tau.vercel.app", "/prototypes/"],
+  ["/solo-hex", "cat-games-tau.vercel.app", "/solo-hex/"],
+  ["/qr-studio", "cat-games-tau.vercel.app", "/qr-studio/"],
+  ["/reveal-lab", "cat-games-tau.vercel.app", "/reveal-lab/"],
+  // The vanity roots. Each MUST land in its game's subdirectory, never at the
+  // dist root.
+  ["/", "hexxygon.com", "/hexxygon/"],
+  ["/", "www.hexxygon.com", "/hexxygon/"],
+  ["/", "g00.mba", "/g00mBa/"],
+  ["/", "www.g00.mba", "/g00mBa/"],
   // Both forms: the slashed one exercises the /ar redirect on the vanity host,
   // the bare one exercises the trailingSlash 308 that precedes it. Either must
   // beat the host's /:path* catch-all, which would otherwise send /ar into
   // /g00mBa/ar and 404.
-  ["/ar/", "g00.mba"],
-  ["/ar", "g00.mba"],
-  ["/ar/", "www.g00.mba"],
-  ["/ar", "cat-games-tau.vercel.app"],
+  ["/ar/", "g00.mba", "/ar/"],
+  ["/ar", "g00.mba", "/ar/"],
+  ["/ar/", "www.g00.mba", "/ar/"],
+  ["/ar", "cat-games-tau.vercel.app", "/ar/"],
 ];
 
 let failures = 0;
-for (const [entry, host] of ENTRIES) {
+for (const [entry, host, expect] of ENTRIES) {
   const page = await fetchPath(entry, host);
   const label = `${host}${entry}`;
   if (page.status !== 200) {
     console.log(`FAIL  ${label}  -> HTTP ${page.status}`);
+    failures++;
+    continue;
+  }
+  if (expect && page.pathname !== expect) {
+    console.log(
+      `FAIL  ${label}  -> ${page.pathname}  (expected ${expect})`,
+    );
     failures++;
     continue;
   }

@@ -42,8 +42,49 @@
   .tbtn { padding: 6px 2px; border: 0; border-radius: 7px; background: #232833;
           color: #8d96a8; font: 600 11px -apple-system, system-ui, sans-serif; }
   .tbtn.on { background: #3d63c9; color: #eef2ff; }
+  /* HEX, asleep in the middle of the orbit. The game poses her there for the whole
+     night (syncPoseVars in apps/hex-clicker/src/wall.js) and the scene is composed
+     AROUND her — the
+     giant was shrunk so it would stop reading as her rival, and the Counting Mice
+     ripple starts from her — so a lab with an empty middle is judging a different
+     picture than the one that ships. Static on purpose: this is a positioning
+     reference, not a port of her idle. placeHex() writes the box in scene units so
+     she rides the same fit the wall does. */
+  #hex { position: fixed; pointer-events: none;
+         filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
+  /* Asleep — the only state she is ever in here. Lids AND irises, because the eye
+     is drawn as two shapes and squashing just the socket leaves a full-size iris
+     sitting in a shut eye. */
+  #hex #eyeLeft, #hex #eyeRight, #hex #irisLeft, #hex #irisRight {
+    transform-box: fill-box; transform-origin: center; transform: scaleY(.07);
+  }
 </style>
 <canvas id="c"></canvas>
+<!-- Copied from the game's #hexCat (apps/hex-clicker/index.html), shapes untouched,
+     minus everything the lab
+     has no use for: the ids the game's idle animations pivot on are kept so the
+     paths stay diffable against hers, the interaction (role/aria/pointer) is not,
+     since nothing here is pettable. -->
+<svg id="hex" viewBox="0 0 200 210" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+ <g id="catFace">
+  <path id="headFill" d="M26.5 57.5L32.1 44L69.7 44L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L138.2 44L166.5 44L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z" fill="#111114"/>
+  <path id="headOutline" d="M86.5 71.5C93.5 67.5 111 66.5 119.5 71.5M170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+  <g id="earLeft">
+   <path d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5Z" fill="#111114"/>
+   <path d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
+  <g id="earRight">
+   <path d="M119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56Z" fill="#111114"/>
+   <path d="M119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
+  <path id="eyeLeft" d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="#65C256"/>
+  <path id="eyeRight" d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="#65C256"/>
+  <path id="irisLeft" d="M68 128C72.4183 128 76 124.418 76 120C76 115.582 72.4183 112 68 112C63.5817 112 60 115.582 60 120C60 124.418 63.5817 128 68 128Z" fill="#0a0b10"/>
+  <path id="irisRight" d="M135 131C139.418 131 143 127.418 143 123C143 118.582 139.418 115 135 115C130.582 115 127 118.582 127 123C127 127.418 130.582 131 135 131Z" fill="#0a0b10"/>
+  <path id="mouth" d="M87 160C95 158.667 99 154.333 99 147C99 154.333 103 158.667 111 160" stroke="#F4F4F2" stroke-width="2.4" stroke-linecap="round"/>
+  <path id="whiskers" d="M80 143L34 134M80 149H32M80 155L34 164M120 143L166 134M120 149H168M120 155L166 164" stroke="#F4F4F2" stroke-width="2.2" stroke-linecap="round"/>
+ </g>
+</svg>
 <div id="panel">
   <div class="sliders">
     <!-- word is capped at 9, one golden mouse per letter. orbit and giant at 4.
@@ -54,25 +95,28 @@
     <label>orbit</label><input type="range" id="sQblue" min="0" max="4" value="4"><output id="oQblue">4</output>
     <label>giant</label><input type="range" id="sQgreen" min="0" max="4" value="4"><output id="oQgreen">4</output>
     <label>dipper</label><input type="range" id="sQpurple" min="0" max="16" value="6"><output id="oQpurple">6</output>
-    <label>speed</label><input type="range" id="sSP" min="2" max="20" value="20"><output id="oSP">20</output>
-    <label>trail</label><input type="range" id="sT" min="0" max="200" value="35"><output id="oT">35</output>
+    <label>speed</label><input type="range" id="sSP" min="2" max="20" value="12"><output id="oSP">12</output>
+    <label>trail</label><input type="range" id="sT" min="0" max="200" value="180"><output id="oT">180</output>
     <!-- The three candidate upgrade levers, all hardcoded constants until now.
          persist = Scent Trail (ink lingers instead of a rolling window)
          bright  = Eyes Adjust (trail peak alpha, was fixed at 50)
          ink     = Fresh Snow  (trail width x10, was fixed at 18) -->
-    <label>persist</label><input type="range" id="sPR" min="0" max="100" value="0"><output id="oPR">0</output>
+    <label>persist</label><input type="range" id="sPR" min="0" max="100" value="60"><output id="oPR">60</output>
     <label>bright</label><input type="range" id="sBR" min="10" max="100" value="50"><output id="oBR">50</output>
     <label>ink</label><input type="range" id="sIW" min="8" max="60" value="18"><output id="oIW">18</output>
   </div>
-  <!-- The night's reveal ladder, as presets. Each button is the state the wall is in
-       once that upgrade is bought, so the beats can be walked in order. Sliders stay
-       live afterwards for tweaking. -->
+  <!-- The night's reveal ladder, as presets — one button per rung of the SHIPPED
+       ladder in index.html, in the order the shop sells them. Each is the state the
+       wall is in once that row is bought (headcount included), so the night can be
+       walked beat by beat. Sliders stay live afterwards for tweaking. -->
   <div class="mini" id="stage">
-    <button class="tbtn on" data-v="points">points</button>
-    <button class="tbtn" data-v="counting">counting</button>
-    <button class="tbtn" data-v="lucid">lucid</button>
-    <button class="tbtn" data-v="word">word</button>
-    <button class="tbtn" data-v="scent">scent</button>
+    <button class="tbtn" data-v="dark">dark</button>
+    <button class="tbtn" data-v="lucid1">LD I</button>
+    <button class="tbtn" data-v="lucid2">LD II</button>
+    <button class="tbtn" data-v="counting">mice</button>
+    <button class="tbtn" data-v="lucid3">LD III</button>
+    <button class="tbtn" data-v="lucid4">LD IV</button>
+    <button class="tbtn on" data-v="scent">scent</button>
   </div>
   <div class="row">
     <div class="stat" style="flex:1">word legibility <b id="cov">—</b><span class="tag" id="tag"></span></div>
@@ -112,8 +156,26 @@ function resize() {
   // a long false streak from wherever each mouse used to be.
   inkDirty = false;
   for (const m of cast) m.lx = undefined;
+  placeHex();
 }
 addEventListener('resize', resize);
+
+// Hex's night pose, stated the way the game states it (index.html's POSE_SCENE_W
+// and syncPoseVars, in apps/hex-clicker/src/wall.js): centred on the ORBIT'S CENTRE,
+// POSE_SCENE_W scene units wide.
+// Both numbers are in scene units, so she rides the same min(w/390, h/620) fit as
+// everything else on the wall and stays inside her ellipse at any aspect ratio —
+// which is the whole reason the game moved to expressing her size this way rather
+// than as a share of the viewport.
+const POSE_SCENE_W = 0.55 * 390 * 0.25;   // 53.625 — keep in step with wall.js
+const hexEl = document.getElementById('hex');
+function placeHex() {
+  const s = Math.min(W / 390, H / 620);
+  const w = POSE_SCENE_W * s, h = w * 210 / 200;   // the SVG's own 200x210 box
+  const c = sceneMap({ x: ORB.cx, y: ORB.cy });
+  hexEl.style.width = w + 'px'; hexEl.style.height = h + 'px';
+  hexEl.style.left = (c.x - w / 2) + 'px'; hexEl.style.top = (c.y - h / 2) + 'px';
+}
 
 // Noise is settled at zero: mice ride their tour exactly. Any off-tour wobble
 // blurs the very thing the trail is drawing, and the shapes are hairlines, so
@@ -157,22 +219,30 @@ addEventListener('resize', resize);
 // was the very last notch, which left the instrument unable to show any headroom
 // above the threshold it exists to find.
 //
-// NOTE the lab has diverged from the live game (hex/index.html), which still paces
-// its word the old way. The legibility BANDS in updateStat were calibrated against
-// that model and still hold, since coverage is the same quantity measured in
-// distance rather than in fractions-of-the-word. But the lab only predicts the game
-// again once the game takes the same uniform-speed treatment.
+// The game has since taken the same uniform-speed treatment, so the two agree again
+// and the lab predicts the wall exactly: at the default below, with the ladder fully
+// bought (trail 180, persist 60), both compute 1.81 coverage.
 const MAX_SPEED = 20;          // scene units per second — a hard ceiling, not taste
-const DEFAULT_SPEED = MAX_SPEED;
+// 12, not the ceiling, because 12 is what the game ships (WALL.speedBase) and there
+// is nothing left that raises it — the speed rung that used to climb it, Running in
+// Her Sleep, was deleted and its coverage paid for out of the trail rungs instead.
+// It is a KEPT choice there, not a leftover: 12 is the pace at which the wall reads
+// as a swarm of drifting specks rather than a set of streaks. The slider still runs
+// to MAX_SPEED so the instrument can show what was given up.
+const DEFAULT_SPEED = 12;
 
+// The lab OPENS on the finished wall — the last rung of the ladder, everything
+// bought — because that is the state legibility is judged in, and the ladder above
+// walks back down from it. Every field below is the `scent` stage of STAGES; keep
+// them and the slider values in the markup in step with it.
 const S = {
   count: { yellow: 9, pink: 10, blue: 4, green: 4, purple: 6 },
   speed: DEFAULT_SPEED,          // scene units per second, one rate for every mouse
-  trail: 35, seed: 7,
+  trail: 180, seed: 7,
   // Candidate night-upgrade levers, exposed to be judged by eye. Each was a
   // hardcoded constant, and each changes how much TRAIL the word needs — so they
   // want settling before any trail ladder gets written against a fixed number.
-  persist: 0,                    // Scent Trail: ink half-life, 0 = rolling window only
+  persist: 60,                   // Scent Trail: ink half-life, 0 = rolling window only
   bright: 50,                    // Eyes Adjust: trail peak alpha, percent
   inkW: 18,                      // Fresh Snow: trail width, tenths of a scene unit
   // Counting Mice: before it, the mice are anonymous white points of light —
@@ -180,24 +250,90 @@ const S = {
   // dichromatic and see motion before form and form before colour, so a dream that
   // starts as bare moving specks is just accurate cat vision; every upgrade after is
   // Hex dreaming BETTER than she can actually see.
-  neon: false,
+  neon: true,
 };
-// The reveal ladder. Each entry is the wall's state once that upgrade is bought, so
-// the beats are: night opens on drifting points -> they turn out to be creatures ->
-// the creatures start leaving marks -> some of them are golden -> the marks stop
-// fading. Four distinct reveals before a single letter can be read.
+// THE REVEAL LADDER, as the game actually sells it now. This is a port of the night
+// rows in packages/shared/src/hex/data.ts — the shared table the server and every
+// client read — not a design of the lab's own, and the order is the whole point:
+//
+//   dark      night opens on an empty wall that fills with drifting white specks
+//   LD I      THE SPECKS START LEAVING TRAILS   <- the hinge; still white
+//   LD II     longer trails
+//   mice      THE SPECKS TURN OUT TO BE MICE    <- Counting Mice; recolours the drawing
+//   LD III    longer trails
+//   LD IV     longer trails
+//   scent     INK STOPS FADING, WORD READABLE   <- Scent Trail, the finale
+//
+// Two things changed against the ladder this row used to hold, and both are why it
+// had gone stale rather than merely out of order:
+//
+// - COUNTING MICE MOVED LATE. It used to be the first reveal, which meant the specks
+//   turned into mice before anything they did left a mark. It now lands two trail
+//   rungs in, on a wall already drawn to about half coverage — so the beat recolours
+//   a drawing instead of announcing itself on an empty frame, and the trails are
+//   WHITE until it fires (see inkColor).
+// - THE `word` STAGE IS GONE, because the upgrade behind it is. Word of Mouse used
+//   to gate the nine golden letter-mice out of the cast, and gating them meant they
+//   could only ever arrive together, in the frame of the purchase. The goldens now
+//   ride the same ramp as every other colour from the night's first second, so there
+//   is no stage at which yellow is 0 and no button for switching it on.
+//
+// `mice` is the whole cast (see rampCounts): the ramp fills the wall inside the
+// first minute, so every rung from LD II on is a full 33. The two below that are
+// where the ramp still shows — 2000 x 1.23^k against lifetime earnings, floored at
+// what a team has necessarily spent by the time it can afford the rung.
 const STAGES = {
-  points:  { neon: false, trail: 0,  yellow: 0, persist: 0 },
-  counting:{ neon: true,  trail: 0,  yellow: 0, persist: 0 },
-  lucid:   { neon: true,  trail: 35, yellow: 0, persist: 0 },
-  word:    { neon: true,  trail: 35, yellow: 9, persist: 0 },
-  scent:   { neon: true,  trail: 35, yellow: 9, persist: 60 },
+  dark:    { neon: false, trail: 0,   persist: 0,  mice: 8 },
+  lucid1:  { neon: false, trail: 26,  persist: 0,  mice: 16 },
+  lucid2:  { neon: false, trail: 64,  persist: 0,  mice: 31 },
+  counting:{ neon: true,  trail: 64,  persist: 0,  mice: 33 },
+  lucid3:  { neon: true,  trail: 116, persist: 0,  mice: 33 },
+  lucid4:  { neon: true,  trail: 180, persist: 0,  mice: 33 },
+  scent:   { neon: true,  trail: 180, persist: 60, mice: 33 },
 };
 const POINT_COLOR = '#e9edf7';
 // Scent Trail's decay, in ms of half-life per unit of `persist`. At 100 that is a
 // 4s half-life, which reads as the wall holding a drawing rather than a comet tail.
 const PERSIST_MS = 40;
 const COUNT_KEYS = ['yellow', 'pink', 'blue', 'green', 'purple'];
+// The wall's staffing ORDER, ported from the game (rebuildWallCast in
+// apps/hex-clicker/src/wall.js).
+// There is no per-colour dial there: ONE ramp decides how many mice have climbed
+// onto the wall, and the colours interleave by how FULL each is, so the scene
+// develops together rather than one colour finishing before the next begins. This
+// reproduces the split at a given headcount, which is what lets a stage preset say
+// "the wall at 16 of 33" and have the sliders land where the game would put them.
+// The caps are the slider maxima above and the game's WALL_COUNT, same numbers.
+const CAPS = { yellow: 9, pink: 10, blue: 4, green: 4, purple: 6 };
+const CAST_CAP = COUNT_KEYS.reduce((a, k) => a + CAPS[k], 0);
+function rampCounts(n) {
+  const out = {};
+  for (const k of COUNT_KEYS) out[k] = 0;
+  for (let i = 0; i < Math.min(n, CAST_CAP); i++) {
+    let pick = null, worst = Infinity;
+    for (const k of COUNT_KEYS) {
+      if (out[k] >= CAPS[k]) continue;
+      const filled = out[k] / CAPS[k];
+      if (filled < worst) { worst = filled; pick = k; }
+    }
+    out[pick]++;
+  }
+  return out;
+}
+// Where a crew's spread STARTS on its own tour. Without it every crew begins at its
+// tour's point 0, and two crews that are the same shape at the same size then move
+// as one animation played twice — MOON's two O's are exactly that: one closed loop
+// each, one mouse each, identical scale, so the pair circled in perfect lockstep.
+// The rotation is per crew, so the letters are drawn out of step with each other
+// while each letter's own mice stay evenly spread along it.
+//
+// Golden-ratio spacing rather than a seeded draw: consecutive crews land ~0.618 of
+// a lap apart, which is as far from agreeing as two offsets get, and the sequence
+// never repeats a value — so there are no accidental twins anywhere in the scene,
+// not just in MOON. Position also stays a pure function of (crew, index, time).
+// Kept identical in the game's wall.js and in the frozen hex/index.html; change all
+// three together.
+const crewPhase = idx => ((idx + 1) * 0.6180339887498949) % 1;
 
 // Order the nine letters of TO THE MOON get staffed in. Indices are into the
 // word's visible letters, spaces excluded, so they are ZERO-based here while the
@@ -753,15 +889,21 @@ function rebuildCast() {
   // p and phase 1-p are the same point, moving opposite ways. Confining the
   // spacing to the outbound half spreads them along the path instead. Closed
   // tours map phase to position one-to-one, so they take the full span.
+  //
+  // The whole crew is then ROTATED by crewPhase(idx) — see the note on it — which
+  // is what keeps two crews of the same shape from moving as one.
   const byCrew = new Map();
   for (const m of cast) {
     if (!byCrew.has(m.crew)) byCrew.set(m.crew, []);
     byCrew.get(m.crew).push(m);
   }
-  for (const [idx, members] of byCrew)
+  for (const [idx, members] of byCrew) {
+    const closed = CREWS[idx].closed, span = closed ? 1 : 0.5;
+    const off = crewPhase(idx) * span;
     members.forEach((m, k) => {
-      m.phase = (CREWS[idx].closed ? 1 : 0.5) * k / members.length;
+      m.phase = (span * k / members.length + off) % span;
     });
+  }
 }
 
 // Patrol the crew's tour. CLOSED tours (a glyph's O, a die pip, a free star, the
@@ -785,6 +927,15 @@ function posAt(m, t) {
   return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
 }
 
+// Half the 3.1 the lab shipped with, matching WALL_MOUSE_R in the game's wall.js.
+// Night is a
+// pulled-back camera and the mice were reading closer than the scene wanted; at
+// 1.55 the body is ~7.6px wide and the wall reads as a swarm at distance rather
+// than a parade of individuals. drawMouse's stroke widths are all r-relative, so
+// they thin with it — the keyline is sub-pixel at this size and survives only as an
+// anti-aliased edge, which is the intended look and not a rounding accident.
+const MOUSE_R = 1.55;
+
 // Same silhouette as the live game's mouse (hex/index.html's drawWallMouse,
 // itself synced to the MOUSE_TAIL_D/MOUSE_BODY_D/MOUSE_EAR/MOUSE_EYE SVG
 // constants used everywhere else a mouse is drawn) — body blob with a white
@@ -792,9 +943,13 @@ function posAt(m, t) {
 // shape's meaning (roughly the body's vertical half-size) so callers/sliders
 // didn't need retuning. The art faces +x at rest, so `angle` (radians, canvas
 // convention) is the heading to rotate it toward — 0 keeps the old look.
-function drawMouse(x, y, color, r, angle) {
+// `alpha` (default 1) multiplies the whole sprite rather than any one part: the
+// Counting Mice cross-fade needs the body, outline, ear and eye to arrive together,
+// and the save/restore already scoping the transform scopes it for free.
+function drawMouse(x, y, color, r, angle, alpha) {
   const s = r / 10, cx = 30.5, cy = 14;
   ctx.save();
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
   ctx.translate(x, y);
   ctx.rotate(angle || 0);
   const P = (px, py) => [(px - cx) * s, (py - cy) * s];
@@ -839,13 +994,76 @@ function drawMouse(x, y, color, r, angle) {
 // of Counting Mice is discovering that some of these specks are mice. The name earns
 // its keep twice over: counting sheep is what you do falling asleep, and counting is
 // exactly what you cannot do until the specks resolve into countable creatures.
-function drawPoint(x, y) {
-  ctx.globalAlpha = 0.28;
-  ctx.beginPath(); ctx.arc(x, y, 3.4, 0, 6.283);
+// `a` fades the speck and `rs` scales it, both defaulting to 1 so the steady state is
+// untouched; the cross-fade uses them to swell the light as it goes out.
+function drawPoint(x, y, a, rs) {
+  const s = rs === undefined ? 1 : rs, m = a === undefined ? 1 : a;
+  ctx.globalAlpha = 0.28 * m;
+  ctx.beginPath(); ctx.arc(x, y, 3.4 * s, 0, 6.283);
+  ctx.fillStyle = POINT_COLOR; ctx.fill();
+  ctx.globalAlpha = m;
+  ctx.beginPath(); ctx.arc(x, y, 1.5 * s, 0, 6.283);
   ctx.fillStyle = POINT_COLOR; ctx.fill();
   ctx.globalAlpha = 1;
-  ctx.beginPath(); ctx.arc(x, y, 1.5, 0, 6.283);
-  ctx.fillStyle = POINT_COLOR; ctx.fill();
+}
+
+// COUNTING MICE, the beat — ported from the game (drawWallFlip in wall.js), since
+// the lab exists to judge exactly this kind of thing and could only show the before
+// and the after. The row that turns the specks into mice is the night's first real
+// reveal, so it gets a gesture rather than a swap between two frames: each speck
+// swells, sheds a spark ring and resolves into its mouse, and they go in order of
+// DISTANCE FROM HEX, so the change ripples outward from the sleeping cat rather than
+// landing everywhere at once. Pressing the `mice` stage plays it; dragging a slider
+// afterwards just draws the resolved state, the same way a reload does in the game.
+const NEON_MS = 620;      // per-mouse cross-fade
+const NEON_RIPPLE = 900;  // ms for the ripple to reach the outermost mouse
+let neonAt = null;
+function startNeon(now) {
+  neonAt = now;
+  const c = sceneMap({ x: ORB.cx, y: ORB.cy });   // Hex — the same origin the game uses
+  const order = cast.map(m => {
+    const p = posAt(m, simT);
+    return { m, d: Math.hypot(p.x - c.x, p.y - c.y) };
+  }).sort((a, b) => a.d - b.d);
+  const span = Math.max(1, order.length - 1);
+  order.forEach((o, k) => { o.m.neonDelay = NEON_RIPPLE * k / span; });
+}
+// How far through its own cross-fade one mouse is, or null when the beat is not
+// running. Shared by the sprite and by both ink paths, so a mouse's trail recolours
+// on exactly the curve its body arrives on.
+function flipU(m, now) {
+  if (neonAt === null) return null;
+  return Math.max(0, Math.min(1, (now - neonAt - (m.neonDelay || 0)) / NEON_MS));
+}
+function mixHex(a, b, t) {
+  const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16);
+  const r = Math.round((A >> 16) + ((B >> 16) - (A >> 16)) * t);
+  const g = Math.round(((A >> 8) & 255) + (((B >> 8) & 255) - ((A >> 8) & 255)) * t);
+  const c = Math.round((A & 255) + ((B & 255) - (A & 255)) * t);
+  return `rgb(${r},${g},${c})`;
+}
+// The colour a mouse's ink should be right now: white while it is still a speck, its
+// own colour once resolved, a blend of the two during the beat. Counting Mice lands
+// on a wall with ~64 of trail already on it, so the ink cannot just switch palette on
+// the frame `neon` flips — that reads as a hard cut across the whole drawing while
+// the bodies are still fading in.
+function inkColor(m, u) {
+  if (u === null) return S.neon ? m.color : POINT_COLOR;
+  return mixHex(POINT_COLOR, m.color, u);
+}
+// Point out over the first half while swelling; mouse in over the last 70%, so the
+// two overlap in the middle and neither pixel ever goes empty.
+function drawFlip(m, x, y, u, angle) {
+  const out = 1 - Math.min(1, u / 0.5), pop = Math.sin(Math.PI * Math.min(1, u / 0.5));
+  if (out > 0) drawPoint(x, y, out * out, 1 + 0.8 * pop);
+  if (pop > 0.02) { // spark ring — the moment of becoming
+    ctx.globalAlpha = 0.5 * pop * (1 - u);
+    ctx.strokeStyle = m.color; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.arc(x, y, 2 + 6 * u, 0, 6.283); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  const inn = Math.max(0, (u - 0.3) / 0.7);
+  if (inn > 0) drawMouse(x, y, m.color, MOUSE_R * (0.5 + 0.5 * inn), angle, inn * inn);
 }
 
 let simT = 0, last = performance.now();
@@ -858,6 +1076,10 @@ function frame(now) {
   const trailN = S.trail, trailDt = 80;
   const maxSeg = 16; // a real patrol step is a few px per 80ms; longer = glide, no ink
   const peak = S.bright / 100, inkW = S.inkW / 10;
+  // Retired as soon as it has run its course, so the steady state is the same plain
+  // drawMouse call it was before the beat existed.
+  if (neonAt !== null && now - neonAt > NEON_MS + NEON_RIPPLE) neonAt = null;
+  const flipping = S.neon && neonAt !== null;
 
   // SCENT TRAIL. The rolling trail is redrawn from scratch every frame, so it can
   // never accumulate; persistence needs its own layer that survives the frame.
@@ -882,7 +1104,7 @@ function frame(now) {
     for (const m of cast) {
       const p = posAt(m, t);
       if (m.lx !== undefined && Math.abs(p.x - m.lx) <= maxSeg && Math.abs(p.y - m.ly) <= maxSeg) {
-        inkCtx.strokeStyle = S.neon ? m.color : POINT_COLOR;
+        inkCtx.strokeStyle = inkColor(m, flipping ? flipU(m, now) : null);
         inkCtx.beginPath(); inkCtx.moveTo(m.lx, m.ly); inkCtx.lineTo(p.x, p.y); inkCtx.stroke();
       }
       m.lx = p.x; m.ly = p.y;
@@ -900,16 +1122,17 @@ function frame(now) {
 
   for (let i = 0; i < cast.length; i++) {
     const m = cast[i];
-    const isWord = CREWS[m.crew].kind === 'word';
+    const u = flipping ? flipU(m, now) : null;
     if (trailN > 0) {
       ctx.lineWidth = inkW; ctx.lineCap = 'round';
+      const ink = inkColor(m, u);
       let prev = posAt(m, t);
       for (let j = 1; j <= trailN; j++) {
         const p = posAt(m, t - j * trailDt);
         const far = Math.abs(p.x - prev.x) > maxSeg || Math.abs(p.y - prev.y) > maxSeg;
         if (!far) {
           ctx.globalAlpha = peak * (1 - j / trailN);
-          ctx.strokeStyle = S.neon ? m.color : POINT_COLOR;
+          ctx.strokeStyle = ink;
           ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
         }
         prev = p;
@@ -931,7 +1154,8 @@ function frame(now) {
       else { m.dirX += (ux - m.dirX) * HEADING_EASE; m.dirY += (uy - m.dirY) * HEADING_EASE; }
     }
     const ang = m.dirX === undefined ? 0 : Math.atan2(m.dirY, m.dirX);
-    if (S.neon) drawMouse(p.x, p.y, m.color, 3.1, ang);
+    if (u !== null) drawFlip(m, p.x, p.y, u, ang);
+    else if (S.neon) drawMouse(p.x, p.y, m.color, MOUSE_R, ang);
     else drawPoint(p.x, p.y);
   }
   requestAnimationFrame(frame);
@@ -966,16 +1190,26 @@ document.getElementById('stage').addEventListener('click', (ev) => {
   if (!b) return;
   for (const el of ev.currentTarget.children) el.classList.toggle('on', el === b);
   const st = STAGES[b.dataset.v];
+  const wasNeon = S.neon;
   S.neon = st.neon; S.trail = st.trail; S.persist = st.persist;
-  S.count.yellow = st.yellow;
-  for (const [id, out, v] of [['sT', 'oT', st.trail], ['sPR', 'oPR', st.persist],
-                              ['sQyellow', 'oQyellow', st.yellow]]) {
+  // Headcounts come from the ramp, not from the preset: a rung's state includes how
+  // much of the cast has climbed on by the time it is bought.
+  const counts = rampCounts(st.mice);
+  const rows = [['sT', 'oT', st.trail], ['sPR', 'oPR', st.persist]];
+  for (const k of COUNT_KEYS) {
+    S.count[k] = counts[k];
+    rows.push(['sQ' + k, 'oQ' + k, counts[k]]);
+  }
+  for (const [id, out, v] of rows) {
     document.getElementById(id).value = v;
     document.getElementById(out).textContent = v;
   }
   inkCtx.clearRect(0, 0, W, H); inkDirty = false;
   for (const m of cast) m.lx = undefined;
   rebuildCast(); updateStat();
+  // Only the rung that BUYS Counting Mice plays its beat. Stepping back down the
+  // ladder and up again re-arms it, which is the point of having it here.
+  if (S.neon && !wasNeon) startNeon(performance.now()); else if (!S.neon) neonAt = null;
 });
 document.getElementById('reseed').addEventListener('click', () => {
   S.seed = (S.seed * 1103515245 + 12345) >>> 0;

@@ -1,8 +1,16 @@
-// Transport: one interface, two backends. A PartyKit room for the real game,
-// or the shared HexSim running in-page for ?debug. Either way the
+// Transport: one interface, two backends. A room on the server for the real
+// game, or the shared HexSim running in-page for ?debug. Either way the
 // game code only ever sees snapshots arriving and intents leaving.
+//
+// `partysocket` is imported DYNAMICALLY, inside the two functions that open a
+// socket, and this is load-bearing rather than fussiness. Every game module
+// (pet, shop, golden, debug) imports `transport` from here, so this module is
+// always in the graph — a static import would put the websocket client in the
+// main bundle for ?debug players too, who never open a socket at all. With the
+// import inside the functions, Vite splits it into a chunk that is fetched only
+// when someone actually joins a room. Keep the type-only import below type-only.
 
-import PartySocket from "partysocket";
+import type PartySocket from "partysocket";
 import type {
   HexClientMsg,
   HexServerMsg,
@@ -61,11 +69,10 @@ export function connectRoom(opts: {
   onConnection: (up: boolean) => void;
   onPetAck: (seq: number) => void;
 }): void {
-  const socket = new PartySocket({
-    host: PARTYKIT_HOST,
-    room: opts.room,
-    query: { pid: playerId(), name: opts.name },
-  });
+  // Null until the partysocket chunk lands. Everything below is written to
+  // tolerate that gap rather than to wait for it: the transport is installed
+  // synchronously, so a tap that beats the chunk is QUEUED, not dropped.
+  let socket: PartySocket | null = null;
 
   let pendingPets = 0;
   let batchSeq = 0;
@@ -73,7 +80,7 @@ export function connectRoom(opts: {
   // just its size.
   let tapTimes: number[] = [];
   const flush = () => {
-    if (pendingPets > 0 && socket.readyState === socket.OPEN) {
+    if (pendingPets > 0 && socket && socket.readyState === socket.OPEN) {
       batchSeq++;
       const now = performance.now();
       socket.send(
@@ -90,28 +97,42 @@ export function connectRoom(opts: {
   };
   setInterval(flush, PET_FLUSH_MS);
 
-  socket.addEventListener("open", () => {
-    opts.onConnection(true);
-    socket.send(JSON.stringify({ type: "join", name: opts.name }));
-  });
-  socket.addEventListener("close", () => opts.onConnection(false));
-  socket.addEventListener("message", (e) => {
-    const msg: HexServerMsg = JSON.parse(e.data as string);
-    if (msg.type === "state") opts.onSnapshot(msg.state);
-    else if (msg.type === "petAck") opts.onPetAck(msg.seq);
-  });
-
   transport.send = (msg) => {
     // A purchase must land AFTER the pets already queued, or the server may
     // reject it for a bank the taps have actually filled.
     flush();
-    if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(msg));
+    if (socket && socket.readyState === socket.OPEN) {
+      socket.send(JSON.stringify(msg));
+    }
   };
   transport.queuePet = () => {
     pendingPets++;
     tapTimes.push(performance.now());
     return batchSeq + 1; // the batch this tap will leave in
   };
+
+  void (async () => {
+    const { default: PartySocket } = await import("partysocket");
+    socket = new PartySocket({
+      host: PARTYKIT_HOST,
+      room: opts.room,
+      query: { pid: playerId(), name: opts.name },
+    });
+    wire(socket);
+  })();
+
+  function wire(socket: PartySocket) {
+    socket.addEventListener("open", () => {
+      opts.onConnection(true);
+      socket.send(JSON.stringify({ type: "join", name: opts.name }));
+    });
+    socket.addEventListener("close", () => opts.onConnection(false));
+    socket.addEventListener("message", (e) => {
+      const msg: HexServerMsg = JSON.parse(e.data as string);
+      if (msg.type === "state") opts.onSnapshot(msg.state);
+      else if (msg.type === "petAck") opts.onPetAck(msg.seq);
+    });
+  }
 }
 
 /**
@@ -127,21 +148,24 @@ export function watchTeam(opts: {
   onStatus: (up: boolean) => void;
 }): void {
   const pid = playerId();
-  const socket = new PartySocket({
-    host: PARTYKIT_HOST,
-    room: "main",
-    party: "lobby",
-    query: { pid, name: opts.name },
-  });
-  socket.addEventListener("open", () => opts.onStatus(true));
-  socket.addEventListener("close", () => opts.onStatus(false));
-  socket.addEventListener("message", (e) => {
-    const msg: LobbyServerMsg = JSON.parse(e.data as string);
-    if (msg.type !== "lobby") return;
-    const me = msg.snapshot.players.find((p) => p.pid === pid);
-    if (me?.team) {
-      socket.close();
-      opts.onTeam(me.team, me.name);
-    }
-  });
+  void (async () => {
+    const { default: PartySocket } = await import("partysocket");
+    const socket = new PartySocket({
+      host: PARTYKIT_HOST,
+      room: "main",
+      party: "lobby",
+      query: { pid, name: opts.name },
+    });
+    socket.addEventListener("open", () => opts.onStatus(true));
+    socket.addEventListener("close", () => opts.onStatus(false));
+    socket.addEventListener("message", (e) => {
+      const msg: LobbyServerMsg = JSON.parse(e.data as string);
+      if (msg.type !== "lobby") return;
+      const me = msg.snapshot.players.find((p) => p.pid === pid);
+      if (me?.team) {
+        socket.close();
+        opts.onTeam(me.team, me.name);
+      }
+    });
+  })();
 }

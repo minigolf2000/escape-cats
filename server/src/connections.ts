@@ -1,4 +1,4 @@
-import type * as Party from "partykit/server";
+import type { Connection, ConnectionContext } from "partyserver";
 import type { PlayerInfo } from "@escape-cats/shared";
 
 export interface ConnMeta {
@@ -24,7 +24,7 @@ export class Roster {
   private meta = new Map<string, ConnMeta>(); // connection.id -> meta
   private players = new Map<string, PlayerInfo>(); // pid -> info
 
-  register(conn: Party.Connection, ctx: Party.ConnectionContext): ConnMeta {
+  register(conn: Connection, ctx: ConnectionContext): ConnMeta {
     const url = new URL(ctx.request.url);
     const m: ConnMeta = {
       role: url.searchParams.get("role") === "proctor" ? "proctor" : "player",
@@ -38,7 +38,7 @@ export class Roster {
     return m;
   }
 
-  rename(conn: Party.Connection, name: string) {
+  rename(conn: Connection, name: string) {
     const m = this.meta.get(conn.id);
     if (!m || m.role !== "player") return;
     m.name = name;
@@ -46,7 +46,7 @@ export class Roster {
     if (p) p.name = name;
   }
 
-  disconnect(conn: Party.Connection) {
+  disconnect(conn: Connection) {
     const m = this.meta.get(conn.id);
     this.meta.delete(conn.id);
     if (!m || m.role !== "player") return;
@@ -58,11 +58,11 @@ export class Roster {
     if (p && !stillHere) p.connected = false;
   }
 
-  get(conn: Party.Connection): ConnMeta | undefined {
+  get(conn: Connection): ConnMeta | undefined {
     return this.meta.get(conn.id);
   }
 
-  isProctor(conn: Party.Connection): boolean {
+  isProctor(conn: Connection): boolean {
     return this.meta.get(conn.id)?.role === "proctor";
   }
 

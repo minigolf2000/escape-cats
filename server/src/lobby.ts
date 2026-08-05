@@ -1,4 +1,4 @@
-import type * as Party from "partykit/server";
+import { Server, type Connection, type ConnectionContext, type WSMessage } from "partyserver";
 import {
   TEAMS,
   TEAM_IDS,
@@ -11,8 +11,8 @@ import { Roster } from "./connections";
 /**
  * The team lobby. One room ("main" on this party) for the whole event.
  *
- * Unlike the game rooms, this state is PERSISTED to room.storage. A game room
- * losing its memory costs a team its progress; the lobby losing its memory
+ * Unlike the game rooms, this state is written through on EVERY change. A game
+ * room losing its memory costs a team its progress; the lobby losing its memory
  * costs every team its identity, mid-event, with no way to rebuild it except
  * asking forty people who they are. Assignments change a handful of times per
  * event, so writing through on every change is free.
@@ -21,25 +21,23 @@ import { Roster } from "./connections";
  * locks between sorting and playing must come back to the same team, not
  * reappear as a stranger.
  */
-export default class LobbyServer implements Party.Server {
+export class LobbyServer extends Server<Env> {
   private roster = new Roster();
   /** pid -> team id. Persisted. */
   private teams = new Map<string, string>();
   /** pid -> display name, kept for players who are currently offline. */
   private names = new Map<string, string>();
 
-  constructor(readonly room: Party.Room) {}
-
   async onStart() {
     const teams =
-      await this.room.storage.get<Record<string, string>>("teams");
+      await this.ctx.storage.get<Record<string, string>>("teams");
     if (teams) this.teams = new Map(Object.entries(teams));
     const names =
-      await this.room.storage.get<Record<string, string>>("names");
+      await this.ctx.storage.get<Record<string, string>>("names");
     if (names) this.names = new Map(Object.entries(names));
   }
 
-  onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
+  onConnect(conn: Connection, ctx: ConnectionContext) {
     const meta = this.roster.register(conn, ctx);
     if (this.isPlayerDevice(meta.role, ctx)) {
       // Don't let a reconnect with the default name overwrite a name the
@@ -49,7 +47,7 @@ export default class LobbyServer implements Party.Server {
       }
       void this.persist();
     }
-    this.broadcast();
+    this.broadcastState();
   }
 
   /**
@@ -61,19 +59,20 @@ export default class LobbyServer implements Party.Server {
    */
   private isPlayerDevice(
     role: string,
-    ctx: Party.ConnectionContext,
+    ctx: ConnectionContext,
   ): boolean {
     if (role !== "player") return false;
     const params = new URL(ctx.request.url).searchParams;
     return params.get("pid") !== null && params.get("role") === null;
   }
 
-  onClose(conn: Party.Connection) {
+  onClose(conn: Connection) {
     this.roster.disconnect(conn);
-    this.broadcast();
+    this.broadcastState();
   }
 
-  async onMessage(message: string, sender: Party.Connection) {
+  async onMessage(sender: Connection, message: WSMessage) {
+    if (typeof message !== "string") return;
     let msg: LobbyClientMsg;
     try {
       msg = JSON.parse(message);
@@ -128,7 +127,7 @@ export default class LobbyServer implements Party.Server {
     }
 
     await this.persist();
-    this.broadcast();
+    this.broadcastState();
   }
 
   /**
@@ -174,16 +173,16 @@ export default class LobbyServer implements Party.Server {
     return { type: "lobby", snapshot: { players, teams: TEAMS } };
   }
 
-  private broadcast() {
-    this.room.broadcast(JSON.stringify(this.snapshot()));
+  private broadcastState() {
+    this.broadcast(JSON.stringify(this.snapshot()));
   }
 
   private async persist() {
-    await this.room.storage.put(
+    await this.ctx.storage.put(
       "teams",
       Object.fromEntries(this.teams.entries()),
     );
-    await this.room.storage.put(
+    await this.ctx.storage.put(
       "names",
       Object.fromEntries(this.names.entries()),
     );

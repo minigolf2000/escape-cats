@@ -1,4 +1,4 @@
-// BOOT + MAIN LOOP + the multiplayer seam. The room server (or the ?solo sim)
+// BOOT + MAIN LOOP + the multiplayer seam. The room server (or the ?debug sim)
 // broadcasts snapshots; state.js mirrors them and reports EDGES; this file
 // wires those edges to the UI beats the prototype used to fire from inside
 // its own buy path — so the night cutscene, the neon flip and the shop close
@@ -16,7 +16,7 @@ import {
   roomInputEl,
   nameInputEl,
   joinBtnEl,
-  soloBtnEl,
+  debugBtnEl,
 } from "./dom.js";
 import {
   game,
@@ -29,8 +29,8 @@ import {
   wallNow,
   players,
 } from "./state.js";
-import { connectRoom, playerId, roomFromUrl, soloFromUrl, transport } from "./net";
-import { startSolo } from "./solo";
+import { connectRoom, debugFromUrl, playerId, roomFromUrl, transport } from "./net";
+import { startDebug } from "./debug";
 import {
   buildShop,
   refreshShop,
@@ -213,11 +213,11 @@ function frame(now) {
 const NAME_KEY = "escape-cats-name";
 
 function boot() {
-  if (soloFromUrl()) {
-    setRoomSeed("SOLO");
-    // initGame hides the gate when the first snapshot lands — startSolo emits
+  if (debugFromUrl()) {
+    setRoomSeed("DEBUG");
+    // initGame hides the gate when the first snapshot lands — startDebug emits
     // one synchronously, so the page is fully wired before a finger can reach it.
-    startSolo({ onSnapshot, onPetAck: ackPets });
+    startDebug({ onSnapshot, onPetAck: ackPets });
     return;
   }
 
@@ -270,10 +270,10 @@ function boot() {
     if (e.key === "Enter" && !joinBtnEl.disabled) join();
   });
 
-  soloBtnEl.addEventListener("click", () => {
+  debugBtnEl.addEventListener("click", () => {
     const url = new URL(location.href);
     url.searchParams.delete("room");
-    url.searchParams.set("solo", "1");
+    url.searchParams.set("debug", "1");
     location.href = url.toString();
   });
 }

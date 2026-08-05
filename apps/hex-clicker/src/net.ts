@@ -1,5 +1,5 @@
 // Transport: one interface, two backends. A PartyKit room for the real game,
-// or the shared HexSim running in-page for ?solo practice. Either way the
+// or the shared HexSim running in-page for ?debug practice. Either way the
 // game code only ever sees snapshots arriving and intents leaving.
 
 import PartySocket from "partysocket";
@@ -19,7 +19,7 @@ export interface Transport {
   queuePet(): number;
 }
 
-/** Swapped in by connectRoom/startSolo. A stable object so game modules can
+/** Swapped in by connectRoom/startDebug. A stable object so game modules can
  * import it once at load, before any connection exists. */
 export const transport: Transport = {
   send() {},
@@ -30,8 +30,12 @@ export function roomFromUrl(): string | null {
   return new URLSearchParams(location.search).get("room");
 }
 
-export function soloFromUrl(): boolean {
-  return new URLSearchParams(location.search).has("solo");
+/** ?debug — the practice bench: the shared sim in-page, no server, no room.
+ * ?solo was the old name for the same thing and still works, so a bookmark or
+ * a printed link from before the rename doesn't dead-end. */
+export function debugFromUrl(): boolean {
+  const q = new URLSearchParams(location.search);
+  return q.has("debug") || q.has("solo");
 }
 
 /** Persistent per-device player id so reconnects reclaim the same seat. */

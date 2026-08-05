@@ -1,4 +1,4 @@
-// The client's mirror of the room. The server (or the ?solo sim) is
+// The client's mirror of the room. The server (or the ?debug sim) is
 // authoritative; this module holds the latest snapshot plus just enough local
 // extrapolation to keep the counter smooth between broadcasts, and turns each
 // snapshot into EDGES (day->night flip, neon on, gold spawned...) that main.js
@@ -92,7 +92,7 @@ export function wallSeed() {
 // the server acknowledges the batch that carried it.
 // ---------------------------------------------------------------------------
 // This used to expire entries after a fixed window that had to equal the whole
-// round trip: PET_FLUSH_MS (100) + SNAPSHOT_TICK_MS (250) + RTT. With ?solo the
+// round trip: PET_FLUSH_MS (100) + SNAPSHOT_TICK_MS (250) + RTT. With ?debug the
 // RTT is zero so any window worked, but over a real connection the budget left
 // ~50ms for the network. Overshoot and the entry died before its snapshot
 // arrived (bank dips one tap); undershoot and it was still counted after the

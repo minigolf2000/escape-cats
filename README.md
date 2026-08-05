@@ -29,14 +29,14 @@ hex/                 The original single-player prototype — FROZEN as referenc
 
 - **Balance** — buildings, upgrades, costs, click math, wall ramp:
   `packages/shared/src/hex/data.ts` (+ `rules.ts` for derived rules). The
-  server, the phones, and the client's `?solo` practice mode all import it,
+  server, the phones, and the client's `?debug` practice mode all import it,
   so there is exactly one copy to edit.
 - **Game logic** — what a pet/purchase/golden-catch does: `packages/shared/src/hex/sim.ts`
   (the PartyKit server is a thin websocket wrapper around it).
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`.
 - **The prototype** (`hex/index.html`) is frozen. It was the tuning bench;
-  that job moved to the multiplayer client's `?solo&speed=N` mode, which runs
+  that job moved to the multiplayer client's `?debug&speed=N` mode, which runs
   the same shared sim in-page. Don't retune the prototype — it no longer
   feeds anything.
 
@@ -55,7 +55,7 @@ hex/                 The original single-player prototype — FROZEN as referenc
 6. **The code word is gated, not secret.** The server withholds it until the
    wall is legible, but the word itself is a plain constant in
    `packages/shared/src/hex/data.ts` — it ships in the client bundle regardless
-   (`?solo` runs the sim in-page), and the wall art is hand-placed glyphs for
+   (`?debug` runs the sim in-page), and the wall art is hand-placed glyphs for
    that exact string. Nothing here is a security boundary; see also the
    proctor role in `server/src/connections.ts`.
 7. **10 minutes is a completion target, not a timer** — achieved through
@@ -88,12 +88,21 @@ Simulate 4 players locally with 4 browser tabs — but note the persistent
 player id is per-browser-profile, so use different profiles/incognito
 windows to appear as different players.
 
-For balance work on Hex, `?solo` runs the shared sim in the page with no
+For balance work on Hex, **`?debug`** runs the shared sim in the page with no
 server at all, and `?speed=N` fast-forwards it — so
-`localhost:5173/?solo&speed=20` walks a whole run in about 20 seconds. This
-replaces the frozen prototype's `?debug` panel; the proctor's ×1/×5/×20
-buttons do the same thing to a real room. `window.__hex` exposes the state
-mirror and a `send()` for driving the game from a console or a test.
+`localhost:5173/?debug&speed=20` walks a whole run in about 20 seconds. This is
+the multiplayer heir to the frozen prototype's `?debug` panel, and carries the
+same name; the proctor's ×1/×5/×20 buttons do the same thing to a real room.
+(`?solo` was the interim name and still works.)
+
+Modes are **query params, never paths**. `?debug` modifies the same page rather
+than naming a different one, params compose (`?debug&speed=20`) where path
+segments don't, and a path would need a rewrite per mode on a static host —
+`/hexxygon/debug` is a 404 unless routing is taught about it. `?room=` already
+works this way, so the whole surface stays consistent.
+
+`window.__hex` exposes the state mirror and a `send()` for driving the game
+from a console or a test — always on, in any mode.
 
 ## Configuration
 
@@ -111,17 +120,17 @@ only powers on offer are reset and speed on a room you are already in.
 
 ## Deploying
 
-Two deploys total: **one PartyKit worker** (both coop games) and **one Vercel
-project** (every static surface). Vanity domains are routed inside
+Two deploys total: **one PartyKit worker** and **one Vercel project** (every
+static surface). Vanity domains are routed inside
 `vercel.json`, not by splitting into more projects — so adding a domain or
 repointing one is a repo change, not dashboard clicking.
 
 ### 1. PartyKit
 
 Can be done last if you just want the site up: the single-player surfaces
-(`/solo-hex/`, `/prototypes/`) need no server, and the coop apps build and
-deploy fine with a stub `VITE_PARTYKIT_HOST` — they render their join screen
-and only fail at the point of joining a room.
+(`/solo-hex/`, `/prototypes/`, and `?debug`) need no server, and the coop
+client builds and deploys fine with a stub `VITE_PARTYKIT_HOST` — it renders
+its join screen and only fails at the point of joining a room.
 
 ```sh
 npm run deploy -w server   # partykit deploy

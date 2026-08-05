@@ -46,6 +46,6 @@ export const gateErrEl = $("#gateErr");
 export const roomInputEl = $("#roomInput");
 export const nameInputEl = $("#nameInput");
 export const joinBtnEl = $("#joinBtn");
-export const soloBtnEl = $("#soloBtn");
+export const debugBtnEl = $("#debugBtn");
 export const teamEl = $("#team");
 export const connToastEl = $("#connToast");

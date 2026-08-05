@@ -13,6 +13,9 @@ import { Roster } from "./connections";
 export default class HexServer implements Party.Server {
   private roster = new Roster();
   private sim = new HexSim(Date.now());
+  /** conn.id -> highest `pets` batch seq received, and the last one acked. */
+  private petSeq = new Map<string, number>();
+  private petAcked = new Map<string, number>();
   private ticker: ReturnType<typeof setInterval> | null = null;
 
   constructor(readonly room: Party.Room) {}
@@ -30,6 +33,8 @@ export default class HexServer implements Party.Server {
   }
 
   onClose(conn: Party.Connection) {
+    this.petSeq.delete(conn.id);
+    this.petAcked.delete(conn.id);
     this.roster.disconnect(conn);
     this.broadcast();
   }
@@ -48,6 +53,7 @@ export default class HexServer implements Party.Server {
         this.roster.rename(sender, String(msg.name).slice(0, 24));
         break;
       case "pets":
+        this.petSeq.set(sender.id, Number(msg.seq) || 0);
         // No broadcast: four phones flushing taps at 10Hz would mean ~40 full
         // snapshots/sec fanned out to the room, and pets only move numbers the
         // phones already show optimistically. The next tick (250ms) carries it.
@@ -82,6 +88,18 @@ export default class HexServer implements Party.Server {
   }
 
   private broadcast() {
+    // Acks go out BEFORE the snapshot. Message order is preserved per
+    // connection, so each client drops its in-flight taps first and then adds
+    // the authoritative bank — it never counts the same tap twice, not even
+    // for one frame.
+    for (const conn of this.room.getConnections()) {
+      const seq = this.petSeq.get(conn.id);
+      if (seq !== undefined && this.petAcked.get(conn.id) !== seq) {
+        const ack: HexServerMsg = { type: "petAck", seq };
+        conn.send(JSON.stringify(ack));
+        this.petAcked.set(conn.id, seq);
+      }
+    }
     const state = this.sim.snapshot(Date.now(), this.roster.list());
     const msg: HexServerMsg = { type: "state", state };
     this.room.broadcast(JSON.stringify(msg));

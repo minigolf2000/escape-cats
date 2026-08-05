@@ -7,6 +7,7 @@ import { transport } from "./net";
 
 export function startSolo(opts: {
   onSnapshot: (snap: HexSnapshot) => void;
+  onPetAck: (seq: number) => void;
 }): void {
   const sim = new HexSim(Date.now());
 
@@ -16,10 +17,13 @@ export function startSolo(opts: {
   if (Number.isFinite(speed) && speed > 0) sim.state.speed = Math.min(50, speed);
 
   let pendingPets = 0;
+  let batchSeq = 0;
   const flushPets = (now: number) => {
     if (pendingPets > 0) {
       sim.pets(pendingPets, now);
       pendingPets = 0;
+      // Ack before the snapshot that carries them, exactly as the room does.
+      opts.onPetAck(++batchSeq);
     }
   };
   const emit = () => opts.onSnapshot(sim.snapshot(Date.now(), []));
@@ -36,6 +40,7 @@ export function startSolo(opts: {
 
   transport.queuePet = () => {
     pendingPets++;
+    return batchSeq + 1;
   };
   transport.send = (msg) => {
     const now = Date.now();

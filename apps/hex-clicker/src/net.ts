@@ -13,15 +13,17 @@ const PET_FLUSH_MS = 100;
 
 export interface Transport {
   send(msg: HexClientMsg): void;
-  /** Enqueue one pet for the next batched `pets` message. */
-  queuePet(): void;
+  /** Enqueue one pet for the next batched `pets` message. Returns the seq of
+   * the batch it will ride in, so the caller can hold its optimistic credit
+   * until the server acknowledges that batch. */
+  queuePet(): number;
 }
 
 /** Swapped in by connectRoom/startSolo. A stable object so game modules can
  * import it once at load, before any connection exists. */
 export const transport: Transport = {
   send() {},
-  queuePet() {},
+  queuePet: () => 0,
 };
 
 export function roomFromUrl(): string | null {
@@ -48,6 +50,7 @@ export function connectRoom(opts: {
   name: string;
   onSnapshot: (snap: HexSnapshot) => void;
   onConnection: (up: boolean) => void;
+  onPetAck: (seq: number) => void;
 }): void {
   const socket = new PartySocket({
     host: PARTYKIT_HOST,
@@ -56,9 +59,13 @@ export function connectRoom(opts: {
   });
 
   let pendingPets = 0;
+  let batchSeq = 0;
   const flush = () => {
     if (pendingPets > 0 && socket.readyState === socket.OPEN) {
-      socket.send(JSON.stringify({ type: "pets", count: pendingPets }));
+      batchSeq++;
+      socket.send(
+        JSON.stringify({ type: "pets", count: pendingPets, seq: batchSeq }),
+      );
       pendingPets = 0;
     }
   };
@@ -72,6 +79,7 @@ export function connectRoom(opts: {
   socket.addEventListener("message", (e) => {
     const msg: HexServerMsg = JSON.parse(e.data as string);
     if (msg.type === "state") opts.onSnapshot(msg.state);
+    else if (msg.type === "petAck") opts.onPetAck(msg.seq);
   });
 
   transport.send = (msg) => {
@@ -82,5 +90,6 @@ export function connectRoom(opts: {
   };
   transport.queuePet = () => {
     pendingPets++;
+    return batchSeq + 1; // the batch this tap will leave in
   };
 }

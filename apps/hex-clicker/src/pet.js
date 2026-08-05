@@ -50,8 +50,8 @@ export function pet(clientX, clientY) {
   }
 
   const gain = clickGain();
-  petCredit(gain);
-  transport.queuePet();
+  // Queue first: the credit is held against the batch this tap leaves in.
+  petCredit(gain, transport.queuePet());
   anim.squash = 1;
 
   const now = performance.now();

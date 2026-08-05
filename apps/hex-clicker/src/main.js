@@ -22,6 +22,7 @@ import {
   game,
   mods,
   nightActive,
+  ackPets,
   applySnapshot,
   extrapolate,
   setRoomSeed,
@@ -202,7 +203,7 @@ function boot() {
     setRoomSeed("SOLO");
     // initGame hides the gate when the first snapshot lands — startSolo emits
     // one synchronously, so the page is fully wired before a finger can reach it.
-    startSolo({ onSnapshot });
+    startSolo({ onSnapshot, onPetAck: ackPets });
     return;
   }
 
@@ -239,6 +240,7 @@ function boot() {
       room,
       name,
       onSnapshot,
+      onPetAck: ackPets,
       onConnection: (up) => {
         connToastEl.classList.toggle("on", !up && inited);
         if (!up && !inited) {

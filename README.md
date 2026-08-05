@@ -16,13 +16,15 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
                      into modules (see its src/README.md for the map)
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on, with a link into the game
+apps/chat/           Per-team chat: one channel per team, roomed by team id
 apps/proctor/        Hidden proctor dashboard: team assignment, QR codes, live
                      progress, reset, rehearsal fast-forward
 packages/shared/     Wire protocol, seeded RNG, and the WHOLE hex
                      game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
                      and the authoritative simulation (hex/sim.ts)
-server/              Cloudflare Worker: the game room and team lobby, as two
-                     Durable Objects (partyserver, NOT the PartyKit platform)
+server/              Cloudflare Worker: the game room, team lobby and team chat,
+                     as three Durable Objects (partyserver, NOT the PartyKit
+                     platform)
 hex/                 The original single-player prototype — FROZEN as reference
 ```
 
@@ -79,6 +81,8 @@ This starts everything:
 | Room server   | 127.0.0.1:1999 (wrangler dev)              |
 | Hex Clicker   | http://localhost:5173/?room=TEST           |
 | Proctor       | http://localhost:5175                      |
+| Team lobby    | http://localhost:5176                      |
+| Team chat     | http://localhost:5177                      |
 
 Open the proctor page, start a session, and scan the QR codes with phones on
 the same wifi (the vite servers listen on the LAN; point
@@ -151,10 +155,17 @@ Both from the repo root. Wrangler is a dependency of the `server` workspace, not
 of the root, so a bare `npx wrangler login` at the top level fails with "not
 recognized" — these scripts route it through the workspace for you.
 
-Two Durable Objects behind one Worker: the `Main` binding is the game room and
-`Lobby` is the team lobby, and `routePartykitRequest` maps them onto the
-`/parties/:party/:room` URLs the clients already speak. There are no deploy
-vars to set.
+Three Durable Objects behind one Worker: the `Main` binding is the game room,
+`Lobby` is the team lobby and `Chat` is per-team chat, and
+`routePartykitRequest` maps them onto the `/parties/:party/:room` URLs the
+clients already speak. There are no deploy vars to set.
+
+Adding a DO class needs its own **new** migration tag in `wrangler.jsonc` —
+migrations are append-only and each tag runs once, so a new class is never an
+edit to an existing tag. Deploy the Worker BEFORE the Vercel build that depends
+on it: wrangler has no git integration here, so a client that speaks a protocol
+the live Worker doesn't know will simply be ignored (see the note in "Next
+steps").
 
 The Worker is live at **`escape-cats.escape-cats.workers.dev`** — the first
 label is the Worker name (`name` in `wrangler.jsonc`), the second is the
@@ -190,6 +201,7 @@ come from `vercel.json`, so there is nothing to override in the dashboard.
 | `/` | `apps/lobby` | Team lobby (landing page) |
 | `/hexxygon/` | `apps/hex-clicker` | Hex Clicker (coop) |
 | `/g00mBa/` | `prototypes/goomba-rider.html` | Goomba Rider |
+| `/chat/` | `apps/chat` | Per-team chat |
 | `/proctor/` | `apps/proctor` | Proctor dashboard |
 | `/solo-hex/` | `hex/` | Frozen hex prototype + QR Studio (path predates the solo→debug rename) |
 | `/prototypes/` | `prototypes/` | Prototypes menu + Goomba Rider |
@@ -374,6 +386,48 @@ Both parties persist to `room.storage`, tuned to what each can afford to lose:
   never persisted: inheriting a rehearsal ×20 into a live session would ruin
   it. The one write-through exception is proctor **reset** — rehydrating the
   previous run after an eviction would silently undo it.
+
+### Team chat
+
+`/chat/` is one channel per team, and **the room id is the team id** — the same
+convention the game rooms use, so the proctor sorting someone onto `t2` is also
+what puts them in t2's channel. There is no team picker and no way to end up in
+another team's chat.
+
+Like the game, chat has no menu: it asks the lobby for this pid's team and slots
+in. An unsorted phone gets the same waiting room the game gives, and opening
+chat registers the phone in the lobby roster, so it appears on the proctor's
+list. `?room=` overrides for QR codes and rehearsals.
+
+The lobby's **Team chat** button deliberately does NOT carry `?room=`, unlike its
+link into the game. The game may be served from a vanity domain where this
+phone's pid doesn't exist, so its team has to ride in the URL; chat is on the
+lobby's own origin and can just ask. That also means a proctor re-sort takes
+effect on reload instead of stranding someone in their old team's channel.
+
+What the chat server enforces (`server/src/chat.ts`, tunables in
+`packages/shared/src/chat.ts`):
+
+- **A bounded history.** `CHAT_HISTORY` messages per room, persisted one small
+  key per message rather than as a blob. The lobby and the game room rewrite
+  their whole state on every change, which is right for state that mutates in
+  place; an append-only log would turn every line into a full-history write.
+- **Clamped text.** Whitespace is collapsed and the result truncated to
+  `CHAT_MAX_TEXT` — truncated, not rejected, so a pasted essay lands clipped
+  rather than vanishing. Collapsing before the clamp is what makes the clamp
+  mean anything: a screenful of newlines is one line of content.
+- **A per-connection token bucket.** `CHAT_BURST` messages land instantly, then
+  one per `CHAT_REFILL_MS`. Over the limit, messages are dropped silently.
+- **No ticker.** Chat is entirely event-driven, so unlike the game room this DO
+  does nothing at all between messages.
+
+Two client-side notes that are easy to undo by accident:
+
+- Message bodies are set with `textContent`, never `innerHTML`. This is the one
+  string on any surface in the repo that is arbitrary player-authored text.
+- A line typed before the socket opens (or during a wifi drop) is **queued**,
+  not dropped — the composer is on screen a moment before partysocket has
+  connected. The hex client queues taps for exactly the same reason.
 
 ### The origin constraint
 

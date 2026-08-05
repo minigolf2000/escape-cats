@@ -1,17 +1,18 @@
-// Worker entry. Both game surfaces are Durable Objects; this module is only the
+// Worker entry. Every surface is a Durable Object; this module is only the
 // front door that routes an incoming WebSocket upgrade to the right one.
 //
 // `routePartykitRequest` matches PartyKit's URL shape — /parties/:party/:room —
 // so the clients' `partysocket` connections are unchanged from when this ran on
 // the PartyKit platform. The :party segment is the kebab-cased BINDING name
-// (see wrangler.jsonc), which is why the bindings are `Main` and `Lobby` rather
-// than the class names: `main` is partysocket's default party, and `lobby` is
-// what the proctor and the landing page already ask for.
+// (see wrangler.jsonc), which is why the bindings are `Main`, `Lobby` and
+// `Chat` rather than the class names: `main` is partysocket's default party,
+// and `lobby`/`chat` are what the other surfaces already ask for.
 
 import { routePartykitRequest } from "partyserver";
 
 export { HexServer } from "./hex";
 export { LobbyServer } from "./lobby";
+export { ChatServer } from "./chat";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

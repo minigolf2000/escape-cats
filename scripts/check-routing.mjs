@@ -123,6 +123,7 @@ const ENTRIES = [
   ["/", "cat-games-tau.vercel.app", "/"],
   ["/hexxygon", "cat-games-tau.vercel.app", "/hexxygon/"],
   ["/proctor", "cat-games-tau.vercel.app", "/proctor/"],
+  ["/chat", "cat-games-tau.vercel.app", "/chat/"],
   ["/g00mBa", "cat-games-tau.vercel.app", "/g00mBa/"],
   ["/prototypes", "cat-games-tau.vercel.app", "/prototypes/"],
   ["/solo-hex", "cat-games-tau.vercel.app", "/solo-hex/"],

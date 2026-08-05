@@ -1,5 +1,6 @@
 export * from "./protocol";
 export * from "./lobby";
+export * from "./chat";
 export * from "./seeded";
 export * from "./hex/data";
 export * from "./hex/rules";

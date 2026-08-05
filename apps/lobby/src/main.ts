@@ -131,6 +131,12 @@ function teamScreen(team: string) {
         .map((p) => escapeHtml(p.name))
         .join(", ") || "- just you so far"}</p>
       <a class="primary" href="${HEX_URL}/?room=${encodeURIComponent(team)}">Play Hex Clicker</a>
+      <!-- No ?room= here, unlike the game link above. The game may be served
+           from a vanity domain, where this phone's pid doesn't exist, so the
+           team has to ride in the URL. Chat is on THIS origin and can just ask
+           the lobby — which also means a proctor re-sort takes effect on
+           reload instead of stranding a player in their old team's channel. -->
+      <a class="secondary" href="/chat/">Team chat</a>
       <button id="rename" class="link">Not ${escapeHtml(myName())}?</button>
     </div>
   `;

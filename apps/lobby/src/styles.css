@@ -106,6 +106,28 @@ input:focus {
   transform: translateY(1px);
 }
 
+/* Same shape as .primary, outlined rather than filled — the game is the thing
+   you came here to do, chat is beside it. */
+.secondary {
+  display: block;
+  width: 100%;
+  padding: 15px 18px;
+  font-size: 16px;
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--neon);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  margin-bottom: 10px;
+}
+
+.secondary:active {
+  transform: translateY(1px);
+}
+
 .link {
   background: none;
   border: 0;

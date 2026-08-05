@@ -32,6 +32,11 @@ const SURFACES = [
   ["prototypes/goomba-rider.html", "g00mBa", "Goomba Rider"],
   ["apps/proctor/dist", "proctor", "Proctor dashboard"],
   ["hex", "solo-hex", "Hex Clicker (solo) + QR Studio"],
+  // Its own surface so g00.mba/ar has somewhere short to land. The file also
+  // ships inside prototypes/ below; duplication is the same deal Goomba Rider
+  // already has, and is cheaper than a rewrite that would have to dodge the
+  // vanity domain's catch-all.
+  ["prototypes/scent-tracker.html", "ar", "Scent Tracker (AR prototype)"],
   ["prototypes", "prototypes", "Prototypes menu + Goomba Rider"],
 ];
 

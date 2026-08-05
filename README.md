@@ -217,6 +217,14 @@ rewriting to it:
 | --- | --- | --- |
 | `hexxygon.com` | `/hexxygon/` | Hex Clicker coop |
 | `g00.mba` | `/g00mBa/` | Goomba Rider |
+| `g00.mba/ar` | `/ar/` | Scent Tracker (AR prototype) |
+
+`g00.mba/ar` borrows the Goomba domain purely as a short URL to type on a
+phone; it is not part of that game. Its rule must sit **before** the host's
+`/:path*` catch-all in `vercel.json` — redirects are matched in array order, and
+the catch-all would otherwise swallow `/ar` into `/g00mBa/ar/` and 404. It is
+registered in both slashed and unslashed forms for the same reason the
+`/qr-studio` rewrites are.
 
 Redirect, not rewrite, is the whole point: it puts every player on one origin,
 so the `localStorage` pid the lobby assigned a team to is the same pid the game

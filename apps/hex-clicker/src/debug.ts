@@ -1,18 +1,18 @@
-// ?solo practice mode: the SAME shared HexSim the server runs, in-page. This
+// ?debug practice mode: the SAME shared HexSim the server runs, in-page. This
 // replaces the old single-file prototype as the tuning bench — one sim, one
 // set of rules, whichever side of the wire it runs on.
 
 import { HexSim, SNAPSHOT_TICK_MS, type HexSnapshot } from "@escape-cats/shared";
 import { transport } from "./net";
 
-export function startSolo(opts: {
+export function startDebug(opts: {
   onSnapshot: (snap: HexSnapshot) => void;
   onPetAck: (seq: number) => void;
 }): void {
   const sim = new HexSim(Date.now());
 
   // ?speed=N accelerates a practice run (income + golden cadence, never click
-  // feel) — the solo stand-in for the proctor's dev dial.
+  // feel) — the ?debug stand-in for the proctor's dev dial.
   const speed = Number(new URLSearchParams(location.search).get("speed"));
   if (Number.isFinite(speed) && speed > 0) sim.state.speed = Math.min(50, speed);
 

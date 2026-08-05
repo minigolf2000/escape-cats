@@ -11,12 +11,8 @@ import {
   teamEl,
   connToastEl,
   gateEl,
-  gateRoomEl,
+  gateStatusEl,
   gateErrEl,
-  roomInputEl,
-  nameInputEl,
-  joinBtnEl,
-  debugBtnEl,
 } from "./dom.js";
 import {
   game,
@@ -29,7 +25,14 @@ import {
   wallNow,
   players,
 } from "./state.js";
-import { connectRoom, debugFromUrl, playerId, roomFromUrl, transport } from "./net";
+import {
+  connectRoom,
+  debugFromUrl,
+  playerId,
+  roomFromUrl,
+  transport,
+  watchTeam,
+} from "./net";
 import { startDebug } from "./debug";
 import {
   buildShop,
@@ -208,7 +211,18 @@ function frame(now) {
 }
 
 // ---------------------------------------------------------------------------
-// JOIN GATE
+// BOOT — there is no menu.
+//
+// By the time a player reaches this page they have been through the physical
+// lobby: the proctor has already put their pid on a team, so the page slots
+// them in by itself. A phone the proctor HASN'T sorted yet gets a waiting
+// screen, not a form — and because watchTeam registers the phone in the lobby
+// roster, that phone appears on the proctor's list while it waits and enters
+// the game the moment it is assigned. Nobody types a room code; the only
+// keyboard this game ever shows is the lobby's name prompt.
+//
+// ?room= still overrides (proctor QR codes and ad-hoc rehearsal rooms), and
+// ?debug bypasses the server entirely.
 // ---------------------------------------------------------------------------
 const NAME_KEY = "escape-cats-name";
 
@@ -221,60 +235,48 @@ function boot() {
     return;
   }
 
+  const name = localStorage.getItem(NAME_KEY) ?? "Cat";
+
   const urlRoom = roomFromUrl();
   if (urlRoom) {
-    roomInputEl.value = urlRoom;
-    gateRoomEl.style.display = "none";
+    enterRoom(urlRoom.trim().toUpperCase(), name);
+    return;
   }
-  nameInputEl.value = localStorage.getItem(NAME_KEY) ?? "";
 
-  const validate = () => {
-    joinBtnEl.disabled = !(
-      roomInputEl.value.trim() && nameInputEl.value.trim()
-    );
-  };
-  roomInputEl.addEventListener("input", validate);
-  nameInputEl.addEventListener("input", validate);
-  validate();
-
-  const join = () => {
-    const room = roomInputEl.value.trim().toUpperCase();
-    const name = nameInputEl.value.trim();
-    if (!room || !name) return;
-    localStorage.setItem(NAME_KEY, name);
-    // Put the room in the URL so a refresh rejoins the same seat.
-    const url = new URL(location.href);
-    url.searchParams.set("room", room);
-    history.replaceState(null, "", url);
-    setRoomSeed(room);
-    gateErrEl.textContent = "";
-    joinBtnEl.disabled = true;
-    joinBtnEl.textContent = "Joining…";
-    connectRoom({
-      room,
-      name,
-      onSnapshot,
-      onPetAck: ackPets,
-      onConnection: (up) => {
-        connToastEl.classList.toggle("on", !up && inited);
-        if (!up && !inited) {
-          gateErrEl.textContent = "Can't reach the room — check the code?";
-          joinBtnEl.disabled = false;
-          joinBtnEl.textContent = "Join";
-        }
-      },
-    });
-  };
-  joinBtnEl.addEventListener("click", join);
-  nameInputEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !joinBtnEl.disabled) join();
+  gateStatusEl.textContent =
+    "Waiting for your team — the proctor sorts you in, nothing to do here.";
+  watchTeam({
+    name,
+    onTeam: (team, lobbyName) => {
+      // The lobby's name is authoritative — it's the one the proctor saw.
+      localStorage.setItem(NAME_KEY, lobbyName);
+      enterRoom(team, lobbyName);
+    },
+    onStatus: (up) => {
+      gateErrEl.textContent = up ? "" : "Can't reach the server — check wifi?";
+    },
   });
+}
 
-  debugBtnEl.addEventListener("click", () => {
-    const url = new URL(location.href);
-    url.searchParams.delete("room");
-    url.searchParams.set("debug", "1");
-    location.href = url.toString();
+/** The room is NOT written back into the URL on the lobby path: a refresh
+ * re-asks the lobby, so a proctor re-sort takes effect on reload instead of
+ * being pinned by a stale query param. Seat reclaim is by pid, not URL. */
+function enterRoom(room, name) {
+  setRoomSeed(room);
+  gateStatusEl.textContent = "Joining your team…";
+  connectRoom({
+    room,
+    name,
+    onSnapshot,
+    onPetAck: ackPets,
+    onConnection: (up) => {
+      connToastEl.classList.toggle("on", !up && inited);
+      if (!inited) {
+        gateErrEl.textContent = up
+          ? ""
+          : "Can't reach the room — hang tight, retrying…";
+      }
+    },
   });
 }
 

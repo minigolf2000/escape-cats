@@ -1172,17 +1172,8 @@
 
 <div id="gate">
   <h1>🐱 Hex Clicker</h1>
-  <div id="gateRoom">
-    <p>Enter your team's room code, or scan the proctor's QR again.</p>
-    <input id="roomInput" placeholder="ROOM" maxlength="8" autocomplete="off" autocapitalize="characters">
-  </div>
-  <div id="gateName">
-    <p>What should the team call you?</p>
-    <input id="nameInput" placeholder="Your name" maxlength="24" autocomplete="off">
-  </div>
+  <p id="gateStatus"></p>
   <p class="err" id="gateErr"></p>
-  <button id="joinBtn" disabled>Join</button>
-  <button class="soloLink" id="debugBtn">practice solo instead</button>
 </div>
 
 <script type="module" src="/src/main.js"></script>

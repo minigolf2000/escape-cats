@@ -29,7 +29,7 @@ hex/                 The original single-player prototype — FROZEN as referenc
 
 - **Balance** — buildings, upgrades, costs, click math, wall ramp:
   `packages/shared/src/hex/data.ts` (+ `rules.ts` for derived rules). The
-  server, the phones, and the client's `?debug` practice mode all import it,
+  server, the phones, and the client's `?debug` mode all import it,
   so there is exactly one copy to edit.
 - **Game logic** — what a pet/purchase/golden-catch does: `packages/shared/src/hex/sim.ts`
   (the PartyKit server is a thin websocket wrapper around it).
@@ -90,10 +90,9 @@ windows to appear as different players.
 
 For balance work on Hex, **`?debug`** runs the shared sim in the page with no
 server at all, and `?speed=N` fast-forwards it — so
-`localhost:5173/?debug&speed=20` walks a whole run in about 20 seconds. This is
-the multiplayer heir to the frozen prototype's `?debug` panel, and carries the
-same name; the proctor's ×1/×5/×20 buttons do the same thing to a real room.
-(`?solo` was the interim name and still works.)
+`localhost:5173/?debug&speed=20` walks a whole run in about 20 seconds. It is
+the only mode besides the real game; the proctor's ×1/×5/×20 buttons do the
+same thing to a real room. (`?solo` was the interim name and still works.)
 
 Modes are **query params, never paths**. `?debug` modifies the same page rather
 than naming a different one, params compose (`?debug&speed=20`) where path
@@ -272,11 +271,6 @@ you intend to split those surfaces back out.
 
 ## Next steps (deliberately not in the scaffold)
 
-- **Room state is not persisted.** The hex sim lives in the Durable Object's
-  memory, so an eviction or a redeploy mid-session resets a team to zero. It
-  wants a throttled write to `room.storage` plus a rehydrate in `onStart` that
-  credits elapsed time (capped, or a room left open overnight hands the next
-  team a fortune). This is the one gap that can spoil a live session.
 - Per-session code words configured from the proctor dashboard.
 - Deploying the PartyKit worker on push (there is no git integration, so
   `packages/shared` can ship to Vercel while the server still runs the old
@@ -294,11 +288,31 @@ buttons, or **Auto-assign** to round-robin the unsorted starting from the
 smallest team. Once assigned, the player's page turns into their team name plus
 a link into the game.
 
-The lobby is the only state written to `room.storage`. A game room losing its
-memory costs one team its progress; the lobby losing its memory costs every team
-its identity mid-event, with no way to rebuild it except asking forty people who
-they are. Assignments change a handful of times per event, so it writes through
-on every change.
+**The game has no menu.** `apps/hex-clicker` never shows a form: it asks the
+lobby for this pid's team and slots straight in. A phone the proctor hasn't
+sorted yet gets a waiting screen, not an error — opening the game page
+registers the phone in the lobby roster (same pid+name contract as the landing
+page), so it appears on the proctor's list and enters the game the moment it's
+assigned. `?room=` still overrides for QR codes and ad-hoc rehearsal rooms;
+`?debug` bypasses the server entirely. The room is deliberately NOT written
+back into the URL on the lobby path, so a refresh re-asks the lobby and a
+proctor re-sort takes effect on reload.
+
+Both parties persist to `room.storage`, tuned to what each can afford to lose:
+
+- **The lobby writes through on every change.** Losing it costs every team its
+  identity mid-event, and assignments change a handful of times per night.
+- **The game room writes behind, every 5s** (`HexPersistedV1` in
+  `packages/shared/src/hex/sim.ts` — the sim serializes itself; storage I/O
+  stays in the room server). The sim mutates 4×/sec on its own, so per-change
+  writes would be per-tick writes; a 5s cadence bounds an eviction's loss to
+  5s of a 10-minute game. On rehydrate the gap is credited at the restored
+  build rate, **capped at 30s** — a room left open overnight does not hand the
+  next team a fortune — and elapsed time stays wall-clock (the reveal keys off
+  `total`, not elapsed time, so only the proctor's timer jumps). `speed` is
+  never persisted: inheriting a rehearsal ×20 into a live session would ruin
+  it. The one write-through exception is proctor **reset** — rehydrating the
+  previous run after an eviction would silently undo it.
 
 ### The origin constraint
 

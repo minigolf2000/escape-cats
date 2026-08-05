@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "escape-cats",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-04",
+  // Required by Durable Objects on the Workers free plan.
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Port 1999 is PartyKit's dev default, and every client falls back to
+  // 127.0.0.1:1999 when VITE_PARTYKIT_HOST is unset — so `npm run dev` needs no
+  // per-app .env.local to keep working.
+  "dev": { "port": 1999 },
+
+  // Binding names are load-bearing: routePartykitRequest kebab-cases them to
+  // match the :party segment of /parties/:party/:room. `Main` -> "main" is
+  // partysocket's default party (the game rooms); `Lobby` -> "lobby" is what
+  // the landing page and proctor connect to. Renaming a binding changes the
+  // wire protocol, so don't tidy these into matching the class names.
+  "durable_objects": {
+    "bindings": [
+      { "name": "Main", "class_name": "HexServer" },
+      { "name": "Lobby", "class_name": "LobbyServer" }
+    ]
+  },
+
+  // SQLite-backed DOs — the only class type available on the free plan, and
+  // what `ctx.storage.get/put` persists into.
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["HexServer", "LobbyServer"]
+    }
+  ],
+
+  "observability": { "enabled": true }
+}

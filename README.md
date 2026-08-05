@@ -21,7 +21,8 @@ apps/proctor/        Hidden proctor dashboard: team assignment, QR codes, live
 packages/shared/     Wire protocol, seeded RNG, and the WHOLE hex
                      game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
                      and the authoritative simulation (hex/sim.ts)
-server/              PartyKit server: the game room and the team lobby
+server/              Cloudflare Worker: the game room and team lobby, as two
+                     Durable Objects (partyserver, NOT the PartyKit platform)
 hex/                 The original single-player prototype — FROZEN as reference
 ```
 
@@ -32,7 +33,7 @@ hex/                 The original single-player prototype — FROZEN as referenc
   server, the phones, and the client's `?debug` mode all import it,
   so there is exactly one copy to edit.
 - **Game logic** — what a pet/purchase/golden-catch does: `packages/shared/src/hex/sim.ts`
-  (the PartyKit server is a thin websocket wrapper around it).
+  (the room server is a thin websocket wrapper around it).
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`.
 - **The prototype** (`hex/index.html`) is frozen. It was the tuning bench;
@@ -46,7 +47,7 @@ hex/                 The original single-player prototype — FROZEN as referenc
    shared; the games are apps on top of it.
 2. **Mobile web, no install** — QR scan → URL → playing in seconds.
    Hex Clicker is portrait.
-3. **Server-authoritative rooms** (PartyKit / Cloudflare). Clients send
+3. **Server-authoritative rooms** (Cloudflare Durable Objects). Clients send
    intents (clicks, purchases); the server owns all game state.
 4. **Shared cooperative state** — one point pool in Hex Clicker.
 5. **Deterministic synced toy animation** — toy positions are a pure
@@ -75,7 +76,7 @@ This starts everything:
 
 | What          | URL                                        |
 | ------------- | ------------------------------------------ |
-| PartyKit dev  | 127.0.0.1:1999                             |
+| Room server   | 127.0.0.1:1999 (wrangler dev)              |
 | Hex Clicker   | http://localhost:5173/?room=TEST           |
 | Proctor       | http://localhost:5175                      |
 
@@ -107,7 +108,8 @@ from a console or a test — always on, in any mode.
 
 Client env vars (Vite, set in `apps/*/.env.local`):
 
-- `VITE_PARTYKIT_HOST` — host:port of the PartyKit server (default `127.0.0.1:1999`)
+- `VITE_PARTYKIT_HOST` — host:port of the room server (default `127.0.0.1:1999`).
+  Kept under its old name: it is what `partysocket` reads on every client.
 - `VITE_HEX_URL` — public game URL the proctor QR code points at
 
 The server takes no vars. The code word is a constant
@@ -119,12 +121,12 @@ only powers on offer are reset and speed on a room you are already in.
 
 ## Deploying
 
-Two deploys total: **one PartyKit worker** and **one Vercel project** (every
-static surface). Vanity domains are routed inside
+Two deploys total: **one Cloudflare Worker** (the rooms) and **one Vercel
+project** (every static surface). Vanity domains are routed inside
 `vercel.json`, not by splitting into more projects — so adding a domain or
 repointing one is a repo change, not dashboard clicking.
 
-### 1. PartyKit
+### 1. The room server — Cloudflare Workers
 
 Can be done last if you just want the site up: the single-player surfaces
 (`/solo-hex/`, `/prototypes/`, and `?debug`) need no server, and the coop
@@ -132,12 +134,39 @@ client builds and deploys fine with a stub `VITE_PARTYKIT_HOST` — it renders
 its join screen and only fails at the point of joining a room.
 
 ```sh
-npm run deploy -w server   # partykit deploy
+npm run cf:login        # once, per machine — opens a browser
+npm run deploy:server   # wrangler deploy
 ```
 
-One worker serves both parties: `partykit.json` maps `main` → Hex Clicker and
-the `lobby` party → the team lobby. There are no deploy vars to set. Note the
-resulting hostname — every client build needs it.
+Both from the repo root. Wrangler is a dependency of the `server` workspace, not
+of the root, so a bare `npx wrangler login` at the top level fails with "not
+recognized" — these scripts route it through the workspace for you.
+
+Two Durable Objects behind one Worker: the `Main` binding is the game room and
+`Lobby` is the team lobby, and `routePartykitRequest` maps them onto the
+`/parties/:party/:room` URLs the clients already speak. There are no deploy
+vars to set.
+
+The Worker is live at **`escape-cats.escape-cats.workers.dev`** — the first
+label is the Worker name (`name` in `wrangler.jsonc`), the second is the
+account-wide workers.dev subdomain, which prefixes every Worker on the account.
+That hostname is what `VITE_PARTYKIT_HOST` must point at.
+
+Renaming the Worker later is not free: Durable Object storage is keyed to the
+Worker, so a rename creates a NEW Worker with EMPTY storage and orphans the old
+one along with every room in it.
+
+**This does NOT run on the PartyKit platform**, despite the `partysocket` and
+`partyserver` packages. PartyKit's hosted tier stopped accepting new projects
+in June 2026 — its shared `partykit.dev` zone hit Cloudflare's cap of 10,000
+custom domains per zone ([partykit#985](https://github.com/partykit/partykit/issues/985),
+still open). The server runs on **your own** Cloudflare account instead, which
+is what PartyKit's author recommends. `partyserver` is the same programming
+model on plain Workers + Durable Objects, so the client code was unaffected by
+the move; only the host changed.
+
+Room state lives in Durable Object storage (`ctx.storage`), so a Worker
+redeploy or an evicted room does not lose a team's progress.
 
 ### 2. Vercel — one project
 
@@ -160,7 +189,7 @@ Env vars (all in this one project — `VITE_PARTYKIT_HOST` is set once here, so
 every surface points at one server):
 
 ```
-VITE_PARTYKIT_HOST=escape-cats.<user>.partykit.dev
+VITE_PARTYKIT_HOST=escape-cats.escape-cats.workers.dev
 VITE_HEX_URL=https://hexxygon.com
 ```
 
@@ -272,13 +301,13 @@ you intend to split those surfaces back out.
 ## Next steps (deliberately not in the scaffold)
 
 - Per-session code words configured from the proctor dashboard.
-- Deploying the PartyKit worker on push (there is no git integration, so
+- Deploying the Worker on push (wrangler has no git integration here, so
   `packages/shared` can ship to Vercel while the server still runs the old
   economy — see the Deploying note).
 
 ## Teams and the lobby
 
-Four teams, `t1`–`t4`. **A team id is also the PartyKit room id the game runs
+Four teams, `t1`–`t4`. **A team id is also the room id the game runs
 in**, so once the proctor puts someone on `t2`, their game room is `t2` and
 nothing else has to agree on anything.
 

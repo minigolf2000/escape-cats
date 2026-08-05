@@ -1,4 +1,4 @@
-import type * as Party from "partykit/server";
+import { Server, type Connection, type ConnectionContext, type WSMessage } from "partyserver";
 import {
   HexSim,
   SNAPSHOT_TICK_MS,
@@ -15,7 +15,7 @@ const PERSIST_MS = 5_000;
 // The room server is transport only: every game rule lives in the shared
 // HexSim (packages/shared/src/hex/sim.ts), which the client's ?solo mode runs
 // too. If you're changing what a purchase or a pet does, change the sim.
-export default class HexServer implements Party.Server {
+export class HexServer extends Server<Env> {
   private roster = new Roster();
   private sim = new HexSim(Date.now());
   /** conn.id -> highest `pets` batch seq received, and the last one acked. */
@@ -28,16 +28,14 @@ export default class HexServer implements Party.Server {
   private ticker: ReturnType<typeof setInterval> | null = null;
   private persister: ReturnType<typeof setInterval> | null = null;
 
-  constructor(readonly room: Party.Room) {}
-
   async onStart() {
     // Rehydrate BEFORE the ticker exists — PartyKit holds connections until
     // onStart resolves, so no snapshot of the blank sim can ever leak out.
-    const saved = await this.room.storage.get<HexPersistedV1>("hex");
+    const saved = await this.ctx.storage.get<HexPersistedV1>("hex");
     if (saved?.v === 1) this.sim.restore(saved, Date.now());
     this.ticker = setInterval(() => {
       this.sim.tick(Date.now());
-      this.broadcast();
+      this.broadcastState();
     }, SNAPSHOT_TICK_MS);
     // Write-behind, not write-through: the sim mutates 4x/sec on its own
     // (income), so per-change writes would be nearly per-tick writes. A 5s
@@ -47,22 +45,23 @@ export default class HexServer implements Party.Server {
   }
 
   private persist() {
-    return this.room.storage.put("hex", this.sim.persisted(Date.now()));
+    return this.ctx.storage.put("hex", this.sim.persisted(Date.now()));
   }
 
-  onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
+  onConnect(conn: Connection, ctx: ConnectionContext) {
     this.roster.register(conn, ctx);
-    this.broadcast();
+    this.broadcastState();
   }
 
-  onClose(conn: Party.Connection) {
+  onClose(conn: Connection) {
     this.petSeq.delete(conn.id);
     this.petAcked.delete(conn.id);
     this.roster.disconnect(conn);
-    this.broadcast();
+    this.broadcastState();
   }
 
-  onMessage(message: string, sender: Party.Connection) {
+  onMessage(sender: Connection, message: WSMessage) {
+    if (typeof message !== "string") return;
     let msg: HexClientMsg;
     try {
       msg = JSON.parse(message);
@@ -126,15 +125,15 @@ export default class HexServer implements Party.Server {
         break;
       }
     }
-    this.broadcast();
+    this.broadcastState();
   }
 
-  private broadcast() {
+  private broadcastState() {
     // Acks go out BEFORE the snapshot. Message order is preserved per
     // connection, so each client drops its in-flight taps first and then adds
     // the authoritative bank — it never counts the same tap twice, not even
     // for one frame.
-    for (const conn of this.room.getConnections()) {
+    for (const conn of this.getConnections()) {
       const seq = this.petSeq.get(conn.id);
       if (seq !== undefined && this.petAcked.get(conn.id) !== seq) {
         const ack: HexServerMsg = { type: "petAck", seq };
@@ -145,8 +144,6 @@ export default class HexServer implements Party.Server {
     const state = this.sim.snapshot(Date.now(), this.roster.list(), this.taps);
     this.taps = [];
     const msg: HexServerMsg = { type: "state", state };
-    this.room.broadcast(JSON.stringify(msg));
+    this.broadcast(JSON.stringify(msg));
   }
 }
-
-HexServer satisfies Party.Worker;

@@ -5,7 +5,7 @@ Disney-poster style of QR art actually works, and what the studio does about
 it. The committed [`cat-qr.png`](../prototypes/cat-qr.png) / [`cat-qr.svg`](../prototypes/cat-qr.svg)
 were generated with the studio's cat preset (v6, EC level L, flip budget 50%,
 hard cap 80%, scheme+host case play, 64 restarts) and encode
-`https://github.com/minigolf2000/cat-games` (private repo — scanners who
+`https://github.com/minigolf2000/escape-cats` (private repo — scanners who
 aren't logged-in collaborators get GitHub's 404).
 
 ## Two schools of QR art

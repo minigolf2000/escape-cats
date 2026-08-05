@@ -1,8 +1,13 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2022", "WebWorker"],
+    // No "WebWorker" here: worker-configuration.d.ts already declares the
+    // workerd runtime (WebSocket, Request, DurableObject...), and loading both
+    // produces duplicate-identifier errors.
+    "lib": ["ES2022"],
     "types": []
   },
-  "include": ["src"]
+  // worker-configuration.d.ts is generated (`npm run typegen`) and gitignored,
+  // so `typecheck` regenerates it first — see this workspace's scripts.
+  "include": ["src", "worker-configuration.d.ts"]
 }

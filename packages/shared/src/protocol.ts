@@ -17,7 +17,18 @@ export interface PlayerInfo {
 /** Full authoritative snapshot, broadcast on every tick (~4Hz) and after every
  * intent. Clients extrapolate income between snapshots with the same shared
  * rules, so the counter stays smooth. */
+/** One teammate tap, stamped in server time so every phone can replay it at
+ * the same offset on its own synced clock. Slot (0..3) rather than pid: it is
+ * smaller, and it is already what decides a player's colour. */
+export interface TapEvent {
+  slot: number;
+  at: number;
+}
+
 export interface HexSnapshot extends HexSimState {
+  /** Taps applied since the previous snapshot. Presentation only — the sim
+   * never reads these; the bank already counted them. */
+  taps: TapEvent[];
   players: PlayerInfo[];
   /** Server clock (ms epoch) at send — clients sync the wall's shared timeline
    * (and Zoomies deadlines) to it. */
@@ -35,7 +46,15 @@ export interface HexSnapshot extends HexSimState {
 
 export type HexClientMsg =
   | { type: "join"; name: string }
-  | { type: "pets"; count: number; seq: number } // batched client-side
+  | {
+      type: "pets";
+      count: number;
+      seq: number;
+      /** One entry per tap, ms BEFORE this message was sent (so <= 0). Carries
+       * the rhythm of the taps inside a batch, which a bare count throws away —
+       * teammates' mice are replayed on it. */
+      offsets?: number[];
+    } // batched client-side
   | { type: "buyBuilding"; id: string }
   | { type: "buyUpgrade"; key: string }
   | { type: "catchGold"; id: number }

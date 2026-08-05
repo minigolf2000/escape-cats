@@ -7,7 +7,7 @@
 // lets the server stamp everything from one Date.now() per message.
 
 import { BUILDINGS, UPGRADES, HEX_CODEWORD } from "./data";
-import type { HexSnapshot, PlayerInfo } from "../protocol";
+import type { HexSnapshot, PlayerInfo, TapEvent } from "../protocol";
 import {
   type HexCore,
   type HexMods,
@@ -240,10 +240,11 @@ export class HexSim {
    * and the ?solo mode both call it, so derived fields (progress, cps) and the
    * codeword gate ("the word never leaves before the wall is legible") cannot
    * drift between them. */
-  snapshot(now: number, players: PlayerInfo[]): HexSnapshot {
+  snapshot(now: number, players: PlayerInfo[], taps: TapEvent[] = []): HexSnapshot {
     return {
       ...this.state,
       players,
+      taps,
       serverTime: now,
       progress: this.progress(),
       cps: this.baseCps() * this.state.speed,

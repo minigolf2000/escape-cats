@@ -35,7 +35,7 @@ export function soloFromUrl(): boolean {
 }
 
 /** Persistent per-device player id so reconnects reclaim the same seat. */
-function playerId(): string {
+export function playerId(): string {
   const KEY = "escape-cats-pid";
   let pid = localStorage.getItem(KEY);
   if (!pid) {
@@ -60,13 +60,23 @@ export function connectRoom(opts: {
 
   let pendingPets = 0;
   let batchSeq = 0;
+  // When each queued tap happened, so the batch can carry its rhythm and not
+  // just its size.
+  let tapTimes: number[] = [];
   const flush = () => {
     if (pendingPets > 0 && socket.readyState === socket.OPEN) {
       batchSeq++;
+      const now = performance.now();
       socket.send(
-        JSON.stringify({ type: "pets", count: pendingPets, seq: batchSeq }),
+        JSON.stringify({
+          type: "pets",
+          count: pendingPets,
+          seq: batchSeq,
+          offsets: tapTimes.map((t) => Math.round(t - now)),
+        }),
       );
       pendingPets = 0;
+      tapTimes = [];
     }
   };
   setInterval(flush, PET_FLUSH_MS);
@@ -90,6 +100,7 @@ export function connectRoom(opts: {
   };
   transport.queuePet = () => {
     pendingPets++;
+    tapTimes.push(performance.now());
     return batchSeq + 1; // the batch this tap will leave in
   };
 }

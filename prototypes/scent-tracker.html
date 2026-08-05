@@ -1,0 +1,1043 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>Scent Tracker — M0/M1</title>
+<style>
+  :root {
+    --bg: #0b0c10; --panel: #14161d; --ink: #e8eaf0; --muted: #8a90a2;
+    --neon: #57e6c9; --neon-2: #ff5db1; --line: #262a36;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(90vw 60vh at 50% -10%, rgba(87,230,201,0.10), transparent 60%), var(--bg);
+    color: var(--ink); font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Canvases are appended at runtime, so they land after the HUD in DOM order and would
+     paint over it — hence the explicit layer. Deliberately NOT stretched with inset/100%:
+     XR8 owns this canvas's dimensions (see fitCanvas), and CSS stretching a canvas whose
+     backing store is a different size is exactly how you get a smeared or letterboxed
+     camera feed. */
+  canvas { position: fixed; top: 0; left: 0; z-index: 0; touch-action: none; }
+
+  /* ---- boot screen ---- */
+  #boot { position: fixed; inset: 0; z-index: 20; overflow-y: auto; padding: max(26px, env(safe-area-inset-top)) 20px 40px;
+          background: radial-gradient(90vw 60vh at 50% -10%, rgba(87,230,201,0.10), transparent 60%), var(--bg); }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 28px; line-height: 1.1; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 .glow { color: var(--neon); text-shadow: 0 0 18px rgba(87,230,201,0.45); }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 18px; line-height: 1.5; }
+  .tag { display: inline-block; margin-bottom: 14px; padding: 3px 10px; font-size: 11px;
+         letter-spacing: 0.08em; text-transform: uppercase; color: var(--neon-2);
+         border: 1px solid rgba(255,93,177,0.35); border-radius: 999px; background: rgba(255,93,177,0.06); }
+  .card { display: block; width: 100%; text-align: left; padding: 15px 16px; margin-bottom: 10px;
+          background: var(--panel); border: 1px solid var(--line); border-radius: 16px; color: inherit;
+          font: inherit; cursor: pointer; }
+  .card:disabled { opacity: 0.4; cursor: default; }
+  .card b { display: block; font-size: 16px; margin-bottom: 3px; }
+  .card b .m { color: var(--neon); font-size: 11px; letter-spacing: 0.1em; margin-right: 7px; }
+  .card span { color: var(--muted); font-size: 13px; line-height: 1.45; }
+  #diag { margin-top: 16px; padding: 13px 15px; border-radius: 14px; font-size: 13px; line-height: 1.5;
+          border: 1px solid var(--line); background: rgba(255,255,255,0.02); color: var(--muted); }
+  #diag.bad { border-color: rgba(255,93,177,0.4); color: #ffc9e5; background: rgba(255,93,177,0.07); }
+  #diag code { color: var(--neon); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+  /* ---- in-session HUD ---- */
+  #hud { position: fixed; inset: 0; z-index: 10; display: none; flex-direction: column; justify-content: space-between;
+         padding: max(14px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+         pointer-events: none; }
+  #hud > * { pointer-events: auto; }
+  #hud.on { display: flex; }
+  #status { align-self: center; max-width: 420px; padding: 10px 15px; border-radius: 14px;
+            background: rgba(11,12,16,0.72); border: 1px solid rgba(255,255,255,0.10);
+            font-size: 14px; line-height: 1.45; text-align: center; backdrop-filter: blur(8px); }
+  #status .hi { color: var(--neon); }
+  #readout { margin-top: 8px; font-size: 12px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+             white-space: pre-line; line-height: 1.5; }
+  #pill { align-self: center; margin-top: 10px; padding: 9px 16px; border-radius: 999px; font-size: 13px;
+          color: #ffc9e5; background: rgba(255,93,177,0.16); border: 1px solid rgba(255,93,177,0.45);
+          opacity: 0; transition: opacity .35s ease; pointer-events: none; text-align: center; }
+  #pill.on { opacity: 1; }
+  #pill.good { color: #bff6e8; background: rgba(87,230,201,0.16); border-color: rgba(87,230,201,0.5); }
+  #bar { display: flex; gap: 9px; justify-content: center; flex-wrap: wrap; }
+  .btn { padding: 13px 18px; min-width: 96px; border-radius: 14px; font: inherit; font-size: 15px; font-weight: 600;
+         color: var(--ink); background: rgba(20,22,29,0.88); border: 1px solid rgba(255,255,255,0.16);
+         backdrop-filter: blur(8px); cursor: pointer; }
+  .btn.primary { color: #08120f; background: var(--neon); border-color: var(--neon); }
+  .btn.warm { color: #1a0311; background: var(--neon-2); border-color: var(--neon-2); }
+  .btn:disabled { opacity: 0.35; }
+  .btn.hide { display: none; }
+</style>
+
+<div id="boot">
+  <div class="wrap">
+    <span class="tag">Prototype · M0 + M1</span>
+    <h1>Scent <span class="glow">Tracker</span></h1>
+    <p class="sub">
+      The phone is a lens: a trail of glowing motes lies on your floor and drifts toward
+      somewhere hidden. Follow it.<br><br>
+      Runs on 8th Wall's own SLAM, so iPhone and Android both work.
+      Spec and rationale in <b>scent-tracker-design.md</b>.
+    </p>
+
+    <button class="card" id="go-rig">
+      <b><span class="m">M0</span>Drift rig</b>
+      <span>Run this first. Drop an anchor on a piece of tape, walk your route, come back
+      and aim at the same tape. It reports how far the virtual world slid — the number
+      that decides whether the game works in a given room.</span>
+    </button>
+
+    <button class="card" id="go-trail">
+      <b><span class="m">M1</span>Scent trail</b>
+      <span>Walk the route tapping breadcrumbs, then play it back as a trail of motes.
+      The last crumb is the hidden place. With an image target in view the route is
+      stored <i>relative to the target</i>, so re-sighting it snaps the world back
+      into place — and the correction is reported in cm.</span>
+    </button>
+
+    <button class="card" id="go-preview">
+      <b><span class="m">—</span>Preview without AR</b>
+      <span>Desktop-friendly. Flies a camera along a demo route so you can tune how the
+      motes look without holding a phone. No camera, no tracking.</span>
+    </button>
+
+    <div id="diag">Checking support…</div>
+  </div>
+</div>
+
+<div id="hud">
+  <div>
+    <div id="status">…</div>
+    <div id="pill"></div>
+  </div>
+  <div id="bar">
+    <button class="btn primary" id="b1">Drop</button>
+    <button class="btn" id="b2">Undo</button>
+    <button class="btn warm" id="b3">Play</button>
+    <button class="btn" id="b4">Exit</button>
+  </div>
+</div>
+
+<!-- 8th Wall's engine binary (SLAM + image targets) and its helper library. Free, no key,
+     no login since the Feb 2026 open-sourcing. For a real deploy, VENDOR BOTH FILES into
+     the repo rather than hot-linking a CDN — see the notes in scent-tracker-design.md. -->
+<script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js"
+        async crossorigin="anonymous" data-preload-chunks="slam"></script>
+<script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js"
+        async crossorigin="anonymous"></script>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// XR8.Threejs.pipelineModule() resolves three.js off the GLOBAL rather than through
+// imports, and throws "window.THREE does not exist" otherwise. We load three as an ES
+// module, so publish it by hand, before the pipeline module is constructed.
+window.THREE = THREE;
+
+// ---------- Scent Tracker — hold the phone up, a trail of motes lies on the floor and
+// ---------- leads somewhere. Spec + rationale: ./scent-tracker-design.md
+//
+// Modes:
+//   M0 "rig"   — a measuring instrument, not a game. Quantifies tracking drift in a room.
+//   M1 "trail" — walk-to-author a route, then follow it.
+//
+// TRACKER: 8th Wall only. A WebXR/ARCore backend lived here and measurably tracked better,
+// but WebXR does not exist on iOS and 75% of the players are on iPhones, so it was cut
+// rather than maintained for a quarter of the room. Everything below is engine-agnostic
+// apart from the `tracker` object; git history has the WebXR implementation if the split
+// ever changes.
+//
+// The design doc argues the trail's job is to hide tracking error rather than fight it.
+// Three choices do that work, and they're the ones not to "clean up":
+//   · discrete motes, never a continuous ribbon (a hard edge makes error legible)
+//   · a reveal window — only ~1m behind to ~3m ahead is ever drawn, so global drift is
+//     never on screen to be noticed
+//   · on tracking loss we stop drawing and say so, in character.
+//
+// IMAGE TARGETS AND "PERSISTENCE": a route is stored in TARGET SPACE once a target has
+// been seen — offsets from the marker, not from wherever the session happened to start.
+// That change of frame is what makes a route survive reload, mean the same thing on a
+// second phone, and snap back when the marker is re-sighted. localStorage is incidental.
+
+// ---------- tunables (all of them, in one place) ----------
+const CFG = {
+  reveal:  { behind: 1.0, ahead: 3.0 },       // metres of route visible around the player
+  trail:   { density: 20, maxMotes: 3000,     // motes per metre
+             halfWidth: 0.22,                 // band is ~45cm across — absorbs lateral error
+             rise: 0.38, riseRate: 0.28,      // tallest motes drift up 38cm, then respawn
+             lowFrac: 0.55,                   // ...but this many barely leave the floor, so the
+                                              // trail reads as lying ON it rather than hovering
+             sway: 0.05, swayRate: 0.8,
+             size: 30 },                      // px at 1m
+  route:   { spacing: 0.15 },
+  goal:    { radius: 0.75, feelRange: 4.0 },  // "a place, not a point"
+  rig:     { poleHeight: 0.6 },
+  target:  { reanchorMin: 0.02 },             // only report a correction above 2cm
+  colors:  { cool: 0x57e6c9, hot: 0xff5db1 },
+};
+
+// Image targets are BUILD-TIME artifacts: run `npx @8thwall/image-target-cli@latest` over
+// a photo of the object, drop the generated JSON next to this file, and list it here.
+// The engine cannot learn a new target at runtime — descriptor extraction happens offline.
+const IMAGE_TARGETS = [
+  // { name: 'bookshelf', url: './image-targets/bookshelf.json' },
+];
+
+const store = {
+  key: (t) => `scent-tracker/route/${t || 'session'}`,
+  save(n, pts) { try { localStorage.setItem(this.key(n), JSON.stringify(pts.map(p => [p.x, p.y, p.z]))); } catch {} },
+  load(n) {
+    try {
+      const r = localStorage.getItem(this.key(n));
+      return r ? JSON.parse(r).map(a => new THREE.Vector3(a[0], a[1], a[2])) : null;
+    } catch { return null; }
+  },
+};
+
+// ---------- shared three.js scaffolding ----------
+let renderer, scene, camera, reticle, clock;
+let mode = null, floorY = 0;
+let label = '8th Wall';
+
+const el = (id) => document.getElementById(id);
+const hud = el('hud'), statusEl = el('status'), pillEl = el('pill');
+const B = [el('b1'), el('b2'), el('b3'), el('b4')];
+
+const world = {
+  t: 0, dt: 0, camPos: new THREE.Vector3(), tracked: false,
+  floorHit: null, sawOnlyWalls: false, target: null, rawHits: undefined, hitKinds: null,
+};
+
+function makeReticle() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(
+    new THREE.RingGeometry(0.07, 0.085, 40).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: CFG.colors.cool, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+  ));
+  const dot = new THREE.Mesh(
+    new THREE.CircleGeometry(0.012, 16).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: CFG.colors.cool })
+  );
+  dot.position.y = 0.001;
+  g.add(dot);
+  return g;
+}
+
+function commonScene() {
+  scene.add(new THREE.HemisphereLight(0xbfe9ff, 0x1a1a22, 1.1));
+  reticle = makeReticle();
+  reticle.visible = false;
+  scene.add(reticle);
+  clock = new THREE.Clock();
+}
+
+// ---------- trail.js — the mote system ----------
+// Motes are parked at fixed arc-lengths along the route and animated in place; we never
+// move them along the path. Walking changes which ones are *visible*, not where they are.
+const MOTE_VS = `
+  attribute float aAlpha;
+  attribute float aScale;
+  varying float vAlpha;
+  uniform float uSize;
+  void main() {
+    vAlpha = aAlpha;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = uSize * aScale / max(-mv.z, 0.2);
+    gl_Position = projectionMatrix * mv;
+  }`;
+const MOTE_FS = `
+  precision mediump float;
+  varying float vAlpha;
+  uniform vec3 uCool;
+  uniform vec3 uHot;
+  uniform float uHeat;
+  void main() {
+    float r = length(gl_PointCoord - 0.5);
+    if (r > 0.5 || vAlpha <= 0.001) discard;
+    float a = smoothstep(0.5, 0.0, r);
+    gl_FragColor = vec4(mix(uCool, uHot, uHeat), a * a * vAlpha);
+  }`;
+
+class Trail {
+  constructor() {
+    this.points = []; this.perps = []; this.length = 0; this.spacing = CFG.route.spacing;
+    this.motes = null; this.obj = null;
+    this.heat = 0; this.fade = 0; this.fadeTarget = 1;
+  }
+
+  build(crumbs) {
+    this.dispose();
+    if (crumbs.length < 2) return false;
+    const curve = new THREE.CatmullRomCurve3(crumbs.map(c => c.clone()), false, 'catmullrom', 0.5);
+    this.length = curve.getLength();
+    const n = Math.max(2, Math.ceil(this.length / CFG.route.spacing));
+    this.points = curve.getSpacedPoints(n);
+    this.spacing = this.length / n;
+
+    this.perps = this.points.map((p, i) => {
+      const a = this.points[Math.max(0, i - 1)], b = this.points[Math.min(this.points.length - 1, i + 1)];
+      const tx = b.x - a.x, tz = b.z - a.z;
+      const m = Math.hypot(tx, tz) || 1;
+      return new THREE.Vector3(-tz / m, 0, tx / m);
+    });
+
+    const count = Math.min(CFG.trail.maxMotes, Math.max(24, Math.round(this.length * CFG.trail.density)));
+    this.motes = new Array(count);
+    for (let i = 0; i < count; i++) {
+      const low = Math.random() < CFG.trail.lowFrac;
+      this.motes[i] = {
+        s: (i + Math.random()) / count * this.length,
+        lat: (Math.random() * 2 - 1) * CFG.trail.halfWidth,
+        seed: Math.random(),
+        rise: CFG.trail.rise * (low ? 0.04 + Math.random() * 0.14 : 0.4 + Math.random() * 0.6),
+        scale: low ? 0.55 + Math.random() * 0.4 : 0.8 + Math.random() * 0.5,
+      };
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    geo.setAttribute('aAlpha', new THREE.BufferAttribute(new Float32Array(count), 1));
+    geo.setAttribute('aScale', new THREE.BufferAttribute(Float32Array.from(this.motes, m => m.scale), 1));
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e3);
+    this.obj = new THREE.Points(geo, new THREE.ShaderMaterial({
+      uniforms: {
+        uSize: { value: CFG.trail.size * Math.min(devicePixelRatio, 2) },
+        uCool: { value: new THREE.Color(CFG.colors.cool) },
+        uHot:  { value: new THREE.Color(CFG.colors.hot) },
+        uHeat: { value: 0 },
+      },
+      vertexShader: MOTE_VS, fragmentShader: MOTE_FS,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    this.obj.frustumCulled = false;
+    scene.add(this.obj);
+    return true;
+  }
+
+  at(s) {
+    const f = THREE.MathUtils.clamp(s / this.spacing, 0, this.points.length - 1);
+    const i = Math.floor(f), j = Math.min(i + 1, this.points.length - 1);
+    return { p: this.points[i], q: this.points[j], t: f - i, perp: this.perps[i] };
+  }
+
+  nearestS(pos) {
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < this.points.length; i++) {
+      const p = this.points[i];
+      const d = (p.x - pos.x) ** 2 + (p.z - pos.z) ** 2;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return { s: best * this.spacing, dist: Math.sqrt(bestD) };
+  }
+
+  // The reveal window: you cannot see drift in a path that is never drawn.
+  static window(rel) {
+    const { behind, ahead } = CFG.reveal;
+    if (rel < -behind || rel > ahead) return 0;
+    return THREE.MathUtils.smoothstep(rel, -behind, -behind * 0.45)
+         * (1 - THREE.MathUtils.smoothstep(rel, ahead * 0.5, ahead));
+  }
+
+  update(t, dt, playerPos, heat) {
+    if (!this.obj) return;
+    this.fade += (this.fadeTarget - this.fade) * Math.min(1, dt * 4);
+    this.heat += (heat - this.heat) * Math.min(1, dt * 2.5);
+    this.obj.material.uniforms.uHeat.value = this.heat;
+
+    const boost = 1 + 0.9 * this.heat;
+    const { s: sPlayer } = this.nearestS(playerPos);
+    const pos = this.obj.geometry.attributes.position, alp = this.obj.geometry.attributes.aAlpha;
+    const arr = pos.array, aArr = alp.array;
+
+    for (let i = 0; i < this.motes.length; i++) {
+      const m = this.motes[i];
+      const w = Trail.window(m.s - sPlayer);
+      if (w <= 0.001 || this.fade <= 0.001) { aArr[i] = 0; continue; }
+      const cyc = (t * CFG.trail.riseRate + m.seed) % 1;
+      const seg = this.at(m.s);
+      const sway = Math.sin(t * CFG.trail.swayRate + m.seed * 6.283) * CFG.trail.sway;
+      const off = m.lat + sway, k = i * 3;
+      arr[k]     = seg.p.x + (seg.q.x - seg.p.x) * seg.t + seg.perp.x * off;
+      arr[k + 1] = seg.p.y + (seg.q.y - seg.p.y) * seg.t + cyc * m.rise;
+      arr[k + 2] = seg.p.z + (seg.q.z - seg.p.z) * seg.t + seg.perp.z * off;
+      aArr[i] = w * Math.sin(cyc * Math.PI) * this.fade * boost;
+    }
+    pos.needsUpdate = true;
+    alp.needsUpdate = true;
+  }
+
+  dispose() {
+    if (!this.obj) return;
+    scene.remove(this.obj);
+    this.obj.geometry.dispose();
+    this.obj.material.dispose();
+    this.obj = null;
+  }
+}
+
+// ======================================================================================
+// TRACKER — the only code that knows about XR8.
+// ======================================================================================
+
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const _q = new THREE.Quaternion(), _n = new THREE.Vector3();
+
+// Tried in order until one returns hits. Surfaces first (they carry a normal, so the wall
+// filter can work), then feature points, then whatever the default is.
+const HIT_VARIANTS = [
+  ['DETECTED_SURFACE', 'ESTIMATED_SURFACE'],
+  ['DETECTED_SURFACE', 'ESTIMATED_SURFACE', 'FEATURE_POINT'],
+  null,
+];
+
+// The tracker hits vertical surfaces too, and indoors the nearest hit is very often a
+// WALL — that puts crumbs at chest height and ramps the trail into the plaster. Take the
+// first hit whose surface normal is within ~32° of up.
+function pickFloorHit(hits) {
+  for (const h of hits) {
+    if (!h) continue;
+    if (h.rot) {
+      _q.set(h.rot.x, h.rot.y, h.rot.z, h.rot.w);
+      _n.set(0, 1, 0).applyQuaternion(_q);
+      if (_n.dot(WORLD_UP) < 0.85) continue;
+    } else if (Math.abs(h.pos.y - floorY) > 0.45) {
+      continue;   // no normal available (feature points): fall back to floor proximity
+    }
+    return new THREE.Vector3(h.pos.x, h.pos.y, h.pos.z);
+  }
+  return null;
+}
+
+// A canvas whose backing store does not match its CSS box renders the camera feed into a
+// corner of the screen — which is exactly what happened before XRExtras was wired in.
+// FullWindowCanvas is 8th Wall's own fix; this is the fallback for when xrextras fails to
+// load, so the page degrades to "correct but unmanaged" rather than "broken".
+function fitCanvas(canvas) {
+  const dpr = Math.min(devicePixelRatio, 2);
+  canvas.style.width = innerWidth + 'px';
+  canvas.style.height = innerHeight + 'px';
+  canvas.width = Math.round(innerWidth * dpr);
+  canvas.height = Math.round(innerHeight * dpr);
+}
+
+const tracker = {
+  canvas: null, status: null, running: false,
+
+  async available() { return !!(await xr8Ready()); },
+
+  async start() {
+    const XR8 = await xr8Ready();
+    if (!XR8) throw new Error('XR8 failed to load — check the CDN is reachable');
+    const XRExtras = window.XRExtras;
+
+    const canvas = document.createElement('canvas');
+    this.canvas = canvas;
+    fitCanvas(canvas);
+    document.body.appendChild(canvas);
+
+    // Absolute scale so one unit is one metre — every number the drift rig prints depends
+    // on it.
+    XR8.XrController.configure({
+      scale: 'absolute',
+      disableWorldTracking: false,
+      ...(IMAGE_TARGETS.length ? { imageTargetData: await loadTargetData() } : {}),
+    });
+
+    const self = this;
+    const modules = [
+      XR8.GlTextureRenderer.pipelineModule(),   // draws the camera feed
+      XR8.Threejs.pipelineModule(),             // creates scene/camera/renderer
+      XR8.XrController.pipelineModule(),        // SLAM
+    ];
+    if (XRExtras) {
+      // FullWindowCanvas is the one that actually matters — it keeps the canvas, the GL
+      // viewport and the three.js renderer agreeing about the window size, through
+      // rotations and browser-chrome changes.
+      if (XRExtras.FullWindowCanvas) modules.push(XRExtras.FullWindowCanvas.pipelineModule());
+      if (XRExtras.Loading) modules.push(XRExtras.Loading.pipelineModule());
+      if (XRExtras.RuntimeError) modules.push(XRExtras.RuntimeError.pipelineModule());
+    }
+    modules.push({
+      name: 'scent-tracker',
+      onStart() {
+        const three = XR8.Threejs.xrScene();
+        scene = three.scene; camera = three.camera; renderer = three.renderer;
+        commonScene();
+        self.running = true;
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); primaryAction(); }, { passive: false });
+        if (!XRExtras?.FullWindowCanvas) {
+          addEventListener('resize', () => { fitCanvas(canvas); renderer.setSize(innerWidth, innerHeight); });
+        }
+      },
+      onUpdate() { self.frame(); },
+      listeners: [
+        { event: 'reality.imagefound',    process: (e) => self.onTarget(e.detail, true) },
+        { event: 'reality.imageupdated',  process: (e) => self.onTarget(e.detail, true) },
+        { event: 'reality.imagelost',     process: (e) => self.onTarget(e.detail, false) },
+        { event: 'reality.trackingstatus', process: (e) => { self.status = e.detail?.status; } },
+      ],
+    });
+
+    XR8.addCameraPipelineModules(modules);
+    XR8.run({ canvas });
+  },
+
+  // An image target sighting is an absolute position fix. Re-seeing one wipes whatever
+  // drift has accumulated since the last sighting — that jump is the whole demo, so we
+  // measure it and report it rather than hiding it.
+  onTarget(detail, visible) {
+    if (!detail?.name) return;
+    const m = new THREE.Matrix4();
+    if (visible) {
+      m.compose(
+        new THREE.Vector3(detail.position.x, detail.position.y, detail.position.z),
+        new THREE.Quaternion(detail.rotation.x, detail.rotation.y, detail.rotation.z, detail.rotation.w),
+        new THREE.Vector3(1, 1, 1)
+      );
+    }
+    const prev = world.target;
+    if (visible && prev && prev.name === detail.name) {
+      const a = new THREE.Vector3().setFromMatrixPosition(prev.matrix);
+      const b = new THREE.Vector3().setFromMatrixPosition(m);
+      const slip = a.distanceTo(b);
+      if (slip > CFG.target.reanchorMin) {
+        flash(`re-anchored on “${detail.name}” — corrected ${(slip * 100).toFixed(0)}cm`, true);
+      }
+    } else if (visible && !prev) {
+      flash(`anchored to “${detail.name}”`, true);
+    }
+    world.target = visible
+      ? { name: detail.name, matrix: m, visible: true, seenAt: world.t }
+      : (prev ? { ...prev, visible: false } : null);
+    if (visible) trailGame.onTargetSeen();
+  },
+
+  frame() {
+    const XR8 = window.XR8;
+    world.t = performance.now() / 1000;
+    world.dt = Math.min(0.05, clock.getDelta());
+    camera.getWorldPosition(world.camPos);
+    world.tracked = this.status !== 'LIMITED' && this.status !== 'NOT_AVAILABLE';
+
+    world.floorHit = null;
+    world.sawOnlyWalls = false;
+    if (world.tracked) {
+      // Screen centre, normalised. The accepted type strings vary between engine
+      // versions, so try the variants and keep whichever this build honours. The raw
+      // count is surfaced in the readout so a bad guess reads as a number rather than a
+      // reticle that never appears.
+      let raw = [];
+      for (const kinds of HIT_VARIANTS) {
+        try {
+          raw = (kinds ? XR8.XrController.hitTest(0.5, 0.5, kinds) : XR8.XrController.hitTest(0.5, 0.5)) || [];
+        } catch { continue; }
+        if (raw.length) { world.hitKinds = kinds ? kinds.join('+') : 'default'; break; }
+      }
+      world.rawHits = raw.length;
+      const hits = raw.map(h => ({ pos: h.position, rot: h.rotation }));
+      world.floorHit = pickFloorHit(hits);
+      world.sawOnlyWalls = !world.floorHit && raw.length > 0;
+    }
+    tick();
+    // XR8.Threejs renders for us — no renderer.render() here.
+  },
+
+  stop() { try { window.XR8?.stop?.(); } catch {} this.running = false; },
+};
+
+function scriptReady(globalName, eventName) {
+  return new Promise((resolve) => {
+    if (window[globalName]) return resolve(window[globalName]);
+    let done = false;
+    const ok = () => { if (!done) { done = true; resolve(window[globalName] || null); } };
+    if (eventName) window.addEventListener(eventName, ok, { once: true });
+    const poll = setInterval(() => { if (window[globalName]) { clearInterval(poll); ok(); } }, 120);
+    setTimeout(() => { clearInterval(poll); ok(); }, 8000);
+  });
+}
+const xr8Ready = () => scriptReady('XR8', 'xrloaded');
+
+async function loadTargetData() {
+  const out = [];
+  for (const t of IMAGE_TARGETS) {
+    try { out.push(await (await fetch(t.url)).json()); }
+    catch (err) { console.warn('image target failed to load', t, err); }
+  }
+  return out;
+}
+
+// ---------- M0: the drift rig ----------
+const rig = {
+  anchor: null, marker: null, walked: 0, lastCam: null, trials: [],
+
+  enter() {
+    this.reset();
+    setButtons([
+      { label: 'Drop anchor', cls: 'primary', on: () => this.drop() },
+      { label: 'Measure', cls: '', on: () => this.measure() },
+      { label: 'Reset', cls: '', on: () => this.reset() },
+      { label: 'Exit', cls: '', on: endSession },
+    ]);
+  },
+
+  drop() {
+    if (!world.floorHit) return;
+    this.clearMarker();
+    this.anchor = world.floorHit.clone();
+    floorY = this.anchor.y;
+    this.walked = 0; this.lastCam = null;
+
+    // Tall and thin on purpose: a pole makes lateral slide obvious from across the room
+    // in a way a floor decal never does.
+    const g = new THREE.Group();
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.008, 0.008, CFG.rig.poleHeight, 8),
+      new THREE.MeshBasicMaterial({ color: CFG.colors.cool })
+    );
+    pole.position.y = CFG.rig.poleHeight / 2;
+    const cube = new THREE.Mesh(
+      new THREE.BoxGeometry(0.06, 0.06, 0.06),
+      new THREE.MeshBasicMaterial({ color: CFG.colors.hot, wireframe: true })
+    );
+    cube.position.y = CFG.rig.poleHeight;
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.09, 0.105, 40).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: CFG.colors.cool, transparent: true, opacity: 0.75, side: THREE.DoubleSide })
+    );
+    ring.position.y = 0.002;
+    g.add(pole, cube, ring);
+    g.position.copy(this.anchor);
+    scene.add(g);
+    this.marker = g;
+    buzz(20);
+  },
+
+  // The measurement: re-aim at the SAME physical spot. Whatever gap has opened between
+  // the reticle and the anchor is accumulated tracking error, in metres.
+  measure() {
+    if (!this.anchor || !world.floorHit) return;
+    const d = world.floorHit.clone().sub(this.anchor);
+    this.trials.push({ h: Math.hypot(d.x, d.z), v: Math.abs(d.y), walked: this.walked });
+    buzz([15, 45, 15]);
+  },
+
+  reset() { this.clearMarker(); this.anchor = null; this.trials = []; this.walked = 0; this.lastCam = null; },
+
+  clearMarker() {
+    if (!this.marker) return;
+    scene.remove(this.marker);
+    this.marker.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    this.marker = null;
+  },
+
+  tick() {
+    if (this.anchor) {
+      if (this.lastCam) this.walked += world.camPos.distanceTo(this.lastCam);
+      else this.lastCam = new THREE.Vector3();
+      this.lastCam.copy(world.camPos);
+    }
+
+    B[0].disabled = !world.floorHit;
+    B[1].disabled = !this.anchor || !world.floorHit;
+
+    const msg = !this.anchor
+      ? 'Put a bit of masking tape on the floor.<br>Aim the ring at it and <span class="hi">drop the anchor</span>.'
+      : 'Now walk your real route — hold the phone <b>badly</b>: lower it, pocket it, walk fast.<br>' +
+        'Come back, aim at <span class="hi">the same tape</span>, and hit Measure.';
+
+    let out = `${label} · hits ${world.rawHits ?? '—'} (${world.hitKinds || 'none'})\n`;
+    if (this.anchor) out += `walked ${this.walked.toFixed(1)} m\n`;
+    if (this.trials.length) {
+      const hs = this.trials.map(t => t.h).sort((a, b) => a - b);
+      const med = hs[hs.length >> 1];
+      out += this.trials.map((t, i) =>
+        `#${i + 1}  slip ${(t.h * 100).toFixed(0)}cm  up/down ${(t.v * 100).toFixed(0)}cm  ` +
+        `after ${t.walked.toFixed(0)}m  (${t.walked > 0.5 ? (100 * t.h / t.walked).toFixed(1) : '—'}%)`
+      ).join('\n');
+      out += `\n\nmedian slip ${(med * 100).toFixed(0)}cm over ${this.trials.length} run(s)`;
+      out += med < 0.3
+        ? '\n✅ under 30cm — M1 will work here'
+        : '\n⚠️ over 30cm — you want image-target checkpoints';
+    }
+    setStatus(msg, out);
+  },
+};
+
+// ---------- M1: walk-to-author, then follow ----------
+const trailGame = {
+  crumbs: [],            // world space, the live truth
+  crumbsTarget: null,    // target space, once a target has been seen — the portable form
+  boundTo: null,
+  dots: null, phase: 'author', trail: new Trail(),
+  goal: null, goalRing: null, found: false, foundAt: 0, buzzAt: 0,
+
+  enter() { this.reset(); this.paintButtons(); },
+
+  paintButtons() {
+    if (this.phase === 'author') {
+      setButtons([
+        { label: 'Drop', cls: 'primary', on: () => this.drop() },
+        { label: 'Undo', cls: '', on: () => this.undo() },
+        { label: 'Play', cls: 'warm', on: () => this.play() },
+        { label: 'Exit', cls: '', on: endSession },
+      ]);
+    } else {
+      setButtons([
+        { label: 'Edit route', cls: '', on: () => this.edit() },
+        null,
+        { label: 'Restart', cls: 'warm', on: () => this.play() },
+        { label: 'Exit', cls: '', on: endSession },
+      ]);
+    }
+  },
+
+  drop() {
+    if (this.phase !== 'author' || !world.floorHit) return;
+    this.crumbs.push(world.floorHit.clone());
+    if (this.crumbs.length === 1) floorY = world.floorHit.y;
+    this.rebind();
+    this.redraw();
+    buzz(18);
+  },
+
+  undo() { if (this.phase === 'author') { this.crumbs.pop(); this.rebind(); this.redraw(); } },
+
+  // Re-express the route in TARGET SPACE. This change of frame is what makes a route
+  // portable across reloads and phones; the storage is incidental.
+  rebind() {
+    const tg = world.target;
+    if (!tg) return;
+    const inv = new THREE.Matrix4().copy(tg.matrix).invert();
+    this.crumbsTarget = this.crumbs.map(c => c.clone().applyMatrix4(inv));
+    this.boundTo = tg.name;
+    store.save(tg.name, this.crumbsTarget);
+  },
+
+  // Target re-sighted: rebuild world positions from target space. If the tracker had
+  // drifted, the trail visibly snaps back — which is the thing worth feeling.
+  onTargetSeen() {
+    const tg = world.target;
+    if (!tg) return;
+    if (!this.crumbsTarget) {
+      const saved = store.load(tg.name);
+      if (saved && saved.length >= 2 && this.crumbs.length === 0) {
+        this.crumbsTarget = saved;
+        this.boundTo = tg.name;
+        flash(`loaded a saved route off “${tg.name}”`, true);
+      } else return;
+    }
+    if (this.boundTo !== tg.name) return;
+    this.crumbs = this.crumbsTarget.map(c => c.clone().applyMatrix4(tg.matrix));
+    if (this.phase === 'play') {
+      this.trail.build(this.crumbs);
+      this.goal = this.crumbs[this.crumbs.length - 1].clone();
+      this.makeGoalRing();
+    } else this.redraw();
+  },
+
+  play() {
+    if (this.crumbs.length < 2 || !this.trail.build(this.crumbs)) return;
+    this.phase = 'play'; this.found = false; this.trail.fadeTarget = 1;
+    this.goal = this.crumbs[this.crumbs.length - 1].clone();
+    this.showDots(false);
+    this.makeGoalRing();
+    this.paintButtons();
+  },
+
+  edit() {
+    this.phase = 'author';
+    this.trail.dispose(); this.clearGoalRing(); this.showDots(true); this.paintButtons();
+  },
+
+  reset() {
+    this.crumbs = []; this.crumbsTarget = null; this.boundTo = null;
+    this.phase = 'author'; this.found = false;
+    this.trail.dispose(); this.clearGoalRing(); this.redraw();
+  },
+
+  redraw() {
+    if (this.dots) {
+      scene.remove(this.dots);
+      this.dots.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+      this.dots = null;
+    }
+    if (!this.crumbs.length) return;
+    const g = new THREE.Group();
+    const geo = new THREE.SphereGeometry(0.035, 12, 10);
+    const mat = new THREE.MeshBasicMaterial({ color: CFG.colors.cool, transparent: true, opacity: 0.85 });
+    const last = new THREE.MeshBasicMaterial({ color: CFG.colors.hot });
+    this.crumbs.forEach((c, i) => {
+      const m = new THREE.Mesh(geo, i === this.crumbs.length - 1 ? last : mat);
+      m.position.copy(c).setY(c.y + 0.035);
+      g.add(m);
+    });
+    if (this.crumbs.length > 1) {
+      g.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(this.crumbs.map(c => c.clone().setY(c.y + 0.01))),
+        new THREE.LineBasicMaterial({ color: CFG.colors.cool, transparent: true, opacity: 0.35 })
+      ));
+    }
+    scene.add(g);
+    this.dots = g;
+  },
+
+  showDots(v) { if (this.dots) this.dots.visible = v; },
+
+  makeGoalRing() {
+    this.clearGoalRing();
+    const m = new THREE.Mesh(
+      new THREE.RingGeometry(CFG.goal.radius - 0.04, CFG.goal.radius, 64).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: CFG.colors.hot, transparent: true, opacity: 0,
+                                    side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    m.position.copy(this.goal).setY(this.goal.y + 0.004);
+    scene.add(m);
+    this.goalRing = m;
+  },
+
+  clearGoalRing() {
+    if (!this.goalRing) return;
+    scene.remove(this.goalRing);
+    this.goalRing.geometry.dispose();
+    this.goalRing.material.dispose();
+    this.goalRing = null;
+  },
+
+  tick() {
+    const t = world.t, dt = world.dt;
+    if (this.phase === 'author') {
+      B[0].disabled = !world.floorHit;
+      B[1].disabled = !this.crumbs.length;
+      B[2].disabled = this.crumbs.length < 2;
+      const n = this.crumbs.length;
+      let out = `${label} · ${n} crumb${n === 1 ? '' : 's'} · hits ${world.rawHits ?? '—'}`;
+      out += world.target
+        ? `\nbound to “${world.target.name}”${world.target.visible ? ' (in view)' : ' (out of view)'}`
+        : `\nno image target seen yet — route is session-local`;
+      setStatus(
+        n === 0 ? 'Walk to where the trail should <b>start</b>.<br>Aim at the floor and tap <span class="hi">Drop</span>.'
+                : 'Keep walking and dropping crumbs.<br>The <span class="hi">last one</span> is the hidden place.',
+        out
+      );
+      return;
+    }
+
+    const flat = world.camPos.clone().setY(floorY);
+    const dGoal = flat.distanceTo(this.goal.clone().setY(floorY));
+    const heat = 1 - THREE.MathUtils.clamp(dGoal / CFG.goal.feelRange, 0, 1);
+    this.trail.update(t, dt, flat, heat);
+
+    if (this.goalRing) {
+      const near = 1 - THREE.MathUtils.clamp((dGoal - CFG.goal.radius) / 2.0, 0, 1);
+      this.goalRing.material.opacity = this.found
+        ? Math.max(0, 1 - (t - this.foundAt) * 0.5)
+        : near * (0.35 + 0.25 * Math.sin(t * 3));
+      if (this.found) this.goalRing.scale.setScalar(1 + (t - this.foundAt) * 1.6);
+    }
+
+    // Haptic heartbeat that quickens as you close in. iOS Safari ignores this entirely.
+    if (!this.found && heat > 0.05 && this.trail.fade > 0.5) {
+      const period = THREE.MathUtils.lerp(1.6, 0.22, heat);
+      if (t - this.buzzAt > period) { this.buzzAt = t; buzz(Math.round(8 + 18 * heat)); }
+    }
+
+    if (!this.found && dGoal < CFG.goal.radius) { this.found = true; this.foundAt = t; buzz([30, 60, 30, 60, 120]); }
+
+    if (this.found) { setStatus('<b>Found it.</b> 🐾<br>The scent ends here.', ''); return; }
+    const words = heat > 0.75 ? 'overpowering' : heat > 0.45 ? 'strong' : heat > 0.15 ? 'noticeable' : 'faint';
+    setStatus('Follow the motes.', `${label}\nscent: ${words}`);
+  },
+};
+
+// ---------- preview (no AR) — for tuning the look on a desktop ----------
+function gridTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#161a22'; g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = '#38445c'; g.lineWidth = 4; g.strokeRect(0, 0, 128, 128);
+  g.strokeStyle = '#232b3a'; g.lineWidth = 2;
+  for (let i = 1; i < 4; i++) {
+    g.beginPath();
+    g.moveTo(i * 32, 0); g.lineTo(i * 32, 128);
+    g.moveTo(0, i * 32); g.lineTo(128, i * 32);
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(40, 40);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+const preview = {
+  s: 0,
+  enter() {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    document.body.appendChild(renderer.domElement);
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0c10);
+    camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.01, 40);
+    commonScene();
+
+    label = 'preview';
+    mode = 'preview';
+    floorY = 0;
+    el('boot').style.display = 'none';
+    hud.classList.add('on');
+
+    const crumbs = [];
+    for (let i = 0; i <= 7; i++) {
+      const u = i / 7;
+      crumbs.push(new THREE.Vector3(Math.sin(u * Math.PI * 1.6) * 2.6, 0, -u * 12));
+    }
+    trailGame.crumbs = crumbs;
+    trailGame.play();
+
+    // A visible floor on purpose: the point of the preview is judging whether the motes
+    // read as lying ON the floor. Not a GridHelper — its 1px hairlines antialias away to
+    // nothing at the grazing angle you actually view a floor from.
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(40, 40).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: gridTexture() })
+    );
+    floor.position.y = -0.01;
+    scene.add(floor);
+
+    setButtons([null, null, null, { label: 'Exit', cls: '', on: () => location.reload() }]);
+    renderer.setAnimationLoop((ms) => this.frame(ms));
+  },
+  frame(ms) {
+    world.dt = Math.min(0.05, clock.getDelta());
+    world.t = ms / 1000;
+    world.tracked = true;
+    const tr = trailGame.trail;
+    this.s = (this.s + world.dt * 1.1) % Math.max(0.001, tr.length + 3);
+    const seg = tr.at(Math.min(this.s, tr.length));
+    const ahead = tr.at(Math.min(this.s + 1.2, tr.length));
+    camera.position.set(seg.p.x, 1.5, seg.p.z);
+    camera.lookAt(ahead.p.x, 0.55, ahead.p.z);
+    world.camPos.copy(camera.position);
+    trailGame.tick();
+    renderer.render(scene, camera);
+  },
+};
+
+// ---------- per-frame glue ----------
+const LOST_MSG = 'the scent is faint — look around slowly';
+let flashUntil = 0;
+
+function tick() {
+  trailGame.trail.fadeTarget = world.tracked ? 1 : 0;
+  reticle.visible = !!world.floorHit;
+  if (world.floorHit) reticle.position.copy(world.floorHit);
+
+  if (mode === 'rig') rig.tick();
+  else if (mode === 'trail') trailGame.tick();
+
+  // One transient line, three sources. Tracking loss outranks an aim hint, which
+  // outranks a re-anchor flash.
+  if (!world.tracked) show(LOST_MSG, false);
+  else if (world.t < flashUntil) { /* leave the flash up */ }
+  else if (world.sawOnlyWalls) show('that’s a wall — aim at the floor', false);
+  else pillEl.classList.remove('on');
+}
+
+function show(text, good) {
+  pillEl.textContent = text;
+  pillEl.classList.toggle('good', !!good);
+  pillEl.classList.add('on');
+}
+function flash(text, good) { show(text, good); flashUntil = world.t + 2.5; buzz([12, 40, 12]); }
+
+function primaryAction() {
+  if (mode === 'rig') rig.drop();
+  else if (mode === 'trail' && trailGame.phase === 'author') trailGame.drop();
+}
+
+// ---------- HUD plumbing ----------
+function setStatus(html, readout) {
+  statusEl.innerHTML = html + (readout ? `<div id="readout">${readout}</div>` : '');
+}
+
+function setButtons(defs) {
+  defs.forEach((d, i) => {
+    const b = B[i];
+    if (!d) { b.classList.add('hide'); b.onclick = null; return; }
+    b.classList.remove('hide');
+    b.className = 'btn ' + (d.cls || '');
+    b.textContent = d.label;
+    b.disabled = false;
+    b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); d.on(); };
+  });
+}
+
+function buzz(pattern) { try { navigator.vibrate?.(pattern); } catch {} }
+
+// ---------- session lifecycle ----------
+async function startSession(which) {
+  mode = which;
+  el('boot').style.display = 'none';
+  hud.classList.add('on');
+  try {
+    await tracker.start();
+    (which === 'rig' ? rig : trailGame).enter();
+  } catch (err) {
+    console.error(err);
+    el('boot').style.display = '';
+    hud.classList.remove('on');
+    showDiag(`Couldn't start ${label}: <code>${err?.message || err}</code>`, true);
+  }
+}
+
+function endSession() { tracker.stop(); onSessionEnded(); }
+
+function onSessionEnded() {
+  try { renderer?.setAnimationLoop(null); } catch {}
+  hud.classList.remove('on');
+  el('boot').style.display = '';
+  rig.reset(); trailGame.reset();
+  mode = null;
+  document.querySelectorAll('canvas').forEach(c => c.remove());
+  renderer = scene = camera = null;
+}
+
+// ---------- boot ----------
+function showDiag(html, bad) {
+  const d = el('diag');
+  d.innerHTML = html;
+  d.classList.toggle('bad', !!bad);
+}
+
+(async () => {
+  const [XR8, XRExtras] = await Promise.all([xr8Ready(), scriptReady('XRExtras')]);
+  const ok = !!XR8;
+  el('go-rig').disabled = !ok;
+  el('go-trail').disabled = !ok;
+  showDiag(
+    `engine: ${XR8 ? 'loaded' : 'did not load'} · helpers: ${XRExtras ? 'loaded' : 'missing (fallback sizing)'} · ` +
+    `image targets: ${IMAGE_TARGETS.length}` +
+    (ok
+      ? '<br><br><b>Run the drift rig first.</b> It takes half an hour and it tells you whether the trail will hold together in this particular room.'
+      : '<br><br>The engine did not load — check the CDN is reachable. The preview runs regardless.'),
+    !ok);
+})();
+
+el('go-rig').onclick = () => startSession('rig');
+el('go-trail').onclick = () => startSession('trail');
+el('go-preview').onclick = () => preview.enter();
+
+// Live tuning handle. Attach devtools to the phone (chrome://inspect on Android, Safari's
+// Develop menu for iOS) and poke CFG mid-session — e.g. __scent.CFG.reveal.ahead = 5 —
+// then rebuild with __scent.trail.play(). Beats redeploying to change one number.
+window.__scent = { CFG, rig, trail: trailGame, preview, world, store, tracker, three: THREE,
+                   get scene() { return scene; } };
+</script>

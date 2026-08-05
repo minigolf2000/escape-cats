@@ -17,6 +17,50 @@
   ],
   "redirects": [
     {
+      "source": "/ar",
+      "has": [
+        {
+          "type": "host",
+          "value": "g00.mba"
+        }
+      ],
+      "permanent": false,
+      "destination": "https://cat-games-tau.vercel.app/ar/"
+    },
+    {
+      "source": "/ar/",
+      "has": [
+        {
+          "type": "host",
+          "value": "g00.mba"
+        }
+      ],
+      "permanent": false,
+      "destination": "https://cat-games-tau.vercel.app/ar/"
+    },
+    {
+      "source": "/ar",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.g00.mba"
+        }
+      ],
+      "permanent": false,
+      "destination": "https://cat-games-tau.vercel.app/ar/"
+    },
+    {
+      "source": "/ar/",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.g00.mba"
+        }
+      ],
+      "permanent": false,
+      "destination": "https://cat-games-tau.vercel.app/ar/"
+    },
+    {
       "source": "/:path*",
       "has": [
         {

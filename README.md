@@ -17,8 +17,8 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on, with a link into the game
 apps/chat/           Per-team chat: one channel per team, roomed by team id
-apps/proctor/        Hidden proctor dashboard: team assignment, QR codes, live
-                     progress, reset, rehearsal fast-forward
+apps/proctor/        Hidden proctor dashboard: team assignment, live overview
+                     of all four rooms, QR codes, reset, rehearsal fast-forward
 packages/shared/     Wire protocol, seeded RNG, and the WHOLE hex
                      game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
                      and the authoritative simulation (hex/sim.ts)

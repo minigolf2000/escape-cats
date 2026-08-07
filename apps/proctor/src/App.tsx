@@ -8,6 +8,7 @@ import {
   type HexServerMsg,
   type HexSnapshot,
   type PlayerInfo,
+  type Team,
 } from "@escape-cats/shared";
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
@@ -37,6 +38,17 @@ function hexDetail(s: HexSnapshot): string {
   ].join("\n");
 }
 
+function hexToProgress(msg: HexServerMsg): GameProgress | null {
+  return msg.type === "state"
+    ? {
+        progress: msg.state.progress,
+        players: msg.state.players,
+        detail: hexDetail(msg.state),
+        codeword: msg.state.codeword,
+      }
+    : null;
+}
+
 export function App() {
   const [room, setRoom] = useState<string | null>(null);
 
@@ -44,24 +56,65 @@ export function App() {
     return (
       <div className="setup">
         <h1>🐾 Escape Cats — Proctor</h1>
-        <Lobby onOpenTeam={setRoom} />
+        <Lobby />
+        <TeamsOverview onOpen={setRoom} />
       </div>
     );
   }
   return <Session room={room} onEnd={() => setRoom(null)} />;
 }
 
-function Session({ room, onEnd }: { room: string; onEnd: () => void }) {
-  const hex = useGameSocket(room, undefined, (msg: HexServerMsg): GameProgress | null =>
-    msg.type === "state"
-      ? {
-          progress: msg.state.progress,
-          players: msg.state.players,
-          detail: hexDetail(msg.state),
-          codeword: msg.state.codeword,
-        }
-      : null,
+/**
+ * Live 4-up view of every team's game room, one proctor socket per team, so
+ * the whole night is visible without opening a session. A tile is the way
+ * into a team's session (QR code, reset, fast-forward).
+ */
+function TeamsOverview({ onOpen }: { onOpen: (teamId: string) => void }) {
+  return (
+    <section className="overview">
+      <h2>Live games</h2>
+      <div className="tiles">
+        {TEAMS.map((t) => (
+          <TeamTile key={t.id} team={t} onOpen={() => onOpen(t.id)} />
+        ))}
+      </div>
+    </section>
   );
+}
+
+function TeamTile({ team, onOpen }: { team: Team; onOpen: () => void }) {
+  const { progress: p } = useGameSocket(team.id, undefined, hexToProgress);
+  return (
+    <button className="tile" onClick={onOpen} title="Open session">
+      <div className="tile-head">
+        <strong>{team.name}</strong>
+        {p?.codeword && <span className="codeword">✅ {p.codeword}</span>}
+      </div>
+      {p ? (
+        <>
+          <div className="progressbar">
+            <div style={{ width: `${p.progress * 100}%` }} />
+          </div>
+          <p className="detail">{p.detail}</p>
+          <p className="players">
+            {p.players.length === 0
+              ? "No players yet"
+              : p.players.map((pl) => (
+                  <span key={pl.id} className={pl.connected ? "" : "offline"}>
+                    {pl.name}
+                  </span>
+                ))}
+          </p>
+        </>
+      ) : (
+        <p className="detail">Connecting…</p>
+      )}
+    </button>
+  );
+}
+
+function Session({ room, onEnd }: { room: string; onEnd: () => void }) {
+  const hex = useGameSocket(room, undefined, hexToProgress);
 
   return (
     <div className="session">

@@ -67,8 +67,54 @@
   #title .how b { color: #ffd166; }
   #title .go { margin-top: 8px; height: 54px; padding: 0 34px; border-radius: 27px; font-size: 18px; font-weight: 800;
                color: #1b0f38; background: linear-gradient(180deg, #67f2d4, #3fd4b4); }
+
+  /* ---- PORTRAIT GATE -------------------------------------------------------
+     Levels are authored at roughly 1:2 portrait proportions (see the level
+     fitting note further down), so a sideways phone either crops the level or
+     shrinks it to a letterboxed sliver.
+
+     Same rule as Hex Clicker's gate in apps/hex-clicker/index.html — kept in
+     sync BY HAND on purpose. This file is a standalone single-file prototype
+     with no build step and no imports, so sharing a stylesheet would mean
+     giving it a bundler; two ~20-line copies is the cheaper trade. If the
+     breakpoint changes, change it in both.
+
+     `max-height`, not bare `orientation`: on its own, `orientation: landscape`
+     also matches desktop, where this plays fine. Phones in landscape top out
+     around 430px tall; laptops start near 650px. 520px sits in the gap.
+
+     The canvas keeps rendering behind this — resize() already rebinds on the
+     rotate, so coming back is seamless. Physics only advances while a shot is
+     in flight, so nothing is silently lost. */
+  #rotate { display: none; }
+  @media (orientation: landscape) and (max-height: 520px) {
+    #rotate {
+      display: flex; position: fixed; inset: 0; z-index: 100;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; padding: 24px; text-align: center;
+      background: #150a2a; color: #f2ecff; height: 100dvh;
+      font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    #rotate .glyph { font-size: 46px; animation: rotateHint 2.2s ease-in-out infinite; }
+    #rotate b { font-size: 19px; font-weight: 800; }
+    #rotate span { font-size: 14px; color: #c9bdf0; max-width: 30ch; }
+    #c, #hud { visibility: hidden; }
+  }
+  @keyframes rotateHint {
+    0%, 45%, 100% { transform: rotate(0deg); }
+    60%, 85% { transform: rotate(-90deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #rotate .glyph { animation: none; }
+  }
 </style>
 <canvas id="c"></canvas>
+<!-- Portrait gate; the media query above is the only thing that shows it. -->
+<div id="rotate">
+  <div class="glyph">📱</div>
+  <b>Turn your phone upright</b>
+  <span>Goomba Rider is played in portrait.</span>
+</div>
 <div id="hud">
   <div id="top">
     <div id="lvl"></div>

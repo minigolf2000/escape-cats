@@ -1013,6 +1013,52 @@
   }
   #shopScroll.can-up::before { opacity: 1; }
   #shopScroll.can-down::after { opacity: 1; }
+
+  /* ---- PORTRAIT GATE -------------------------------------------------------
+     This game is portrait: the shop rail and the night wall are stacked
+     vertically, so a sideways phone squeezes the wall — the one thing the
+     night phase exists to show — into an unreadable band.
+
+     Deliberately CSS-only. It needs no JS, so it is already covering the
+     screen on first paint rather than after the bundle boots, and there is no
+     orientation state to keep in sync with anything.
+
+     The `max-height` is the load-bearing half, not `orientation`. On its own,
+     `orientation: landscape` also matches every desktop and laptop browser,
+     where this game plays fine — gating those would be a regression, and the
+     proctor drives sessions from a laptop. Phones in landscape are ~430px tall
+     at most (iPhone Pro Max ~430, most Androids less); laptops start around
+     650px of viewport height even with chrome. 520px sits in that gap with
+     room on both sides. A small tablet in landscape clears it and stays
+     playable, which is the intent.
+
+     Uses dvh, not vh: mobile Safari's vh is the tallest-possible viewport, so
+     with the URL bar shown a 100vh overlay is taller than the visible area and
+     the message can sit under the fold. */
+  #rotate { display: none; }
+  @media (orientation: landscape) and (max-height: 520px) {
+    #rotate {
+      display: flex; position: fixed; inset: 0; z-index: 9999;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; padding: 24px; text-align: center;
+      background: #0b0c10; color: #f2ecff;
+      font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      height: 100dvh;
+    }
+    #rotate .glyph { font-size: 46px; animation: rotateHint 2.2s ease-in-out infinite; }
+    #rotate b { font-size: 19px; font-weight: 800; letter-spacing: .01em; }
+    #rotate span { font-size: 14px; opacity: .62; max-width: 30ch; }
+    /* Everything behind the gate keeps running — the room is server-authoritative
+       and a teammate may still be petting. Hiding is purely visual. */
+    body > *:not(#rotate) { visibility: hidden; }
+  }
+  @keyframes rotateHint {
+    0%, 45%, 100% { transform: rotate(0deg); }
+    60%, 85% { transform: rotate(-90deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #rotate .glyph { animation: none; }
+  }
 </style>
 
 <div id="hud">
@@ -1173,6 +1219,15 @@
   <h1>🐱 Hex Clicker</h1>
   <p id="gateStatus"></p>
   <p class="err" id="gateErr"></p>
+</div>
+
+<!-- Portrait gate. Hidden by default; the media query in the stylesheet above
+     is the only thing that shows it. Last in the body so it paints over
+     everything without needing a stacking-context fight. -->
+<div id="rotate">
+  <div class="glyph">📱</div>
+  <b>Turn your phone upright</b>
+  <span>Hex Clicker is played in portrait.</span>
 </div>
 
 <script type="module" src="/src/main.js"></script>

@@ -3,7 +3,7 @@
 // This surface asks the LOBBY which team this phone is on and uses that as its
 // room, exactly as the game client does — so there is no team picker here and
 // no way to end up in someone else's channel. `?room=` still overrides, for QR
-// codes and ad-hoc rehearsal rooms.
+// codes.
 
 import PartySocket from "partysocket";
 import {
@@ -66,7 +66,7 @@ function myName(): string {
 }
 
 function teamName(id: string): string {
-  // Falls back to the raw id so an ad-hoc `?room=TEST` still has a heading.
+  // Falls back to the raw id so a hand-typed `?room=TEST` still has a heading.
   return TEAMS.find((t) => t.id === id)?.name ?? id;
 }
 

@@ -366,7 +366,7 @@ lobby for this pid's team and slots straight in. A phone the proctor hasn't
 sorted yet gets a waiting screen, not an error — opening the game page
 registers the phone in the lobby roster (same pid+name contract as the landing
 page), so it appears on the proctor's list and enters the game the moment it's
-assigned. `?room=` still overrides for QR codes and ad-hoc rehearsal rooms;
+assigned. `?room=` still overrides for QR codes (which carry the team id);
 `?debug` bypasses the server entirely. The room is deliberately NOT written
 back into the URL on the lobby path, so a refresh re-asks the lobby and a
 proctor re-sort takes effect on reload.

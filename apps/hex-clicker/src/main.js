@@ -221,7 +221,7 @@ function frame(now) {
 // the game the moment it is assigned. Nobody types a room code; the only
 // keyboard this game ever shows is the lobby's name prompt.
 //
-// ?room= still overrides (proctor QR codes and ad-hoc rehearsal rooms), and
+// ?room= still overrides (proctor QR codes carry the team id), and
 // ?debug bypasses the server entirely.
 // ---------------------------------------------------------------------------
 const NAME_KEY = "escape-cats-name";

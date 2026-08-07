@@ -3,6 +3,7 @@ import PartySocket from "partysocket";
 import QRCode from "react-qr-code";
 import { Lobby } from "./Lobby";
 import {
+  TEAMS,
   UPGRADES,
   type HexServerMsg,
   type HexSnapshot,
@@ -11,14 +12,6 @@ import {
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
 const HEX_URL = import.meta.env.VITE_HEX_URL ?? "http://localhost:5173";
-
-function randomRoomCode(): string {
-  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // no I/O — QR text stays unambiguous
-  return Array.from(
-    crypto.getRandomValues(new Uint8Array(4)),
-    (b) => letters[b % letters.length],
-  ).join("");
-}
 
 interface GameProgress {
   progress: number;
@@ -46,28 +39,12 @@ function hexDetail(s: HexSnapshot): string {
 
 export function App() {
   const [room, setRoom] = useState<string | null>(null);
-  const [draft, setDraft] = useState(() => randomRoomCode());
 
   if (!room) {
     return (
       <div className="setup">
         <h1>🐾 Escape Cats — Proctor</h1>
         <Lobby onOpenTeam={setRoom} />
-        <details className="adhoc">
-          <summary>Ad-hoc room</summary>
-          <p>For a rehearsal or a team that isn't in the lobby.</p>
-          <div className="row">
-            <input
-              value={draft}
-              maxLength={8}
-              onChange={(e) => setDraft(e.target.value.toUpperCase().trim())}
-            />
-            <button onClick={() => setDraft(randomRoomCode())}>🎲</button>
-          </div>
-          <button className="primary" disabled={!draft} onClick={() => setRoom(draft)}>
-            Start session
-          </button>
-        </details>
       </div>
     );
   }
@@ -89,7 +66,7 @@ function Session({ room, onEnd }: { room: string; onEnd: () => void }) {
   return (
     <div className="session">
       <header>
-        <h1>Room {room}</h1>
+        <h1>{TEAMS.find((t) => t.id === room)?.name ?? `Room ${room}`}</h1>
         <button onClick={onEnd}>End session</button>
       </header>
       <div className="games">

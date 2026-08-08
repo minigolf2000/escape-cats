@@ -19,6 +19,10 @@ interface GameProgress {
   players: PlayerInfo[];
   detail: string;
   codeword: string | null;
+  /** The run's finish time (legibleAt - startedAt), null until the wall is
+   * readable. Lives in room storage with the rest of the run, so it survives
+   * evictions but not a reset. */
+  finishedMs: number | null;
 }
 
 const mmss = (ms: number) => {
@@ -29,7 +33,8 @@ const mmss = (ms: number) => {
 function hexDetail(s: HexSnapshot): string {
   const phase = s.nightAt ? "🌙 night" : "☀️ day";
   const boughtN = Object.keys(s.bought).length;
-  const elapsed = mmss(s.serverTime - s.startedAt);
+  // The clock freezes at the finish — the run is scored, stop counting.
+  const elapsed = mmss((s.legibleAt ?? s.serverTime) - s.startedAt);
   return [
     `${phase} · ${elapsed}`,
     `${Math.floor(s.mice).toLocaleString()} mice · ${Math.round(s.cps).toLocaleString()}/s`,
@@ -45,6 +50,9 @@ function hexToProgress(msg: HexServerMsg): GameProgress | null {
         players: msg.state.players,
         detail: hexDetail(msg.state),
         codeword: msg.state.codeword,
+        finishedMs: msg.state.legibleAt
+          ? msg.state.legibleAt - msg.state.startedAt
+          : null,
       }
     : null;
 }
@@ -88,7 +96,12 @@ function TeamTile({ team, onOpen }: { team: Team; onOpen: () => void }) {
     <button className="tile" onClick={onOpen} title="Open session">
       <div className="tile-head">
         <strong>{team.name}</strong>
-        {p?.codeword && <span className="codeword">✅ {p.codeword}</span>}
+        {p?.codeword && (
+          <span className="codeword">
+            ✅ {p.codeword}
+            {p.finishedMs !== null && ` · ${mmss(p.finishedMs)}`}
+          </span>
+        )}
       </div>
       {p ? (
         <>
@@ -216,7 +229,12 @@ function GamePanel({
                   </span>
                 ))}
           </p>
-          {p.codeword && <p className="codeword">✅ Unlocked: {p.codeword}</p>}
+          {p.codeword && (
+            <p className="codeword">
+              ✅ Unlocked: {p.codeword}
+              {p.finishedMs !== null && ` in ${mmss(p.finishedMs)}`}
+            </p>
+          )}
         </>
       ) : (
         <p className="detail">Connecting…</p>

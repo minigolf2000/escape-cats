@@ -17,8 +17,8 @@ export interface ConnMeta {
  *
  * The role is a claim, not a credential — anyone can append it. That is
  * deliberate: the proctor page is a static asset, so any token it sent would
- * ship in its own bundle and gate nothing. The only powers the role carries
- * are reset and speed on your own room, which is not worth defending here.
+ * ship in its own bundle and gate nothing. The only power the role carries
+ * is reset on your own room, which is not worth defending here.
  */
 export class Roster {
   private meta = new Map<string, ConnMeta>(); // connection.id -> meta

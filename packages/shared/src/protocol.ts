@@ -58,8 +58,7 @@ export type HexClientMsg =
   | { type: "buyBuilding"; id: string }
   | { type: "buyUpgrade"; key: string }
   | { type: "catchGold"; id: number }
-  | { type: "reset" } // proctor only
-  | { type: "speed"; mult: number }; // proctor only — dev time-scale
+  | { type: "reset" }; // proctor only
 
 
 export type HexServerMsg =

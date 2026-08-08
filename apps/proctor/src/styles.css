@@ -47,8 +47,14 @@ body {
   background: #241f33;
   color: inherit;
 }
-.tile:hover {
-  border-color: #7c5cbf;
+.tile .qr {
+  align-self: center;
+}
+.tile .danger {
+  align-self: center;
+  margin-top: auto;
+  padding: 8px 14px;
+  font-size: 13px;
 }
 .tile-head {
   display: flex;
@@ -77,37 +83,6 @@ button {
 .danger {
   background: #d64b3b;
   color: white;
-}
-
-.session {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.session header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.games {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 24px;
-}
-
-.panel {
-  background: #241f33;
-  border: 1px solid #352e4a;
-  border-radius: 16px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
 }
 
 .qr {
@@ -141,18 +116,6 @@ button {
   font-size: 14px;
   opacity: 0.7;
   white-space: pre-line; /* the hex panel's detail is a short multi-line readout */
-}
-
-.actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: center;
-  margin-top: 8px;
-}
-
-.speeds button {
-  margin-right: 4px;
 }
 
 .players span {

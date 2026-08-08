@@ -48,8 +48,8 @@ export interface HexSimState extends HexCore {
   gold: HexGold | null;
   nightAt: number | null; // epoch ms the twist fired
   legibleAt: number | null; // epoch ms the word became readable
-  /** Dev time-scale (proctor only) — multiplies passive income + golden cadence,
-   * never click feel. 1 in real sessions. */
+  /** Dev time-scale (?debug only) — multiplies passive income + golden cadence,
+   * never click feel. A real room never leaves 1. */
   speed: number;
 }
 
@@ -63,8 +63,8 @@ export interface HexSimState extends HexCore {
  *                 to live rooms instead of freezing the old table.
  *  - gold       — wall-clock lifetimes mean it is expired after any gap;
  *                 restore reschedules instead. Costs one missed golden.
- *  - speed      — asymmetric risk: losing a rehearsal ×20 is one click to
- *                 redo; INHERITING one into a live session ruins the session.
+ *  - speed      — ?debug-only time-scale: a real room never leaves ×1, and
+ *                 ?debug runs storageless, so there is nothing to save.
  *  - lastTick / gold timer — restart-local by definition.
  */
 export interface HexPersistedV1 {

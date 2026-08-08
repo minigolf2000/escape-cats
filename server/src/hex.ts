@@ -29,11 +29,21 @@ export class HexServer extends Server<Env> {
   private persister: ReturnType<typeof setInterval> | null = null;
 
   async onStart() {
-    // Rehydrate BEFORE the ticker exists — PartyKit holds connections until
-    // onStart resolves, so no snapshot of the blank sim can ever leak out.
+    // Rehydrate BEFORE any connection is served — PartyKit holds connections
+    // until onStart resolves, so no snapshot of the blank sim can ever leak
+    // out. The tick/persist loops are NOT started here: they run only while
+    // someone is connected (see wake/sleep), because pending timers keep the
+    // object pinned in memory — an empty room holding a ticker bills for
+    // duration around the clock instead of letting the runtime evict it.
     const saved = await this.ctx.storage.get<HexPersistedV1>("hex");
     if (saved?.v === 1) this.sim.restore(saved, Date.now());
-    this.ticker = setInterval(() => {
+  }
+
+  /** Start the loops. Idempotent — every connect calls it. Resuming after a
+   * sleep is safe income-wise: sim.tick clamps dt to 2s, so an afternoon
+   * spent idle credits nothing. */
+  private wake() {
+    this.ticker ??= setInterval(() => {
       this.sim.tick(Date.now());
       this.broadcastState();
     }, SNAPSHOT_TICK_MS);
@@ -41,7 +51,17 @@ export class HexServer extends Server<Env> {
     // (income), so per-change writes would be nearly per-tick writes. A 5s
     // cadence bounds an eviction's loss to 5s of a 10-minute game — and the
     // restore's offline credit covers most of even that.
-    this.persister = setInterval(() => void this.persist(), PERSIST_MS);
+    this.persister ??= setInterval(() => void this.persist(), PERSIST_MS);
+  }
+
+  /** Stop the loops and save, leaving the empty room evictable. Without this
+   * the intervals keep the object alive after the last socket closes, which
+   * shows up as continuous Durable Object duration for a room nobody is in. */
+  private sleep() {
+    if (this.ticker) clearInterval(this.ticker);
+    if (this.persister) clearInterval(this.persister);
+    this.ticker = this.persister = null;
+    void this.persist();
   }
 
   private persist() {
@@ -49,6 +69,7 @@ export class HexServer extends Server<Env> {
   }
 
   onConnect(conn: Connection, ctx: ConnectionContext) {
+    this.wake();
     this.roster.register(conn, ctx);
     this.broadcastState();
   }
@@ -58,6 +79,9 @@ export class HexServer extends Server<Env> {
     this.petAcked.delete(conn.id);
     this.roster.disconnect(conn);
     this.broadcastState();
+    // partyserver drops the closing socket from the manager before onClose
+    // runs, so an empty iterator here means the room is truly empty.
+    if ([...this.getConnections()].length === 0) this.sleep();
   }
 
   onMessage(sender: Connection, message: WSMessage) {
@@ -114,16 +138,6 @@ export class HexServer extends Server<Env> {
         // after an eviction would silently undo the proctor's reset.
         void this.persist();
         break;
-      case "speed": {
-        // Dev time-scale for rehearsals: accelerates income + golden cadence,
-        // never click feel. Proctor only, clamped to something sane.
-        if (!proctor) return;
-        const m = Number(msg.mult);
-        this.sim.state.speed = Number.isFinite(m)
-          ? Math.max(0.25, Math.min(50, m))
-          : 1;
-        break;
-      }
     }
     this.broadcastState();
   }

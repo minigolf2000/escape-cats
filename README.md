@@ -385,7 +385,10 @@ Both parties persist to `room.storage`, tuned to what each can afford to lose:
   `total`, not elapsed time, so only the proctor's timer jumps). `speed` is
   `?debug`-only and never persisted — a real room always runs at ×1.
   The one write-through exception is proctor **reset** — rehydrating the
-  previous run after an eviction would silently undo it.
+  previous run after an eviction would silently undo it. The tick/persist
+  loops run only while someone is connected: the last socket closing stops
+  them (with a final save), so an empty room is evictable instead of pinning
+  itself in memory — and on the Durable Object duration meter — indefinitely.
 
 ### Team chat
 

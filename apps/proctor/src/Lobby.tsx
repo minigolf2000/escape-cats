@@ -12,8 +12,8 @@ const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
 /**
  * Live view of everyone sitting on the landing page, with the controls to sort
  * them onto teams. A team id is also the room id both games run in, so
- * assigning someone here is what puts them in a room later. Sessions open
- * from the teams overview below, not from here.
+ * assigning someone here is what puts them in a room later. The way into a
+ * room (QR code, reset) is its tile in the teams overview below.
  */
 export function Lobby() {
   const [players, setPlayers] = useState<LobbyPlayer[]>([]);

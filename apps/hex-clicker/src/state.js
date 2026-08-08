@@ -31,7 +31,7 @@ export const game = {
   seen: {}, // upgrade key -> 1 once its row has been laid eyes on
   zoomUntil: 0, // performance.now() ms while Zoomies is active (converted from server time)
   nightAt: null, // wall-clock (server epoch) ms the twist fired — anchors the wall
-  speed: 1, // proctor dev time-scale, mirrored for extrapolation
+  speed: 1, // ?debug dev time-scale, mirrored for extrapolation
 };
 BUILDINGS.forEach((b) => (game.owned[b.id] = 0));
 

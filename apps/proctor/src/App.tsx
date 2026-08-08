@@ -38,8 +38,7 @@ function hexDetail(s: HexSnapshot): string {
   return [
     `${phase} · ${elapsed}`,
     `${Math.floor(s.mice).toLocaleString()} mice · ${Math.round(s.cps).toLocaleString()}/s`,
-    `${boughtN}/${UPGRADES.length} upgrades` +
-      (s.speed !== 1 ? ` · ⏩×${s.speed}` : ""),
+    `${boughtN}/${UPGRADES.length} upgrades`,
   ].join("\n");
 }
 
@@ -57,43 +56,41 @@ function hexToProgress(msg: HexServerMsg): GameProgress | null {
     : null;
 }
 
+/** The whole page is one level: the lobby roster plus every team's tile. No
+ * subviews — everything a proctor does happens from here. */
 export function App() {
-  const [room, setRoom] = useState<string | null>(null);
-
-  if (!room) {
-    return (
-      <div className="setup">
-        <h1>🐾 Escape Cats — Proctor</h1>
-        <Lobby />
-        <TeamsOverview onOpen={setRoom} />
-      </div>
-    );
-  }
-  return <Session room={room} onEnd={() => setRoom(null)} />;
+  return (
+    <div className="setup">
+      <h1>🐾 Escape Cats — Proctor</h1>
+      <Lobby />
+      <TeamsOverview />
+    </div>
+  );
 }
 
 /**
  * Live 4-up view of every team's game room, one proctor socket per team, so
- * the whole night is visible without opening a session. A tile is the way
- * into a team's session (QR code, reset, fast-forward).
+ * the whole night is visible on one screen. A tile carries everything a team
+ * needs: the QR code into its room, live progress, and reset.
  */
-function TeamsOverview({ onOpen }: { onOpen: (teamId: string) => void }) {
+function TeamsOverview() {
   return (
     <section className="overview">
       <h2>Live games</h2>
       <div className="tiles">
         {TEAMS.map((t) => (
-          <TeamTile key={t.id} team={t} onOpen={() => onOpen(t.id)} />
+          <TeamTile key={t.id} team={t} />
         ))}
       </div>
     </section>
   );
 }
 
-function TeamTile({ team, onOpen }: { team: Team; onOpen: () => void }) {
-  const { progress: p } = useGameSocket(team.id, undefined, hexToProgress);
+function TeamTile({ team }: { team: Team }) {
+  const { progress: p, reset } = useGameSocket(team.id, undefined, hexToProgress);
+  const joinUrl = `${HEX_URL}/?room=${team.id}`;
   return (
-    <button className="tile" onClick={onOpen} title="Open session">
+    <div className="tile">
       <div className="tile-head">
         <strong>{team.name}</strong>
         {p?.codeword && (
@@ -103,6 +100,12 @@ function TeamTile({ team, onOpen }: { team: Team; onOpen: () => void }) {
           </span>
         )}
       </div>
+      <div className="qr">
+        <QRCode value={joinUrl} size={120} />
+      </div>
+      <a href={joinUrl} target="_blank" rel="noreferrer" className="join-url">
+        {joinUrl}
+      </a>
       {p ? (
         <>
           <div className="progressbar">
@@ -122,29 +125,9 @@ function TeamTile({ team, onOpen }: { team: Team; onOpen: () => void }) {
       ) : (
         <p className="detail">Connecting…</p>
       )}
-    </button>
-  );
-}
-
-function Session({ room, onEnd }: { room: string; onEnd: () => void }) {
-  const hex = useGameSocket(room, undefined, hexToProgress);
-
-  return (
-    <div className="session">
-      <header>
-        <h1>{TEAMS.find((t) => t.id === room)?.name ?? `Room ${room}`}</h1>
-        <button onClick={onEnd}>End session</button>
-      </header>
-      <div className="games">
-        <GamePanel
-          title="🐱 Hex Clicker"
-          joinUrl={`${HEX_URL}/?room=${room}`}
-          game={hex}
-          // Rehearsal fast-forward: accelerates income + golden cadence on the
-          // server, never click feel. Resets to ×1 with the room.
-          speeds={[1, 5, 20]}
-        />
-      </div>
+      <button className="danger" onClick={reset}>
+        Reset game
+      </button>
     </div>
   );
 }
@@ -156,7 +139,6 @@ function useGameSocket<M>(
 ): {
   progress: GameProgress | null;
   reset: () => void;
-  send: (msg: unknown) => void;
 } {
   const [progress, setProgress] = useState<GameProgress | null>(null);
   const socketRef = useRef<PartySocket | null>(null);
@@ -180,79 +162,10 @@ function useGameSocket<M>(
 
   return {
     progress,
-    send: (msg) => socketRef.current?.send(JSON.stringify(msg)),
     reset: () => {
       if (confirm("Reset this game for the current room?")) {
         socketRef.current?.send(JSON.stringify({ type: "reset" }));
       }
     },
   };
-}
-
-function GamePanel({
-  title,
-  joinUrl,
-  game,
-  speeds,
-}: {
-  title: string;
-  joinUrl: string;
-  game: {
-    progress: GameProgress | null;
-    reset: () => void;
-    send: (msg: unknown) => void;
-  };
-  speeds?: number[];
-}) {
-  const p = game.progress;
-  return (
-    <section className="panel">
-      <h2>{title}</h2>
-      <div className="qr">
-        <QRCode value={joinUrl} size={180} />
-      </div>
-      <a href={joinUrl} target="_blank" rel="noreferrer" className="join-url">
-        {joinUrl}
-      </a>
-      {p ? (
-        <>
-          <div className="progressbar">
-            <div style={{ width: `${p.progress * 100}%` }} />
-          </div>
-          <p className="detail">{p.detail}</p>
-          <p className="players">
-            {p.players.length === 0
-              ? "No players yet"
-              : p.players.map((pl) => (
-                  <span key={pl.id} className={pl.connected ? "" : "offline"}>
-                    {pl.name}
-                  </span>
-                ))}
-          </p>
-          {p.codeword && (
-            <p className="codeword">
-              ✅ Unlocked: {p.codeword}
-              {p.finishedMs !== null && ` in ${mmss(p.finishedMs)}`}
-            </p>
-          )}
-        </>
-      ) : (
-        <p className="detail">Connecting…</p>
-      )}
-      <div className="actions">
-        {speeds && (
-          <span className="speeds">
-            {speeds.map((n) => (
-              <button key={n} onClick={() => game.send({ type: "speed", mult: n })}>
-                ×{n}
-              </button>
-            ))}
-          </span>
-        )}
-        <button className="danger" onClick={game.reset}>
-          Reset game
-        </button>
-      </div>
-    </section>
-  );
 }

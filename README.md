@@ -17,8 +17,8 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on, with a link into the game
 apps/chat/           Per-team chat: one channel per team, roomed by team id
-apps/proctor/        Hidden proctor dashboard: team assignment, live overview
-                     of all four rooms, QR codes, reset, rehearsal fast-forward
+apps/proctor/        Hidden proctor dashboard, one flat page: team assignment,
+                     live overview of all four rooms, QR codes, reset
 packages/shared/     Wire protocol, seeded RNG, and the WHOLE hex
                      game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
                      and the authoritative simulation (hex/sim.ts)
@@ -84,7 +84,7 @@ This starts everything:
 | Team lobby    | http://localhost:5176                      |
 | Team chat     | http://localhost:5177                      |
 
-Open the proctor page, start a session, and scan the QR codes with phones on
+Open the proctor page and scan a team tile's QR code with phones on
 the same wifi (the vite servers listen on the LAN; point
 `VITE_PARTYKIT_HOST` at your machine's LAN IP for phone testing — see
 `.env` handling below).
@@ -96,8 +96,8 @@ windows to appear as different players.
 For balance work on Hex, **`?debug`** runs the shared sim in the page with no
 server at all, and `?speed=N` fast-forwards it — so
 `localhost:5173/?debug&speed=20` walks a whole run in about 20 seconds. It is
-the only mode besides the real game; the proctor's ×1/×5/×20 buttons do the
-same thing to a real room. (`?solo` was the interim name and still works.)
+the only mode besides the real game, and the only fast-forward — a real room
+always runs at ×1. (`?solo` was the interim name and still works.)
 
 `?debug` also mounts a floating **🛠 panel** — grant buttons, story-beat jumps
 (`day` → `legible`, see `packages/shared/src/hex/presets.ts`), time scale and
@@ -128,9 +128,9 @@ Client env vars (Vite, set in `apps/*/.env.local`):
 The server takes no vars. The code word is a constant
 (`HEX_CODEWORD` in `packages/shared/src/hex/data.ts`, paired with the wall
 art), and the proctor identifies itself with `?role=proctor` — a claim, not a
-credential. Anyone who opens `/proctor` can run a session; that is accepted,
-not overlooked. Nothing here defends against a determined player, and the
-only powers on offer are reset and speed on a room you are already in.
+credential. Anyone who opens `/proctor` can watch and reset the rooms; that is
+accepted, not overlooked. Nothing here defends against a determined player,
+and the only power on offer is reset on a room you are already in.
 
 ## Deploying
 
@@ -383,8 +383,8 @@ Both parties persist to `room.storage`, tuned to what each can afford to lose:
   build rate, **capped at 30s** — a room left open overnight does not hand the
   next team a fortune — and elapsed time stays wall-clock (the reveal keys off
   `total`, not elapsed time, so only the proctor's timer jumps). `speed` is
-  never persisted: inheriting a rehearsal ×20 into a live session would ruin
-  it. The one write-through exception is proctor **reset** — rehydrating the
+  `?debug`-only and never persisted — a real room always runs at ×1.
+  The one write-through exception is proctor **reset** — rehydrating the
   previous run after an eviction would silently undo it.
 
 ### Team chat

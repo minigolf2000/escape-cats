@@ -114,16 +114,6 @@ export class HexServer extends Server<Env> {
         // after an eviction would silently undo the proctor's reset.
         void this.persist();
         break;
-      case "speed": {
-        // Dev time-scale for rehearsals: accelerates income + golden cadence,
-        // never click feel. Proctor only, clamped to something sane.
-        if (!proctor) return;
-        const m = Number(msg.mult);
-        this.sim.state.speed = Number.isFinite(m)
-          ? Math.max(0.25, Math.min(50, m))
-          : 1;
-        break;
-      }
     }
     this.broadcastState();
   }

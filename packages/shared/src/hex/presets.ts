@@ -42,10 +42,15 @@ export const DEBUG_PRESETS: Record<string, HexPreset> = {
   // THE WALL OPENS. Night lifetime is deliberately small — the ramp is still
   // filling, so this is a dozen anonymous white specks over an unlit scene,
   // which is what the phase actually looks like for its first half minute. No
-  // day buildings: the flip wipes them (see nightReset). The bank clears Lucid
-  // Dreaming I's 50k, so the next beat is one press away too.
+  // day buildings: the flip wipes them (see nightReset). The BANK IS EMPTY for
+  // the same reason: the twist zeroes `mice`, and this preset is the moment
+  // just after it, so arriving here by button has to feel as broke as arriving
+  // here by buying Catnap. Everything the 30000 lifetime bought is already
+  // standing in `owned`; the next rung is earned, not handed over. (The later
+  // night presets DO carry a bank — each of them is deliberately one press
+  // from its beat, which is a different thing to show.)
   night: {
-    total: 30000, mice: 120000, clicks: 550, golden: 3,
+    total: 30000, mice: 0, clicks: 550, golden: 3,
     owned: { portal: 10, spindle: 3 },
     bought: ["catnap"],
   },

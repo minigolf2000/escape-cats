@@ -12,9 +12,10 @@ const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
 /**
  * Live view of everyone sitting on the landing page, with the controls to sort
  * them onto teams. A team id is also the room id both games run in, so
- * assigning someone here is what puts them in a room later.
+ * assigning someone here is what puts them in a room later. Sessions open
+ * from the teams overview below, not from here.
  */
-export function Lobby({ onOpenTeam }: { onOpenTeam: (teamId: string) => void }) {
+export function Lobby() {
   const [players, setPlayers] = useState<LobbyPlayer[]>([]);
   const [online, setOnline] = useState(false);
   const socketRef = useRef<PartySocket | null>(null);
@@ -101,13 +102,6 @@ export function Lobby({ onOpenTeam }: { onOpenTeam: (teamId: string) => void }) 
                   <PlayerRow key={p.pid} player={p} onAssign={send} />
                 ))}
               </ul>
-              <button
-                className="small"
-                disabled={members.length === 0}
-                onClick={() => onOpenTeam(team.id)}
-              >
-                Open session
-              </button>
             </div>
           );
         })}

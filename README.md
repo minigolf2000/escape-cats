@@ -17,8 +17,8 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on, with a link into the game
 apps/chat/           Per-team chat: one channel per team, roomed by team id
-apps/proctor/        Hidden proctor dashboard: team assignment, QR codes, live
-                     progress, reset, rehearsal fast-forward
+apps/proctor/        Hidden proctor dashboard: team assignment, live overview
+                     of all four rooms, QR codes, reset, rehearsal fast-forward
 packages/shared/     Wire protocol, seeded RNG, and the WHOLE hex
                      game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
                      and the authoritative simulation (hex/sim.ts)
@@ -366,7 +366,7 @@ lobby for this pid's team and slots straight in. A phone the proctor hasn't
 sorted yet gets a waiting screen, not an error — opening the game page
 registers the phone in the lobby roster (same pid+name contract as the landing
 page), so it appears on the proctor's list and enters the game the moment it's
-assigned. `?room=` still overrides for QR codes and ad-hoc rehearsal rooms;
+assigned. `?room=` still overrides for QR codes (which carry the team id);
 `?debug` bypasses the server entirely. The room is deliberately NOT written
 back into the URL on the lobby path, so a refresh re-asks the lobby and a
 proctor re-sort takes effect on reload.

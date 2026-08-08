@@ -3,28 +3,26 @@ import PartySocket from "partysocket";
 import QRCode from "react-qr-code";
 import { Lobby } from "./Lobby";
 import {
+  TEAMS,
   UPGRADES,
   type HexServerMsg,
   type HexSnapshot,
   type PlayerInfo,
+  type Team,
 } from "@escape-cats/shared";
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
 const HEX_URL = import.meta.env.VITE_HEX_URL ?? "http://localhost:5173";
-
-function randomRoomCode(): string {
-  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // no I/O — QR text stays unambiguous
-  return Array.from(
-    crypto.getRandomValues(new Uint8Array(4)),
-    (b) => letters[b % letters.length],
-  ).join("");
-}
 
 interface GameProgress {
   progress: number;
   players: PlayerInfo[];
   detail: string;
   codeword: string | null;
+  /** The run's finish time (legibleAt - startedAt), null until the wall is
+   * readable. Lives in room storage with the rest of the run, so it survives
+   * evictions but not a reset. */
+  finishedMs: number | null;
 }
 
 const mmss = (ms: number) => {
@@ -35,7 +33,8 @@ const mmss = (ms: number) => {
 function hexDetail(s: HexSnapshot): string {
   const phase = s.nightAt ? "🌙 night" : "☀️ day";
   const boughtN = Object.keys(s.bought).length;
-  const elapsed = mmss(s.serverTime - s.startedAt);
+  // The clock freezes at the finish — the run is scored, stop counting.
+  const elapsed = mmss((s.legibleAt ?? s.serverTime) - s.startedAt);
   return [
     `${phase} · ${elapsed}`,
     `${Math.floor(s.mice).toLocaleString()} mice · ${Math.round(s.cps).toLocaleString()}/s`,
@@ -44,52 +43,96 @@ function hexDetail(s: HexSnapshot): string {
   ].join("\n");
 }
 
+function hexToProgress(msg: HexServerMsg): GameProgress | null {
+  return msg.type === "state"
+    ? {
+        progress: msg.state.progress,
+        players: msg.state.players,
+        detail: hexDetail(msg.state),
+        codeword: msg.state.codeword,
+        finishedMs: msg.state.legibleAt
+          ? msg.state.legibleAt - msg.state.startedAt
+          : null,
+      }
+    : null;
+}
+
 export function App() {
   const [room, setRoom] = useState<string | null>(null);
-  const [draft, setDraft] = useState(() => randomRoomCode());
 
   if (!room) {
     return (
       <div className="setup">
         <h1>🐾 Escape Cats — Proctor</h1>
-        <Lobby onOpenTeam={setRoom} />
-        <details className="adhoc">
-          <summary>Ad-hoc room</summary>
-          <p>For a rehearsal or a team that isn't in the lobby.</p>
-          <div className="row">
-            <input
-              value={draft}
-              maxLength={8}
-              onChange={(e) => setDraft(e.target.value.toUpperCase().trim())}
-            />
-            <button onClick={() => setDraft(randomRoomCode())}>🎲</button>
-          </div>
-          <button className="primary" disabled={!draft} onClick={() => setRoom(draft)}>
-            Start session
-          </button>
-        </details>
+        <Lobby />
+        <TeamsOverview onOpen={setRoom} />
       </div>
     );
   }
   return <Session room={room} onEnd={() => setRoom(null)} />;
 }
 
-function Session({ room, onEnd }: { room: string; onEnd: () => void }) {
-  const hex = useGameSocket(room, undefined, (msg: HexServerMsg): GameProgress | null =>
-    msg.type === "state"
-      ? {
-          progress: msg.state.progress,
-          players: msg.state.players,
-          detail: hexDetail(msg.state),
-          codeword: msg.state.codeword,
-        }
-      : null,
+/**
+ * Live 4-up view of every team's game room, one proctor socket per team, so
+ * the whole night is visible without opening a session. A tile is the way
+ * into a team's session (QR code, reset, fast-forward).
+ */
+function TeamsOverview({ onOpen }: { onOpen: (teamId: string) => void }) {
+  return (
+    <section className="overview">
+      <h2>Live games</h2>
+      <div className="tiles">
+        {TEAMS.map((t) => (
+          <TeamTile key={t.id} team={t} onOpen={() => onOpen(t.id)} />
+        ))}
+      </div>
+    </section>
   );
+}
+
+function TeamTile({ team, onOpen }: { team: Team; onOpen: () => void }) {
+  const { progress: p } = useGameSocket(team.id, undefined, hexToProgress);
+  return (
+    <button className="tile" onClick={onOpen} title="Open session">
+      <div className="tile-head">
+        <strong>{team.name}</strong>
+        {p?.codeword && (
+          <span className="codeword">
+            ✅ {p.codeword}
+            {p.finishedMs !== null && ` · ${mmss(p.finishedMs)}`}
+          </span>
+        )}
+      </div>
+      {p ? (
+        <>
+          <div className="progressbar">
+            <div style={{ width: `${p.progress * 100}%` }} />
+          </div>
+          <p className="detail">{p.detail}</p>
+          <p className="players">
+            {p.players.length === 0
+              ? "No players yet"
+              : p.players.map((pl) => (
+                  <span key={pl.id} className={pl.connected ? "" : "offline"}>
+                    {pl.name}
+                  </span>
+                ))}
+          </p>
+        </>
+      ) : (
+        <p className="detail">Connecting…</p>
+      )}
+    </button>
+  );
+}
+
+function Session({ room, onEnd }: { room: string; onEnd: () => void }) {
+  const hex = useGameSocket(room, undefined, hexToProgress);
 
   return (
     <div className="session">
       <header>
-        <h1>Room {room}</h1>
+        <h1>{TEAMS.find((t) => t.id === room)?.name ?? `Room ${room}`}</h1>
         <button onClick={onEnd}>End session</button>
       </header>
       <div className="games">
@@ -186,7 +229,12 @@ function GamePanel({
                   </span>
                 ))}
           </p>
-          {p.codeword && <p className="codeword">✅ Unlocked: {p.codeword}</p>}
+          {p.codeword && (
+            <p className="codeword">
+              ✅ Unlocked: {p.codeword}
+              {p.finishedMs !== null && ` in ${mmss(p.finishedMs)}`}
+            </p>
+          )}
         </>
       ) : (
         <p className="detail">Connecting…</p>

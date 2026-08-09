@@ -60,6 +60,28 @@
     --gold: #ffd44d;
     --neon: #57e6c9;
     --ss: 1.5;  /* shop skin scale (locked) */
+    /* THE TAP CURVE — every move a finger asks for directly (the shop tray, its
+       caret) runs on this. `ease` is the wrong shape for those: it is
+       cubic-bezier(.25,.1,.25,1), which leaves the start slope BELOW linear, so
+       the first ~60ms after a tap is the slowest part of the travel. That gap
+       between finger-down and anything visibly moving is what reads as lag —
+       the duration was never the problem.
+       This curve leaves at ~5x linear instead, so the tray is already most of
+       the way there while the tap still feels current, then settles long. It is
+       dockIn's curve, deliberately: the dock arrives on it, so the tray opening
+       and shutting on it makes the whole thing one piece of furniture rather
+       than a panel with its own motion vocabulary. Both directions get it —
+       symmetric, because a collapse is just as much a direct answer to a tap as
+       an expand is, and there is nothing to "settle into" on the way out that
+       an accelerate curve would be describing. */
+    --tap-ease: cubic-bezier(.16, .84, .44, 1);
+    /* Paired with the curve above and shared by both, so the tray and its caret
+       cannot drift apart. Shorter than the .25s it replaces, but that is the
+       small half of the change — with a front-loaded curve, 220ms of this reads
+       faster than 250ms of `ease` by a wider margin than the 30ms suggests.
+       SHOP_CLOSE_MS in shop.js is this number: the sold-out beat waits on this
+       transition before it relabels the rail. Move one, move the other. */
+    --tap-ms: .22s;
     /* Where the day sunburst converges inside #stage, and therefore where Hex
        is parked: #rays hangs its center here and #catWrap offsets from the same
        number. Above true center because the shop owns the bottom of the screen.
@@ -719,7 +741,10 @@
     width: calc(6px * var(--ss)); height: calc(6px * var(--ss));
     border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
     transform: translateY(calc(-2px * var(--ss))) rotate(45deg);
-    transition: transform .25s ease;
+    /* Same clock AND same curve as the tray it points at — the caret is the only
+       part of the rail that moves, so if it eased differently it would read as a
+       second, slower animation chasing the first. */
+    transition: transform var(--tap-ms) var(--tap-ease);
   }
   /* .closing rides the same rotation as a hand-collapsed shop: the last purchase
      shutting the tray should look like the tray shutting, not like a new gesture. */
@@ -852,7 +877,7 @@
   #shopScroll {
     max-height: min(calc(300px * var(--ss)), 46vh);
     overflow-y: auto; overscroll-behavior: contain;
-    position: relative; transition: max-height .25s ease;
+    position: relative; transition: max-height var(--tap-ms) var(--tap-ease);
   }
   #shopScroll::-webkit-scrollbar { width: 0; }
   #shop { padding: 0; }

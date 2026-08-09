@@ -431,7 +431,11 @@ export function refreshHud() {
 // holds, then the dock leaves (the night's finale is reading the wall, and
 // #dock is a blurred band across the bottom of it).
 // ---------------------------------------------------------------------------
-const SHOP_CLOSE_MS = 250; // #shopScroll's max-height transition
+// #shopScroll's max-height transition — must equal --tap-ms in index.html, which
+// the tray shares with the caret. The sold-out beat hands off to the sign only
+// once the tray has finished shutting, so a mismatch here either relabels the
+// rail over a tray still in motion or leaves a dead beat after it lands.
+const SHOP_CLOSE_MS = 220;
 const SHOP_SIGN_MS = 1800; // how long the closed sign holds before the dock leaves
 const SHOP_OUT_MS = 500; // the dockOut animation
 // Bumped by every start and every abandonment of the beat, so an orphaned

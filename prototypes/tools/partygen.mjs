@@ -32,7 +32,8 @@ const vfloor = (x0, x1, y, cx, dip = 9) => seg([x0, y], [cx, y + dip], [x1, y]);
 // Deep-dish floor: gentle shoulders, steep 32-wide dip at cx. She settles in
 // ~2s instead of surfing a shallow bowl for 14 — fails must read FAST.
 const dishFloor = (x0, x1, y, cx, dip = 13) =>
-  seg([x0, y], [cx - 16, y + 3], [cx, y + dip], [cx + 16, y + 3], [x1, y]);
+  seg([x0, y], [Math.max(x0, cx - 16), y + 3], [cx, y + dip],
+      [Math.min(x1, cx + 16), y + 3], [x1, y]);
 
 // ------------------------------------------------- CUSHION · bounce chambers
 // Sealed chambers with a bouncy-pillow floor. Bare run = vertical boing (loop
@@ -88,7 +89,7 @@ function needleChambers(N) {
     const ceilY = top + k * (Hc + drop);
     const floorY = ceilY + Hc;
     if (k === 0) terrain.push(seg([20, ceilY], [W, ceilY]));
-    else terrain.push(seg([8, ceilY], [W, ceilY]));
+    else terrain.push(seg([13, ceilY], [W, ceilY]));
     terrain.push(seg([(g0 + g1) / 2, ceilY], [(g0 + g1) / 2, ceilY + stal]));  // stalactite
     terrain.push(seg([0, floorY], [g0, floorY]));                    // floor L
     terrain.push(seg([g0, floorY], [g0, floorY - finH]));            // fin L
@@ -99,30 +100,30 @@ function needleChambers(N) {
     // chute below the slot + jog kicker to the left wall
     terrain.push(seg([g0, floorY], [g0, floorY + 16]));
     terrain.push(seg([g1, floorY], [g1, floorY + 18]));
-    terrain.push(seg([g1, floorY + 18], [4, floorY + 28]));          // kicker
+    terrain.push(seg([g1, floorY + 18], [8, floorY + 26]));          // kicker
   }
   terrain.push(dishFloor(0, W, bY, 51));
   return { budget: N, start, goal: [51, bY + 10], terrain, cushions };
 }
 
 // ------------------------------------------------- UPDRAFT · lift rooms
-// PHYSICS: inside a room-filling lift she rises ONCE (monotone, net +65 up)
-// and pins to the ceiling forever — so each room is a one-shot interception:
-// a band-rail across her rise diagonal flings her through the mid-wall
-// window. The window feeds a sealed drop duct (wall kills speed, kicker at
-// the bottom slides her into the next room) — stage state is normalized and
-// no line of sight exists between windows, so every room needs its own band.
-// tier 2: taller rooms (faster pin), higher windows with sill fins.
-// tier 3 (Air Pockets): the lift is SPLIT by a dead-air gap — the rail must
-// throw her across the gap into the second lift, which carries her up to the
-// window. Sink, swoop, rise.
-function liftRooms(N, { Hr = 62, winH = 14, winUp = 40, sill = 0, split = false } = {}) {
+// PHYSICS: the kicker entry + room-filling lift launch her on a steep rising
+// sweep to the far wall's TOP, where she pins to the ceiling (fail). The
+// window is LOW — 20 units above the floor — where no bare sweep can ever
+// arrive. The band is a flat RAIL laid across the room: the lift pins her to
+// its underside and she skims it all the way into the window. Every room's
+// exit feeds a sealed drop duct + kicker, so rooms stay independent.
+// tier 2: taller rooms, lower/narrower windows behind a sill fin.
+// tier 3 (Air Pockets): the lift has a dead-air gap mid-room — she dips off
+// the rail as she crosses it and the far lift catches her. Skim, sag, swoop.
+function liftRooms(N, { Hr = 62, winH = 14, winUp = 20, sill = 0, split = false } = {}) {
   const W = 104, duct = 14, top = 22;
   const terrain = [];
   const updrafts = [];
   const iL = duct, iR = W - duct;                    // interior walls
-  // start: shelf over the left duct; she falls to room 0's kicker
+  // start: shelf over the left duct; the duct wall stops the start push
   terrain.push(seg([-6, 0], [8, 4]));
+  terrain.push(seg([iL, -8], [iL, top]));
   terrain.push(seg([0, -8], [0, top + N * Hr]));     // outer left wall
   terrain.push(seg([W, top], [W, top + N * Hr]));    // outer right wall
   terrain.push(seg([iL, top], [W, top]));            // roof over interior+right duct
@@ -131,13 +132,13 @@ function liftRooms(N, { Hr = 62, winH = 14, winUp = 40, sill = 0, split = false 
     const ceilY = top + k * Hr, floorY = ceilY + Hr;
     const enterL = k % 2 === 0;                      // room 0 entered bottom-left
     const [eIn, eOut] = enterL ? [iL, 0] : [iR, W];  // entry duct walls
-    const [xIn, xOut] = enterL ? [iR, W] : [iL, 0];  // exit side walls
-    const wy = ceilY + winUp;                        // window center
+    const xIn = enterL ? iR : iL;                    // exit-side interior wall
+    const wy = floorY - winUp;                       // window center — LOW
     // entry-side interior wall: solid from ceiling down to the kicker mouth
     terrain.push(seg([eIn, ceilY], [eIn, floorY - 16]));
     // kicker in the entry duct: slides her into the room along the floor
     terrain.push(seg([eOut, floorY - 14], [eIn, floorY - 2]));
-    // exit-side interior wall with the window hole
+    // exit-side interior wall with the low window hole
     terrain.push(seg([xIn, ceilY], [xIn, wy - winH / 2]));
     terrain.push(seg([xIn, wy + winH / 2], [xIn, floorY]));
     if (sill) terrain.push(seg(enterL ? [xIn - sill, wy + winH / 2] : [xIn + sill, wy + winH / 2],
@@ -145,22 +146,18 @@ function liftRooms(N, { Hr = 62, winH = 14, winUp = 40, sill = 0, split = false 
     // room floor (slab, doubles as next room's ceiling)
     terrain.push(seg([iL, floorY], [iR, floorY]));
     if (split) {                                     // dead-air gap mid-room
-      const g0 = enterL ? 46 : 34, g1 = enterL ? 70 : 58;
-      updrafts.push({ x: iL + 1, y: ceilY + 2, w: (enterL ? g0 : g1) - iL - 2, h: Hr - 4 });
-      updrafts.push({ x: enterL ? g1 : g0 + 1, y: ceilY + 2, w: enterL ? iR - g1 - 1 : iR - g0 - 2, h: Hr - 4 });
-      terrain.push(seg([g0, floorY], [(g0 + g1) / 2, floorY + 0.1], [g1, floorY]));
+      const g0 = enterL ? 44 : 40, g1 = g0 + 20;
+      updrafts.push({ x: iL + 1, y: ceilY + 2, w: g0 - iL - 1, h: Hr - 4 });
+      updrafts.push({ x: g1, y: ceilY + 2, w: iR - g1 - 1, h: Hr - 4 });
     } else {
       updrafts.push({ x: iL + 1, y: ceilY + 2, w: iR - iL - 2, h: Hr - 4 });
     }
-    gy = floorY; gRight = !enterL;
+    gy = floorY; gRight = enterL;                    // exit duct side of room k
   }
   // last window's duct bottoms out on the cake
   const cakeX = gRight ? (iR + W) / 2 : duct / 2;
-  terrain.push(seg([0, top + N * Hr], [W, top + N * Hr + (gRight ? 6 : -6)]).map(p => p));
-  terrain[terrain.length - 1] = gRight
-    ? seg([0, gy], [iR, gy], [cakeX, gy + 10], [W, gy])
-    : seg([0, gy], [cakeX, gy + 10], [iL, gy], [W, gy]);
-  return { budget: N, start: [2, 1], goal: [cakeX, gy + 6], terrain, updrafts };
+  terrain.push(dishFloor(0, W, gy, cakeX, 12));
+  return { budget: N, start: [2, 1], goal: [cakeX, gy + 8], terrain, updrafts };
 }
 // -------------------------------------------------- BUMPER · piñata chambers
 // The kick is a REVERSAL: a radial bounce throws her back the way she came,
@@ -178,7 +175,7 @@ function pinataChambers(N, { gap = 16, fin = 34, lowCeil = false, dodge = false 
   const bumpers = [];
   // entry: shelf, then a kicker slab walls her onto the left wall
   terrain.push(seg([-6, 0], [10, 5]));
-  terrain.push(seg([34, 16], [4, 26]));
+  terrain.push(seg([34, 16], [8, 24]));
   const start = [4, 2];
   const bY = top + N * (Hc + drop);
   terrain.push(seg([0, -8], [0, bY]));
@@ -186,7 +183,7 @@ function pinataChambers(N, { gap = 16, fin = 34, lowCeil = false, dodge = false 
   for (let k = 0; k < N; k++) {
     const ceilY = top + k * (Hc + drop);
     const floorY = ceilY + Hc;
-    terrain.push(seg([8, ceilY], [W, ceilY]));
+    terrain.push(seg([13, ceilY], [W, ceilY]));
     bumpers.push({ x: 72, y: ceilY + 56 });
     if (dodge) bumpers.push({ x: 38, y: ceilY + 24 });
     if (lowCeil) terrain.push(seg([52, ceilY], [52, ceilY + 30]));
@@ -195,7 +192,7 @@ function pinataChambers(N, { gap = 16, fin = 34, lowCeil = false, dodge = false 
     terrain.push(dishFloor(g1, W, floorY, 70, 12));                  // right dish
     // slot chute + jog kicker back to the left wall
     terrain.push(seg([g0, floorY], [g0, floorY + 16]));
-    terrain.push(seg([g1, floorY + 18], [4, floorY + 28]));          // kicker
+    terrain.push(seg([g1, floorY + 18], [8, floorY + 26]));          // kicker
   }
   terrain.push(dishFloor(0, W, bY, 51));
   return { budget: N, start, goal: [51, bY + 10], terrain, bumpers };
@@ -229,11 +226,11 @@ function cannonRelay(N, { gap = 16, fin = 0, spd = 104, thread = false } = {}) {
     if (rightward) {
       terrain.push(dishFloor(0, gx0, floorY, 54, 12));
       terrain.push(seg([gx0, floorY + chute], [gx0, floorY - Math.max(fin, 6)]));
-      if (thread) terrain.push(seg([70, ceilY], [70, ceilY + 26]));
+      if (thread) terrain.push(seg([70, ceilY], [70, ceilY + 22]));
     } else {
       terrain.push(dishFloor(gx1, W, floorY, W - 54, 12));
       terrain.push(seg([gx1, floorY + chute], [gx1, floorY - Math.max(fin, 6)]));
-      if (thread) terrain.push(seg([W - 70, ceilY], [W - 70, ceilY + 26]));
+      if (thread) terrain.push(seg([W - 70, ceilY], [W - 70, ceilY + 22]));
     }
   }
   terrain.push(dishFloor(0, W, bY, cx));
@@ -293,17 +290,17 @@ export const FAMILIES = [
     build: N => needleChambers(N) },
 
   { id: 'updraft-1', mechanic: 'updraft', tier: 1, name: 'Balloon Bellows',
-    hint: 'she gets ONE ride up, then sticks to the ceiling — catch her on the way',
-    hint2: 'lay a rail across her climb; she rides its underside out the window',
-    build: N => liftRooms(N, { Hr: 62, winH: 14, winUp: 40 }) },
+    hint: 'the balloons pin her to the ceiling — unless a rail holds her DOWN',
+    hint2: 'lay a flat band across the room: she skims its underside into the low window',
+    build: N => liftRooms(N, { Hr: 62, winH: 14, winUp: 20 }) },
   { id: 'updraft-2', mechanic: 'updraft', tier: 2, name: 'Organ Pipes',
-    hint: 'taller pipes, higher windows, and a sill in the way — aim above it',
-    hint2: 'intercept her climb EARLY and send her up-and-over the sill',
-    build: N => liftRooms(N, { Hr: 76, winH: 12, winUp: 30, sill: 10 }) },
+    hint: 'taller pipes, meaner windows, and a sill lip to clear at the end',
+    hint2: 'tilt the rail a hair upward so she hops the sill as she exits',
+    build: N => liftRooms(N, { Hr: 78, winH: 12, winUp: 16, sill: 8 }) },
   { id: 'updraft-3', mechanic: 'updraft', tier: 3, name: 'Air Pockets',
-    hint: 'the lift has a hole in the middle — throw her across the dead air',
-    hint2: 'the far lift finishes the job; your rail just has to bridge the gap',
-    build: N => liftRooms(N, { Hr: 66, winH: 14, winUp: 28, split: true }) },
+    hint: 'the lift has a hole in the middle — she sags off the rail crossing it',
+    hint2: 'aim the rail a touch high: the sag brings her back level with the window',
+    build: N => liftRooms(N, { Hr: 66, winH: 14, winUp: 20, split: true }) },
 
   { id: 'bumper-1', mechanic: 'bumper', tier: 1, name: 'Piñata Practice',
     hint: 'piñatas hit BACK — ramp her in hard and ride the counterpunch home',
@@ -329,7 +326,7 @@ export const FAMILIES = [
   { id: 'popper-3', mechanic: 'popper', tier: 3, name: 'Grand Salute',
     hint: 'a fin hangs mid-arc: thread the window, then still hit the gap',
     hint2: 'lift the arc early so she clears the fin, then kill it at the wall',
-    build: N => cannonRelay(N, { gap: 12, fin: 12, spd: 118, thread: true }) },
+    build: N => cannonRelay(N, { gap: 14, fin: 6, spd: 118, thread: true }) },
 
   { id: 'plants-1', mechanic: 'plants', tier: 1, name: 'Window Boxes',
     hint: 'every snake plant hides in a wall pocket — dip into each on the way down',

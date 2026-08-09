@@ -135,7 +135,10 @@
       <button class="devbtn" id="importBtn">📄 import SVG</button>
       <button class="devbtn" id="verifyBtn">🧪 verify level</button>
     </div>
-    <div class="devrow"><button class="devbtn" id="labBtn">🔬 level lab</button></div>
+    <div class="devrow">
+      <button class="devbtn" id="labBtn">🔬 level lab</button>
+      <button class="devbtn" id="partyBtn">🎉 party pack</button>
+    </div>
     <input id="svgFile" type="file" accept=".svg,image/svg+xml" hidden>
   </div>
   <button id="clear">clear bands</button>
@@ -805,9 +808,10 @@ function syncHud() {
     (fails >= 3 && L.hint2 ? '💡 ' + L.hint2 : L.hint);
   dotsEl.innerHTML = '';
   LEVELS.forEach((Li, i) => {
+    if (Li.party && i !== level) return;   // 45 party levels would flood the row — use the lab
     const d = document.createElement('div');
-    const open = i <= unlocked || Li.custom;
-    d.className = 'dot' + (Li.custom ? ' custom' : '') + (i === level ? ' cur' : open ? ' open' : '');
+    const open = i <= unlocked || Li.custom || Li.party;
+    d.className = 'dot' + (Li.custom || Li.party ? ' custom' : '') + (i === level ? ' cur' : open ? ' open' : '');
     if (open) d.onclick = () => { if (state !== 'run') { loadLevel(i); } };
     dotsEl.appendChild(d);
   });
@@ -925,6 +929,27 @@ function labTap(px, py) {
   }
   return false;
 }
+// Party pack: the verified 2/3/4-player suite lives in goomba-party-levels.json
+// (built by tools/partybuild.mjs). Loaded on demand; browse it in the 🔬 lab.
+let partyLoaded = false;
+function installPartyLevels(list) {
+  for (const L of list) {
+    L.party = true;
+    LEVELS.push(initLevel(L));
+    // pre-verified by tools/partycheck.mjs — skip ~100 sims on first lab paint
+    labVerdicts.set(LEVELS.length - 1, { bare: 'fail', sol: 'win', ok: true });
+  }
+  partyLoaded = true;
+  toast(`🎉 ${list.length} party levels loaded — pick one in the lab`, 2200);
+  openLab();
+}
+$('partyBtn').onclick = () => {
+  if (partyLoaded) { openLab(); return; }
+  fetch('goomba-party-levels.json')
+    .then(r => { if (!r.ok) throw new Error('party pack not found'); return r.json(); })
+    .then(installPartyLevels)
+    .catch(err => toast('⚠️ ' + err.message, 2400));
+};
 $('verifyBtn').onclick = () => {
   const L = LEVELS[level];
   const bare = simulate(level, []);

@@ -58,36 +58,62 @@ export async function injectLevels(page, levels) {
 
 // Greedy beam search for a winning band set (same idea as solve.mjs, but works
 // on any level index and returns the set). seed makes runs reproducible.
-export async function solve(page, li, budget, K = 3500, seed = 8675309, rounds = 1) {
-  return page.evaluate(({ li, budget, K, seed, rounds }) => {
+export async function solve(page, li, budget, K = 3500, seed = 8675309, rounds = 1, prefix = null) {
+  return page.evaluate(({ li, budget, K, seed, rounds, prefix }) => {
     const { simulate, LEVELS, BAND_MAX } = window.__gr;
     const L = LEVELS[li], b = L.bounds;
     let s = seed;
     const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    // interesting fixed targets a band might want to reach toward
+    const targets = [...L.plants, ...L.bumpers.map(o => [o.x, o.y]),
+                     ...L.pops.map(o => [o.x, o.y]), L.goal];
+    const trajPt = traj => {
+      const t = rnd() < 0.5 ? rnd() : 1 - rnd() * rnd() * 0.35;   // bias to the END
+      return traj[Math.min(traj.length - 1, (t * traj.length) | 0)];
+    };
+    const inBounds = (ax, ay, bx, by) =>
+      !(Math.min(ax, bx) < b.x0 - 6 || Math.max(ax, bx) > b.x1 + 6 ||
+        Math.min(ay, by) < b.y0 - 6 || Math.max(ay, by) > b.y1 + 6);
+    const mk = (ax, ay, bx, by) => {
+      const len = Math.hypot(bx - ax, by - ay);
+      if (len < 8 || len > BAND_MAX || !inBounds(ax, ay, bx, by)) return null;
+      return [[+ax.toFixed(1), +ay.toFixed(1)], [+bx.toFixed(1), +by.toFixed(1)]];
+    };
     const randBand = traj => {
       for (let tries = 0; tries < 40; tries++) {
-        let cx, cy;
         const roll = rnd();
-        if (roll < 0.55 && traj && traj.length) {
-          // half uniform along the path, half biased to its END — the stuck
-          // point is where the next band has to act
-          const t = rnd() < 0.5 ? rnd() : 1 - rnd() * rnd() * 0.35;
-          const p = traj[Math.min(traj.length - 1, (t * traj.length) | 0)];
+        const J = () => (rnd() * 2 - 1) * 8;
+        if (roll < 0.12 && traj && traj.length > 4) {
+          // RAIL: both endpoints near the path — long shallow ramps the pure
+          // point-cloud sampler almost never produces
+          const p = trajPt(traj), q = trajPt(traj);
+          const nb = mk(p[0] + J(), p[1] + J(), q[0] + J(), q[1] + J());
+          if (nb) return nb;
+          continue;
+        }
+        if (roll < 0.26 && traj && traj.length && targets.length) {
+          // CONNECTOR: from the path toward a plant/piñata/popper/goal
+          const p = trajPt(traj), m = targets[(rnd() * targets.length) | 0];
+          const t = 0.3 + rnd() * 0.7;
+          const nb = mk(p[0] + J(), p[1] + J(),
+                        p[0] + (m[0] - p[0]) * t + J(), p[1] + (m[1] - p[1]) * t + J());
+          if (nb) return nb;
+          continue;
+        }
+        let cx, cy;
+        if (roll < 0.68 && traj && traj.length) {
+          const p = trajPt(traj);
           cx = p[0] + (rnd() * 2 - 1) * 18; cy = p[1] + (rnd() * 2 - 1) * 18;
-        } else if (roll < 0.8 && L.plants.length) {
-          const m = L.plants[(rnd() * L.plants.length) | 0];
+        } else if (roll < 0.88 && targets.length) {
+          const m = targets[(rnd() * targets.length) | 0];
           cx = m[0] + (rnd() * 2 - 1) * 26; cy = m[1] + (rnd() * 2 - 1) * 26;
-        } else if (roll < 0.9) {
-          cx = L.goal[0] + (rnd() * 2 - 1) * 30; cy = L.goal[1] + (rnd() * 2 - 1) * 30;
         } else {
           cx = b.x0 + rnd() * (b.x1 - b.x0); cy = b.y0 + rnd() * (b.y1 - b.y0);
         }
         const ang = rnd() * 6.283, len = 8 + rnd() * (BAND_MAX - 10);
-        const ax = cx - Math.cos(ang) * len / 2, ay = cy - Math.sin(ang) * len / 2;
-        const bx = cx + Math.cos(ang) * len / 2, by = cy + Math.sin(ang) * len / 2;
-        if (Math.min(ax, bx) < b.x0 - 6 || Math.max(ax, bx) > b.x1 + 6 ||
-            Math.min(ay, by) < b.y0 - 6 || Math.max(ay, by) > b.y1 + 6) continue;
-        return [[+ax.toFixed(1), +ay.toFixed(1)], [+bx.toFixed(1), +by.toFixed(1)]];
+        const nb = mk(cx - Math.cos(ang) * len / 2, cy - Math.sin(ang) * len / 2,
+                      cx + Math.cos(ang) * len / 2, cy + Math.sin(ang) * len / 2);
+        if (nb) return nb;
       }
       return null;
     };
@@ -95,20 +121,30 @@ export async function solve(page, li, budget, K = 3500, seed = 8675309, rounds =
       const r = simulate(li, set);
       let best = 1e9, plants = 0;
       const got = L.plants.map(() => false);
+      const pd = L.plants.map(() => 1e9);            // closest approach per plant
       for (const p of r.traj) {
         const d = Math.hypot(p[0] - L.goal[0], p[1] - L.goal[1]);
         if (d < best) best = d;
         L.plants.forEach((m, i) => {
-          if (!got[i] && Math.hypot(p[0] - m[0], p[1] - m[1]) < 8) { got[i] = true; plants++; }
+          const dm = Math.hypot(p[0] - m[0], p[1] - m[1]);
+          if (dm < pd[i]) pd[i] = dm;
+          if (!got[i] && dm < 8) { got[i] = true; plants++; }
         });
       }
-      return { s: (r.result === 'win' ? 1e6 : 0) + plants * 1000 - best, r: r.result, plants,
-               near: +best.toFixed(1), traj: r.traj };
+      // gradient toward uncollected plants: a rail that ALMOST reaches a
+      // pocket must outrank one that ignores it, or the beam random-walks
+      let lure = 0;
+      pd.forEach((d, i) => { if (!got[i]) lure += Math.max(0, 60 - d) * 6; });
+      return { s: (r.result === 'win' ? 1e6 : 0) + plants * 1000 + lure - best,
+               r: r.result, plants, near: +best.toFixed(1), traj: r.traj };
     };
     let bestOut = null;
     for (let round = 0; round < rounds; round++) {
-      let beam = [{ set: [], ...score([]) }];
-      for (let stage = 1; stage <= budget; stage++) {
+      // stacked families repeat one stage geometry, so the (N-1)-player
+      // solution is a valid prefix for the N-player level — search only on top
+      const seedSet = prefix || [];
+      let beam = [{ set: seedSet, ...score(seedSet) }];
+      for (let stage = seedSet.length + 1; stage <= budget; stage++) {
         const cands = [];
         for (const entry of beam) {
           for (let k = 0; k < Math.ceil(K / beam.length); k++) {
@@ -138,7 +174,7 @@ export async function solve(page, li, budget, K = 3500, seed = 8675309, rounds =
     }
     return { found: bestOut.r === 'win', result: bestOut.r, near: bestOut.near,
              plants: bestOut.plants, set: bestOut.set };
-  }, { li, budget, K, seed, rounds });
+  }, { li, budget, K, seed, rounds, prefix });
 }
 
 // Verify one level: bare fails, solution wins, minimum band count is honest.

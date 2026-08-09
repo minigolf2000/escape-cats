@@ -6,8 +6,10 @@ import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { openGame, injectLevels, solve } from './partylib.mjs';
 import { generateSuite } from './partygen.mjs';
 
-const OUT = new URL('../goomba-party-levels.json', import.meta.url).pathname;
-const prefix = process.argv[2];
+const outFlag = process.argv.indexOf('--out');
+const OUT = outFlag > 0 ? process.argv[outFlag + 1]
+  : new URL('../goomba-party-levels.json', import.meta.url).pathname;
+const prefix = process.argv.filter((a, i) => i >= 2 && !a.startsWith('--') && process.argv[i - 1] !== '--out')[0];
 const suite = generateSuite(prefix);
 const prev = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : [];
 
@@ -24,7 +26,7 @@ for (let i = 0; i < suite.length; i++) {
     if (r === 'win') { L.solution = old.solution; done.push(L); console.log(`${L.meta.id}: kept previous solution`); continue; }
   }
   let s = null;
-  for (const [K, rounds, seed] of [[3500, 2, 11], [6000, 3, 77], [9000, 4, 1213]]) {
+  for (const [K, rounds, seed] of [[3500, 2, 11], [6000, 3, 77], [9000, 4, 1213], [9000, 4, 31337], [12000, 5, 999331]]) {
     s = await solve(page, li, L.budget, K, seed, rounds);
     if (s.found) break;
   }

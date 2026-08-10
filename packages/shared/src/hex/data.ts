@@ -332,30 +332,8 @@ export const UPGRADES: HexUpgrade[] = [
   // could never be revealed at all. A day now ends holding ~16-17 Farms (sim,
   // across 3-16 pets/s), so that is where the ladder tops out. These gates are
   // measured, not chosen — re-measure them whenever building mps moves.
-  // THE FIRST RUNG IS A GATE ON A GATE, and it used to be the wrong one of the
-  // two. `total: 800` is the number that was chosen to place this row; `owned
-  // farm 3` is the number that actually placed it, and it binds much later — a
-  // day that spends its opening on Mouse Subscriptions (which out-earn Farms per
-  // mouse while pets are the bulk of income) does not hold three Farms until a
-  // ~1.5k lifetime, so the 800 never decided anything. Measured across 3/8/16
-  // pets/s, this row revealed at 1531/1513/1518 rather than at 800.
-  //
-  // That mattered because of what sits above it: the next reveal in the whole day
-  // was Subscribe & Save at `total: 3500`, so the shop's upgrade rail was EMPTY
-  // from a ~650 lifetime to a ~3500 one, at every tap rate — 31s of a 38s stretch
-  // solo, 18s of 20s for a team of four, broken only by this row appearing already
-  // affordable and being bought the moment it did. Reported from playtest as "a gap
-  // between 1k and 2k where there were no upgrades at all", and it is the worst
-  // empty window in the game.
-  //
-  // The gate drops to ONE Farm rather than coming off entirely. A Farm multiplier
-  // bought with no Farms does nothing, which is the same rule the cardboard line
-  // states for its factory counts — a row that can be bought for zero effect is
-  // worse than a row that is late. At one Farm the count is met by anyone who
-  // bought the building when it appeared (it reveals at a 100 lifetime), so the
-  // 800 is what places this row now, as it was always meant to.
   { key: "farmplow", name: "Sisal Scratching Plows", icon: "🧶",
-    cost: 400, unlock: { total: 800, owned: ["farm", 1] },
+    cost: 400, unlock: { total: 800, owned: ["farm", 3] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmfeliway", name: "Feliway Sprinklers", icon: "💨",
     cost: 2200, unlock: { total: 4000, owned: ["farm", 5] },
@@ -485,27 +463,8 @@ export const UPGRADES: HexUpgrade[] = [
   { key: "scratchpost", name: "Scratching Post", icon: "🪵",
     cost: 250, unlock: { clicks: 60 },
     effect: { type: "clickMult", mult: 2 } },
-  // 1200, not 4000, and this is the row that fills the opening's empty rail (see
-  // the long note on Sisal Scratching Plows). Moving the Plows alone only shifts
-  // the hole earlier: every row in the opening ladder — Cat Tree 50, 2-Day
-  // Shipping 200, Scratching Post 250, the Plows 400 — costs LESS than a player
-  // has banked by the time its gate opens, so each is bought on the frame it
-  // appears and the rail returns to empty. The band needs a row that arrives
-  // priced ABOVE the bank and stays on screen as something to save toward, which
-  // at 2200 against a bank hovering near zero is exactly what this is.
-  //
-  // It is this row and not Feliway Sprinklers because the Sprinklers' `owned farm
-  // 5` half binds well past a 4000 lifetime regardless of what their total says —
-  // lowering it changes nothing for the same reason the Plows' 800 changed
-  // nothing. Measured, worst early-day empty window across 3/8/16 pets/s:
-  // 19.0/13.5/9.5s before, 4.3/7.3/4.5s after, and the 650→3500 desert is gone.
-  //
-  // `clicks: 110` is untouched and is NOT load-bearing: 110 pets is ~37s at the
-  // slowest solo rate and a 1200 lifetime arrives later than that at every rate,
-  // so the total is what places this row. Kept because it costs nothing and holds
-  // the row off a run that somehow banks 1200 without petting.
   { key: "clawsharp", name: "Cat Brush", icon: "🪮",
-    cost: 2200, unlock: { total: 1200, clicks: 110 },
+    cost: 2200, unlock: { total: 4000, clicks: 110 },
     effect: { type: "clickFlat", add: 5 } },
   // The Cardboard line is this game's Thousand Fingers: pets get better the more
   // Mouse Factories you own, because a factory is what the boxes ship in. Three

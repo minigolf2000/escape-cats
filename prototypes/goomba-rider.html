@@ -730,7 +730,7 @@ function stepRun(st, dt) {
   else if (st.p.x < b.x0 - 12) st.result = 'left';
   else if (st.p.x > b.x1 + 30) st.result = 'flew';
   else if (st.slowT > 1.4) st.result = 'stall';
-  else if (st.t > RUN_MAX) st.result = 'loop';
+  else if (st.t > (L.runMax || RUN_MAX)) st.result = 'loop';
   else if (st.t - st.snap.t > 3.5) { // trapped in a bowl/corner, or boinging in place
     const sdx = st.p.x - st.snap.x, sdy = st.p.y - st.snap.y;
     if (sdx * sdx + sdy * sdy < 64 || Math.abs(sdx) < 6) st.result = 'loop';
@@ -745,7 +745,7 @@ function simulate(li, bandPairs) {
   const st = makeRun(L, bands);
   const traj = [];
   let acc = 0;
-  while (!st.result && st.t < RUN_MAX + 1) {
+  while (!st.result && st.t < (L.runMax || RUN_MAX) + 1) {
     stepRun(st, SUB);
     acc += SUB;
     if (acc >= 1 / 30) { acc = 0; traj.push([+st.p.x.toFixed(2), +st.p.y.toFixed(2)]); }
@@ -1545,7 +1545,7 @@ function rideCard(li, bandPairs, label) {
   const st = makeRun(L, bds);
   const path = [];
   let acc = 0, top = 1e9, fastest = 0, air = 0;
-  while (!st.result && st.t < RUN_MAX + 1) {
+  while (!st.result && st.t < (L.runMax || RUN_MAX) + 1) {
     const wasGround = st.grounded;
     stepRun(st, SUB);
     if (!wasGround) air += SUB;

@@ -197,7 +197,11 @@ function pinataChambers(N, { gap = 18, fin = 30, lowCeil = false, dodge = false 
     terrain.push(seg([W, floorY + 18], [8, floorY + 26]));           // kicker (wall-to-wall)
   }
   terrain.push(dishFloor(0, W, bY, 51));
-  return { budget: N, start, goal: [51, bY + 10], terrain, bumpers };
+  // honest carom rides are long (chute + baffle + kicker per chamber): give
+  // 3p/4p more clock than RUN_MAX. The no-progress detector still fails
+  // genuinely stuck runs, so this only legalizes slow-but-moving rides.
+  const runMax = 15 + Math.max(0, N - 2) * 6;
+  return { budget: N, start, goal: [51, bY + 10], terrain, bumpers, runMax };
 }
 
 // -------------------------------------------------- POPPER · cannon relay

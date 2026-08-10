@@ -251,11 +251,7 @@ export class HexSim {
   progress(): number {
     if (this.state.legibleAt) return 1;
     if (this.night())
-      return (
-        0.5 +
-        0.5 *
-          Math.min(1, wallCoverage(this.mods, this.state.total) / LEGIBLE_COV)
-      );
+      return 0.5 + 0.5 * Math.min(1, wallCoverage(this.mods) / LEGIBLE_COV);
     return 0.5 * Math.min(1, this.state.total / DAY_TOTAL_TARGET);
   }
 
@@ -272,10 +268,7 @@ export class HexSim {
   private checkLegible(now: number): void {
     // Against the CACHED mods — recalc() keeps them current on every purchase,
     // and this runs on the sim's hottest path (every tick and pets batch).
-    if (
-      !this.state.legibleAt &&
-      wallCoverage(this.mods, this.state.total) >= LEGIBLE_COV
-    )
+    if (!this.state.legibleAt && wallCoverage(this.mods) >= LEGIBLE_COV)
       this.state.legibleAt = now;
   }
 

@@ -262,18 +262,36 @@ export const WALL_COUNT_KEYS = ["yellow", "pink", "blue", "green", "purple"];
 export const WALL_CAP = WALL_COUNT_KEYS.reduce((a, k) => a + WALL_COUNT[k], 0);
 
 export const WALL = {
+  // THE WHOLE CAST, FROM THE FIRST FRAME OF NIGHT. There used to be a ramp here
+  // — mouseBase 2000, mouseR 1.23, startMice 0, with mouse k climbing on when
+  // lifetime total crossed mouseBase * mouseR^(k-1) — so the dream opened on an
+  // empty wall and filled to 33 across the phase. It is gone, and the beat it
+  // was protecting survives without it: the reason to start empty was that cast
+  // slot 1 is GOLDEN and "a starting mouse would hand over a letter before the
+  // phase starts", but a golden mouse with NO TRAIL BEHIND IT is a moving dot.
+  // That is the same argument the deleted Word of Mouse row was retired on (see
+  // data.ts) — the word stays unreadable until Lucid Dreaming, which the ladder
+  // already calls its hinge.
+  //
+  // What dropping it buys: the wall stops growing by 33 arrivals nobody bought,
+  // every shape in the scene is being drawn from the opening frame instead of
+  // being staffed in over minutes, and every visible change at night is once
+  // again something a player pressed — the rule the whole night ladder is
+  // written to.
   maxMice: WALL_CAP,
-  // Night lifetime runs 0 -> a few million over ~5 minutes; base 2000 (about the
-  // first Hole's price) and (1.5e6 / 2000)^(1/32) = 1.23 puts the last of the 33
-  // mice near where the word should become readable.
-  mouseBase: 2000,
-  mouseR: 1.23,
-  // ZERO: the dream opens on an empty wall (cast slot 1 is GOLDEN — a starting
-  // mouse would hand over a letter before the phase starts).
-  startMice: 0,
-  // Scene units/sec, ONE rate for every mouse. 12 is the pace at which the wall
-  // reads as a swarm of drifting specks rather than a set of streaks.
-  speedBase: 12,
+  // Scene units/sec, ONE rate for every mouse. 9.6, four fifths of the 12 the
+  // wall shipped with: with the entire cast adrift from the first frame the
+  // opening reads busier than it did, and a slower drift puts it back to specks
+  // floating in the dark rather than a swarm with somewhere to be.
+  //
+  // NOT a free look, and the bill is paid in the trail ladder: coverage is linear
+  // in speed, so the word inks 20% slower for the same trail and the four rungs
+  // went 180 -> 236 units to put the same ink back on the wall (see data.ts).
+  // LEGIBLE_COV is deliberately NOT what moved — it is a measurement of the
+  // rendered word, not a dial (see the note there). This is the same trade the
+  // lab made when the word's rate was capped at MAX_SPEED and it needed 119 units
+  // of trail where 68 had sufficed.
+  speedBase: 9.6,
   speedMax: 20,
   trailDt: 80,
 };
@@ -282,41 +300,40 @@ export function wallSpeed(m: HexMods): number {
   return Math.min(WALL.speedMax, WALL.speedBase + (m.speed || 0));
 }
 
-// Locked formula shape: mouse k climbs on when lifetime total ever crossed
-// mouseBase * mouseR^(k-1). Monotonic in total, so spending never undoes it.
-export function wallMiceFor(total: number): number {
-  const n =
-    total < WALL.mouseBase
-      ? 0
-      : 1 + Math.floor(Math.log(total / WALL.mouseBase) / Math.log(WALL.mouseR));
-  return Math.min(WALL.maxMice, Math.max(WALL.startMice, n));
-}
-
 // Scent Trail's decay: ms of half-life per unit of `persist`.
 export const WALL_PERSIST_MS = 40;
+// 1.6, and it did NOT move when the wall slowed to 9.6 — that is the whole reason
+// the trail ladder grew instead (180 -> 236 units, see data.ts). This number is not
+// a taste dial that can absorb a speed change: it is a measurement of the RENDERED
+// word, made in the reveal lab against the 1-stroke source, where a centreline word
+// is still dropping whole letter strokes at 1.2x and only resolves near 1.7x.
+// Scaling it with the speed would have declared the word readable — to the proctor,
+// to the progress bar, to the win condition — on a wall that is visibly missing
+// strokes. Slower mice ink less; the fix is more trail, not a lower bar.
 export const LEGIBLE_COV = 1.6;
 // The word's total ink in scene units, measured off the live wall.
 export const WORD_INK_EST = 1067;
 
-/** How many of the nine golden mice are on the wall at a given lifetime total. */
-export function wordMiceFor(total: number): number {
-  return Math.floor((WALL_COUNT.yellow * wallMiceFor(total)) / WALL_CAP);
-}
-
 // Coverage is word ink laid inside the visible window over the word's total ink;
-// the 1-stroke word needs ~1.6 of it to read unambiguously. visibleMs is the
-// rolling trail PLUS Scent Trail's persistence (2^(-t/half) integrates to
+// the 1-stroke word needs LEGIBLE_COV of it to read unambiguously. visibleMs is
+// the rolling trail PLUS Scent Trail's persistence (2^(-t/half) integrates to
 // half/ln2 ms of full-strength equivalent).
-export function wallCoverage(m: HexMods, total: number): number {
+//
+// All nine golden mice are on the wall for the whole night now (see WALL), so the
+// word's ink RATE is a constant and coverage is a pure function of the purchases:
+// trail length, plus persistence. It used to climb with lifetime total as well,
+// through the ramp's share of yellow — hence the `total` argument this function
+// and isLegible below both used to take.
+export function wallCoverage(m: HexMods): number {
   if (!m.night) return 0;
   const visibleMs =
     m.trail * WALL.trailDt +
     (m.persist > 0 ? (m.persist * WALL_PERSIST_MS) / Math.LN2 : 0);
-  return (wordMiceFor(total) * (wallSpeed(m) / 1000) * visibleMs) / WORD_INK_EST;
+  return (WALL_COUNT.yellow * (wallSpeed(m) / 1000) * visibleMs) / WORD_INK_EST;
 }
 
 export function isLegible(s: HexCore): boolean {
-  return wallCoverage(foldMods(s.bought, s.owned), s.total) >= LEGIBLE_COV;
+  return wallCoverage(foldMods(s.bought, s.owned)) >= LEGIBLE_COV;
 }
 
 // ---------------------------------------------------------------------------

@@ -301,26 +301,25 @@ export const UPGRADES: HexUpgrade[] = [
   { key: "shopper1", name: "2-Day Shipping", icon: "🚚",
     cost: 200, unlock: { owned: ["shopper", 5] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
-  // 1000, from 1800. This is the day's first real savings target — the four rows
-  // under it all cost less than a player has banked by the time their gates open,
-  // so they are bought on sight, and this is the first one you wait for. What the
-  // price buys is how long that wait is: measured reveal-to-purchase across
-  // 3/8/16 pets/s, 9.3/7.0/13.5s here against 26.5/77.8/35.4s at 1800. Still a
-  // wait at every rate, which is the floor — the bank at a 3500 lifetime is barely
+  // 1000, from 1800, and the price is not what places this row — see the reveal
+  // schedule note on Cat Brush below. What the price buys is how long the row
+  // WAITS once revealed: measured reveal-to-purchase across 3/8/16 pets/s,
+  // 9.3/7.0/13.5s here against 26.5/77.8/35.4s at 1800. Still a wait at every
+  // rate, which is the floor worth keeping — the bank at a 3500 lifetime is barely
   // three figures, so this cannot become affordable-on-reveal without going
-  // several times cheaper again.
+  // several times cheaper again, and a row bought on sight never appears in the
+  // shop at all (the failure the Cat Brush note describes).
   //
-  // It does NOT move the shop's empty stretches, and the reason is worth writing
-  // down: an empty rail is set by REVEAL gates, not by costs. Cost decides when a
-  // row leaves the rail, and the row after this one arrives on a 4000 lifetime —
-  // ~4s later at 8 pets/s — so buying this sooner uncovers nothing. Measured
-  // empty-rail windows are identical before and after, to the frame. The band from
-  // a ~650 lifetime to a ~3500 one, where nothing is on the rail at all, is
-  // likewise untouched by this: it sits BELOW this row's gate.
+  // AN EMPTY RAIL IS SET BY REVEAL GATES, NOT BY COSTS, and this row is the proof:
+  // dropping it 1800 → 1000 moved the measured empty-rail windows by nothing, to
+  // the frame, at all three tap rates. Cost decides when a row LEAVES the rail;
+  // `unlock` decides when it arrives. Tune pacing with the former and coverage
+  // with the latter.
   //
-  // Knock-on: two cheaper rows shorten the day ~9s (twist at 2:59 from 3:08 at 8
-  // pets/s, 5:10 from 5:20 solo). Read as noise against the ±20s INCOME_SCALE
-  // spread, but it is the direction to watch if more rows get cheaper.
+  // Knock-on of the two price cuts: the day is ~9s shorter (twist at 2:59 from
+  // 3:08 at 8 pets/s, 5:10 from 5:20 solo). Noise against the ±20s spread
+  // INCOME_SCALE is documented with, but the direction to watch if more rows get
+  // cheaper.
   { key: "shopper2", name: "Subscribe & Save", icon: "🔁",
     cost: 1000, unlock: { total: 3500, owned: ["shopper", 10] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
@@ -352,18 +351,34 @@ export const UPGRADES: HexUpgrade[] = [
   // could never be revealed at all. A day now ends holding ~16-17 Farms (sim,
   // across 3-16 pets/s), so that is where the ladder tops out. These gates are
   // measured, not chosen — re-measure them whenever building mps moves.
+  // ONE Farm, not three, and `total: 800` is the number doing the work again. The
+  // farm count used to bind at a ~1500 lifetime (measured 1531/1513/1518 across
+  // 3/8/16 pets/s), because a day spends its opening on Mouse Subscriptions —
+  // they out-earn Farms per mouse while pets carry income — so the 800 that was
+  // chosen to place this row never placed it, and the row landed already
+  // affordable and was bought on the frame it appeared.
+  //
+  // The gate drops to one rather than coming off entirely: a Farm multiplier
+  // bought with no Farms does nothing, which is the rule the cardboard line states
+  // for its factory counts, and one Farm is met by anyone who bought the building
+  // when it appeared at a 100 lifetime.
   { key: "farmplow", name: "Sisal Scratching Plows", icon: "🧶",
-    cost: 400, unlock: { total: 800, owned: ["farm", 3] },
+    cost: 400, unlock: { total: 800, owned: ["farm", 1] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   // 1800, from 2200, which keeps this the cheapest thing on the rail once
   // Subscribe & Save is bought and holds the Farm ladder's step near ×4.5 (400 →
-  // 1800 → 7200) instead of the ×5.5 it was. The row is a slow burn either way:
-  // it is a Farm multiplier revealed while pets still carry income, so the bot
-  // leaves it sitting for 17-114s depending on tap rate (123s at 2200) rather
-  // than buying it on sight. That dwell is what keeps the rail occupied through
-  // the 4000-to-7000 stretch, so do not price this to be bought instantly.
+  // 1800 → 7200) instead of the ×5.5 it was.
+  //
+  // 2000 and TWO Farms, from 4000 and five, and both halves had to move: the farm
+  // count bound well past a 4000 lifetime on its own, so lowering the total alone
+  // would have changed nothing — the same trap the Plows above were in. This row
+  // is the back half of the opening's coverage (see Cat Brush for the schedule).
+  // It is a slow burn by design: a Farm multiplier revealed while pets still carry
+  // income, so it sits unbought for 37-135s depending on tap rate (123s at the old
+  // price and gate). That dwell is what holds the rail from here to Subscribe &
+  // Save's 3500, so do not price or gate this to be bought on sight.
   { key: "farmfeliway", name: "Feliway Sprinklers", icon: "💨",
-    cost: 1800, unlock: { total: 4000, owned: ["farm", 5] },
+    cost: 1800, unlock: { total: 2000, owned: ["farm", 2] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmlaser", name: "Laser-Guided Planters", icon: "🎯",
     cost: 7200, unlock: { total: 13000, owned: ["farm", 7] },
@@ -490,8 +505,53 @@ export const UPGRADES: HexUpgrade[] = [
   { key: "scratchpost", name: "Scratching Post", icon: "🪵",
     cost: 250, unlock: { clicks: 60 },
     effect: { type: "clickMult", mult: 2 } },
+  // THE OPENING'S REVEAL SCHEDULE LIVES HERE. 700, from 4000, and this row is what
+  // keeps the shop's upgrade rail from going blank in the first minute.
+  //
+  // The failure it fixes, reported from playtest as "a gap between 1k and 2k where
+  // there were no upgrades at all": every row in the opening ladder — Cat Tree 50,
+  // 2-Day Shipping 200, Scratching Post 250, Sisal Scratching Plows 400 — costs
+  // LESS than a player has banked by the time its gate opens, so each is bought on
+  // the frame it appears and the rail drops straight back to empty. The next row to
+  // arrive was Subscribe & Save on a 3500 lifetime. Measured, that left the rail
+  // empty from a ~650 lifetime to a ~3500 one at every tap rate: 31s of a 38s
+  // stretch solo, 18s of 20s for a team of four, and the worst empty window in the
+  // game.
+  //
+  // A row that fills that band cannot be a cheap one, or it just gets bought on
+  // sight too and the hole reopens one purchase later. It has to arrive priced
+  // ABOVE the bank and STAY there as something to save toward, which is what 2200
+  // revealed on a 700 lifetime is: the bank at that point is two figures. So the
+  // reveal schedule for the opening is now
+  //
+  //   ~12    Cat Tree                 50    bought on sight
+  //   ~73    Scratching Post          250   bought on sight
+  //   ~382   2-Day Shipping           200   bought on sight
+  //   700    Cat Brush                2200  <- SAVED FOR, 20-246s on the rail
+  //   800    Sisal Scratching Plows   400   bought on sight
+  //   2000   Feliway Sprinklers       1800  <- saved for, 37-135s on the rail
+  //   3500   Subscribe & Save         1000
+  //
+  // and the two savings targets are what cover the band the four cheap rows cannot.
+  // Measured worst early-day empty window across 3/8/16 pets/s: 19.0/13.5/9.5s
+  // before, 3.5/1.3/1.5s after — and the 3.5s is the intended opening beat before
+  // the first Mouse Subscription exists, not a hole. Longest stretch with no NEW
+  // row revealed is 34/38/24s.
+  //
+  // THE TRADE, stated plainly because it is a judgement call and not a free win: a
+  // solo player now sees Cat Brush sit unaffordable for up to four minutes. That is
+  // deliberate — a visible goal you are saving toward is not the same experience as
+  // a blank shelf, and it is Cookie Clicker's own idiom — but if playtest says the
+  // rail reads as STUCK rather than as a target, the fix is another row revealing
+  // in the 1000-2000 band, NOT making this one cheaper. Cheaper just returns it to
+  // the bought-on-sight pile.
+  //
+  // `clicks: 110` is untouched and is not load-bearing for placement: 110 pets is
+  // ~37s even solo, and a 700 lifetime arrives after that at every rate, so the
+  // total is what places the row. Kept because it costs nothing and holds the row
+  // off a run that somehow banks 700 without petting.
   { key: "clawsharp", name: "Cat Brush", icon: "🪮",
-    cost: 2200, unlock: { total: 4000, clicks: 110 },
+    cost: 2200, unlock: { total: 700, clicks: 110 },
     effect: { type: "clickFlat", add: 5 } },
   // The Cardboard line is this game's Thousand Fingers: pets get better the more
   // Mouse Factories you own, because a factory is what the boxes ship in. Three

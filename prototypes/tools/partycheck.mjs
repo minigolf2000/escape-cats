@@ -35,12 +35,15 @@ for (let i = 0; i < suite.length; i++) {
   const rob = await robustness(page, li, 60, 3);
   const card = await rideCard(page, li, cards ? `${CARDS}${L.meta.id}.png` : null, L.name);
   const cheatKs = Object.keys(v.cheats);
+  // the mechanic must FIRE on the winning run (fun-judge acceptance test):
+  // every piñata chamber takes a kick, every popper stage fires
+  const needEvents = (L.bumpers?.length || L.pops?.length) ? L.meta.players : 0;
   const minHonest = v.k[1].win === 0 && !cheatKs.length &&
     Object.values(v.k).every(o => o.win === 0 || o.exhaustive === undefined);
   const ok = v.bare.result !== 'win' && v.solution?.result === 'win' &&
     v.solution.n === L.meta.players && v.k[1].win === 0 && !cheatKs.length &&
     (!v.k[2] || v.k[2].win === 0) && (!v.k[3] || v.k[3].win === 0) &&
-    v.solution.lens.every(l => l <= 58);
+    v.solution.lens.every(l => l <= 58) && card.events >= needEvents;
   allOK = allOK && ok;
   const row = { id: L.meta.id, name: L.name, players: L.meta.players, ok,
     bare: v.bare.result, solution: v.solution ? `${v.solution.n} bands -> ${v.solution.result}` : 'MISSING',
@@ -52,7 +55,7 @@ for (let i = 0; i < suite.length; i++) {
   report.push(row);
   console.log(`${ok ? '✓' : '✗'} ${row.id.padEnd(14)} bare=${row.bare} sol=${row.solution} ` +
     `k1=${row.k1} k2=${row.k2} k3=${row.k3}${cheatKs.length ? ' BEAM-CHEAT@k=' + cheatKs : ''} ` +
-    `slop=${row.slop3} air=${card.airPct}% t=${card.t}s (${row.secs}s)`);
+    `slop=${row.slop3} air=${card.airPct}% ev=${card.events} t=${card.t}s (${row.secs}s)`);
 }
 await browser.close();
 writeFileSync(REPORT, JSON.stringify(report, null, 1));

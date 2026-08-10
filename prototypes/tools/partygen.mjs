@@ -78,13 +78,13 @@ function bounceChambers(N, { gap = 18, fin = 0 } = {}) {
 // The chute below jogs her to the left wall, so every chamber starts alike.
 function needleChambers(N) {
   const W = 104, Hc = 64, drop = 32, top = 26;
-  const g0 = 44, g1 = 58, finH = 18, stal = 26;
+  const g0 = 38, g1 = 64, finH = 14, stal = 16;
   const terrain = [];
   const cushions = [];
   const start = entry(terrain, top);
   const bY = top + N * (Hc + drop);
-  terrain.push(seg([0, -8], [0, bY]));
-  terrain.push(seg([W, top], [W, bY]));
+  terrain.push(seg([0, -8], [0, bY + 14]));          // walls run PAST the dish rim
+  terrain.push(seg([W, top], [W, bY + 14]));         // (overflights bounce back in)
   for (let k = 0; k < N; k++) {
     const ceilY = top + k * (Hc + drop);
     const floorY = ceilY + Hc;
@@ -145,8 +145,8 @@ function liftRooms(N, { Hr = 62, winH = 14, winUp = 20, sill = 0, split = false 
                                [xIn, wy + winH / 2]));
     // room floor (slab, doubles as next room's ceiling)
     terrain.push(seg([iL, floorY], [iR, floorY]));
-    if (split) {                                     // dead-air gap mid-room
-      const g0 = enterL ? 44 : 40, g1 = g0 + 20;
+    if (split) {                                     // dead-air gap mid-room, wider each floor
+      const g0 = (enterL ? 44 : 40) - k * 2, g1 = g0 + 16 + k * 4;
       updrafts.push({ x: iL + 1, y: ceilY + 2, w: g0 - iL - 1, h: Hr - 4 });
       updrafts.push({ x: g1, y: ceilY + 2, w: iR - g1 - 1, h: Hr - 4 });
     } else {
@@ -188,6 +188,9 @@ function pinataChambers(N, { gap = 16, fin = 34, lowCeil = false, dodge = false 
     if (dodge) bumpers.push({ x: 38, y: ceilY + 24 });
     if (lowCeil) terrain.push(seg([52, ceilY], [52, ceilY + 30]));
     terrain.push(seg([0, floorY], [7, floorY + 10], [g0, floorY]));  // fail pocket
+    terrain.push(seg([g0, floorY - 8], [g0 + 6, floorY - 26]));      // awning: gutter
+    // arcs from the left bounce off its underside; overshot kicks land on its
+    // top and roll down into the slot — the piñata is the only way through
     terrain.push(seg([g1, floorY], [g1, floorY - fin]));             // fin + chute wall
     terrain.push(dishFloor(g1, W, floorY, 70, 12));                  // right dish
     // slot chute + jog kicker back to the left wall
@@ -226,11 +229,11 @@ function cannonRelay(N, { gap = 16, fin = 0, spd = 104, thread = false } = {}) {
     if (rightward) {
       terrain.push(dishFloor(0, gx0, floorY, 54, 12));
       terrain.push(seg([gx0, floorY + chute], [gx0, floorY - Math.max(fin, 6)]));
-      if (thread) terrain.push(seg([70, ceilY], [70, ceilY + 22]));
+      if (thread) terrain.push(seg([70, ceilY], [70, ceilY + 24]));
     } else {
       terrain.push(dishFloor(gx1, W, floorY, W - 54, 12));
       terrain.push(seg([gx1, floorY + chute], [gx1, floorY - Math.max(fin, 6)]));
-      if (thread) terrain.push(seg([W - 70, ceilY], [W - 70, ceilY + 22]));
+      if (thread) terrain.push(seg([W - 70, ceilY], [W - 70, ceilY + 24]));
     }
   }
   terrain.push(dishFloor(0, W, bY, cx));
@@ -257,18 +260,26 @@ function pocketSlalom(N, { pitch = 54, depth = 24, mouth = 26, sameSide = false,
     const left = sameSide ? false : k % 2 === 1;
     const x0 = left ? 0 : W - depth, x1 = left ? depth : W;
     terrain.push(seg([x0, y - mouth], [x1, y - mouth]));                       // roof
-    terrain.push(left ? seg([x0, y - 5], [x1, y]) : seg([x0, y], [x1, y - 5])); // tilted floor
+    terrain.push(left ? seg([x0, y - 8], [x1, y]) : seg([x0, y], [x1, y - 8])); // tilted floor
     if (guards)                                       // fin over the mouth
       terrain.push(left ? seg([x1, y - mouth], [x1 + 10, y - mouth - 12])
                         : seg([x0, y - mouth], [x0 - 10, y - mouth - 12]));
     plants.push([left ? x0 + 7 : x1 - 7, y - 10]);
   }
   if (cakePocket) {
-    const y = H - 6;
-    terrain.push(seg([W - 26, y - 18], [W, y - 18]));  // roof
-    terrain.push(seg([W - 26, y - 2], [W, y + 2]));    // floor tilts to the cake
-    terrain.push(dishFloor(0, W, H, 30, 12));
-    return { budget: N, start, goal: [W - 7, y - 4], terrain, plants };
+    // the last pocket's roll-out ejects her toward the OPPOSITE wall — put
+    // the cake pocket there (right for even N, left for odd N)
+    const y = H - 6, right = N % 2 === 0;
+    if (right) {
+      terrain.push(seg([W - 21, y - 24], [W, y - 24]));  // roof (short: arcs dip in)
+      terrain.push(seg([W - 26, y - 2], [W, y + 2]));    // floor tilts to the cake
+      terrain.push(dishFloor(0, W, H, 30, 12));
+      return { budget: N, start, goal: [W - 7, y - 4], terrain, plants };
+    }
+    terrain.push(seg([0, y - 24], [21, y - 24]));
+    terrain.push(seg([0, y + 2], [26, y - 2]));
+    terrain.push(dishFloor(0, W, H, W - 30, 12));
+    return { budget: N, start, goal: [7, y - 4], terrain, plants };
   }
   terrain.push(dishFloor(0, W, H, W / 2 + (N % 2 ? -12 : 12), 12));
   return { budget: N, start, goal: [W / 2 + (N % 2 ? -12 : 12), H + 9], terrain, plants };
@@ -279,11 +290,11 @@ export const FAMILIES = [
   { id: 'cushion-1', mechanic: 'cushion', tier: 1, name: 'Bounce House',
     hint: 'she boings in place — tilt each bounce out through the floor gap',
     hint2: 'one slanted band per room, aimed at the gap',
-    build: N => bounceChambers(N, { gap: 18 }) },
+    build: N => bounceChambers(N, { gap: 22 }) },
   { id: 'cushion-2', mechanic: 'cushion', tier: 2, name: 'Pillow Parkour',
     hint: 'same rooms, but now a fin guards every gap — arc over it',
     hint2: 'place the band lower and steeper: she needs height, not speed',
-    build: N => bounceChambers(N, { gap: 14, fin: 14 }) },
+    build: N => bounceChambers(N, { gap: 20, fin: 16 }) },
   { id: 'cushion-3', mechanic: 'cushion', tier: 3, name: 'Needle Threader',
     hint: 'the slot is dead center, fenced, with a stalactite over it — thread it',
     hint2: 'flick from the far pillow: the arc has to peak BESIDE the stalactite',
@@ -292,11 +303,11 @@ export const FAMILIES = [
   { id: 'updraft-1', mechanic: 'updraft', tier: 1, name: 'Balloon Bellows',
     hint: 'the balloons pin her to the ceiling — unless a rail holds her DOWN',
     hint2: 'lay a flat band across the room: she skims its underside into the low window',
-    build: N => liftRooms(N, { Hr: 62, winH: 14, winUp: 20 }) },
+    build: N => liftRooms(N, { Hr: 62, winH: 16, winUp: 16 }) },
   { id: 'updraft-2', mechanic: 'updraft', tier: 2, name: 'Organ Pipes',
     hint: 'taller pipes, meaner windows, and a sill lip to clear at the end',
     hint2: 'tilt the rail a hair upward so she hops the sill as she exits',
-    build: N => liftRooms(N, { Hr: 78, winH: 12, winUp: 16, sill: 8 }) },
+    build: N => liftRooms(N, { Hr: 78, winH: 12, winUp: 18, sill: 14 }) },
   { id: 'updraft-3', mechanic: 'updraft', tier: 3, name: 'Air Pockets',
     hint: 'the lift has a hole in the middle — she sags off the rail crossing it',
     hint2: 'aim the rail a touch high: the sag brings her back level with the window',
@@ -305,24 +316,24 @@ export const FAMILIES = [
   { id: 'bumper-1', mechanic: 'bumper', tier: 1, name: 'Piñata Practice',
     hint: 'piñatas hit BACK — ramp her in hard and ride the counterpunch home',
     hint2: 'the kick mirrors the hit: fast and low in means high and far back',
-    build: N => pinataChambers(N, { gap: 16, fin: 34 }) },
+    build: N => pinataChambers(N, { gap: 16, fin: 40 }) },
   { id: 'bumper-2', mechanic: 'bumper', tier: 2, name: 'Low Blow',
     hint: 'a curtain hangs mid-room: the kick has to come back UNDER it',
     hint2: 'clip the piñata near its equator — glancing hits fly flatter',
-    build: N => pinataChambers(N, { gap: 14, fin: 30, lowCeil: true }) },
+    build: N => pinataChambers(N, { gap: 15, fin: 36, lowCeil: true }) },
   { id: 'bumper-3', mechanic: 'bumper', tier: 3, name: 'Party Foul',
     hint: 'a second piñata squats in the flight path home — thread around it',
     hint2: 'clip it and it counter-kicks: sometimes a foul is a shortcut…',
-    build: N => pinataChambers(N, { gap: 13, fin: 38, dodge: true }) },
+    build: N => pinataChambers(N, { gap: 15, fin: 42, dodge: true }) },
 
   { id: 'popper-1', mechanic: 'popper', tier: 1, name: 'Confetti Relay',
     hint: 'the cannons do the flying — your band reshapes each arc into the gap',
     hint2: 'a shallow ramp late in the arc stretches it; a wall drops it short',
-    build: N => cannonRelay(N, { gap: 16, spd: 104 }) },
+    build: N => cannonRelay(N, { gap: 20, spd: 104 }) },
   { id: 'popper-2', mechanic: 'popper', tier: 2, name: 'Return to Sender',
     hint: 'hotter cannons, finned gaps — the arc has to come down STEEP',
     hint2: 'bounce her off the far wall: walls eat sideways speed, then she drops in',
-    build: N => cannonRelay(N, { gap: 13, fin: 12, spd: 118 }) },
+    build: N => cannonRelay(N, { gap: 15, fin: 16, spd: 118 }) },
   { id: 'popper-3', mechanic: 'popper', tier: 3, name: 'Grand Salute',
     hint: 'a fin hangs mid-arc: thread the window, then still hit the gap',
     hint2: 'lift the arc early so she clears the fin, then kill it at the wall',
@@ -331,15 +342,15 @@ export const FAMILIES = [
   { id: 'plants-1', mechanic: 'plants', tier: 1, name: 'Window Boxes',
     hint: 'every snake plant hides in a wall pocket — dip into each on the way down',
     hint2: 'she rolls back out of pockets; catch her fall and tilt it into the mouth',
-    build: N => pocketSlalom(N, { pitch: 54, depth: 24, mouth: 26 }) },
+    build: N => pocketSlalom(N, { pitch: 54, depth: 24, mouth: 28 }) },
   { id: 'plants-2', mechanic: 'plants', tier: 2, name: 'Ivy Wall',
     hint: 'all the pockets are on ONE wall — swing her out and back, out and back',
     hint2: 'after each pocket she falls away from the wall; curl her back with the next band',
-    build: N => pocketSlalom(N, { pitch: 58, depth: 24, mouth: 22, sameSide: true }) },
+    build: N => pocketSlalom(N, { pitch: 58, depth: 24, mouth: 24, sameSide: true }) },
   { id: 'plants-3', mechanic: 'plants', tier: 3, name: 'Jungle Gym',
     hint: 'guard fins over every mouth, and the cake wants a flat approach',
     hint2: 'enter pockets from below the fin; save some fall for the cake pocket',
-    build: N => pocketSlalom(N, { pitch: 60, depth: 24, mouth: 20, guards: true, cakePocket: true }) },
+    build: N => pocketSlalom(N, { pitch: 60, depth: 24, mouth: 22, guards: true, cakePocket: true }) },
 ];
 
 export function generateSuite(only) {

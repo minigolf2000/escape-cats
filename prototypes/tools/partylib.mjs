@@ -135,6 +135,16 @@ export async function solve(page, li, budget, K = 3500, seed = 8675309, rounds =
       // pocket must outrank one that ignores it, or the beam random-walks
       let lure = 0;
       pd.forEach((d, i) => { if (!got[i]) lure += Math.max(0, 60 - d) * 6; });
+      // piñata engagement: the fun judge caught winning lines that never
+      // touch a bumper — reward paths that actually take the kick
+      for (const bp of L.bumpers) {
+        let bd2 = 1e9;
+        for (const p of r.traj) {
+          const d = Math.hypot(p[0] - bp.x, p[1] - bp.y);
+          if (d < bd2) bd2 = d;
+        }
+        lure += bd2 < 8.5 ? 500 : Math.max(0, 40 - bd2) * 4;
+      }
       return { s: (r.result === 'win' ? 1e6 : 0) + plants * 1000 + lure - best,
                r: r.result, plants, near: +best.toFixed(1), traj: r.traj };
     };
@@ -232,6 +242,41 @@ export async function verifyLevel(page, li, opts = {}) {
     }
   }
   return base;
+}
+
+// Hill-climb a winning band set for finger-slop tolerance: try random
+// neighbors (endpoints nudged ≤4), keep any that wins with better slop.
+export async function robustify(page, li, set, rounds = 6, neighbors = 24) {
+  return page.evaluate(({ li, set, rounds, neighbors }) => {
+    const { simulate } = window.__gr;
+    let seed = 1234567;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const slopOf = s => {
+      let w = 0;
+      for (let t = 0; t < 30; t++) {
+        const jit = s.map(([a, b]) => [
+          [a[0] + (rnd() * 2 - 1) * 3, a[1] + (rnd() * 2 - 1) * 3],
+          [b[0] + (rnd() * 2 - 1) * 3, b[1] + (rnd() * 2 - 1) * 3]]);
+        if (simulate(li, jit).result === 'win') w++;
+      }
+      return w;
+    };
+    let best = set, bestW = simulate(li, set).result === 'win' ? slopOf(set) : -1;
+    if (bestW < 0) return { set, slop: 0, improved: false };
+    const w0 = bestW;
+    for (let r = 0; r < rounds; r++) {
+      for (let n = 0; n < neighbors; n++) {
+        const cand = best.map(([a, b]) => [
+          [a[0] + (rnd() * 2 - 1) * 4, a[1] + (rnd() * 2 - 1) * 4],
+          [b[0] + (rnd() * 2 - 1) * 4, b[1] + (rnd() * 2 - 1) * 4]]);
+        if (simulate(li, cand).result !== 'win') continue;
+        const w = slopOf(cand);
+        if (w > bestW) { bestW = w; best = cand.map(bd => bd.map(p => p.map(x => +x.toFixed(1)))); }
+      }
+      if (bestW >= 27) break;
+    }
+    return { set: best, slop: +(bestW / 30 * 100).toFixed(0), improved: bestW > w0 };
+  }, { li, set, rounds, neighbors });
 }
 
 // Finger-slop tolerance: jitter every solution endpoint ±slop, count wins.

@@ -139,9 +139,12 @@ let badgeN = -1;
 const buildingName = (id) =>
   (BUILDINGS.find((b) => b.id === id) || { name: id }).name;
 
-export function effectText(u) {
+// `reveal` is for the ?debug content dump ONLY — an opaque effect column makes
+// the debug table useless, and a tuning pass has to be able to read what a wall
+// row actually does. The shop never passes it; see oneEffectText's ??? note.
+export function effectText(u, reveal = false) {
   return effectsOf(u)
-    .map((e) => oneEffectText(e))
+    .map((e) => oneEffectText(e, reveal))
     .filter(Boolean)
     .join(" · ");
 }
@@ -158,8 +161,8 @@ const hl = (s) => `<b>${s}</b>`;
 // effect that touches the wall renders as ??? and the player finds out by
 // buying it and looking up. Uniform on purpose: one bespoke row among eight
 // ???s is a flag saying "this is the important one".
-function oneEffectText(e) {
-  if (WALL_EFFECTS.has(e.type)) return hl("???");
+function oneEffectText(e, reveal = false) {
+  if (WALL_EFFECTS.has(e.type) && !reveal) return hl("???");
   switch (e.type) {
     case "buildingMult":
       return `${buildingName(e.building)} is ${hl(multWord(e.mult))} as good`;
@@ -183,6 +186,21 @@ function oneEffectText(e) {
       return `Zoomies pet ${hl("+×" + e.add)} harder`;
     case "zoomTime":
       return `Zoomies lasts +${hl(e.add + "s")} longer`;
+    // Everything below this line is reachable only with `reveal` — the dev dump.
+    // Written out rather than left to the ??? because it is the authoritative
+    // statement of what each wall row does, and the debug table is where that
+    // gets checked.
+    //
+    // Must print e.add: the sleep stages differ ONLY in trail length, so a
+    // constant string renders all four Lucid Dreaming rungs identically.
+    case "trail":
+      return `Wall mice leave ${hl("+" + e.add)} more trail`;
+    case "neon":
+      return `The lights on the wall turn out to be mice`;
+    case "persist":
+      return `The trails stop fading`;
+    case "speed":
+      return `Wall mice move quicker`;
     // THE twist: the one row whose description is a QUESTION — naming the
     // mechanic would spend the reveal a purchase early.
     case "night":

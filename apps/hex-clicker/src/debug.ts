@@ -6,11 +6,20 @@
 // protocol and none of this can reach a real room.
 
 import {
+  BUILDINGS,
   DEBUG_PRESETS,
   HexSim,
   SNAPSHOT_TICK_MS,
+  UPGRADES,
+  costOf,
+  isRevealed,
+  nightOf,
+  onRail,
+  unlockMet,
+  type HexUpgrade,
   type HexSnapshot,
 } from "@escape-cats/shared";
+import { effectText } from "./shop.js";
 import { transport } from "./net";
 
 export function startDebug(opts: {
@@ -80,8 +89,101 @@ export function startDebug(opts: {
   (window as unknown as { __hexSim: HexSim }).__hexSim = sim;
 }
 
-/** The floating 🛠 panel: grant, story-beat jumps, time scale, reset. DOM is
- * injected only here, so nothing panel-related ships into a real session. */
+const buildingName = (id: string) =>
+  (BUILDINGS.find((b) => b.id === id) || { name: id }).name;
+
+// NOT the shop's fmt(), deliberately: that one appends "M" to every number at
+// night, because the dream is a place where you'd believe you have 2,000M mice.
+// That is the right joke on the rail and the wrong one in a tuning table, where
+// Scent Trail's 60,000,000 reading as "60,000,000M" is just a misprint. The
+// effect column IS still shop text (M suffix and all) — it is quoted verbatim on
+// purpose, since checking what the rail actually says is half of what the table
+// is for.
+const num = (n: number) => Math.floor(n).toLocaleString("en-US");
+
+// Human-readable unlock condition. Mirrors the AND-ed checks in unlockMet() —
+// keep the two in sync; this is the column a tuning pass reads to find rows
+// whose gates can never both be met, or whose second gate silently binds later
+// than the one that was chosen to place the row.
+function unlockText(u: HexUpgrade): string {
+  const c = u.unlock,
+    parts: string[] = [];
+  if (c.owned) {
+    const pairs = (
+      typeof c.owned[0] === "string" ? [c.owned] : c.owned
+    ) as [string, number][];
+    for (const [id, n] of pairs) parts.push(`own ${n}× ${buildingName(id)}`);
+  }
+  if (c.total != null) parts.push(`${num(c.total)} lifetime`);
+  if (c.clicks != null) parts.push(`${c.clicks} pets`);
+  if (c.golden != null) parts.push(`${c.golden} golden`);
+  if (c.requires) {
+    const r = UPGRADES.find((x) => x.key === c.requires);
+    parts.push(`after ${r ? r.name : c.requires}`);
+  }
+  return parts.join(" + ") || "always";
+}
+
+// The full content table, ported from the prototype's dev dump. Read off the
+// SIM (the authority) rather than the render mirror, for the reason the console
+// handle below is the sim: the mirror drops server-private fields.
+//
+// `available` here is unlockMet against live state, NOT the shop's sticky
+// `unlocked` — so a row whose condition wobbles reads as locked in this table
+// while the rail still shows it. That is the more useful truth for tuning: it
+// answers "are this row's gates met right now?".
+//
+// Rows are walked in UPGRADES order, which is shop order (refreshUpgrades
+// renders the same array), so a row sitting out of cost sequence here is
+// sitting out of sequence on the rail.
+function devContentHTML(sim: HexSim): string {
+  const s = sim.state;
+  const night = nightOf(s.bought);
+  const bRows = BUILDINGS.map((b) => {
+    const owned = s.owned[b.id] || 0;
+    // "off-phase" vs "hidden" is the difference between a row the twist has
+    // retired and one whose lifetime threshold has not been crossed yet — the
+    // two reasons isRevealed says no, and they mean opposite things to a tuning
+    // pass. Compare the two booleans, not b.night against a negation: b.night
+    // is `undefined` on every day building, so `b.night === !night` reads false
+    // at night and mislabelled the whole day rail as merely hidden.
+    const state = !isRevealed(b, s)
+      ? !!b.night !== night
+        ? "off-phase"
+        : "hidden"
+      : owned
+        ? `owned ${owned} @ ${num(costOf(b, owned))}`
+        : `revealed @ ${num(costOf(b, owned))}`;
+    return `<tr class="${owned ? "" : "done"}"><td>${b.icon} ${b.name}</td>
+      <td class="n">${num(b.base)}</td><td class="n">${b.mps}</td>
+      <td>${b.night ? "night" : "day"}</td><td class="s">${state}</td></tr>`;
+  }).join("");
+  const uRows = UPGRADES.map((u) => {
+    const bought = !!s.bought[u.key];
+    const state = bought
+      ? "BOUGHT"
+      : !onRail(u, s.bought)
+        ? "off-phase"
+        : unlockMet(u, s)
+          ? s.mice >= u.cost
+            ? "AFFORDABLE"
+            : "available"
+          : "locked";
+    return `<tr class="${bought ? "done" : ""}"><td>${u.icon} ${u.name}</td>
+      <td class="n">${num(u.cost)}</td><td>${unlockText(u)}</td>
+      <td>${effectText(u, true)}</td><td class="s">${state}</td></tr>`;
+  }).join("");
+  return `<h4>Buildings (${BUILDINGS.length})</h4>
+    <table><thead><tr><th>name</th><th>base</th><th>mps</th><th>phase</th><th>state</th></tr></thead>
+    <tbody>${bRows}</tbody></table>
+    <h4>Upgrades (${UPGRADES.length})</h4>
+    <table><thead><tr><th>name</th><th>cost</th><th>unlock</th><th>effect</th><th>state</th></tr></thead>
+    <tbody>${uRows}</tbody></table>`;
+}
+
+/** The floating 🛠 panel: grant, story-beat jumps, time scale, reset, and the
+ * buildings & upgrades dump. DOM is injected only here, so nothing
+ * panel-related ships into a real session. */
 function mountPanel(sim: HexSim, emit: () => void): void {
   const st = document.createElement("style");
   st.textContent = `
@@ -98,6 +200,23 @@ function mountPanel(sim: HexSim, emit: () => void): void {
       border: 1px solid #363b4d; border-radius: 6px; padding: 1px 7px;
       cursor: pointer; }
     #devbar button:active { background: #2a3049; }
+    /* The content dump. Capped and scrollable — 7 buildings plus 40-odd
+       upgrades is taller than a phone, and the panel must not cover the wall
+       (the one thing the night phase exists to show). */
+    #devList { margin-top: 4px; }
+    #devContent { margin-top: 4px; overflow: auto; max-height: 46vh; max-width: 82vw; }
+    #devContent h4 { margin: 10px 0 5px; color: #f6c86a; font-size: 11px;
+      letter-spacing: .1em; text-transform: uppercase; }
+    #devContent h4:first-child { margin-top: 0; }
+    #devContent table { border-collapse: collapse; width: 100%; }
+    #devContent th, #devContent td { text-align: left; padding: 3px 7px;
+      border-bottom: 1px solid #1b2130; vertical-align: top; }
+    #devContent th { color: #6fe3d0; font-weight: 600; position: sticky; top: 0;
+      background: #090c12; }
+    #devContent td.n { text-align: right; font-variant-numeric: tabular-nums;
+      color: #f6c86a; white-space: nowrap; }
+    #devContent td.s { color: #6f7a8c; white-space: nowrap; }
+    #devContent tr.done td { opacity: .45; }
   `;
   document.head.appendChild(st);
 
@@ -118,8 +237,20 @@ function mountPanel(sim: HexSim, emit: () => void): void {
     <div class="r"><span>speed</span>${[1, 5, 20]
       .map((n) => `<button data-s="${n}">×${n}</button>`)
       .join("")}<button data-r="1">reset</button></div>
+    <details id="devList"><summary>buildings &amp; upgrades</summary><div id="devContent"></div></details>
   </details>`;
   document.body.appendChild(bar);
+
+  const list = bar.querySelector("#devList") as HTMLDetailsElement;
+  const content = bar.querySelector("#devContent") as HTMLElement;
+  // Regenerated on open, and again after any control that moves the state,
+  // so the state column reflects the moment you looked. NOT per snapshot tick:
+  // rebuilding a 40-row table four times a second throws away the scroll
+  // position you were reading it at.
+  const redrawList = () => {
+    if (list.open) content.innerHTML = devContentHTML(sim);
+  };
+  list.addEventListener("toggle", redrawList);
 
   bar.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest("button");
@@ -131,5 +262,6 @@ function mountPanel(sim: HexSim, emit: () => void): void {
       sim.state.speed = Math.max(0.25, Math.min(50, Number(b.dataset.s)));
     else if (b.dataset.r) sim.reset(now);
     emit();
+    redrawList();
   });
 }

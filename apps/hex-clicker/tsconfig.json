@@ -3,6 +3,14 @@
   "compilerOptions": {
     // The ported game modules are plain JS (they came verbatim from the
     // prototype); only the typed seams (net.ts, debug.ts) are checked.
+    //
+    // allowJs lets a seam IMPORT one of those modules and get inferred types
+    // for it — debug.ts reuses the shop's effectText for its content dump
+    // rather than keeping a second copy of "what does this row do", which is
+    // the rule the whole balance table is written around. checkJs stays off, so
+    // the JS modules themselves are still not type-checked; this only makes
+    // them readable to the checker instead of an implicit-any import error.
+    "allowJs": true,
     "allowImportingTsExtensions": true
   },
   "include": ["src/**/*.ts"]

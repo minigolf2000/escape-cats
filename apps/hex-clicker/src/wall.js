@@ -12,7 +12,6 @@ import {
   WALL_CAP,
   WALL_PERSIST_MS,
   wallSpeed,
-  wallMiceFor,
   mulberry32,
 } from "@escape-cats/shared";
 import { game, mods, nightActive, wallSeed, wallNow } from "./state.js";
@@ -27,46 +26,37 @@ import { MOUSE_COLORS } from "./art.js";
 // still a pure function of (seed, mouse index, time) — no wall state to save —
 // with one exception: each mouse carries a smoothed heading vector for its
 // facing, which is cosmetic and re-converges within a few frames. Lab knobs map to game
-// state — mice N = f(lifetime total) via the locked geometric accumulator,
+// state — mice N = the whole cast, always (the arrival ramp is gone; see WALL),
 // per-shape headcounts = WALL_COUNT (the word capped at one mouse per letter),
 // noise = locked 0 (wander() dropped entirely), speed = one uniform wallSpeed(),
 // trail = mods.trail from the sleep-stage upgrades, and whether ANY mice show
 // look like is bought (mods.neon, the Counting Mice research).
 // ---------------------------------------------------------------------------
-// The nine letters' staffing order, and the per-shape headcounts the ramp climbs
-// toward. Both are settled in the lab; see rebuildWallCast for how they combine.
+// THE WALL IS FULLY CAST FROM THE FIRST FRAME OF NIGHT. No research gate, and no
+// arrival ramp either: the phase opens with all WALL_CAP mice already walking, and
+// what the night buys is what they LOOK like (Counting Mice) and what they LEAVE
+// BEHIND (the trail rungs, then Scent Trail) — never whether they exist. See the
+// note on WALL in shared/hex/rules.ts for why the ramp went and why the golden mice
+// can be out there from the start without leaking a letter.
 //
-// REVEAL_ORDER indexes the word's visible letters, spaces excluded. It is stored
-// ZERO-based while it was chosen against 1-based positions, so both are written out
-// to stop the two being confused:
+// A REVEAL_ORDER used to live here — [4, 7, 0, 3, 8, 2, 1, 6, 5], the order the nine
+// golden letter-mice were staffed in as the ramp climbed, so the board read `·· ··E
+// ····`, then `·· ··E ··O·`, and so on to TO THE MOON. It was chosen to delay the
+// moment a team can GUESS the rest rather than merely to reveal slowly: it
+// interleaved the two lines so neither word completed until step 6, opened on the
+// cheapest letters (E the commonest in English, a medial O the least distinctive),
+// and held M for last so that at step 8 the board read "?OON" — boon, coon, goon,
+// loon, moon, noon, soon, toon — where "MOO?" would admit only five.
 //
-//     1 2   3 4 5   6 7 8 9      <- as chosen: 5 8 1 4 9 3 2 7 6
-//     0 1   2 3 4   5 6 7 8      <- as indexed below
-//     T O   T H E   M O O N
-//
-// which stages as
-//
-//     1: ·· ··E ····      6: T· THE ··ON
-//     2: ·· ··E ··O·      7: TO THE ··ON
-//     3: T· ··E ··O·      8: TO THE ·OON
-//     4: T· ·HE ··O·      9: TO THE MOON
-//     5: T· ·HE ··ON
-//
-// The goal is to delay the moment a team can GUESS the rest, which is not the same
-// as revealing slowly. It INTERLEAVES the two lines so neither word completes until
-// step 6 (a finished word is a hard constraint on the phrase); it opens on the
-// cheapest letters, E being the commonest in English and a medial O the answer
-// word's least distinctive; and it holds M for last rather than N, which is the
-// counter-intuitive part and worth measurable difficulty — at step 8 the board
-// reads "?OON", admitting boon, coon, goon, loon, moon, noon, soon and toon, where
-// "MOO?" would admit only mood, moon, moor, moot and moos.
-const REVEAL_ORDER = [4, 7, 0, 3, 8, 2, 1, 6, 5];
-// No research gate any more, and that now holds for the GOLDEN mice too — the last
-// research that gated a mouse into existence (Word of Mouse) is gone. Every mouse is
-// on the wall from the moment night starts; Counting Mice buys what they LOOK like,
-// not whether they exist. So the count is a pure function of night lifetime and the
-// phase, and one number describes the whole wall.
-function wallMiceCount() { return nightActive() ? wallMiceFor(game.total) : 0; }
+// It is deleted rather than kept, because with all nine golden mice on the wall in
+// the opening frame there is no staging left for it to describe: every letter is
+// staffed at once, so the permutation only decided which cast slot served which
+// letter, which nothing can see. The staging job it was doing now belongs entirely
+// to the trail ladder — an unstaffed letter and a letter with no ink behind it look
+// identical, and the ladder inks all nine together. It is recoverable from git
+// history if per-letter staging ever comes back (it would need a mechanism other
+// than headcount, e.g. per-crew trail length).
+function wallMiceCount() { return nightActive() ? WALL_CAP : 0; }
 // Colors come from the shared MOUSE_COLORS table (see spawnMousePop) — the
 // wall used to keep its own separate palette object; deleted in favor of one
 // source of truth. Usage here is fixed-per-role, not random: see loadWallScene.
@@ -745,27 +735,29 @@ export function loadWallScene() {
 // client derives the same wall from the same seed.
 const crewPhase = idx => ((idx + 1) * 0.6180339887498949) % 1;
 
-// The cast is built in ARRIVAL ORDER and wallMiceCount() draws the first N, so the
-// order below IS the reveal: mouse k climbs onto the wall when lifetime total
-// crosses its rung. The full cast is WALL_CAP mice, not an arbitrary 90.
+// WHICH SHAPE EACH MOUSE WALKS. The cast is the whole WALL_CAP of them and every
+// one is drawn from the first frame (see wallMiceCount), so this is a STAFFING
+// question now, not a running order: the list decides how the headcount is spread
+// across the scene's crews, and nothing about the order is visible. It used to be
+// arrival order as well — the cast was drawn as a prefix and mouse k climbed on when
+// lifetime total crossed its rung, so this list WAS the reveal.
 //
-// Two rules decide it:
+// Per-COLOUR caps, each the shape's own count rather than a share of one pot. The
+// word's cap is 9, one golden mouse per letter, so every letter is staffed and no
+// letter is ever staffed twice. Within a colour, every shape is staffed before any
+// shape gets a second mouse: sharing by tour length alone never staffs the small
+// ones (the comet's nucleus is 10 points against 429 for its tail fan, so its share
+// rounds to zero and the circle is never drawn).
 //
-// 1. Per-COLOUR caps, each the shape's own count rather than a share of one pot.
-//    The word's cap is 9 — one golden mouse per letter — and its mice arrive in
-//    REVEAL_ORDER, so the letter staging is the progression itself. Within a
-//    colour, every shape is staffed before any shape gets a second mouse: sharing
-//    by tour length alone never staffs the small ones (the comet's nucleus is 10
-//    points against 429 for its tail fan, so its share rounds to zero and the
-//    circle is never drawn).
-// 2. Colours interleave by how FULL they are, so the scene develops together
-//    rather than one colour completing before the next begins.
+// The colours are then interleaved by how full each one is. That was what made the
+// scene develop together rather than one colour completing before the next began;
+// with no arrival ramp left it survives as the flattening step, and as the order the
+// per-crew phase offsets below are handed out in.
 function rebuildWallCast() {
   wallCast = [];
   // Every colour, always. A Word of Mouse research used to filter yellow out of this
   // list until bought, which meant the nine letters could only ever arrive together,
-  // in the frame of the purchase — see the note where that row used to be. The cast
-  // is now a constant: the ramp alone decides how much of it has shown up.
+  // in the frame of the purchase — see the note where that row used to be.
   const keys = WALL_COUNT_KEYS;
   const byColor = new Map(keys.map(k => [MOUSE_COLORS[k], []]));
   WALL_CREWS.forEach((c, idx) => { const g = byColor.get(c.color); if (g) g.push(idx); });
@@ -778,24 +770,22 @@ function rebuildWallCast() {
     const want = WALL_COUNT[key];
     const weights = crews.map(k => WALL_CREWS[k].len + PAD);
     const wSum = weights.reduce((a, b) => a + b, 0) || 1;
-    let seq;
-    if (key === 'yellow') {
-      const ord = REVEAL_ORDER.filter(k => k < crews.length);
-      seq = Array.from({ length: want }, (_, n) => ord.length ? ord[n % ord.length] : 0);
-    } else {
-      seq = crews.map((_, k) => k).sort((a, b) => weights[b] - weights[a]);
-      const counts = crews.map(() => 0);
-      for (const k of seq) counts[k]++;
-      while (seq.length < want) {
-        let bi = 0, bd = -Infinity;
-        for (let k = 0; k < crews.length; k++) {
-          const deficit = (seq.length + 1) * (weights[k] / wSum) - counts[k];
-          if (deficit > bd) { bd = deficit; bi = k; }
-        }
-        counts[bi]++; seq.push(bi);
+    // One pass staffing every crew, then extra mice to whichever crew is furthest
+    // behind its share of the ink. Yellow needs no special case: its cap is exactly
+    // its crew count, so the first pass alone gives each letter its one mouse and
+    // the top-up loop never runs.
+    let seq = crews.map((_, k) => k).sort((a, b) => weights[b] - weights[a]);
+    const counts = crews.map(() => 0);
+    for (const k of seq) counts[k]++;
+    while (seq.length < want) {
+      let bi = 0, bd = -Infinity;
+      for (let k = 0; k < crews.length; k++) {
+        const deficit = (seq.length + 1) * (weights[k] / wSum) - counts[k];
+        if (deficit > bd) { bd = deficit; bi = k; }
       }
-      seq = seq.slice(0, want);
+      counts[bi]++; seq.push(bi);
     }
+    seq = seq.slice(0, want);
     queues.set(key, seq.map(k => crews[k]));
   }
   // Interleave: repeatedly take from whichever colour is least full.
@@ -1024,7 +1014,7 @@ function flipU(m, now) {
   if (wallNeonAt === null) return null;
   return Math.max(0, Math.min(1, (now - wallNeonAt - (m.neonDelay || 0)) / WALL_NEON_MS));
 }
-// Counting Mice now lands with trails already ~44 long, so the ink cannot just switch
+// Counting Mice now lands with trails already 84 long, so the ink cannot just switch
 // palette on the frame `neon` flips — that reads as a hard cut across the whole wall
 // while the bodies are still fading in. Blending per mouse on its own `u` makes the
 // recolour part of the same gesture. Cheap: one lerp per mouse per frame, and only
@@ -1069,7 +1059,7 @@ function drawWallFlip(m, x, y, u, angle) {
 // the same thing as saying it only grows over new ground.
 //
 // Time to finish is therefore the honest one: the added length, played at the speed the
-// mouse actually travels. Lucid Dreaming I's +14 takes 1.1s, and IV's +36 takes 2.9s.
+// mouse actually travels. Lucid Dreaming I's +34 takes 2.7s, and IV's +84 takes 6.7s.
 //
 // null until the first frame so a RESTORED save snaps to its full length instead of
 // spending eight seconds growing 98 samples of trail nobody bought just now — the same
@@ -1083,10 +1073,10 @@ function wallGrowTrail(dt) {
 let wallInkDirty = false, wallLastNow = 0;
 export function drawWall(now) {
   if (!wW) resizeWall();
-  // Clamped to the cast rather than to WALL_CAP. These agree now that no purchase can
-  // shrink the cast, but the clamp is what stops the ramp indexing past it: the cast
-  // is empty until loadWallScene runs, and a scene with fewer crews than headcount
-  // (a layout edit, a dropped element) would leave the tail indices undefined.
+  // Clamped to the cast rather than taking WALL_CAP at its word. The two agree once
+  // loadWallScene has run, but the cast is EMPTY before it does, and a scene with
+  // fewer crews than headcount (a layout edit, a dropped element) would leave the
+  // tail indices undefined.
   const N = Math.min(wallMiceCount(), wallCast.length);
   const dt = wallLastNow ? Math.min(now - wallLastNow, 100) : 16;
   wallLastNow = now;

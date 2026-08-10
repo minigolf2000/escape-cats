@@ -95,8 +95,10 @@
     <label>orbit</label><input type="range" id="sQblue" min="0" max="4" value="4"><output id="oQblue">4</output>
     <label>giant</label><input type="range" id="sQgreen" min="0" max="4" value="4"><output id="oQgreen">4</output>
     <label>dipper</label><input type="range" id="sQpurple" min="0" max="16" value="6"><output id="oQpurple">6</output>
-    <label>speed</label><input type="range" id="sSP" min="2" max="20" value="12"><output id="oSP">12</output>
-    <label>trail</label><input type="range" id="sT" min="0" max="200" value="180"><output id="oT">180</output>
+    <!-- speed steps in 0.2 because the shipped pace is 9.6, not an integer; trail's
+         max is 280 so the instrument keeps headroom above the shipped 236. -->
+    <label>speed</label><input type="range" id="sSP" min="2" max="20" step="0.2" value="9.6"><output id="oSP">9.6</output>
+    <label>trail</label><input type="range" id="sT" min="0" max="280" value="236"><output id="oT">236</output>
     <!-- The three candidate upgrade levers, all hardcoded constants until now.
          persist = Scent Trail (ink lingers instead of a rolling window)
          bright  = Eyes Adjust (trail peak alpha, was fixed at 50)
@@ -217,19 +219,25 @@ function placeHex() {
 // trail to reach the same legibility: 119 where 68 sufficed, measured. The trail
 // slider's max went 120 -> 200 for that reason — at 120 the only legible setting
 // was the very last notch, which left the instrument unable to show any headroom
-// above the threshold it exists to find.
+// above the threshold it exists to find. It went 200 -> 280 on the next speed cut,
+// for exactly the same reason: the shipped ladder is 236 now.
 //
 // The game has since taken the same uniform-speed treatment, so the two agree again
 // and the lab predicts the wall exactly: at the default below, with the ladder fully
-// bought (trail 180, persist 60), both compute 1.81 coverage.
+// bought (trail 236, persist 60), both compute 1.81 coverage.
 const MAX_SPEED = 20;          // scene units per second — a hard ceiling, not taste
-// 12, not the ceiling, because 12 is what the game ships (WALL.speedBase) and there
+// 9.6, not the ceiling, because 9.6 is what the game ships (WALL.speedBase) and there
 // is nothing left that raises it — the speed rung that used to climb it, Running in
 // Her Sleep, was deleted and its coverage paid for out of the trail rungs instead.
-// It is a KEPT choice there, not a leftover: 12 is the pace at which the wall reads
-// as a swarm of drifting specks rather than a set of streaks. The slider still runs
-// to MAX_SPEED so the instrument can show what was given up.
-const DEFAULT_SPEED = 12;
+// It is a KEPT choice there, not a leftover: the game slowed the wall from 12 to four
+// fifths of that when night started opening with the whole cast already walking, so
+// the mice read as specks adrift rather than as a swarm with somewhere to be. The
+// legibility bands below did NOT move with it — they measure the rendered word, and
+// the trail ladder grew (180 -> 236) to put the ink back instead. That is the same
+// trade this lab made when the word's rate was capped at MAX_SPEED and it needed 119
+// units of trail where 68 had sufficed; it is the standing answer to a speed cut.
+// The slider still runs to MAX_SPEED so the instrument can show what was given up.
+const DEFAULT_SPEED = 9.6;
 
 // The lab OPENS on the finished wall — the last rung of the ladder, everything
 // bought — because that is the state legibility is judged in, and the ladder above
@@ -238,7 +246,7 @@ const DEFAULT_SPEED = 12;
 const S = {
   count: { yellow: 9, pink: 10, blue: 4, green: 4, purple: 6 },
   speed: DEFAULT_SPEED,          // scene units per second, one rate for every mouse
-  trail: 180, seed: 7,
+  trail: 236, seed: 7,
   // Candidate night-upgrade levers, exposed to be judged by eye. Each was a
   // hardcoded constant, and each changes how much TRAIL the word needs — so they
   // want settling before any trail ladder gets written against a fixed number.
@@ -256,7 +264,7 @@ const S = {
 // rows in packages/shared/src/hex/data.ts — the shared table the server and every
 // client read — not a design of the lab's own, and the order is the whole point:
 //
-//   dark      night opens on an empty wall that fills with drifting white specks
+//   dark      night opens on the FULL cast of drifting white specks, no ink at all
 //   LD I      THE SPECKS START LEAVING TRAILS   <- the hinge; still white
 //   LD II     longer trails
 //   mice      THE SPECKS TURN OUT TO BE MICE    <- Counting Mice; recolours the drawing
@@ -274,22 +282,21 @@ const S = {
 //   WHITE until it fires (see inkColor).
 // - THE `word` STAGE IS GONE, because the upgrade behind it is. Word of Mouse used
 //   to gate the nine golden letter-mice out of the cast, and gating them meant they
-//   could only ever arrive together, in the frame of the purchase. The goldens now
-//   ride the same ramp as every other colour from the night's first second, so there
-//   is no stage at which yellow is 0 and no button for switching it on.
+//   could only ever arrive together, in the frame of the purchase. The goldens are
+//   on the wall from the night's first second, so there is no stage at which yellow
+//   is 0 and no button for switching it on.
 //
-// `mice` is the whole cast (see rampCounts): the ramp fills the wall inside the
-// first minute, so every rung from LD II on is a full 33. The two below that are
-// where the ramp still shows — 2000 x 1.23^k against lifetime earnings, floored at
-// what a team has necessarily spent by the time it can afford the rung.
+// `mice` is 33 in EVERY stage, and that is the ladder now: the arrival ramp is gone
+// from the game (see WALL in shared/hex/rules.ts), so night opens on the full cast
+// and headcount is no longer one of the things a stage varies. Only ink does.
 const STAGES = {
-  dark:    { neon: false, trail: 0,   persist: 0,  mice: 8 },
-  lucid1:  { neon: false, trail: 26,  persist: 0,  mice: 16 },
-  lucid2:  { neon: false, trail: 64,  persist: 0,  mice: 31 },
-  counting:{ neon: true,  trail: 64,  persist: 0,  mice: 33 },
-  lucid3:  { neon: true,  trail: 116, persist: 0,  mice: 33 },
-  lucid4:  { neon: true,  trail: 180, persist: 0,  mice: 33 },
-  scent:   { neon: true,  trail: 180, persist: 60, mice: 33 },
+  dark:    { neon: false, trail: 0,   persist: 0,  mice: 33 },
+  lucid1:  { neon: false, trail: 34,  persist: 0,  mice: 33 },
+  lucid2:  { neon: false, trail: 84,  persist: 0,  mice: 33 },
+  counting:{ neon: true,  trail: 84,  persist: 0,  mice: 33 },
+  lucid3:  { neon: true,  trail: 152, persist: 0,  mice: 33 },
+  lucid4:  { neon: true,  trail: 236, persist: 0,  mice: 33 },
+  scent:   { neon: true,  trail: 236, persist: 60, mice: 33 },
 };
 const POINT_COLOR = '#e9edf7';
 // Scent Trail's decay, in ms of half-life per unit of `persist`. At 100 that is a
@@ -298,11 +305,11 @@ const PERSIST_MS = 40;
 const COUNT_KEYS = ['yellow', 'pink', 'blue', 'green', 'purple'];
 // The wall's staffing ORDER, ported from the game (rebuildWallCast in
 // apps/hex-clicker/src/wall.js).
-// There is no per-colour dial there: ONE ramp decides how many mice have climbed
-// onto the wall, and the colours interleave by how FULL each is, so the scene
-// develops together rather than one colour finishing before the next begins. This
-// reproduces the split at a given headcount, which is what lets a stage preset say
-// "the wall at 16 of 33" and have the sliders land where the game would put them.
+// There is no per-colour dial there: the colours interleave by how FULL each is, so
+// a partial wall carries a bit of every shape rather than one finished colour. The
+// game itself always draws all 33 now, so this is the instrument's own knob — it is
+// what lets "the wall at 16 of 33" be asked for by hand and have the sliders land
+// where the game's staffing would put them.
 // The caps are the slider maxima above and the game's WALL_COUNT, same numbers.
 const CAPS = { yellow: 9, pink: 10, blue: 4, green: 4, purple: 6 };
 const CAST_CAP = COUNT_KEYS.reduce((a, k) => a + CAPS[k], 0);
@@ -1192,8 +1199,10 @@ document.getElementById('stage').addEventListener('click', (ev) => {
   const st = STAGES[b.dataset.v];
   const wasNeon = S.neon;
   S.neon = st.neon; S.trail = st.trail; S.persist = st.persist;
-  // Headcounts come from the ramp, not from the preset: a rung's state includes how
-  // much of the cast has climbed on by the time it is bought.
+  // Every stage now passes the full cast, so this fills each colour to its cap — the
+  // game has no arrival ramp left for a rung's state to include. Still routed through
+  // rampCounts so the per-colour sliders below can be dialled back BY HAND and still
+  // land where a partial wall would put them.
   const counts = rampCounts(st.mice);
   const rows = [['sT', 'oT', st.trail], ['sPR', 'oPR', st.persist]];
   for (const k of COUNT_KEYS) {

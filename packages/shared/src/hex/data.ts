@@ -678,7 +678,7 @@ export const UPGRADES: HexUpgrade[] = [
   // stays plain, because it is the economy row and states its own effect in words.
   //
   // There was a speed rung here (Running in Her Sleep, +8, between II and III). Deleted,
-  // and the speed it used to buy is NOT absorbed into WALL.speedBase: 12 is the pace the
+  // and the speed it used to buy is NOT absorbed into WALL.speedBase: 9.6 is the pace the
   // wall wants. The coverage it was quietly providing is paid for by the trail rungs
   // instead — see the note on speedBase, and the 98 -> 180 budget below.
   //
@@ -718,26 +718,41 @@ export const UPGRADES: HexUpgrade[] = [
   // lights leave nothing behind and the wall is unreadable in principle, not just in
   // practice. After it the dream starts recording itself. The other three only deepen it.
   //
-  // 26/38/52/64, escalating so the numeral and the size agree. The TOTAL (180) is set by
-  // legibility rather than taste: at speed 12 the wall needs trail x 80 + persist x 57.7 ms
-  // of visible ink to cross 1.6 coverage, and 180 puts the four rungs alone at 1.46 — just
+  // 34/50/68/84, escalating so the numeral and the size agree. The TOTAL (236) is set by
+  // legibility rather than taste: at speed 9.6 the wall needs trail x 80 + persist x 57.7 ms
+  // of visible ink to cross 1.6 coverage, and 236 puts the four rungs alone at 1.53 — just
   // under — with Scent Trail's persistence tipping it to 1.81. That ordering is the point:
   // the word must not become readable until the last purchase, and it must become readable
-  // ON it. 197 would break the first half of that, 160 the second.
+  // ON it. The window is [204, 247): below it the finale cannot get the word over the line,
+  // at or above it the rungs alone already have.
   //
-  // It was 98 while a speed rung carried 8 of the 20 units/sec; with speed held at 12 the
-  // same readability has to come from length. In DRAWN terms the tail only grows a tenth,
-  // 157 scene units to 173, because a slower mouse covers less ground per sample.
+  // It was 180 while the wall ran at 12 units/sec, and 98 before that while a speed rung
+  // carried 8 of the 20. Both grew for the same reason and it is the only lever there is:
+  // COVERAGE IS LINEAR IN SPEED, so the wall's drop to 9.6 (see WALL.speedBase — the whole
+  // cast is out from the first frame now, and a full wall wants a slower drift) inked the
+  // word 20% less per unit of trail, and 180 / 0.8 is 225 before the persistence term is
+  // re-fitted around it. Raising LEGIBLE_COV's twin instead was the wrong half of the
+  // inequality to touch; see the note there.
+  //
+  // In DRAWN terms the tail is 181 scene units, within a nose of the 173 it was at the old
+  // speed and budget — the wall ends the night looking the same, drawn by slower mice
+  // remembering further back. What it costs is FRAMETIME, because the tail is SAMPLED
+  // rather than recorded (see wallGrowTrail): 33 mice x 236 samples is ~467k tour lookups
+  // a second at 60fps against ~356k before. Measured in headless Chromium at 390x844 DPR2,
+  // the finished wall ran 27.5fps against 31.6 before — the last rung of the night is the
+  // heaviest frame in the game either way, and this made it ~13% heavier. Watch it on a
+  // real phone; the cheapest fix if it bites is sampling the tail coarsely at its faded
+  // end, where the alpha ramp has already made the detail invisible.
   { key: "paperlantern", name: "Lucid Dreaming I", icon: "🏮",
     cost: 50000, unlock: { requires: "catnap" },
-    effect: { type: "trail", add: 26 } },
+    effect: { type: "trail", add: 34 } },
   // 1M, not the 115k it was, to put this at 0:50. It is a big jump from I's 50k and that is
   // the point: the first stretch of night is meant to be buildings only while the one thing
   // on the rail sits out of reach. The cost of hitting 0:50 is a dip to ~10 purchases in
   // the 0:30-1:00 window while the bank fills; 700k lands it at 0:44 with ~17 instead.
   { key: "luciddreaming", name: "Lucid Dreaming II", icon: "🌀",
     cost: 1e6, unlock: { requires: "paperlantern" },
-    effect: { type: "trail", add: 38 } },
+    effect: { type: "trail", add: 50 } },
   // Night opens with the wall ALREADY populated — anonymous points of light, colourless
   // and shapeless, indistinguishable from the starfield behind them. By the time this
   // lands they have been drawing for over a minute. Counting Mice is what resolves them
@@ -756,8 +771,8 @@ export const UPGRADES: HexUpgrade[] = [
   // dearer one landed and the two bunched to eleven seconds apart. The chain had to swap
   // with them.
   //
-  // The reveal lands at 1:12 instead of 1:40, on a wall drawn to 0.52 coverage rather than
-  // 0.94 — less ink to recolour, so a smaller bang, bought for 28 more seconds of colour
+  // The reveal lands at 1:12 instead of 1:40, on a wall drawn to 0.54 coverage rather than
+  // 0.99 — less ink to recolour, so a smaller bang, bought for 28 more seconds of colour
   // afterwards and a one-two the old order could not make: the lights turn out to be mice,
   // and then the very next purchase doubles what they are drawing with.
   { key: "countingmice", name: "Counting Mice", icon: "💭",
@@ -774,12 +789,11 @@ export const UPGRADES: HexUpgrade[] = [
   // arriving 86% of the way through it, all at once, which is exactly the "they
   // appear at the end" the reveal order was designed to avoid.
   //
-  // So the golden mice now follow the same rule as every other colour: they are on
-  // the wall from the moment night starts, arriving on their own rungs of the shared
-  // ramp, interleaved with the scenery (see rebuildWallCast — yellow lands in cast
-  // slots 1, 7, 10, 14, 17, 22, 24, 29 and 32, roughly one letter per four mice).
-  // REVEAL_ORDER finally means something: it is the live letter staging, not a
-  // constant the game read once and then overrode.
+  // So the golden mice follow the same rule as every other colour, and the shared
+  // ramp they used to arrive on is gone too: the ENTIRE cast — all nine letters
+  // included — is walking from the first frame of night (see WALL in rules.ts). The
+  // REVEAL_ORDER that staged the nine letters one at a time went with it; a wall
+  // that starts full has no arrival order to stage (see the tombstone in wall.js).
   //
   // This does NOT give the word away early. A golden mouse with no trail behind it
   // is a moving dot, so the word stays unreadable until Lucid Dreaming — which the
@@ -787,7 +801,7 @@ export const UPGRADES: HexUpgrade[] = [
   // always doing the work, instead of sitting on a row that only changed a headcount.
   { key: "deepsleep", name: "Lucid Dreaming III", icon: "😴",
     cost: 1.4e6, unlock: { requires: "countingmice" },
-    effect: { type: "trail", add: 52 } },
+    effect: { type: "trail", add: 68 } },
   // Not part of the sleep-stage chain — it's the night's one economy row, gated on the
   // phase plus six HOLES rather than on the stage above it. Parked here by cost
   // (between Counting Mice and Lucid Dreaming IV) because that's where the shop and the dev dump
@@ -814,7 +828,7 @@ export const UPGRADES: HexUpgrade[] = [
   // phase. Price alone paces it — 7M lands it at 2:14 into the night.
   { key: "remsleep", name: "Lucid Dreaming IV", icon: "👀",
     cost: 7e6, unlock: { requires: "deepsleep" },
-    effect: { type: "trail", add: 64 } },
+    effect: { type: "trail", add: 84 } },
   // THE FINALE, and the only rung that is not more of something. Cats track by scent and
   // scent lingers, which is exactly the mechanic: ink stops being a rolling window and
   // starts accumulating, so the wall holds a drawing instead of shimmering like a

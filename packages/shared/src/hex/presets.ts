@@ -6,12 +6,13 @@
 // copied. Debug-only: nothing on the wire or in the server ever reads these.
 //
 // The night ladder math these lean on (see rules.ts wallCoverage): the full
-// trail ladder is 26+38+52+64 = 180 units. Without Scent Trail that yields
-// coverage ~1.46 — visibly dense but short of LEGIBLE_COV 1.6 — and with its
+// trail ladder is 34+50+68+84 = 236 units. Without Scent Trail that yields
+// coverage ~1.53 — visibly dense but short of LEGIBLE_COV 1.6 — and with its
 // persist 60 it clears ~1.81. So `finale` (everything but Scent Trail) is
 // deliberately NOT legible with the word one purchase away, and `legible` is
-// past it. The full 33-mouse wall needs lifetime total ≥ ~1.51e6
-// (mouseBase * mouseR^32); every night preset here is comfortably above it.
+// past it. Lifetime total no longer enters any of it: the wall is fully cast
+// from the first frame of night, so coverage is a function of the PURCHASES a
+// preset carries and nothing else.
 
 import { UPGRADES, type HexUpgrade } from "./data";
 import { unlockMet, WALL_EFFECTS, type HexCore } from "./rules";
@@ -39,9 +40,9 @@ export const DEBUG_PRESETS: Record<string, HexPreset> = {
     total: 1500000, mice: 1200000, clicks: 1100,
     owned: { shopper: 30, farm: 35, factory: 12, lab: 1 },
   },
-  // THE WALL OPENS. Night lifetime is deliberately small — the ramp is still
-  // filling, so this is a dozen anonymous white specks over an unlit scene,
-  // which is what the phase actually looks like for its first half minute. No
+  // THE WALL OPENS. The whole cast is out there with nothing behind it — 33
+  // anonymous white specks over an unlit scene, which is what the phase
+  // actually looks like until the first trail rung lands. No
   // day buildings: the flip wipes them (see nightReset). The BANK IS EMPTY for
   // the same reason: the twist zeroes `mice`, and this preset is the moment
   // just after it, so arriving here by button has to feel as broke as arriving
@@ -55,15 +56,15 @@ export const DEBUG_PRESETS: Record<string, HexPreset> = {
     bought: ["catnap"],
   },
   // ONE PURCHASE FROM COUNTING MICE, the twist inside the twist. Both early
-  // Lucid Dreaming rungs are in, so the wall draws at trail 64 — about half
-  // the coverage the word needs — and the bank clears 1.15M.
+  // Lucid Dreaming rungs are in, so the wall draws at trail 84 — about a third
+  // of the coverage the word needs — and the bank clears 1.15M.
   mice: {
     total: 1.6e6, mice: 1.4e6, clicks: 900, golden: 5,
     owned: { portal: 25, spindle: 12, delta: 4 },
     bought: ["catnap", "paperlantern", "luciddreaming"],
   },
   // ONE PURCHASE FROM THE END. Every night row but Scent Trail; the bank
-  // clears its 60M. Coverage ~1.46 — dense, unreadable, one press from both
+  // clears its 60M. Coverage ~1.53 — dense, unreadable, one press from both
   // closing beats at once (the ink stops fading; the rail empties).
   // Totals sit inside the three-tier night's ~103M lifetime money supply.
   finale: {

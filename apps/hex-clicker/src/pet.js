@@ -50,8 +50,19 @@ export function pet(clientX, clientY) {
   }
 
   const gain = clickGain();
+  // Where on Hex the finger landed, as a fraction of her box — the stage-space
+  // x/y above can't cross the wire, because a teammate's phone is a different
+  // size and has Hex somewhere else on it. Measured against #hexCat rather than
+  // the stage so the fraction survives every layout the game puts her through.
+  const cat = hexCatEl.getBoundingClientRect();
   // Queue first: the credit is held against the batch this tap leaves in.
-  petCredit(gain, transport.queuePet());
+  petCredit(
+    gain,
+    transport.queuePet(
+      (clientX - cat.left) / cat.width,
+      (clientY - cat.top) / cat.height,
+    ),
+  );
   anim.squash = 1;
 
   const now = performance.now();

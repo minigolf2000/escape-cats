@@ -26,10 +26,20 @@ const PET_FLUSH_MS = 100;
 
 export interface Transport {
   send(msg: HexClientMsg): void;
-  /** Enqueue one pet for the next batched `pets` message. Returns the seq of
-   * the batch it will ride in, so the caller can hold its optimistic credit
-   * until the server acknowledges that batch. */
-  queuePet(): number;
+  /** Enqueue one pet for the next batched `pets` message. `x`/`y` are where on
+   * Hex the finger landed, as fractions of her bounding box, so teammates can
+   * replay the tap where it actually happened; omit them and the tap replays
+   * scattered. Returns the seq of the batch it will ride in, so the caller can
+   * hold its optimistic credit until the server acknowledges that batch. */
+  queuePet(x?: number, y?: number): number;
+}
+
+/** A 0..1 box fraction to the integer thousandths the wire carries (see
+ * HexClientMsg). Anything not a real fraction lands on her middle rather than
+ * her top-left corner, which is where a bad number would otherwise put it. */
+function thousandths(v: number | undefined): number {
+  if (!Number.isFinite(v)) return 500;
+  return Math.max(0, Math.min(1000, Math.round((v as number) * 1000)));
 }
 
 /** Swapped in by connectRoom/startDebug. A stable object so game modules can
@@ -77,8 +87,11 @@ export function connectRoom(opts: {
   let pendingPets = 0;
   let batchSeq = 0;
   // When each queued tap happened, so the batch can carry its rhythm and not
-  // just its size.
+  // just its size — and where each one landed, so it can carry its spot too.
+  // All three stay index-aligned; queuePet only ever appends to all of them.
   let tapTimes: number[] = [];
+  let tapXs: number[] = [];
+  let tapYs: number[] = [];
   const flush = () => {
     if (pendingPets > 0 && socket && socket.readyState === socket.OPEN) {
       batchSeq++;
@@ -89,10 +102,14 @@ export function connectRoom(opts: {
           count: pendingPets,
           seq: batchSeq,
           offsets: tapTimes.map((t) => Math.round(t - now)),
+          xs: tapXs,
+          ys: tapYs,
         }),
       );
       pendingPets = 0;
       tapTimes = [];
+      tapXs = [];
+      tapYs = [];
     }
   };
   setInterval(flush, PET_FLUSH_MS);
@@ -105,9 +122,11 @@ export function connectRoom(opts: {
       socket.send(JSON.stringify(msg));
     }
   };
-  transport.queuePet = () => {
+  transport.queuePet = (x, y) => {
     pendingPets++;
     tapTimes.push(performance.now());
+    tapXs.push(thousandths(x));
+    tapYs.push(thousandths(y));
     return batchSeq + 1; // the batch this tap will leave in
   };
 

@@ -23,6 +23,14 @@ export interface PlayerInfo {
 export interface TapEvent {
   slot: number;
   at: number;
+  /** Where on Hex the finger landed, as a fraction of her bounding box from
+   * her left/top edge (0..1). Fractions rather than pixels because she renders
+   * at a different size on every phone — but always at the same aspect ratio,
+   * so a fraction picks out the same ear on all of them.
+   * Absent when the tap carried no spot (see `xs`/`ys` on the `pets` message);
+   * those replay scattered across her middle, as every tap used to. */
+  x?: number;
+  y?: number;
 }
 
 export interface HexSnapshot extends HexSimState {
@@ -54,6 +62,16 @@ export type HexClientMsg =
        * the rhythm of the taps inside a batch, which a bare count throws away —
        * teammates' mice are replayed on it. */
       offsets?: number[];
+      /** Where each tap landed on Hex, as thousandths of her bounding box from
+       * her left/top edge (0..1000). Index-aligned with `offsets`: entry i is
+       * the same tap in both, so a batch carries each tap's beat AND its spot.
+       *
+       * Integer thousandths rather than floats purely for the wire — 1/1000 of
+       * a 300px-wide cat is a third of a pixel, and "483" is a quarter the JSON
+       * of "0.4832671". The server divides them back out; nothing downstream
+       * ever sees the encoding. */
+      xs?: number[];
+      ys?: number[];
     } // batched client-side
   | { type: "buyBuilding"; id: string }
   | { type: "buyUpgrade"; key: string }

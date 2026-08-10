@@ -112,8 +112,10 @@ export const BUILDINGS: HexBuilding[] = [
   // fix that, so buying one was a straight penalty — fine when it was scenery,
   // hostile when it's the gate. 400 mps still loses the marginal comparison to a
   // Factory or a Farm carrying its upgrade stack, and that is correct: you buy
-  // the Lab for what it OPENS — four cross-building upgrades, and the twist —
-  // not because the arithmetic says to. It just shouldn't punish you for it.
+  // the Lab for what it OPENS — the twist — not because the arithmetic says to.
+  // (Its cross-building tier used to reveal off it too; that moved to the first
+  // Factory for the visibility rule — see the tier's note.) It just shouldn't
+  // punish you for it.
   // Knock-on: Labs keep earning at night, so day Labs now bootstrap the dream
   // harder than the seed holes below. Watch that in the sim if this moves again.
   { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 400 },
@@ -271,6 +273,23 @@ export const HEX_CODEWORD = "TO THE MOON";
 //     owned: [buildingId, n]   total: n (lifetime mice)
 //     clicks: n                golden: n (golden mice caught)
 //     requires: "key"          (must own that upgrade)
+//
+//   THE VISIBILITY RULE, and it binds every row: a row must arrive on the rail
+//   UNAFFORDABLE and stay that way for at least ~5s at 16 pets/s (a team of
+//   four mashing — the fastest bank in the game), so no upgrade ever pops in
+//   already buyable. Nothing here is a fresh-reveal impulse buy; everything is
+//   briefly a goal. Mechanically: bank <= lifetime total always, so a `total`
+//   gate at about HALF the row's cost guarantees the arrival half of the rule
+//   for any strategy, and the 5s half is measured with the pacing bot
+//   (reveal -> first-affordable across 3/8/16 pets/s). Count gates survive only
+//   where the count binds in the era the row prices — farm and shopper counts
+//   climb all day and do; factory counts all bind inside the day's final
+//   income spike, where nothing can dwell (see the Factory ladder note).
+//   Three rows sit below the bar and are the known exceptions: Cat Tree and
+//   Sisal Scratching Plows are income-capped at 16 pets/s (their whole cost is
+//   ~3-4s of era income however early they reveal; both clear 5s at 8/s), and
+//   Catnap Hypnalysis reveals inside the endgame spike by design (see its
+//   note). Re-measure the table whenever costs, mps, or INCOME_SCALE move.
 //   effect: what it does. Folded into `mods` by recalc():
 //     buildingMult  building, mult   — that building only
 //     globalPct     pct              — all buildings, additive with each other
@@ -299,29 +318,24 @@ export const HEX_CODEWORD = "TO THE MOON";
 export const UPGRADES: HexUpgrade[] = [
   // --- Mouse Subscription ---
   { key: "shopper1", name: "2-Day Shipping", icon: "🚚",
-    cost: 200, unlock: { owned: ["shopper", 5] },
+    cost: 200, unlock: { total: 90, owned: ["shopper", 3] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
-  // 1000, from 1800, and the price is not what places this row — see the reveal
-  // schedule note on Cat Brush below. What the price buys is how long the row
-  // WAITS once revealed: measured reveal-to-purchase across 3/8/16 pets/s,
-  // 9.3/7.0/13.5s here against 26.5/77.8/35.4s at 1800. Still a wait at every
-  // rate, which is the floor worth keeping — the bank at a 3500 lifetime is barely
-  // three figures, so this cannot become affordable-on-reveal without going
-  // several times cheaper again, and a row bought on sight never appears in the
-  // shop at all (the failure the Cat Brush note describes).
+  // 500 lifetime, from 3500 — the row that named the visibility rule. At 3500
+  // it revealed with the bank already past its 1000 cost and was bought the
+  // frame it appeared (measured dwell 0.0s at 16 pets/s), which is exactly the
+  // feel the header's rule bans. Half its cost instead: bank <= total, so it
+  // CANNOT arrive affordable, and the measured wait on the rail is 39.8/25.3/
+  // 15.3s across 3/8/16 pets/s. The shopper count came down 10 -> 5 with it so
+  // the count never out-binds the total (ten shoppers used to be the real gate
+  // at a mashing rate).
   //
-  // AN EMPTY RAIL IS SET BY REVEAL GATES, NOT BY COSTS, and this row is the proof:
-  // dropping it 1800 → 1000 moved the measured empty-rail windows by nothing, to
-  // the frame, at all three tap rates. Cost decides when a row LEAVES the rail;
-  // `unlock` decides when it arrives. Tune pacing with the former and coverage
-  // with the latter.
-  //
-  // Knock-on of the two price cuts: the day is ~9s shorter (twist at 2:59 from
-  // 3:08 at 8 pets/s, 5:10 from 5:20 solo). Noise against the ±20s spread
-  // INCOME_SCALE is documented with, but the direction to watch if more rows get
-  // cheaper.
+  // AN EMPTY RAIL IS SET BY REVEAL GATES, NOT BY COSTS — this row proved it
+  // when it was priced 1800 -> 1000 and the measured empty-rail windows moved
+  // by nothing, to the frame, at all three tap rates. Cost decides when a row
+  // LEAVES the rail; `unlock` decides when it arrives. Tune pacing with the
+  // former and coverage with the latter.
   { key: "shopper2", name: "Subscribe & Save", icon: "🔁",
-    cost: 1000, unlock: { total: 3500, owned: ["shopper", 10] },
+    cost: 1000, unlock: { total: 500, owned: ["shopper", 5] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
   // The subscription line's later tiers break from the flat ×2: each one cuts
   // deeper into the supply chain, so the mice-per-dollar gain grows. Liquidation
@@ -351,19 +365,25 @@ export const UPGRADES: HexUpgrade[] = [
   // could never be revealed at all. A day now ends holding ~16-17 Farms (sim,
   // across 3-16 pets/s), so that is where the ladder tops out. These gates are
   // measured, not chosen — re-measure them whenever building mps moves.
-  // ONE Farm, not three, and `total: 800` is the number doing the work again. The
-  // farm count used to bind at a ~1500 lifetime (measured 1531/1513/1518 across
-  // 3/8/16 pets/s), because a day spends its opening on Mouse Subscriptions —
-  // they out-earn Farms per mouse while pets carry income — so the 800 that was
-  // chosen to place this row never placed it, and the row landed already
-  // affordable and was bought on the frame it appeared.
+  // ONE Farm, not three, and total 400 — the row's own cost, per the header's
+  // half-cost idiom but pinned at 1x because this is the row that found the
+  // trap the idiom fixes: the farm count used to bind at a ~1500 lifetime
+  // (measured 1531/1513/1518 across 3/8/16 pets/s), because a day spends its
+  // opening on Mouse Subscriptions — they out-earn Farms per mouse while pets
+  // carry income — so the 800 that was chosen to place this row never placed
+  // it, and the row landed already affordable and was bought on the frame it
+  // appeared. Even at 400 the binder at a mashing rate is the first Farm
+  // purchase, and the dwell is 4.0s at 16 pets/s — the income cap the header
+  // names, since 400 mice IS about four seconds of that era's income
+  // (13.0/7.5s at 3/8 pets/s, comfortably over the bar).
   //
-  // The gate drops to one rather than coming off entirely: a Farm multiplier
-  // bought with no Farms does nothing, which is the rule the cardboard line states
-  // for its factory counts, and one Farm is met by anyone who bought the building
-  // when it appeared at a 100 lifetime.
+  // The farm gate stays at one rather than coming off entirely: a Farm
+  // multiplier bought with no Farms does nothing, and one Farm is met by
+  // anyone who bought the building when it appeared at a 100 lifetime. (The
+  // factory ladders used to hold the same principle and gave it up — their
+  // counts only ever bind inside the endgame spike; see the cardboard note.)
   { key: "farmplow", name: "Sisal Scratching Plows", icon: "🧶",
-    cost: 400, unlock: { total: 800, owned: ["farm", 1] },
+    cost: 400, unlock: { total: 400, owned: ["farm", 1] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   // 1800, from 2200, which keeps this the cheapest thing on the rail once
   // Subscribe & Save is bought and holds the Farm ladder's step near ×4.5 (400 →
@@ -374,9 +394,9 @@ export const UPGRADES: HexUpgrade[] = [
   // would have changed nothing — the same trap the Plows above were in. This row
   // is the back half of the opening's coverage (see Cat Brush for the schedule).
   // It is a slow burn by design: a Farm multiplier revealed while pets still carry
-  // income, so it sits unbought for 37-135s depending on tap rate (123s at the old
-  // price and gate). That dwell is what holds the rail from here to Subscribe &
-  // Save's 3500, so do not price or gate this to be bought on sight.
+  // income, so it holds the rail alongside Cat Brush through the opening —
+  // measured reveal-to-afford 38.0/21.8/8.8s and reveal-to-purchase up to 47s
+  // across 3/8/16 pets/s. Do not price or gate this to be bought on sight.
   { key: "farmfeliway", name: "Feliway Sprinklers", icon: "💨",
     cost: 1800, unlock: { total: 2000, owned: ["farm", 2] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
@@ -384,10 +404,10 @@ export const UPGRADES: HexUpgrade[] = [
     cost: 7200, unlock: { total: 13000, owned: ["farm", 7] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "farmchuru", name: "Churu Hydroponics", icon: "🍦",
-    cost: 20000, unlock: { total: 37000, owned: ["farm", 9] },
+    cost: 20000, unlock: { total: 10000, owned: ["farm", 9] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "farmdrone", name: "Autonomous Bug-Batting Drones", icon: "🚁",
-    cost: 90000, unlock: { total: 165000, owned: ["farm", 11] },
+    cost: 90000, unlock: { total: 45000, owned: ["farm", 11] },
     effect: { type: "buildingMult", building: "farm", mult: 4 } },
 
   // --- Mouse Factory ---
@@ -399,9 +419,20 @@ export const UPGRADES: HexUpgrade[] = [
   // multiplying to 60 cannot do the job the old 5-rung ×432 did — that collapse
   // is why the base cost had to come down with it (see the BUILDINGS note).
   //
-  // Same measured-threshold rule as the Farm: a day ends holding 11-15
-  // Factories, so the ladder tops out at 6 and every rung is reachable at every
-  // tap rate.
+  // NOT count-gated like the Farm ladder, and the difference is measured, not
+  // taste: the day's first Factory lands at the mouth of the endgame income
+  // spike (1:26 at 16 pets/s, 3:12 solo) and the next several follow inside
+  // ten seconds, so a factory-count gate of ANY size reveals its row into the
+  // spike, where every cost is trivially covered — dwell 0.8-2.5s, the exact
+  // pop-in-and-buy feel the header bans. The rungs gate on lifetime totals
+  // instead (10000/16000/36000, i.e. the Factory building's own reveal and
+  // roughly half-cost above it), so the whole ladder shows up on the rail WITH
+  // the building as things to save toward — measured dwell 18-53s across
+  // 3/8/16 pets/s. The trade: a rung can be bought before owning a Factory,
+  // where it does nothing. The row text states its effect plainly, the pacing
+  // bot never takes the dead buy, and the reveal doubles as an advert for the
+  // branch the bot historically under-bought — accepted, but it is a real
+  // trap for a hasty human; revisit if playtests show it being sprung.
   //
   // Cost steps stay near 3x even though the gains are ×2/×3, for the reason the
   // petting ladder is built the way it is: by the time Factories carry the day's
@@ -409,24 +440,33 @@ export const UPGRADES: HexUpgrade[] = [
   // apart buy each other. At 200k/400k for the top two the sim fired the last
   // eight rows of the whole game inside three seconds.
   { key: "factory1", name: "Sisal Conveyor Tracks", icon: "🧵",
-    cost: 9000, unlock: { owned: ["factory", 2] },
+    cost: 9000, unlock: { total: 10000 },
     effect: { type: "buildingMult", building: "factory", mult: 3 } },
   { key: "factory3", name: "LED Weaving Looms", icon: "💡",
-    cost: 22000, unlock: { owned: ["factory", 4] },
+    cost: 22000, unlock: { total: 16000 },
     effect: { type: "buildingMult", building: "factory", mult: 4 } },
   { key: "factory4", name: "Pneumatic Crinkle Packagers", icon: "🎁",
-    cost: 72000, unlock: { owned: ["factory", 6] },
+    cost: 72000, unlock: { total: 36000 },
     effect: { type: "buildingMult", building: "factory", mult: 5 } },
 
-  // --- Schrödinger's Lab — fantastical cross-building tier ---
-  // The Lab gets NO upgrades that boost itself. Instead, owning it unlocks a
-  // tier of theory-powered boosts to the OTHER day buildings — "synthesizes
-  // mice from theory" made literal. Each is AND-gated on owning the Lab plus a
-  // modest count of its target building, so it reveals as a late-day power
-  // spike once you've committed to the Lab. This tier is the last rung of phase
-  // 1: it sits under Catnap Hypnalysis on cost so the capstone is still the
-  // capstone, but above every other day ladder so buying a Lab reads as an
-  // escalation. Fantastical flavour, ×3 where it is a plain multiplier.
+  // --- The fantastical cross-building tier (born of the Lab, no longer gated
+  // on it) ---
+  // Theory-powered boosts to the other day buildings — "synthesizes mice from
+  // theory" made literal. These used to be AND-gated on OWNING the Lab, the
+  // "buying a Lab lights up four rows at once" beat — and that beat is exactly
+  // what the header's visibility rule cannot keep: a row revealed by a
+  // 130000-mouse purchase arrives mid-endgame-spike with the bank refilling in
+  // seconds (measured dwell 0.3-1.8s, bought before anyone reads the name).
+  // The beat also cut the other way — decoupled entirely, the bot bought the
+  // farm/shopper ×3s early, farms out-competed factories, and it finished the
+  // day with ZERO Factories (the same collapse the Factory base-cost note
+  // fights). So the gates are the first FACTORY plus a count of the target
+  // building: still revealed by committing to late-day heavy industry, but the
+  // 10000 the first Factory drains from the bank is what makes a 36000 row
+  // arrive out of reach (measured dwell 6.8-12.3s). Factory Factory gates on a
+  // 34000 lifetime instead — half its cost — because a factory count on it
+  // binds in-spike like the ladder above. The tier still sits under Catnap
+  // Hypnalysis on cost, so the capstone is still the capstone.
   //
   // Exactly one row per day building now, which is the tier's whole shape: the
   // Farm gets Mice from Theory, the Subscription gets 2 Second Shipping, and the
@@ -439,10 +479,10 @@ export const UPGRADES: HexUpgrade[] = [
   // The building's blurb said "synthesizes mice from theory" until blurbs were
   // trimmed to the one row that teaches, and the phrase was too good to lose.
   { key: "farm2", name: "Mice from Theory", icon: "🧬",
-    cost: 36000, unlock: { owned: [["farm", 9], ["lab", 1]] },
+    cost: 36000, unlock: { owned: [["farm", 9], ["factory", 1]] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "labparcels", name: "2 Second Shipping", icon: "🚀",
-    cost: 36000, unlock: { owned: [["shopper", 15], ["lab", 1]] },
+    cost: 36000, unlock: { owned: [["shopper", 15], ["factory", 1]] },
     effect: { type: "buildingMult", building: "shopper", mult: 3 } },
   // A factory that makes factories: a SELF-synergy (crossBuilding with per ==
   // building), so each Mouse Factory you own makes every Mouse Factory +8%
@@ -453,7 +493,7 @@ export const UPGRADES: HexUpgrade[] = [
   // is ×1.9-2.2. Watch it in the pacing sim if factory counts drift — 12% was
   // measurably too much, pulling the day in by ~40s.
   { key: "factoryfactory", name: "Factory Factory", icon: "🪆",
-    cost: 68000, unlock: { owned: [["factory", 8], ["lab", 1]] },
+    cost: 68000, unlock: { total: 34000 },
     effect: { type: "crossBuilding", building: "factory", per: "factory", pct: 8 } },
   // --- Petting ---
   // EVERY row here belongs to phase 1 — petting earns nothing once Hex is asleep
@@ -505,45 +545,37 @@ export const UPGRADES: HexUpgrade[] = [
   { key: "scratchpost", name: "Scratching Post", icon: "🪵",
     cost: 250, unlock: { clicks: 60 },
     effect: { type: "clickMult", mult: 2 } },
-  // THE OPENING'S REVEAL SCHEDULE LIVES HERE. 700, from 4000, and this row is what
-  // keeps the shop's upgrade rail from going blank in the first minute.
+  // THE OPENING'S REVEAL SCHEDULE LIVES HERE, and it is where the header's
+  // visibility rule was learned. The original failure, reported from playtest
+  // as "a gap between 1k and 2k where there were no upgrades at all": every
+  // row in the opening ladder cost LESS than a player had banked by the time
+  // its gate opened, so each was bought on the frame it appeared and the rail
+  // dropped straight back to empty — 31s of blank shelf solo, 18s for a team
+  // of four. The first fix planted two expensive rows (this one and Feliway)
+  // as savings targets to cover the band; the current tune generalises that
+  // into the rule every row now follows: reveal at about half of cost, so
+  // NOTHING arrives buyable and the rail is never a pop-in-and-purchase. The
+  // opening's reveal schedule (lifetime at reveal -> cost, with measured
+  // reveal-to-afford dwell across 3/8/16 pets/s):
   //
-  // The failure it fixes, reported from playtest as "a gap between 1k and 2k where
-  // there were no upgrades at all": every row in the opening ladder — Cat Tree 50,
-  // 2-Day Shipping 200, Scratching Post 250, Sisal Scratching Plows 400 — costs
-  // LESS than a player has banked by the time its gate opens, so each is bought on
-  // the frame it appears and the rail drops straight back to empty. The next row to
-  // arrive was Subscribe & Save on a 3500 lifetime. Measured, that left the rail
-  // empty from a ~650 lifetime to a ~3500 one at every tap rate: 31s of a 38s
-  // stretch solo, 18s of 20s for a team of four, and the worst empty window in the
-  // game.
+  //   ~12        Cat Tree                 50    18.8/ 5.5/3.0s (income-capped)
+  //   60 clicks  Scratching Post          250   38.0/15.5/8.0s
+  //   90         2-Day Shipping           200   24.5/12.5/5.5s
+  //   400        Sisal Scratching Plows   400   13.0/ 7.5/4.0s (income-capped)
+  //   500        Subscribe & Save         1000  39.8/25.3/15.3s
+  //   700        Cat Brush                2200  83.5/41.5/26.3s
+  //   2000       Feliway Sprinklers       1800  38.0/21.8/ 8.8s
   //
-  // A row that fills that band cannot be a cheap one, or it just gets bought on
-  // sight too and the hole reopens one purchase later. It has to arrive priced
-  // ABOVE the bank and STAY there as something to save toward, which is what 2200
-  // revealed on a 700 lifetime is: the bank at that point is two figures. So the
-  // reveal schedule for the opening is now
+  // The two income-capped rows are the header's exceptions: their whole cost
+  // is a few seconds of income at a team's tap rate however early they show.
   //
-  //   ~12    Cat Tree                 50    bought on sight
-  //   ~73    Scratching Post          250   bought on sight
-  //   ~382   2-Day Shipping           200   bought on sight
-  //   700    Cat Brush                2200  <- SAVED FOR, 20-246s on the rail
-  //   800    Sisal Scratching Plows   400   bought on sight
-  //   2000   Feliway Sprinklers       1800  <- saved for, 37-135s on the rail
-  //   3500   Subscribe & Save         1000
-  //
-  // and the two savings targets are what cover the band the four cheap rows cannot.
-  // Measured worst early-day empty window across 3/8/16 pets/s: 19.0/13.5/9.5s
-  // before, 3.5/1.3/1.5s after — and the 3.5s is the intended opening beat before
-  // the first Mouse Subscription exists, not a hole. Longest stretch with no NEW
-  // row revealed is 34/38/24s.
-  //
-  // THE TRADE, stated plainly because it is a judgement call and not a free win: a
-  // solo player now sees Cat Brush sit unaffordable for up to four minutes. That is
-  // deliberate — a visible goal you are saving toward is not the same experience as
-  // a blank shelf, and it is Cookie Clicker's own idiom — but if playtest says the
-  // rail reads as STUCK rather than as a target, the fix is another row revealing
-  // in the 1000-2000 band, NOT making this one cheaper. Cheaper just returns it to
+  // THE TRADE, stated plainly because it is a judgement call and not a free
+  // win: a solo player sees Cat Brush sit unaffordable for minutes, and the
+  // mid-day rail now carries several unaffordable rows at once. That is
+  // deliberate — a visible goal you are saving toward is not the same
+  // experience as a blank shelf, and it is Cookie Clicker's own idiom — but if
+  // playtest says the rail reads as STUCK rather than as a target, the fix is
+  // spacing the reveals, NOT making rows cheaper. Cheaper just returns them to
   // the bought-on-sight pile.
   //
   // `clicks: 110` is untouched and is not load-bearing for placement: 110 pets is
@@ -566,18 +598,21 @@ export const UPGRADES: HexUpgrade[] = [
   // 53 subscriptions, 13 farms and ZERO factories, taking the Farm ladder and
   // the entire Factory ladder down with it. The Factory's 12000 base is the
   // brake, and aiming the line at the building nobody was stocking is the point.
-  // Gated on owning factories as well: bought with none, these rows do nothing.
   // The Box is the classic ambush spot, the Castle is its upgrade, and locking
-  // Goomba in it leaves Hex the whole fort — so they read as a sequence, but the
-  // gates are factory counts (3/5/7) and NOT `requires` links any more. That
-  // chain broke the line twice. Every row here is a PETTING upgrade, so at a low
-  // tap rate it is genuinely not worth buying — and a `requires` on a purchase
-  // turns "not worth buying" into "never revealed", taking the two rows behind it
-  // down as well. A visible row you choose to skip is fine; an invisible one is
-  // dead content. The counts alone keep the sequence in practice, since you pass
-  // 3 factories before 5 and 5 before 7.
+  // Goomba in it leaves Hex the whole fort — so they read as a sequence, and
+  // the gates are ascending lifetime totals (10000/13000/40000), NOT `requires`
+  // links. A `requires` chain broke the line twice: every row here is a PETTING
+  // upgrade, genuinely not worth buying at a low tap rate, and a `requires` on
+  // a purchase turns "not worth buying" into "never revealed", taking the rows
+  // behind it down too. A visible row you choose to skip is fine; an invisible
+  // one is dead content. The gates were factory counts (3/5/7) before the
+  // totals — same reveal-into-the-spike failure as the Factory ladder above
+  // (0.3-1.3s dwell measured; 10-43s on the totals), and the same accepted
+  // trade: bought with no factories these rows do nothing, and the row text
+  // says what they count. The Box's 10000 is the Factory building's own
+  // reveal, so the ambush spot arrives with the thing it ambushes from.
   { key: "cardboardbox", name: "Cardboard Box", icon: "📦",
-    cost: 4500, unlock: { owned: ["factory", 3] },
+    cost: 4500, unlock: { total: 10000 },
     effect: { type: "clickPerBuilding", add: 10, per: "factory" } },
   { key: "scratchpost2", name: "Reinforced Scratching Post", icon: "🪢",
     cost: 3600, unlock: { total: 7000, requires: "scratchpost", clicks: 160 },
@@ -609,11 +644,16 @@ export const UPGRADES: HexUpgrade[] = [
   // and the pacing sim (which assumes every golden is caught) would score it at
   // zero gain and never buy it.
   //
-  // Spaced 12k / 60k / 220k rather than the old 40k / 50k / 110k, where the first
-  // two were a quarter of a step apart and read as the same purchase twice. The
-  // third no longer `requires` the second, for the reason the cardboard line
-  // doesn't either: the pets gates (620 then 820) already order them, and a
-  // purchase-gate turns a skipped row into an invisible one.
+  // Spaced 12k / 50k / 65k on lifetime. The old 40k / 50k / 110k put the first
+  // two a quarter of a step apart, reading as the same purchase twice; the
+  // 220k the third briefly sat at revealed it into the endgame spike already
+  // affordable (1.8-3.0s dwell), so it came down to 65k — half its 99000 cost
+  // per the header's rule, measured 9.8-16.3s on the rail. The reveal ORDER
+  // still steps 12k -> 50k -> 65k, and the costs (5400 / 27000 / 99000) keep
+  // the three reading as different sizes of save even where the reveals
+  // bunch. The third no longer `requires` the second, for the reason the
+  // cardboard line doesn't either: the clicks gates (340 then 460) already
+  // order them, and a purchase-gate turns a skipped row into an invisible one.
   //
   // Rungs are 1.5 / 1.4 / 1.4 = ×2.94 across the line, up from 1.3 / 1.25 / 1.25
   // = ×2.03, absorbing the ×1.5 that Mouse Magnet used to contribute. That row is
@@ -639,20 +679,20 @@ export const UPGRADES: HexUpgrade[] = [
   // still holds: a 3-pets/s run reaches this point already banking for Catnap and
   // only taking fast-payback rows.
   { key: "cardboardcastle", name: "Cardboard Castle", icon: "🏰",
-    cost: 16000, unlock: { owned: ["factory", 5] },
+    cost: 16000, unlock: { total: 13000 },
     effect: { type: "clickPerBuilding", add: 35, per: "factory" } },
   { key: "chinscritch", name: "Chin Scritch", icon: "😌",
-    cost: 36000, unlock: { total: 65000, clicks: 280 },
+    cost: 36000, unlock: { total: 24000, clicks: 280 },
     effect: { type: "zoomTime", add: 4 } },
   { key: "windowperch", name: "Third Window Perch, Second Window", icon: "🪟",
-    cost: 99000, unlock: { total: 180000, clicks: 460 },
+    cost: 99000, unlock: { total: 65000, clicks: 460 },
     effect: [{ type: "goldenFreq", mult: 1.4 }, { type: "goldenLife", add: 4 }] },
   // The anticlimax is the joke: bought after churu hydroponics and a quantum
   // lab, and what it buys is the same kibble as yesterday. The title has to land
   // that — "Dry Food" alone reads as a straight item — so the effect stays the
   // most ordinary thing in the shop.
   { key: "dryfood", name: "Dry Food, Same As Yesterday", icon: "🥣",
-    cost: 58000, unlock: { total: 105000, clicks: 300 },
+    cost: 58000, unlock: { total: 28000, clicks: 300 },
     effect: { type: "clickMult", mult: 2 } },
   // The ladder's only share-of-your-/s rung, and not a fifth doubling — four ×2s
   // is all the cost ceiling can space far enough apart. The mitts let you keep
@@ -662,17 +702,17 @@ export const UPGRADES: HexUpgrade[] = [
   // where +2% of a tiny /s bought nothing.) The floor is still CLICK_CPS_SHARE,
   // so pets keep their share of income whether or not this is bought.
   { key: "ovenmitts", name: "Bite-Proof Oven Mitts", icon: "🧤",
-    cost: 72000, unlock: { total: 130000, clicks: 400 },
+    cost: 72000, unlock: { total: 36000, clicks: 400 },
     effect: { type: "clickShare", pct: 2 } },
   { key: "jailgoomba", name: "Lock Goomba in Cardboard Castle", icon: "🚔",
-    cost: 81000, unlock: { owned: ["factory", 7] },
+    cost: 81000, unlock: { total: 40000 },
     effect: { type: "clickPerBuilding", add: 100, per: "factory" } },
   // Sequel to the original Cat Tree (whiskers) — same running-gag pattern as the
   // Window Perch trio, and the same rule: the title carries it, because a second
   // row titled plain "Cat Tree" is indistinguishable from the first in the shop.
   // The ladder's last doubling.
   { key: "cattreetable", name: "Cat Tree, On the Table", icon: "🌳",
-    cost: 144000, unlock: { total: 260000, requires: "whiskers", clicks: 520 },
+    cost: 144000, unlock: { total: 70000, requires: "whiskers", clicks: 520 },
     effect: { type: "clickMult", mult: 2 } },
   // Reads two ways on purpose: a breath of fresh air to anyone playing, and the
   // daily asthma puff to anyone who knows the real Hex. Don't "fix" the wording
@@ -683,7 +723,7 @@ export const UPGRADES: HexUpgrade[] = [
   // rather than pets alone, which is both the plainest reading of the name and
   // the one shape that can't set off another cascade this late in the day.
   { key: "freshair", name: "A Breath of Fresh Air", icon: "💨",
-    cost: 189000, unlock: { total: 340000, clicks: 560 },
+    cost: 189000, unlock: { total: 90000, clicks: 560 },
     effect: { type: "globalPct", pct: 25 } },
 
   // --- Cross-building synergies ---
@@ -710,8 +750,8 @@ export const UPGRADES: HexUpgrade[] = [
 
   // --- THE TWIST + night chain ---
   // Catnap Hypnalysis is the END OF PHASE 1, and it is priced to say so: at 1M
-  // it costs more than three times the dearest thing under it (the Lab tier's
-  // Observer Effect at 300k), so no day ladder can be mistaken for the capstone
+  // it costs more than five times the dearest thing under it (A Breath of
+  // Fresh Air at 189k), so no day ladder can be mistaken for the capstone
   // and none of them is left stranded behind it. Every other day upgrade —
   // building AND petting — is tuned to be affordable well before this one, which
   // matters most for the petting ladder: pets earn nothing at night, so a
@@ -728,12 +768,22 @@ export const UPGRADES: HexUpgrade[] = [
   // (it derives from game.bought, so saves restore it for free).
   //
   // The cost of that gate is that a team who never buys a Lab never sees the
-  // twist. Two things pay for it: the Lab is the last, strangest, most expensive
-  // building on the rail (the thing groups buy on sight), and buying one lights
-  // up FOUR upgrade rows at once — its cross-building tier is priced inside
-  // phase 1 now, so the reward for opening the door is immediate and visible.
+  // twist. What pays for it: the Lab is the last, strangest, most expensive
+  // building on the rail (the thing groups buy on sight), and what it opens is
+  // the twist itself. (Its cross-building tier used to reveal off the Lab too
+  // — that moved to the first Factory; see the tier's note.)
   // If playtests still show teams stalling out in daylight, the fix is a nudge
   // toward the Lab, not a second unlock condition here.
+  //
+  // THE ONE DELIBERATE EXCEPTION to the header's visibility rule: this row
+  // reveals off a 130000-mouse purchase inside the endgame income spike, so
+  // its measured dwell is 1.3-2.0s — it arrives near-buyable, and the day ends
+  // on pressing it. That is the beat working as written, not a gate mistuned:
+  // the save-toward target for the twist era is the LAB on the building rail,
+  // and this row is the door swinging open once it's built. Every alternative
+  // loses more than it buys — a total gate here is the sitting-for-minutes 1M
+  // row the paragraph above rejects, and the price is load-bearing capstone
+  // signalling. Leave it, and let the twist land as a chord.
   { key: "catnap", name: "Catnap Hypnalysis", icon: "💤",
     cost: 1e6, unlock: { owned: [["lab", 1]] },
     effect: { type: "night" } },

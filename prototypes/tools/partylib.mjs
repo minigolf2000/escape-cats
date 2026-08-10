@@ -299,6 +299,7 @@ export async function robustify(page, li, set, rounds = 6, neighbors = 24) {
         const cand = best.map(([a, b]) => [
           [a[0] + (rnd() * 2 - 1) * 4, a[1] + (rnd() * 2 - 1) * 4],
           [b[0] + (rnd() * 2 - 1) * 4, b[1] + (rnd() * 2 - 1) * 4]]);
+        if (cand.some(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1]) > 58)) continue; // placeable: BAND_MAX
         if (hits(cand) < h0) continue;               // must keep every kick
         const w = slopOf(cand);
         if (w > bestW) { bestW = w; best = cand.map(bd => bd.map(p => p.map(x => +x.toFixed(1)))); }

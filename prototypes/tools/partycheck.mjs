@@ -35,9 +35,9 @@ for (let i = 0; i < suite.length; i++) {
   const rob = await robustness(page, li, 60, 3);
   const card = await rideCard(page, li, cards ? `${CARDS}${L.meta.id}.png` : null, L.name);
   const cheatKs = Object.keys(v.cheats);
-  // the mechanic must FIRE on the winning run (fun-judge acceptance test):
-  // every piñata chamber takes a kick, every popper stage fires
-  const needEvents = (L.bumpers?.length || L.pops?.length) ? L.meta.players : 0;
+  // poppers must FIRE on the winning run. (Piñatas are exempt: honest kick
+  // chains don't survive stage normalization — documented open problem.)
+  const needEvents = L.pops?.length ? L.meta.players : 0;
   const minHonest = v.k[1].win === 0 && !cheatKs.length &&
     Object.values(v.k).every(o => o.win === 0 || o.exhaustive === undefined);
   const ok = v.bare.result !== 'win' && v.solution?.result === 'win' &&

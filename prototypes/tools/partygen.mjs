@@ -160,17 +160,17 @@ function liftRooms(N, { Hr = 62, winH = 14, winUp = 20, sill = 0, split = false 
   return { budget: N, start: [2, 1], goal: [cakeX, gy + 8], terrain, updrafts };
 }
 // -------------------------------------------------- BUMPER · piñata chambers
-// The kick is a REVERSAL: a radial bounce throws her back the way she came,
-// with energy added (min exit 58, up to full speed). So each chamber reads:
-// band ramps her right across the room onto the piñata — the piñata slams
-// her BACK up-left over the tall fin — she drops into the slot behind it.
-// Hit it hard: weak arrivals get weak kicks and die in the right-hand dish.
-// A jog kicker under the slot walls her speed off, so chambers are identical.
-// tier 2 hangs a ceiling fin mid-room (the kick must fly back LOW);
-// tier 3 adds a second piñata squatting in the return path (dodge it).
-function pinataChambers(N, { gap = 16, fin = 34, lowCeil = false, dodge = false } = {}) {
+// CAROM chambers: the piñata hangs mid-room, 50+ units from the entry fall
+// line. The band is a launch rail — she rides it off its low end and arcs
+// OVER the piñata; descending just past its crown she clips the BACK slope
+// and the radial kick fires her onward, up-right over the fin into the gap
+// (the ceiling flattens hot kicks and the far wall drops them in — wild
+// kicks still land). Undershoot and she clips the front slope instead: the
+// kick fires her straight back into the fail pocket. Throw her HIGHER.
+// tier 2 hangs a ceiling curtain (the arc must stay low); tier 3 adds a
+// second piñata behind the first (clip the wrong one and it counter-kicks).
+function pinataChambers(N, { gap = 18, fin = 30, lowCeil = false, dodge = false } = {}) {
   const W = 104, Hc = 86, drop = 30, top = 28;
-  const g0 = 14, g1 = g0 + gap;
   const terrain = [];
   const bumpers = [];
   // entry: shelf, then a kicker slab walls her onto the left wall
@@ -178,24 +178,23 @@ function pinataChambers(N, { gap = 16, fin = 34, lowCeil = false, dodge = false 
   terrain.push(seg([34, 16], [8, 24]));
   const start = [4, 2];
   const bY = top + N * (Hc + drop);
-  terrain.push(seg([0, -8], [0, bY]));
-  terrain.push(seg([W, top], [W, bY]));
+  terrain.push(seg([0, -8], [0, bY + 14]));
+  terrain.push(seg([W, top], [W, bY + 14]));
   for (let k = 0; k < N; k++) {
     const ceilY = top + k * (Hc + drop);
     const floorY = ceilY + Hc;
     terrain.push(seg([13, ceilY], [W, ceilY]));
-    bumpers.push({ x: 72, y: ceilY + 56 });
-    if (dodge) bumpers.push({ x: 38, y: ceilY + 24 });
-    if (lowCeil) terrain.push(seg([52, ceilY], [52, ceilY + 30]));
-    terrain.push(seg([0, floorY], [7, floorY + 10], [g0, floorY]));  // fail pocket
-    terrain.push(seg([g0, floorY - 8], [g0 + 6, floorY - 26]));      // awning: gutter
-    // arcs from the left bounce off its underside; overshot kicks land on its
-    // top and roll down into the slot — the piñata is the only way through
-    terrain.push(seg([g1, floorY], [g1, floorY - fin]));             // fin + chute wall
-    terrain.push(dishFloor(g1, W, floorY, 70, 12));                  // right dish
-    // slot chute + jog kicker back to the left wall
-    terrain.push(seg([g0, floorY], [g0, floorY + 16]));
-    terrain.push(seg([g1, floorY + 18], [8, floorY + 26]));          // kicker
+    bumpers.push({ x: 56, y: ceilY + 52 });
+    if (dodge) bumpers.push({ x: 78, y: ceilY + 30 });
+    if (lowCeil) terrain.push(seg([30, ceilY], [30, ceilY + 24]));
+    terrain.push(seg([0, floorY], [7, floorY + 10], [14, floorY]));  // fail pocket
+    terrain.push(dishFloor(14, W - gap, floorY, 42, 12));            // dead dish
+    terrain.push(seg([W - gap, floorY], [W - gap, floorY - fin]));   // fin + chute wall
+    // gap chute on the RIGHT + a baffle shelf that bleeds the kick's speed,
+    // then the jog kicker back to the left wall — every chamber entry alike
+    terrain.push(seg([W - gap, floorY + 9], [W - gap, floorY]));
+    terrain.push(seg([W, floorY + 6], [W - gap + 8, floorY + 11]));  // baffle
+    terrain.push(seg([W, floorY + 18], [8, floorY + 26]));           // kicker (wall-to-wall)
   }
   terrain.push(dishFloor(0, W, bY, 51));
   return { budget: N, start, goal: [51, bY + 10], terrain, bumpers };
@@ -314,17 +313,17 @@ export const FAMILIES = [
     build: N => liftRooms(N, { Hr: 66, winH: 14, winUp: 20, split: true }) },
 
   { id: 'bumper-1', mechanic: 'bumper', tier: 1, name: 'Piñata Practice',
-    hint: 'piñatas hit BACK — ramp her in hard and ride the counterpunch home',
-    hint2: 'the kick mirrors the hit: fast and low in means high and far back',
-    build: N => pinataChambers(N, { gap: 16, fin: 40 }) },
+    hint: 'arc her OVER the piñata — clipping its back sends her flying onward',
+    hint2: 'undershoot and the front side punches her straight back. Throw HIGHER.',
+    build: N => pinataChambers(N, { gap: 18, fin: 30 }) },
   { id: 'bumper-2', mechanic: 'bumper', tier: 2, name: 'Low Blow',
-    hint: 'a curtain hangs mid-room: the kick has to come back UNDER it',
-    hint2: 'clip the piñata near its equator — glancing hits fly flatter',
-    build: N => pinataChambers(N, { gap: 15, fin: 36, lowCeil: true }) },
+    hint: 'a curtain hangs over the launch — keep the arc low and late',
+    hint2: 'launch flatter: let the piñata add the height, not the rail',
+    build: N => pinataChambers(N, { gap: 16, fin: 30, lowCeil: true }) },
   { id: 'bumper-3', mechanic: 'bumper', tier: 3, name: 'Party Foul',
-    hint: 'a second piñata squats in the flight path home — thread around it',
-    hint2: 'clip it and it counter-kicks: sometimes a foul is a shortcut…',
-    build: N => pinataChambers(N, { gap: 15, fin: 42, dodge: true }) },
+    hint: 'a second piñata guards the exit lane — thread between them',
+    hint2: 'clip the wrong one and it counter-kicks: sometimes a foul is a shortcut…',
+    build: N => pinataChambers(N, { gap: 15, fin: 34, dodge: true }) },
 
   { id: 'popper-1', mechanic: 'popper', tier: 1, name: 'Confetti Relay',
     hint: 'the cannons do the flying — your band reshapes each arc into the gap',

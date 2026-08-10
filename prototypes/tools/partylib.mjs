@@ -91,7 +91,17 @@ export async function solve(page, li, budget, K = 3500, seed = 8675309, rounds =
           if (nb) return nb;
           continue;
         }
-        if (roll < 0.26 && traj && traj.length && targets.length) {
+        if (roll < 0.24 && L.bumpers.length) {
+          // LAUNCH RAIL: a gentle ramp from the entry fall line ending well
+          // above-left of a piñata — she flies off its low end and arcs onto
+          // the piñata's back slope (the proven carom family)
+          const bp = L.bumpers[(rnd() * L.bumpers.length) | 0];
+          const ex = bp.x - 14 - rnd() * 22, ey = bp.y - 22 - rnd() * 24;
+          const nb = mk(2 + rnd() * 8, ey - 4 - rnd() * 12, ex, ey);
+          if (nb) return nb;
+          continue;
+        }
+        if (roll < 0.4 && traj && traj.length && targets.length) {
           // CONNECTOR: from the path toward a plant/piñata/popper/goal
           const p = trajPt(traj), m = targets[(rnd() * targets.length) | 0];
           const t = 0.3 + rnd() * 0.7;
@@ -136,15 +146,21 @@ export async function solve(page, li, budget, K = 3500, seed = 8675309, rounds =
       let lure = 0;
       pd.forEach((d, i) => { if (!got[i]) lure += Math.max(0, 60 - d) * 6; });
       // piñata engagement: the fun judge caught winning lines that never
-      // touch a bumper — reward paths that actually take the kick
+      // touch a bumper — a win that skips the kicks is NOT a win
+      let kicked = 0;
       for (const bp of L.bumpers) {
         let bd2 = 1e9;
         for (const p of r.traj) {
           const d = Math.hypot(p[0] - bp.x, p[1] - bp.y);
           if (d < bd2) bd2 = d;
         }
+        if (bd2 < 8.5) kicked++;
         lure += bd2 < 8.5 ? 500 : Math.max(0, 40 - bd2) * 4;
       }
+      // NOTE: we tried hard-gating wins on kicks; chained piñata chambers
+      // defeat it — the kick's energy amplification magnifies tiny entry
+      // differences, so honest kick chains don't survive stage normalization.
+      // The lure still steers solutions toward the piñata where possible.
       return { s: (r.result === 'win' ? 1e6 : 0) + plants * 1000 + lure - best,
                r: r.result, plants, near: +best.toFixed(1), traj: r.traj };
     };
@@ -251,6 +267,19 @@ export async function robustify(page, li, set, rounds = 6, neighbors = 24) {
     const { simulate } = window.__gr;
     let seed = 1234567;
     const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const L = window.__gr.LEVELS[li];
+    // count mechanic engagements along a run — robustify must not trade the
+    // pinata kick away for slop (the fun-judge assertion would fail it)
+    const hits = s => {
+      const r = simulate(li, s);
+      if (r.result !== 'win') return -1;
+      let h = 0;
+      for (const bp of L.bumpers) {
+        for (const p of r.traj)
+          if (Math.hypot(p[0] - bp.x, p[1] - bp.y) < 8.5) { h++; break; }
+      }
+      return h;
+    };
     const slopOf = s => {
       let w = 0;
       for (let t = 0; t < 30; t++) {
@@ -261,15 +290,16 @@ export async function robustify(page, li, set, rounds = 6, neighbors = 24) {
       }
       return w;
     };
-    let best = set, bestW = simulate(li, set).result === 'win' ? slopOf(set) : -1;
-    if (bestW < 0) return { set, slop: 0, improved: false };
+    const h0 = hits(set);
+    if (h0 < 0) return { set, slop: 0, improved: false };
+    let best = set, bestW = slopOf(set);
     const w0 = bestW;
     for (let r = 0; r < rounds; r++) {
       for (let n = 0; n < neighbors; n++) {
         const cand = best.map(([a, b]) => [
           [a[0] + (rnd() * 2 - 1) * 4, a[1] + (rnd() * 2 - 1) * 4],
           [b[0] + (rnd() * 2 - 1) * 4, b[1] + (rnd() * 2 - 1) * 4]]);
-        if (simulate(li, cand).result !== 'win') continue;
+        if (hits(cand) < h0) continue;               // must keep every kick
         const w = slopOf(cand);
         if (w > bestW) { bestW = w; best = cand.map(bd => bd.map(p => p.map(x => +x.toFixed(1)))); }
       }

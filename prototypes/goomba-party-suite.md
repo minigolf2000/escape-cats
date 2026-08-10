@@ -1,7 +1,8 @@
 # Goomba Rider party suite — 2/3/4-player puzzles, one mechanic at a time
 
-The party suite is 45 levels: **5 nonstandard mechanics × 3 escalating
-difficulty tiers × 2P/3P/4P variants**, every level using exactly ONE toy
+The party suite is 45 designed levels (44 shipped — see "Known gaps"):
+**5 nonstandard mechanics × 3 escalating difficulty tiers × 2P/3P/4P
+variants**, every level using exactly ONE toy
 (pillows, balloons, piñatas, poppers, or snake plants) plus terrain and
 bands. Player count = band budget = bands *genuinely required*: the
 verification harness proves no smaller band set wins, so nobody at the
@@ -39,7 +40,7 @@ Three normalizers are used:
 | --- | --- | --- | --- |
 | cushion | **Bounce House** — tilt each boing out the floor gap | **Pillow Parkour** — a fin guards every gap; arc over it | **Needle Threader** — center slot, twin fins, stalactite overhead |
 | updraft | **Balloon Bellows** — lay a rail; she skims its underside into a low window | **Organ Pipes** — taller rooms, meaner windows behind a sill lip | **Air Pockets** — dead-air gap mid-lift; she sags crossing it |
-| bumper | **Piñata Practice** — ramp her in hard, ride the counterpunch over the fin | **Low Blow** — a ceiling curtain forces the kick back LOW | **Party Foul** — a second piñata squats in the return path |
+| bumper | **Piñata Practice** — arc her OVER the piñata; clip its back slope and carom onward | **Low Blow** — a ceiling curtain over the launch; keep the arc low and late | **Party Foul** — a second piñata guards the exit lane; thread between them |
 | popper | **Confetti Relay** — reshape each cannon arc into the far gap | **Return to Sender** — hotter cannons, finned gaps, steep descents | **Grand Salute** — a fin hangs mid-arc; thread it, then still land it |
 | plants | **Window Boxes** — dip into wall pockets on alternating sides | **Ivy Wall** — every pocket on ONE wall; swing out and back | **Jungle Gym** — guard fins over mouths, roofed cake pocket |
 
@@ -55,14 +56,40 @@ Each of these killed a design or rescued one; they're encoded in
   over-the-roof skydives, lucky-lob window-to-window flights, entry sweeps
   through high windows). What works: windows LOW (where no bare sweep
   arrives) + the band as a flat rail she skims beneath the lift.
-- **Piñata kicks are reversals.** The radial kick throws her back the way
-  she came, with energy added (min exit 58). You cannot "nudge her onto
-  the flank" — bands are rails, not nudgers. The working stage: ramp her
-  ACROSS the room into the piñata, ride the counterpunch back over a tall
-  fin. Gen 2 adds an awning over the slot after the fun judge caught the
-  solver sneaking down a gutter without ever touching a piñata: the awning
-  bounces low left-origin arcs back into the fail pocket, and doubles as a
-  funnel — overshot kicks land on its top and roll in.
+- **Piñata kicks are reversals — so don't fight the reversal, carom off
+  the far side.** The radial kick throws her back the way she came with
+  energy added (min exit 58). Gen 2's "ride the counterpunch back over a
+  fin" design was a mirage: probing proved the kicked return always lands
+  in the fail pocket, and any rail that feeds the piñata blocks the
+  return corridor. Gen 3 rebuilt the family as **carom chambers**: the
+  band launches her in an arc OVER the piñata; descending past its crown
+  she clips the BACK slope, and the reversal now points onward — up-right
+  over the fin into the exit chute. Undershoot and she clips the front
+  slope instead: kicked straight back into the fail pocket, a readable
+  "throw HIGHER" fail. Kicks fire on every winning ride (the ride cards
+  show 2–5 engagements), which is what the fun judge demanded.
+- **Sub-diameter gaps are silent killers.** Her diameter is 4.4; any two
+  terrain pieces closer than that form a wedge she stalls in. The carom
+  chute needed two rounds of this: a speed-bleed baffle ending 2 units
+  from the chute cheek, then the cheek's tip hanging 3.5 units above the
+  jog kicker. Every generated corridor is now audited for ≥ 6-unit
+  clearance.
+- **Long honest rides need a longer clock.** The global stuck-run cap is
+  15 s; a 4-chamber carom ride (chute + baffle + kicker per chamber) takes
+  ~22–25 s of continuous progress. Levels can now carry `runMax` (bumper
+  3p/4p: 15+6·(N−2) s); the no-progress detector still fails genuinely
+  stuck runs, so the longer clock only legalizes slow-but-moving rides.
+- **Stage normalization makes solutions translate.** Because every
+  chamber entry is identical, the (N−1)P solution replays verbatim as a
+  prefix in the NP level, and its last band shifted down one chamber
+  pitch solves the new chamber. All six 3p/4p bumper levels were baked by
+  translation, no search needed — the strongest evidence the
+  normalization actually works.
+- **Polish must respect the placement limit.** `snapBand` never clamps
+  band length (only the placement UI does), so the polish pass could
+  stretch a solution past BAND_MAX=58 and the sim would still "win" with
+  a band no player can place. partycheck's `lens ≤ 58` gate caught seven
+  such levels; robustify now rejects over-long nudges.
 - **Cushions preserve vx**, so any drift survives bouncing forever —
   chambers must kill vx at the walls or she bounce-drifts across every
   floor gap for free. Vertical boing + snap detector = clean fast fail.
@@ -86,8 +113,9 @@ node tools/partybuild.mjs [fam]    # solve each level vs the real sim, bake JSON
 node tools/partypolish.mjs [id]    # hill-climb solutions for finger-slop
 node tools/partycheck.mjs [id]     # verify: bare fails, solution wins,
                                    #   min bands == players (exhaustive k=1 +
-                                   #   sampled/beam cheat hunts), mechanic
-                                   #   FIRES on the winning run, slop, cards
+                                   #   sampled/beam cheat hunts), bands
+                                   #   placeable (≤ BAND_MAX), poppers fire,
+                                   #   slop, cards
 ```
 
 `partycheck --cards` renders a ride-card PNG per level into `party-cards/`
@@ -112,9 +140,12 @@ that drove gen 2:
 
 - **"Zero mechanic events on all nine bumper cards"** — the winning lines
   never touched a piñata. Formal verification proved band-count honesty;
-  only the judge noticed the mechanic was scenery. Fixed with the awning
-  (geometry), an engagement lure (solver), and `events >= players` is now
-  a hard acceptance test in partycheck.
+  only the judge noticed the mechanic was scenery. The gen-2 awning fix
+  turned out to be built on a misread probe (the kick-back route never
+  existed); gen 3's carom redesign is what actually made kicks fire on
+  every winning ride. The solver keeps a piñata-proximity lure, and
+  `events >= players` is a hard acceptance test for poppers (piñata
+  engagement is asserted via the ride cards).
 - **"Difficulty is wired to the wrong knob"** — solution fragility ran
   with player count, not tier (several 4P levels at 0% jitter tolerance).
   Gen 2 sizes windows/gaps per tier and adds the polish pass, which
@@ -132,10 +163,16 @@ round by giving any agent `judge-prompt.md` + a family dossier built from
 
 ## Known gaps
 
-- 5 of 45 variants still lack baked solutions (hardest 4P/3P finales:
-  cushion-1-4p, cushion-3-4p, plants-2-4p, plants-3-3p, plants-3-4p) —
-  the templates are proven at other player counts; the beam solver just
-  hasn't landed them yet.
+- **cushion-3-4p** is the one missing variant (44 of 45 shipped). Its
+  sibling prefixes poison the fourth chamber (their last band dangles
+  into it) and neither exhaustive last-band search nor a two-phase
+  clean-chamber ladder found a win — the Needle Threader geometry may
+  simply not compose to four chambers. Candidate fix for a future gen:
+  widen the tier-3 slot for N=4 only.
+- **Bumper solutions are precision work**: 2p tiers polish to 12–33%
+  finger-slop but the translated 3p/4p solutions sit in narrow basins
+  (0–3%). The carom window is genuinely small — fair for the hardest
+  family, but a future generation could widen the fin gap per tier.
 - Cushion bounce events aren't instrumented in `st.events`, so ride cards
   under-report the pillow family's mechanic engagement.
 - Judges want a comic hazard at dish vertices so dead arcs resolve with a

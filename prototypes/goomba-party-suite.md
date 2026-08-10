@@ -12,6 +12,16 @@ Play them: ⚙ → **🎉 party pack** in `goomba-rider.html` (loads
 `goomba-party-levels.json`, browse in the 🔬 lab). Rebuild/verify with the
 tools in `tools/` (see "Pipeline" below).
 
+**Verification status (final): 44/44 shipped levels ALL PASS** — bare run
+fails, the baked solution wins with exactly N placeable bands, zero wins
+in the exhaustive single-band grid (9k–30k candidates per level), zero in
+the sampled + beam-directed k<N hunts, and every piñata/popper level
+fires its mechanic ≥ N times on the winning ride. Median winning ride is
+86% airborne. Finger-slop (jitter ±3 survival): 15 levels ≥70%, 5 at
+30–69%, 7 at 10–29%, 17 below 10% — the tight ones are the tier-3 and 4P
+finales, bumper above all (family average 7%: the carom is precision
+work by nature).
+
 ## How "min bands == players" was cracked
 
 `goomba-rider-levels.md` called forcing a level to need exactly N bands an

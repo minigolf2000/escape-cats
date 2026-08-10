@@ -41,10 +41,12 @@ export const DEBUG_PRESETS: Record<string, HexPreset> = {
     owned: { shopper: 30, farm: 35, factory: 12, lab: 1 },
   },
   // THE WALL OPENS, UNLIT. The whole cast is out there with nothing behind it —
-  // 33 anonymous specks, at a third of full brightness and half speed, because
-  // Paper Lantern is deliberately NOT in `bought` here — the only night preset
-  // without it — because this preset is the night as it actually begins, and the
-  // first thing it has to be earning toward is the light. No
+  // 33 anonymous specks at a third of full brightness, barely moving at a quarter
+  // speed. Paper Lantern is deliberately NOT in `bought` here — the only night
+  // preset without it — because this preset is the night as it actually begins, and
+  // the first thing it has to be earning toward is the light. Press `mice` after it
+  // to see the state the hand-over lands in; the hand-over itself only plays on a
+  // real purchase, since a jump has no beat to replay (see applyPreset). No
   // day buildings: the flip wipes them (see nightReset). The BANK IS EMPTY for
   // the same reason: the twist zeroes `mice`, and this preset is the moment
   // just after it, so arriving here by button has to feel as broke as arriving

@@ -12,6 +12,7 @@ import {
   baseCpsWith,
   clickBaseWith,
   unlockMet,
+  wallSpeed,
   hashString,
 } from "@escape-cats/shared";
 
@@ -32,11 +33,12 @@ export const game = {
   zoomUntil: 0, // performance.now() ms while Zoomies is active (converted from server time)
   nightAt: null, // wall-clock (server epoch) ms the twist fired — anchors the wall
   // The wall's odometer, banked by the authority (see HexWallClock in rules.ts):
-  // scene units walked as of `wallAt` (server epoch ms). wall.js reads position
-  // off this pair, so every phone draws the same frame — including one that joins
-  // after Paper Lantern changed the rate.
+  // scene units walked as of `wallAt` (server epoch ms), out of rate `wallFrom`.
+  // wall.js reads position AND glow off this triple, so every phone draws the same
+  // frame — including one that joins while the lantern's hand-over is still easing.
   wallBase: 0,
   wallAt: null,
+  wallFrom: 0,
   speed: 1, // ?debug dev time-scale, mirrored for extrapolation
 };
 BUILDINGS.forEach((b) => (game.owned[b.id] = 0));
@@ -190,6 +192,10 @@ export function applySnapshot(snap) {
   game.mice = snap.mice + optimisticGain();
 
   recalc();
+  // After the fold, because the fallback needs the CURRENT rest speed: a snapshot
+  // from a build without wallFrom must read as "nothing is handing over" rather
+  // than as a ramp easing out of zero.
+  game.wallFrom = snap.wallFrom ?? wallSpeed(mods);
   players = snap.players || [];
 
   const nightAfter = nightOf(game.bought);

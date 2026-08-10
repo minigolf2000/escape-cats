@@ -12,7 +12,7 @@ import {
   WALL_CAP,
   WALL_PERSIST_MS,
   wallSpeed,
-  wallGlow,
+  wallGlowAt,
   wallUnitsAt,
   mulberry32,
 } from "@escape-cats/shared";
@@ -34,10 +34,13 @@ import { MOUSE_COLORS } from "./art.js";
 // trail = mods.trail from the sleep-stage upgrades, and whether ANY mice show
 // look like is bought (mods.neon, the Counting Mice research).
 //
-// BRIGHTNESS is the one dial that is not a lab knob: the night opens UNLIT (half
-// speed, a third of the opacity) and Paper Lantern restores it. wallSpeed() carries
-// the speed half; wallGlow() carries the light, and every alpha this file writes —
-// speck, sprite, rolling trail and persisted ink alike — is scaled by it.
+// BRIGHTNESS is the one dial that is not a lab knob: the night opens UNLIT (quarter
+// speed, a third of the opacity) and Paper Lantern hands it back over WALL.rampMs.
+// wallUnitsAt() carries the pace — the ramp is integrated in closed form there, so
+// the mice accelerate rather than jumping — and wallGlowAt() carries the light, off
+// the same anchor and the same easing. Every alpha this file writes (speck, sprite,
+// rolling trail, persisted ink) is scaled by it, so the two halves arrive as one
+// gesture. Both are read once per frame; see syncWallFrame.
 // ---------------------------------------------------------------------------
 // THE WALL IS FULLY CAST FROM THE FIRST FRAME OF NIGHT. No research gate, and no
 // arrival ramp either: the phase opens with all WALL_CAP mice already walking, and
@@ -862,8 +865,18 @@ function rebuildWallCast() {
 // x every trail sample x 60fps) and wallSpeed() is a fold read plus a clamp. It is
 // invariant within a frame — only a purchase moves it, and a purchase arrives
 // between frames.
-let wallFrameSpeed = 0;
-function syncWallSpeed() { wallFrameSpeed = wallSpeed(mods); }
+//
+// GLOW is cached alongside it and for the same reason, plus one of its own: it is
+// no longer constant across a phase, so drawWallPoint and drawWallMouse reading it
+// per sprite would each re-derive the same easing curve. Both are refreshed by
+// syncWallFrame(now), which is the ONE place per frame the wall asks what time it
+// is — the hand-over's position is a function of the shared clock, not of anything
+// this file accumulates.
+let wallFrameSpeed = 0, wallFrameGlow = 1;
+function syncWallFrame(now) {
+  wallFrameSpeed = wallSpeed(mods);
+  wallFrameGlow = wallGlowAt(game, mods, now);
+}
 const wallUnits = t => wallUnitsAt(game, wallFrameSpeed, t);
 
 // A proctor reset starts a new run: the sim clears the odometer for us, but the
@@ -926,7 +939,7 @@ function drawWallMouse(x, y, color, r, angle, alpha) {
   wctx.save();
   // The unlit night dims the whole sprite the same way `alpha` does, so it rides
   // the same globalAlpha rather than being folded into every fillStyle below.
-  const glow = wallGlow(mods);
+  const glow = wallFrameGlow;
   if (alpha !== undefined || glow !== 1)
     wctx.globalAlpha = (alpha === undefined ? 1 : alpha) * glow;
   wctx.translate(x, y);
@@ -981,7 +994,7 @@ const WALL_POINT_COLOR = '#e9edf7';
 // ONLY thing on the wall (no trail, no sprites), so the row's brightness half has
 // to land here or the unlit night looks exactly like the lit one.
 function drawWallPoint(x, y, a, rs) {
-  const s = rs === undefined ? 1 : rs, m = (a === undefined ? 1 : a) * wallGlow(mods);
+  const s = rs === undefined ? 1 : rs, m = (a === undefined ? 1 : a) * wallFrameGlow;
   wctx.globalAlpha = 0.28 * m;
   wctx.beginPath(); wctx.arc(x, y, 3.4 * s, 0, 6.283);
   wctx.fillStyle = WALL_POINT_COLOR; wctx.fill();
@@ -1008,7 +1021,7 @@ export function startWallNeon() {
   if (!wW) resizeWall();
   // Fires off a snapshot edge, so it can land before this frame's drawWall has
   // primed the rate — and it walks the cast to order the ripple.
-  syncWallSpeed();
+  syncWallFrame(wallNow());
   wallNeonAt = wallNow();
   // Origin is Hex, not the middle of the canvas — the cat sits well below centre, and
   // the point of the beat is that the counting is coming from them.
@@ -1094,11 +1107,12 @@ export function drawWall(now) {
   const N = Math.min(wallMiceCount(), wallCast.length);
   const dt = wallLastNow ? Math.min(now - wallLastNow, 100) : 16;
   wallLastNow = now;
-  syncWallSpeed();
+  syncWallFrame(now);
   wallGrowTrail(dt);
-  // One read per frame: every ink alpha below is scaled by it, so the unlit night
-  // dims the drawing as well as the drawers.
-  const glow = wallGlow(mods);
+  // Read once per frame (see syncWallFrame): every ink alpha below is scaled by it,
+  // so the unlit night dims the drawing as well as the drawers, and the lantern's
+  // hand-over brings both up together.
+  const glow = wallFrameGlow;
   const neon = !!mods.neon;
   // Retired as soon as it has run its course, so the steady state is the same
   // straight drawWallMouse call it was before the beat existed.

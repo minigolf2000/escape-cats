@@ -739,11 +739,13 @@ export const UPGRADES: HexUpgrade[] = [
     cost: 1e6, unlock: { owned: [["lab", 1]] },
     effect: { type: "night" } },
   // THE FIRST RUNG OF THE NIGHT, and the one that gives the opening something to
-  // want. The night opens UNLIT: the wall runs at half speed and a third of its
+  // want. The night opens UNLIT: the wall runs at a QUARTER speed and a third of its
   // brightness (WALL.unlitSpeed / unlitGlow), so the phase begins as a barely-there
   // drift in the dark and the first thing a team buys is the light. It restores
   // exactly the wall the night used to open with — nothing here is a new capability,
-  // it is the baseline handed back.
+  // it is the baseline handed back — and it does so as a BEAT rather than a toggle:
+  // both halves ease over WALL.rampMs from the purchase's own timestamp, so the wall
+  // visibly brightens and picks up speed instead of cutting between two states.
   //
   // The name comes back to the row it was written for. It has been a tombstone in
   // the block below since the sleep stages were renumbered ("a lantern is a light
@@ -893,9 +895,9 @@ export const UPGRADES: HexUpgrade[] = [
   //
   // `requires` is the LANTERN now, not Catnap directly, and that edge is load-bearing
   // rather than tidy: it is the only thing guaranteeing the wall is never inking at
-  // unlitSpeed. Coverage is trail x speed, so a trail rung reachable on a half-speed
-  // wall would put the finished ladder at ~0.9 against a 1.6 threshold and the word
-  // could never be read. See WALL.unlitSpeed in rules.ts.
+  // unlitSpeed. Coverage is trail x speed, so a trail rung reachable on a
+  // quarter-speed wall would put the finished ladder at ~0.45 against a 1.6 threshold
+  // and the word could never be read. See WALL.unlitSpeed in rules.ts.
   //
   // The icon is 🛌, not the 🏮 this row wore for as long as it has been numbered — that
   // was a fossil of its own deleted name and it has gone back to the row that is

@@ -301,8 +301,28 @@ export const UPGRADES: HexUpgrade[] = [
   { key: "shopper1", name: "2-Day Shipping", icon: "🚚",
     cost: 200, unlock: { owned: ["shopper", 5] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
+  // 1000, from 1800. This is the day's first real savings target — the four rows
+  // under it all cost less than a player has banked by the time their gates open,
+  // so they are bought on sight, and this is the first one you wait for. What the
+  // price buys is how long that wait is: measured reveal-to-purchase across
+  // 3/8/16 pets/s, 9.3/7.0/13.5s here against 26.5/77.8/35.4s at 1800. Still a
+  // wait at every rate, which is the floor — the bank at a 3500 lifetime is barely
+  // three figures, so this cannot become affordable-on-reveal without going
+  // several times cheaper again.
+  //
+  // It does NOT move the shop's empty stretches, and the reason is worth writing
+  // down: an empty rail is set by REVEAL gates, not by costs. Cost decides when a
+  // row leaves the rail, and the row after this one arrives on a 4000 lifetime —
+  // ~4s later at 8 pets/s — so buying this sooner uncovers nothing. Measured
+  // empty-rail windows are identical before and after, to the frame. The band from
+  // a ~650 lifetime to a ~3500 one, where nothing is on the rail at all, is
+  // likewise untouched by this: it sits BELOW this row's gate.
+  //
+  // Knock-on: two cheaper rows shorten the day ~9s (twist at 2:59 from 3:08 at 8
+  // pets/s, 5:10 from 5:20 solo). Read as noise against the ±20s INCOME_SCALE
+  // spread, but it is the direction to watch if more rows get cheaper.
   { key: "shopper2", name: "Subscribe & Save", icon: "🔁",
-    cost: 1800, unlock: { total: 3500, owned: ["shopper", 10] },
+    cost: 1000, unlock: { total: 3500, owned: ["shopper", 10] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
   // The subscription line's later tiers break from the flat ×2: each one cuts
   // deeper into the supply chain, so the mice-per-dollar gain grows. Liquidation
@@ -335,8 +355,15 @@ export const UPGRADES: HexUpgrade[] = [
   { key: "farmplow", name: "Sisal Scratching Plows", icon: "🧶",
     cost: 400, unlock: { total: 800, owned: ["farm", 3] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
+  // 1800, from 2200, which keeps this the cheapest thing on the rail once
+  // Subscribe & Save is bought and holds the Farm ladder's step near ×4.5 (400 →
+  // 1800 → 7200) instead of the ×5.5 it was. The row is a slow burn either way:
+  // it is a Farm multiplier revealed while pets still carry income, so the bot
+  // leaves it sitting for 17-114s depending on tap rate (123s at 2200) rather
+  // than buying it on sight. That dwell is what keeps the rail occupied through
+  // the 4000-to-7000 stretch, so do not price this to be bought instantly.
   { key: "farmfeliway", name: "Feliway Sprinklers", icon: "💨",
-    cost: 2200, unlock: { total: 4000, owned: ["farm", 5] },
+    cost: 1800, unlock: { total: 4000, owned: ["farm", 5] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
   { key: "farmlaser", name: "Laser-Guided Planters", icon: "🎯",
     cost: 7200, unlock: { total: 13000, owned: ["farm", 7] },

@@ -314,7 +314,9 @@ export const FAMILIES = [
   { id: 'updraft-3', mechanic: 'updraft', tier: 3, name: 'Air Pockets',
     hint: 'the lift has a hole in the middle — she sags off the rail crossing it',
     hint2: 'aim the rail a touch high: the sag brings her back level with the window',
-    build: N => liftRooms(N, { Hr: 66, winH: 14, winUp: 20, split: true }) },
+    // sill: without a lip the dead-air sag drops bare arcs INTO the window
+    // (updraft-3-2p had 174 single-band cheats before it)
+    build: N => liftRooms(N, { Hr: 66, winH: 14, winUp: 20, sill: 10, split: true }) },
 
   { id: 'bumper-1', mechanic: 'bumper', tier: 1, name: 'Piñata Practice',
     hint: 'arc her OVER the piñata — clipping its back sends her flying onward',

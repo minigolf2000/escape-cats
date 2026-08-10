@@ -6,20 +6,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "2 bands -> win",
-  "k1": "0/7328",
+  "k1": "0/15086",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "27%",
+  "slop3": "12%",
   "ride": {
    "result": "win",
-   "t": 7.97,
-   "airPct": 50,
+   "t": 12.74,
+   "airPct": 44,
    "topSpeed": 120,
-   "events": 0,
+   "events": 2,
    "plants": "0/0"
   },
-  "secs": 6
+  "secs": 11
  },
  {
   "id": "bumper-1-3p",
@@ -28,20 +28,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "3 bands -> win",
-  "k1": "0/10388",
-  "k2": "0/4000",
+  "k1": "0/21434",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "30%",
+  "slop3": "7%",
   "ride": {
    "result": "win",
-   "t": 10.12,
-   "airPct": 60,
+   "t": 17.24,
+   "airPct": 50,
    "topSpeed": 120,
-   "events": 0,
+   "events": 3,
    "plants": "0/0"
   },
-  "secs": 30
+  "secs": 66
  },
  {
   "id": "bumper-1-4p",
@@ -50,20 +50,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "4 bands -> win",
-  "k1": "0/13142",
-  "k2": "0/4000",
-  "k3": "0/3000",
+  "k1": "0/27253",
+  "k2": "0/12000",
+  "k3": "0/9000",
   "beamCheats": null,
-  "slop3": "8%",
+  "slop3": "2%",
   "ride": {
    "result": "win",
-   "t": 13.47,
-   "airPct": 55,
+   "t": 21.65,
+   "airPct": 53,
    "topSpeed": 120,
-   "events": 0,
+   "events": 4,
    "plants": "0/0"
   },
-  "secs": 72
+  "secs": 175
  },
  {
   "id": "bumper-2-2p",
@@ -72,20 +72,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "2 bands -> win",
-  "k1": "0/7328",
+  "k1": "0/15086",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "48%",
+  "slop3": "37%",
   "ride": {
    "result": "win",
-   "t": 8.37,
-   "airPct": 51,
+   "t": 13.21,
+   "airPct": 53,
    "topSpeed": 120,
-   "events": 0,
+   "events": 2,
    "plants": "0/0"
   },
-  "secs": 6
+  "secs": 12
  },
  {
   "id": "bumper-2-3p",
@@ -94,20 +94,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "3 bands -> win",
-  "k1": "0/10388",
-  "k2": "0/4000",
+  "k1": "0/21434",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "37%",
+  "slop3": "2%",
   "ride": {
    "result": "win",
-   "t": 11.03,
-   "airPct": 54,
+   "t": 18.63,
+   "airPct": 56,
    "topSpeed": 120,
-   "events": 0,
+   "events": 3,
    "plants": "0/0"
   },
-  "secs": 32
+  "secs": 76
  },
  {
   "id": "bumper-2-4p",
@@ -116,20 +116,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "4 bands -> win",
-  "k1": "0/13142",
-  "k2": "0/4000",
-  "k3": "0/3000",
+  "k1": "0/27253",
+  "k2": "0/12000",
+  "k3": "0/9000",
   "beamCheats": null,
-  "slop3": "0%",
+  "slop3": "2%",
   "ride": {
    "result": "win",
-   "t": 13.27,
+   "t": 23.1,
    "airPct": 58,
    "topSpeed": 120,
-   "events": 0,
+   "events": 4,
    "plants": "0/0"
   },
-  "secs": 77
+  "secs": 176
  },
  {
   "id": "bumper-3-2p",
@@ -138,20 +138,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "2 bands -> win",
-  "k1": "0/7328",
+  "k1": "0/15086",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "22%",
+  "slop3": "5%",
   "ride": {
    "result": "win",
-   "t": 13.67,
-   "airPct": 27,
+   "t": 14.08,
+   "airPct": 50,
    "topSpeed": 120,
-   "events": 0,
+   "events": 2,
    "plants": "0/0"
   },
-  "secs": 6
+  "secs": 12
  },
  {
   "id": "bumper-3-3p",
@@ -160,20 +160,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "3 bands -> win",
-  "k1": "0/10388",
-  "k2": "0/4000",
+  "k1": "0/21434",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "2%",
+  "slop3": "0%",
   "ride": {
    "result": "win",
-   "t": 9.77,
-   "airPct": 63,
+   "t": 19.57,
+   "airPct": 54,
    "topSpeed": 120,
-   "events": 0,
+   "events": 4,
    "plants": "0/0"
   },
-  "secs": 29
+  "secs": 70
  },
  {
   "id": "bumper-3-4p",
@@ -182,20 +182,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "4 bands -> win",
-  "k1": "0/13142",
-  "k2": "0/4000",
-  "k3": "0/3000",
+  "k1": "0/27253",
+  "k2": "0/12000",
+  "k3": "0/9000",
   "beamCheats": null,
   "slop3": "0%",
   "ride": {
    "result": "win",
-   "t": 9.93,
-   "airPct": 74,
+   "t": 25.16,
+   "airPct": 56,
    "topSpeed": 120,
-   "events": 0,
+   "events": 5,
    "plants": "0/0"
   },
-  "secs": 75
+  "secs": 189
  },
  {
   "id": "cushion-1-2p",
@@ -204,20 +204,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "2 bands -> win",
-  "k1": "0/5798",
+  "k1": "0/11912",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "52%",
+  "slop3": "98%",
   "ride": {
    "result": "win",
-   "t": 11.4,
-   "airPct": 73,
-   "topSpeed": 139,
+   "t": 6.36,
+   "airPct": 92,
+   "topSpeed": 138,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 6
+  "secs": 12
  },
  {
   "id": "cushion-1-3p",
@@ -226,20 +226,42 @@
   "ok": true,
   "bare": "loop",
   "solution": "3 bands -> win",
-  "k1": "0/7940",
-  "k2": "0/4000",
+  "k1": "0/16144",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "33%",
+  "slop3": "98%",
   "ride": {
    "result": "win",
-   "t": 13.77,
-   "airPct": 98,
-   "topSpeed": 156,
+   "t": 9.64,
+   "airPct": 97,
+   "topSpeed": 154,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 26
+  "secs": 61
+ },
+ {
+  "id": "cushion-1-4p",
+  "name": "Bounce House · 4P",
+  "players": 4,
+  "ok": true,
+  "bare": "loop",
+  "solution": "4 bands -> win",
+  "k1": "0/20376",
+  "k2": "0/12000",
+  "k3": "0/9000",
+  "beamCheats": null,
+  "slop3": "72%",
+  "ride": {
+   "result": "win",
+   "t": 10.72,
+   "airPct": 98,
+   "topSpeed": 148,
+   "events": 0,
+   "plants": "0/0"
+  },
+  "secs": 144
  },
  {
   "id": "cushion-2-2p",
@@ -248,20 +270,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "2 bands -> win",
-  "k1": "0/5798",
+  "k1": "0/11912",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "38%",
+  "slop3": "100%",
   "ride": {
    "result": "win",
-   "t": 14.7,
-   "airPct": 98,
-   "topSpeed": 156,
+   "t": 6.14,
+   "airPct": 96,
+   "topSpeed": 135,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 6
+  "secs": 11
  },
  {
   "id": "cushion-2-3p",
@@ -270,20 +292,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "3 bands -> win",
-  "k1": "0/7940",
-  "k2": "0/4000",
+  "k1": "0/16144",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "52%",
+  "slop3": "57%",
   "ride": {
    "result": "win",
-   "t": 8.23,
+   "t": 10.79,
    "airPct": 96,
-   "topSpeed": 150,
+   "topSpeed": 153,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 26
+  "secs": 61
  },
  {
   "id": "cushion-2-4p",
@@ -292,20 +314,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "4 bands -> win",
-  "k1": "0/9776",
-  "k2": "0/4000",
-  "k3": "0/3000",
+  "k1": "0/20376",
+  "k2": "0/12000",
+  "k3": "0/9000",
   "beamCheats": null,
-  "slop3": "30%",
+  "slop3": "35%",
   "ride": {
    "result": "win",
-   "t": 10.5,
+   "t": 11.59,
    "airPct": 96,
-   "topSpeed": 147,
+   "topSpeed": 152,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 60
+  "secs": 144
  },
  {
   "id": "cushion-3-2p",
@@ -314,20 +336,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "2 bands -> win",
-  "k1": "0/6104",
+  "k1": "0/12970",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "0%",
+  "slop3": "5%",
   "ride": {
    "result": "win",
-   "t": 11.53,
-   "airPct": 42,
-   "topSpeed": 154,
+   "t": 13.09,
+   "airPct": 46,
+   "topSpeed": 137,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 9
+  "secs": 19
  },
  {
   "id": "cushion-3-3p",
@@ -336,20 +358,20 @@
   "ok": true,
   "bare": "loop",
   "solution": "3 bands -> win",
-  "k1": "0/8552",
-  "k2": "0/4000",
+  "k1": "0/18260",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
   "slop3": "0%",
   "ride": {
    "result": "win",
-   "t": 13.4,
-   "airPct": 36,
-   "topSpeed": 120,
+   "t": 14.67,
+   "airPct": 50,
+   "topSpeed": 141,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 38
+  "secs": 89
  },
  {
   "id": "plants-1-2p",
@@ -358,42 +380,42 @@
   "ok": true,
   "bare": "stall",
   "solution": "2 bands -> win",
-  "k1": "0/4268",
+  "k1": "0/8796",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "82%",
+  "slop3": "100%",
   "ride": {
    "result": "win",
-   "t": 7.17,
-   "airPct": 51,
+   "t": 6.36,
+   "airPct": 58,
    "topSpeed": 120,
    "events": 2,
    "plants": "2/2"
   },
-  "secs": 5
+  "secs": 9
  },
  {
   "id": "plants-1-3p",
   "name": "Window Boxes · 3P",
   "players": 3,
   "ok": true,
-  "bare": "loop",
+  "bare": "stall",
   "solution": "3 bands -> win",
-  "k1": "0/5220",
-  "k2": "0/4000",
+  "k1": "0/11370",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "2%",
+  "slop3": "97%",
   "ride": {
    "result": "win",
-   "t": 13.33,
-   "airPct": 41,
+   "t": 8.06,
+   "airPct": 57,
    "topSpeed": 120,
    "events": 3,
    "plants": "3/3"
   },
-  "secs": 21
+  "secs": 53
  },
  {
   "id": "plants-1-4p",
@@ -402,20 +424,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "4 bands -> win",
-  "k1": "0/6410",
-  "k2": "0/4000",
-  "k3": "0/3000",
+  "k1": "0/13515",
+  "k2": "0/12000",
+  "k3": "0/9000",
   "beamCheats": null,
-  "slop3": "0%",
+  "slop3": "2%",
   "ride": {
    "result": "win",
-   "t": 13.21,
-   "airPct": 46,
+   "t": 11.64,
+   "airPct": 54,
    "topSpeed": 120,
    "events": 4,
    "plants": "4/4"
   },
-  "secs": 55
+  "secs": 138
  },
  {
   "id": "plants-2-2p",
@@ -424,20 +446,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "2 bands -> win",
-  "k1": "0/4268",
+  "k1": "0/9225",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "30%",
+  "slop3": "72%",
   "ride": {
    "result": "win",
-   "t": 13.74,
-   "airPct": 27,
+   "t": 12.52,
+   "airPct": 34,
    "topSpeed": 120,
    "events": 2,
    "plants": "2/2"
   },
-  "secs": 4
+  "secs": 9
  },
  {
   "id": "plants-2-3p",
@@ -446,20 +468,42 @@
   "ok": true,
   "bare": "stall",
   "solution": "3 bands -> win",
-  "k1": "0/5458",
-  "k2": "0/4000",
+  "k1": "0/11799",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "2%",
+  "slop3": "38%",
   "ride": {
    "result": "win",
-   "t": 11.92,
-   "airPct": 45,
+   "t": 8.78,
+   "airPct": 53,
    "topSpeed": 120,
    "events": 3,
    "plants": "3/3"
   },
-  "secs": 18
+  "secs": 48
+ },
+ {
+  "id": "plants-2-4p",
+  "name": "Ivy Wall · 4P",
+  "players": 4,
+  "ok": true,
+  "bare": "stall",
+  "solution": "4 bands -> win",
+  "k1": "0/14373",
+  "k2": "0/12000",
+  "k3": "0/9000",
+  "beamCheats": null,
+  "slop3": "0%",
+  "ride": {
+   "result": "win",
+   "t": 15,
+   "airPct": 36,
+   "topSpeed": 120,
+   "events": 4,
+   "plants": "4/4"
+  },
+  "secs": 120
  },
  {
   "id": "plants-3-2p",
@@ -468,20 +512,64 @@
   "ok": true,
   "bare": "stall",
   "solution": "2 bands -> win",
-  "k1": "0/4744",
+  "k1": "0/10083",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "28%",
+  "slop3": "20%",
   "ride": {
    "result": "win",
-   "t": 7.99,
-   "airPct": 44,
+   "t": 6.37,
+   "airPct": 51,
    "topSpeed": 120,
    "events": 2,
    "plants": "2/2"
   },
-  "secs": 5
+  "secs": 9
+ },
+ {
+  "id": "plants-3-3p",
+  "name": "Jungle Gym · 3P",
+  "players": 3,
+  "ok": true,
+  "bare": "stall",
+  "solution": "3 bands -> win",
+  "k1": "0/12657",
+  "k2": "0/12000",
+  "k3": "-",
+  "beamCheats": null,
+  "slop3": "10%",
+  "ride": {
+   "result": "win",
+   "t": 9.6,
+   "airPct": 47,
+   "topSpeed": 120,
+   "events": 3,
+   "plants": "3/3"
+  },
+  "secs": 50
+ },
+ {
+  "id": "plants-3-4p",
+  "name": "Jungle Gym · 4P",
+  "players": 4,
+  "ok": true,
+  "bare": "stall",
+  "solution": "4 bands -> win",
+  "k1": "0/15231",
+  "k2": "0/12000",
+  "k3": "0/9000",
+  "beamCheats": null,
+  "slop3": "2%",
+  "ride": {
+   "result": "win",
+   "t": 13.12,
+   "airPct": 44,
+   "topSpeed": 120,
+   "events": 4,
+   "plants": "4/4"
+  },
+  "secs": 113
  },
  {
   "id": "popper-1-2p",
@@ -490,20 +578,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "2 bands -> win",
-  "k1": "0/7838",
+  "k1": "0/17336",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
   "slop3": "95%",
   "ride": {
    "result": "win",
-   "t": 5.57,
+   "t": 5.12,
    "airPct": 96,
    "topSpeed": 120,
    "events": 2,
    "plants": "0/0"
   },
-  "secs": 6
+  "secs": 27
  },
  {
   "id": "popper-1-3p",
@@ -512,20 +600,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "3 bands -> win",
-  "k1": "0/11816",
-  "k2": "0/4000",
+  "k1": "0/23447",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "12%",
+  "slop3": "20%",
   "ride": {
    "result": "win",
-   "t": 7.34,
-   "airPct": 97,
+   "t": 7.32,
+   "airPct": 96,
    "topSpeed": 120,
    "events": 3,
    "plants": "0/0"
   },
-  "secs": 25
+  "secs": 106
  },
  {
   "id": "popper-1-4p",
@@ -534,20 +622,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "4 bands -> win",
-  "k1": "0/13448",
-  "k2": "0/4000",
-  "k3": "0/3000",
+  "k1": "0/29558",
+  "k2": "0/12000",
+  "k3": "0/9000",
   "beamCheats": null,
-  "slop3": "7%",
+  "slop3": "13%",
   "ride": {
    "result": "win",
-   "t": 11.21,
+   "t": 10.72,
    "airPct": 97,
    "topSpeed": 120,
    "events": 4,
    "plants": "0/0"
   },
-  "secs": 60
+  "secs": 230
  },
  {
   "id": "popper-2-2p",
@@ -556,20 +644,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "2 bands -> win",
-  "k1": "0/7838",
+  "k1": "0/17336",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "12%",
+  "slop3": "18%",
   "ride": {
    "result": "win",
-   "t": 5.27,
-   "airPct": 96,
+   "t": 5.36,
+   "airPct": 92,
    "topSpeed": 120,
    "events": 2,
    "plants": "0/0"
   },
-  "secs": 6
+  "secs": 13
  },
  {
   "id": "popper-2-3p",
@@ -578,20 +666,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "3 bands -> win",
-  "k1": "0/11816",
-  "k2": "0/4000",
+  "k1": "0/23447",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "22%",
+  "slop3": "0%",
   "ride": {
    "result": "win",
-   "t": 8.83,
-   "airPct": 91,
+   "t": 8.33,
+   "airPct": 94,
    "topSpeed": 120,
    "events": 3,
    "plants": "0/0"
   },
-  "secs": 26
+  "secs": 57
  },
  {
   "id": "popper-2-4p",
@@ -600,20 +688,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "4 bands -> win",
-  "k1": "0/13448",
-  "k2": "0/4000",
-  "k3": "0/3000",
+  "k1": "0/29558",
+  "k2": "0/12000",
+  "k3": "0/9000",
   "beamCheats": null,
-  "slop3": "3%",
+  "slop3": "73%",
   "ride": {
    "result": "win",
-   "t": 10.97,
-   "airPct": 96,
+   "t": 9.57,
+   "airPct": 97,
    "topSpeed": 120,
    "events": 4,
    "plants": "0/0"
   },
-  "secs": 60
+  "secs": 142
  },
  {
   "id": "popper-3-2p",
@@ -622,20 +710,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "2 bands -> win",
-  "k1": "0/7838",
+  "k1": "0/17336",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "90%",
+  "slop3": "100%",
   "ride": {
    "result": "win",
-   "t": 5.8,
-   "airPct": 91,
+   "t": 6.04,
+   "airPct": 90,
    "topSpeed": 120,
    "events": 2,
    "plants": "0/0"
   },
-  "secs": 9
+  "secs": 20
  },
  {
   "id": "popper-3-3p",
@@ -644,20 +732,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "3 bands -> win",
-  "k1": "0/10830",
-  "k2": "0/4000",
+  "k1": "0/23447",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "47%",
+  "slop3": "87%",
   "ride": {
    "result": "win",
-   "t": 7.77,
+   "t": 8.2,
    "airPct": 93,
    "topSpeed": 120,
    "events": 3,
    "plants": "0/0"
   },
-  "secs": 33
+  "secs": 79
  },
  {
   "id": "popper-3-4p",
@@ -666,20 +754,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "4 bands -> win",
-  "k1": "0/13448",
-  "k2": "0/4000",
-  "k3": "0/3000",
+  "k1": "0/29558",
+  "k2": "0/12000",
+  "k3": "0/9000",
   "beamCheats": null,
-  "slop3": "7%",
+  "slop3": "2%",
   "ride": {
    "result": "win",
-   "t": 10.13,
-   "airPct": 95,
+   "t": 10.81,
+   "airPct": 94,
    "topSpeed": 120,
    "events": 4,
    "plants": "0/0"
   },
-  "secs": 76
+  "secs": 171
  },
  {
   "id": "updraft-1-2p",
@@ -688,42 +776,42 @@
   "ok": true,
   "bare": "stall",
   "solution": "2 bands -> win",
-  "k1": "0/4268",
+  "k1": "0/9267",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "15%",
+  "slop3": "77%",
   "ride": {
    "result": "win",
-   "t": 5.87,
-   "airPct": 93,
+   "t": 5.43,
+   "airPct": 92,
    "topSpeed": 120,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 7
+  "secs": 15
  },
  {
   "id": "updraft-1-3p",
   "name": "Balloon Bellows · 3P",
   "players": 3,
-  "ok": true,
+  "ok": false,
   "bare": "stall",
-  "solution": "3 bands -> win",
-  "k1": "0/6104",
-  "k2": "0/4000",
+  "solution": "3 bands -> stall",
+  "k1": "0/12441",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "2%",
+  "slop3": "5%",
   "ride": {
-   "result": "win",
-   "t": 8.85,
-   "airPct": 93,
+   "result": "stall",
+   "t": 13.72,
+   "airPct": 42,
    "topSpeed": 120,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 31
+  "secs": 73
  },
  {
   "id": "updraft-1-4p",
@@ -732,20 +820,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "4 bands -> win",
-  "k1": "0/7634",
-  "k2": "0/4000",
-  "k3": "0/3000",
+  "k1": "0/15615",
+  "k2": "0/12000",
+  "k3": "0/9000",
   "beamCheats": null,
-  "slop3": "3%",
+  "slop3": "10%",
   "ride": {
    "result": "win",
-   "t": 10.67,
-   "airPct": 93,
+   "t": 10.21,
+   "airPct": 92,
    "topSpeed": 120,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 70
+  "secs": 163
  },
  {
   "id": "updraft-2-2p",
@@ -754,20 +842,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "2 bands -> win",
-  "k1": "0/5186",
+  "k1": "0/10854",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "48%",
+  "slop3": "88%",
   "ride": {
    "result": "win",
-   "t": 6.27,
-   "airPct": 93,
+   "t": 5.75,
+   "airPct": 92,
    "topSpeed": 120,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 9
+  "secs": 18
  },
  {
   "id": "updraft-2-3p",
@@ -776,20 +864,20 @@
   "ok": true,
   "bare": "stall",
   "solution": "3 bands -> win",
-  "k1": "0/7328",
-  "k2": "0/4000",
+  "k1": "0/15086",
+  "k2": "0/12000",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "12%",
+  "slop3": "93%",
   "ride": {
    "result": "win",
-   "t": 8.4,
+   "t": 8.1,
    "airPct": 93,
    "topSpeed": 120,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 38
+  "secs": 79
  },
  {
   "id": "updraft-2-4p",
@@ -798,85 +886,141 @@
   "ok": true,
   "bare": "stall",
   "solution": "4 bands -> win",
-  "k1": "0/9164",
-  "k2": "0/4000",
-  "k3": "0/3000",
+  "k1": "0/18789",
+  "k2": "0/12000",
+  "k3": "0/9000",
   "beamCheats": null,
-  "slop3": "2%",
+  "slop3": "87%",
   "ride": {
    "result": "win",
-   "t": 11.7,
+   "t": 10.45,
    "airPct": 93,
    "topSpeed": 120,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 82
+  "secs": 160
  },
  {
   "id": "updraft-3-2p",
   "name": "Air Pockets · 2P",
   "players": 2,
-  "ok": true,
+  "ok": false,
   "bare": "stall",
   "solution": "2 bands -> win",
-  "k1": "0/4574",
+  "k1": "174/9267",
   "k2": "-",
   "k3": "-",
   "beamCheats": null,
-  "slop3": "2%",
+  "slop3": "5%",
   "ride": {
    "result": "win",
-   "t": 6.74,
+   "t": 6.71,
    "airPct": 93,
    "topSpeed": 120,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 8
+  "secs": 18
  },
  {
   "id": "updraft-3-3p",
   "name": "Air Pockets · 3P",
   "players": 3,
-  "ok": true,
+  "ok": false,
   "bare": "stall",
-  "solution": "3 bands -> win",
-  "k1": "0/6410",
-  "k2": "0/4000",
+  "solution": "1 bands -> win",
+  "k1": "1/12970",
+  "k2": "3/12000",
   "k3": "-",
-  "beamCheats": null,
-  "slop3": "28%",
+  "beamCheats": {
+   "2": [
+    [
+     [
+      20.1,
+      145
+     ],
+     [
+      53.6,
+      168.2
+     ]
+    ],
+    [
+     [
+      32.1,
+      176.5
+     ],
+     [
+      78.6,
+      209.2
+     ]
+    ]
+   ]
+  },
+  "slop3": "25%",
   "ride": {
    "result": "win",
-   "t": 9.97,
-   "airPct": 90,
+   "t": 13.41,
+   "airPct": 78,
    "topSpeed": 120,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 38
+  "secs": 71
  },
  {
   "id": "updraft-3-4p",
   "name": "Air Pockets · 4P",
   "players": 4,
-  "ok": true,
+  "ok": false,
   "bare": "stall",
   "solution": "4 bands -> win",
-  "k1": "0/7940",
-  "k2": "0/4000",
-  "k3": "0/3000",
-  "beamCheats": null,
-  "slop3": "5%",
+  "k1": "0/16673",
+  "k2": "0/12000",
+  "k3": "0/9000",
+  "beamCheats": {
+   "3": [
+    [
+     [
+      67,
+      81.3
+     ],
+     [
+      92.7,
+      124.3
+     ]
+    ],
+    [
+     [
+      5.3,
+      162.9
+     ],
+     [
+      -0.6,
+      220.1
+     ]
+    ],
+    [
+     [
+      -15.9,
+      293
+     ],
+     [
+      3.9,
+      301.2
+     ]
+    ]
+   ]
+  },
+  "slop3": "57%",
   "ride": {
    "result": "win",
-   "t": 12.87,
-   "airPct": 91,
+   "t": 12.12,
+   "airPct": 93,
    "topSpeed": 120,
    "events": 0,
    "plants": "0/0"
   },
-  "secs": 82
+  "secs": 162
  }
 ]

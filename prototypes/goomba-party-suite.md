@@ -114,8 +114,8 @@ node tools/partypolish.mjs [id]    # hill-climb solutions for finger-slop
 node tools/partycheck.mjs [id]     # verify: bare fails, solution wins,
                                    #   min bands == players (exhaustive k=1 +
                                    #   sampled/beam cheat hunts), bands
-                                   #   placeable (≤ BAND_MAX), poppers fire,
-                                   #   slop, cards
+                                   #   placeable (≤ BAND_MAX), piñatas/poppers
+                                   #   fire on the win, slop, cards
 ```
 
 `partycheck --cards` renders a ride-card PNG per level into `party-cards/`
@@ -144,8 +144,8 @@ that drove gen 2:
   turned out to be built on a misread probe (the kick-back route never
   existed); gen 3's carom redesign is what actually made kicks fire on
   every winning ride. The solver keeps a piñata-proximity lure, and
-  `events >= players` is a hard acceptance test for poppers (piñata
-  engagement is asserted via the ride cards).
+  `events >= players` is a hard acceptance test for both piñata and
+  popper levels in partycheck.
 - **"Difficulty is wired to the wrong knob"** — solution fragility ran
   with player count, not tier (several 4P levels at 0% jitter tolerance).
   Gen 2 sizes windows/gaps per tier and adds the polish pass, which

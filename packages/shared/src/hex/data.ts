@@ -112,10 +112,8 @@ export const BUILDINGS: HexBuilding[] = [
   // fix that, so buying one was a straight penalty — fine when it was scenery,
   // hostile when it's the gate. 400 mps still loses the marginal comparison to a
   // Factory or a Farm carrying its upgrade stack, and that is correct: you buy
-  // the Lab for what it OPENS — the twist — not because the arithmetic says to.
-  // (Its cross-building tier used to reveal off it too; that moved to the first
-  // Factory for the visibility rule — see the tier's note.) It just shouldn't
-  // punish you for it.
+  // the Lab for what it OPENS — four cross-building upgrades, and the twist —
+  // not because the arithmetic says to. It just shouldn't punish you for it.
   // Knock-on: Labs keep earning at night, so day Labs now bootstrap the dream
   // harder than the seed holes below. Watch that in the sim if this moves again.
   { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 400 },
@@ -285,11 +283,13 @@ export const HEX_CODEWORD = "TO THE MOON";
 //   where the count binds in the era the row prices — farm and shopper counts
 //   climb all day and do; factory counts all bind inside the day's final
 //   income spike, where nothing can dwell (see the Factory ladder note).
-//   Three rows sit below the bar and are the known exceptions: Cat Tree and
-//   Sisal Scratching Plows are income-capped at 16 pets/s (their whole cost is
-//   ~3-4s of era income however early they reveal; both clear 5s at 8/s), and
-//   Catnap Hypnalysis reveals inside the endgame spike by design (see its
-//   note). Re-measure the table whenever costs, mps, or INCOME_SCALE move.
+//   The known exceptions, all deliberate: Cat Tree and Sisal Scratching Plows
+//   are income-capped at 16 pets/s (their whole cost is ~3-4s of era income
+//   however early they reveal; both clear 5s at 8/s), and THE LAB CHORD —
+//   Catnap Hypnalysis plus the cross-building tier — reveals off the Lab
+//   purchase inside the endgame spike on purpose: the burst of rows IS the
+//   reward for building the Lab (see the tier's note and Catnap's).
+//   Re-measure the table whenever costs, mps, or INCOME_SCALE move.
 //   effect: what it does. Folded into `mods` by recalc():
 //     buildingMult  building, mult   — that building only
 //     globalPct     pct              — all buildings, additive with each other
@@ -449,24 +449,26 @@ export const UPGRADES: HexUpgrade[] = [
     cost: 72000, unlock: { total: 36000 },
     effect: { type: "buildingMult", building: "factory", mult: 5 } },
 
-  // --- The fantastical cross-building tier (born of the Lab, no longer gated
-  // on it) ---
-  // Theory-powered boosts to the other day buildings — "synthesizes mice from
-  // theory" made literal. These used to be AND-gated on OWNING the Lab, the
-  // "buying a Lab lights up four rows at once" beat — and that beat is exactly
-  // what the header's visibility rule cannot keep: a row revealed by a
-  // 130000-mouse purchase arrives mid-endgame-spike with the bank refilling in
-  // seconds (measured dwell 0.3-1.8s, bought before anyone reads the name).
-  // The beat also cut the other way — decoupled entirely, the bot bought the
-  // farm/shopper ×3s early, farms out-competed factories, and it finished the
-  // day with ZERO Factories (the same collapse the Factory base-cost note
-  // fights). So the gates are the first FACTORY plus a count of the target
-  // building: still revealed by committing to late-day heavy industry, but the
-  // 10000 the first Factory drains from the bank is what makes a 36000 row
-  // arrive out of reach (measured dwell 6.8-12.3s). Factory Factory gates on a
-  // 34000 lifetime instead — half its cost — because a factory count on it
-  // binds in-spike like the ladder above. The tier still sits under Catnap
-  // Hypnalysis on cost, so the capstone is still the capstone.
+  // --- Schrödinger's Lab — fantastical cross-building tier ---
+  // The Lab gets NO upgrades that boost itself. Instead, owning it unlocks a
+  // tier of theory-powered boosts to the OTHER day buildings — "synthesizes
+  // mice from theory" made literal. Each is AND-gated on owning the Lab plus a
+  // modest count of its target building, so it reveals as a late-day power
+  // spike once you've committed to the Lab. This tier is the last rung of phase
+  // 1: it sits under Catnap Hypnalysis on cost so the capstone is still the
+  // capstone, but above every other day ladder so buying a Lab reads as an
+  // escalation. Fantastical flavour, ×3 where it is a plain multiplier.
+  //
+  // PART OF THE LAB CHORD, and a deliberate exception to the header's
+  // visibility rule: a row revealed by a 130000-mouse purchase arrives
+  // mid-endgame-spike with the bank refilling in seconds (measured dwell
+  // 0.0-0.5s), which is exactly the pop-in-and-buy the rule bans everywhere
+  // else — kept HERE because the burst of rows is the reward for building the
+  // Lab, the beat that sells the strangest building on the rail. Do not "fix"
+  // it by decoupling these from the Lab: measured, revealing them early lets
+  // the bot buy the farm/shopper ×3s before committing to factories, farms
+  // out-compete factories, and the day ends with ZERO Factories — the same
+  // collapse the Factory base-cost note fights.
   //
   // Exactly one row per day building now, which is the tier's whole shape: the
   // Farm gets Mice from Theory, the Subscription gets 2 Second Shipping, and the
@@ -479,10 +481,10 @@ export const UPGRADES: HexUpgrade[] = [
   // The building's blurb said "synthesizes mice from theory" until blurbs were
   // trimmed to the one row that teaches, and the phrase was too good to lose.
   { key: "farm2", name: "Mice from Theory", icon: "🧬",
-    cost: 36000, unlock: { owned: [["farm", 9], ["factory", 1]] },
+    cost: 36000, unlock: { owned: [["farm", 9], ["lab", 1]] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "labparcels", name: "2 Second Shipping", icon: "🚀",
-    cost: 36000, unlock: { owned: [["shopper", 15], ["factory", 1]] },
+    cost: 36000, unlock: { owned: [["shopper", 15], ["lab", 1]] },
     effect: { type: "buildingMult", building: "shopper", mult: 3 } },
   // A factory that makes factories: a SELF-synergy (crossBuilding with per ==
   // building), so each Mouse Factory you own makes every Mouse Factory +8%
@@ -493,7 +495,7 @@ export const UPGRADES: HexUpgrade[] = [
   // is ×1.9-2.2. Watch it in the pacing sim if factory counts drift — 12% was
   // measurably too much, pulling the day in by ~40s.
   { key: "factoryfactory", name: "Factory Factory", icon: "🪆",
-    cost: 68000, unlock: { total: 34000 },
+    cost: 68000, unlock: { owned: [["factory", 8], ["lab", 1]] },
     effect: { type: "crossBuilding", building: "factory", per: "factory", pct: 8 } },
   // --- Petting ---
   // EVERY row here belongs to phase 1 — petting earns nothing once Hex is asleep
@@ -768,22 +770,23 @@ export const UPGRADES: HexUpgrade[] = [
   // (it derives from game.bought, so saves restore it for free).
   //
   // The cost of that gate is that a team who never buys a Lab never sees the
-  // twist. What pays for it: the Lab is the last, strangest, most expensive
-  // building on the rail (the thing groups buy on sight), and what it opens is
-  // the twist itself. (Its cross-building tier used to reveal off the Lab too
-  // — that moved to the first Factory; see the tier's note.)
+  // twist. Two things pay for it: the Lab is the last, strangest, most expensive
+  // building on the rail (the thing groups buy on sight), and buying one lights
+  // up FOUR upgrade rows at once — its cross-building tier is priced inside
+  // phase 1 now, so the reward for opening the door is immediate and visible.
   // If playtests still show teams stalling out in daylight, the fix is a nudge
   // toward the Lab, not a second unlock condition here.
   //
-  // THE ONE DELIBERATE EXCEPTION to the header's visibility rule: this row
-  // reveals off a 130000-mouse purchase inside the endgame income spike, so
-  // its measured dwell is 1.3-2.0s — it arrives near-buyable, and the day ends
-  // on pressing it. That is the beat working as written, not a gate mistuned:
-  // the save-toward target for the twist era is the LAB on the building rail,
-  // and this row is the door swinging open once it's built. Every alternative
-  // loses more than it buys — a total gate here is the sitting-for-minutes 1M
-  // row the paragraph above rejects, and the price is load-bearing capstone
-  // signalling. Leave it, and let the twist land as a chord.
+  // THE CROWN OF THE LAB CHORD, the header rule's deliberate exception: this
+  // row reveals off a 130000-mouse purchase inside the endgame income spike,
+  // so its measured dwell is 1.3-2.0s — it arrives near-buyable, and the day
+  // ends on pressing it. That is the beat working as written, not a gate
+  // mistuned: the save-toward target for the twist era is the LAB on the
+  // building rail, and this row is the door swinging open once it's built.
+  // Every alternative loses more than it buys — a total gate here is the
+  // sitting-for-minutes 1M row the paragraph above rejects, and the price is
+  // load-bearing capstone signalling. Leave it, and let the twist land as a
+  // chord.
   { key: "catnap", name: "Catnap Hypnalysis", icon: "💤",
     cost: 1e6, unlock: { owned: [["lab", 1]] },
     effect: { type: "night" } },

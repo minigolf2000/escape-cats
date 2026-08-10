@@ -40,9 +40,13 @@ export const DEBUG_PRESETS: Record<string, HexPreset> = {
     total: 1500000, mice: 1200000, clicks: 1100,
     owned: { shopper: 30, farm: 35, factory: 12, lab: 1 },
   },
-  // THE WALL OPENS. The whole cast is out there with nothing behind it — 33
-  // anonymous white specks over an unlit scene, which is what the phase
-  // actually looks like until the first trail rung lands. No
+  // THE WALL OPENS, UNLIT. The whole cast is out there with nothing behind it —
+  // 33 anonymous specks at a third of full brightness, barely moving at a quarter
+  // speed. Paper Lantern is deliberately NOT in `bought` here — the only night
+  // preset without it — because this preset is the night as it actually begins, and
+  // the first thing it has to be earning toward is the light. Press `mice` after it
+  // to see the state the hand-over lands in; the hand-over itself only plays on a
+  // real purchase, since a jump has no beat to replay (see applyPreset). No
   // day buildings: the flip wipes them (see nightReset). The BANK IS EMPTY for
   // the same reason: the twist zeroes `mice`, and this preset is the moment
   // just after it, so arriving here by button has to feel as broke as arriving
@@ -61,7 +65,7 @@ export const DEBUG_PRESETS: Record<string, HexPreset> = {
   mice: {
     total: 1.6e6, mice: 1.4e6, clicks: 900, golden: 5,
     owned: { portal: 25, spindle: 12, delta: 4 },
-    bought: ["catnap", "paperlantern", "luciddreaming"],
+    bought: ["catnap", "lantern", "paperlantern", "luciddreaming"],
   },
   // ONE PURCHASE FROM THE END. Every night row but Scent Trail; the bank
   // clears its 60M. Coverage ~1.53 — dense, unreadable, one press from both
@@ -71,7 +75,7 @@ export const DEBUG_PRESETS: Record<string, HexPreset> = {
     total: 90e6, mice: 62e6, clicks: 1200, golden: 8,
     owned: { portal: 60, spindle: 40, delta: 30 },
     bought: [
-      "catnap", "paperlantern", "luciddreaming", "countingmice",
+      "catnap", "lantern", "paperlantern", "luciddreaming", "countingmice",
       "deepsleep", "lucky6", "remsleep",
     ],
   },
@@ -81,7 +85,7 @@ export const DEBUG_PRESETS: Record<string, HexPreset> = {
     total: 103e6, mice: 5e6, clicks: 1400, golden: 8,
     owned: { portal: 60, spindle: 40, delta: 30 },
     bought: [
-      "catnap", "paperlantern", "luciddreaming", "countingmice",
+      "catnap", "lantern", "paperlantern", "luciddreaming", "countingmice",
       "deepsleep", "lucky6", "remsleep", "hypnagogia",
     ],
   },

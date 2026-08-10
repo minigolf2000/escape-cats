@@ -59,9 +59,19 @@ import { currencyIconSVG } from "./art.js";
 // Kiosk lockdown: swallow the long-press context menu and the touch gestures
 // that would buzz the phone mid-mash. Native controls and the shop scroller
 // opt out — they're driven by `click` and the scroll gesture respectively.
+//
+// `[data-native-touch]` is the GENERAL form of that opt-out, and anything with
+// its own scroller needs it: preventDefault on a capture-phase touchstart stops
+// the browser from ever starting a pan, so an `overflow:auto` box inside this
+// page is scrollable with a mouse and frozen under a finger. The debug panel's
+// buildings & upgrades dump was exactly that (see debug.ts) — it opted out on
+// its buttons and its <summary> and nowhere else, so the one part of it worth
+// scrolling was the one part that could not be. Subtree-wide via closest(), so
+// marking a container covers every scroller inside it.
 // ---------------------------------------------------------------------------
 window.addEventListener("contextmenu", (e) => e.preventDefault());
-const NATIVE_TOUCH = "#shopScroll, button, a, summary, input, select, textarea";
+const NATIVE_TOUCH =
+  "#shopScroll, [data-native-touch], button, a, summary, input, select, textarea";
 window.addEventListener(
   "touchstart",
   (e) => {

@@ -9,6 +9,7 @@ import {
   UPGRADES,
   INCOME_SCALE,
   CRUX_KEYS,
+  WALL,
   WALL_EFFECTS,
   costOf,
   isRevealed,
@@ -143,10 +144,16 @@ const buildingName = (id) =>
 // the debug table useless, and a tuning pass has to be able to read what a wall
 // row actually does. The shop never passes it; see oneEffectText's ??? note.
 export function effectText(u, reveal = false) {
-  return effectsOf(u)
+  const parts = effectsOf(u)
     .map((e) => oneEffectText(e, reveal))
-    .filter(Boolean)
-    .join(" · ");
+    .filter(Boolean);
+  // DEDUPED, and only the wall rows can trigger it: every wall effect renders as
+  // the same ??? on the rail, so a row carrying two of them (Paper Lantern's light
+  // and pace; Lucid Dreaming I's trail and pace) would read "??? · ???" — which is
+  // the exact flag the uniform ??? exists to avoid, a row announcing that it is
+  // bigger than its neighbours. One row, one ???. The dev dump passes `reveal`, so
+  // its strings differ and every effect still gets its own column entry there.
+  return [...new Set(parts)].join(" · ");
 }
 // Word-form only reads naturally for small round multipliers — Cookie
 // Clicker's own convention. Percentages skip it entirely.
@@ -201,6 +208,10 @@ function oneEffectText(e, reveal = false) {
       return `The trails stop fading`;
     case "speed":
       return `Wall mice move quicker`;
+    case "lantern":
+      return `The wall lights up`;
+    case "pace":
+      return `The wall mice pick up ${hl(e.add + "/" + WALL.paceSteps)} of their pace`;
     // THE twist: the one row whose description is a QUESTION — naming the
     // mechanic would spend the reveal a purchase early.
     case "night":

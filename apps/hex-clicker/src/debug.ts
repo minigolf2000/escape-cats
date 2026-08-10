@@ -202,17 +202,38 @@ function mountPanel(sim: HexSim, emit: () => void): void {
     #devbar button:active { background: #2a3049; }
     /* The content dump. Capped and scrollable — 7 buildings plus 40-odd
        upgrades is taller than a phone, and the panel must not cover the wall
-       (the one thing the night phase exists to show). */
+       (the one thing the night phase exists to show).
+
+       On a phone the cap is the whole point and it was the whole problem: the
+       box scrolled with a trackpad and not with a finger. Three things had to be
+       true at once, and only the first was:
+         - overflow:auto                    (it was)
+         - the page must not swallow the pan (it did — see NATIVE_TOUCH in
+           main.js; #devbar carries data-native-touch now)
+         - touch-action must allow it       (an inherited manipulation/none from
+           a kiosk-locked ancestor is enough to kill it, so state it)
+       overscroll-behavior stops a flick that reaches the end from scrolling the
+       page behind the panel, which on iOS reads as the panel jumping away. */
     #devList { margin-top: 4px; }
-    #devContent { margin-top: 4px; overflow: auto; max-height: 46vh; max-width: 82vw; }
+    #devContent { margin-top: 4px; overflow: auto; max-height: 46vh; max-width: 88vw;
+      touch-action: pan-x pan-y; overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch; }
     #devContent h4 { margin: 10px 0 5px; color: #f6c86a; font-size: 11px;
       letter-spacing: .1em; text-transform: uppercase; }
     #devContent h4:first-child { margin-top: 0; }
-    #devContent table { border-collapse: collapse; width: 100%; }
+    /* border-collapse: separate, NOT collapse, and that is the sticky header's
+       requirement rather than a style choice: a collapsed table's borders
+       belong to the
+       table, so a stuck <th> paints its own background but not the collapsed
+       border row, and the cells it is supposed to be occluding bleed through it
+       as it scrolls under. Separate borders live on the cells, so each th
+       carries its own opaque box. Nothing was wrong with it until the panel
+       could actually be scrolled on a phone. */
+    #devContent table { border-collapse: separate; border-spacing: 0; width: 100%; }
     #devContent th, #devContent td { text-align: left; padding: 3px 7px;
       border-bottom: 1px solid #1b2130; vertical-align: top; }
     #devContent th { color: #6fe3d0; font-weight: 600; position: sticky; top: 0;
-      background: #090c12; }
+      background: #090c12; z-index: 1; }
     #devContent td.n { text-align: right; font-variant-numeric: tabular-nums;
       color: #f6c86a; white-space: nowrap; }
     #devContent td.s { color: #6f7a8c; white-space: nowrap; }
@@ -222,6 +243,10 @@ function mountPanel(sim: HexSim, emit: () => void): void {
 
   const bar = document.createElement("div");
   bar.id = "devbar";
+  // Opt the whole panel out of the kiosk touch lockdown (see NATIVE_TOUCH in
+  // main.js). On the panel it costs nothing — there is no pettable cat under it
+  // — and it is what lets the dump below scroll under a finger.
+  bar.dataset.nativeTouch = "";
   const grants: [string, number][] = [
     ["+10K", 1e4],
     ["+1M", 1e6],

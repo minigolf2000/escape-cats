@@ -34,6 +34,8 @@ export type HexEffect =
   | { type: "neon" }
   | { type: "persist"; add: number }
   | { type: "speed"; add: number }
+  | { type: "lantern" }
+  | { type: "pace"; add: number }
   | { type: "night" }
   | { type: "crossBuilding"; building: string; per: string; pct: number }
   | { type: "clickPerBuilding"; add: number; per: string };
@@ -790,6 +792,79 @@ export const UPGRADES: HexUpgrade[] = [
   { key: "catnap", name: "Catnap Hypnalysis", icon: "💤",
     cost: 1e6, unlock: { owned: [["lab", 1]] },
     effect: { type: "night" } },
+  // THE FIRST RUNG OF THE NIGHT, and the one that gives the opening something to
+  // want. The night opens UNLIT: the wall runs at a QUARTER speed and a third of its
+  // brightness (WALL.unlitSpeed / unlitGlow), so the phase begins as a barely-there
+  // drift in the dark and the first thing a team buys is the light. Nothing here is
+  // a new capability; it is the baseline handed back — and it is handed back as a
+  // BEAT rather than a toggle, easing over WALL.rampMs from the purchase's own
+  // timestamp, so the wall visibly brightens and picks up instead of cutting.
+  //
+  // ALL of the light, HALF of the pace. The other half is Lucid Dreaming I's (see
+  // WALL.paceSteps and the row itself), so the climb out of the dark is 2.4 -> 6.0
+  // -> 9.6 units/sec across the night's first two purchases rather than one row
+  // fixing everything. What that buys is a hinge that is no longer only about
+  // trails: the wall starts recording itself AND comes fully awake on the same
+  // press. What it costs this row is the cleaner story — "the lantern gives the
+  // night back" is now "the lantern gives the night back, mostly".
+  //
+  // The name comes back to the row it was written for. It has been a tombstone in
+  // the block below since the sleep stages were renumbered ("a lantern is a light
+  // you release and then watch go, which is exactly this mechanic") — and it is now
+  // literally that mechanic, so the 🏮 icon comes back with it and Lucid Dreaming I,
+  // which had been wearing both, is reissued a sleep-stage icon of its own.
+  //
+  // `key` is `lantern`, NOT `paperlantern` — that string is Lucid Dreaming I's save
+  // key and has been since before the rename. Two rows in this table now read
+  // "lantern"-ish and mean different rungs; do not tidy it, the keys are saves.
+  //
+  // ---- THE COST -------------------------------------------------------------
+  // 10,000, and the window either side of it is narrow. Measured on the night's
+  // opening curve (empty bank, one free Hole, buildings the only earner), first
+  // moment the bank clears a price, across bots that sink 5%-20% of the bank into
+  // any one building:
+  //
+  //     2,500   0:08-0:09        25,000   0:23-0:42
+  //     5,000   0:13-0:17        50,000   0:30-0:48   <- Lucid Dreaming I's price
+  //    10,000   0:16-0:34
+  //
+  // The floor is the CUTSCENE. The twist's beat runs 5.1s (yawn + zzz hold + the
+  // camera zoom) and the shop takes another 0.5s to slide back in, so a price under
+  // ~5k is bought within a couple of seconds of the rail becoming touchable — the
+  // player never sees the unlit wall as a state they were in, only as a flicker
+  // during a cutscene they were not controlling. A deprivation nobody experiences
+  // is not worth building.
+  //
+  // The ceiling is LUCID DREAMING I, and it binds harder than it looks, because the
+  // opening bank curve is exponential off that free Hole: measured end to end with
+  // this row inserted, a 25k lantern lands 7-9s before the hinge and a 40k one lands
+  // 4s before it. Two rungs that close is one moment, not two — the wall lights up
+  // and starts leaving trails almost together, and the trail hinge (the single
+  // biggest visual beat in the game) is what gets stepped on.
+  //
+  // 10,000 leaves 12-25s of lit, trail-less wall between them: long enough to read
+  // the lantern's change as its own event, short enough that the dark stretch is a
+  // beat rather than a phase. It is also a fifth of Lucid Dreaming I, which is the
+  // step the rest of the ladder is written in.
+  //
+  // The ceiling got sharper when the pace was split across the two rows: they are
+  // now the only two rows that change the wall's speed, each easing over 1.4s, so
+  // bunching them does not merely crowd two beats — it stacks two hand-overs, and
+  // the second banks out of the middle of the first (buyUpgrade handles that
+  // correctly, but "correctly" here means the player sees one long acceleration
+  // instead of two accelerations).
+  //
+  // What it does NOT cost is the night's length: the same measurement puts the end
+  // of the night within ~10s of where it lands with no lantern row at all, at every
+  // price in the table. This row is paid for out of the opening's idle time, which
+  // is why it can exist at all.
+  //
+  // If playtests say the dark opening drags, the move is 5,000 (dark for ~15s), NOT
+  // deleting the row — and if they say the dark never registers, the move is 15,000,
+  // which is the last price that still clears the hinge by ~10s.
+  { key: "lantern", name: "Paper Lantern", icon: "🏮",
+    cost: 10000, unlock: { requires: "catnap" },
+    effect: [{ type: "lantern" }, { type: "pace", add: 1 }] },
   // ---- The night ladder ------------------------------------------------------
   // EVERY change to the wall is a purchase. Thresholds were tried on paper and
   // rejected: if the wall changes because lifetime mice silently crossed a number,
@@ -850,9 +925,11 @@ export const UPGRADES: HexUpgrade[] = [
   //
   // It costs three bespoke names to say it: Paper Lantern, Deep Sleep and REM Sleep were
   // all better NAMES than "Lucid Dreaming III", and all three were lying about being
-  // different from each other. Paper Lantern in particular earned its place — a lantern
-  // is a light you release and then watch go, which is exactly this mechanic — and it is
-  // still the best candidate if the numbering ever comes off.
+  // different from each other. Paper Lantern was the one that earned its place — a
+  // lantern is a light you release and then watch go — and it has since been ISSUED TO A
+  // REAL ROW: the night's unlit opening, above, where the light and the going are the
+  // actual mechanic instead of a metaphor for trail length. The other two are still
+  // free if the numbering ever comes off.
   //
   // I is the hinge of the whole night regardless of what it is called: before it the
   // lights leave nothing behind and the wall is unreadable in principle, not just in
@@ -883,9 +960,27 @@ export const UPGRADES: HexUpgrade[] = [
   // heaviest frame in the game either way, and this made it ~13% heavier. Watch it on a
   // real phone; the cheapest fix if it bites is sampling the tail coarsely at its faded
   // end, where the alpha ramp has already made the detail invisible.
-  { key: "paperlantern", name: "Lucid Dreaming I", icon: "🏮",
-    cost: 50000, unlock: { requires: "catnap" },
-    effect: { type: "trail", add: 34 } },
+  //
+  // IT ALSO FINISHES THE PACE. Half the climb out of the unlit night is Paper
+  // Lantern's and the other half is this row's (`pace`, see WALL.paceSteps), which
+  // is why the numbered rung that "only deepens" the hinge is carrying a second
+  // effect: the wall goes 6.0 -> 9.6 units/sec on the same press that first inks it.
+  //
+  // That pairing is what keeps the legibility budget exactly where it was, and it is
+  // a stronger guarantee than the `requires` edge alone. Coverage is trail x speed,
+  // and this row owns the first unit of trail AND the last instalment of pace — so
+  // every rung of the trail ladder inks at the full 9.6, as it always did. Sell a
+  // trail rung ahead of the last pace instalment and that stops being true: on a
+  // quarter-speed wall the finished ladder lands at ~0.45 against a 1.6 threshold and
+  // the word can never be read. `requires: "lantern"` is still doing its half of the
+  // work. See WALL.unlitSpeed / paceSteps in rules.ts.
+  //
+  // The icon is 🛌, not the 🏮 this row wore for as long as it has been numbered — that
+  // was a fossil of its own deleted name and it has gone back to the row that is
+  // actually a paper lantern (see above). `key` stays `paperlantern`: it is a save key.
+  { key: "paperlantern", name: "Lucid Dreaming I", icon: "🛌",
+    cost: 50000, unlock: { requires: "lantern" },
+    effect: [{ type: "trail", add: 34 }, { type: "pace", add: 1 }] },
   // 1M, not the 115k it was, to put this at 0:50. It is a big jump from I's 50k and that is
   // the point: the first stretch of night is meant to be buildings only while the one thing
   // on the rail sits out of reach. The cost of hitting 0:50 is a dip to ~10 purchases in

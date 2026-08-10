@@ -23,6 +23,9 @@ import {
   isRevealed,
   wallCoverage,
   wallSpeed,
+  wallGlow,
+  wallGlowAt,
+  wallRateAt,
   wallUnitsAt,
   LEGIBLE_COV,
   GOLD_MIN_S,
@@ -57,9 +60,12 @@ export interface HexSimState extends HexCore {
    * rest of the room. See HexWallClock in rules.ts. */
   wallBase: number;
   wallAt: number | null;
-  /** The rate walked UP TO wallAt — what the hand-over eases out of. Equal to
-   * the current rate whenever the clock was anchored without a change. */
+  /** The rate walked, and the glow drawn, UP TO wallAt — what the hand-over
+   * eases out of. Each equals its current value whenever that quantity was not
+   * what changed, which is how the pace can ramp on Lucid Dreaming I without the
+   * light ramping with it. */
   wallFrom: number;
+  wallGlowFrom: number;
   /** Dev time-scale (?debug only) — multiplies passive income + golden cadence,
    * never click feel. A real room never leaves 1. */
   speed: number;
@@ -97,6 +103,7 @@ export interface HexPersistedV1 {
   wallBase?: number;
   wallAt?: number | null;
   wallFrom?: number;
+  wallGlowFrom?: number;
   core: HexCore;
 }
 
@@ -142,10 +149,11 @@ export class HexSim {
       wallBase: 0,
       wallAt: null,
       wallFrom: 0,
+      wallGlowFrom: 0,
       speed: 1,
     };
     this.mods = foldMods({}, this.state.owned);
-    this.state.wallFrom = wallSpeed(this.mods);
+    this.restWall();
     this.lastTick = now;
     this.scheduleGold(true);
   }
@@ -167,6 +175,7 @@ export class HexSim {
       wallBase: s.wallBase,
       wallAt: s.wallAt,
       wallFrom: s.wallFrom,
+      wallGlowFrom: s.wallGlowFrom,
       core: {
         mice: s.mice,
         total: s.total,
@@ -199,13 +208,17 @@ export class HexSim {
       wallBase: p.wallBase ?? 0,
       wallAt: p.wallAt ?? p.nightAt,
       wallFrom: 0,
+      wallGlowFrom: 0,
       speed: 1,
     };
     this.goldSeq = p.goldSeq;
     this.recalc();
-    // After the fold, so a save written before wallFrom existed lands on "no
-    // hand-over running" rather than on a rate of zero the wall would crawl at.
-    this.state.wallFrom = p.wallFrom ?? wallSpeed(this.mods);
+    // After the fold, so a save written before these existed lands on "no
+    // hand-over running" rather than on a rate of zero the wall would crawl at
+    // and a glow it would fade up from.
+    this.restWall();
+    if (p.wallFrom !== undefined) this.state.wallFrom = p.wallFrom;
+    if (p.wallGlowFrom !== undefined) this.state.wallGlowFrom = p.wallGlowFrom;
     this.lastTick = now;
     this.scheduleGold(true);
     // Capped credit for the gap, at the RESTORED build rate. Elapsed time is
@@ -233,10 +246,11 @@ export class HexSim {
       wallBase: 0,
       wallAt: null,
       wallFrom: 0,
+      wallGlowFrom: 0,
       speed: 1,
     };
     this.recalc();
-    this.state.wallFrom = wallSpeed(this.mods);
+    this.restWall();
     this.lastTick = now;
     this.scheduleGold(true);
   }
@@ -275,7 +289,7 @@ export class HexSim {
       s.nightAt = now;
       s.wallBase = 0;
       s.wallAt = now;
-      s.wallFrom = wallSpeed(this.mods);
+      this.restWall();
       s.gold = null;
     }
     this.checkLegible(now);
@@ -300,6 +314,15 @@ export class HexSim {
 
   private recalc(): void {
     this.mods = foldMods(this.state.bought, this.state.owned);
+  }
+
+  /** Park the wall clock's from-values ON their current targets, i.e. "nothing is
+   * handing over". Every anchor that is not a CHANGE wants this — a fresh sim, a
+   * reset, a restore, the twist itself, a preset jump — because the ramp exists to
+   * replay a purchase, and none of those is one. Must run after recalc(). */
+  private restWall(): void {
+    this.state.wallFrom = wallSpeed(this.mods);
+    this.state.wallGlowFrom = wallGlow(this.mods);
   }
 
   private scheduleGold(first: boolean): void {
@@ -386,9 +409,21 @@ export class HexSim {
     if (!onRail(u, this.state.bought)) return false;
     if (this.state.mice < u.cost) return false;
     const nightBefore = this.night();
-    // Read BEFORE the fold: banking the odometer needs the rate the wall has
-    // actually been walking at, not the one this purchase just set.
-    const speedBefore = wallSpeed(this.mods);
+    // Read BEFORE the fold, and read TWICE, because the two readings answer
+    // different questions:
+    //   *Target — what the wall was headed for. The change test, so a purchase
+    //     that touches neither leaves a running hand-over completely alone.
+    //   *Now — what the wall is doing THIS instant, eased. What gets banked, so a
+    //     change landing inside a running hand-over continues out of the speed and
+    //     the glow actually on screen instead of snapping to the old targets. The
+    //     two pace rungs are the night's first two purchases, so a fast team can
+    //     genuinely buy the second inside the first's 1.4s ramp.
+    // The glow is tracked separately from the speed throughout: Lucid Dreaming I
+    // moves the pace and not the light, and must not drag the light through a ramp.
+    const speedTarget = wallSpeed(this.mods);
+    const glowTarget = wallGlow(this.mods);
+    const speedNow = wallRateAt(this.state, speedTarget, now);
+    const glowNow = wallGlowAt(this.state, this.mods, now);
     this.state.mice -= u.cost;
     this.state.bought[u.key] = 1;
     this.recalc();
@@ -400,25 +435,31 @@ export class HexSim {
       this.state.gold = null;
       this.recalc();
       // The wall starts walking here, at the twist's own timestamp, so every
-      // phone derives the same opening frame however late it joins. `wallFrom`
-      // is the rate it starts AT, not a previous one — the night opens already
-      // unlit rather than easing down into it.
+      // phone derives the same opening frame however late it joins. It starts AT
+      // the unlit values rather than easing down into them, which is what
+      // restWall() says.
       this.state.wallBase = 0;
       this.state.wallAt = now;
-      this.state.wallFrom = wallSpeed(this.mods);
+      this.restWall();
     } else if (this.state.wallAt !== null) {
-      // A rate change (Paper Lantern) banks the distance walked so far and
+      // A change to EITHER derived quantity (Paper Lantern moves both; Lucid
+      // Dreaming I moves only the pace) banks the distance walked so far and
       // re-anchors — continuous for every mouse, and identical on every phone
       // because the authority does it once. See HexWallClock in rules.ts.
       //
-      // The bank is read through wallUnitsAt against the clock as it stands, so
-      // a change landing DURING a hand-over banks the eased distance rather than
-      // a straight-line one. Nothing sells that today; it composes anyway.
-      const speedAfter = wallSpeed(this.mods);
-      if (speedAfter !== speedBefore) {
-        this.state.wallBase = wallUnitsAt(this.state, speedBefore, now);
+      // The bank is read through wallUnitsAt against the clock as it stands, so a
+      // change landing DURING a hand-over banks the eased distance rather than a
+      // straight-line one. That is not hypothetical any more: the two pace rungs
+      // are the night's first two purchases and a fast team can buy the second
+      // inside the first's 1.4s ramp.
+      if (
+        wallSpeed(this.mods) !== speedTarget ||
+        wallGlow(this.mods) !== glowTarget
+      ) {
+        this.state.wallBase = wallUnitsAt(this.state, speedTarget, now);
         this.state.wallAt = now;
-        this.state.wallFrom = speedBefore;
+        this.state.wallFrom = speedNow;
+        this.state.wallGlowFrom = glowNow;
       }
     }
     this.checkLegible(now);

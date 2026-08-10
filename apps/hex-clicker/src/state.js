@@ -13,6 +13,7 @@ import {
   clickBaseWith,
   unlockMet,
   wallSpeed,
+  wallGlow,
   hashString,
 } from "@escape-cats/shared";
 
@@ -33,12 +34,13 @@ export const game = {
   zoomUntil: 0, // performance.now() ms while Zoomies is active (converted from server time)
   nightAt: null, // wall-clock (server epoch) ms the twist fired — anchors the wall
   // The wall's odometer, banked by the authority (see HexWallClock in rules.ts):
-  // scene units walked as of `wallAt` (server epoch ms), out of rate `wallFrom`.
-  // wall.js reads position AND glow off this triple, so every phone draws the same
-  // frame — including one that joins while the lantern's hand-over is still easing.
+  // scene units walked as of `wallAt` (server epoch ms), out of the rate and glow
+  // it was holding then. wall.js reads position AND brightness off this, so every
+  // phone draws the same frame — including one that joins mid hand-over.
   wallBase: 0,
   wallAt: null,
   wallFrom: 0,
+  wallGlowFrom: 0,
   speed: 1, // ?debug dev time-scale, mirrored for extrapolation
 };
 BUILDINGS.forEach((b) => (game.owned[b.id] = 0));
@@ -192,10 +194,11 @@ export function applySnapshot(snap) {
   game.mice = snap.mice + optimisticGain();
 
   recalc();
-  // After the fold, because the fallback needs the CURRENT rest speed: a snapshot
-  // from a build without wallFrom must read as "nothing is handing over" rather
-  // than as a ramp easing out of zero.
+  // After the fold, because the fallbacks need the CURRENT rest values: a snapshot
+  // from a build without these must read as "nothing is handing over" rather than
+  // as a ramp easing out of zero and up from black.
   game.wallFrom = snap.wallFrom ?? wallSpeed(mods);
+  game.wallGlowFrom = snap.wallGlowFrom ?? wallGlow(mods);
   players = snap.players || [];
 
   const nightAfter = nightOf(game.bought);

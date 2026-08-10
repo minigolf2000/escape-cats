@@ -44,6 +44,7 @@ export interface HexMods {
   persist: number;
   speed: number;
   lantern: number;
+  pace: number;
   night: number;
 }
 
@@ -76,7 +77,8 @@ const isStoryUpgrade = (u: HexUpgrade): boolean =>
       e.type === "neon" ||
       e.type === "persist" ||
       e.type === "speed" ||
-      e.type === "lantern",
+      e.type === "lantern" ||
+      e.type === "pace",
   );
 
 // Rows that belong to the night even though their effect isn't a story beat —
@@ -141,14 +143,17 @@ export function foldMods(
     //   neon      the points resolve into coloured mice (Counting Mice)
     //   trail     length of the inked tail (the sleep-stage ladder)
     //   persist   ink half-life; 0 = a rolling window (Scent Trail)
-    //   lantern   the dream is LIT and running at full pace (Paper Lantern).
-    //             Zero is the night's opening state, not a neutral default —
-    //             see WALL.unlitSpeed / wallGlow.
+    //   lantern   the dream is LIT (Paper Lantern, all of it)
+    //   pace      instalments of the night's pace paid back, out of
+    //             WALL.paceSteps — one from Paper Lantern, one from Lucid
+    //             Dreaming I. Zero on both is the night's opening state, not a
+    //             neutral default: see WALL.unlitSpeed / wallGlow.
     trail: 0,
     neon: 0,
     persist: 0,
     speed: 0,
     lantern: 0,
+    pace: 0,
     night: 0,
   };
   BUILDINGS.forEach((b) => (m.building[b.id] = 1));
@@ -179,6 +184,7 @@ export function foldMods(
       else if (e.type === "persist") m.persist += e.add;
       else if (e.type === "speed") m.speed += e.add;
       else if (e.type === "lantern") m.lantern = 1;
+      else if (e.type === "pace") m.pace += e.add;
       else if (e.type === "night") m.night = 1;
       else if (e.type === "crossBuilding")
         m.building[e.building] *= 1 + (e.pct / 100) * (owned[e.per] || 0);
@@ -319,13 +325,13 @@ export const WALL = {
   // for everyone, where this SCALES it and only until the lantern is lit.
   //
   // NOTHING IN THE LEGIBILITY BUDGET MOVES, and that is a fact about the unlock
-  // chain rather than luck: Lucid Dreaming I requires the lantern, so the wall
-  // cannot own a single unit of trail while it is running at unlitSpeed. Coverage
-  // is trail x speed (see wallCoverage) and trail is 0 for the whole unlit stretch,
-  // so the phase's coverage curve starts where it always did — at the hinge, at
-  // 9.6 units/sec. Break that `requires` and the four trail rungs are suddenly
-  // inking a quarter-speed wall, the ladder lands at 0.45 coverage against a 1.6
-  // threshold, and the word can never be read.
+  // chain rather than luck: Lucid Dreaming I requires the lantern AND is the row
+  // that pays the last pace instalment, so the wall cannot own a single unit of
+  // trail below the full 9.6 units/sec. Coverage is trail x speed (see
+  // wallCoverage) and trail is 0 for the whole climb, so the phase's coverage
+  // curve starts where it always did. Break that `requires` and the four trail
+  // rungs are suddenly inking a quarter-speed wall, the ladder lands at 0.45
+  // coverage against a 1.6 threshold, and the word can never be read.
   //
   // 0.25 rather than something milder because the wall has to read as WRONG, not as
   // retuned: at 2.4 units/sec a mouse needs over five minutes to walk the comet's
@@ -336,6 +342,33 @@ export const WALL = {
   // already watching.
   unlitSpeed: 0.25,
   unlitGlow: 0.3,
+  // ---- WHO PAYS THE PACE BACK -----------------------------------------------
+  // The climb out of unlitSpeed is split into this many EQUAL instalments, and the
+  // two rows that pay them are Paper Lantern and Lucid Dreaming I. So the night runs
+  // 2.4 -> 6.0 -> 9.6 scene units/sec across its first two purchases.
+  //
+  // The LIGHT is not split with it. Paper Lantern is all of the light and half of
+  // the pace; Lucid Dreaming I is the other half of the pace and the first trail.
+  // That asymmetry is the point of the split: it stops the lantern being the row
+  // that fixes everything and leaves the hinge with only its own trails to show,
+  // and it gives the hinge a second thing to be — the wall does not just start
+  // recording itself, it comes fully awake at the same moment.
+  //
+  // EQUAL IN UNITS, not in ratio, which is the reading of "half the speed benefit"
+  // that the arithmetic supports: each rung hands back 3.6 of the 7.2 units/sec the
+  // night is down. It does mean the two do not FEEL equal — 2.4 -> 6.0 is a 2.5x
+  // change and 6.0 -> 9.6 is a 1.6x one, because perceived speed is ratio-based —
+  // and that is the right way round: the lantern has to carry the moment on its own,
+  // where the hinge arrives with the biggest visual beat in the game already in hand.
+  // For two changes that feel the same size instead, the split wants to be
+  // geometric (2.4 -> 4.8 -> 9.6), which is `unlitSpeed ** (1 - paid)` here.
+  //
+  // NOTHING IN THE LEGIBILITY BUDGET MOVES, still, and for a sharper reason than
+  // before: the row that finishes the pace IS the first trail rung, so the wall
+  // owns its first unit of trail and its full 9.6 units/sec on the same purchase.
+  // Every rung of the trail ladder inks at 9.6 exactly as it always did. Sell a
+  // trail rung ahead of the last pace instalment and that stops being true.
+  paceSteps: 2,
   // ---- THE HAND-OVER --------------------------------------------------------
   // How long the lantern takes to give the wall back. Both halves — the light and
   // the pace — ride this one number from the purchase's own timestamp, because they
@@ -353,17 +386,19 @@ export const WALL = {
   rampMs: 1400,
 };
 
-// Scene units per second, one rate for every mouse on the wall. The lantern
-// multiplies rather than adds (see WALL.unlitSpeed); the max clamp is applied
-// last so it still means "no faster than this, ever".
+// Scene units per second, one rate for every mouse on the wall. The pace is paid
+// back in WALL.paceSteps equal instalments (see there) and SCALES the base rather
+// than adding to it; the max clamp is applied last so it still means "no faster
+// than this, ever".
 export function wallSpeed(m: HexMods): number {
-  const lit = m.lantern ? 1 : WALL.unlitSpeed;
+  const paid = Math.min(1, (m.pace || 0) / WALL.paceSteps);
+  const lit = WALL.unlitSpeed + (1 - WALL.unlitSpeed) * paid;
   return Math.min(WALL.speedMax, (WALL.speedBase + (m.speed || 0)) * lit);
 }
 
 /** Opacity multiplier for everything the wall draws — specks, mice and ink
- * alike, at REST. Cosmetic, so no rule reads it; it lives here only to sit
- * beside the speed half of the same purchase. Renderers want wallGlowAt, which
+ * alike, at REST. The LIGHT is not split the way the pace is: Paper Lantern is
+ * all of it. Cosmetic, so no rule reads it. Renderers want wallGlowAt, which
  * plays the hand-over. */
 export function wallGlow(m: HexMods): number {
   return m.lantern ? 1 : WALL.unlitGlow;
@@ -384,12 +419,17 @@ export function wallGlow(m: HexMods): number {
 // would otherwise replay the entire night at the new rate. This is the fix the
 // note in wall.js asked for when it said a speed rung would need one.
 //
-// The pair is a TRIPLE now, because the change is eased rather than stepped (see
-// WALL.rampMs): reproducing an eased change needs the rate it came FROM as well as
-// the one it went to. That third number is also what tells the two derived
-// quantities below whether a hand-over is running at all — `wallFrom === speed`
-// means the clock was anchored without anything changing (the twist itself, a debug
-// preset jump), so nothing animates.
+// The pair is a RECORD OF WHAT THE WALL WAS now, because the change is eased rather
+// than stepped (see WALL.rampMs): reproducing an eased change needs the values it
+// came FROM as well as the ones it went to. So the clock carries the rate and the
+// glow it was holding at `wallAt`, and each derived quantity below decides for
+// itself whether IT is mid-change by comparing its own `from` against its own
+// target. Anything equal is not animating.
+//
+// The two are genuinely independent now that the pace is split across two rungs:
+// Lucid Dreaming I changes the rate and NOT the light, so a glow that keyed off
+// "is a hand-over running" instead of off its own from-value would flash the wall
+// back to unlit and re-brighten it on the trail rung.
 export interface HexWallClock {
   /** Scene units walked as of `wallAt`. */
   wallBase: number;
@@ -397,16 +437,19 @@ export interface HexWallClock {
   wallAt: number | null;
   /** Scene units/sec the wall was walking at up to `wallAt`. */
   wallFrom: number;
+  /** The glow it was drawing at up to `wallAt`. */
+  wallGlowFrom: number;
 }
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
-// Smoothstep, so the wall leaves the old rate and arrives at the new one with zero
+// Smoothstep, so the wall leaves the old value and arrives at the new one with zero
 // acceleration at both ends — the mice ease into it instead of lurching.
 const smoothstep = (x: number) => x * x * (3 - 2 * x);
 
-/** 0..1 through the hand-over, or 1 when nothing is handing over. */
-export function wallRampAt(w: HexWallClock, speed: number, t: number): number {
-  if (w.wallAt === null || w.wallFrom === speed) return 1;
+/** 0..1 through the hand-over anchored at `wallAt`; 1 once it is spent. Whether
+ * any given quantity is actually moving is that quantity's own question. */
+export function wallRampAt(w: HexWallClock, t: number): number {
+  if (w.wallAt === null) return 1;
   return clamp01((t - w.wallAt) / WALL.rampMs);
 }
 
@@ -435,18 +478,34 @@ export function wallUnitsAt(
   return w.wallBase + (w.wallFrom * d + (speed - w.wallFrom) * j) / 1000;
 }
 
-/** The glow to draw at `t`: the rest value, eased up from the unlit night across
- * the same hand-over the speed rides. Pure like everything else on the wall, and
- * self-restoring — a reload lands with `t - wallAt` long past rampMs, so the ramp
- * reads as finished rather than replaying from the dark. */
+/** The instantaneous rate at `t` — the derivative of wallUnitsAt, and what the
+ * authority banks as the next `wallFrom` so that a change landing mid-hand-over
+ * eases out of the speed the mice are actually travelling at rather than
+ * snapping to the one they were headed for. */
+export function wallRateAt(
+  w: HexWallClock,
+  speed: number,
+  t: number,
+): number {
+  if (w.wallAt === null || w.wallFrom === speed) return speed;
+  const u = clamp01((t - w.wallAt) / WALL.rampMs);
+  return w.wallFrom + (speed - w.wallFrom) * smoothstep(u);
+}
+
+/** The glow to draw at `t`: the rest value, eased from whatever the wall was
+ * drawing at before `wallAt`, on the same curve and the same anchor the pace
+ * rides. Pure like everything else on the wall, and self-restoring — a reload
+ * lands with `t - wallAt` long past rampMs, so the ramp reads as finished rather
+ * than replaying from the dark. */
 export function wallGlowAt(
   w: HexWallClock,
   m: HexMods,
   t: number,
 ): number {
   const to = wallGlow(m);
-  const u = wallRampAt(w, wallSpeed(m), t);
-  return u >= 1 ? to : WALL.unlitGlow + (to - WALL.unlitGlow) * smoothstep(u);
+  if (w.wallGlowFrom === to) return to;
+  const u = wallRampAt(w, t);
+  return u >= 1 ? to : w.wallGlowFrom + (to - w.wallGlowFrom) * smoothstep(u);
 }
 
 // Scent Trail's decay: ms of half-life per unit of `persist`.
@@ -512,6 +571,7 @@ export const WALL_EFFECTS = new Set([
   "persist",
   "speed",
   "lantern",
+  "pace",
 ]);
 
 // GOLDEN NAMES: wall rows that are the ONLY row of their kind change what the

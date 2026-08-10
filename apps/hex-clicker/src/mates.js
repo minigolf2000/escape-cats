@@ -6,6 +6,9 @@
 // it was applied, and each phone renders it at that time plus a fixed delay on
 // its own synced clock. Uniformly late, but the spacing between taps survives.
 //
+// A tap also carries WHERE on Hex it landed, as a fraction of her box, so a
+// teammate who scratches her left ear is seen scratching her left ear.
+//
 // Fighting games delay every player equally, including the local one, because a
 // competitive match has to be fair. This is co-op — nobody is racing anybody —
 // so we can keep local input instant and buffer only what's watched.
@@ -28,7 +31,8 @@ const DELAY_MS = 600;
 /** One hue per roster slot, so a teammate's mice read as theirs. */
 const SLOT_COLORS = MOUSE_COLOR_LIST;
 
-/** {dueAt: perfNow, slot} — sorted by arrival, drained in order. */
+/** {dueAt: perfNow, slot, x, y} — sorted by arrival, drained in order. x/y are
+ * fractions of Hex's box, or undefined for a tap that carried no spot. */
 let queue = [];
 
 export function clearMateTaps() {
@@ -45,7 +49,7 @@ export function enqueueMateTaps(taps, serverTime, mySlot) {
   const base = performance.now() - serverTime;
   for (const t of taps) {
     if (t.slot === mySlot) continue;
-    queue.push({ dueAt: base + t.at + DELAY_MS, slot: t.slot });
+    queue.push({ dueAt: base + t.at + DELAY_MS, slot: t.slot, x: t.x, y: t.y });
   }
   // A tick can carry taps out of order across players; the drain assumes sorted.
   queue.sort((a, b) => a.dueAt - b.dueAt);
@@ -60,11 +64,22 @@ export function updateMateTaps() {
   const r = hexCatEl.getBoundingClientRect();
   const s = stageEl.getBoundingClientRect();
   while (queue.length && queue[0].dueAt <= now) {
-    const { slot } = queue.shift();
-    // No coordinates on the wire: every tap landed on Hex, who is in the same
-    // place on every phone. A little scatter keeps them from stacking.
-    const x = r.left - s.left + r.width * (0.35 + Math.random() * 0.3);
-    const y = r.top - s.top + r.height * (0.3 + Math.random() * 0.3);
-    spawnMousePop(x, y, SLOT_COLORS[slot % SLOT_COLORS.length]);
+    const { slot, x, y } = queue.shift();
+    // The wire carries fractions of Hex's box, not pixels, so a tap on her ear
+    // is on her ear here too however big she renders on this phone. She is at
+    // the same fraction of herself everywhere; nothing else about the two
+    // screens has to match.
+    //
+    // A tap with no spot (a client from before the coordinates existed) keeps
+    // the old behaviour: scattered across her middle, which was there to stop
+    // identical taps stacking. Real spots don't need it — they already differ,
+    // and where they don't, the player really did tap the same place twice.
+    const u = x ?? 0.35 + Math.random() * 0.3;
+    const v = y ?? 0.3 + Math.random() * 0.3;
+    spawnMousePop(
+      r.left - s.left + r.width * u,
+      r.top - s.top + r.height * v,
+      SLOT_COLORS[slot % SLOT_COLORS.length],
+    );
   }
 }

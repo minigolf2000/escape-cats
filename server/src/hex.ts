@@ -12,6 +12,16 @@ import { Roster } from "./connections";
 /** Write-behind cadence for the room's saved game. */
 const PERSIST_MS = 5_000;
 
+/** One wire coordinate (thousandths of Hex's box) back to a 0..1 fraction, or
+ * undefined for anything that isn't one — a client from before the field
+ * existed, a short array, a hand-crafted socket. Undefined is a supported
+ * answer all the way down: the tap replays scattered instead of at a spot, and
+ * JSON.stringify drops the key on its way back out. */
+function fraction(v: unknown): number | undefined {
+  if (typeof v !== "number" || !Number.isFinite(v)) return undefined;
+  return Math.max(0, Math.min(1, v / 1000));
+}
+
 // The room server is transport only: every game rule lives in the shared
 // HexSim (packages/shared/src/hex/sim.ts), which the client's ?debug mode runs
 // too. If you're changing what a purchase or a pet does, change the sim.
@@ -23,7 +33,7 @@ export class HexServer extends Server<Env> {
   private petAcked = new Map<string, number>();
   /** Taps since the last broadcast, stamped in server time. Presentation only:
    * the bank already counted them, these just let every phone replay a
-   * teammate's rhythm. Cleared on every broadcast. */
+   * teammate's rhythm and spot. Cleared on every broadcast. */
   private taps: TapEvent[] = [];
   private ticker: ReturnType<typeof setInterval> | null = null;
   private persister: ReturnType<typeof setInterval> | null = null;
@@ -106,12 +116,19 @@ export class HexServer extends Server<Env> {
           // Offsets are ms before the client sent the batch, so they preserve
           // the spacing between taps. Everything shifts later by the one-way
           // latency, which is uniform and therefore invisible in the rhythm.
+          // xs/ys are the same taps' spots on Hex, in thousandths of her box.
+          // All three arrays are index-aligned; each is read defensively on its
+          // own, so a batch missing one still carries the others.
           const offsets = Array.isArray(msg.offsets) ? msg.offsets : [];
+          const xs = Array.isArray(msg.xs) ? msg.xs : [];
+          const ys = Array.isArray(msg.ys) ? msg.ys : [];
           for (let i = 0; i < msg.count; i++) {
             const off = Number(offsets[i]);
             this.taps.push({
               slot,
               at: now + (Number.isFinite(off) ? Math.min(0, off) : 0),
+              x: fraction(xs[i]),
+              y: fraction(ys[i]),
             });
           }
         }

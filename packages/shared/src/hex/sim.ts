@@ -22,6 +22,8 @@ import {
   unlockMet,
   isRevealed,
   wallCoverage,
+  wallSpeed,
+  wallUnitsAt,
   LEGIBLE_COV,
   GOLD_MIN_S,
   GOLD_MAX_S,
@@ -48,6 +50,13 @@ export interface HexSimState extends HexCore {
   gold: HexGold | null;
   nightAt: number | null; // epoch ms the twist fired
   legibleAt: number | null; // epoch ms the word became readable
+  /** The wall's odometer: scene units walked as of `wallAt`, re-banked by the
+   * authority whenever wallSpeed changes (Paper Lantern is the one row that
+   * does). Every phone reads position off this pair rather than integrating
+   * locally, so a phone that joins mid-night lands on the same frame as the
+   * rest of the room. See HexWallClock in rules.ts. */
+  wallBase: number;
+  wallAt: number | null;
   /** Dev time-scale (?debug only) — multiplies passive income + golden cadence,
    * never click feel. A real room never leaves 1. */
   speed: number;
@@ -78,6 +87,12 @@ export interface HexPersistedV1 {
   zoomUntil: number;
   /** So a restored room can't reissue a golden id a client already saw. */
   goldSeq: number;
+  /** The wall odometer (see HexSimState). OPTIONAL rather than a version bump:
+   * a room saved before this existed rehydrates with wallAt = nightAt, which
+   * replays that night at its current speed — one eviction's worth of drift on
+   * a cosmetic timeline, against refusing an otherwise-good save. */
+  wallBase?: number;
+  wallAt?: number | null;
   core: HexCore;
 }
 
@@ -120,6 +135,8 @@ export class HexSim {
       gold: null,
       nightAt: null,
       legibleAt: null,
+      wallBase: 0,
+      wallAt: null,
       speed: 1,
     };
     this.mods = foldMods({}, this.state.owned);
@@ -141,6 +158,8 @@ export class HexSim {
       legibleAt: s.legibleAt,
       zoomUntil: s.zoomUntil,
       goldSeq: this.goldSeq,
+      wallBase: s.wallBase,
+      wallAt: s.wallAt,
       core: {
         mice: s.mice,
         total: s.total,
@@ -170,6 +189,8 @@ export class HexSim {
       gold: null,
       nightAt: p.nightAt,
       legibleAt: p.legibleAt,
+      wallBase: p.wallBase ?? 0,
+      wallAt: p.wallAt ?? p.nightAt,
       speed: 1,
     };
     this.goldSeq = p.goldSeq;
@@ -198,6 +219,8 @@ export class HexSim {
       gold: null,
       nightAt: null,
       legibleAt: null,
+      wallBase: 0,
+      wallAt: null,
       speed: 1,
     };
     this.recalc();
@@ -231,8 +254,12 @@ export class HexSim {
     this.recalc();
     if (this.night()) {
       // The preset IS the flip: stamp it now so elapsed-time UI reads sanely,
-      // and clear any golden — they are day-only (see tick()).
+      // and clear any golden — they are day-only (see tick()). The wall's
+      // odometer starts here too, at whatever speed the preset's purchases
+      // imply — a jump has no history to bank.
       s.nightAt = now;
+      s.wallBase = 0;
+      s.wallAt = now;
       s.gold = null;
     }
     this.checkLegible(now);
@@ -343,6 +370,9 @@ export class HexSim {
     if (!onRail(u, this.state.bought)) return false;
     if (this.state.mice < u.cost) return false;
     const nightBefore = this.night();
+    // Read BEFORE the fold: banking the odometer needs the rate the wall has
+    // actually been walking at, not the one this purchase just set.
+    const speedBefore = wallSpeed(this.mods);
     this.state.mice -= u.cost;
     this.state.bought[u.key] = 1;
     this.recalc();
@@ -353,6 +383,19 @@ export class HexSim {
       nightReset(this.state);
       this.state.gold = null;
       this.recalc();
+      // The wall starts walking here, at the twist's own timestamp, so every
+      // phone derives the same opening frame however late it joins.
+      this.state.wallBase = 0;
+      this.state.wallAt = now;
+    } else if (this.state.wallAt !== null) {
+      // A rate change (Paper Lantern) banks the distance walked so far and
+      // re-anchors — continuous for every mouse, and identical on every phone
+      // because the authority does it once. See HexWallClock in rules.ts.
+      const speedAfter = wallSpeed(this.mods);
+      if (speedAfter !== speedBefore) {
+        this.state.wallBase = wallUnitsAt(this.state, speedBefore, now);
+        this.state.wallAt = now;
+      }
     }
     this.checkLegible(now);
     return true;

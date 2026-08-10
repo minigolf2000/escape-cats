@@ -12,6 +12,8 @@ import {
   WALL_CAP,
   WALL_PERSIST_MS,
   wallSpeed,
+  wallGlow,
+  wallUnitsAt,
   mulberry32,
 } from "@escape-cats/shared";
 import { game, mods, nightActive, wallSeed, wallNow } from "./state.js";
@@ -31,6 +33,11 @@ import { MOUSE_COLORS } from "./art.js";
 // noise = locked 0 (wander() dropped entirely), speed = one uniform wallSpeed(),
 // trail = mods.trail from the sleep-stage upgrades, and whether ANY mice show
 // look like is bought (mods.neon, the Counting Mice research).
+//
+// BRIGHTNESS is the one dial that is not a lab knob: the night opens UNLIT (half
+// speed, a third of the opacity) and Paper Lantern restores it. wallSpeed() carries
+// the speed half; wallGlow() carries the light, and every alpha this file writes —
+// speck, sprite, rolling trail and persisted ink alike — is scaled by it.
 // ---------------------------------------------------------------------------
 // THE WALL IS FULLY CAST FROM THE FIRST FRAME OF NIGHT. No research gate, and no
 // arrival ramp either: the phase opens with all WALL_CAP mice already walking, and
@@ -840,35 +847,32 @@ function rebuildWallCast() {
 // multiplied every mouse's position along its tour by 20/12 at once and teleported
 // the entire wall. Integrating instead — units accumulated so far, plus the new
 // rate from here on — makes a speed change continuous for every mouse and crew.
-let wallUnitBase = 0, wallUnitAnchor = 0, wallUnitRate = 0; // rate in scene units/ms
-const wallUnits = t => wallUnitBase + (t - wallUnitAnchor) * wallUnitRate;
-// Called once per frame, so it picks the change up on the frame AFTER recalc: the
-// base is banked at the OLD rate, which is exactly the position already on screen.
-function syncWallSpeed(now) {
-  const rate = wallSpeed(mods) / 1000;
-  if (rate === wallUnitRate) return;
-  // MULTIPLAYER SEAM: the very first spin-up anchors at the twist's server
-  // timestamp (game.nightAt), so wallUnits(t) is the same pure function of the
-  // shared clock on every phone — anchored at "this phone's first night frame"
-  // the drawings would sit at per-device offsets along their tours.
-  //
-  // KNOWN LIMIT, fine today: a LATER rate change re-anchors at each phone's
-  // own frame, and a phone joining after it replays the night at the new rate
-  // — per-device offsets return. No speed rung exists (the table sells none),
-  // so the first spin-up is the only transition; if speed upgrades come back,
-  // move the (base, anchor) pair into HexSimState so the sim banks it on the
-  // purchase and the snapshot carries it.
-  if (wallUnitRate === 0 && game.nightAt) {
-    wallUnitBase = 0; wallUnitAnchor = game.nightAt; wallUnitRate = rate;
-    return;
-  }
-  wallUnitBase = wallUnits(now); wallUnitAnchor = now; wallUnitRate = rate;
-}
+//
+// The (base, anchor) pair used to be integrated HERE, per phone, with a comment
+// noting the seam that left: a later rate change re-anchored at each phone's own
+// frame, and a phone joining after one replayed the whole night at the new rate,
+// so the room stopped agreeing about where the mice were. Paper Lantern is exactly
+// that later rate change, so the pair moved where that note said to put it — onto
+// the authority (HexSimState.wallBase/wallAt), banked once on the purchase and
+// carried by every snapshot. This is now a pure read of shared state, which is
+// what the rest of the wall already was.
+//
+// The RATE is cached per frame rather than read inside wallUnits, for the reason
+// wallSceneMap's mapping is: this sits on the ~200k-lookups/sec path (every mouse
+// x every trail sample x 60fps) and wallSpeed() is a fold read plus a clamp. It is
+// invariant within a frame — only a purchase moves it, and a purchase arrives
+// between frames.
+let wallFrameSpeed = 0;
+function syncWallSpeed() { wallFrameSpeed = wallSpeed(mods); }
+const wallUnits = t => wallUnitsAt(game, wallFrameSpeed, t);
 
-// A proctor reset starts a new run whose night will have a new anchor; forget
-// the old one so the next spin-up re-anchors at the new twist's timestamp.
+// A proctor reset starts a new run: the sim clears the odometer for us, but the
+// per-run RENDER state is ours and has to go with it, or the new night inherits
+// the old one's grown trail and a neon beat that already played.
 export function resetWallClock() {
-  wallUnitBase = 0; wallUnitAnchor = 0; wallUnitRate = 0;
+  wallTrailShown = null;
+  wallNeonAt = null;
+  wallLastNow = 0;
 }
 function wallPosAt(m, t, out) {
   const crew = WALL_CREWS[m.crew];
@@ -920,7 +924,11 @@ const WALL_MOUSE_R = 1.55;
 function drawWallMouse(x, y, color, r, angle, alpha) {
   const s = r / 10, cx = 30.5, cy = 14;
   wctx.save();
-  if (alpha !== undefined) wctx.globalAlpha = alpha;
+  // The unlit night dims the whole sprite the same way `alpha` does, so it rides
+  // the same globalAlpha rather than being folded into every fillStyle below.
+  const glow = wallGlow(mods);
+  if (alpha !== undefined || glow !== 1)
+    wctx.globalAlpha = (alpha === undefined ? 1 : alpha) * glow;
   wctx.translate(x, y);
   wctx.rotate(angle || 0);
   const P = (px, py) => [(px - cx) * s, (py - cy) * s];
@@ -969,8 +977,11 @@ const WALL_POINT_COLOR = '#e9edf7';
 // pre-Counting-Mice state is untouched. The cross-fade uses them to swell the
 // speck as it goes out, so the light looks like it BECAME the mouse rather than
 // two sprites trading places on the same pixel.
+// PAPER LANTERN dims this too, through `m`: before the lantern the specks are the
+// ONLY thing on the wall (no trail, no sprites), so the row's brightness half has
+// to land here or the unlit night looks exactly like the lit one.
 function drawWallPoint(x, y, a, rs) {
-  const s = rs === undefined ? 1 : rs, m = a === undefined ? 1 : a;
+  const s = rs === undefined ? 1 : rs, m = (a === undefined ? 1 : a) * wallGlow(mods);
   wctx.globalAlpha = 0.28 * m;
   wctx.beginPath(); wctx.arc(x, y, 3.4 * s, 0, 6.283);
   wctx.fillStyle = WALL_POINT_COLOR; wctx.fill();
@@ -995,6 +1006,9 @@ const WALL_NEON_RIPPLE = 900;  // ms for the ripple to reach the outermost mouse
 let wallNeonAt = null;
 export function startWallNeon() {
   if (!wW) resizeWall();
+  // Fires off a snapshot edge, so it can land before this frame's drawWall has
+  // primed the rate — and it walks the cast to order the ripple.
+  syncWallSpeed();
   wallNeonAt = wallNow();
   // Origin is Hex, not the middle of the canvas — the cat sits well below centre, and
   // the point of the beat is that the counting is coming from them.
@@ -1080,8 +1094,11 @@ export function drawWall(now) {
   const N = Math.min(wallMiceCount(), wallCast.length);
   const dt = wallLastNow ? Math.min(now - wallLastNow, 100) : 16;
   wallLastNow = now;
-  syncWallSpeed(now);
+  syncWallSpeed();
   wallGrowTrail(dt);
+  // One read per frame: every ink alpha below is scaled by it, so the unlit night
+  // dims the drawing as well as the drawers.
+  const glow = wallGlow(mods);
   const neon = !!mods.neon;
   // Retired as soon as it has run its course, so the steady state is the same
   // straight drawWallMouse call it was before the beat existed.
@@ -1104,7 +1121,7 @@ export function drawWall(now) {
     inkCtx.fillRect(0, 0, wW, wH);
     inkCtx.globalCompositeOperation = 'source-over';
     inkCtx.lineWidth = WALL_INK_W; inkCtx.lineCap = 'round';
-    inkCtx.globalAlpha = 0.5;
+    inkCtx.globalAlpha = 0.5 * glow;
     for (let i = 0; i < N; i++) {
       const m = wallCast[i];
       wallPosAt(m, now, wallHead);
@@ -1152,7 +1169,7 @@ export function drawWall(now) {
         const p = wallPosAt(m, now - back * WALL.trailDt, wallScratch);
         const far = Math.abs(p.x - px) > maxSeg || Math.abs(p.y - py) > maxSeg;
         if (!far) {
-          wctx.globalAlpha = 0.5 * (1 - back / trailF);
+          wctx.globalAlpha = 0.5 * glow * (1 - back / trailF);
           wctx.beginPath(); wctx.moveTo(px, py); wctx.lineTo(p.x, p.y); wctx.stroke();
         }
         px = p.x; py = p.y;

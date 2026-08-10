@@ -201,6 +201,8 @@ function oneEffectText(e, reveal = false) {
       return `The trails stop fading`;
     case "speed":
       return `Wall mice move quicker`;
+    case "lantern":
+      return `The wall lights up and the mice pick up their pace`;
     // THE twist: the one row whose description is a QUESTION — naming the
     // mechanic would spend the reveal a purchase early.
     case "night":

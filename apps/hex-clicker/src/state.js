@@ -31,6 +31,12 @@ export const game = {
   seen: {}, // upgrade key -> 1 once its row has been laid eyes on
   zoomUntil: 0, // performance.now() ms while Zoomies is active (converted from server time)
   nightAt: null, // wall-clock (server epoch) ms the twist fired — anchors the wall
+  // The wall's odometer, banked by the authority (see HexWallClock in rules.ts):
+  // scene units walked as of `wallAt` (server epoch ms). wall.js reads position
+  // off this pair, so every phone draws the same frame — including one that joins
+  // after Paper Lantern changed the rate.
+  wallBase: 0,
+  wallAt: null,
   speed: 1, // ?debug dev time-scale, mirrored for extrapolation
 };
 BUILDINGS.forEach((b) => (game.owned[b.id] = 0));
@@ -172,6 +178,8 @@ export function applySnapshot(snap) {
   game.owned = { ...snap.owned };
   game.bought = { ...snap.bought };
   game.nightAt = snap.nightAt;
+  game.wallBase = snap.wallBase ?? 0;
+  game.wallAt = snap.wallAt ?? snap.nightAt;
   game.speed = snap.speed;
   // Zoomies deadline arrives in server time; convert onto this device's ticker.
   game.zoomUntil =

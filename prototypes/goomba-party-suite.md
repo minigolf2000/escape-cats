@@ -90,6 +90,11 @@ Each of these killed a design or rescued one; they're encoded in
   stretch a solution past BAND_MAX=58 and the sim would still "win" with
   a band no player can place. partycheck's `lens ≤ 58` gate caught seven
   such levels; robustify now rejects over-long nudges.
+- **Validate what you store, not what you tested.** robustify validated
+  each nudge candidate unrounded but stored it rounded to 0.1 — and with
+  terrain snapping, that shift can flip a win into a stall. One level
+  shipped a stalling "improved" solution before the full verification
+  caught it. Candidates are now rounded before the win/kick guard.
 - **Cushions preserve vx**, so any drift survives bouncing forever —
   chambers must kill vx at the walls or she bounce-drifts across every
   floor gap for free. Vertical boing + snap detector = clean fast fail.

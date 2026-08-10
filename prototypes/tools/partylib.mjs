@@ -296,13 +296,17 @@ export async function robustify(page, li, set, rounds = 6, neighbors = 24) {
     const w0 = bestW;
     for (let r = 0; r < rounds; r++) {
       for (let n = 0; n < neighbors; n++) {
+        // round BEFORE validating: the stored set is the rounded one, and
+        // with terrain snapping a 0.05-unit shift can flip win -> stall
+        // (this bug shipped a stalling "improved" solution once)
         const cand = best.map(([a, b]) => [
           [a[0] + (rnd() * 2 - 1) * 4, a[1] + (rnd() * 2 - 1) * 4],
-          [b[0] + (rnd() * 2 - 1) * 4, b[1] + (rnd() * 2 - 1) * 4]]);
+          [b[0] + (rnd() * 2 - 1) * 4, b[1] + (rnd() * 2 - 1) * 4]])
+          .map(bd => bd.map(p => p.map(x => +x.toFixed(1))));
         if (cand.some(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1]) > 58)) continue; // placeable: BAND_MAX
         if (hits(cand) < h0) continue;               // must keep every kick
         const w = slopOf(cand);
-        if (w > bestW) { bestW = w; best = cand.map(bd => bd.map(p => p.map(x => +x.toFixed(1)))); }
+        if (w > bestW) { bestW = w; best = cand; }
       }
       if (bestW >= 27) break;
     }

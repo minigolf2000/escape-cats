@@ -24,6 +24,12 @@ export interface HexPreset {
   golden?: number;
   owned?: Record<string, number>;
   bought?: string[];
+  /** Describe the DAY this state came out of, and let applyPreset run the same
+   * nightReset the purchase runs (see sim.applyPreset). A night preset written
+   * directly cannot reach the state the twist leaves: the wipe is what makes it,
+   * and the upgrades that survive it were unlocked by a lifetime and a building
+   * count that no longer exist to be written down. */
+  twist?: boolean;
 }
 
 export const DEBUG_PRESETS: Record<string, HexPreset> = {
@@ -46,18 +52,29 @@ export const DEBUG_PRESETS: Record<string, HexPreset> = {
   // preset without it — because this preset is the night as it actually begins, and
   // the first thing it has to be earning toward is the light. Press `mice` after it
   // to see the state the hand-over lands in; the hand-over itself only plays on a
-  // real purchase, since a jump has no beat to replay (see applyPreset). No
-  // day buildings: the flip wipes them (see nightReset). The BANK IS EMPTY for
-  // the same reason: the twist zeroes `mice`, and this preset is the moment
-  // just after it, so arriving here by button has to feel as broke as arriving
-  // here by buying Catnap. Everything the 30000 lifetime bought is already
-  // standing in `owned`; the next rung is earned, not handed over. (The later
-  // night presets DO carry a bank — each of them is deliberately one press
-  // from its beat, which is a different thing to show.)
+  // real purchase, since a jump has no beat to replay (see applyPreset).
+  //
+  // So this is written as THE DAY IT CAME OUT OF — `catnap`'s own state, down to
+  // the counters — plus `twist`, which runs the flip's nightReset over it. The
+  // jump therefore lands exactly where pressing Catnap Hypnalysis lands, and
+  // stays there as the ladder is retuned: broke, lifetime back to zero, the day's
+  // buildings gone, the day's UPGRADES kept (the wipe never touches `bought`),
+  // and one free Hole in the Wall the only thing on the rail.
+  //
+  // It used to name the night state directly — `mice: 0` with 10 Holes in the
+  // Wall and 3 Balls of String already standing. The empty bank was the right
+  // instinct and the buildings undid it: 6600 mice/s refilled it to five figures
+  // within seconds, so a beat that is ABOUT being broke was the one place you
+  // could not see it. They bought nothing else, either — the wall's cast, pace
+  // and glow are functions of `bought` alone (see wallSpeed/wallGlow), so it
+  // opens on the same 33 unlit specks with the buildings gone. (The later night
+  // presets DO carry a bank — each is deliberately one press from its beat,
+  // which is a different thing to show.)
   night: {
-    total: 30000, mice: 0, clicks: 550, golden: 3,
-    owned: { portal: 10, spindle: 3 },
+    total: 1500000, mice: 1200000, clicks: 1100, golden: 3,
+    owned: { shopper: 30, farm: 35, factory: 12, lab: 1 },
     bought: ["catnap"],
+    twist: true,
   },
   // ONE PURCHASE FROM COUNTING MICE, the twist inside the twist. Both early
   // Lucid Dreaming rungs are in, so the wall draws at trail 84 — about a third

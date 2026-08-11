@@ -380,6 +380,23 @@ The proctor is the only client that assigns, and nothing here is a security
 boundary, so a second copy of the rule on the server would be one more place to
 forget rather than a real guard.
 
+**A team's box is a fixed size, and that is a hard requirement rather than a
+nicety.** Five boxes sit in one grid row, so a box that grew by a line when a
+codeword landed — or when a mouse count reached seven figures, or when a fourth
+absent player joined the "not in game" list — would shove the boxes beside it out
+from under a proctor's finger, mid-drag. So: every seat is the same height
+whether filled or empty, every readout line is drawn in every state (absent
+values become placeholders, and the finished-run line occupies the same slot the
+"codeword locked" line does), and long values are CLIPPED rather than wrapped.
+Adding a line to a game block is therefore a layout decision, not a free one.
+
+Goomba Rider has a **placeholder block** in each team box, holding the shape the
+real one will take. It has no server: the game keeps each player's progress in
+that phone's `localStorage`, so there is nothing to report yet. Wiring it up
+means a fourth Durable Object roomed by team id, and its status lands in this
+block — which is the whole reason `TeamGame` is keyed by team rather than by
+game.
+
 The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
 lists everyone currently on that page as **five boxes** — Unassigned, then one
 per team — and sorting is **drag and drop between them**, the only assignment

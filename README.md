@@ -17,8 +17,8 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on, with a link into the game
 apps/chat/           Per-team chat: one channel per team, roomed by team id
-apps/proctor/        Hidden proctor dashboard, one flat page: team assignment,
-                     live overview of all four rooms, QR codes, reset
+apps/proctor/        Hidden proctor dashboard, one flat page: drag-and-drop team
+                     assignment, live overview of all four rooms, QR codes, reset
 packages/shared/     Wire protocol, seeded RNG, and the WHOLE hex
                      game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
                      and the authoritative simulation (hex/sim.ts)
@@ -356,10 +356,22 @@ in**, so once the proctor puts someone on `t2`, their game room is `t2` and
 nothing else has to agree on anything.
 
 The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
-lists everyone currently on that page and sorts them onto teams — per-person
-buttons, or **Auto-assign** to round-robin the unsorted starting from the
-smallest team. Once assigned, the player's page turns into their team name plus
-a link into the game.
+lists everyone currently on that page as **five boxes** — Unassigned, then one
+per team — and sorting is **drag and drop between them**, the only assignment
+gesture there is. Once assigned, the player's page turns into their team name
+plus a link into the game.
+
+Sorting is deliberately all manual: an auto-assign button existed and was
+removed. Who sits with whom is a judgement call made in the room (friends,
+kids, one group of six), and a round-robin only ever produced an arrangement
+the proctor then had to undo by hand.
+
+The drag runs on **pointer events, not HTML5 drag-and-drop** — `dragstart`
+never fires under a finger, and since dragging is now the whole interface, a
+proctor on a tablet would otherwise be unable to sort anyone. Two other
+controls survive: **×** on a row forgets that one player (their phone
+re-registers if it is still connected), and **Clear teams** sends everybody
+back to Unassigned between groups.
 
 **The game has no menu.** `apps/hex-clicker` never shows a form: it asks the
 lobby for this pid's team and slots straight in. A phone the proctor hasn't

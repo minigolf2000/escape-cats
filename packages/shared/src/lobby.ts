@@ -35,8 +35,7 @@ export interface LobbySnapshot {
 export type LobbyClientMsg =
   | { type: "rename"; name: string }
   | { type: "assign"; pid: string; team: string | null } // proctor only
-  | { type: "autoAssign" } // proctor only — round-robin the unassigned
   | { type: "clearTeams" } // proctor only
-  | { type: "forget" }; // proctor only — drop players who have gone home
+  | { type: "forget"; pid: string }; // proctor only — drop one player
 
 export type LobbyServerMsg = { type: "lobby"; snapshot: LobbySnapshot };

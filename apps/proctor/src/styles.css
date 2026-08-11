@@ -179,9 +179,21 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 7px 0;
+  gap: 6px;
+  padding: 7px 6px;
   border-bottom: 1px solid #1e2230;
+  /* Every row is a drag handle. touch-action stops a finger-drag from panning
+   * the page instead of picking the name up. */
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.roster li:active {
+  cursor: grabbing;
+}
+/* The row a drag started from, still in place under the ghost. */
+.roster li.lifted {
+  opacity: 0.35;
 }
 .roster li.offline .pname {
   color: #5d6272;
@@ -193,44 +205,70 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pick {
-  display: flex;
-  gap: 5px;
+.forget {
   flex: none;
-}
-.chip {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  background: transparent;
   border: 1px solid #2b3040;
-  background: #12141b;
   color: #8a90a2;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
   cursor: pointer;
 }
-.chip.on {
-  background: #57e6c9;
-  border-color: #57e6c9;
-  color: #06231d;
+.forget:hover {
+  background: #d64b3b;
+  border-color: #d64b3b;
+  color: white;
 }
-.teams {
+
+/* ---- The five drop targets ---- */
+.zones {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 12px;
 }
-.team-col {
+.zone {
   background: #12141b;
   border: 1px solid #1e2230;
   border-radius: 12px;
   padding: 12px;
+  /* An empty box still has to be a target you can hit. */
+  min-height: 96px;
 }
-.team-head {
+.zone.over {
+  border-color: #57e6c9;
+  background: #16211f;
+}
+.zone-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   margin-bottom: 4px;
+}
+.zone-empty {
+  color: #4c5162;
+  font-size: 12px;
+  text-align: center;
+  padding: 14px 0 6px;
+}
+
+/* The name riding the pointer mid-drag. */
+.drag-ghost {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 10;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #57e6c9;
+  color: #06231d;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 .lobby-actions {
   display: flex;

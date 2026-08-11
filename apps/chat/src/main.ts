@@ -1,9 +1,8 @@
 // Per-team chat, served at /chat/ on the lobby's origin.
 //
 // This surface asks the LOBBY which team this phone is on and uses that as its
-// room, exactly as the game client does — so there is no team picker here and
-// no way to end up in someone else's channel. `?room=` still overrides, for QR
-// codes.
+// room, exactly as the game client does — so there is no team picker here, no
+// `?room=` override, and no way to end up in someone else's channel.
 
 import PartySocket from "partysocket";
 import {
@@ -66,7 +65,8 @@ function myName(): string {
 }
 
 function teamName(id: string): string {
-  // Falls back to the raw id so a hand-typed `?room=TEST` still has a heading.
+  // Falls back to the raw id, though the lobby only ever hands out real team
+  // ids — it validates every assignment against TEAMS.
   return TEAMS.find((t) => t.id === id)?.name ?? id;
 }
 
@@ -332,10 +332,7 @@ function boot() {
     render();
     return;
   }
-  const fromUrl = new URLSearchParams(location.search).get("room");
-  if (fromUrl) room = fromUrl;
-  if (room) connect();
-  else watchTeam();
+  watchTeam();
   render();
 }
 

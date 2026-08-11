@@ -130,12 +130,14 @@ function teamScreen(team: string) {
         .filter((p) => p.pid !== pid)
         .map((p) => escapeHtml(p.name))
         .join(", ") || "- just you so far"}</p>
-      <a class="primary" href="${HEX_URL}/?room=${encodeURIComponent(team)}">Play Hex Clicker</a>
-      <!-- No ?room= here, unlike the game link above. The game may be served
-           from a vanity domain, where this phone's pid doesn't exist, so the
-           team has to ride in the URL. Chat is on THIS origin and can just ask
-           the lobby — which also means a proctor re-sort takes effect on
-           reload instead of stranding a player in their old team's channel. -->
+      <a class="primary" href="${HEX_URL}/">Play Hex Clicker</a>
+      <!-- Neither link carries the team. Both surfaces ask the lobby for this
+           phone's pid, so a proctor re-sort takes effect on reload instead of
+           being pinned by a stale URL, and there is no link anyone can edit to
+           walk into another team's room. The game may be reached through a
+           vanity domain, but those REDIRECT onto this origin (see the README's
+           origin constraint), so the pid the proctor sorted is the pid the game
+           sees. -->
       <a class="secondary" href="/chat/">Team chat</a>
       <button id="rename" class="link">Not ${escapeHtml(myName())}?</button>
     </div>

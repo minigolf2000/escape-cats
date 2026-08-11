@@ -29,7 +29,6 @@ import {
   connectRoom,
   debugFromUrl,
   playerId,
-  roomFromUrl,
   transport,
   watchTeam,
 } from "./net";
@@ -231,8 +230,14 @@ function frame(now) {
 // the game the moment it is assigned. Nobody types a room code; the only
 // keyboard this game ever shows is the lobby's name prompt.
 //
-// ?room= still overrides (proctor QR codes carry the team id), and
-// ?debug bypasses the server entirely.
+// The lobby is the ONLY way into a team. `?room=` used to override it, and is
+// gone: it let anyone type their way into another team's room, and because it
+// uppercased the code (inherited from the old ad-hoc room letters) it sent a
+// scanned QR to room `T2` while the lobby put that phone's teammates in `t2` —
+// two different Durable Objects, so a team could be split in half and neither
+// room was the one the proctor was watching. Every surface is served from one
+// origin, so asking the lobby always works. `?debug` still bypasses the server
+// entirely.
 // ---------------------------------------------------------------------------
 const NAME_KEY = "escape-cats-name";
 
@@ -246,12 +251,6 @@ function boot() {
   }
 
   const name = localStorage.getItem(NAME_KEY) ?? "Cat";
-
-  const urlRoom = roomFromUrl();
-  if (urlRoom) {
-    enterRoom(urlRoom.trim().toUpperCase(), name);
-    return;
-  }
 
   gateStatusEl.textContent =
     "Waiting for your team — the proctor sorts you in, nothing to do here.";

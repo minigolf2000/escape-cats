@@ -49,10 +49,6 @@ export const transport: Transport = {
   queuePet: () => 0,
 };
 
-export function roomFromUrl(): string | null {
-  return new URLSearchParams(location.search).get("room");
-}
-
 /** ?debug — the shared sim in-page, no server, no room.
  * ?solo was the old name for the same thing and still works, so a bookmark or
  * a printed link from before the rename doesn't dead-end. */

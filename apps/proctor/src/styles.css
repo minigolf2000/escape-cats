@@ -12,7 +12,7 @@ body {
 }
 
 .setup {
-  max-width: 960px;
+  max-width: 1200px;
   margin: 6vh auto;
   display: flex;
   flex-direction: column;
@@ -21,52 +21,21 @@ body {
   padding: 24px;
 }
 
-/* ---- Teams overview (live 4-up of the game rooms) ---- */
-.overview {
-  text-align: left;
-}
-.overview h2 {
-  margin: 0 0 10px;
-  font-size: 19px;
-}
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-}
-.tile {
+/* ---- How players get in: one code for the whole room ---- */
+.join {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  padding: 14px;
-  font-size: 14px;
+  gap: 16px;
+  align-items: center;
   text-align: left;
+  background: #241f33;
   border: 1px solid #352e4a;
   border-radius: 12px;
-  background: #241f33;
-  color: inherit;
+  padding: 14px;
 }
-.tile .qr {
-  align-self: center;
-}
-.tile .danger {
-  align-self: center;
-  margin-top: auto;
-  padding: 8px 14px;
-  font-size: 13px;
-}
-.tile-head {
+.join-copy {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-}
-.tile .players {
-  font-size: 13px;
-}
-.tile .players span {
-  margin: 0 8px 0 0;
+  flex-direction: column;
+  gap: 4px;
 }
 
 button {
@@ -118,16 +87,6 @@ button {
   white-space: pre-line; /* the hex panel's detail is a short multi-line readout */
 }
 
-.players span {
-  margin: 0 6px;
-  font-weight: 600;
-}
-
-.players .offline {
-  text-decoration: line-through;
-  opacity: 0.4;
-}
-
 .codeword {
   font-weight: 800;
   color: #5fd35f;
@@ -147,13 +106,6 @@ button {
 .lobby h2 {
   margin: 0 0 4px;
   font-size: 19px;
-}
-.lobby h3 {
-  margin: 16px 0 6px;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #8a90a2;
 }
 .dot {
   display: inline-block;
@@ -195,6 +147,15 @@ button {
 .roster li.lifted {
   opacity: 0.35;
 }
+/* One of a team's four seats, empty. Not a drag handle. */
+.roster li.slot {
+  justify-content: center;
+  cursor: default;
+  color: #4c5162;
+  font-size: 12px;
+  font-style: italic;
+  border-bottom: 1px dashed #23283a;
+}
 .roster li.offline .pname {
   color: #5d6272;
   text-decoration: line-through;
@@ -227,9 +188,12 @@ button {
 /* ---- The five drop targets ---- */
 .zones {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
   margin-top: 12px;
+  /* Boxes size to their own content — Unassigned holds only names, a team box
+   * also carries a whole game readout. */
+  align-items: start;
 }
 .zone {
   background: #12141b;
@@ -239,9 +203,35 @@ button {
   /* An empty box still has to be a target you can hit. */
   min-height: 96px;
 }
+
+/* The game readout inside a team's box, below its roster. A second game's
+ * block lands here too, under the same heading. */
+.game {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #1e2230;
+}
+.game .detail {
+  font-size: 13px;
+}
+.game .danger {
+  align-self: start;
+  margin-top: 2px;
+  padding: 7px 12px;
+  font-size: 13px;
+  border-radius: 9px;
+}
 .zone.over {
   border-color: #57e6c9;
   background: #16211f;
+}
+/* Dragging over a team that already has its four. */
+.zone.blocked {
+  border-color: #d64b3b;
+  background: #23161a;
 }
 .zone-head {
   display: flex;

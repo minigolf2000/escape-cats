@@ -19,6 +19,11 @@ export const TEAMS: Team[] = [
 
 export const TEAM_IDS: string[] = TEAMS.map((t) => t.id);
 
+/** Players per team. The game is built for exactly this many — a player's slot
+ * index (0..3) is what picks their mouse colour in the room — so the proctor's
+ * board shows four slots per team and refuses a fifth drop. */
+export const TEAM_SIZE = 4;
+
 export interface LobbyPlayer {
   pid: string;
   name: string;

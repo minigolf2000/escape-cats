@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
 import {
+  TEAM_SIZE,
   TEAMS,
   type LobbyClientMsg,
   type LobbyPlayer,
   type LobbyServerMsg,
 } from "@escape-cats/shared";
+import { TeamGame } from "./TeamGame";
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
 
@@ -41,9 +43,13 @@ interface Drag {
 }
 
 /**
- * Live view of everyone sitting on the landing page, and the only way to sort
- * them: drag a name between the five boxes. A team id is also the room id both
- * games run in, so dropping someone on Team 2 is what puts them in room t2.
+ * The board: five boxes, and dragging a name between them is the only way to
+ * sort anyone. A team id is also the room id both games run in, so dropping
+ * someone on Team 2 is what puts them in room t2 — there is no other route in.
+ *
+ * A team's box is ALSO that team's live game status (see TeamGame), because the
+ * two answer the same question: how is Team 2 doing? Only the Unassigned box is
+ * a bare holding pen.
  *
  * The drag runs on POINTER events rather than HTML5 drag-and-drop, which fires
  * no dragstart under a finger. Dragging is the whole interface now, so a
@@ -140,26 +146,34 @@ export function Lobby() {
     });
   };
 
+  const isFull = (zone: string) =>
+    zone !== UNSORTED &&
+    players.filter((p) => p.team === zone).length >= TEAM_SIZE;
+
   const onRowPointerUp = () => {
     const d = dragRef.current;
     setDragState(null);
     if (!d || !d.moved || !d.over || d.over === d.from) return;
+    // A full team refuses the drop; the box already showed it wouldn't take it.
+    if (isFull(d.over)) return;
     send({ type: "assign", pid: d.pid, team: teamOf(d.over) });
   };
 
   const forget = (p: LobbyPlayer) => {
-    // Forgetting an away player is the routine case — they went home. Doing it
-    // to a phone that is still here drops it off the roster until it
-    // reconnects, which is surprising enough to ask about.
+    // Always asks. It would be nicer to skip the prompt for someone who has
+    // gone home, but `connected` cannot tell us that for a sorted player (see
+    // the count above), so a conditional prompt would fire on exactly the wrong
+    // half. The × also sits inside a drag handle, where a misclick is cheap.
     if (
-      p.connected &&
-      !confirm(`${p.name} is still connected. Forget them anyway?`)
+      !confirm(
+        `Forget ${p.name}? They drop off the board until their phone reconnects.`,
+      )
     )
       return;
     send({ type: "forget", pid: p.pid });
   };
 
-  const here = players.filter((p) => p.connected).length;
+  const unsorted = players.filter((p) => !p.team).length;
 
   return (
     <div className="lobby">
@@ -171,8 +185,12 @@ export function Lobby() {
             title={online ? "connected" : "offline"}
           />
         </h2>
+        {/* Deliberately not a here/away count. `connected` here means "holding a
+         * socket to the LOBBY", and a phone drops that the moment it learns its
+         * team (watchTeam closes it), so every player who is actually in a game
+         * reads as away. Per-team presence comes from the game itself, below. */}
         <span className="muted">
-          {here} here · {players.length - here} away
+          {players.length} phones · {unsorted} unsorted
         </span>
       </div>
 
@@ -187,7 +205,8 @@ export function Lobby() {
       <div className="zones">
         {ZONES.map((z) => {
           const members = players.filter((p) => zoneOf(p.team) === z.id);
-          const isTarget = drag?.moved && drag.over === z.id && drag.from !== z.id;
+          const full = isFull(z.id);
+          const hovered = drag?.moved && drag.over === z.id && drag.from !== z.id;
           return (
             <div
               key={z.id}
@@ -195,18 +214,25 @@ export function Lobby() {
                 if (el) zoneEls.current.set(z.id, el);
                 else zoneEls.current.delete(z.id);
               }}
-              className={`zone${isTarget ? " over" : ""}`}
+              className={`zone${hovered ? (full ? " blocked" : " over") : ""}`}
             >
               <div className="zone-head">
                 <strong>{z.name}</strong>
-                <span className="muted">{members.length}</span>
+                <span className="muted">
+                  {z.id === UNSORTED
+                    ? members.length
+                    : `${members.length}/${TEAM_SIZE}`}
+                </span>
               </div>
               <ul className="roster">
                 {members.map((p) => (
                   <li
                     key={p.pid}
                     className={
-                      (p.connected ? "" : "offline ") +
+                      // Struck through only in Unassigned, where "not connected"
+                      // honestly means the phone has left the landing page. On a
+                      // team it would strike through everyone who is playing.
+                      (z.id === UNSORTED && !p.connected ? "offline " : "") +
                       (drag?.moved && drag.pid === p.pid ? "lifted" : "")
                     }
                     onPointerDown={(e) => onRowPointerDown(p, e)}
@@ -227,8 +253,24 @@ export function Lobby() {
                     </button>
                   </li>
                 ))}
+                {/* A team is four seats, always drawn, so a half-full team reads
+                 * as unfinished at a glance rather than just short. */}
+                {z.id !== UNSORTED &&
+                  Array.from(
+                    { length: Math.max(0, TEAM_SIZE - members.length) },
+                    (_, i) => (
+                      <li key={`slot${i}`} className="slot">
+                        empty slot
+                      </li>
+                    ),
+                  )}
               </ul>
-              {members.length === 0 && <p className="zone-empty">Drop here</p>}
+              {z.id === UNSORTED && members.length === 0 && (
+                <p className="zone-empty">Drop here</p>
+              )}
+              {z.id !== UNSORTED && (
+                <TeamGame team={z} assigned={members} />
+              )}
             </div>
           );
         })}

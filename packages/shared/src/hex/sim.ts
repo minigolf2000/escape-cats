@@ -278,6 +278,13 @@ export class HexSim {
     Object.assign(s.owned, p.owned);
     for (const k of p.bought ?? []) s.bought[k] = 1;
     debugDerivedBought(s);
+    // A `twist` preset spelled out the DAY it came out of, so the derivation
+    // above ran against the lifetime and the building counts that unlocked the
+    // day's upgrades — and the flip is then the SAME wipe buyUpgrade runs, not a
+    // second description of its result. Order matters: after the derivation, or
+    // the day would hand over nothing; before recalc, or the mods would be folded
+    // from buildings this state no longer owns.
+    if (p.twist) nightReset(s);
     this.recalc();
     if (this.night()) {
       // The preset IS the flip: stamp it now so elapsed-time UI reads sanely,

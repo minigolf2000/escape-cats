@@ -39,10 +39,13 @@ hex/                 The original single-player prototype — FROZEN as referenc
   (the room server is a thin websocket wrapper around it).
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`.
-- **The prototype** (`hex/index.html`) is frozen. It was the tuning bench;
+- **The prototype** (`hex/index.html`) is **deleted**. It was the tuning bench;
   that job moved to the multiplayer client's `?debug&speed=N` mode, which runs
-  the same shared sim in-page. Don't retune the prototype — it no longer
-  feeds anything.
+  the same shared sim in-page. It had been frozen since #88 and was drifting
+  further behind shipped balance with every retune, which made it a trap rather
+  than a reference — git history has it if the port ever needs checking against
+  its source. The two standalone tools it was hosting alongside now live in
+  `tools/` (see [`tools/README.md`](./tools/README.md)).
 
 ## Architecture decisions (agreed up front)
 
@@ -159,7 +162,7 @@ repointing one is a repo change, not dashboard clicking.
 ### 1. The room server — Cloudflare Workers
 
 Can be done last if you just want the site up: the single-player surfaces
-(`/solo-hex/`, `/prototypes/`, and `?debug`) need no server, and the coop
+(`/prototypes/`, the `tools/` pages, and `?debug`) need no server, and the coop
 client builds and deploys fine with a stub `VITE_PARTYKIT_HOST` — it renders
 its join screen and only fails at the point of joining a room.
 
@@ -231,8 +234,13 @@ come from `vercel.json`, so there is nothing to override in the dashboard.
 | `/g00mBa/` | `prototypes/goomba-rider.html` | Goomba Rider |
 | `/chat/` | `apps/chat` | Per-team chat |
 | `/proctor/` | `apps/proctor` | Proctor dashboard |
-| `/solo-hex/` | `hex/` | Frozen hex prototype + QR Studio (path predates the solo→debug rename) |
+| `/qr-studio/` | `tools/qr-studio.html` | QR Art Studio |
+| `/reveal-lab/` | `tools/reveal-lab.html` | Night reveal wall lab |
 | `/prototypes/` | `prototypes/` | Prototypes menu + Goomba Rider |
+
+A single-file surface is copied to `<name>/index.html`, so it gets a pretty URL
+without a rewrite — the path is a real directory. `/ar/` and both `tools/` pages
+work that way.
 
 Env vars (all in this one project — `VITE_PARTYKIT_HOST` is set once here, so
 every surface points at one server):
@@ -244,7 +252,7 @@ VITE_HEX_URL=https://hexxygon.com
 
 **Root Directory must be blank.** `vercel.json` overrides the dashboard's
 framework, build command and output directory, but it cannot set the root
-directory — it is read *from* it. A project pointed at `hex/` or `prototypes/`
+directory — it is read *from* it. A project pointed at `prototypes/` or `tools/`
 never sees this file, so `build:vercel` never runs and the hostname rewrites
 never apply.
 
@@ -348,11 +356,14 @@ each app only ever lives at its own path, and an absolute base is both simpler
 and immune to the trailing slash.
 
 `vercel.json` sets **`trailingSlash: true`**, so directory URLs keep their
-slash. That is what hand-authored HTML in `prototypes/` and `hex/` assumes: a
-sibling link like `goomba-rider.html` resolves correctly from `/prototypes/`
-but points at the site root from `/prototypes`. Paths carrying a file
-extension are excluded from the redirect, which is why the `/qr-studio` style
-rewrites are registered in both slashed and unslashed forms.
+slash. That is what hand-authored HTML in `prototypes/` assumes: a sibling link
+like `goomba-rider.html` resolves correctly from `/prototypes/` but points at
+the site root from `/prototypes`. Paths carrying a file extension are excluded
+from the redirect, so a rewrite whose source is an extensionless pretty URL has
+to be registered in both slashed and unslashed forms to catch both sides of
+that 308. Landing a single file as `<name>/index.html` in `assemble.mjs` avoids
+the problem entirely — no rewrite, nothing to register twice — which is how
+`/qr-studio/` and `/reveal-lab/` are served.
 
 Do not test this with `python -m http.server`. It redirects `/hexxygon` to
 `/hexxygon/`, the opposite of Vercel's default, so it will happily serve a

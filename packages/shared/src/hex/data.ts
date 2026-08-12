@@ -1,6 +1,7 @@
 // The Hex Clicker economy: every building, upgrade, and dial, moved verbatim
 // (tuning comments included — they are the balance documentation) from the
-// single-player prototype at hex/index.html, which is now a frozen reference.
+// single-player prototype that used to live at hex/index.html (deleted; in git
+// history only — this file is the surviving copy of that balance).
 // This file is the ONE place balance lives: the PartyKit server, the
 // multiplayer client, and the client's ?debug mode all import it.
 
@@ -698,7 +699,7 @@ export const UPGRADES: HexUpgrade[] = [
   // that keeps their game.owned-dependent multipliers live. A synergy only
   // changes behavior when its term dwarfs the subject's own mps, so the subject
   // must be a cheap, low-mps building (Mouse Subscription 0.4 or Mouse Farm 1),
-  // never the Factory. See hex-clicker-synergy-brief.md (now historical).
+  // never the Factory. See prototypes/hex-clicker-synergy-brief.md (historical).
 
   // --- Bespoke ---
   // Empty, and worth keeping as a warning. Three rows have been retired from

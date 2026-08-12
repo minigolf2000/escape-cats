@@ -1,9 +1,14 @@
 # Hex Clicker — cross-building synergy upgrades
 
 Implementation brief for two upgrades: **Assisted Pounce** and **Thesis Subjects**.
-Self-contained — you don't need the thread this came from. Target file:
-[`index.html`](./index.html) (this game; single file, no build step, open it in a
-browser).
+Self-contained — you don't need the thread this came from.
+
+> **HISTORICAL.** This was written against the single-file prototype
+> (`hex/index.html`, since deleted — git history only), so every file reference
+> below points at that file. The shipped equivalents live in
+> [`../packages/shared/src/hex/`](../packages/shared/src/hex/): the `UPGRADES`
+> table and effect union in `data.ts`, `recalc()`'s job in `rules.ts`. Read this
+> for the design reasoning, not as a map of the current code.
 
 ## Context
 

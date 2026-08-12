@@ -42,7 +42,15 @@ export function Lobby() {
     socket.addEventListener("open", onOpen);
     socket.addEventListener("close", onClose);
     socket.addEventListener("message", onMessage);
+    // Same policy as the team tiles: a hidden tab lets go of the lobby, a
+    // visible one takes it back. The close handler already dims the dot.
+    const onVisibility = () => {
+      if (document.hidden) socket.close();
+      else socket.reconnect();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
       socket.removeEventListener("open", onOpen);
       socket.removeEventListener("close", onClose);
       socket.removeEventListener("message", onMessage);

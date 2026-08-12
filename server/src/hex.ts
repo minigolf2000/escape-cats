@@ -26,6 +26,14 @@ function fraction(v: unknown): number | undefined {
 // HexSim (packages/shared/src/hex/sim.ts), which the client's ?debug mode runs
 // too. If you're changing what a purchase or a pet does, change the sim.
 export class HexServer extends Server<Env> {
+  // Hibernation keeps idle sockets from billing duration: without it, every
+  // open WebSocket pins the object in memory around the clock, and one
+  // forgotten proctor tab spends the day's GB-seconds on rooms nobody is
+  // playing in. Everything per-connection lives in the socket attachment
+  // (Roster) or tolerates a wake-time reset (petSeq/petAcked re-sync on the
+  // next pets batch).
+  static options = { hibernate: true };
+
   private roster = new Roster();
   private sim = new HexSim(Date.now());
   /** conn.id -> highest `pets` batch seq received, and the last one acked. */
@@ -49,7 +57,9 @@ export class HexServer extends Server<Env> {
     if (saved?.v === 1) this.sim.restore(saved, Date.now());
   }
 
-  /** Start the loops. Idempotent — every connect calls it. Resuming after a
+  /** Start the loops. Idempotent — every player connect and player message
+   * calls it (a message can be the first sign of life after the runtime
+   * evicts a hibernated room whose sockets stayed open). Resuming after a
    * sleep is safe income-wise: sim.tick clamps dt to 2s, so an afternoon
    * spent idle credits nothing. */
   private wake() {
@@ -64,9 +74,12 @@ export class HexServer extends Server<Env> {
     this.persister ??= setInterval(() => void this.persist(), PERSIST_MS);
   }
 
-  /** Stop the loops and save, leaving the empty room evictable. Without this
-   * the intervals keep the object alive after the last socket closes, which
-   * shows up as continuous Durable Object duration for a room nobody is in. */
+  /** Stop the loops and save, leaving the room evictable. Pending intervals
+   * block hibernation, so without this the object stays resident — billed
+   * duration around the clock — for a room nobody is playing in. Proctors may
+   * still be connected when this runs: they are spectators of a paused game
+   * (sim.tick clamps idle dt to 2s, so nothing moves), and the snapshot they
+   * got on connect is as current as a 4Hz feed of it would be. */
   private sleep() {
     if (this.ticker) clearInterval(this.ticker);
     if (this.persister) clearInterval(this.persister);
@@ -79,8 +92,11 @@ export class HexServer extends Server<Env> {
   }
 
   onConnect(conn: Connection, ctx: ConnectionContext) {
-    this.wake();
-    this.roster.register(conn, ctx);
+    // Only a player wakes the room. A proctor is watching a paused game —
+    // the broadcast below hands them a current snapshot, and running the 4Hz
+    // loop for a spectator is what used to keep all four rooms resident
+    // whenever the proctor page was open.
+    if (this.roster.register(conn, ctx).role === "player") this.wake();
     this.broadcastState();
   }
 
@@ -89,9 +105,9 @@ export class HexServer extends Server<Env> {
     this.petAcked.delete(conn.id);
     this.roster.disconnect(conn);
     this.broadcastState();
-    // partyserver drops the closing socket from the manager before onClose
-    // runs, so an empty iterator here means the room is truly empty.
-    if ([...this.getConnections()].length === 0) this.sleep();
+    // The closing socket is no longer OPEN, so getConnections skips it: no
+    // players left means the room can sleep, proctors or not.
+    if (!this.roster.hasPlayer(this.getConnections())) this.sleep();
   }
 
   onMessage(sender: Connection, message: WSMessage) {
@@ -104,6 +120,11 @@ export class HexServer extends Server<Env> {
     }
     const now = Date.now();
     const proctor = this.roster.isProctor(sender);
+    // A player message proves a player is here, so make sure the loops run.
+    // Normally wake() on connect covers this; the case it exists for is the
+    // runtime evicting a hibernated room whose player sockets stayed open —
+    // the next tap batch brings the ticker back.
+    if (!proctor) this.wake();
     switch (msg.type) {
       case "join":
         this.roster.rename(sender, String(msg.name).slice(0, 24));
@@ -150,7 +171,7 @@ export class HexServer extends Server<Env> {
       case "reset":
         if (!proctor) return;
         this.sim.reset(now);
-        this.roster.reset();
+        this.roster.reset(this.getConnections());
         // Write-through, alone of all mutations: rehydrating the PREVIOUS run
         // after an eviction would silently undo the proctor's reset.
         void this.persist();
@@ -172,7 +193,11 @@ export class HexServer extends Server<Env> {
         this.petAcked.set(conn.id, seq);
       }
     }
-    const state = this.sim.snapshot(Date.now(), this.roster.list(), this.taps);
+    const state = this.sim.snapshot(
+      Date.now(),
+      this.roster.list(this.getConnections()),
+      this.taps,
+    );
     this.taps = [];
     const msg: HexServerMsg = { type: "state", state };
     this.broadcast(JSON.stringify(msg));

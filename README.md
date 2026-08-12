@@ -188,6 +188,17 @@ the move; only the host changed.
 Room state lives in Durable Object storage (`ctx.storage`), so a Worker
 redeploy or an evicted room does not lose a team's progress.
 
+What the free tier actually meters is **duration** — GB-seconds of objects
+held resident — not requests, so the design keeps rooms evictable. All three
+servers hibernate (`static options = { hibernate: true }`): an open-but-idle
+socket no longer pins its object in memory, and per-connection identity rides
+the socket attachment so it survives eviction. The game room's 4Hz tick loop
+runs only while a **player** is connected — a proctor is a spectator of a
+paused game and gets a snapshot on connect instead — and the proctor page
+drops its sockets while the tab is hidden. Before all this, one forgotten
+proctor tab kept five objects awake around the clock, which at 128 MB each is
+~11,000 GB-s/day against a 13,000 GB-s/day free allowance.
+
 ### 2. Vercel — one project
 
 Import the repo; leave **Root Directory** at the repo root. Build settings

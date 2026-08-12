@@ -19,10 +19,19 @@ export interface ConnMeta {
  * deliberate: the proctor page is a static asset, so any token it sent would
  * ship in its own bundle and gate nothing. The only power the role carries
  * is reset on your own room, which is not worth defending here.
+ *
+ * Every server here hibernates, so a connection's meta lives in its WebSocket
+ * attachment (`conn.setState`), which the runtime persists with the socket —
+ * the object can be evicted mid-connection and the meta comes back with the
+ * wake. The `players` map is only a cache on top of that: it remembers the
+ * offline (a phone that locked keeps its seat in the list) and join order
+ * (which is slot order), both of which reset with an eviction — the same
+ * lifetime they had before hibernation, when an eviction closed every socket.
+ * `get` and `list` re-adopt live connections into the cache, so presence
+ * self-heals after a wake.
  */
 export class Roster {
-  private meta = new Map<string, ConnMeta>(); // connection.id -> meta
-  private players = new Map<string, PlayerInfo>(); // pid -> info
+  private players = new Map<string, PlayerInfo>(); // pid -> info, in join order
 
   register(conn: Connection, ctx: ConnectionContext): ConnMeta {
     const url = new URL(ctx.request.url);
@@ -31,39 +40,46 @@ export class Roster {
       pid: url.searchParams.get("pid") ?? conn.id,
       name: url.searchParams.get("name") ?? "Cat",
     };
-    this.meta.set(conn.id, m);
-    if (m.role === "player") {
-      this.players.set(m.pid, { id: m.pid, name: m.name, connected: true });
-    }
+    conn.setState(m);
+    this.adopt(m);
     return m;
   }
 
   rename(conn: Connection, name: string) {
-    const m = this.meta.get(conn.id);
+    const m = this.get(conn);
     if (!m || m.role !== "player") return;
-    m.name = name;
+    conn.setState({ ...m, name });
     const p = this.players.get(m.pid);
     if (p) p.name = name;
   }
 
+  /**
+   * Marks the player offline unconditionally; if another live connection
+   * shares the pid, the next `list` re-adopts it as connected. (The closing
+   * socket itself is never re-adopted — hibernating `getConnections` only
+   * yields OPEN sockets, and this one is already closing.)
+   */
   disconnect(conn: Connection) {
-    const m = this.meta.get(conn.id);
-    this.meta.delete(conn.id);
+    const m = this.get(conn);
     if (!m || m.role !== "player") return;
-    // Only mark offline if no other live connection shares the pid.
-    const stillHere = [...this.meta.values()].some(
-      (o) => o.role === "player" && o.pid === m.pid,
-    );
     const p = this.players.get(m.pid);
-    if (p && !stillHere) p.connected = false;
+    if (p) p.connected = false;
   }
 
   get(conn: Connection): ConnMeta | undefined {
-    return this.meta.get(conn.id);
+    const m = (conn.state as ConnMeta | null) ?? undefined;
+    if (m) this.adopt(m);
+    return m;
   }
 
   isProctor(conn: Connection): boolean {
-    return this.meta.get(conn.id)?.role === "proctor";
+    return this.get(conn)?.role === "proctor";
+  }
+
+  /** Whether any live connection is a player (not a proctor). */
+  hasPlayer(live: Iterable<Connection>): boolean {
+    for (const c of live) if (this.get(c)?.role === "player") return true;
+    return false;
   }
 
   /** Player slot index (0..3) for slingshot placement etc. */
@@ -71,18 +87,22 @@ export class Roster {
     return Math.max(0, [...this.players.keys()].indexOf(pid));
   }
 
-  list(): PlayerInfo[] {
+  list(live: Iterable<Connection>): PlayerInfo[] {
+    for (const c of live) this.get(c); // re-adopt after a hibernation wake
     return [...this.players.values()];
   }
 
-  reset() {
+  reset(live: Iterable<Connection>) {
     this.players.clear();
     // Re-seat currently connected players so a mid-session proctor reset
     // doesn't orphan anyone.
-    for (const m of this.meta.values()) {
-      if (m.role === "player") {
-        this.players.set(m.pid, { id: m.pid, name: m.name, connected: true });
-      }
-    }
+    for (const c of live) this.get(c);
+  }
+
+  private adopt(m: ConnMeta) {
+    if (m.role !== "player") return;
+    const p = this.players.get(m.pid);
+    if (p) p.connected = true;
+    else this.players.set(m.pid, { id: m.pid, name: m.name, connected: true });
   }
 }

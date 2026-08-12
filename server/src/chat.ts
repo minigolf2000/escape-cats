@@ -25,11 +25,18 @@ import { Roster } from "./connections";
  * one that bills like the game room.
  */
 export class ChatServer extends Server<Env> {
+  // No ticker only made the room CPU-free between messages; hibernation is
+  // what makes it duration-free. Without it, any open socket — a chat tab
+  // left in the background — pins the object resident, billing GB-seconds
+  // for a channel nobody is typing in.
+  static options = { hibernate: true };
+
   private roster = new Roster();
   /** The room's history, oldest first, capped at CHAT_HISTORY. */
   private history: ChatMessage[] = [];
   private nextId = 1;
-  /** conn.id -> token bucket. Dropped with the connection. */
+  /** conn.id -> token bucket. Dropped with the connection — and with a
+   * hibernation eviction, which merely refills everyone's burst. */
   private budget = new Map<string, { tokens: number; at: number }>();
 
   async onStart() {
@@ -49,7 +56,7 @@ export class ChatServer extends Server<Env> {
     const hello: ChatServerMsg = {
       type: "chat",
       messages: this.history,
-      players: this.roster.list(),
+      players: this.roster.list(this.getConnections()),
     };
     conn.send(JSON.stringify(hello));
     this.broadcastPresence();
@@ -138,7 +145,7 @@ export class ChatServer extends Server<Env> {
   private broadcastPresence() {
     const msg: ChatServerMsg = {
       type: "presence",
-      players: this.roster.list(),
+      players: this.roster.list(this.getConnections()),
     };
     this.broadcast(JSON.stringify(msg));
   }

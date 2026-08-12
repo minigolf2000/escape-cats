@@ -157,7 +157,20 @@ function useGameSocket<M>(
       const p = toProgressRef.current(JSON.parse(e.data));
       if (p) setProgress(p);
     });
-    return () => socket.close();
+    // A hidden tab drops its sockets. partysocket reconnects forever, so a
+    // proctor tab forgotten in the background would otherwise hold one socket
+    // per team all night — and every server broadcasts each connect/close to
+    // the room, work done on nobody's behalf. On return, reconnect: onConnect
+    // sends a fresh snapshot, so the tile repaints itself.
+    const onVisibility = () => {
+      if (document.hidden) socket.close();
+      else socket.reconnect();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      socket.close();
+    };
   }, [room, party]);
 
   return {

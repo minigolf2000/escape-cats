@@ -39,11 +39,11 @@ export function pet(clientX, clientY) {
     nightPokes++;
     lastPokeAt = now;
     if (nightPokes >= NIGHT_GRUMBLE_POKES) {
-      anim.squash = 1; // a bigger, annoyed stir
+      anim.squash = 1; anim.stir = 1; // a bigger, annoyed stir
       floatNum(x, y, "grr…");
       nightPokes = 0;
     } else {
-      anim.squash = 0.6; // a gentle half-stir
+      anim.squash = 0.6; anim.stir = 0; // a gentle half-stir
       floatNum(x, y, "Zzz");
     }
     return; // no mice, no mouse-pop, no HUD write, nothing sent
@@ -63,7 +63,11 @@ export function pet(clientX, clientY) {
       (clientY - cat.top) / cat.height,
     ),
   );
+  // Every tap squashes; only a sustained one spends the ear gesture. `stir` is
+  // reset here and raised below on the streak beat, so it describes THIS tap
+  // rather than lingering from the last one.
   anim.squash = 1;
+  anim.stir = 0;
 
   const now = performance.now();
   if (now - petState.lastPetAt > PET_STREAK_WINDOW_MS) petState.petStreak = 0;
@@ -77,6 +81,10 @@ export function pet(clientX, clientY) {
   ) {
     petState.slowBlinkStart = now;
     petState.petStreak = 0;
+    // The one day beat that earns the full drawn squash — the same threshold
+    // that earns the slow blink, so "she really is being petted" has one meaning
+    // in this file rather than two.
+    anim.stir = 1;
   }
 
   floatNum(x, y, "+" + fmt(gain));

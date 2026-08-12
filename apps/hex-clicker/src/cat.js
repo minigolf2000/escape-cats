@@ -8,6 +8,8 @@ import {
   hexCatEl,
   catMotionEl,
   catFaceEl,
+  earLeftEl,
+  earRightEl,
   irisLeftEl,
   irisRightEl,
   eyeLeftEl,
@@ -18,8 +20,12 @@ import { nightActive, zoomBuff } from "./state.js";
 import { goldState } from "./golden.js";
 import { petState } from "./pet.js";
 
-// Pet -> cat animation channel: pet() sets it, updateCat eases it back down.
-export const anim = { squash: 0 };
+// Pet -> cat animation channel: pet() sets these, updateCat eases squash back
+// down. `stir` is how BIG the reaction is, not how far through it we are: 0 is an
+// ordinary tap, 1 is one of the two beats the game already calls a bigger
+// reaction (a sustained day streak, or the night's annoyed grumble). It picks
+// which squash frames are allowed to play — see SQUASH_FRAMES.
+export const anim = { squash: 0, stir: 0 };
 
 // ---------------------------------------------------------------------------
 // CAT rendering — the SVG (#hexCat) is static markup; this just toggles
@@ -49,11 +55,21 @@ const PUPIL_ROUND = 1.14; // dilated
 // `anim.squash` decays 1 -> 0 at 0.08/frame (~12 frames, ~200ms), and these
 // thresholds cut that into three held steps plus the return to rest. Descending
 // order, because squash counts DOWN: hardest flatten first, easing back up.
+// GRADED, because the artist's squash folds the ears as part of the same drawn
+// gesture and there is no way to subtract them from it. Ear movement is supposed
+// to be an idle tell — rare, and hers rather than the player's — so the full
+// three-frame fold is held back for the two beats the game already treats as a
+// bigger reaction, and an ordinary tap only ever reaches the gentlest frame,
+// where the ears barely move. Petting still squashes on every tap; what it stops
+// doing is spending the ear gesture every time.
 const SQUASH_FRAMES = [
   [0.62, "s3"],   // flattest — ears folded right back
   [0.38, "s2"],
   [0.15, "s1"],   // barely dented; below this she's at rest
 ];
+// An ordinary tap is clamped to this one. Same decay, same timing — it just
+// never reaches for the harder two.
+const SQUASH_GENTLE = "s1";
 
 // ---------------------------------------------------------------------------
 // IDLE ANIMATIONS — one flag each, all independent. These are cat behaviours
@@ -70,7 +86,8 @@ export const IDLE = {
   yawn: true,             // one big yawn as she drops into the night phase
   dreamTwitch: true,      // rare whole-head jerk while dreaming
   headTilt: true,         // an occasional curious tip of the head
-  earSwivel: true,        // orients toward a golden mouse
+  earFlick: true,         // quick independent ear twitches
+  earSwivel: true,        // ears prick toward a golden mouse
 };
 // Three of these were named for parts the vector cat had as separate shapes and
 // the drawn cat has as painted pixels — there is no jaw, no whisker path and no
@@ -79,11 +96,10 @@ export const IDLE = {
 // quiver, whiskersForward became a lean, earSwivel became a head turn. The
 // flags keep their old names so the table still reads as a list of cat
 // behaviours rather than a list of transforms.
-// `earFlick` is the one that did NOT survive. It was two ears twitching
-// INDEPENDENTLY and out of sync with each other, and there is no honest way to
-// say that with one head — a whole-head twitch is the dream twitch, which
-// already exists. The squash frames fold her ears when she's petted; that is
-// the ear motion this art ships with.
+// `earFlick` and `earSwivel` are back on real ear elements — the day coat is
+// split into a head plus two ear layers, so the ears move on their own again.
+// Both are expressed as a perk from the ear's base rather than a rotation; see
+// updateEars for why.
 
 const SLOW_BLINK_MS = 1100;
 const PURR_MS = 900;              // purr keeps going this long after the last pet
@@ -139,8 +155,10 @@ export function updateCat(t) {
   // onto a black one for two frames.
   let pose = "day";
   if (asleep) pose = "night";
-  else for (const [threshold, name] of SQUASH_FRAMES)
-    if (anim.squash >= threshold) { pose = name; break; }
+  else if (anim.squash >= 0.15)
+    pose = anim.stir >= 1
+      ? SQUASH_FRAMES.find(([threshold]) => anim.squash >= threshold)[1]
+      : SQUASH_GENTLE;
   if (hexCatEl.dataset.pose !== pose) hexCatEl.dataset.pose = pose;
 
   // --- Lid overrides: the yawn and the slow blink -------------------------
@@ -271,6 +289,52 @@ export function updateCat(t) {
     const faceT = (rot || lean !== 1)
       ? `rotate(${rot.toFixed(2)}deg) scale(${lean})` : "";
     if (catFaceEl.style.transform !== faceT) catFaceEl.style.transform = faceT;
+  }
+
+  updateEars(t, asleep, alert);
+}
+
+// EARS — the idle tell, back on its own channel now the day coat is split.
+//
+// A perk, not the old rig's flick: each ear scales up from its BASE, so the
+// pixels where it joins the head never move and the drawn outline stays whole.
+// Rotating instead nicks that line visibly at Hex's real size, because the ear
+// is a slice cut out of one continuous stroke (see the pivot note in
+// index.html). "Ears prick up" says what the flick said anyway.
+//
+// Two behaviours on one channel, and they ADD rather than override: a sustained
+// perk while prey is on screen (the old earSwivel — she is orienting, and with
+// no rotation available the orienting reads as attention rather than direction),
+// plus the quick independent twitches on top. Each ear keeps its own schedule so
+// they fire out of sync, the way a real cat's do.
+const EAR_PERK_MS = 260;
+const EAR_TWITCH = 0.09;   // scaleY added at the peak of a twitch
+const EAR_ALERT = 0.05;    // held while a golden is out there
+const earStateL = { at: 0, start: -1 };
+const earStateR = { at: 0, start: -1 };
+function earTwitch(t, ear) {
+  if (!IDLE.earFlick) return 0;
+  if (!ear.at) ear.at = t + 2500 + Math.random() * 6000;
+  if (ear.start < 0 && t >= ear.at) { ear.start = t; ear.at = t + 3500 + Math.random() * 8000; }
+  if (ear.start < 0) return 0;
+  const e = t - ear.start;
+  if (e >= EAR_PERK_MS) { ear.start = -1; return 0; }
+  return EAR_TWITCH * Math.sin(Math.PI * e / EAR_PERK_MS);
+}
+function updateEars(t, asleep, alert) {
+  // Rest at night — the wall-reveal pose owns Hex then, and the night coat is
+  // one piece with the ears painted in, so there is nothing to drive anyway.
+  if (asleep) {
+    if (earLeftEl.style.transform) earLeftEl.style.transform = "";
+    if (earRightEl.style.transform) earRightEl.style.transform = "";
+    earStateL.at = earStateR.at = 0;
+    return;
+  }
+  const held = (IDLE.earSwivel && alert) ? EAR_ALERT : 0;
+  for (const [el, ear] of [[earLeftEl, earStateL], [earRightEl, earStateR]]) {
+    const s = 1 + held + earTwitch(t, ear);
+    const v = s === 1 ? "" : `scaleY(${s.toFixed(3)})`;
+    if (el.style.transform !== v) el.style.transform = v;
   }
 }
 

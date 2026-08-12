@@ -32,10 +32,12 @@ export const catMotionEl = $("#catMotion");
 export const catFaceEl = $("#catFace");
 // #eyeLeft/#eyeRight are the LIDS, #irisLeft/#irisRight inside them are the
 // LOOK — see the eye block in index.html for why the pair is split that way.
-// The old #earLeft/#earRight/#whiskers/#mouth refs are gone with the vector cat:
-// the drawn head carries ears, whiskers and muzzle as painted pixels, so there
-// is nothing left to address individually. cat.js re-expresses what those used
-// to say through the channels the drawing does have.
+// #earLeft/#earRight are back: the day coat is split into a head plus two ear
+// layers, so the ears have their own channel again (a perk from the base — see
+// the pivot note in index.html). #whiskers and #mouth are still gone, since the
+// drawn head carries those as painted pixels with nothing to address.
+export const earLeftEl = $("#earLeft");
+export const earRightEl = $("#earRight");
 export const irisLeftEl = $("#irisLeft");
 export const irisRightEl = $("#irisRight");
 export const eyeLeftEl = $("#eyeLeft");

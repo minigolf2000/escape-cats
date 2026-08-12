@@ -410,11 +410,23 @@
      it from the decode queue in some engines and the first pet of the game would
      then flash an empty head while the PNG loads. All five decode at boot and
      stay decoded; only one is shown. */
-  #hexCat .headFrame { visibility: hidden; }
-  #hexCat[data-pose="day"] #headDay,
+  #hexCat .headFrame, #hexCat #coatDay { visibility: hidden; }
+  #hexCat[data-pose="day"] #coatDay,
   #hexCat[data-pose="s1"]  #headSquash1,
   #hexCat[data-pose="s2"]  #headSquash2,
   #hexCat[data-pose="s3"]  #headSquash3 { visibility: visible; }
+
+  /* EAR PIVOT. fill-box + 50% 100% puts the origin on the BASE of each ear's own
+     cropped box, and the idle gesture is a scaleY about that line — so the base
+     pixels do not move at all and the drawn outline stays joined to the head.
+     That is why this is a perk and not the old rig's rotation: rotating a slice
+     cut out of one continuous hand-drawn line always nicks it where the line was
+     cut, and at Hex's real size that nick is plainly visible. Scaling from the
+     base is invisible in the same place, and "ears prick up" is the same thing
+     the flick was saying. */
+  #hexCat .ear, #hexCat #earLeft, #hexCat #earRight {
+    transform-box: fill-box; transform-origin: 50% 100%;
+  }
 
   /* THE COAT CHANGE. Day and night are two drawings of the same cat, one brown
      and one black, and picking between them on a class flip cut from one to the
@@ -438,12 +450,12 @@
     transition: opacity 1.8s cubic-bezier(.22, .61, .36, 1);
   }
   #hexCat[data-pose="night"] #headNight { opacity: 1; }
-  #hexCat[data-pose="night"] #headDay {
+  #hexCat[data-pose="night"] #coatDay {
     visibility: hidden; transition: visibility 0s linear 1.8s;
   }
   @media (prefers-reduced-motion: reduce) {
     #hexCat #headNight { transition: none; }
-    #hexCat[data-pose="night"] #headDay { transition: none; }
+    #hexCat[data-pose="night"] #coatDay { transition: none; }
   }
 
   /* idle-motion pivot: the head tilts about the neck. The ears no longer have
@@ -1257,8 +1269,19 @@
            The eyes are painted OUT of these PNGs (inpainted with the surrounding
            coat) so the rigged pair below is the only pair on screen; leave them
            baked in and every blink would show a second, open eye underneath. -->
-      <image class="headFrame" id="headDay" href="/art/hex-day.png"
-             x="0" y="0" width="828" height="652"/>
+      <!-- The DAY coat, in three pieces so the ears can move on their own again.
+           The head has had its ears cut away and a soft collar of flat coat left
+           where each one sat, so a moving ear reveals coat rather than a hole —
+           the same trick the old vector cat used with an unstroked headFill.
+           Only the day coat is split: she sleeps at night, and the ears rested
+           at night in the old rig too, so the night art stays one piece. -->
+      <g id="coatDay">
+       <image id="headDay" href="/art/hex-day.png" x="0" y="0" width="828" height="652"/>
+       <g id="earLeft"><image href="/art/hex-day-earL.png"
+          x="165.6" y="33.6" width="161.7" height="137.1"/></g>
+       <g id="earRight"><image href="/art/hex-day-earR.png"
+          x="402.4" y="2.6" width="218.6" height="168.2"/></g>
+      </g>
       <image class="headFrame" id="headSquash1" href="/art/hex-squash1.png"
              x="0" y="0" width="828" height="652"/>
       <image class="headFrame" id="headSquash2" href="/art/hex-squash2.png"

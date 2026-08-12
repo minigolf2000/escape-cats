@@ -17,8 +17,9 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on, with a link into the game
 apps/chat/           Per-team chat: one channel per team, roomed by team id
-apps/proctor/        Hidden proctor dashboard, one flat page: team assignment,
-                     live overview of all four rooms, QR codes, reset
+apps/proctor/        Hidden proctor dashboard, one flat page: five boxes, where a
+                     team's box is BOTH its drag-and-drop drop target and its
+                     live game status (+ reset), plus one QR into the lobby
 packages/shared/     Wire protocol, seeded RNG, and the WHOLE hex
                      game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
                      and the authoritative simulation (hex/sim.ts)
@@ -79,19 +80,32 @@ This starts everything:
 | What          | URL                                        |
 | ------------- | ------------------------------------------ |
 | Room server   | 127.0.0.1:1999 (wrangler dev)              |
-| Hex Clicker   | http://localhost:5173/?room=TEST           |
+| Hex Clicker   | http://localhost:5173/hexxygon/            |
 | Proctor       | http://localhost:5175                      |
 | Team lobby    | http://localhost:5176                      |
 | Team chat     | http://localhost:5177                      |
 
-Open the proctor page and scan a team tile's QR code with phones on
-the same wifi (the vite servers listen on the LAN; point
-`VITE_PARTYKIT_HOST` at your machine's LAN IP for phone testing — see
-`.env` handling below).
+Open the proctor page and scan its QR code (one for the whole room — it points
+at the lobby) with phones on the same wifi, then drag each phone onto a team.
+The vite servers listen on the LAN; point `VITE_PARTYKIT_HOST` at your
+machine's LAN IP for phone testing, and `VITE_LOBBY_URL` at the lobby's LAN
+address so the QR code is scannable — see `.env` handling below.
 
 Simulate 4 players locally with 4 browser tabs — but note the persistent
 player id is per-browser-profile, so use different profiles/incognito
 windows to appear as different players.
+
+**Locally, start each fake player at the GAME, not at the lobby.** In
+production every surface shares one origin, so a phone sorted on the landing
+page carries its pid into the game. In dev they are separate vite ports, which
+means separate origins and separate `localStorage` — so tapping the lobby's
+**Play** button mints a brand-new pid and lands that phone in the waiting room
+as an unsorted "Cat". `?room=` used to paper over this and is gone (see
+`?room=` below). Open `localhost:5173/hexxygon/` directly instead: the game page
+registers itself in the lobby roster, appears on the proctor's board, and drops
+into its team the moment you drag it onto one. Set `escape-cats-name` in that
+origin's `localStorage` first if you want it to show up as something other than
+"Cat". Serving every app through one dev port would remove the whole wrinkle.
 
 For balance work on Hex, **`?debug`** runs the shared sim in the page with no
 server at all, and `?speed=N` fast-forwards it — so
@@ -111,8 +125,7 @@ server-private fields like `legibleAt`); use it for console-driven tuning.
 Modes are **query params, never paths**. `?debug` modifies the same page rather
 than naming a different one, params compose (`?debug&speed=20`) where path
 segments don't, and a path would need a rewrite per mode on a static host —
-`/hexxygon/debug` is a 404 unless routing is taught about it. `?room=` already
-works this way, so the whole surface stays consistent.
+`/hexxygon/debug` is a 404 unless routing is taught about it.
 
 `window.__hex` exposes the state mirror and a `send()` for driving the game
 from a console or a test — always on, in any mode.
@@ -123,7 +136,11 @@ Client env vars (Vite, set in `apps/*/.env.local`):
 
 - `VITE_PARTYKIT_HOST` — host:port of the room server (default `127.0.0.1:1999`).
   Kept under its old name: it is what `partysocket` reads on every client.
-- `VITE_HEX_URL` — public game URL the proctor QR code points at
+- `VITE_HEX_URL` — public game URL the lobby's **Play** button points at
+- `VITE_LOBBY_URL` — what the proctor's QR code encodes. Defaults to this
+  page's own origin root, which is correct in production (one origin, lobby at
+  `/`) and therefore needs no Vercel var; set it only in dev, where the proctor
+  and the lobby are on different ports
 
 The server takes no vars. The code word is a constant
 (`HEX_CODEWORD` in `packages/shared/src/hex/data.ts`, paired with the wall
@@ -362,25 +379,76 @@ you intend to split those surfaces back out.
 
 ## Teams and the lobby
 
-Four teams, `t1`–`t4`. **A team id is also the room id the game runs
-in**, so once the proctor puts someone on `t2`, their game room is `t2` and
-nothing else has to agree on anything.
+Four teams, `t1`–`t4`, of `TEAM_SIZE` (4) players each. **A team id is also the
+room id the game runs in**, so once the proctor puts someone on `t2`, their game
+room is `t2` and nothing else has to agree on anything.
+
+A team box draws all four seats whether or not they are filled, so a short team
+reads as unfinished rather than merely small, and a full team refuses a fifth
+drop (it turns red under the drag instead of taking it). That cap is enforced in
+the proctor UI only — the lobby server still accepts any assignment it is sent.
+The proctor is the only client that assigns, and nothing here is a security
+boundary, so a second copy of the rule on the server would be one more place to
+forget rather than a real guard.
+
+**A team's box is a fixed size, and that is a hard requirement rather than a
+nicety.** Five boxes sit in one grid row, so a box that grew by a line when a
+codeword landed — or when a mouse count reached seven figures, or when a fourth
+absent player joined the "not in game" list — would shove the boxes beside it out
+from under a proctor's finger, mid-drag. So: every seat is the same height
+whether filled or empty, every readout line is drawn in every state (absent
+values become placeholders, and the finished-run line occupies the same slot the
+"codeword locked" line does), and long values are CLIPPED rather than wrapped.
+Adding a line to a game block is therefore a layout decision, not a free one.
+
+Goomba Rider has a **placeholder block** in each team box, holding the shape the
+real one will take. It has no server: the game keeps each player's progress in
+that phone's `localStorage`, so there is nothing to report yet. Wiring it up
+means a fourth Durable Object roomed by team id, and its status lands in this
+block — which is the whole reason `TeamGame` is keyed by team rather than by
+game.
 
 The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
-lists everyone currently on that page and sorts them onto teams — per-person
-buttons, or **Auto-assign** to round-robin the unsorted starting from the
-smallest team. Once assigned, the player's page turns into their team name plus
-a link into the game.
+lists everyone currently on that page as **five boxes** — Unassigned, then one
+per team — and sorting is **drag and drop between them**, the only assignment
+gesture there is. Once assigned, the player's page turns into their team name
+plus a link into the game.
+
+Sorting is deliberately all manual: an auto-assign button existed and was
+removed. Who sits with whom is a judgement call made in the room (friends,
+kids, one group of six), and a round-robin only ever produced an arrangement
+the proctor then had to undo by hand.
+
+The drag runs on **pointer events, not HTML5 drag-and-drop** — `dragstart`
+never fires under a finger, and since dragging is now the whole interface, a
+proctor on a tablet would otherwise be unable to sort anyone. Two other
+controls survive: **×** on a row forgets that one player (their phone
+re-registers if it is still connected), and **Clear teams** sends everybody
+back to Unassigned between groups.
 
 **The game has no menu.** `apps/hex-clicker` never shows a form: it asks the
 lobby for this pid's team and slots straight in. A phone the proctor hasn't
 sorted yet gets a waiting screen, not an error — opening the game page
 registers the phone in the lobby roster (same pid+name contract as the landing
 page), so it appears on the proctor's list and enters the game the moment it's
-assigned. `?room=` still overrides for QR codes (which carry the team id);
-`?debug` bypasses the server entirely. The room is deliberately NOT written
-back into the URL on the lobby path, so a refresh re-asks the lobby and a
-proctor re-sort takes effect on reload.
+assigned. `?debug` bypasses the server entirely. The room is never written into
+the URL, so a refresh re-asks the lobby and a proctor re-sort takes effect on
+reload.
+
+**`?room=` is gone, and asking the lobby is the only way in.** It used to
+override the lookup — the proctor's per-team QR codes carried it — and it had
+to go for two reasons. It let anyone edit a URL into another team's room, which
+made the proctor's board advisory rather than authoritative. And it
+`toUpperCase()`d the value it was given, a leftover from the ad-hoc four-letter
+room codes: Durable Object names are case-sensitive, so a scanned `?room=t2`
+played in room `T2` while that phone's lobby-sorted teammates played in `t2`.
+Two live rooms per team, neither of them the one the dashboard watched, and a
+team silently split by how each phone happened to arrive.
+
+Removing it costs nothing because every surface is one origin (the vanity
+domains redirect — see "The origin constraint"), so the pid the proctor sorted
+is the pid the game sees. The proctor page therefore shows **one** QR code, for
+the lobby, rather than one per team.
 
 Both parties persist to `room.storage`, tuned to what each can afford to lose:
 
@@ -411,13 +479,11 @@ another team's chat.
 Like the game, chat has no menu: it asks the lobby for this pid's team and slots
 in. An unsorted phone gets the same waiting room the game gives, and opening
 chat registers the phone in the lobby roster, so it appears on the proctor's
-list. `?room=` overrides for QR codes and rehearsals.
+list.
 
-The lobby's **Team chat** button deliberately does NOT carry `?room=`, unlike its
-link into the game. The game may be served from a vanity domain where this
-phone's pid doesn't exist, so its team has to ride in the URL; chat is on the
-lobby's own origin and can just ask. That also means a proctor re-sort takes
-effect on reload instead of stranding someone in their old team's channel.
+Neither of the lobby's buttons carries a team in its URL — see `?room=` above.
+Both surfaces ask the lobby, so a proctor re-sort takes effect on reload instead
+of stranding someone in their old team's channel.
 
 What the chat server enforces (`server/src/chat.ts`, tunables in
 `packages/shared/src/chat.ts`):
@@ -453,12 +519,22 @@ client mints a fresh pid and the server sees a stranger.
 
 Nothing server-side can bridge that: cookies are domain-scoped, every phone on
 venue wifi shares one NAT address, and fingerprinting is neither reliable nor
-welcome. The two ways to live with it:
+welcome. There were two ways to live with it, and **this repo now depends
+entirely on the first**:
 
-- **Serve the games from the lobby's origin.** Make the vanity domains redirect
-  to `cat-games-tau.vercel.app/hex/` instead of rewriting to it. One origin, one
-  pid, assignments follow players everywhere.
-- **Carry the team in the link.** What the lobby does today — its buttons point
-  at `<game>/?room=t2`, so the assignment rides in the URL and the origin stops
-  mattering. A player who types a vanity domain from scratch still arrives
-  unsorted.
+- **Serve the games from the lobby's origin** — what the vanity domains do
+  today, by redirecting (307) to `cat-games-tau.vercel.app` instead of
+  rewriting to it. One origin, one pid, assignments follow players everywhere.
+- **Carry the team in the link** (`<game>/?room=t2`), so the assignment rides
+  in the URL and the origin stops mattering. This is gone: see `?room=` above
+  for why. A player who types a vanity domain from scratch still lands on the
+  shared origin and is asked to wait for sorting, which is the intended
+  behaviour rather than a gap.
+
+Because the fallback is gone, **turning a vanity domain back into a rewrite
+would break joining outright** — that origin would have its own empty
+`localStorage`, so every phone on it would mint a fresh pid, appear on the
+proctor's board as a stranger, and never inherit its team. Note that
+`check:routing` would NOT catch it: it asserts which app each vanity root lands
+on, and a rewrite lands on the same app as a redirect. The redirect is only
+load-bearing for identity, which nothing automated currently checks.

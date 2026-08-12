@@ -110,11 +110,6 @@ export class LobbyServer extends Server<Env> {
         else this.teams.set(pid, team);
         break;
       }
-      case "autoAssign": {
-        if (!proctor) return;
-        this.autoAssign();
-        break;
-      }
       case "clearTeams": {
         if (!proctor) return;
         this.teams.clear();
@@ -122,40 +117,17 @@ export class LobbyServer extends Server<Env> {
       }
       case "forget": {
         if (!proctor) return;
-        const live = this.connectedPids();
-        for (const pid of [...this.names.keys()]) {
-          if (!live.has(pid)) {
-            this.names.delete(pid);
-            this.teams.delete(pid);
-          }
-        }
+        // One player at a time. A still-connected phone re-registers itself on
+        // its next reconnect, so this is "drop the row", not a ban.
+        const pid = String(msg.pid);
+        this.names.delete(pid);
+        this.teams.delete(pid);
         break;
       }
     }
 
     await this.persist();
     this.broadcastState();
-  }
-
-  /**
-   * Round-robin the unassigned across teams, continuing from whichever team is
-   * smallest — so pressing it after a few manual assignments evens things out
-   * instead of piling everyone onto Team 1.
-   */
-  private autoAssign() {
-    const counts = new Map(TEAM_IDS.map((id) => [id, 0]));
-    for (const team of this.teams.values()) {
-      counts.set(team, (counts.get(team) ?? 0) + 1);
-    }
-    for (const pid of this.names.keys()) {
-      if (this.teams.has(pid)) continue;
-      let smallest = TEAM_IDS[0];
-      for (const id of TEAM_IDS) {
-        if ((counts.get(id) ?? 0) < (counts.get(smallest) ?? 0)) smallest = id;
-      }
-      this.teams.set(pid, smallest);
-      counts.set(smallest, (counts.get(smallest) ?? 0) + 1);
-    }
   }
 
   private connectedPids(): Set<string> {

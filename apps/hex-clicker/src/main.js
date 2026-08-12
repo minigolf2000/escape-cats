@@ -29,7 +29,6 @@ import {
   connectRoom,
   debugFromUrl,
   playerId,
-  roomFromUrl,
   transport,
   watchTeam,
 } from "./net";
@@ -231,8 +230,9 @@ function frame(now) {
 // the game the moment it is assigned. Nobody types a room code; the only
 // keyboard this game ever shows is the lobby's name prompt.
 //
-// ?room= still overrides (proctor QR codes carry the team id), and
-// ?debug bypasses the server entirely.
+// The lobby is the ONLY way into a team: `?room=` used to override it and was
+// removed (the README's "?room= is gone" has the why, including the room-id
+// casing bug it caused). `?debug` still bypasses the server entirely.
 // ---------------------------------------------------------------------------
 const NAME_KEY = "escape-cats-name";
 
@@ -246,12 +246,6 @@ function boot() {
   }
 
   const name = localStorage.getItem(NAME_KEY) ?? "Cat";
-
-  const urlRoom = roomFromUrl();
-  if (urlRoom) {
-    enterRoom(urlRoom.trim().toUpperCase(), name);
-    return;
-  }
 
   gateStatusEl.textContent =
     "Waiting for your team — the proctor sorts you in, nothing to do here.";
@@ -268,9 +262,9 @@ function boot() {
   });
 }
 
-/** The room is NOT written back into the URL on the lobby path: a refresh
- * re-asks the lobby, so a proctor re-sort takes effect on reload instead of
- * being pinned by a stale query param. Seat reclaim is by pid, not URL. */
+/** The room is NEVER written into the URL: a refresh re-asks the lobby, so a
+ * proctor re-sort takes effect on reload instead of being pinned by a stale
+ * query param. Seat reclaim is by pid, not URL. */
 function enterRoom(room, name) {
   setRoomSeed(room);
   gateStatusEl.textContent = "Joining your team…";

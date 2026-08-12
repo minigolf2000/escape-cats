@@ -265,6 +265,22 @@ export class HexSim {
     this.checkLegible(now);
   }
 
+  /** Debug-only: put a golden mouse up NOW rather than waiting out the 40–90s
+   * timer. Day-only for the same reason tick() is — at night a golden is a
+   * tappable prop paying zero — so this is inert at night and says so by
+   * returning false, which is what greys the panel's button out.
+   *
+   * A golden already in flight is REPLACED (new id, new seed, full life) rather
+   * than extended: the button exists to watch a spawn, and the client only
+   * re-places the mouse when the id changes. The natural timer needs no
+   * touching — it is only counted down while no golden is up, and tick()
+   * reschedules from scratch when this one expires. */
+  spawnGold(now: number): boolean {
+    if (this.night()) return false;
+    this.mintGold(now);
+    return true;
+  }
+
   /** Debug-only: jump the run to a story beat. Runs through reset() first, so
    * runId bumps and clients treat the jump as a fresh boot (unlocks, seen
    * flags and FX state all re-derive rather than leaking across the jump). */
@@ -332,6 +348,17 @@ export class HexSim {
     this.state.wallGlowFrom = wallGlow(this.mods);
   }
 
+  /** Put a golden up as of `now`. The one place a HexGold is constructed, so
+   * the timer's spawn and the debug button's cannot drift in life or id. */
+  private mintGold(now: number): void {
+    this.state.gold = {
+      id: ++this.goldSeq,
+      bornAt: now,
+      life: goldLifeS(this.mods),
+      seed: (Math.random() * 0x7fffffff) | 0,
+    };
+  }
+
   private scheduleGold(first: boolean): void {
     const lo = first ? GOLD_FIRST_MIN_S : GOLD_MIN_S;
     const hi = first ? GOLD_FIRST_MAX_S : GOLD_MAX_S;
@@ -367,14 +394,7 @@ export class HexSim {
       }
     } else {
       this.goldTimer -= dt * s.speed;
-      if (this.goldTimer <= 0) {
-        s.gold = {
-          id: ++this.goldSeq,
-          bornAt: now,
-          life: goldLifeS(this.mods),
-          seed: (Math.random() * 0x7fffffff) | 0,
-        };
-      }
+      if (this.goldTimer <= 0) this.mintGold(now);
     }
     this.checkLegible(now);
   }

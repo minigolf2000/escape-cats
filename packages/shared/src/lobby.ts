@@ -19,9 +19,10 @@ export const TEAMS: Team[] = [
 
 export const TEAM_IDS: string[] = TEAMS.map((t) => t.id);
 
-/** Players per team. The game is built for exactly this many — a player's slot
- * index (0..3) is what picks their mouse colour in the room — so the proctor's
- * board shows four slots per team and refuses a fifth drop. */
+/** Players per team. The game is designed around four — it is what the room's
+ * slot colours and the wall art assume — so the proctor's board draws four
+ * seats per team and refuses a fifth drop. Nothing enforces it below the
+ * proctor UI: the lobby validates team ids, not team sizes. */
 export const TEAM_SIZE = 4;
 
 export interface LobbyPlayer {
@@ -29,6 +30,13 @@ export interface LobbyPlayer {
   name: string;
   /** null = waiting for the proctor to sort them. */
   team: string | null;
+  /**
+   * Whether this phone is holding a socket to the LOBBY right now — which is
+   * narrower than "is with us". A phone drops that socket the moment it learns
+   * its team and moves on to the game, so a sorted player who is happily
+   * playing reads as false here. Trustworthy for an unsorted phone (it is on
+   * the landing page or a waiting screen); for a sorted one, ask the game room.
+   */
   connected: boolean;
 }
 

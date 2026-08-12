@@ -64,7 +64,6 @@ button {
   font-size: 12px;
   color: #b39ddb;
   word-break: break-all;
-  text-align: center;
 }
 
 .progressbar {
@@ -241,7 +240,6 @@ button {
 /* The finished-run line, in the same slot the "locked" line occupies. */
 .game .stat.codeword {
   opacity: 1;
-  font-size: 12px;
 }
 /* Goomba's reserved block, until it has a server to report from. */
 .game.pending h3,
@@ -277,10 +275,12 @@ button {
   padding: 14px 0 6px;
 }
 
-/* The name riding the pointer mid-drag. */
+/* The name riding the pointer mid-drag. Positioned at the origin and moved by
+ * an inline transform — see the note at its render site. */
 .drag-ghost {
   position: fixed;
-  transform: translate(-50%, -50%);
+  left: 0;
+  top: 0;
   pointer-events: none;
   z-index: 10;
   padding: 6px 12px;

@@ -47,6 +47,9 @@
     .row { display: grid; gap: 14px; }
     .row.two   { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
     .row.three { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .row.five  { grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; }
+    .legend .sw i { border-radius: 999px; width: 14px; height: 14px; }
     .card {
       background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
       padding: 14px; display: flex; flex-direction: column; gap: 10px;
@@ -146,6 +149,151 @@
           and the reveal lab: green almond eyes, black pupils, w-mouth, six straight whiskers.
           The sticker flips the eye colors and softens everything else.</p>
       </div>
+    </div>
+
+    <h2>Head shape · five contours</h2>
+    <div class="row five">
+      <div class="card">
+        <p class="name">V1 <em>· Trace</em></p>
+        <div class="fig">
+          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Contour V1, direct trace">
+            <defs>
+              <clipPath id="v1L"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="v1R"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+            </defs>
+            <path d="M40 10 C46 28 58 46 74 56 C81 61 88 64 95 64 C103 64 111 62 119 59 C132 46 144 31 154 14 C163 33 170 55 175 77 C177 96 179 114 179 133 C180 172 146 204 101 204 C56 204 20 172 21 132 C20.5 114 22 92 24.5 72 C27.5 50 32.5 28 40 10 Z"
+                  fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <circle cx="74" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#v1L)"/>
+            <circle cx="126" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#v1R)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170" fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="desc">Landmark-for-landmark from the photo: scooped inner ear edges, a
+          soft corner where ear meets cheek, shallow crown arc. Keeps the print's asymmetry.</p>
+      </div>
+      <div class="card">
+        <p class="name">V2 <em>· Tulip</em></p>
+        <div class="fig">
+          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Contour V2, tulip">
+            <defs>
+              <clipPath id="v2L"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="v2R"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+            </defs>
+            <path d="M44 12 C49 30 60 47 75 57 C82 62 89 65 96 65 C104 65 112 63 120 60 C134 48 145 32 150 15 C163 42 175 86 178 133 C179 170 146 203 101 203 C56 203 21 170 22 133 C25 86 37 42 44 12 Z"
+                  fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <circle cx="74" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#v2L)"/>
+            <circle cx="126" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#v2R)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170" fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="desc">One unbroken curve from jaw to ear tip — no corner at the ear base.
+          Slender ears; the sleekest read of the silhouette.</p>
+      </div>
+      <div class="card">
+        <p class="name">V3 <em>· Round</em></p>
+        <div class="fig">
+          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Contour V3, round">
+            <defs>
+              <clipPath id="v3L"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="v3R"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+            </defs>
+            <path d="M48 8 C53 24 64 40 80 50 C87 53 93 54 100 54 C107 54 113 53 120 50 C136 40 147 25 152 11 C160 30 167 50 170 72 C174 92 176 112 176 135 C176 176 144 205 100 205 C56 205 24 176 24 135 C24 112 26 92 30 70 C33 48 43 24 48 8 Z"
+                  fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <circle cx="74" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#v3L)"/>
+            <circle cx="126" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#v3R)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170" fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="desc">Crown sits higher (more forehead), ears closer set, face nearer a
+          circle. The friendliest read.</p>
+      </div>
+      <div class="card">
+        <p class="name">V4 <em>· Graphic</em></p>
+        <div class="fig">
+          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Contour V4, graphic">
+            <defs>
+              <clipPath id="v4L"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="v4R"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+            </defs>
+            <path d="M38 8 L74 54 C82 60 90 62 96 62 C104 62 112 60 120 57 L156 12 L176 74 C179 94 181 112 181 132 C182 172 148 204 101 204 C54 204 19 172 19 132 C19 112 21 94 24 74 L38 8 Z"
+                  fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <circle cx="74" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#v4L)"/>
+            <circle cx="126" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#v4R)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170" fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="desc">Same proportions, straight edges and crisp tips — the die-cut,
+          most graphic read. Closest cousin to the shipping head.</p>
+      </div>
+      <div class="card">
+        <p class="name">V5 <em>· Kitten</em></p>
+        <div class="fig">
+          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Contour V5, kitten">
+            <defs>
+              <clipPath id="v5L"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="v5R"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+            </defs>
+            <path d="M42 22 C48 38 60 52 76 62 C83 67 89 69 96 69 C104 69 112 67 120 64 C134 54 146 40 152 26 C161 42 168 60 172 80 C179 100 184 118 184 140 C184 178 148 205 100 205 C52 205 16 178 16 138 C16 116 21 98 26 78 C31 58 36 38 42 22 Z"
+                  fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <circle cx="74" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#v5L)"/>
+            <circle cx="126" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#v5R)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170" fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="desc">Shorter ears, chubbier cheeks — the plush-toy read. Softest of
+          the five.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 14px;">
+      <p class="name">All five contours <em>· over the shipping head</em></p>
+      <div class="fig">
+        <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Overlay of all five contours" style="width: min(280px, 100%);">
+          <path d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z"
+                fill="none" stroke="rgba(244,244,242,.3)" stroke-width="2" stroke-dasharray="3 4"/>
+          <path d="M40 10 C46 28 58 46 74 56 C81 61 88 64 95 64 C103 64 111 62 119 59 C132 46 144 31 154 14 C163 33 170 55 175 77 C177 96 179 114 179 133 C180 172 146 204 101 204 C56 204 20 172 21 132 C20.5 114 22 92 24.5 72 C27.5 50 32.5 28 40 10 Z"
+                fill="none" stroke="#ffd44d" stroke-width="2" opacity=".9"/>
+          <path d="M44 12 C49 30 60 47 75 57 C82 62 89 65 96 65 C104 65 112 63 120 60 C134 48 145 32 150 15 C163 42 175 86 178 133 C179 170 146 203 101 203 C56 203 21 170 22 133 C25 86 37 42 44 12 Z"
+                fill="none" stroke="#ff6fa5" stroke-width="2" opacity=".9"/>
+          <path d="M48 8 C53 24 64 40 80 50 C87 53 93 54 100 54 C107 54 113 53 120 50 C136 40 147 25 152 11 C160 30 167 50 170 72 C174 92 176 112 176 135 C176 176 144 205 100 205 C56 205 24 176 24 135 C24 112 26 92 30 70 C33 48 43 24 48 8 Z"
+                fill="none" stroke="#5fb0ff" stroke-width="2" opacity=".9"/>
+          <path d="M38 8 L74 54 C82 60 90 62 96 62 C104 62 112 60 120 57 L156 12 L176 74 C179 94 181 112 181 132 C182 172 148 204 101 204 C54 204 19 172 19 132 C19 112 21 94 24 74 L38 8 Z"
+                fill="none" stroke="#b48cff" stroke-width="2" opacity=".9"/>
+          <path d="M42 22 C48 38 60 52 76 62 C83 67 89 69 96 69 C104 69 112 67 120 64 C134 54 146 40 152 26 C161 42 168 60 172 80 C179 100 184 118 184 140 C184 178 148 205 100 205 C52 205 16 178 16 138 C16 116 21 98 26 78 C31 58 36 38 42 22 Z"
+                fill="none" stroke="#5fe0a0" stroke-width="2" opacity=".9"/>
+        </svg>
+      </div>
+      <div class="legend">
+        <span class="sw"><i style="background:#ffd44d;"></i>V1 trace</span>
+        <span class="sw"><i style="background:#ff6fa5;"></i>V2 tulip</span>
+        <span class="sw"><i style="background:#5fb0ff;"></i>V3 round</span>
+        <span class="sw"><i style="background:#b48cff;"></i>V4 graphic</span>
+        <span class="sw"><i style="background:#5fe0a0;"></i>V5 kitten</span>
+        <span class="sw"><i style="background:transparent; border-style:dashed;"></i>shipping head</span>
+      </div>
+      <p class="desc">Same face on every card — only the silhouette moves (contour colors
+        borrowed from the game's mouse palette). The candidates below still wear the
+        first-pass head; whichever contour wins replaces it there and everywhere else.</p>
     </div>
 
     <h2>Candidates</h2>

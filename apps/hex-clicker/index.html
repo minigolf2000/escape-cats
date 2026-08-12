@@ -411,11 +411,40 @@
      then flash an empty head while the PNG loads. All five decode at boot and
      stay decoded; only one is shown. */
   #hexCat .headFrame { visibility: hidden; }
-  #hexCat[data-pose="day"]   #headDay,
-  #hexCat[data-pose="s1"]    #headSquash1,
-  #hexCat[data-pose="s2"]    #headSquash2,
-  #hexCat[data-pose="s3"]    #headSquash3,
-  #hexCat[data-pose="night"] #headNight { visibility: visible; }
+  #hexCat[data-pose="day"] #headDay,
+  #hexCat[data-pose="s1"]  #headSquash1,
+  #hexCat[data-pose="s2"]  #headSquash2,
+  #hexCat[data-pose="s3"]  #headSquash3 { visibility: visible; }
+
+  /* THE COAT CHANGE. Day and night are two drawings of the same cat, one brown
+     and one black, and picking between them on a class flip cut from one to the
+     other in a single frame — at the one moment in the game where she is
+     supposed to be falling asleep. So the night coat CROSS-FADES in over the day
+     one, on the same 1.8s and the same curve as the camera move, and she darkens
+     into the night rather than being replaced by it.
+     The day coat stays FULLY OPAQUE underneath for the whole fade instead of
+     fading out in step with it: two half-transparent layers would let a quarter
+     of the page through the middle of the blend and she would go briefly
+     ghostly. It hides only after the fade, on a delayed visibility flip, because
+     the night drawing's white keyline makes it ~2% wider than the day one —
+     left underneath at full opacity that 2% reads as a thin brown fringe all the
+     way round her.
+     The delay is declared on the NIGHT rule alone, so the return leg (a dev jump
+     back to day) reads 0s off the day rule and she brightens immediately. Same
+     cascade rule as #dock's cutscene fade: the browser takes a transition from
+     the after-change style. */
+  #hexCat #headNight {
+    visibility: visible; opacity: 0;
+    transition: opacity 1.8s cubic-bezier(.22, .61, .36, 1);
+  }
+  #hexCat[data-pose="night"] #headNight { opacity: 1; }
+  #hexCat[data-pose="night"] #headDay {
+    visibility: hidden; transition: visibility 0s linear 1.8s;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #hexCat #headNight { transition: none; }
+    #hexCat[data-pose="night"] #headDay { transition: none; }
+  }
 
   /* idle-motion pivot: the head tilts about the neck. The ears no longer have
      pivots of their own — they are painted into the frames above, and the four

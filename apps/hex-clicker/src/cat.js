@@ -29,15 +29,29 @@ export const anim = { squash: 0 };
 // CAT rendering — the SVG (#hexCat) is static markup; this just toggles
 // classes/state on it per frame (squash bounce, blink, Zoomies recolor).
 // ---------------------------------------------------------------------------
-const IRIS_LOOK = 4; // svg user-units the iris can travel off-center before it'd clip the socket
+// SVG user-units the pupil can travel off-center before it'd clip the eye.
+// Split per axis, which the old round-pupil art didn't need: the pupil is now
+// drawn as a slit 81 units tall inside a 94.8-unit eye, so there are only ~6.9
+// units of headroom above and below it against ~64 to either side. One shared
+// constant either pins the horizontal gaze to almost nothing or slides the
+// pupil out through her eyelid. Measured off getBBox — re-measure if the art
+// moves.
+const IRIS_LOOK_X = 14;
+const IRIS_LOOK_Y = 6;
 // Pupil width — independent of the eyelid squash below, and on its own axis
 // (X, not Y) so a blink never resets it. Real cats rest with a vertical slit
 // and round out when aroused; a golden mouse on screen is the one thing this
 // game has to be excited about, so it's the trigger. `#irisLeft`/`#irisRight`
 // are the pupils, not the iris — see hex-cat.svg's header comment for why the
 // ids still say "iris" after the coloring flipped.
-const PUPIL_SLIT = 0.22;  // resting
-const PUPIL_ROUND = 1;    // dilated
+//
+// These INVERTED when the art did. The old cat drew a round pupil and squeezed
+// it to 0.22 for the resting slit; the drawn cat has the slit as its rest pose,
+// so rest is 1 and it's the DILATE that scales up. Same mechanic, same trigger,
+// mirrored constants — 3.6 takes the 18-unit slit to ~65 against an 81-unit
+// pupil height, i.e. round, without clearing the 146-unit eye.
+const PUPIL_SLIT = 1;     // resting — as drawn
+const PUPIL_ROUND = 3.6;  // dilated
 
 // ---------------------------------------------------------------------------
 // IDLE ANIMATIONS — one flag each, all independent. These are cat behaviours
@@ -85,7 +99,10 @@ const yawnEnv = p => Math.sin(Math.PI * clamp01(p));
 
 let wasAsleep = null, yawnStart = -1;
 export function updateCat(t) {
-  catEl.classList.toggle("anim.squash", anim.squash > 0.15);
+  // "squash", not "anim.squash" — the token is the CSS class name, and the
+  // stray object prefix meant #catWrap never matched `#catWrap.squash` and the
+  // pet bounce had simply never fired.
+  catEl.classList.toggle("squash", anim.squash > 0.15);
   if (anim.squash > 0) anim.squash = Math.max(0, anim.squash - 0.08);
 
   catEl.classList.toggle("zoomies", zoomBuff() > 1);
@@ -148,15 +165,17 @@ export function updateCat(t) {
     // you're watching. Two out-of-phase sines so it never reads as a clean
     // loop.
     irisScaleY = 0.07 + 0.045 * (0.5 + 0.5 * Math.sin(t / 2600));
-    lookX = 1.6 * Math.sin(t / 3100) + 0.7 * Math.sin(t / 1130);
+    // Amplitudes are fractions of the travel budget rather than raw units, so
+    // the rove keeps its share of the eye if the art is rescaled again.
+    lookX = IRIS_LOOK_X * (0.40 * Math.sin(t / 3100) + 0.18 * Math.sin(t / 1130));
   } else if (blink) {
     irisScaleY = 0.14;
   } else if (goldState.active) {
     const cx = stageEl.clientWidth / 2, cy = stageEl.clientHeight / 2;
     const dx = (goldState.x + 31) - cx, dy = (goldState.y + 31) - cy; // golden mouse's own center, stage-relative
     const mag = Math.hypot(dx, dy) || 1;
-    lookX = (dx / mag) * IRIS_LOOK;
-    lookY = (dy / mag) * IRIS_LOOK;
+    lookX = (dx / mag) * IRIS_LOOK_X;
+    lookY = (dy / mag) * IRIS_LOOK_Y;
   } else if (IDLE.gazeDrift) {
     // Nothing to look at, so she looks at nothing in particular. Without this
     // she stares dead ahead for the ~40-90s between goldens, which is most of
@@ -164,8 +183,8 @@ export function updateCat(t) {
     // sweeping at constant speed, but the product stalls near either factor's
     // zero-crossing, so she drifts, dwells, drifts — closer to looking at
     // things than scanning for them.
-    lookX = IRIS_LOOK * 0.5 * Math.sin(t / 2300) * Math.sin(t / 5700);
-    lookY = IRIS_LOOK * 0.3 * Math.sin(t / 3300) * Math.sin(t / 7100);
+    lookX = IRIS_LOOK_X * 0.5 * Math.sin(t / 2300) * Math.sin(t / 5700);
+    lookY = IRIS_LOOK_Y * 0.5 * Math.sin(t / 3300) * Math.sin(t / 7100);
   }
   // Dilated while awake AND excited: either a golden is actually out there, or
   // Zoomies is running (pets worth more) — the buff a caught golden leaves
@@ -186,11 +205,13 @@ export function updateCat(t) {
   const alert = !asleep && goldState.active;
   let mouthScaleY = 1, mouthScaleX = 1;
   if (yawnP >= 0) {
-    // Ceiling of 2.2 is geometric, not taste: the mouth is a 13-unit lip line
-    // topped at y=147 and scaled from its own top edge, while the head's inner
-    // chin sits at ~182 — so anything past ~2.4 stretches the jaw straight
+    // Ceiling of 2.2 is geometric, not taste: the mouth is a 40-unit lip line
+    // topped at y=560 and scaled from its own top edge, while the head's inner
+    // chin sits at ~669 — so anything past ~2.7 stretches the jaw straight
     // through her face and hangs it outside the silhouette. Measured, not
-    // guessed (mouth.getBBox() vs head.getBBox()); re-measure if the art moves.
+    // guessed (mouth.getBBox() vs headFill.getBBox()); re-measure if the art
+    // moves. The units are 4x the old art's and the headroom came out the
+    // same, so the 2.2 itself is unchanged.
     // X widens too, because a gape is wide — scaling Y alone just draws a
     // longer squiggle, not an open mouth.
     mouthScaleY = 1 + 1.2 * yawnEnv(yawnP);

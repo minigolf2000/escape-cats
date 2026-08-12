@@ -103,9 +103,17 @@
     --pose-fit: 1;
 
     --ui-font: 'Baloo 2', system-ui, sans-serif;
+    /* The daytime page is the hand-painted polka dot from the art file. It is a
+       LAYER LIST, and the order matters: the bloom stays on top of the art, so
+       the same soft convergence at --sun-y that used to sit over the blue
+       stripes now sits over the dots. #rays (the slow conic spiral) is a
+       separate element above both and is untouched by this — the spiral still
+       turns over the new paper exactly as it did over the old.
+       The bloom warmed from blue to white/rose because it is lighting pink now;
+       left cold it read as a grey haze on the art rather than sunlight. */
     --page-bg:
-      radial-gradient(58vh 58vh at 50% 44%, rgba(150,205,255,.34), rgba(90,160,220,.10) 45%, transparent 70%),
-      repeating-linear-gradient(90deg, #2e6699 0 26px, #295c8b 26px 52px);
+      radial-gradient(58vh 58vh at 50% 44%, rgba(255,255,255,.38), rgba(255,222,222,.14) 45%, transparent 70%),
+      url("/hexxygon/art/bg-dots.jpg") center center / cover no-repeat fixed;
     --panel-bg: repeating-linear-gradient(90deg, #24537d 0 26px, #204a70 26px 52px);
     --wood: linear-gradient(#b07c45, #855427 42%, #5e3a1a);
     --wood-line: #3d240f;
@@ -116,8 +124,18 @@
     --icon-bg: rgba(0,0,0,.26);
     --cost-ok: #7fe37f;
     --cost-no: #e2645e;
-    --title-color: #fff;
-    --title-shadow: 0 2px 0 rgba(0,0,0,.5), 0 0 14px rgba(0,0,0,.45);
+    /* Flipped from white-on-dark to the art file's own ink, because the page
+       under this text went from a deep blue to a pale pink: white with a black
+       drop shadow was legible on the stripes and is a smudge on the dots. The
+       shadow becomes a light halo for the same reason — it now has to lift the
+       ink OFF a light ground, not punch it out of a dark one. This is the art
+       file's "Text/outline" swatch, the same one the mice's daytime keyline
+       uses, so the HUD and the mice share one line color by construction. */
+    --title-color: #312B2A;
+    --title-shadow: 0 1px 0 rgba(255,255,255,.55), 0 0 12px rgba(255,255,255,.5);
+    /* The mouse keyline, for the one mouse that is markup rather than art:
+       the price coin (currencyIconSVG), which is on screen in both phases. */
+    --mouse-line: #312B2A;
   }
   body.night {
     --ui-font: 'Baloo 2', system-ui, sans-serif;
@@ -137,6 +155,7 @@
     --cost-no: #6b5535;
     --title-color: var(--gold);
     --title-shadow: 0 0 18px rgba(255,212,77,.4);
+    --mouse-line: #F4F4F2;
   }
   * { box-sizing: border-box; }
   /* RESTORING A NIGHT SAVE MUST NOT REPLAY THE TWIST.
@@ -332,49 +351,68 @@
     width: min(55%, 300px); height: auto; max-height: 84%;
     pointer-events: none;
     /* day: sitting in the sunburst, so a warm white bloom like CC's cookie */
-    filter: drop-shadow(0 3px 10px rgba(0,0,0,.45)) drop-shadow(0 0 30px rgba(200,235,255,.45));
+    /* The drawing already carries its own soft shadow, so this is a much lighter
+       touch than the vector cat needed — and warm rather than cool, because the
+       old cold bloom reads as grey haze once the page behind it is pink. The
+       sunburst is doing the "lit from behind" job the second drop-shadow used to. */
+    filter: drop-shadow(0 4px 9px rgba(120,70,70,.30));
     transition: transform .1s ease-out;
   }
-  #hexCat > * { pointer-events: auto; cursor: pointer; touch-action: manipulation; }
-  #catWrap.squash #hexCat { transform: scale(.93); }
+  /* Only the traced hit path takes taps. The head is five <image> layers now,
+     and an <image> hit-tests its whole RECTANGLE — so handing pointer-events to
+     the children the way the vector cat did would make the empty corners of the
+     box pettable. #catHit carries the silhouette instead. */
+  #hexCat #catHit { pointer-events: auto; cursor: pointer; touch-action: manipulation; }
   #catWrap.zoomies #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
-  #catWrap.zoomies #hexCat .catLine { stroke: #ffd44d; }
-  /* idle-motion pivots: the head tilts about the neck; each ear about its base */
+
+  /* THE HEAD, as drawn. One frame visible at a time, picked by data-pose:
+       day  -> resting daytime coat        s1..s3 -> the pet squash, in order
+       night-> the black night coat
+     Visibility rather than display, because display:none on an <image> can drop
+     it from the decode queue in some engines and the first pet of the game would
+     then flash an empty head while the PNG loads. All five decode at boot and
+     stay decoded; only one is shown. */
+  #hexCat .headFrame { visibility: hidden; }
+  #hexCat[data-pose="day"]   #headDay,
+  #hexCat[data-pose="s1"]    #headSquash1,
+  #hexCat[data-pose="s2"]    #headSquash2,
+  #hexCat[data-pose="s3"]    #headSquash3,
+  #hexCat[data-pose="night"] #headNight { visibility: visible; }
+
+  /* idle-motion pivot: the head tilts about the neck. The ears no longer have
+     pivots of their own — they are painted into the frames above, and the four
+     squash frames already fold them, which is the ear motion the art ships. */
   #catFace { transform-box: fill-box; transform-origin: 50% 96%; }
-  #earLeft { transform-box: fill-box; transform-origin: 52% 90%; }
-  #earRight { transform-box: fill-box; transform-origin: 48% 82%; }
-  /* Zoomies lights up the IRIS (#eyeLeft/#eyeRight), leaving the pupil black.
-     This used to target #irisLeft/#irisRight, which was right back when those
-     were the green iris dots — after the eye coloring flipped (green iris,
-     black pupil) the same rule was recoloring her PUPILS pale yellow, which
-     read as a yellow slit floating in a green eye instead of eyes lighting up. */
-  #catWrap.zoomies #hexCat #eyeLeft, #catWrap.zoomies #hexCat #eyeRight { fill: #ffe98a; }
+  /* THE EYES. Both are hollow rings in the drawing — no pupil — which changes
+     what "look" and "dilate" can mean here: the whole ring moves and the whole
+     ring grows, instead of a dot sliding inside a socket. That reads correctly
+     because a ring eye IS the pupil, visually.
+     Colour comes through a variable so Zoomies can light both rings (and the
+     shut lashes) by flipping one value, rather than naming each shape. */
+  #hexCat { --hex-eye: #D0D060; }
+  #hexCat .eye path { fill: var(--hex-eye); }
+  #catWrap.zoomies #hexCat { --hex-eye: #ffe98a; }
+
+  /* Open ring vs the drawn shut-lash arc. Swapped as a pair, never blended:
+     the artist drew the closed eye as its own gesture (a lash curve with three
+     strokes under it), and cross-fading it with the ring would show two eyes at
+     once through the middle of every transition. */
+  #hexCat .eyeShut { visibility: hidden; }
+  #hexCat.shut .eyeOpen { visibility: hidden; }
+  #hexCat.shut .eyeShut { visibility: visible; }
+
+  /* LIDS. scaleY on the ring, about its own centre. */
   #hexCat #eyeLeft, #hexCat #eyeRight {
     transform-box: fill-box; transform-origin: center; transition: transform .06s;
   }
   #hexCat.blink #eyeLeft, #hexCat.blink #eyeRight { transform: scaleY(.14); }
-  /* Iris transform is JS-owned (updateCat), not class-driven like the lids —
-     it has to combine a look-direction translate with the same blink/asleep
-     squash the lids get, and CSS can't compose an inline transform with a
-     class rule's transform (one wins outright). This is also the fix for a
-     regression from the pre-SVG canvas cat: that version drew one neon
-     ellipse per eye, so squashing it for a blink squashed the whole eye. This
-     SVG cat draws the white socket and the iris as two separate shapes, and
-     only the socket was ever wired to blink/asleep — the iris sat there
-     full-size the entire time, which reads as a stuck-open eye asleep. */
+  /* LOOK. JS-owned (updateCat), not class-driven like the lids — it has to
+     combine a look-direction translate with a dilation scale, and CSS can't
+     compose an inline transform with a class rule's transform (one wins
+     outright). Nested INSIDE the lid group so a blink and a glance multiply
+     instead of overwriting each other. */
   #hexCat #irisLeft, #hexCat #irisRight {
     transform-box: fill-box; transform-origin: center; transition: transform .12s ease-out;
-  }
-  /* whiskers: twitch while asleep, fan forward at prey while awake (JS-driven) */
-  #hexCat #whiskers {
-    transform-box: fill-box; transform-origin: center; transition: transform .18s ease-in-out;
-  }
-  /* Jaw (chatter, yawn). Origin is TOP center, not center: the mouth hangs off
-     the muzzle, so scaling it should drop the jaw downward rather than grow it
-     symmetrically through her chin. No transition — chatter is ~11Hz and JS
-     already eases the yawn, so any smoothing here only fights both. */
-  #hexCat #mouth {
-    transform-box: fill-box; transform-origin: center top;
   }
 
   /* ---- Night phase (post–Catnap Hypnalysis): Hex sleeps, the wall wakes ----
@@ -427,7 +465,12 @@
      and the starfield below. */
   body.dissolving #catPose { transition-delay: 3.3s; }
   body.night #hexCat { filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
-  #hexCat.asleep #eyeLeft, #hexCat.asleep #eyeRight { transform: scaleY(.07); }
+  /* Asleep no longer SQUASHES the eye to a sliver — it swaps in the eye the
+     artist actually drew for sleeping (.shut, the lash arc with three strokes
+     under it). A 0.07 scaleY of the open ring was the best a hollow circle could
+     do at "closed"; there is a real drawing of it now, so use that instead.
+     The REM drift underneath still plays — it just moves lashes rather than
+     pupils. */
 
   /* ---- Sleeping: subdued signs of life ----
      Breath is the only always-on one; it's what separates "asleep" from
@@ -639,6 +682,8 @@
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
     display: none; flex-direction: column;
     background: transparent; backdrop-filter: blur(10px);
+    /* See the day override below — the tray borrows its color from the page,
+       and the page changed. */
     padding-bottom: env(safe-area-inset-bottom);
     /* Lives on the base rule, NOT on .cutscene-hidden, so the cutscene fade runs
        BOTH ways. A transition declared only on the state class exists only while
@@ -704,6 +749,16 @@
      Tapping the SHOP rail collapses/reopens the whole dock (#dock.collapsed).
      It's the ONLY hit target for that — the divider is inert, so a mistap while
      reaching for a row can't shut the shop. */
+  /* The tray is transparent-over-blur, so it takes its color from the PAGE
+     behind it. That page used to be the blue wallpaper, which is what made the
+     shop a blue tray with cream text on it; it is pink polka dot now, and the
+     same cream text landed on pale pink at roughly 2:1. The art file's own note
+     over this area reads "keep this area the same as in the original game", so
+     the tray is handed the wallpaper it used to borrow, explicitly, rather than
+     being restyled to suit the new page. Day only: at night the dock blurs the
+     night sky, which this change does not touch. */
+  body:not(.night) #dock { background: var(--panel-bg); }
+
   .shopHead, .shopDivider {
     flex: none; background: var(--wood), var(--panel-bg);
     border: 0;
@@ -731,6 +786,15 @@
     font: 700 11px var(--ui-font); font-size: calc(10.5px * var(--ss));
     letter-spacing: .14em; text-transform: uppercase; line-height: 1;
     text-shadow: 0 1px 1px rgba(0,0,0,.5);
+  }
+  /* Sized off the cap height of .shopTitle rather than the rail, so the mark and
+     the word read as one lockup at any --ss. Same drop shadow the labels carry as
+     a text-shadow — on a filled glyph that has to be a filter to follow the
+     holes. */
+  .shopHead .shopIcon { display: flex; align-items: center; }
+  .shopHead .shopIcon svg {
+    display: block; width: calc(16px * var(--ss)); height: calc(16px * var(--ss));
+    fill: currentColor; filter: drop-shadow(0 1px 1px rgba(0,0,0,.5));
   }
   .soldTitle { display: none; }
   /* Border-corner caret rather than a glyph — scales with --ss, no font
@@ -1114,30 +1178,60 @@
     <!-- Idle sleep sign. aria-hidden: the night phase is announced elsewhere, and
          three drifting glyphs are decoration, not information a reader needs. -->
     <div id="sleepZ" aria-hidden="true"><span>z</span><span>z</span><span>z</span></div>
-    <svg id="hexCat" role="button" aria-label="Pet Hex" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg id="hexCat" role="button" aria-label="Pet Hex" width="828" height="652" viewBox="0 0 828 652" fill="none" xmlns="http://www.w3.org/2000/svg">
      <g id="catFace">
-      <!-- Head split so the ears can flick independently: a solid black FILL for
-           the whole silhouette (no stroke, so a tilting ear reveals only black
-           behind it), the white OUTLINE of just the lower head + the valley
-           between the ears, and each EAR as its own group (black fill + a white V
-           outline, base unstroked) that pivots at its base. At rest the three
-           compose back into the original head exactly. -->
-      <path id="headFill" d="M26.5 57.5L32.1 44L69.7 44L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L138.2 44L166.5 44L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z" fill="#111114"/>
-      <path id="headOutline" class="catLine" d="M86.5 71.5C93.5 67.5 111 66.5 119.5 71.5M170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-      <g id="earLeft">
-       <path d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5Z" fill="#111114"/>
-       <path class="catLine" d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- HEAD: the artist's drawing, five poses, all exported onto ONE 828x652
+           canvas and registered to each other by eye position.
+           NOTE the href form: "/art/..." here, but "/hexxygon/art/..." in the
+           CSS above. Not a typo — Vite rewrites asset URLs in HTML ATTRIBUTES
+           through `base` and leaves url() in a <style> block alone, so writing
+           the same string in both places gets one of them wrong (an attribute
+           written with the prefix comes out as /hexxygon/hexxygon/art/...). That shared
+           registration is the whole trick — she squashes around her eyes exactly
+           as drawn, so swapping frames needs no per-frame offset table and the
+           eye overlay below never has to chase the head.
+           The eyes are painted OUT of these PNGs (inpainted with the surrounding
+           coat) so the rigged pair below is the only pair on screen; leave them
+           baked in and every blink would show a second, open eye underneath. -->
+      <image class="headFrame" id="headDay" href="/art/hex-day.png"
+             x="0" y="0" width="828" height="652"/>
+      <image class="headFrame" id="headSquash1" href="/art/hex-squash1.png"
+             x="0" y="0" width="828" height="652"/>
+      <image class="headFrame" id="headSquash2" href="/art/hex-squash2.png"
+             x="0" y="0" width="828" height="652"/>
+      <image class="headFrame" id="headSquash3" href="/art/hex-squash3.png"
+             x="0" y="0" width="828" height="652"/>
+      <image class="headFrame" id="headNight" href="/art/hex-night.png"
+             x="0" y="0" width="828" height="652"/>
+      <!-- EYES: the one part kept as markup, because it is the only part that has
+           to move independently every frame — lids, gaze and dilation all live
+           here. Two rings and two shut-lash arcs, traced from the artist's own
+           eyes (open pair off the day cat, shut pair off her sleeping pose) so
+           they carry the same wobble as the coat they sit on.
+           #eyeLeft/#eyeRight are the LIDS (scaleY); #irisLeft/#irisRight inside
+           them are the LOOK (translate + dilation scale). Splitting it that way
+           is what lets a blink and a glance compose instead of overwriting each
+           other — the same division of labour the old vector cat had, so
+           updateCat still drives the same four ids. -->
+      <g id="eyeLeft" class="eye">
+       <g id="irisLeft">
+        <path class="eyeOpen" d="M290.0 569.5 285.0 569.5 284.0 568.5 253.0 568.5 252.0 567.5 249.0 567.5 246.0 565.5 244.0 565.5 240.0 563.5 236.0 563.5 230.0 558.5 228.0 558.5 225.0 556.5 223.0 556.5 220.0 553.5 219.0 553.5 218.5 552.0 217.0 551.5 213.5 548.0 212.5 545.0 207.5 539.0 206.5 535.0 201.5 527.0 201.5 524.0 199.5 521.0 199.5 519.0 198.5 518.0 198.5 514.0 197.5 513.0 199.5 507.0 201.0 505.5 204.0 505.5 206.5 503.0 203.5 499.0 204.5 498.0 204.0 497.5 199.0 497.5 197.5 496.0 197.5 491.0 199.5 487.0 199.5 481.0 203.5 473.0 204.5 466.0 208.5 461.0 213.5 449.0 219.0 443.5 221.0 443.5 224.0 440.5 228.0 439.5 229.0 438.5 231.0 438.5 232.0 437.5 253.0 437.5 254.0 438.5 257.0 438.5 258.0 439.5 265.0 439.5 269.0 441.5 270.0 440.5 273.0 440.5 279.0 437.5 282.0 437.5 286.0 439.5 296.0 440.5 299.0 443.5 301.0 443.5 308.0 449.5 309.0 449.5 312.5 453.0 314.5 457.0 323.5 467.0 326.5 473.0 326.5 477.0 328.5 479.0 330.5 483.0 330.5 487.0 331.5 488.0 331.5 491.0 333.5 495.0 333.5 512.0 332.5 513.0 333.5 515.0 332.5 516.0 332.5 523.0 331.5 524.0 331.5 528.0 330.5 529.0 330.5 531.0 327.5 536.0 327.5 542.0 325.5 546.0 322.5 549.0 320.5 554.0 317.5 557.0 317.0 558.5 303.0 565.5 298.0 565.5ZM293.5 552.0 296.0 551.5 300.0 548.5 301.0 548.5 310.5 539.0 310.5 537.0 313.5 533.0 313.5 530.0 314.5 529.0 314.5 526.0 315.5 525.0 315.5 520.0 316.5 519.0 315.5 517.0 315.5 514.0 316.5 513.0 316.5 498.0 317.5 497.0 316.5 492.0 314.5 489.0 314.5 484.0 310.5 480.0 308.5 476.0 304.5 472.0 303.5 469.0 302.0 467.5 301.0 467.5 300.5 466.0 294.0 460.5 288.0 457.5 285.0 457.5 284.0 456.5 283.0 457.5 269.0 457.5 268.0 456.5 262.0 456.5 260.0 454.5 254.0 454.5 253.0 455.5 248.0 455.5 247.0 454.5 234.0 454.5 223.5 466.0 222.5 469.0 220.5 471.0 220.5 473.0 216.5 481.0 216.5 487.0 214.5 491.0 214.5 495.0 212.0 498.5 208.5 499.0 209.5 503.0 212.5 505.0 213.5 511.0 215.5 514.0 215.5 517.0 218.5 521.0 218.5 524.0 220.5 528.0 223.5 531.0 225.5 535.0 236.0 544.5 240.0 546.5 243.0 546.5 246.0 548.5 254.0 550.5 255.0 551.5 265.0 551.5 266.0 552.5 270.0 552.5 271.0 551.5 274.0 551.5 275.0 552.5 284.0 552.5 285.0 551.5 291.0 551.5 292.0 552.5Z"/>
+        <path class="eyeShut" d="M281.0 519.5 276.0 519.5 271.5 516.0 271.5 510.0 270.5 509.0 270.0 505.5 266.0 505.5 265.0 504.5 261.0 504.5 260.0 503.5 258.5 504.0 258.5 508.0 251.0 515.5 246.0 515.5 244.5 514.0 244.5 513.0 242.5 512.0 242.5 511.0 243.5 510.0 244.5 504.0 247.5 500.0 244.0 496.5 241.0 495.5 236.0 490.5 235.0 490.5 226.5 482.0 226.5 481.0 222.5 477.0 222.5 476.0 220.5 475.0 219.5 473.0 220.5 472.0 220.5 468.0 224.0 464.5 228.0 463.5 233.5 468.0 233.5 470.0 236.5 473.0 237.5 476.0 239.0 477.5 240.0 477.5 245.0 482.5 257.0 488.5 261.0 491.5 263.0 491.5 264.0 492.5 269.0 492.5 270.0 493.5 276.0 493.5 277.0 494.5 278.0 493.5 288.0 493.5 292.0 491.5 295.0 491.5 296.0 490.5 298.0 490.5 302.0 488.5 308.0 487.5 308.5 486.0 319.0 476.5 320.0 476.5 320.5 475.0 325.0 470.5 329.0 469.5 331.0 471.5 332.0 471.5 333.5 473.0 333.5 477.0 332.5 478.0 332.5 480.0 329.5 483.0 329.5 485.0 319.0 494.5 315.0 495.5 310.5 500.0 314.5 508.0 313.5 512.0 311.0 514.5 306.0 514.5 304.0 512.5 303.0 512.5 301.5 511.0 300.5 508.0 297.0 504.5 295.0 505.5 290.0 505.5 289.0 506.5 287.0 505.5 283.5 508.0 283.5 510.0 284.5 511.0 283.5 513.0 283.5 517.0Z"/>
+       </g>
       </g>
-      <g id="earRight">
-       <path d="M119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56Z" fill="#111114"/>
-       <path class="catLine" d="M119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+      <g id="eyeRight" class="eye">
+       <g id="irisRight">
+        <path class="eyeOpen" d="M537.0 543.5 535.0 542.5 534.0 543.5 532.0 543.5 531.0 542.5 525.0 541.5 524.0 540.5 521.0 540.5 520.0 539.5 514.0 539.5 511.0 537.5 506.0 537.5 505.0 536.5 502.0 536.5 501.0 535.5 499.0 535.5 498.0 534.5 496.0 534.5 492.0 532.5 489.0 532.5 485.0 530.5 482.0 527.5 479.0 526.5 474.5 522.0 474.5 521.0 464.5 512.0 464.5 510.0 462.5 507.0 462.5 503.0 460.5 500.0 460.5 491.0 459.5 490.0 460.5 488.0 460.5 481.0 459.5 480.0 459.5 470.0 460.5 469.0 460.5 464.0 462.5 461.0 462.5 458.0 463.5 457.0 463.5 453.0 467.5 445.0 467.5 443.0 469.5 439.0 472.5 436.0 475.5 428.0 479.5 425.0 483.5 418.0 488.0 414.5 492.0 413.5 495.0 410.5 499.0 409.5 504.0 406.5 509.0 406.5 510.0 405.5 519.0 405.5 520.0 406.5 528.0 406.5 529.0 407.5 533.0 407.5 535.0 406.5 536.0 407.5 540.0 408.5 544.0 411.5 548.0 411.5 554.0 414.5 556.0 414.5 557.0 413.5 558.0 414.5 562.0 414.5 566.0 416.5 568.0 418.5 571.0 419.5 582.5 431.0 583.5 434.0 590.5 442.0 592.5 446.0 592.5 448.0 593.5 449.0 594.5 455.0 595.5 456.0 596.5 486.0 595.5 487.0 595.5 493.0 594.5 494.0 594.5 499.0 592.5 503.0 592.5 509.0 591.5 511.0 588.5 514.0 588.5 515.0 585.5 518.0 585.5 519.0 574.0 529.5 570.0 530.5 565.0 534.5 562.0 535.5 560.0 537.5 558.0 537.5 556.0 539.5 549.0 540.5 545.0 542.5 541.0 541.5ZM539.5 526.0 542.0 525.5 545.0 523.5 550.0 522.5 553.0 520.5 555.0 520.5 557.0 518.5 561.0 517.5 563.0 515.5 564.0 515.5 566.0 513.5 567.0 513.5 569.0 511.5 572.0 510.5 573.5 509.0 575.5 500.0 578.5 497.0 578.5 493.0 579.5 492.0 579.5 486.0 578.5 485.0 578.5 480.0 579.5 479.0 579.5 471.0 580.5 470.0 580.5 463.0 579.5 462.0 579.5 459.0 578.5 458.0 578.5 456.0 575.5 452.0 574.5 446.0 563.0 435.5 561.0 434.5 557.0 434.5 549.0 430.5 544.0 429.5 540.0 426.5 534.0 423.5 528.0 423.5 527.0 422.5 523.0 422.5 522.0 423.5 509.0 423.5 501.0 427.5 499.0 427.5 491.5 435.0 491.5 437.0 486.5 442.0 486.5 444.0 484.5 447.0 484.5 449.0 479.5 458.0 479.5 462.0 478.5 463.0 478.5 465.0 476.5 469.0 476.5 482.0 475.5 483.0 475.5 487.0 476.5 488.0 476.5 496.0 483.0 508.5 484.0 508.5 487.0 511.5 494.0 514.5 497.0 517.5 500.0 518.5 502.0 520.5 517.0 520.5 518.0 521.5 520.0 521.5 524.0 523.5 530.0 524.5 533.0 526.5Z"/>
+        <path class="eyeShut" d="M490.0 495.5 487.0 495.5 484.0 492.5 482.5 492.0 483.5 490.0 482.5 486.0 485.5 483.0 485.5 480.0 486.5 478.0 483.0 477.5 482.0 476.5 480.0 476.5 476.0 474.5 472.0 474.5 470.0 472.5 468.0 472.5 464.0 469.5 461.0 468.5 460.5 467.0 457.0 463.5 456.0 463.5 450.5 457.0 450.5 455.0 449.5 454.0 449.5 449.0 451.0 446.5 453.0 446.5 454.0 445.5 458.0 445.5 460.0 446.5 461.5 451.0 466.0 455.5 467.0 455.5 470.0 458.5 480.0 463.5 502.0 463.5 503.0 464.5 510.0 464.5 511.0 463.5 514.0 463.5 515.0 464.5 519.0 462.5 521.0 460.5 524.0 459.5 526.0 457.5 529.0 457.5 533.0 453.5 536.0 452.5 546.5 443.0 546.5 442.0 552.5 435.0 552.5 433.0 554.0 430.5 555.0 430.5 557.0 428.5 561.0 428.5 564.5 431.0 565.5 433.0 565.5 436.0 564.5 437.0 564.5 440.0 562.5 443.0 562.5 445.0 552.0 456.5 549.0 457.5 547.5 459.0 547.5 460.0 543.5 463.0 543.5 464.0 545.0 465.5 546.0 465.5 549.0 468.5 551.0 468.5 555.5 473.0 556.5 477.0 554.0 479.5 553.0 479.5 552.0 481.5 548.0 482.5 543.0 478.5 540.0 478.5 538.0 477.5 534.5 474.0 533.5 470.0 532.0 469.5 526.0 472.5 524.5 474.0 525.5 476.0 525.5 479.0 527.5 483.0 526.5 490.0 525.0 491.5 519.0 492.5 517.0 490.5 516.0 490.5 513.5 487.0 513.5 480.0 512.5 479.0 512.5 477.0 504.0 476.5 503.0 475.5 502.0 476.5 498.5 477.0 499.5 478.0 498.5 480.0 498.5 484.0 495.5 488.0 494.5 492.0Z"/>
+       </g>
       </g>
-      <path id="eyeLeft" d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="#65C256"/>
-      <path id="eyeRight" d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="#65C256"/>
-      <path id="irisLeft" d="M68 128C72.4183 128 76 124.418 76 120C76 115.582 72.4183 112 68 112C63.5817 112 60 115.582 60 120C60 124.418 63.5817 128 68 128Z" fill="#0a0b10"/>
-      <path id="irisRight" d="M135 131C139.418 131 143 127.418 143 123C143 118.582 139.418 115 135 115C130.582 115 127 118.582 127 123C127 127.418 130.582 131 135 131Z" fill="#0a0b10"/>
-      <path id="mouth" d="M87 160C95 158.667 99 154.333 99 147C99 154.333 103 158.667 111 160" stroke="#F4F4F2" stroke-width="2.4" stroke-linecap="round"/>
-      <path id="whiskers" d="M80 143L34 134M80 149H32M80 155L34 164M120 143L166 134M120 149H168M120 155L166 164" stroke="#F4F4F2" stroke-width="2.2" stroke-linecap="round"/>
+      <!-- Hit target, invisible. An <image> hit-tests its whole rectangle, so
+           without this a tap anywhere in the 828x652 box — the empty corners
+           included — would count as a pet, which is the exact bug the old
+           per-shape SVG could not have. Traced from the UNION of all five poses
+           so mid-squash and the wider night keyline are both covered. Last in
+           document order so it sits on top and takes every tap itself. -->
+      <path id="catHit" d="M392.0 646.2 265.2 632.0 221.2 619.1 157.8 579.0 73.7 624.2 70.5 610.6 102.2 588.0 42.7 591.9 20.1 578.3 27.2 558.3 88.6 547.3 51.8 549.2 16.8 532.4 3.2 517.5 9.1 503.9 40.1 491.0 49.8 504.6 37.5 518.1 96.4 509.7 65.3 404.9 77.0 315.7 57.6 306.6 49.8 274.3 88.6 239.3 71.8 217.4 74.4 176.0 133.9 138.4 143.0 94.4 176.0 75.7 199.2 42.0 225.1 34.3 270.4 58.9 323.4 136.5 432.1 124.8 480.6 34.9 508.4 11.0 544.7 3.2 570.5 14.9 616.5 64.7 628.1 122.9 681.8 152.0 698.0 172.1 700.6 204.4 676.0 226.4 701.9 262.6 722.6 329.9 718.7 430.8 751.0 410.1 750.4 390.1 767.2 388.8 800.2 417.9 770.4 438.6 813.8 437.9 827.4 461.9 753.6 482.6 787.9 481.9 782.7 507.8 738.7 500.0 676.0 511.0 771.1 525.9 773.7 538.8 670.2 520.7 605.5 588.0 558.9 616.5Z" fill="transparent"/>
      </g>
     </svg>
    </div></div></div>
@@ -1160,6 +1254,13 @@
        plank; both share a single scroller. -->
   <button type="button" id="shopToggle" class="shopHead"
           aria-expanded="true" aria-controls="shopScroll">
+    <!-- The storefront from the art file, traced to one even-odd path (its ink is
+         the drawing, the holes are the awning scallops and the doorway). Inherits
+         .shopHead's currentColor, exactly like .chev does, so it is the same
+         two-phase color the rail already had rather than a third decision — and
+         the art file's own dark-line/white-line pair falls out for free.
+         Purely decorative: the button is already named by .shopTitle. -->
+    <span class="shopIcon" aria-hidden="true"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M12.31 21.54 2.31 21.38 1.77 20.38 2.08 20.08 2.54 13.31 1.54 13.08 0.23 12.08 -0.08 10.54 0.08 9.77 0.85 8.38 2.77 6.62 3.54 6.15 4.54 6.08 4.08 5.0 4.38 4.38 4.38 3.46 5.23 2.62 8.46 2.31 12.15 2.62 19.08 2.46 19.92 3.31 20.54 6.23 21.38 6.31 23.15 8.08 23.92 10.23 23.92 11.62 22.46 13.23 21.85 13.54 20.54 13.62 20.08 20.54 19.54 21.38 13.69 21.23ZM15.92 6.54 18.62 6.31 18.62 4.0 16.92 4.31 15.23 4.31 14.77 4.0 6.0 4.15 5.77 5.62 5.31 6.08 5.85 6.31 10.0 6.15 14.15 6.62ZM2.69 11.62 3.54 11.54 4.69 10.69 5.77 8.54 5.85 7.85 4.31 7.69 1.92 9.62 1.62 11.15 2.0 11.54ZM9.46 13.0 10.62 12.46 11.46 11.31 11.92 9.92 12.0 8.0 7.85 7.85 7.62 8.08 6.54 11.0 6.54 12.08 7.85 13.08ZM20.69 11.92 21.69 11.85 22.23 11.31 22.38 10.38 22.08 9.31 20.77 7.85 19.23 7.85 18.85 8.08 18.85 8.38 19.15 9.0 19.31 10.54 19.62 11.31 20.31 12.0ZM16.23 12.85 16.77 12.62 17.46 11.77 17.46 8.69 17.08 8.0 14.0 8.15 13.31 11.0 13.46 12.08 14.0 12.77 14.46 12.62ZM8.23 19.92 9.0 19.77 8.85 17.92 9.46 16.08 10.77 14.77 12.46 14.46 14.0 14.62 15.46 15.77 16.38 17.92 16.23 19.0 16.62 19.85 18.46 19.69 19.0 13.15 18.62 12.92 17.38 14.15 16.62 14.46 14.92 14.46 13.54 14.0 12.31 12.92 10.77 14.31 10.0 14.62 8.0 14.77 6.15 14.0 4.77 12.62 4.08 13.15 4.23 13.46 3.77 15.92 3.92 17.0 3.62 19.77ZM14.38 19.77 14.69 19.46 14.69 17.62 14.08 16.54 13.23 16.15 11.38 16.31 10.54 17.46 10.54 19.62 11.85 19.85ZM13.38 18.92 12.54 18.54 12.69 17.62 13.23 17.38 13.92 18.08Z"/></svg></span>
     <span class="shopTitle">Shop</span>
     <!-- The closed sign. Permanently in the DOM, picked by #dock.sold-out, exactly
          like a building row's ??? (.lockedNm): the state swap is a class, so no

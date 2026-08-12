@@ -30,14 +30,16 @@ export const catEl = $("#catWrap");
 export const hexCatEl = $("#hexCat");
 export const catMotionEl = $("#catMotion");
 export const catFaceEl = $("#catFace");
-export const earLeftEl = $("#earLeft");
-export const earRightEl = $("#earRight");
+// #eyeLeft/#eyeRight are the LIDS, #irisLeft/#irisRight inside them are the
+// LOOK — see the eye block in index.html for why the pair is split that way.
+// The old #earLeft/#earRight/#whiskers/#mouth refs are gone with the vector cat:
+// the drawn head carries ears, whiskers and muzzle as painted pixels, so there
+// is nothing left to address individually. cat.js re-expresses what those used
+// to say through the channels the drawing does have.
 export const irisLeftEl = $("#irisLeft");
 export const irisRightEl = $("#irisRight");
 export const eyeLeftEl = $("#eyeLeft");
 export const eyeRightEl = $("#eyeRight");
-export const whiskersEl = $("#whiskers");
-export const mouthEl = $("#mouth");
 
 // Multiplayer shell
 export const gateEl = $("#gate");

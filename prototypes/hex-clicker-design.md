@@ -61,8 +61,9 @@ _Last updated: 2026-08-03._
   every catch into a 7-second all-hands tapping sprint — someone yells, everyone
   hammers their phone, it ends. That sprint is the reason the mechanic exists.
 
-  The **×6 / 7s** ceiling is inherited from the shipped solo build
-  ([`../hex/index.html`](../hex/index.html), `ZOOM_MULT` / `ZOOM_MS`). Four-seat
+  The **×6 / 7s** ceiling is inherited from the single-player build (originally
+  the deleted `hex/index.html`; now `ZOOM_MULT` / `ZOOM_S` in
+  [`packages/shared/src/hex/data.ts`](../packages/shared/src/hex/data.ts)). Four-seat
   coop should feel like solo at its best, not like a different economy — so the
   ceiling is the anchor and the ramp below it is what coop adds. Retune together.
 

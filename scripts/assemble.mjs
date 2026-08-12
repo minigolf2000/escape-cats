@@ -34,7 +34,11 @@ const SURFACES = [
   // Chat must live on THIS origin, not behind a vanity domain: it reads the
   // same localStorage pid the lobby wrote, and localStorage is per-origin.
   ["apps/chat/dist", "chat", "Per-team chat"],
-  ["hex", "solo-hex", "Frozen hex prototype + QR Studio"],
+  // The two standalone tools. Each is one self-contained file with no relative
+  // references, so landing it as <name>/index.html puts it at its own pretty
+  // URL with no rewrite involved -- the path IS the file.
+  ["tools/qr-studio.html", "qr-studio", "QR Art Studio"],
+  ["tools/reveal-lab.html", "reveal-lab", "Night reveal wall lab"],
   // Its own surface so g00.mba/ar has somewhere short to land. The file also
   // ships inside prototypes/ below; duplication is the same deal Goomba Rider
   // already has, and is cheaper than a rewrite that would have to dodge the

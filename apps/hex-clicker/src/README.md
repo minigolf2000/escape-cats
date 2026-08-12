@@ -1,6 +1,7 @@
 # hex-clicker client — module map
 
-The prototype (`hex/index.html`, now frozen) was one 5,400-line file. It is
+The prototype (`hex/index.html`, since deleted — git history only) was one
+5,400-line file. It is
 split here so a change lands in one small file. Rendering is plain JS ported
 verbatim where possible; the typed seams are TS.
 

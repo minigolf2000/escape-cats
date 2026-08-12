@@ -1,4 +1,5 @@
-// Pure rules of Hex Clicker, ported from the prototype (hex/index.html).
+// Pure rules of Hex Clicker, ported from the prototype (the deleted
+// hex/index.html; git history only).
 // Everything here is a pure function of game-shaped state, so the PartyKit
 // server, the client's rendering, the ?debug mode, and any future pacing
 // simulator all price the same rules instead of copies that drift.

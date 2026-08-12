@@ -114,16 +114,49 @@
     --page-bg:
       radial-gradient(58vh 58vh at 50% 44%, rgba(255,255,255,.38), rgba(255,222,222,.14) 45%, transparent 70%),
       url("/hexxygon/art/bg-dots.jpg") center center / cover no-repeat fixed;
-    --panel-bg: repeating-linear-gradient(90deg, #24537d 0 26px, #204a70 26px 52px);
-    --wood: linear-gradient(#b07c45, #855427 42%, #5e3a1a);
-    --wood-line: #3d240f;
-    --ink: #f6f1e6;
-    --muted: #cbbda4;
-    --dim: #a1917a;
-    --line: rgba(0,0,0,.34);
-    --icon-bg: rgba(0,0,0,.26);
-    --cost-ok: #7fe37f;
-    --cost-no: #e2645e;
+    /* THE SHOP REGION, per the art file. Both the rail and the list area are
+       drawn there as plain #FFFFFF at 30% over the page — a wash that lets the
+       polka dot read through, not a surface of its own. The note the artist
+       parked in that area ("keep this area the same as in the original game")
+       sits INSIDE that white rectangle: it is about the shop's contents and
+       layout staying put, not about keeping the old blue wallpaper. Read the
+       other way round first, which is how the tray ended up as the last thing on
+       screen still wearing the pre-drop background.
+       The wood plank goes with it — a 30% wash cannot sit under an opaque timber
+       gradient and still be a wash. Set --wood back to the gradient to get the
+       plank returned; nothing else depends on it. */
+    --panel-bg: rgba(255,255,255,.30);
+    --wood: none;
+    --wood-line: rgba(49,43,42,.16);
+    /* Everything the tray prints, re-pitched for a light ground. These were a
+       cream-on-dark set; on a white wash over pink they were the same smudge the
+       HUD was before it flipped. --ink is the art file's own "Text/outline". */
+    --ink: #312B2A;
+    --muted: #6E5A57;
+    --dim: #93807C;
+    --line: rgba(49,43,42,.16);
+    --icon-bg: rgba(255,255,255,.52);
+    /* Darkened to carry on a light row — the old pair were tuned to glow on the
+       blue and both washed out here, red worst. Still the same two readings. */
+    --cost-ok: #1C7F45;
+    --cost-no: #BE3B2E;
+    /* The two treatments that assumed a dark tray and so cannot be tokens the
+       rows already had: the press flash (a light lift on dark, a dark press on
+       light) and the text shadow under row names (a drop shadow only reads when
+       the type is light on dark). --glyph-shadow is the same idea for the shop
+       icon, where it has to be a filter rather than a text-shadow. */
+    --row-press: rgba(49,43,42,.07);
+    --row-shadow: none;
+    --glyph-shadow: none;
+    /* The shop's "this is the number that matters" highlight. NOT --gold itself:
+       that hex is the golden mouse, the night titles and the yellow mouse, and it
+       has to stay put. This is only the shop's reading of it, deepened to a
+       bronze so it still carries on a white wash — #ffd44d on pale pink is a
+       highlighter with nothing under it. The crux glow goes dark for the same
+       reason: a yellow bloom is invisible on a light ground, so the emphasis has
+       to come from the color and the weight instead. */
+    --shop-accent: #96690F;
+    --crux-shadow: none;
     /* Flipped from white-on-dark to the art file's own ink, because the page
        under this text went from a deep blue to a pale pink: white with a black
        drop shadow was legible on the stripes and is a smudge on the dots. The
@@ -153,6 +186,11 @@
     --icon-bg: #171a21;
     --cost-ok: var(--gold);
     --cost-no: #6b5535;
+    --row-press: rgba(255,255,255,.11);
+    --row-shadow: 0 1px 1px rgba(0,0,0,.45);
+    --glyph-shadow: drop-shadow(0 1px 1px rgba(0,0,0,.5));
+    --shop-accent: var(--gold);
+    --crux-shadow: 0 1px 1px rgba(0,0,0,.45), 0 0 9px rgba(255,212,77,.55);
     --title-color: var(--gold);
     --title-shadow: 0 0 18px rgba(255,212,77,.4);
     --mouse-line: #F4F4F2;
@@ -750,13 +788,10 @@
      It's the ONLY hit target for that — the divider is inert, so a mistap while
      reaching for a row can't shut the shop. */
   /* The tray is transparent-over-blur, so it takes its color from the PAGE
-     behind it. That page used to be the blue wallpaper, which is what made the
-     shop a blue tray with cream text on it; it is pink polka dot now, and the
-     same cream text landed on pale pink at roughly 2:1. The art file's own note
-     over this area reads "keep this area the same as in the original game", so
-     the tray is handed the wallpaper it used to borrow, explicitly, rather than
-     being restyled to suit the new page. Day only: at night the dock blurs the
-     night sky, which this change does not touch. */
+     behind it — which is the polka dot now, exactly as intended. What it also
+     needs is the art file's wash over that: 30% white, which lifts the row type
+     off the dots without hiding them. Day only; at night the dock blurs the
+     night sky untouched. */
   body:not(.night) #dock { background: var(--panel-bg); }
 
   .shopHead, .shopDivider {
@@ -785,7 +820,7 @@
   .shopTitle, .soldTitle {
     font: 700 11px var(--ui-font); font-size: calc(10.5px * var(--ss));
     letter-spacing: .14em; text-transform: uppercase; line-height: 1;
-    text-shadow: 0 1px 1px rgba(0,0,0,.5);
+    text-shadow: var(--row-shadow);
   }
   /* Sized off the cap height of .shopTitle rather than the rail, so the mark and
      the word read as one lockup at any --ss. Same drop shadow the labels carry as
@@ -794,7 +829,7 @@
   .shopHead .shopIcon { display: flex; align-items: center; }
   .shopHead .shopIcon svg {
     display: block; width: calc(16px * var(--ss)); height: calc(16px * var(--ss));
-    fill: currentColor; filter: drop-shadow(0 1px 1px rgba(0,0,0,.5));
+    fill: currentColor; filter: var(--glyph-shadow);
   }
   .soldTitle { display: none; }
   /* Border-corner caret rather than a glyph — scales with --ss, no font
@@ -965,7 +1000,7 @@
      tray; .can:active keeps a background because that's tap feedback, not
      the row's resting look. */
   .item.can { cursor: pointer; opacity: 1; }
-  .item.can:active { background: rgba(255,255,255,.11); }
+  .item.can:active { background: var(--row-press); }
   .item .icon {
     /* Fixed WIDTH for every row, full row HEIGHT. Rows still vary in height
        (upgrade effect text wraps, and the one building blurb adds a line), so a
@@ -996,7 +1031,7 @@
   .item .titleRow { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .item .nm {
     font: 700 13.5px var(--ui-font); font-size: calc(13.5px * var(--ss)); line-height: 1.12;
-    color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.45);
+    color: var(--ink); text-shadow: var(--row-shadow);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
   }
   /* The wall rows that CHANGE something rather than giving more of it — see CRUX_KEYS.
@@ -1006,8 +1041,8 @@
      that is mashing, not reading. Only the fill and shadow change, so it cannot shift
      the row's metrics or reflow the rail. */
   #upgrades .item.crux .nm {
-    color: var(--gold);
-    text-shadow: 0 1px 1px rgba(0,0,0,.45), 0 0 9px rgba(255,212,77,.55);
+    color: var(--shop-accent);
+    text-shadow: var(--crux-shadow);
   }
   .item .rate {
     flex: none; display: inline-flex; align-items: center; gap: 3px;
@@ -1019,7 +1054,7 @@
   .item .rate .coin { flex: none; width: calc(10px * var(--ss)); height: auto; display: block; }
   /* Every upgrade row, and the one building row with a blurb. */
   .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px; }
-  .item .fx b { color: var(--gold); font-weight: 700; }
+  .item .fx b { color: var(--shop-accent); font-weight: 700; }
   /* The blurb is a pre-purchase tease: own one and the row drops to the standard
      name + rate + price. Upgrade rows never get .bought, so their effect text
      stays for as long as the row exists. */
@@ -1043,7 +1078,7 @@
      at a glance like CC's big count rather than as a label beside a label. */
   .item .own {
     flex: none; min-width: calc(26px * var(--ss)); text-align: right;
-    font: 800 26px var(--ui-font); font-size: calc(20px * var(--ss)); line-height: 1; color: var(--dim); text-shadow: 0 1px 1px rgba(0,0,0,.45);
+    font: 800 26px var(--ui-font); font-size: calc(20px * var(--ss)); line-height: 1; color: var(--dim); text-shadow: var(--row-shadow);
     font-variant-numeric: tabular-nums;
   }
   .item.can .own { color: var(--ink); }

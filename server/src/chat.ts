@@ -31,7 +31,7 @@ export class ChatServer extends Server<Env> {
   // for a channel nobody is typing in.
   static options = { hibernate: true };
 
-  private roster = new Roster();
+  private roster = new Roster(() => this.getConnections());
   /** The room's history, oldest first, capped at CHAT_HISTORY. */
   private history: ChatMessage[] = [];
   private nextId = 1;
@@ -56,7 +56,7 @@ export class ChatServer extends Server<Env> {
     const hello: ChatServerMsg = {
       type: "chat",
       messages: this.history,
-      players: this.roster.list(this.getConnections()),
+      players: this.roster.list(),
     };
     conn.send(JSON.stringify(hello));
     this.broadcastPresence();
@@ -145,7 +145,7 @@ export class ChatServer extends Server<Env> {
   private broadcastPresence() {
     const msg: ChatServerMsg = {
       type: "presence",
-      players: this.roster.list(this.getConnections()),
+      players: this.roster.list(),
     };
     this.broadcast(JSON.stringify(msg));
   }

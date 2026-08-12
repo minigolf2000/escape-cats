@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
+import { closeWhileHidden } from "./closeWhileHidden";
 import {
   TEAMS,
   type LobbyClientMsg,
@@ -42,15 +43,10 @@ export function Lobby() {
     socket.addEventListener("open", onOpen);
     socket.addEventListener("close", onClose);
     socket.addEventListener("message", onMessage);
-    // Same policy as the team tiles: a hidden tab lets go of the lobby, a
-    // visible one takes it back. The close handler already dims the dot.
-    const onVisibility = () => {
-      if (document.hidden) socket.close();
-      else socket.reconnect();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
+    // The close handler already dims the dot while the tab is hidden.
+    const unbindVisibility = closeWhileHidden(socket);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
+      unbindVisibility();
       socket.removeEventListener("open", onOpen);
       socket.removeEventListener("close", onClose);
       socket.removeEventListener("message", onMessage);

@@ -29,7 +29,7 @@ export class LobbyServer extends Server<Env> {
   // persisted; connected-ness is derived from the live sockets on demand.
   static options = { hibernate: true };
 
-  private roster = new Roster();
+  private roster = new Roster(() => this.getConnections());
   /** pid -> team id. Persisted. */
   private teams = new Map<string, string>();
   /** pid -> display name, kept for players who are currently offline. */
@@ -161,7 +161,7 @@ export class LobbyServer extends Server<Env> {
   private connectedPids(): Set<string> {
     return new Set(
       this.roster
-        .list(this.getConnections())
+        .list()
         .filter((p) => p.connected)
         .map((p) => p.id),
     );

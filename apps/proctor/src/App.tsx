@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
 import QRCode from "react-qr-code";
+import { closeWhileHidden } from "./closeWhileHidden";
 import { Lobby } from "./Lobby";
 import {
   TEAMS,
@@ -157,18 +158,9 @@ function useGameSocket<M>(
       const p = toProgressRef.current(JSON.parse(e.data));
       if (p) setProgress(p);
     });
-    // A hidden tab drops its sockets. partysocket reconnects forever, so a
-    // proctor tab forgotten in the background would otherwise hold one socket
-    // per team all night — and every server broadcasts each connect/close to
-    // the room, work done on nobody's behalf. On return, reconnect: onConnect
-    // sends a fresh snapshot, so the tile repaints itself.
-    const onVisibility = () => {
-      if (document.hidden) socket.close();
-      else socket.reconnect();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
+    const unbindVisibility = closeWhileHidden(socket);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
+      unbindVisibility();
       socket.close();
     };
   }, [room, party]);

@@ -1,0 +1,76 @@
+<!--
+  Hex — the drawn sticker, eyes only.
+
+  The silhouette, ears, brow ticks and whiskers are the original drawing,
+  untouched. The only change from the sketch is the eyes: the hollow yellow
+  rings are replaced with a filled chartreuse lemon and a vertical slit pupil
+  (see hex-cat-likeness.svg for the before/after and the reasoning).
+
+  Eye placement is unchanged from the sketch — the new shapes are centred
+  exactly where the rings were, so the composition doesn't move.
+  Raising the eyes to the head's midline and spreading them a further
+  half-eye-width apart is a separate pass, deliberately not done here.
+
+  Ids match hex-cat.svg so this can be wired into hex-clicker without
+  touching the blink/gaze hooks in apps/hex-clicker/src/cat.js:
+    #head, #eyeLeft, #eyeRight, #irisLeft, #irisRight
+  Note the ids say "iris" but #irisLeft/#irisRight are the PUPILS — see
+  hex-cat.svg's header for why they weren't renamed when the colouring
+  flipped. Transparent background, as with hex-cat.svg.
+-->
+<svg id="hexCatSticker" width="800" height="780" viewBox="0 0 800 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="stickerIrisL" gradientUnits="userSpaceOnUse" cx="255" cy="505" r="95">
+    <stop offset="0" stop-color="#D6C752"/>
+    <stop offset="0.40" stop-color="#B0C44C"/>
+    <stop offset="1" stop-color="#7B9937"/>
+  </radialGradient>
+  <radialGradient id="stickerIrisR" gradientUnits="userSpaceOnUse" cx="492" cy="502" r="95">
+    <stop offset="0" stop-color="#D6C752"/>
+    <stop offset="0.40" stop-color="#B0C44C"/>
+    <stop offset="1" stop-color="#7B9937"/>
+  </radialGradient>
+  <filter id="stickerWobble" x="-8%" y="-8%" width="116%" height="116%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</defs>
+
+<g filter="url(#stickerWobble)">
+  <path id="head"
+        d="M 180 260 L 212 88 C 216 78, 228 78, 236 88 L 330 178
+           C 360 168, 440 165, 470 175 L 556 82 C 566 72, 578 74, 582 86 L 604 258
+           C 690 320, 720 420, 700 500 C 680 590, 600 650, 470 668
+           C 400 678, 330 676, 270 662 C 150 634, 78 560, 82 470
+           C 86 380, 120 300, 180 260 Z"
+        fill="#111114" stroke="#F4F4F2" stroke-width="11" stroke-linejoin="round"/>
+  <path id="earLeft" d="M 218 110 L 236 112 L 250 180 C 236 186, 222 172, 218 110 Z" fill="#9C6B66"/>
+  <path id="earRight" d="M 552 105 L 570 108 L 578 180 C 564 186, 550 170, 552 105 Z" fill="#9C6B66"/>
+
+  <!-- Eyes: solid field, not a ring. ~1.5:1 lemon, ~7 degree lid slant with the
+       outer corner lifted, gold at the pupil grading to green at the rim.
+       Centred where the rings were and scaled to hold the same weight in the
+       face — matched on area, not width, or the lemon reads squinty. -->
+  <path id="eyeLeft"
+        d="M 182 494 C 196 468, 229 455, 261 458 C 296 462, 320 487, 328 514
+           C 315 542, 280 555, 246 552 C 212 548, 188 523, 182 494 Z"
+        fill="url(#stickerIrisL)"/>
+  <path id="eyeRight"
+        d="M 565 491 C 551 465, 518 452, 486 455 C 451 459, 427 484, 419 511
+           C 432 539, 467 552, 501 549 C 535 545, 559 520, 565 491 Z"
+        fill="url(#stickerIrisR)"/>
+  <path id="irisLeft" d="M 255 464 C 267 482, 267 527, 255 545 C 243 527, 243 482, 255 464 Z" fill="#0A0B10"/>
+  <path id="irisRight" d="M 492 461 C 504 479, 504 524, 492 542 C 480 524, 480 479, 492 461 Z" fill="#0A0B10"/>
+
+  <g id="whiskers" stroke="#F4F4F2" stroke-width="7" stroke-linecap="round" fill="none">
+    <path d="M 258 398 L 268 372"/>
+    <path d="M 276 402 L 288 378"/>
+    <path d="M 452 392 L 442 368"/>
+    <path d="M 470 396 L 458 374"/>
+    <path d="M 175 528 C 120 520, 60 512, 30 508"/>
+    <path d="M 172 545 C 115 548, 55 556, 28 566"/>
+    <path d="M 570 505 C 630 495, 690 490, 726 490"/>
+    <path d="M 572 522 C 634 526, 694 534, 730 542"/>
+  </g>
+</g>
+</svg>

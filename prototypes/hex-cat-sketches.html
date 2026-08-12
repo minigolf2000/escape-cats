@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Hex Sticker Sketches</title>
+  <style>
+    /* Committed single-theme (the game's world is dark); every ground painted explicitly. */
+    :root {
+      --bg: #0b0c10;
+      --panel: #14161d;
+      --stage: #0a0b10;
+      --ink: #e8eaf0;
+      --muted: #8a90a2;
+      --neon: #57e6c9;
+      --line: #262a36;
+      --cork: #b5814f;
+      --cork-2: #a97347;
+      /* art palette */
+      --cat-black: #111114;
+      --keyline: #F4F4F2;
+      --green-now: #65C256;
+      --green-sticker: #4CA352;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background:
+        radial-gradient(90vw 60vh at 50% -10%, rgba(87,230,201,0.10), transparent 60%),
+        var(--bg);
+      color: var(--ink);
+      font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100dvh;
+      padding: max(28px, env(safe-area-inset-top)) 20px 56px;
+    }
+    .wrap { max-width: 1020px; margin: 0 auto; }
+    header { margin-bottom: 26px; }
+    h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; }
+    h1 .glow { color: var(--neon); text-shadow: 0 0 18px rgba(87,230,201,0.45); }
+    .sub { color: var(--muted); font-size: 14px; margin: 0; max-width: 62ch; line-height: 1.5; }
+    h2 {
+      font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin: 34px 0 12px; font-weight: 600;
+    }
+    .row { display: grid; gap: 14px; }
+    .row.two   { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .row.three { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .card {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+      padding: 14px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .card .name { font-size: 15px; font-weight: 600; margin: 0; }
+    .card .name em { color: var(--neon); font-style: normal; }
+    .card .desc { font-size: 12.5px; color: var(--muted); margin: 0; line-height: 1.5; }
+    .fig {
+      border-radius: 12px; display: grid; place-items: center; padding: 14px;
+      background: radial-gradient(120% 90% at 50% 0%, #10131b, var(--stage) 70%);
+      border: 1px solid #1c2029;
+    }
+    .fig.cork {
+      background: linear-gradient(160deg, var(--cork), var(--cork-2));
+      border-color: #8f5f39;
+    }
+    .fig svg { display: block; width: min(200px, 100%); height: auto; }
+    .strip { display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-around; align-items: end; }
+    .strip figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .strip figcaption { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .strip svg { display: block; }
+    .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+    .sw { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+    .sw i { width: 22px; height: 22px; border-radius: 7px; border: 1px solid var(--line); display: inline-block; }
+    ul.notes { margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); line-height: 1.65; }
+    ul.notes li { margin: 4px 0; }
+    ul.notes b { color: var(--ink); font-weight: 600; }
+    code { color: var(--ink); background: #0f1117; padding: 1px 5px; border-radius: 5px; font-size: 0.92em; }
+    footer { margin-top: 34px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Hex — <span class="glow">Sticker</span> Sketches</h1>
+      <p class="sub">Redesign studies for the Hex Clicker cat, working from the holographic
+        sticker reference: white almond eyes with green pupils (today's colors, flipped),
+        a nose-and-mouth mark, curved whiskers, taller ears. Sketch pass only — rigging
+        and animation come next.</p>
+    </header>
+
+    <h2>Reference</h2>
+    <div class="row two">
+      <div class="card">
+        <p class="name">Sticker study <em>· vector redraw</em></p>
+        <div class="fig cork">
+          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Vector redraw of the sticker">
+            <defs>
+              <clipPath id="stEyeL"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="stEyeR"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+              <clipPath id="stHead"><path d="M35 11 C44 22 62 42 78 56 C85 61 90 63 96 62 C102 62 110 59 118 54 C130 41 148 24 159 14 C166 32 171 55 174 78 C178 96 182 112 183 130 C186 172 152 204 100 204 C48 204 14 172 17 128 C17.5 110 21 92 26 76 C29 55 32 30 35 11 Z"/></clipPath>
+            </defs>
+            <path d="M35 11 C44 22 62 42 78 56 C85 61 90 63 96 62 C102 62 110 59 118 54 C130 41 148 24 159 14 C166 32 171 55 174 78 C178 96 182 112 183 130 C186 172 152 204 100 204 C48 204 14 172 17 128 C17.5 110 21 92 26 76 C29 55 32 30 35 11 Z"
+                  fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+            <!-- holo glitter, heavier on the left half like the print -->
+            <g clip-path="url(#stHead)" opacity="0.55">
+              <circle cx="38" cy="34" r="1.2" fill="#ff9db8"/><circle cx="52" cy="52" r="1"   fill="#9be8d8"/>
+              <circle cx="33" cy="66" r="0.9" fill="#ffd9a0"/><circle cx="47" cy="88" r="1.3" fill="#cfd6ff"/>
+              <circle cx="30" cy="108" r="1"  fill="#9be8d8"/><circle cx="58" cy="104" r="0.8" fill="#ffffff"/>
+              <circle cx="40" cy="150" r="1.2" fill="#ff9db8"/><circle cx="30" cy="168" r="0.9" fill="#cfd6ff"/>
+              <circle cx="56" cy="178" r="1.1" fill="#ffd9a0"/><circle cx="74" cy="190" r="0.9" fill="#9be8d8"/>
+              <circle cx="66" cy="72" r="0.9"  fill="#ffffff"/><circle cx="84" cy="96" r="0.8" fill="#ff9db8"/>
+              <circle cx="72" cy="160" r="0.8" fill="#ffffff"/><circle cx="92" cy="178" r="1"  fill="#cfd6ff"/>
+              <circle cx="120" cy="192" r="0.8" fill="#9be8d8"/><circle cx="146" cy="60" r="0.9" fill="#cfd6ff"/>
+              <circle cx="166" cy="112" r="0.8" fill="#ffffff"/><circle cx="152" cy="176" r="0.9" fill="#ff9db8"/>
+            </g>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <circle cx="74" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#stEyeL)"/>
+            <circle cx="126" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#stEyeR)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170"
+                  fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170"
+                  fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="desc">Traced proportions from the photo: tall splayed ears (left a touch
+          higher — kept, it's charming), cheeks widest at eye level, big tilted almond eyes,
+          downcast pupils, features sitting low on the face.</p>
+      </div>
+      <div class="card">
+        <p class="name">Current in-game Hex</p>
+        <div class="fig">
+          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Current in-game cat">
+            <path d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z"
+                  fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="var(--green-now)"/>
+            <path d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="var(--green-now)"/>
+            <circle cx="68" cy="120" r="8" fill="#0a0b10"/>
+            <circle cx="135" cy="123" r="8" fill="#0a0b10"/>
+            <path d="M87 160C95 158.667 99 154.333 99 147C99 154.333 103 158.667 111 160" fill="none" stroke="var(--keyline)" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M80 143L34 134M80 149H32M80 155L34 164M120 143L166 134M120 149H168M120 155L166 164" stroke="var(--keyline)" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="desc">As shipped in <code>hex-cat.svg</code>, the game, the frozen solo build
+          and the reveal lab: green almond eyes, black pupils, w-mouth, six straight whiskers.
+          The sticker flips the eye colors and softens everything else.</p>
+      </div>
+    </div>
+
+    <h2>Candidates</h2>
+    <div class="row three">
+      <div class="card">
+        <p class="name">A <em>· Faithful</em></p>
+        <div class="fig">
+          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Candidate A, faithful to sticker">
+            <defs>
+              <clipPath id="aEyeL"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="aEyeR"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+            </defs>
+            <path d="M35 11 C44 22 62 42 78 56 C85 61 90 63 96 62 C102 62 110 59 118 54 C130 41 148 24 159 14 C166 32 171 55 174 78 C178 96 182 112 183 130 C186 172 152 204 100 204 C48 204 14 172 17 128 C17.5 110 21 92 26 76 C29 55 32 30 35 11 Z"
+                  fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <circle cx="74" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#aEyeL)"/>
+            <circle cx="126" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#aEyeR)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170"
+                  fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170"
+                  fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="desc">The study dropped straight into the game's 200×210 frame. Downcast
+          pupils exactly as printed — sweet, a little aloof.</p>
+      </div>
+      <div class="card">
+        <p class="name">B <em>· Hybrid</em></p>
+        <div class="fig">
+          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Candidate B, sticker face on current silhouette">
+            <defs>
+              <clipPath id="bEyeL"><path d="M46 116 C53 100 80 104 90 124 C80 138 55 134 46 116 Z"/></clipPath>
+              <clipPath id="bEyeR"><path d="M157 118 C150 102 123 106 113 126 C123 140 148 136 157 118 Z"/></clipPath>
+            </defs>
+            <path d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z"
+                  fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M46 116 C53 100 80 104 90 124 C80 138 55 134 46 116 Z" fill="var(--keyline)"/>
+            <path d="M157 118 C150 102 123 106 113 126 C123 140 148 136 157 118 Z" fill="var(--keyline)"/>
+            <circle cx="75" cy="128" r="10.5" fill="var(--green-sticker)" clip-path="url(#bEyeL)"/>
+            <circle cx="127" cy="130" r="10.5" fill="var(--green-sticker)" clip-path="url(#bEyeR)"/>
+            <path d="M92 147 L106 147 L99 156 Z" fill="var(--keyline)"/>
+            <path d="M99 156 C99 162 95 165 88 164 M99 156 C99 162 103 165 110 164"
+                  fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M78 143 Q62 140 45 136 M80 154 Q64 156 48 162 M120 143 Q137 140 154 136 M118 154 Q135 156 151 162"
+                  fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="desc">Sticker face on the <b>existing</b> head silhouette. Every animation
+          anchor (ear pivots, eye centers, mouth box) stays where the rig already expects it —
+          the cheapest ship.</p>
+      </div>
+      <div class="card">
+        <p class="name">C <em>· Faithful, forward gaze</em></p>
+        <div class="fig">
+          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" aria-label="Candidate C, faithful with forward gaze">
+            <defs>
+              <clipPath id="cEyeL"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="cEyeR"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+            </defs>
+            <path d="M35 11 C44 22 62 42 78 56 C85 61 90 63 96 62 C102 62 110 59 118 54 C130 41 148 24 159 14 C166 32 171 55 174 78 C178 96 182 112 183 130 C186 172 152 204 100 204 C48 204 14 172 17 128 C17.5 110 21 92 26 76 C29 55 32 30 35 11 Z"
+                  fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <circle cx="65" cy="131" r="11.5" fill="var(--green-sticker)" clip-path="url(#cEyeL)"/>
+            <circle cx="135" cy="131" r="11.5" fill="var(--green-sticker)" clip-path="url(#cEyeR)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170"
+                  fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170"
+                  fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="desc">Same geometry as A with pupils at the rig's rest pose. In-game the
+          pupils are live (gaze drift, golden-mouse tracking) — A's downcast look is just
+          this cat glancing at her nose.</p>
+      </div>
+    </div>
+
+    <h2>Does it survive the rig? · candidate C</h2>
+    <div class="card">
+      <div class="strip">
+        <figure>
+          <svg width="120" viewBox="20 90 160 90" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <clipPath id="s1L"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="s1R"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+            </defs>
+            <rect x="20" y="90" width="160" height="90" fill="var(--cat-black)"/>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <circle cx="74" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#s1L)"/>
+            <circle cx="126" cy="140" r="11.5" fill="var(--green-sticker)" clip-path="url(#s1R)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+          </svg>
+          <figcaption>rest · sticker pose</figcaption>
+        </figure>
+        <figure>
+          <svg width="120" viewBox="20 90 160 90" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <clipPath id="s2L"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="s2R"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+            </defs>
+            <rect x="20" y="90" width="160" height="90" fill="var(--cat-black)"/>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <circle cx="65" cy="129" r="13" fill="var(--green-sticker)" clip-path="url(#s2L)"/>
+            <circle cx="135" cy="129" r="13" fill="var(--green-sticker)" clip-path="url(#s2R)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+          </svg>
+          <figcaption>alert · dilated</figcaption>
+        </figure>
+        <figure>
+          <svg width="120" viewBox="20 90 160 90" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <clipPath id="s3L"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+              <clipPath id="s3R"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+            </defs>
+            <rect x="20" y="90" width="160" height="90" fill="var(--cat-black)"/>
+            <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+            <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            <ellipse cx="65" cy="129" rx="3.4" ry="12" fill="var(--green-sticker)" clip-path="url(#s3L)"/>
+            <ellipse cx="135" cy="129" rx="3.4" ry="12" fill="var(--green-sticker)" clip-path="url(#s3R)"/>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+          </svg>
+          <figcaption>day rest · slit option</figcaption>
+        </figure>
+        <figure>
+          <svg width="120" viewBox="20 90 160 90" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="90" width="160" height="90" fill="var(--cat-black)"/>
+            <g transform="translate(0 128.5) scale(1 0.1) translate(0 -128.5)">
+              <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+              <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+            </g>
+            <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+            <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+          </svg>
+          <figcaption>blink / asleep</figcaption>
+        </figure>
+      </div>
+      <p class="desc">Same verbs <code>cat.js</code> already speaks: eyes <code>scaleY</code> to
+        blink and sleep, pupils translate for gaze and scale X for slit→dilate. The one new
+        trick: each pupil is a full circle <b>clipped to its eye</b>, so gaze can push it
+        against the lid (that's what makes the sticker's downcast look) instead of being
+        clamped 4 units from center.</p>
+    </div>
+
+    <h2>Legibility &amp; palette</h2>
+    <div class="row two">
+      <div class="card">
+        <p class="name">At game sizes</p>
+        <div class="fig" style="padding: 18px 10px;">
+          <div class="strip" style="align-items: end; gap: 18px;">
+            <figure>
+              <svg width="128" viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <clipPath id="zEyeL1"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+                  <clipPath id="zEyeR1"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+                </defs>
+                <path d="M35 11 C44 22 62 42 78 56 C85 61 90 63 96 62 C102 62 110 59 118 54 C130 41 148 24 159 14 C166 32 171 55 174 78 C178 96 182 112 183 130 C186 172 152 204 100 204 C48 204 14 172 17 128 C17.5 110 21 92 26 76 C29 55 32 30 35 11 Z" fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+                <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+                <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+                <circle cx="65" cy="131" r="11.5" fill="var(--green-sticker)" clip-path="url(#zEyeL1)"/>
+                <circle cx="135" cy="131" r="11.5" fill="var(--green-sticker)" clip-path="url(#zEyeR1)"/>
+                <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+                <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170" fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+              <figcaption>128 · stage</figcaption>
+            </figure>
+            <figure>
+              <svg width="72" viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <clipPath id="zEyeL2"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+                  <clipPath id="zEyeR2"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+                </defs>
+                <path d="M35 11 C44 22 62 42 78 56 C85 61 90 63 96 62 C102 62 110 59 118 54 C130 41 148 24 159 14 C166 32 171 55 174 78 C178 96 182 112 183 130 C186 172 152 204 100 204 C48 204 14 172 17 128 C17.5 110 21 92 26 76 C29 55 32 30 35 11 Z" fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+                <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+                <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+                <circle cx="65" cy="131" r="11.5" fill="var(--green-sticker)" clip-path="url(#zEyeL2)"/>
+                <circle cx="135" cy="131" r="11.5" fill="var(--green-sticker)" clip-path="url(#zEyeR2)"/>
+                <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+                <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170" fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+              <figcaption>72 · night pose</figcaption>
+            </figure>
+            <figure>
+              <svg width="44" viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <clipPath id="zEyeL3"><path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z"/></clipPath>
+                  <clipPath id="zEyeR3"><path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z"/></clipPath>
+                </defs>
+                <path d="M35 11 C44 22 62 42 78 56 C85 61 90 63 96 62 C102 62 110 59 118 54 C130 41 148 24 159 14 C166 32 171 55 174 78 C178 96 182 112 183 130 C186 172 152 204 100 204 C48 204 14 172 17 128 C17.5 110 21 92 26 76 C29 55 32 30 35 11 Z" fill="var(--cat-black)" stroke="var(--keyline)" stroke-width="8" stroke-linejoin="round"/>
+                <path d="M41 125 C48 108 76 112 89 133 C78 148 52 144 41 125 Z" fill="var(--keyline)"/>
+                <path d="M159 125 C152 108 124 112 111 133 C122 148 148 144 159 125 Z" fill="var(--keyline)"/>
+                <circle cx="65" cy="131" r="11.5" fill="var(--green-sticker)" clip-path="url(#zEyeL3)"/>
+                <circle cx="135" cy="131" r="11.5" fill="var(--green-sticker)" clip-path="url(#zEyeR3)"/>
+                <path d="M93 152 L107 152 L100 161 Z" fill="var(--keyline)"/>
+                <path d="M100 161 C100 167 96 171 87 170 M100 161 C100 167 104 171 113 170" fill="none" stroke="var(--keyline)" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M80 149 Q63 146 46 141 M82 160 Q66 163 51 170 M120 149 Q137 146 154 141 M118 160 Q134 163 149 170" fill="none" stroke="var(--keyline)" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+              <figcaption>44 · favicon-ish</figcaption>
+            </figure>
+          </div>
+        </div>
+        <p class="desc">The white eyes carry more contrast against the black head than
+          today's green, so she actually reads <b>better</b> small. Whiskers at 3px stroke
+          hold up; the nose disappears below ~40px, which is fine.</p>
+      </div>
+      <div class="card">
+        <p class="name">Palette &amp; rigging notes</p>
+        <div class="swatches">
+          <span class="sw"><i style="background:#111114;"></i>head <code>#111114</code></span>
+          <span class="sw"><i style="background:#F4F4F2;"></i>keyline <code>#F4F4F2</code></span>
+          <span class="sw"><i style="background:#4CA352;"></i>pupil · sticker <code>#4CA352</code></span>
+          <span class="sw"><i style="background:#65C256;"></i>pupil · current green <code>#65C256</code></span>
+        </div>
+        <ul class="notes">
+          <li><b>Color flip, same ids.</b> <code>#eyeLeft/Right</code> go
+            <code>#65C256</code>→white, <code>#irisLeft/Right</code> go black→green.
+            The ids survive (again) — <code>cat.js</code> doesn't change a line for color.</li>
+          <li><b>Pupils get clipPaths.</b> Full green circles clipped to the eye almond;
+            gaze translate can then ride the lid edge (the sticker's downcast look) instead
+            of the current 4-unit clamp.</li>
+          <li><b>New static <code>#nose</code></b>; <code>#mouth</code> stays its own path but
+            its top edge moves 147→~156, so the yawn's measured 2.2× ceiling in
+            <code>cat.js</code> gets re-measured (its comment already says to).</li>
+          <li><b>Whiskers stay one path</b> — six straight lines become four curved strokes;
+            fan/twitch transforms untouched.</li>
+          <li><b>Ear split carries over.</b> B inherits the game's split ear groups verbatim;
+            A/C need the taller ears re-split (headFill / headOutline / earLeft / earRight)
+            at rigging time.</li>
+          <li><b>Holo glitter → night phase.</b> The sticker sparkle maps onto the game's
+            starfield: a faint star-speckle inside the silhouette while she dreams. Free
+            thematic win, animation-phase candidate.</li>
+          <li><b>Instances to update:</b> <code>prototypes/hex-cat.svg</code> (source of truth),
+            <code>apps/hex-clicker/index.html</code>, <code>hex/index.html</code>,
+            <code>hex/reveal-lab.html</code>; the neon-lab canvas cat is a separate legacy
+            skin — flag for retire-or-restyle.</li>
+        </ul>
+      </div>
+    </div>
+
+    <footer>
+      Sketch pass for the sticker redesign · next: pick a candidate, then rig (ear split,
+      pupil clips, yawn re-measure) and re-tune the idle animations on the new geometry.
+    </footer>
+  </div>
+</body>
+</html>

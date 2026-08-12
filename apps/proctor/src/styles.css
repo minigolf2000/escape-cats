@@ -12,7 +12,7 @@ body {
 }
 
 .setup {
-  max-width: 960px;
+  max-width: 1200px;
   margin: 6vh auto;
   display: flex;
   flex-direction: column;
@@ -21,52 +21,21 @@ body {
   padding: 24px;
 }
 
-/* ---- Teams overview (live 4-up of the game rooms) ---- */
-.overview {
-  text-align: left;
-}
-.overview h2 {
-  margin: 0 0 10px;
-  font-size: 19px;
-}
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-}
-.tile {
+/* ---- How players get in: one code for the whole room ---- */
+.join {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  padding: 14px;
-  font-size: 14px;
+  gap: 16px;
+  align-items: center;
   text-align: left;
+  background: #241f33;
   border: 1px solid #352e4a;
   border-radius: 12px;
-  background: #241f33;
-  color: inherit;
+  padding: 14px;
 }
-.tile .qr {
-  align-self: center;
-}
-.tile .danger {
-  align-self: center;
-  margin-top: auto;
-  padding: 8px 14px;
-  font-size: 13px;
-}
-.tile-head {
+.join-copy {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-}
-.tile .players {
-  font-size: 13px;
-}
-.tile .players span {
-  margin: 0 8px 0 0;
+  flex-direction: column;
+  gap: 4px;
 }
 
 button {
@@ -95,7 +64,6 @@ button {
   font-size: 12px;
   color: #b39ddb;
   word-break: break-all;
-  text-align: center;
 }
 
 .progressbar {
@@ -110,22 +78,6 @@ button {
   height: 100%;
   background: #e8a33d;
   transition: width 0.4s;
-}
-
-.detail {
-  font-size: 14px;
-  opacity: 0.7;
-  white-space: pre-line; /* the hex panel's detail is a short multi-line readout */
-}
-
-.players span {
-  margin: 0 6px;
-  font-weight: 600;
-}
-
-.players .offline {
-  text-decoration: line-through;
-  opacity: 0.4;
 }
 
 .codeword {
@@ -147,13 +99,6 @@ button {
 .lobby h2 {
   margin: 0 0 4px;
   font-size: 19px;
-}
-.lobby h3 {
-  margin: 16px 0 6px;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #8a90a2;
 }
 .dot {
   display: inline-block;
@@ -179,9 +124,34 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 7px 0;
+  gap: 6px;
+  /* Fixed, and the SAME for a filled row and an empty slot: a team's box must
+   * not change height as players move in and out of it. */
+  height: 36px;
+  padding: 0 6px;
   border-bottom: 1px solid #1e2230;
+  /* Every row is a drag handle. touch-action stops a finger-drag from panning
+   * the page instead of picking the name up. */
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.roster li:active {
+  cursor: grabbing;
+}
+/* The row a drag started from, still in place under the ghost. */
+.roster li.lifted {
+  opacity: 0.35;
+}
+/* One of a team's four seats, empty. Not a drag handle. Same height as a
+ * filled row — see above. */
+.roster li.slot {
+  justify-content: center;
+  cursor: default;
+  color: #4c5162;
+  font-size: 12px;
+  font-style: italic;
+  border-bottom: 1px dashed #23283a;
 }
 .roster li.offline .pname {
   color: #5d6272;
@@ -193,44 +163,133 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pick {
-  display: flex;
-  gap: 5px;
+.forget {
   flex: none;
-}
-.chip {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  background: transparent;
   border: 1px solid #2b3040;
-  background: #12141b;
   color: #8a90a2;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
   cursor: pointer;
 }
-.chip.on {
-  background: #57e6c9;
-  border-color: #57e6c9;
-  color: #06231d;
+.forget:hover {
+  background: #d64b3b;
+  border-color: #d64b3b;
+  color: white;
 }
-.teams {
+
+/* ---- The five drop targets ---- */
+.zones {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 12px;
+  /* Boxes size to their own content — Unassigned holds only names, a team box
+   * also carries a whole game readout. */
+  align-items: start;
 }
-.team-col {
+.zone {
   background: #12141b;
   border: 1px solid #1e2230;
   border-radius: 12px;
   padding: 12px;
+  /* An empty box still has to be a target you can hit. */
+  min-height: 96px;
 }
-.team-head {
+
+/* The game readouts inside a team's box, below its roster: one .game block per
+ * game, all of them fixed-height. Nothing in here may grow or shrink with
+ * state — see the note in TeamGame.tsx. */
+.games {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #1e2230;
+}
+.game {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.game h3 {
+  height: 15px;
+  line-height: 15px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8a90a2;
+}
+/* One readout line. Clipped rather than wrapped, so a seven-figure mouse count
+ * or a list of four absent names cannot add a second line. */
+.game .stat {
+  height: 17px;
+  line-height: 17px;
+  font-size: 12px;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The finished-run line, in the same slot the "locked" line occupies. */
+.game .stat.codeword {
+  opacity: 1;
+}
+/* Goomba's reserved block, until it has a server to report from. */
+.game.pending h3,
+.game.pending .stat {
+  opacity: 0.45;
+}
+.game .danger {
+  align-self: start;
+  margin-top: 4px;
+  padding: 6px 11px;
+  font-size: 12px;
+  border-radius: 9px;
+}
+.zone.over {
+  border-color: #57e6c9;
+  background: #16211f;
+}
+/* Dragging over a team that already has its four. */
+.zone.blocked {
+  border-color: #d64b3b;
+  background: #23161a;
+}
+.zone-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   margin-bottom: 4px;
+}
+.zone-empty {
+  color: #4c5162;
+  font-size: 12px;
+  text-align: center;
+  padding: 14px 0 6px;
+}
+
+/* The name riding the pointer mid-drag. Positioned at the origin and moved by
+ * an inline transform — see the note at its render site. */
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 10;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #57e6c9;
+  color: #06231d;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 .lobby-actions {
   display: flex;

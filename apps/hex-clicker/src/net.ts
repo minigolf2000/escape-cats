@@ -49,10 +49,6 @@ export const transport: Transport = {
   queuePet: () => 0,
 };
 
-export function roomFromUrl(): string | null {
-  return new URLSearchParams(location.search).get("room");
-}
-
 /** ?debug — the shared sim in-page, no server, no room.
  * ?solo was the old name for the same thing and still works, so a bookmark or
  * a printed link from before the rename doesn't dead-end. */
@@ -157,8 +153,8 @@ export function connectRoom(opts: {
 /**
  * Watch the lobby for this phone's team assignment. Connecting also REGISTERS
  * the phone in the lobby roster (same pid+name contract the landing page
- * uses), so a player who lands here unsorted appears on the proctor's list and
- * slots in the moment the proctor taps them onto a team — the "error screen"
+ * uses), so a player who lands here unsorted appears on the proctor's board and
+ * slots in the moment the proctor drags them onto a team — the "error screen"
  * is really a waiting room.
  */
 export function watchTeam(opts: {

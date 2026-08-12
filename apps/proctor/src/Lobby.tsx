@@ -1,24 +1,77 @@
 import { useEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
 import {
+  TEAM_SIZE,
   TEAMS,
   type LobbyClientMsg,
   type LobbyPlayer,
   type LobbyServerMsg,
+  type Team,
 } from "@escape-cats/shared";
+import { PARTYKIT_HOST } from "./net";
+import { TeamGame } from "./TeamGame";
 
-const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
+/** Zone id for the players nobody has sorted yet. `null` is the wire value for
+ * "no team"; this string never leaves the page. */
+const UNSORTED = "unsorted";
+
+/** Five drop targets: the holding pen, then the four teams. The pen borrows
+ * `Team`'s shape so one loop can draw all five. */
+const ZONES: Team[] = [{ id: UNSORTED, name: "Unassigned" }, ...TEAMS];
+
+const zoneOf = (team: string | null) => team ?? UNSORTED;
+const teamOf = (zone: string) => (zone === UNSORTED ? null : zone);
+
+/** How far the pointer must travel before a press counts as a drag, so a
+ * stray click on a name never reassigns anyone. */
+const DRAG_SLOP = 5;
+
+interface Drag {
+  pid: string;
+  name: string;
+  /** Zone the player was in when the drag started — dropping back is a no-op. */
+  from: string;
+  /** Where the press landed, for the slop test. */
+  x0: number;
+  y0: number;
+  /** Current pointer position, for the ghost. */
+  x: number;
+  y: number;
+  /** Zone under the pointer, or null past the edge of all five. */
+  over: string | null;
+  /** Past the slop threshold — until then this is still just a click. */
+  moved: boolean;
+}
+
+/** The four handlers every draggable row needs, built once per render. */
+interface RowDrag {
+  down: (p: LobbyPlayer, e: React.PointerEvent) => void;
+  move: (e: React.PointerEvent) => void;
+  up: () => void;
+  cancel: () => void;
+}
 
 /**
- * Live view of everyone sitting on the landing page, with the controls to sort
- * them onto teams. A team id is also the room id both games run in, so
- * assigning someone here is what puts them in a room later. The way into a
- * room (QR code, reset) is its tile in the teams overview below.
+ * The board: five boxes, and dragging a name between them is the only way to
+ * sort anyone. A team id is also the room id both games run in, so dropping
+ * someone on Team 2 is what puts them in room t2 — there is no other route in.
+ *
+ * A team's box is ALSO that team's live game status (see TeamGame), because the
+ * two answer the same question: how is Team 2 doing? Only the Unassigned box is
+ * a bare holding pen.
+ *
+ * The drag runs on POINTER events rather than HTML5 drag-and-drop, which fires
+ * no dragstart under a finger. Dragging is the whole interface now, so a
+ * proctor holding a tablet would otherwise have no way to sort anybody.
  */
 export function Lobby() {
   const [players, setPlayers] = useState<LobbyPlayer[]>([]);
   const [online, setOnline] = useState(false);
+  const [drag, setDrag] = useState<Drag | null>(null);
   const socketRef = useRef<PartySocket | null>(null);
+  /** Live drag state for the handlers — `drag` is for rendering, and a pointerup
+   * must not act on a frame-stale copy of it. */
+  const dragRef = useRef<Drag | null>(null);
 
   useEffect(() => {
     const socket = new PartySocket({
@@ -54,54 +107,159 @@ export function Lobby() {
   const send = (msg: LobbyClientMsg) =>
     socketRef.current?.send(JSON.stringify(msg));
 
-  const unassigned = players.filter((p) => !p.team);
-  const here = players.filter((p) => p.connected).length;
+  const setDragState = (d: Drag | null) => {
+    dragRef.current = d;
+    setDrag(d);
+  };
+
+  // Who is in which box, in one pass — the counts, the caps and the rows all
+  // read from this, so they cannot disagree about what "in zone z" means.
+  const byZone = new Map<string, LobbyPlayer[]>(
+    ZONES.map((z) => [z.id, [] as LobbyPlayer[]]),
+  );
+  for (const p of players) byZone.get(zoneOf(p.team))?.push(p);
+  const isFull = (zone: string) =>
+    zone !== UNSORTED && (byZone.get(zone)?.length ?? 0) >= TEAM_SIZE;
+
+  /** The zone under the pointer, asked of the browser rather than measured: the
+   * ghost is `pointer-events: none`, and `closest` walks up from whatever row or
+   * button the pointer is actually over. */
+  const zoneAt = (x: number, y: number): string | null =>
+    document.elementFromPoint(x, y)?.closest<HTMLElement>(".zone")?.dataset
+      .zone ?? null;
+
+  const rowDrag: RowDrag = {
+    down: (p, e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      // Capture so the drag survives the pointer leaving the row it started on —
+      // which it does immediately, since the target is another box.
+      e.currentTarget.setPointerCapture(e.pointerId);
+      setDragState({
+        pid: p.pid,
+        name: p.name,
+        from: zoneOf(p.team),
+        x0: e.clientX,
+        y0: e.clientY,
+        x: e.clientX,
+        y: e.clientY,
+        over: null,
+        moved: false,
+      });
+    },
+    move: (e) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const moved =
+        d.moved ||
+        Math.abs(e.clientX - d.x0) + Math.abs(e.clientY - d.y0) > DRAG_SLOP;
+      setDragState({
+        ...d,
+        x: e.clientX,
+        y: e.clientY,
+        over: moved ? zoneAt(e.clientX, e.clientY) : null,
+        moved,
+      });
+    },
+    up: () => {
+      const d = dragRef.current;
+      setDragState(null);
+      if (!d || !d.moved || !d.over || d.over === d.from) return;
+      // A full team refuses the drop; the box already showed it wouldn't take it.
+      if (isFull(d.over)) return;
+      send({ type: "assign", pid: d.pid, team: teamOf(d.over) });
+    },
+    cancel: () => setDragState(null),
+  };
+
+  const forget = (p: LobbyPlayer) => {
+    // Always asks. It would be nicer to skip the prompt for someone who has
+    // gone home, but the lobby's `connected` cannot tell us that for a sorted
+    // player, so a conditional prompt would fire on exactly the wrong half. The
+    // × also sits inside a drag handle, where a misclick is cheap.
+    if (
+      !confirm(
+        `Forget ${p.name}? They drop off the board until their phone reconnects.`,
+      )
+    )
+      return;
+    send({ type: "forget", pid: p.pid });
+  };
 
   return (
     <div className="lobby">
       <div className="lobby-head">
         <h2>
           Lobby{" "}
-          <span className={online ? "dot on" : "dot"} title={online ? "connected" : "offline"} />
+          <span
+            className={online ? "dot on" : "dot"}
+            title={online ? "connected" : "offline"}
+          />
         </h2>
+        {/* Deliberately not a here/away count: the lobby only knows who is on
+         * the landing page (see LobbyPlayer.connected), so every phone that has
+         * moved on to a game would read as away. */}
         <span className="muted">
-          {here} here · {players.length - here} away
+          {players.length} phones · {byZone.get(UNSORTED)?.length ?? 0} unsorted
         </span>
       </div>
 
-      {players.length === 0 && (
-        <p className="muted">
-          {online
+      <p className="muted">
+        {players.length === 0
+          ? online
             ? "Nobody has opened the landing page yet."
-            : "Can't reach the lobby — is PartyKit running?"}
-        </p>
-      )}
+            : "Can't reach the lobby — is the room server running?"
+          : "Drag a name between boxes to sort it. × forgets a player."}
+      </p>
 
-      {unassigned.length > 0 && (
-        <>
-          <h3>Waiting to be sorted ({unassigned.length})</h3>
-          <ul className="roster">
-            {unassigned.map((p) => (
-              <PlayerRow key={p.pid} player={p} onAssign={send} />
-            ))}
-          </ul>
-        </>
-      )}
-
-      <div className="teams">
-        {TEAMS.map((team) => {
-          const members = players.filter((p) => p.team === team.id);
+      <div className="zones">
+        {ZONES.map((z) => {
+          const isTeam = z.id !== UNSORTED;
+          const members = byZone.get(z.id) ?? [];
+          const hovered =
+            drag?.moved && drag.over === z.id && drag.from !== z.id;
           return (
-            <div className="team-col" key={team.id}>
-              <div className="team-head">
-                <strong>{team.name}</strong>
-                <span className="muted">{members.length}</span>
+            <div
+              key={z.id}
+              data-zone={z.id}
+              className={`zone${hovered ? (isFull(z.id) ? " blocked" : " over") : ""}`}
+            >
+              <div className="zone-head">
+                <strong>{z.name}</strong>
+                <span className="muted">
+                  {isTeam ? `${members.length}/${TEAM_SIZE}` : members.length}
+                </span>
               </div>
               <ul className="roster">
                 {members.map((p) => (
-                  <PlayerRow key={p.pid} player={p} onAssign={send} />
+                  <PlayerRow
+                    key={p.pid}
+                    player={p}
+                    // Struck through only in Unassigned, where "not connected"
+                    // honestly means the phone has left the landing page. On a
+                    // team it would strike through everyone who is playing.
+                    offline={!isTeam && !p.connected}
+                    lifted={Boolean(drag?.moved) && drag?.pid === p.pid}
+                    drag={rowDrag}
+                    onForget={forget}
+                  />
                 ))}
+                {/* A team is four seats, always drawn, so a half-full team reads
+                 * as unfinished at a glance rather than just short. */}
+                {isTeam &&
+                  Array.from(
+                    { length: Math.max(0, TEAM_SIZE - members.length) },
+                    (_, i) => (
+                      <li key={`slot${i}`} className="slot">
+                        empty slot
+                      </li>
+                    ),
+                  )}
               </ul>
+              {isTeam ? (
+                <TeamGame team={z} assigned={members} />
+              ) : (
+                members.length === 0 && <p className="zone-empty">Drop here</p>
+              )}
             </div>
           );
         })}
@@ -110,64 +268,66 @@ export function Lobby() {
       <div className="lobby-actions">
         <button
           className="small"
-          disabled={unassigned.length === 0}
-          onClick={() => send({ type: "autoAssign" })}
-        >
-          Auto-assign {unassigned.length || ""}
-        </button>
-        <button
-          className="small"
           disabled={players.every((p) => !p.team)}
           onClick={() => {
-            if (confirm("Clear every team assignment?")) send({ type: "clearTeams" });
+            if (confirm("Send every player back to Unassigned?"))
+              send({ type: "clearTeams" });
           }}
         >
           Clear teams
         </button>
-        <button
-          className="small"
-          disabled={players.length === here}
-          onClick={() => {
-            if (confirm("Forget everyone who has disconnected?")) send({ type: "forget" });
+      </div>
+
+      {drag?.moved && (
+        // Moved with a transform, not left/top: this runs on every pointermove,
+        // and an out-of-flow transform skips layout — which also keeps zoneAt's
+        // hit test off the read-after-write path.
+        <div
+          className="drag-ghost"
+          style={{
+            transform: `translate(${drag.x}px, ${drag.y}px) translate(-50%, -50%)`,
           }}
         >
-          Forget away
-        </button>
-      </div>
+          {drag.name}
+        </div>
+      )}
     </div>
   );
 }
 
 function PlayerRow({
   player,
-  onAssign,
+  offline,
+  lifted,
+  drag,
+  onForget,
 }: {
   player: LobbyPlayer;
-  onAssign: (msg: LobbyClientMsg) => void;
+  offline: boolean;
+  lifted: boolean;
+  drag: RowDrag;
+  onForget: (p: LobbyPlayer) => void;
 }) {
   return (
-    <li className={player.connected ? "" : "offline"}>
+    <li
+      className={[offline && "offline", lifted && "lifted"]
+        .filter(Boolean)
+        .join(" ")}
+      onPointerDown={(e) => drag.down(player, e)}
+      onPointerMove={drag.move}
+      onPointerUp={drag.up}
+      onPointerCancel={drag.cancel}
+    >
       <span className="pname">{player.name}</span>
-      <span className="pick">
-        {TEAMS.map((t) => (
-          <button
-            key={t.id}
-            className={player.team === t.id ? "chip on" : "chip"}
-            title={t.name}
-            onClick={() =>
-              onAssign({
-                type: "assign",
-                pid: player.pid,
-                // Tapping the team someone is already on takes them off it,
-                // so a misclick is one tap to undo.
-                team: player.team === t.id ? null : t.id,
-              })
-            }
-          >
-            {t.id.replace("t", "")}
-          </button>
-        ))}
-      </span>
+      <button
+        className="forget"
+        title={`Forget ${player.name}`}
+        // The row under it is the drag handle; a press on the × must not start one.
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => onForget(player)}
+      >
+        ×
+      </button>
     </li>
   );
 }

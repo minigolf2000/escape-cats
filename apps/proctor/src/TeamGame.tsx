@@ -7,6 +7,7 @@ import {
   type LobbyPlayer,
   type Team,
 } from "@escape-cats/shared";
+import { closeWhileHidden } from "./closeWhileHidden";
 import { PARTYKIT_HOST } from "./net";
 
 const mmss = (ms: number) => {
@@ -187,7 +188,11 @@ function useHexRoom(
       const msg: HexServerMsg = JSON.parse(e.data as string);
       if (msg.type === "state") setSnap(msg.state);
     });
-    return () => socket.close();
+    const unbindVisibility = closeWhileHidden(socket);
+    return () => {
+      unbindVisibility();
+      socket.close();
+    };
   }, [room]);
 
   return {

@@ -19,10 +19,21 @@ export interface ConnMeta {
  * deliberate: the proctor page is a static asset, so any token it sent would
  * ship in its own bundle and gate nothing. The only power the role carries
  * is reset on your own room, which is not worth defending here.
+ *
+ * Every server here hibernates, so a connection's meta lives in its WebSocket
+ * attachment (`conn.setState`), which the runtime persists with the socket —
+ * the object can be evicted mid-connection and the meta comes back with the
+ * wake. The `players` map is only a cache on top of that: it remembers the
+ * offline (a phone that locked keeps its seat in the list) and join order
+ * (which is slot order), both of which reset with an eviction — the same
+ * lifetime they had before hibernation, when an eviction closed every socket.
+ * After a wake, `sync` rebuilds the cache from the live sockets, once.
  */
 export class Roster {
-  private meta = new Map<string, ConnMeta>(); // connection.id -> meta
-  private players = new Map<string, PlayerInfo>(); // pid -> info
+  private players = new Map<string, PlayerInfo>(); // pid -> info, in join order
+  private hydrated = false;
+
+  constructor(private live: () => Iterable<Connection>) {}
 
   register(conn: Connection, ctx: ConnectionContext): ConnMeta {
     const url = new URL(ctx.request.url);
@@ -31,39 +42,44 @@ export class Roster {
       pid: url.searchParams.get("pid") ?? conn.id,
       name: url.searchParams.get("name") ?? "Cat",
     };
-    this.meta.set(conn.id, m);
-    if (m.role === "player") {
-      this.players.set(m.pid, { id: m.pid, name: m.name, connected: true });
-    }
+    conn.setState(m);
+    this.adopt(m);
     return m;
   }
 
   rename(conn: Connection, name: string) {
-    const m = this.meta.get(conn.id);
+    const m = this.get(conn);
     if (!m || m.role !== "player") return;
-    m.name = name;
-    const p = this.players.get(m.pid);
-    if (p) p.name = name;
+    conn.setState({ ...m, name });
+    this.players.get(m.pid)!.name = name; // get() adopted the entry above
   }
 
   disconnect(conn: Connection) {
-    const m = this.meta.get(conn.id);
-    this.meta.delete(conn.id);
+    const m = this.get(conn);
     if (!m || m.role !== "player") return;
-    // Only mark offline if no other live connection shares the pid.
-    const stillHere = [...this.meta.values()].some(
-      (o) => o.role === "player" && o.pid === m.pid,
-    );
-    const p = this.players.get(m.pid);
-    if (p && !stillHere) p.connected = false;
+    // Only mark offline if no other live connection shares the pid. The
+    // closing socket is no longer OPEN, so live() already excludes it.
+    for (const c of this.live()) {
+      const o = this.get(c);
+      if (o?.role === "player" && o.pid === m.pid) return;
+    }
+    this.players.get(m.pid)!.connected = false;
   }
 
   get(conn: Connection): ConnMeta | undefined {
-    return this.meta.get(conn.id);
+    const m = (conn.state as ConnMeta | null) ?? undefined;
+    if (m) this.adopt(m);
+    return m;
   }
 
   isProctor(conn: Connection): boolean {
-    return this.meta.get(conn.id)?.role === "proctor";
+    return this.get(conn)?.role === "proctor";
+  }
+
+  /** Whether any live connection is a player (not a proctor). */
+  hasPlayer(): boolean {
+    for (const c of this.live()) if (this.get(c)?.role === "player") return true;
+    return false;
   }
 
   /** Player slot index (0..3) for slingshot placement etc. */
@@ -72,17 +88,31 @@ export class Roster {
   }
 
   list(): PlayerInfo[] {
+    this.sync();
     return [...this.players.values()];
   }
 
   reset() {
-    this.players.clear();
     // Re-seat currently connected players so a mid-session proctor reset
     // doesn't orphan anyone.
-    for (const m of this.meta.values()) {
-      if (m.role === "player") {
-        this.players.set(m.pid, { id: m.pid, name: m.name, connected: true });
-      }
-    }
+    this.players.clear();
+    this.hydrated = false;
+    this.sync();
+  }
+
+  /** Rebuild the cache from the live sockets — needed once per wake (the
+   * instance fields reset with an eviction, so `hydrated` re-arms itself),
+   * a no-op on the 4Hz broadcast path the rest of the time. */
+  private sync() {
+    if (this.hydrated) return;
+    this.hydrated = true;
+    for (const c of this.live()) this.get(c);
+  }
+
+  private adopt(m: ConnMeta) {
+    if (m.role !== "player") return;
+    const p = this.players.get(m.pid);
+    if (p) p.connected = true;
+    else this.players.set(m.pid, { id: m.pid, name: m.name, connected: true });
   }
 }

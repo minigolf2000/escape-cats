@@ -22,7 +22,14 @@ import { Roster } from "./connections";
  * reappear as a stranger.
  */
 export class LobbyServer extends Server<Env> {
-  private roster = new Roster();
+  // The landing page keeps a socket open on every phone that visits, and
+  // there is one lobby for the whole event — without hibernation that single
+  // object stays resident (billed duration) as long as anyone has the page
+  // open anywhere. The identity that matters (names, teams) is already
+  // persisted; connected-ness is derived from the live sockets on demand.
+  static options = { hibernate: true };
+
+  private roster = new Roster(() => this.getConnections());
   /** pid -> team id. Persisted. */
   private teams = new Map<string, string>();
   /** pid -> display name, kept for players who are currently offline. */

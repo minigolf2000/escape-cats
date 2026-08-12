@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
+import { closeWhileHidden } from "./closeWhileHidden";
 import {
   TEAM_SIZE,
   TEAMS,
@@ -95,7 +96,10 @@ export function Lobby() {
     socket.addEventListener("open", onOpen);
     socket.addEventListener("close", onClose);
     socket.addEventListener("message", onMessage);
+    // The close handler already dims the dot while the tab is hidden.
+    const unbindVisibility = closeWhileHidden(socket);
     return () => {
+      unbindVisibility();
       socket.removeEventListener("open", onOpen);
       socket.removeEventListener("close", onClose);
       socket.removeEventListener("message", onMessage);

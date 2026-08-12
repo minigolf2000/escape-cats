@@ -26,7 +26,15 @@ function fraction(v: unknown): number | undefined {
 // HexSim (packages/shared/src/hex/sim.ts), which the client's ?debug mode runs
 // too. If you're changing what a purchase or a pet does, change the sim.
 export class HexServer extends Server<Env> {
-  private roster = new Roster();
+  // Hibernation keeps idle sockets from billing duration: without it, every
+  // open WebSocket pins the object in memory around the clock, and one
+  // forgotten proctor tab spends the day's GB-seconds on rooms nobody is
+  // playing in. Everything per-connection lives in the socket attachment
+  // (Roster) or tolerates a wake-time reset (petSeq/petAcked re-sync on the
+  // next pets batch).
+  static options = { hibernate: true };
+
+  private roster = new Roster(() => this.getConnections());
   private sim = new HexSim(Date.now());
   /** conn.id -> highest `pets` batch seq received, and the last one acked. */
   private petSeq = new Map<string, number>();
@@ -49,9 +57,19 @@ export class HexServer extends Server<Env> {
     if (saved?.v === 1) this.sim.restore(saved, Date.now());
   }
 
-  /** Start the loops. Idempotent — every connect calls it. Resuming after a
-   * sleep is safe income-wise: sim.tick clamps dt to 2s, so an afternoon
-   * spent idle credits nothing. */
+  /** The loops run iff a player is connected — this is the one place that
+   * invariant lives. A proctor is a spectator of a paused game (sim.tick
+   * clamps idle dt, so nothing moves): they get a snapshot on connect and on
+   * every player-driven broadcast, and running the 4Hz loop for them is what
+   * used to keep all four rooms resident whenever the proctor page was open. */
+  private syncLoops() {
+    if (this.roster.hasPlayer()) this.wake();
+    else this.sleep();
+  }
+
+  /** Start the loops. Idempotent. Resuming after a sleep is safe
+   * income-wise: sim.tick clamps dt to 2s, so an afternoon spent idle
+   * credits nothing. */
   private wake() {
     this.ticker ??= setInterval(() => {
       this.sim.tick(Date.now());
@@ -64,12 +82,16 @@ export class HexServer extends Server<Env> {
     this.persister ??= setInterval(() => void this.persist(), PERSIST_MS);
   }
 
-  /** Stop the loops and save, leaving the empty room evictable. Without this
-   * the intervals keep the object alive after the last socket closes, which
-   * shows up as continuous Durable Object duration for a room nobody is in. */
+  /** Stop the loops and save, leaving the room evictable. Pending intervals
+   * block hibernation, so without this the object stays resident — billed
+   * duration around the clock — for a room nobody is playing in. Proctors may
+   * still be connected when this runs: they are spectators of a paused game
+   * (sim.tick clamps idle dt to 2s, so nothing moves), and the snapshot they
+   * got on connect is as current as a 4Hz feed of it would be. */
   private sleep() {
-    if (this.ticker) clearInterval(this.ticker);
-    if (this.persister) clearInterval(this.persister);
+    if (!this.ticker && !this.persister) return; // already asleep
+    clearInterval(this.ticker);
+    clearInterval(this.persister);
     this.ticker = this.persister = null;
     void this.persist();
   }
@@ -79,8 +101,8 @@ export class HexServer extends Server<Env> {
   }
 
   onConnect(conn: Connection, ctx: ConnectionContext) {
-    this.wake();
     this.roster.register(conn, ctx);
+    this.syncLoops();
     this.broadcastState();
   }
 
@@ -89,9 +111,7 @@ export class HexServer extends Server<Env> {
     this.petAcked.delete(conn.id);
     this.roster.disconnect(conn);
     this.broadcastState();
-    // partyserver drops the closing socket from the manager before onClose
-    // runs, so an empty iterator here means the room is truly empty.
-    if ([...this.getConnections()].length === 0) this.sleep();
+    this.syncLoops();
   }
 
   onMessage(sender: Connection, message: WSMessage) {
@@ -103,14 +123,18 @@ export class HexServer extends Server<Env> {
       return;
     }
     const now = Date.now();
-    const proctor = this.roster.isProctor(sender);
+    const me = this.roster.get(sender);
+    const proctor = me?.role === "proctor";
+    // A player message proves a player is here — the cheap special case of
+    // syncLoops(). It exists for the runtime evicting a hibernated room
+    // whose player sockets stayed open: the next tap batch re-arms the loops.
+    if (!proctor) this.wake();
     switch (msg.type) {
       case "join":
         this.roster.rename(sender, String(msg.name).slice(0, 24));
         break;
       case "pets": {
         this.petSeq.set(sender.id, Number(msg.seq) || 0);
-        const me = this.roster.get(sender);
         if (!proctor && me) {
           const slot = this.roster.slot(me.pid);
           // Offsets are ms before the client sent the batch, so they preserve

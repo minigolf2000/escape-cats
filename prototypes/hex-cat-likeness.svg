@@ -1,0 +1,177 @@
+<!--
+  Hex — likeness pass on the drawn cat, focused on the eyes.
+
+  Left panel redraws the sticker as it stands today (yellow ring eyes, round,
+  set low and close). Right panel applies the likeness notes against the
+  reference photo: filled chartreuse eye with a gold core, flattened-lemon
+  shape with a mildly slanted upper lid, vertical slit pupil, eyes raised to
+  the head's midline and pushed one eye-width apart, taller ears with pale
+  tufts, a narrower muzzle, and the tuxedo bib.
+
+  This is a design mock, not a game asset — the shipping cat is hex-cat.svg,
+  whose #eyeLeft/#eyeRight/#irisLeft/#irisRight ids the hex-clicker JS hooks
+  into. The eye geometry here is written to drop into those same four ids.
+-->
+<svg width="1600" height="1460" viewBox="0 0 1600 1460" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="irisL" gradientUnits="userSpaceOnUse" cx="268" cy="392" r="100">
+    <stop offset="0" stop-color="#D6C752"/>
+    <stop offset="0.40" stop-color="#B0C44C"/>
+    <stop offset="1" stop-color="#7B9937"/>
+  </radialGradient>
+  <radialGradient id="irisR" gradientUnits="userSpaceOnUse" cx="532" cy="392" r="100">
+    <stop offset="0" stop-color="#D6C752"/>
+    <stop offset="0.40" stop-color="#B0C44C"/>
+    <stop offset="1" stop-color="#7B9937"/>
+  </radialGradient>
+  <filter id="wobble" x="-8%" y="-8%" width="116%" height="116%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</defs>
+
+<rect width="1600" height="1460" fill="#1b1b1d"/>
+
+<g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" fill="#F4F4F2">
+  <text x="80" y="70" font-size="34" font-weight="600">Hex — likeness pass</text>
+  <text x="80" y="104" font-size="19" fill="#8d8d92">Same sticker language; eyes, ears and muzzle pulled toward the reference photo.</text>
+</g>
+
+<!-- ============================== PANEL A — current ============================== -->
+<g transform="translate(110,150) scale(0.72)">
+  <g filter="url(#wobble)">
+    <path d="M 180 260 L 212 88 C 216 78, 228 78, 236 88 L 330 178
+             C 360 168, 440 165, 470 175 L 556 82 C 566 72, 578 74, 582 86 L 604 258
+             C 690 320, 720 420, 700 500 C 680 590, 600 650, 470 668
+             C 400 678, 330 676, 270 662 C 150 634, 78 560, 82 470
+             C 86 380, 120 300, 180 260 Z"
+          fill="#111114" stroke="#F4F4F2" stroke-width="11" stroke-linejoin="round"/>
+    <path d="M 218 110 L 236 112 L 250 180 C 236 186, 222 172, 218 110 Z" fill="#9C6B66"/>
+    <path d="M 552 105 L 570 108 L 578 180 C 564 186, 550 170, 552 105 Z" fill="#9C6B66"/>
+
+    <!-- ring eyes: hollow, round, set low and close -->
+    <ellipse cx="255" cy="505" rx="52" ry="50" fill="none" stroke="#D6D84E" stroke-width="20"/>
+    <ellipse cx="492" cy="502" rx="52" ry="50" fill="none" stroke="#D6D84E" stroke-width="20"/>
+
+    <g stroke="#F4F4F2" stroke-width="7" stroke-linecap="round" fill="none">
+      <path d="M 258 398 L 268 372"/>
+      <path d="M 276 402 L 288 378"/>
+      <path d="M 452 392 L 442 368"/>
+      <path d="M 470 396 L 458 374"/>
+      <path d="M 175 528 C 120 520, 60 512, 30 508"/>
+      <path d="M 172 545 C 115 548, 55 556, 28 566"/>
+      <path d="M 570 505 C 630 495, 690 490, 726 490"/>
+      <path d="M 572 522 C 634 526, 694 534, 730 542"/>
+    </g>
+  </g>
+</g>
+<g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <text x="110" y="790" font-size="22" font-weight="600" fill="#F4F4F2">Current</text>
+  <text x="110" y="820" font-size="17" fill="#8d8d92">Ring eyes read as pupil-only. Round, low, close together.</text>
+</g>
+
+<!-- ============================== PANEL B — revised ============================== -->
+<g transform="translate(880,150) scale(0.72)">
+  <g filter="url(#wobble)">
+    <!-- chest, behind the head -->
+    <path d="M 296 604 C 246 646, 208 716, 200 770 C 252 800, 548 800, 600 770
+             C 592 716, 554 646, 504 604 Z"
+          fill="#111114" stroke="#F4F4F2" stroke-width="11" stroke-linejoin="round"/>
+
+    <!-- head: taller ears set toward top-centre, broad cheekbones, tapered muzzle -->
+    <path d="M 150 300 L 166 112 C 170 98, 188 98, 198 110 L 302 198
+             C 338 180, 462 180, 498 198 L 602 110 C 612 98, 630 98, 634 112 L 650 300
+             C 706 356, 716 442, 700 506 C 684 580, 606 646, 496 663
+             C 438 672, 362 672, 304 663 C 194 646, 116 580, 100 506
+             C 84 442, 94 356, 150 300 Z"
+          fill="#111114" stroke="#F4F4F2" stroke-width="11" stroke-linejoin="round"/>
+
+    <path d="M 192 162 C 220 186, 244 202, 258 212 C 236 236, 206 252, 184 262 C 182 224, 186 190, 192 162 Z" fill="#8E625E"/>
+    <path d="M 608 162 C 580 186, 556 202, 542 212 C 564 236, 594 252, 616 262 C 618 224, 614 190, 608 162 Z" fill="#8E625E"/>
+
+    <!-- pale ear tufts, running along the front edge toward the tip -->
+    <g stroke="#F4F4F2" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.5">
+      <path d="M 240 186 C 230 172, 220 160, 212 150"/>
+      <path d="M 252 198 C 242 184, 232 170, 224 158"/>
+      <path d="M 264 210 C 254 198, 246 186, 238 174"/>
+      <path d="M 560 186 C 570 172, 580 160, 588 150"/>
+      <path d="M 548 198 C 558 184, 568 170, 576 158"/>
+      <path d="M 536 210 C 546 198, 554 186, 562 174"/>
+    </g>
+
+    <!-- eyes: filled, flattened lemon, mild lid slant, no outline -->
+    <path id="eyeLeft" d="M 196 382 C 210 360, 242 348, 274 351 C 308 354, 332 376, 340 400
+                          C 327 424, 293 436, 259 433 C 226 430, 202 408, 196 382 Z" fill="url(#irisL)"/>
+    <path id="eyeRight" d="M 604 382 C 590 360, 558 348, 526 351 C 492 354, 468 376, 460 400
+                           C 473 424, 507 436, 541 433 C 574 430, 598 408, 604 382 Z" fill="url(#irisR)"/>
+    <path id="irisLeft" d="M 268 357 C 278 375, 278 409, 268 427 C 258 409, 258 375, 268 357 Z" fill="#0A0B10"/>
+    <path id="irisRight" d="M 532 357 C 542 375, 542 409, 532 427 C 522 409, 522 375, 532 357 Z" fill="#0A0B10"/>
+
+    <!-- nose + mouth -->
+    <path d="M 400 492 C 422 492, 430 504, 418 518 C 411 527, 389 527, 382 518 C 370 504, 378 492, 400 492 Z" fill="#7A5450"/>
+    <path d="M 400 520 L 400 536 M 400 536 C 391 548, 373 548, 364 538 M 400 536 C 409 548, 427 548, 436 538"
+          stroke="#F4F4F2" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+
+    <!-- tuxedo bib: narrow at the chin, widening down the chest -->
+    <path d="M 400 556 C 422 556, 436 568, 442 584 C 468 622, 492 676, 496 726
+             C 498 752, 495 766, 490 774 C 450 790, 350 790, 310 774
+             C 305 766, 302 752, 304 726 C 308 676, 332 622, 358 584
+             C 364 568, 378 556, 400 556 Z" fill="#F4F4F2"/>
+
+    <!-- brow whiskers: three a side, fanning UP and out from one cluster above
+         the eye. They must not descend toward the nose — a downward V here is
+         what turns a calm cat into an angry one. -->
+    <g stroke="#F4F4F2" stroke-width="4.5" stroke-linecap="round" fill="none">
+      <path d="M 272 332 C 250 306, 226 280, 202 254"/>
+      <path d="M 280 330 C 264 302, 248 274, 232 244"/>
+      <path d="M 290 328 C 280 300, 272 272, 266 242"/>
+      <path d="M 528 332 C 550 306, 574 280, 598 254"/>
+      <path d="M 520 330 C 536 302, 552 274, 568 244"/>
+      <path d="M 510 328 C 520 300, 528 272, 534 242"/>
+    </g>
+
+    <!-- muzzle whiskers, sweeping down and out -->
+    <g stroke="#F4F4F2" stroke-width="6.5" stroke-linecap="round" fill="none">
+      <path d="M 336 498 C 260 494, 160 498, 76 510"/>
+      <path d="M 334 514 C 258 520, 158 536, 78 558"/>
+      <path d="M 336 530 C 262 544, 168 572, 96 604"/>
+      <path d="M 464 498 C 540 494, 640 498, 724 510"/>
+      <path d="M 466 514 C 542 520, 642 536, 722 558"/>
+      <path d="M 464 530 C 538 544, 632 572, 704 604"/>
+    </g>
+  </g>
+</g>
+<g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <text x="880" y="790" font-size="22" font-weight="600" fill="#F4F4F2">Revised</text>
+  <text x="880" y="820" font-size="17" fill="#8d8d92">Filled chartreuse, slanted lemon, slit pupil, raised and spread.</text>
+</g>
+
+<!-- ============================== EYE DETAIL ============================== -->
+<line x1="80" y1="870" x2="1520" y2="870" stroke="#33333a" stroke-width="2"/>
+<text x="80" y="920" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="24" font-weight="600" fill="#F4F4F2">The eye, up close</text>
+
+<rect x="80" y="946" width="690" height="384" rx="22" fill="#111114" stroke="#2c2c33" stroke-width="2"/>
+<rect x="830" y="946" width="690" height="384" rx="22" fill="#111114" stroke="#2c2c33" stroke-width="2"/>
+
+<g transform="translate(425,1128) scale(2.4) translate(-255,-505)">
+  <ellipse cx="255" cy="505" rx="52" ry="50" fill="none" stroke="#D6D84E" stroke-width="20"/>
+</g>
+
+<g transform="translate(1175,1128) scale(2.4) translate(-268,-392)">
+  <path d="M 196 382 C 210 360, 242 348, 274 351 C 308 354, 332 376, 340 400
+           C 327 424, 293 436, 259 433 C 226 430, 202 408, 196 382 Z" fill="url(#irisL)"/>
+  <path d="M 268 357 C 278 375, 278 409, 268 427 C 258 409, 258 375, 268 357 Z" fill="#0A0B10"/>
+  <!-- horizontal reference vs. the corner-to-corner axis -->
+  <path d="M 180 391 L 356 391" stroke="#F4F4F2" stroke-width="1.4" stroke-dasharray="6 8" opacity="0.28"/>
+  <path d="M 188 380 L 350 404" stroke="#F4F4F2" stroke-width="1.6" stroke-dasharray="9 7" opacity="0.5"/>
+</g>
+
+<g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" fill="#8d8d92">
+  <text x="112" y="1298">Hollow ring, 1:1 round — the black centre becomes the whole pupil.</text>
+  <text x="862" y="1298">Solid field ~1.7:1, gold at the pupil to green at the rim, ~9° lid slant.</text>
+</g>
+
+<g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" fill="#8d8d92">
+  <text x="80" y="1400">Colour stops: #D6C752 core → #B0C44C mid → #7B9937 rim.  Pupil ~14% of eye width, near full height, tapered top and bottom.</text>
+</g>
+</svg>

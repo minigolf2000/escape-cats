@@ -45,10 +45,16 @@ export function startDebug(opts: {
   };
   const emit = () => opts.onSnapshot(sim.snapshot(Date.now(), []));
 
+  // Mounted before the loop, because the loop is what keeps the panel's
+  // day-only control in step with the phase: the twist lands on a PURCHASE,
+  // which never passes through the panel's own click handler.
+  const syncPanel = mountPanel(sim, emit);
+
   setInterval(() => {
     flushPets(Date.now());
     sim.tick(Date.now());
     emit();
+    syncPanel();
   }, SNAPSHOT_TICK_MS);
 
   // First snapshot synchronously: the page must be fully interactive (gate
@@ -80,8 +86,6 @@ export function startDebug(opts: {
     }
     emit();
   };
-
-  mountPanel(sim, emit);
 
   // Console handle on the AUTHORITY, not the mirror: window.__hex.game is the
   // render mirror and deliberately drops server-private fields (legibleAt), so
@@ -181,10 +185,13 @@ function devContentHTML(sim: HexSim): string {
     <tbody>${uRows}</tbody></table>`;
 }
 
-/** The floating 🛠 panel: grant, story-beat jumps, time scale, reset, and the
- * buildings & upgrades dump. DOM is injected only here, so nothing
- * panel-related ships into a real session. */
-function mountPanel(sim: HexSim, emit: () => void): void {
+/** The floating 🛠 panel: grant, story-beat jumps, a forced golden, time scale,
+ * reset, and the buildings & upgrades dump. DOM is injected only here, so
+ * nothing panel-related ships into a real session.
+ *
+ * Returns a sync callback the tick loop calls, for the one control whose
+ * availability depends on state the panel does not itself move (see below). */
+function mountPanel(sim: HexSim, emit: () => void): () => void {
   const st = document.createElement("style");
   st.textContent = `
     #devbar { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 10px; z-index: 40;
@@ -200,6 +207,8 @@ function mountPanel(sim: HexSim, emit: () => void): void {
       border: 1px solid #363b4d; border-radius: 6px; padding: 1px 7px;
       cursor: pointer; }
     #devbar button:active { background: #2a3049; }
+    #devbar button:disabled { opacity: .4; cursor: default; }
+    #devbar button:disabled:active { background: #1c2030; }
     /* The content dump. Capped and scrollable — 7 buildings plus 40-odd
        upgrades is taller than a phone, and the panel must not cover the wall
        (the one thing the night phase exists to show).
@@ -259,6 +268,7 @@ function mountPanel(sim: HexSim, emit: () => void): void {
     <div class="r"><span>jump</span>${Object.keys(DEBUG_PRESETS)
       .map((k) => `<button data-p="${k}">${k}</button>`)
       .join("")}</div>
+    <div class="r"><span>spawn</span><button data-gold="1">🐭 golden</button></div>
     <div class="r"><span>speed</span>${[1, 5, 20]
       .map((n) => `<button data-s="${n}">×${n}</button>`)
       .join("")}<button data-r="1">reset</button></div>
@@ -277,16 +287,37 @@ function mountPanel(sim: HexSim, emit: () => void): void {
   };
   list.addEventListener("toggle", redrawList);
 
+  // Goldens are day-only in the sim, so the button is greyed out at night
+  // rather than silently doing nothing. Night arrives on a PURCHASE (and leaves
+  // on a reset or a day preset), so this is driven from the tick loop, not only
+  // from the click handler below.
+  const goldBtn = bar.querySelector("[data-gold]") as HTMLButtonElement;
+  let goldWas: boolean | null = null; // null so the first sync always paints
+  const syncGold = () => {
+    const night = sim.night();
+    if (goldWas === night) return;
+    goldWas = night;
+    goldBtn.disabled = night;
+    goldBtn.title = night
+      ? "day-only: Zoomies multiplies pets, which mint nothing at night"
+      : "put a golden mouse up now";
+  };
+  syncGold();
+
   bar.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest("button");
-    if (!b) return;
+    if (!b || b.disabled) return;
     const now = Date.now();
     if (b.dataset.g) sim.grant(Number(b.dataset.g), now);
     else if (b.dataset.p) sim.applyPreset(DEBUG_PRESETS[b.dataset.p], now);
+    else if (b.dataset.gold) sim.spawnGold(now);
     else if (b.dataset.s)
       sim.state.speed = Math.max(0.25, Math.min(50, Number(b.dataset.s)));
     else if (b.dataset.r) sim.reset(now);
     emit();
+    syncGold();
     redrawList();
   });
+
+  return syncGold;
 }

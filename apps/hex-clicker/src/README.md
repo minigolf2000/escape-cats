@@ -27,4 +27,6 @@ The markup + CSS are in `index.html`, ported verbatim from the prototype plus
 the multiplayer shell (join gate, team strip, reconnect toast) at the bottom.
 
 Debug: `window.__hex` exposes the mirror + `send()` for console/Playwright
-driving. `?debug&speed=20` fast-forwards a debug run.
+driving. `?debug&speed=20` fast-forwards a debug run. The 🛠 panel's `spawn
+golden` puts a golden mouse up immediately (day only — greyed out at night,
+where a golden pays nothing).

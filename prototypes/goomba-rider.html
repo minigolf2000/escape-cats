@@ -136,7 +136,10 @@
       <button class="devbtn" id="importBtn">📄 import SVG</button>
       <button class="devbtn" id="verifyBtn">🧪 verify level</button>
     </div>
-    <div class="devrow"><button class="devbtn" id="labBtn">🔬 level lab</button></div>
+    <div class="devrow">
+      <button class="devbtn" id="labBtn">🔬 level lab</button>
+      <button class="devbtn" id="partyBtn">🎉 party pack</button>
+    </div>
     <input id="svgFile" type="file" accept=".svg,image/svg+xml" hidden>
   </div>
   <button id="clear">clear bands</button>
@@ -728,7 +731,7 @@ function stepRun(st, dt) {
   else if (st.p.x < b.x0 - 12) st.result = 'left';
   else if (st.p.x > b.x1 + 30) st.result = 'flew';
   else if (st.slowT > 1.4) st.result = 'stall';
-  else if (st.t > RUN_MAX) st.result = 'loop';
+  else if (st.t > (L.runMax || RUN_MAX)) st.result = 'loop';
   else if (st.t - st.snap.t > 3.5) { // trapped in a bowl/corner, or boinging in place
     const sdx = st.p.x - st.snap.x, sdy = st.p.y - st.snap.y;
     if (sdx * sdx + sdy * sdy < 64 || Math.abs(sdx) < 6) st.result = 'loop';
@@ -743,7 +746,7 @@ function simulate(li, bandPairs) {
   const st = makeRun(L, bands);
   const traj = [];
   let acc = 0;
-  while (!st.result && st.t < RUN_MAX + 1) {
+  while (!st.result && st.t < (L.runMax || RUN_MAX) + 1) {
     stepRun(st, SUB);
     acc += SUB;
     if (acc >= 1 / 30) { acc = 0; traj.push([+st.p.x.toFixed(2), +st.p.y.toFixed(2)]); }
@@ -806,9 +809,10 @@ function syncHud() {
     (fails >= 3 && L.hint2 ? '💡 ' + L.hint2 : L.hint);
   dotsEl.innerHTML = '';
   LEVELS.forEach((Li, i) => {
+    if (Li.party && i !== level) return;   // 45 party levels would flood the row — use the lab
     const d = document.createElement('div');
-    const open = i <= unlocked || Li.custom;
-    d.className = 'dot' + (Li.custom ? ' custom' : '') + (i === level ? ' cur' : open ? ' open' : '');
+    const open = i <= unlocked || Li.custom || Li.party;
+    d.className = 'dot' + (Li.custom || Li.party ? ' custom' : '') + (i === level ? ' cur' : open ? ' open' : '');
     if (open) d.onclick = () => { if (state !== 'run') { loadLevel(i); } };
     dotsEl.appendChild(d);
   });
@@ -903,7 +907,10 @@ $('importBtn').onclick = () => $('svgFile').click();
 $('svgFile').onchange = e => { importSVGFile(e.target.files[0]); e.target.value = ''; };
 function openLab() {
   if (state === 'run') endRun(null);
-  labVerdicts.clear();
+  // re-verify base levels each visit, but keep party verdicts: those are
+  // pre-seeded (verified offline by partycheck) and their sims are long
+  for (const k of [...labVerdicts.keys()]) if (!LEVELS[k]?.party) labVerdicts.delete(k);
+  labScroll = 0; labDrag = null;
   state = 'lab';
   document.getElementById('hud').classList.add('lab');
   devpEl.classList.remove('show');
@@ -926,6 +933,27 @@ function labTap(px, py) {
   }
   return false;
 }
+// Party pack: the verified 2/3/4-player suite lives in goomba-party-levels.json
+// (built by tools/partybuild.mjs). Loaded on demand; browse it in the 🔬 lab.
+let partyLoaded = false;
+function installPartyLevels(list) {
+  for (const L of list) {
+    L.party = true;
+    LEVELS.push(initLevel(L));
+    // pre-verified by tools/partycheck.mjs — skip ~100 sims on first lab paint
+    labVerdicts.set(LEVELS.length - 1, { bare: 'fail', sol: 'win', ok: true });
+  }
+  partyLoaded = true;
+  toast(`🎉 ${list.length} party levels loaded — pick one in the lab`, 2200);
+  openLab();
+}
+$('partyBtn').onclick = () => {
+  if (partyLoaded) { openLab(); return; }
+  fetch('goomba-party-levels.json')
+    .then(r => { if (!r.ok) throw new Error('party pack not found'); return r.json(); })
+    .then(installPartyLevels)
+    .catch(err => toast('⚠️ ' + err.message, 2400));
+};
 $('verifyBtn').onclick = () => {
   const L = LEVELS[level];
   const bare = simulate(level, []);
@@ -979,7 +1007,11 @@ function tryDelete(w) {
 
 cv.addEventListener('touchstart', e => {
   e.preventDefault();
-  if (state === 'lab') { const t = e.changedTouches[0]; labTap(t.clientX, t.clientY); return; }
+  if (state === 'lab') {
+    const t = e.changedTouches[0];
+    labDrag = { x: t.clientX, y: t.clientY, s0: labScroll, moved: false };
+    return;
+  }
   if (state !== 'edit') return;
   for (const t of e.changedTouches) touches.set(t.identifier, { cx: t.clientX, cy: t.clientY });
   if (touches.size === 1) {
@@ -991,6 +1023,12 @@ cv.addEventListener('touchstart', e => {
 }, { passive: false });
 cv.addEventListener('touchmove', e => {
   e.preventDefault();
+  if (state === 'lab' && labDrag) {
+    const t = e.changedTouches[0];
+    if (Math.hypot(t.clientX - labDrag.x, t.clientY - labDrag.y) > 8) labDrag.moved = true;
+    labScroll = Math.max(0, Math.min(labDrag.s0 - (t.clientY - labDrag.y), labMax));
+    return;
+  }
   if (state !== 'edit') return;
   for (const t of e.changedTouches) {
     const rec = touches.get(t.identifier);
@@ -1009,6 +1047,11 @@ cv.addEventListener('touchmove', e => {
 }, { passive: false });
 cv.addEventListener('touchend', e => {
   e.preventDefault();
+  if (state === 'lab') {
+    const t = e.changedTouches[0];
+    if (labDrag && !labDrag.moved) labTap(t.clientX, t.clientY);
+    labDrag = null; touches.clear(); return;
+  }
   for (const t of e.changedTouches) touches.delete(t.identifier);
   if (state !== 'edit') { touches.clear(); return; }
   if (preview && touches.size < 2) placePreview();
@@ -1023,16 +1066,30 @@ cv.addEventListener('touchend', e => {
 cv.addEventListener('touchcancel', () => { touches.clear(); preview = null; tapInfo = null; panning = false; });
 
 cv.addEventListener('mousedown', e => {
-  if (state === 'lab') { labTap(e.clientX, e.clientY); return; }
+  if (state === 'lab') { labDrag = { x: e.clientX, y: e.clientY, s0: labScroll, moved: false }; return; }
   if (state !== 'edit') return;
   mouseDrag = { a: toWorld(e.clientX, e.clientY), px: e.clientX, py: e.clientY, t: performance.now() };
 });
 window.addEventListener('mousemove', e => {
+  if (state === 'lab' && labDrag) {
+    if (Math.hypot(e.clientX - labDrag.x, e.clientY - labDrag.y) > 8) labDrag.moved = true;
+    labScroll = Math.max(0, Math.min(labDrag.s0 - (e.clientY - labDrag.y), labMax));
+    return;
+  }
   if (!mouseDrag || state !== 'edit') return;
   if (Math.hypot(e.clientX - mouseDrag.px, e.clientY - mouseDrag.py) > 10)
     previewFrom(mouseDrag.a, toWorld(e.clientX, e.clientY));
 });
+cv.addEventListener('wheel', e => {
+  if (state !== 'lab') return;
+  e.preventDefault();
+  labScroll = Math.max(0, Math.min(labScroll + e.deltaY, labMax));
+}, { passive: false });
 window.addEventListener('mouseup', e => {
+  if (state === 'lab') {
+    if (labDrag && !labDrag.moved) labTap(e.clientX, e.clientY);
+    labDrag = null; return;
+  }
   if (!mouseDrag) return;
   if (state === 'edit') {
     if (preview) placePreview();
@@ -1351,6 +1408,7 @@ function drawStartPad(L) {
 // Triage tool — tap a card to play it, tap its ★ to shortlist. The verdicts come
 // from the real sim: "bare" must NOT win (or the level is free) and "sol" must win.
 let labCells = [], labStars = new Set(JSON.parse(localStorage.getItem('goombarider.stars') || '[]'));
+let labScroll = 0, labMax = 0, labDrag = null; // the grid outgrew one screen (party pack!)
 const labVerdicts = new Map();
 function labVerdict(i) {
   if (!labVerdicts.has(i)) {
@@ -1375,11 +1433,21 @@ function drawLab() {
   const rows = Math.ceil(LEVELS.length / cols);
   const padX = 12, top = 62, bottom = 70;
   const cw = (W - padX * (cols + 1)) / cols;
-  const ch = Math.min((H - top - bottom - 12 * (rows - 1)) / rows, cw * 1.5);
+  const ch = Math.min(cw * 1.15, 200);          // fixed card size; the grid scrolls
+  labMax = Math.max(0, top + rows * (ch + 12) + bottom - 12 - H);
+  labScroll = Math.max(0, Math.min(labScroll, labMax));
   labCells = [];
+  if (labMax > 0) {                              // scrollbar hint
+    const trackH = H - top - bottom, thumbH = Math.max(28, trackH * H / (labMax + H));
+    ctx.fillStyle = 'rgba(201,189,240,0.25)';
+    ctx.beginPath();
+    ctx.roundRect(W - 6, top + (trackH - thumbH) * (labScroll / labMax), 3, thumbH, 2);
+    ctx.fill();
+  }
   LEVELS.forEach((L, i) => {
     const c = i % cols, r = (i / cols) | 0;
-    const x = padX + c * (cw + padX), y = top + r * (ch + 12);
+    const x = padX + c * (cw + padX), y = top + r * (ch + 12) - labScroll;
+    if (y + ch < top - 6 || y > H - 6) return;   // culled offscreen (still no cell)
     labCells.push({ i, x, y, w: cw, h: ch });
     const v = labVerdict(i);
     ctx.save();
@@ -1416,6 +1484,14 @@ function drawLab() {
     ctx.fillStyle = labStars.has(i) ? '#ffd166' : 'rgba(201,189,240,0.3)';
     ctx.fillText('★', x + cw - 20, y + 18);
   });
+  // header banner re-stamped over scrolled cards
+  ctx.fillStyle = '#100722'; ctx.fillRect(0, 0, W, 54);
+  ctx.font = '700 15px ui-rounded, system-ui, sans-serif';
+  ctx.fillStyle = '#f2ecff';
+  ctx.fillText('Level Lab', 16, 30);
+  ctx.font = '12px ui-rounded, system-ui, sans-serif';
+  ctx.fillStyle = '#8a80b0';
+  ctx.fillText('tap a card to play · ★ to shortlist · drag to scroll', 16, 48);
 }
 
 function frame(now) {
@@ -1521,7 +1597,7 @@ function rideCard(li, bandPairs, label) {
   const st = makeRun(L, bds);
   const path = [];
   let acc = 0, top = 1e9, fastest = 0, air = 0;
-  while (!st.result && st.t < RUN_MAX + 1) {
+  while (!st.result && st.t < (L.runMax || RUN_MAX) + 1) {
     const wasGround = st.grounded;
     stepRun(st, SUB);
     if (!wasGround) air += SUB;

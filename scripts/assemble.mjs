@@ -29,7 +29,7 @@ const SURFACES = [
   // into a game without being sorted onto a team first. /g00mBa's casing is
   // load-bearing -- URL paths are case-sensitive, so /g00mba is a 404.
   ["apps/hex-clicker/dist", "hexxygon", "Hex Clicker (coop)"],
-  ["prototypes/goomba-rider.html", "g00mBa", "Goomba Rider"],
+  ["apps/goomba-rider/dist", "g00mBa", "Goomba Rider (coop)"],
   ["apps/proctor/dist", "proctor", "Proctor dashboard"],
   // Chat must live on THIS origin, not behind a vanity domain: it reads the
   // same localStorage pid the lobby wrote, and localStorage is per-origin.

@@ -1,0 +1,276 @@
+// Goomba Rider level data + physics constants — the SHIPPED copy.
+//
+// The design bench is still `prototypes/goomba-rider.html`: levels are sketched
+// and verified there (see prototypes/tools/DESIGNING.md for the loop), and a
+// level that ships gets MIRRORED here, verbatim. Two copies is the same deal the
+// hex prototype had before it was deleted; if the drift ever bites, the fix is a
+// parity harness, not guessing.
+//
+// Numbers are the prototype's exactly — the client animates a run with this sim
+// while the server has already scored it with this sim, so any drift between
+// copies of these constants would show as a cat teleporting at the finish line.
+
+export const G = 140; // gravity, units/s^2
+export const R = 2.2; // Goomba's collision radius
+export const START_VX = 20; // the little push when PLAY is hit
+export const MAX_SPEED = 120;
+export const BAND_MAX = 58; // one silly band's worth of stretch
+export const BAND_MIN = 6;
+/** Team budget: 4 players × 1 band. This is the LOCKED party rule — every level
+ * ships with 4 band slots, and a 3-player team has someone place two (anyone
+ * may place remainder bands). */
+export const MAX_BANDS = 4;
+export const SUB = 1 / 240; // physics substep
+export const RUN_MAX = 15; // seconds before we call a run stuck
+export const KIND_GROUND = 0,
+  KIND_BAND = 1,
+  KIND_CUSH = 2;
+export const E_KIND = [0.02, 0.32, 1.3]; // restitution: ground, band, cushion
+export const FR_KIND = [0.18, 0.06, 0.02]; // friction
+export const POP_R = 6; // party-popper trigger radius
+export const POP_R2 = (POP_R + R) * (POP_R + R);
+export const POP_COOLDOWN = 0.8;
+export const PLANT_R = 7.5; // snake-plant pickup radius
+export const BUMP_R = 5.5,
+  BUMP_E = 1.18,
+  BUMP_MIN = 58; // piñata bumper: pinball-style radial kick
+
+export type Pt = [number, number];
+
+export interface GoombaPopper {
+  x: number;
+  y: number;
+  deg: number;
+  spd: number;
+  /** Derived by initLevel. */
+  ux?: number;
+  uy?: number;
+  vx?: number;
+  vy?: number;
+}
+
+export interface GoombaCushion {
+  x: number;
+  y: number;
+  w: number;
+}
+
+export interface GoombaBumper {
+  x: number;
+  y: number;
+}
+
+export interface GoombaLevel {
+  name: string;
+  hint: string;
+  hint2?: string;
+  /** Historical per-level allowance. The shipped game ignores it — the party
+   * rule locks every level to MAX_BANDS slots — but the design bench still
+   * reads it, so it rides along in the mirror. */
+  budget?: number;
+  maxSpeed?: number;
+  start: Pt;
+  goal: Pt;
+  terrain: Pt[][];
+  plants?: Pt[];
+  cushions?: GoombaCushion[];
+  pops?: GoombaPopper[];
+  bumpers?: GoombaBumper[];
+  solution?: [Pt, Pt][];
+  /** Derived by initLevel. */
+  bounds?: { x0: number; y0: number; x1: number; y1: number };
+  startAngle?: number;
+}
+
+/** A level with every optional collection and derived field filled in. */
+export interface GoombaLevelInit extends GoombaLevel {
+  plants: Pt[];
+  cushions: GoombaCushion[];
+  pops: Required<GoombaPopper>[];
+  bumpers: GoombaBumper[];
+  bounds: { x0: number; y0: number; x1: number; y1: number };
+  startAngle: number;
+}
+
+/** World bounds + popper aim vectors + start-pad angle — the prototype's
+ * initLevel, verbatim. */
+export function initLevel(L: GoombaLevel): GoombaLevelInit {
+  L.cushions = L.cushions || [];
+  L.pops = L.pops || [];
+  L.plants = L.plants || [];
+  L.bumpers = L.bumpers || [];
+  let x0 = 1e9,
+    y0 = 1e9,
+    x1 = -1e9,
+    y1 = -1e9;
+  const eat = (x: number, y: number) => {
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x);
+    y1 = Math.max(y1, y);
+  };
+  for (const poly of L.terrain) for (const [x, y] of poly) eat(x, y);
+  for (const c of L.cushions) {
+    eat(c.x, c.y);
+    eat(c.x + c.w, c.y);
+  }
+  for (const pp of L.pops) {
+    eat(pp.x - 6, pp.y - 6);
+    eat(pp.x + 6, pp.y + 6);
+  }
+  for (const m of L.plants) eat(m[0], m[1]);
+  for (const bp of L.bumpers) {
+    eat(bp.x - BUMP_R, bp.y - BUMP_R);
+    eat(bp.x + BUMP_R, bp.y + BUMP_R);
+  }
+  eat(L.goal[0], L.goal[1]);
+  eat(L.start[0], L.start[1]);
+  L.bounds = { x0: x0 - 8, y0: y0 - 16, x1: x1 + 8, y1: y1 + 8 };
+  for (const pp of L.pops) {
+    const rad = (pp.deg * Math.PI) / 180;
+    pp.ux = Math.cos(rad);
+    pp.uy = Math.sin(rad);
+    pp.vx = pp.ux * pp.spd;
+    pp.vy = pp.uy * pp.spd;
+  }
+  L.startAngle = 0;
+  for (const poly of L.terrain)
+    for (let i = 0; i + 1 < poly.length; i++) {
+      const [ax, ay] = poly[i],
+        [bx, by] = poly[i + 1];
+      if (
+        L.start[0] >= Math.min(ax, bx) &&
+        L.start[0] <= Math.max(ax, bx) &&
+        Math.abs(bx - ax) > 1
+      ) {
+        L.startAngle = Math.atan2(by - ay, bx - ax);
+        break;
+      }
+    }
+  return L as GoombaLevelInit;
+}
+
+// One row of the popper grid in the finale: every popper in a lane aims the
+// same way, which makes the lane a one-way street she cannot leave under her
+// own power.
+const GRID_X = [16, 32, 48, 64, 80, 96];
+const popLane = (y: number, dir: number): GoombaPopper[] =>
+  GRID_X.map((x) => ({ x, y, deg: dir > 0 ? 0 : 180, spd: 76 }));
+
+const RAW_LEVELS: GoombaLevel[] = [
+  // The tutorial: a smooth, slightly-downhill ride with two holes in it.
+  { name: '1 · Mind the Gap', budget: 2,
+    hint: 'the trail has holes — stretch a band across each one, lip to lip',
+    hint2: 'drag from one edge to the other; the ends snap onto the lips',
+    start: [-2, 10],
+    terrain: [ [[-6, 12], [30, 24]],
+               [[66, 50], [100, 60]],
+               [[138, 88], [172, 98]] ],
+    goal: [164, 94],
+    solution: [ [[30, 24], [66, 50]], [[100, 60], [138, 88]] ] },
+
+  { name: '2 · Snake Plant Slalom', budget: 3,
+    hint: 'grab every snake plant before the cake — slalom her down the shaft',
+    hint2: 'bank her off each band toward the next plant',
+    start: [10, 22],
+    terrain: [ [[-4, 20], [30, 30]],
+               [[6, 34], [6, 204], [104, 210], [104, 34]] ],
+    goal: [96, 205],
+    plants: [[32, 72], [76, 118], [32, 164]],
+    solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],
+                [[87, 132.3], [45.9, 160.8]] ] },
+
+  // "THE SKIM": build speed in a chute, popper fires her nearly flat through a
+  // long low slot, and the bands are lifts that keep her skimming.
+  { name: '3 · The Skim', budget: 3, maxSpeed: 135,
+    hint: 'keep her skimming through the slot — every sag needs a lift',
+    hint2: 'small flat bands under her path stop her clipping the pillows',
+    start: [8, 12],
+    terrain: [ [[-6, 10], [26, 22]],
+               [[26, 22], [10, 56], [14, 96], [32, 112], [44, 118]],
+               [[46, 102], [148, 108]],
+               [[150, 126], [162, 176], [150, 186], [128, 180]] ],
+    goal: [148, 179],
+    cushions: [ { x: 46, y: 138, w: 100 } ],
+    plants: [[74, 134], [116, 112]],
+    pops: [ { x: 48, y: 122, deg: -6, spd: 112 } ],
+    solution: [ [[123.5, 98.3], [99.1, 130.1]] ] },
+
+  // A sealed pinball box: piñatas, pillow floors, plants gating the cake, and
+  // the only exit is the drain hole. Bands are deflector plates.
+  { name: '4 · The Puzzle Box', budget: 4, maxSpeed: 140,
+    hint: 'route her through the chaos: every plant, then out the drain',
+    hint2: 'bands are deflector plates — steer the ricochets toward the hole',
+    start: [8, 12],
+    terrain: [ [[-6, 10], [32, 20]],
+               [[46, 28], [104, 32]],
+               [[8, 42], [8, 182], [40, 188]],
+               [[64, 188], [104, 182], [104, 32]],
+               [[36, 196], [52, 210], [68, 198]] ],
+    goal: [52, 206],
+    plants: [[28, 70], [78, 104], [16, 164]],
+    bumpers: [ { x: 56, y: 62 }, { x: 84, y: 78 }, { x: 22, y: 106 },
+               { x: 62, y: 128 }, { x: 88, y: 152 } ],
+    cushions: [ { x: 10, y: 180, w: 28 }, { x: 66, y: 180, w: 36 } ],
+    solution: [ [[59.8, 75.3], [14, 71.3]], [[38.1, 93.3], [4.9, 112.8]] ] },
+
+  { name: '5 · Piñata Alley', budget: 3,
+    hint: 'piñatas hit BACK — bank her through the plants and out the bottom',
+    hint2: 'bumpers add speed; aim her in and let them do the rest',
+    start: [8, 14],
+    terrain: [ [[-6, 12], [38, 24]],
+               [[4, 30], [4, 190], [106, 196], [106, 30]] ],
+    goal: [96, 191],
+    plants: [[24, 92], [86, 150]],
+    // curtains, not obstacles: the gaps are narrower than she is, so she MUST bounce
+    bumpers: [ { x: 16, y: 62 }, { x: 34, y: 62 }, { x: 52, y: 62 },
+               { x: 70, y: 62 }, { x: 88, y: 62 },
+               { x: 25, y: 122 }, { x: 43, y: 122 }, { x: 61, y: 122 },
+               { x: 79, y: 122 }, { x: 97, y: 122 } ],
+    solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
+
+  { name: '6 · Pillow Fort',
+    hint: 'the pillow is comfy. TOO comfy.',
+    hint2: 'lay a band across the shaft — she’ll land on it and slide out',
+    start: [8, 10],
+    terrain: [ [[-5, 8], [46, 20]],
+               [[96, 40], [96, 190]],
+               [[52, 44], [52, 120]],
+               [[0, 144], [24, 168], [48, 160]] ],
+    goal: [24, 165],
+    cushions: [ { x: 56, y: 190, w: 40 } ],
+    solution: [ [[58, 126], [95, 102]] ] },
+
+  { name: '7 · Pop Goes Goomba',
+    hint: 'party poppers do the lifting — your band does the aiming',
+    hint2: 'ramp her into the bottom popper; the rest is physics',
+    start: [8, 54],
+    terrain: [ [[-5, 52], [46, 62]],
+               [[40, -14], [66, -8]] ],
+    goal: [48, -13],
+    cushions: [ { x: 36, y: 150, w: 36 } ],
+    pops: [ { x: 98, y: 126, deg: -96, spd: 142 },
+            { x: 94, y: 80, deg: -97, spd: 142 },
+            { x: 85, y: 34, deg: -102, spd: 142 } ],
+    solution: [ [[54, 80], [92, 118]] ] },
+
+  // The 2D line maze finale: four lanes of forced poppers aimed in alternation.
+  // Bands can't help her travel — the only verb is to WALL a lane so she
+  // rebounds and drops into the lane below. The first level whose true minimum
+  // is 4 bands, so a 4-player team all genuinely participate.
+  { name: '8 · The Popper Grid', budget: 4,
+    hint: 'the poppers own every lane — a band is a WALL here, not a ramp',
+    hint2: 'she rebounds and drops one popper BACK, so wall just past each plant',
+    start: [-6, 8],
+    terrain: [ [[-8, 7], [12, 18]],
+               [[21, 6], [21, 34]],
+               [[28, 174], [48, 192], [68, 174]] ],
+    goal: [48, 190],
+    plants: [[53, 63], [28, 97], [68, 131]],
+    pops: [ ...popLane(46, +1), ...popLane(80, -1),
+            ...popLane(114, +1), ...popLane(148, -1) ],
+    solution: [ [[70, 34], [70, 60]], [[10, 68], [10, 94]],
+                [[86, 102], [86, 128]], [[26, 136], [26, 162]] ] },
+];
+
+export const GOOMBA_LEVELS: GoombaLevelInit[] = RAW_LEVELS.map(initLevel);

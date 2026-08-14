@@ -15,6 +15,12 @@
       "port": 1999
     },
     {
+      "name": "goomba-rider",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "apps/goomba-rider", "--", "--port", "5178", "--strictPort"],
+      "port": 5178
+    },
+    {
       "name": "hex-clicker",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "-w", "apps/hex-clicker", "--", "--port", "5173", "--strictPort"],

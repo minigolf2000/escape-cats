@@ -1,32 +1,39 @@
 # Escape Cats 🐾
 
-A cooperative 4-player mini game for a puzzle escape room, starring Hex.
-Players are sorted onto a team in the lobby, play together for ~10 minutes,
-and unlock a code word to give the proctor.
+Two cooperative 4-player mini games for a puzzle escape room, starring Hex and
+Goomba. Players are sorted onto a team in the lobby and play together for ~10
+minutes.
 
 - **Hex Clicker** — a cooperative cookie-clicker. One shared mouse pool,
   shared buildings and upgrades. Petting Hex mints mice; buying the twist
   puts her to sleep, and the night wall's drifting dream-mice gradually ink
   the code word — identically on every phone.
+- **Goomba Rider** — a line rider where the track is silly bandz. The team
+  shares 4 elastic bands a level (4 players × 1; anyone may place remainder
+  bands); anyone hits PLAY and every phone watches the same deterministic
+  ride to the birthday cake.
 
 ## Layout
 
 ```
 apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering split
                      into modules (see its src/README.md for the map)
+apps/goomba-rider/   Player client for Goomba Rider: the prototype's canvas
+                     rendering on the shared sim, driven by room snapshots
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on, with a link into the game
 apps/chat/           Per-team chat: one channel per team, roomed by team id
 apps/proctor/        Hidden proctor dashboard, one flat page: five boxes, where a
                      team's box is BOTH its drag-and-drop drop target and its
                      live game status (+ reset), plus one QR into the lobby
-packages/shared/     Wire protocol, seeded RNG, and the WHOLE hex
-                     game: balance tables (hex/data.ts), pure rules (hex/rules.ts)
-                     and the authoritative simulation (hex/sim.ts)
-server/              Cloudflare Worker: the game room, team lobby and team chat,
-                     as three Durable Objects (partyserver, NOT the PartyKit
-                     platform)
-hex/                 The original single-player prototype — FROZEN as reference
+packages/shared/     Wire protocol, seeded RNG, and BOTH whole games: hex
+                     balance/rules/sim (hex/), and goomba levels + physics +
+                     room sim (goomba/)
+server/              Cloudflare Worker: two game rooms, team lobby and team
+                     chat, as four Durable Objects (partyserver, NOT the
+                     PartyKit platform)
+tools/goomba/        Goomba level-design bench: QA tools over the shared sim
+                     + the design guide (DESIGNING.md)
 ```
 
 ## Where things live (so a retune touches one file)
@@ -37,8 +44,16 @@ hex/                 The original single-player prototype — FROZEN as referenc
   so there is exactly one copy to edit.
 - **Game logic** — what a pet/purchase/golden-catch does: `packages/shared/src/hex/sim.ts`
   (the room server is a thin websocket wrapper around it).
+- **Goomba levels & physics** — `packages/shared/src/goomba/levels.ts` and
+  `physics.ts`; the multiplayer room state machine is `goomba/sim.ts`. The
+  level-design loop and QA tools live in `tools/goomba/` (start with its
+  `DESIGNING.md`). There is no solo mode: with any player free to place the
+  remainder of the 4 bands, one phone in a room can already play everything,
+  so testing happens on the real game — assign yourself to a team from
+  `/proctor`.
 - **Art & rendering** — client-only, one module per system:
-  `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`.
+  `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported
+  canvas module, `apps/goomba-rider/src/main.js`.
 - **The prototype** (`hex/index.html`) is **deleted**. It was the tuning bench;
   that job moved to the multiplayer client's `?debug&speed=N` mode, which runs
   the same shared sim in-page. It had been frozen since #88 and was drifting
@@ -52,7 +67,7 @@ hex/                 The original single-player prototype — FROZEN as referenc
 1. **Monorepo** — the hard part (join/presence/reset/reveal plumbing) is
    shared; the games are apps on top of it.
 2. **Mobile web, no install** — QR scan → URL → playing in seconds.
-   Hex Clicker is portrait.
+   Both games are portrait.
 3. **Server-authoritative rooms** (Cloudflare Durable Objects). Clients send
    intents (clicks, purchases); the server owns all game state.
 4. **Shared cooperative state** — one point pool in Hex Clicker.
@@ -84,6 +99,7 @@ This starts everything:
 | ------------- | ------------------------------------------ |
 | Room server   | 127.0.0.1:1999 (wrangler dev)              |
 | Hex Clicker   | http://localhost:5173/hexxygon/            |
+| Goomba Rider  | http://localhost:5178/g00mBa/              |
 | Proctor       | http://localhost:5175                      |
 | Team lobby    | http://localhost:5176                      |
 | Team chat     | http://localhost:5177                      |
@@ -139,7 +155,8 @@ Client env vars (Vite, set in `apps/*/.env.local`):
 
 - `VITE_PARTYKIT_HOST` — host:port of the room server (default `127.0.0.1:1999`).
   Kept under its old name: it is what `partysocket` reads on every client.
-- `VITE_HEX_URL` — public game URL the lobby's **Play** button points at
+- `VITE_HEX_URL` / `VITE_GOOMBA_URL` — public game URLs the lobby's **Play**
+  buttons point at
 - `VITE_LOBBY_URL` — what the proctor's QR code encodes. Defaults to this
   page's own origin root, which is correct in production (one origin, lobby at
   `/`) and therefore needs no Vercel var; set it only in dev, where the proctor
@@ -231,12 +248,12 @@ come from `vercel.json`, so there is nothing to override in the dashboard.
 | --- | --- | --- |
 | `/` | `apps/lobby` | Team lobby (landing page) |
 | `/hexxygon/` | `apps/hex-clicker` | Hex Clicker (coop) |
-| `/g00mBa/` | `prototypes/goomba-rider.html` | Goomba Rider |
+| `/g00mBa/` | `apps/goomba-rider` | Goomba Rider (coop) |
 | `/chat/` | `apps/chat` | Per-team chat |
 | `/proctor/` | `apps/proctor` | Proctor dashboard |
 | `/qr-studio/` | `tools/qr-studio.html` | QR Art Studio |
 | `/reveal-lab/` | `tools/reveal-lab.html` | Night reveal wall lab |
-| `/prototypes/` | `prototypes/` | Prototypes menu + Goomba Rider |
+| `/prototypes/` | `prototypes/` | Prototypes menu |
 
 A single-file surface is copied to `<name>/index.html`, so it gets a pretty URL
 without a rewrite — the path is a real directory. `/ar/` and both `tools/` pages
@@ -248,6 +265,7 @@ every surface points at one server):
 ```
 VITE_PARTYKIT_HOST=escape-cats.escape-cats.workers.dev
 VITE_HEX_URL=https://hexxygon.com
+VITE_GOOMBA_URL=https://g00.mba
 ```
 
 **Root Directory must be blank.** `vercel.json` overrides the dashboard's
@@ -317,7 +335,7 @@ rewriting to it:
 | Domain | Redirects to | Serves |
 | --- | --- | --- |
 | `hexxygon.com` | `/hexxygon/` | Hex Clicker coop |
-| `g00.mba` | `/g00mBa/` | Goomba Rider |
+| `g00.mba` | `/g00mBa/` | Goomba Rider coop |
 | `g00.mba/ar` | `/ar/` | Scent Tracker (AR prototype) |
 
 `g00.mba/ar` borrows the Goomba domain purely as a short URL to type on a
@@ -342,7 +360,8 @@ onto a team first. **`/g00mBa` is case-sensitive** — URL paths are, per RFC
 exact casing.
 
 **Each app's vite `base` must be absolute and match its `dist/` subdirectory**
-— `/hexxygon/`, `/proctor/`, `/` for the lobby. Do not make them relative.
+— `/hexxygon/`, `/g00mBa/`, `/proctor/`, `/` for the lobby. Do not make them
+relative.
 
 Vercel serves with `trailingSlash: false`, so a request for `/hexxygon/` is
 normalised to `/hexxygon`. Against that URL the browser resolves a `./assets/`
@@ -357,7 +376,7 @@ and immune to the trailing slash.
 
 `vercel.json` sets **`trailingSlash: true`**, so directory URLs keep their
 slash. That is what hand-authored HTML in `prototypes/` assumes: a sibling link
-like `goomba-rider.html` resolves correctly from `/prototypes/` but points at
+like `scent-tracker.html` resolves correctly from `/prototypes/` but points at
 the site root from `/prototypes`. Paths carrying a file extension are excluded
 from the redirect, so a rewrite whose source is an extensionless pretty URL has
 to be registered in both slashed and unslashed forms to catch both sides of
@@ -412,12 +431,13 @@ values become placeholders, and the finished-run line occupies the same slot the
 "codeword locked" line does), and long values are CLIPPED rather than wrapped.
 Adding a line to a game block is therefore a layout decision, not a free one.
 
-Goomba Rider has a **placeholder block** in each team box, holding the shape the
-real one will take. It has no server: the game keeps each player's progress in
-that phone's `localStorage`, so there is nothing to report yet. Wiring it up
-means a fourth Durable Object roomed by team id, and its status lands in this
-block — which is the whole reason `TeamGame` is keyed by team rather than by
-game.
+Goomba Rider's block in each team box is live: the fourth Durable Object
+(`Goomba` binding, roomed by team id like everything else) feeds it phase,
+current level, levels completed out of the set, bands placed and fails — plus
+its own reset button. Every level is played with the full 4-band budget; the
+finish line the proctor watches for is all levels completed, shown with the
+run time in the same slot the in-progress count occupies (the box never
+changes height).
 
 The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
 lists everyone currently on that page as **five boxes** — Unassigned, then one

@@ -22,7 +22,8 @@
     "bindings": [
       { "name": "Main", "class_name": "HexServer" },
       { "name": "Lobby", "class_name": "LobbyServer" },
-      { "name": "Chat", "class_name": "ChatServer" }
+      { "name": "Chat", "class_name": "ChatServer" },
+      { "name": "Goomba", "class_name": "GoombaServer" }
     ]
   },
 
@@ -41,6 +42,10 @@
     {
       "tag": "v2",
       "new_sqlite_classes": ["ChatServer"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["GoombaServer"]
     }
   ],
 

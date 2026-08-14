@@ -43,8 +43,27 @@ export interface GoombaPersistedV1 {
   state: GoombaSimState;
 }
 
+/** A teammate's band-in-progress: the ghost they are stretching RIGHT NOW,
+ * streamed while they drag and gone when they release. Presentation only —
+ * the sim never reads these; they exist so the other phones can watch a
+ * band take shape (and yell about where it should go). Same deal as hex's
+ * teammate taps: ephemeral, never persisted, rides the snapshot. */
+export interface GoombaBandPreview {
+  pid: string;
+  slot: number;
+  ax: number;
+  ay: number;
+  bx: number;
+  by: number;
+  /** Server clock (ms) of the last update — clients drop stale ghosts, so a
+   * phone that dies mid-drag doesn't leave one hanging. */
+  at: number;
+}
+
 export interface GoombaSnapshot extends GoombaSimState {
   players: PlayerInfo[];
+  /** Teammates' bands-in-progress. Presentation only. */
+  previews: GoombaBandPreview[];
   /** Server clock (ms epoch) at send — phones sync their run animation to
    * `runAt` on this timeline, so everyone watches the same moment. */
   serverTime: number;
@@ -67,6 +86,10 @@ export type GoombaClientMsg =
    * lets anyone place the remainder bands. `index` into `bands`. */
   | { type: "remove"; index: number }
   | { type: "clear" }
+  /** The band being stretched right now (already snapped by the sender);
+   * omitted coords = the drag ended without a placement. Presentation only —
+   * never touches the sim, never persisted. */
+  | { type: "preview"; ax?: number; ay?: number; bx?: number; by?: number }
   | { type: "play" }
   /** Stop watching a run early (any player) — back to edit, scored as a fail
    * only if the scored result was one. */
@@ -207,12 +230,13 @@ export class GoombaSim {
     this.st = { ...freshState(now), runId };
   }
 
-  snapshot(now: number, players: PlayerInfo[]): GoombaSnapshot {
+  snapshot(now: number, players: PlayerInfo[], previews: GoombaBandPreview[] = []): GoombaSnapshot {
     this.resolve(now);
     const done = this.st.completed.filter(Boolean).length;
     return {
       ...this.st,
       players,
+      previews,
       serverTime: now,
       progress: done / GOOMBA_LEVELS.length,
       levelCount: GOOMBA_LEVELS.length,

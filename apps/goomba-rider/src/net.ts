@@ -19,6 +19,10 @@ export const PARTYKIT_HOST =
 
 export interface Transport {
   send(msg: GoombaClientMsg): void;
+  /** Stream the band being stretched right now (throttled to ~10Hz on the
+   * wire); pass null when the drag ends without a placement. Teammates render
+   * it as a live ghost. */
+  preview(bd: { ax: number; ay: number; bx: number; by: number } | null): void;
 }
 
 /** Swapped in by connectRoom. A stable object so the game module can import it
@@ -27,7 +31,12 @@ export interface Transport {
  * snapshot, unlike hex's pets. */
 export const transport: Transport = {
   send() {},
+  preview() {},
 };
+
+/** How often a drag-in-progress goes on the wire. 10Hz reads as live motion
+ * on the other phones while costing a handful of tiny messages per second. */
+const PREVIEW_MS = 100;
 
 /** Persistent per-device player id so reconnects reclaim the same seat —
  * the same key every other surface uses, which is the whole one-origin deal. */
@@ -53,6 +62,27 @@ export function connectRoom(opts: {
     if (socket && socket.readyState === socket.OPEN) {
       socket.send(JSON.stringify(msg));
     }
+  };
+
+  // Throttle with a trailing send, so the ghost's final position lands even
+  // if the last move fell inside the window. The clear (null) always goes out
+  // immediately — a lingering ghost is worse than an extra message.
+  let lastPreviewAt = 0;
+  let previewTimer: ReturnType<typeof setTimeout> | null = null;
+  transport.preview = (bd) => {
+    if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+    if (bd === null) {
+      lastPreviewAt = 0;
+      transport.send({ type: "preview" });
+      return;
+    }
+    const wait = lastPreviewAt + PREVIEW_MS - Date.now();
+    const fire = () => {
+      lastPreviewAt = Date.now();
+      transport.send({ type: "preview", ax: bd.ax, ay: bd.ay, bx: bd.bx, by: bd.by });
+    };
+    if (wait <= 0) fire();
+    else previewTimer = setTimeout(fire, wait);
   };
 
   void (async () => {

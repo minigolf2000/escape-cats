@@ -34,9 +34,12 @@ export function startDebug(opts) {
     }, ms + 50);
   };
 
+  transport.preview = () => {}; // no teammates in the lab
   transport.send = (msg) => {
     const now = Date.now();
     switch (msg.type) {
+      case "preview":
+        return; // presentation-only; nothing to show solo
       case "place":
         sim.place("debug", 0, msg, now);
         break;

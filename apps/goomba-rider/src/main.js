@@ -22,8 +22,10 @@ import {
   stepRun,
   snapBand,
   bandPoints,
+  scoreRun,
 } from "@escape-cats/shared";
 import { connectRoom, watchTeam, transport, playerId } from "./net";
+import { debugFromUrl, startDebug } from "./debug";
 
 const cv = document.getElementById("c");
 const ctx = cv.getContext("2d");
@@ -63,6 +65,15 @@ window.addEventListener(
 const BAND_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
 const BAND_DARK = ["#c23a85", "#2fae95", "#d0a53e", "#7f5ad9"];
 const EZ = 1.15, RZ = 1.9; // edit/run zoom (the prototype's tuned defaults)
+
+const DEBUG = debugFromUrl(); // ?debug — local sim + the LEVEL LAB, no server
+let labOpen = false;        // lab grid showing? (?debug only)
+function setLab(open) {
+  labOpen = open;
+  document.getElementById("hud").classList.toggle("lab", open);
+}
+let labCells = [];          // hit targets for the lab's cards
+const labVerdicts = new Map(); // level idx -> {bare, sol, ok} from the real sim
 
 let snap = null;            // latest GoombaSnapshot — the authority's word
 let serverOffset = 0;       // serverTime - Date.now(), from the last snapshot
@@ -155,6 +166,7 @@ function syncHud() {
   s.completed.forEach((c, i) => {
     const d = document.createElement("div");
     d.className = "dot" + (i === s.level ? " cur" : c ? " done" : "");
+    if (DEBUG) d.onclick = () => { if (s.phase !== "run") transport.send({ type: "goto", level: i }); };
     dotsEl.appendChild(d);
   });
 
@@ -198,6 +210,12 @@ playBtn.onclick = () => {
   else if (snap.phase === "win") transport.send({ type: "next" });
 };
 clearBtn.onclick = () => transport.send({ type: "clear" });
+const labBtn = $("lab");
+labBtn.onclick = () => {
+  if (!DEBUG) return;
+  if (snap && snap.phase === "run") transport.send({ type: "stop" });
+  setLab(true);
+};
 window.addEventListener("keydown", (e) => {
   if (e.key === " ") { e.preventDefault(); playBtn.onclick(); }
 });
@@ -276,6 +294,7 @@ function tryDelete(w) {
 
 cv.addEventListener("touchstart", (e) => {
   e.preventDefault();
+  if (labOpen) { const t = e.changedTouches[0]; labTap(t.clientX, t.clientY); return; }
   if (!canEdit()) return;
   for (const t of e.changedTouches) touches.set(t.identifier, { cx: t.clientX, cy: t.clientY });
   if (touches.size === 1) {
@@ -319,6 +338,7 @@ cv.addEventListener("touchend", (e) => {
 cv.addEventListener("touchcancel", () => { touches.clear(); preview = null; tapInfo = null; panning = false; });
 
 cv.addEventListener("mousedown", (e) => {
+  if (labOpen) { labTap(e.clientX, e.clientY); return; }
   if (!canEdit()) return;
   mouseDrag = { a: toWorld(e.clientX, e.clientY), px: e.clientX, py: e.clientY, t: performance.now() };
 });
@@ -342,8 +362,9 @@ cv.addEventListener("wheel", (e) => {
 }, { passive: false });
 
 // ---------- rendering (ported from the prototype) ----------
-const sxp = (x) => (x - cam.x) * cam.s + W / 2;
-const syp = (y) => (y - cam.y) * cam.s + H / 2;
+let camOX = 0, camOY = 0; // the lab draws levels into grid cells by offsetting the camera
+const sxp = (x) => (x - cam.x) * cam.s + W / 2 + camOX;
+const syp = (y) => (y - cam.y) * cam.s + H / 2 + camOY;
 
 function fitScale(lv) {
   const b = lv.bounds;
@@ -622,6 +643,84 @@ function drawStartPad(lv) {
   ctx.setLineDash([]);
 }
 
+// ---------- the LEVEL LAB (?debug) ----------
+// The deleted prototype's 🔬 view, on the shipped sim: every level as a card
+// with live verdicts (bare must NOT win, the solution must) — tap one to play
+// it locally. Design triage on any phone, straight from the deployed site.
+function labVerdict(i) {
+  if (!labVerdicts.has(i)) {
+    const lv = GOOMBA_LEVELS[i];
+    const bare = scoreRun(i, []).result;
+    const sol = lv.solution && lv.solution.length
+      ? scoreRun(i, lv.solution.map(([a, b]) => snapBand(lv, { ax: a[0], ay: a[1], bx: b[0], by: b[1] }))).result
+      : null;
+    labVerdicts.set(i, { bare, sol, ok: bare !== "win" && sol === "win" });
+  }
+  return labVerdicts.get(i);
+}
+function labTap(px, py) {
+  for (const c of labCells) {
+    if (px < c.x || px > c.x + c.w || py < c.y || py > c.y + c.h) continue;
+    setLab(false);
+    transport.send({ type: "goto", level: c.i });
+    return;
+  }
+}
+function drawLab() {
+  ctx.fillStyle = "#100722"; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.font = "700 15px ui-rounded, system-ui, sans-serif";
+  ctx.fillStyle = "#f2ecff";
+  ctx.fillText("Level Lab", 16, 30);
+  ctx.font = "12px ui-rounded, system-ui, sans-serif";
+  ctx.fillStyle = "#8a80b0";
+  ctx.fillText("tap a card to play it locally — no server, no room", 16, 48);
+
+  const cols = W > H ? 3 : 2;
+  const rows = Math.ceil(GOOMBA_LEVELS.length / cols);
+  const padX = 12, top = 62, bottom = 24;
+  const cw = (W - padX * (cols + 1)) / cols;
+  const ch = Math.min((H - top - bottom - 12 * (rows - 1)) / rows, cw * 1.5);
+  labCells = [];
+  const savedCam = { ...cam };
+  GOOMBA_LEVELS.forEach((lv, i) => {
+    const c = i % cols, r = (i / cols) | 0;
+    const x = padX + c * (cw + padX), y = top + r * (ch + 12);
+    labCells.push({ i, x, y, w: cw, h: ch });
+    const v = labVerdict(i);
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.clip();
+    ctx.fillStyle = "#180d31"; ctx.fillRect(x, y, cw, ch);
+    // the level itself, fitted into the card
+    const b = lv.bounds, bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+    const inner = 16;
+    cam.s = Math.min((cw - inner) / bw, (ch - inner - 22) / bh);
+    cam.x = (b.x0 + b.x1) / 2; cam.y = (b.y0 + b.y1) / 2;
+    camOX = x + cw / 2 - W / 2; camOY = y + (ch - 22) / 2 + 11 - H / 2;
+    drawTerrain(lv);
+    lv.cushions.forEach((cu) => drawCushion(cu, 0));
+    lv.pops.forEach((pp, k) => drawPopper(pp, k));
+    lv.bumpers.forEach((bp) => drawBumper(bp, 0));
+    lv.plants.forEach((m, k) => drawPlant(m[0], m[1], false, k));
+    drawCake(lv, null);
+    (lv.solution || []).forEach((sol, k) => drawBand(
+      snapBand(lv, { ax: sol[0][0], ay: sol[0][1], bx: sol[1][0], by: sol[1][1] }), k % 4, 0, false));
+    camOX = camOY = 0;
+    ctx.restore();
+    // frame + labels
+    ctx.strokeStyle = snap && i === snap.level ? "#ffd166" : "rgba(201,189,240,0.22)";
+    ctx.lineWidth = snap && i === snap.level ? 2.5 : 1.5;
+    ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
+    ctx.font = "700 12px ui-rounded, system-ui, sans-serif";
+    ctx.fillStyle = "#f2ecff";
+    ctx.fillText(lv.name.length > 18 ? lv.name.slice(0, 17) + "…" : lv.name, x + 9, y + ch - 8);
+    ctx.font = "10px ui-rounded, system-ui, sans-serif";
+    ctx.fillStyle = v.ok ? "#57e6c9" : "#ff8f8f";
+    ctx.fillText(`${v.ok ? "✓" : "✗"} bare:${v.bare} · sol:${v.sol ?? "none"}`, x + 9, y + 16);
+  });
+  Object.assign(cam, savedCam);
+}
+
 // ---------- main loop ----------
 const bandExcite = new Map(); // band index -> 0..1 wobble
 
@@ -630,6 +729,7 @@ function frame(nowMs) {
   const dt = Math.min(0.05, (nowMs - (frame.last || nowMs)) / 1000); frame.last = nowMs;
   tGlobal += dt;
   if (!snap) return;
+  if (labOpen) { drawLab(); return; }
   const lv = L();
   const st = syncAnim();
   const riding = st && snap.phase === "run";
@@ -723,6 +823,13 @@ function mySlot() {
 const NAME_KEY = "escape-cats-name";
 
 function boot() {
+  if (DEBUG) {
+    document.getElementById("hud").classList.add("debug");
+    labBtn.style.display = "";
+    setLab(true);
+    startDebug({ onSnapshot });
+    return;
+  }
   const name = localStorage.getItem(NAME_KEY) ?? "Cat";
   gateStatusEl.textContent =
     "Waiting for your team — the proctor sorts you in, nothing to do here.";

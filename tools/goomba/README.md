@@ -45,6 +45,7 @@ because each of *my* three bands was load-bearing; that says nothing about a
 completely different lone band.
 
 The party rule is locked at 4 players × 4 bands per level (see DESIGNING.md).
-The bookends already measure honestly — Mind the Gap provably needs its 2
-bridges, The Popper Grid needs all 4 walls — and the middle levels still
+The bookends already measure honestly — Mind the Gap needs its 4 bridges
+(exhaustive at 0-1 bands, 50k samples at 2-3, beam search at ≤3: nothing
+wins), The Popper Grid needs all 4 walls — and the middle levels (2-7) still
 collapse to 1 band, which is the standing rebalance debt.

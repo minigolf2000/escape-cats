@@ -115,12 +115,28 @@ predicted nothing. Lengthening the boring part is metric-gaming.
 
 **A collectible on the line she'd fly anyway is a chime, not a constraint.**
 Plants only create routing pressure when they're *expensive* — off the greedy
-path, costing speed or height or another plant. A plant ~5 units under a bridge
-line is collected by riding the band but missed by any ballistic arc.
+path, costing speed or height or another plant. (An early draft hung plants a
+few units under each bridge line — the beam search disproved it; see
+shelf-gating below for why in-gap collectibles never survive scrutiny.)
 
 **Collectibles beat geometry for forcing multi-band.** Scattered snake plants
 make the cake a *routing* problem instead of a reachability one: one band can
 drop her down a shaft, but it can't make her pass three separate points.
+
+**Shelf-gating — the switchback pattern (Mind the Gap).** Floors alternating
+direction, a band-sized gap in each, walls between floors erasing her speed.
+What makes it honestly need one band per floor is WHERE the collectibles sit:
+**on the far shelves between gap and wall, never hanging in the gaps**. A
+plant in a gap can be grazed by anything flying through it — the beam search
+found both a diagonal launcher band that overflew a whole floor through its
+gap, and an under-floor band that dropped her down a column past a lower
+plant. A shelf, by contrast, has solid floor directly above (no fall reaches
+it) and sits 40+ units above the next corridor (beyond the ~34 units of rise
+a speed-capped launch can buy — check this number when changing the pitch),
+so the only way onto it is across its gap. Two supporting facts: floors
+shallower than ~0.12 strand her (the idle pump fights the slope and she creeps
+into a stall), and a short uphill shelf before each lip pins bare lip speed to
+~24, which no 42-unit gap forgives.
 
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — cake in a pocket with a ceiling, so falling arrivals are

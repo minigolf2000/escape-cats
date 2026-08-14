@@ -47,8 +47,11 @@ must actually be ridden.
    fails.
 5. **Look at the ride**: `node ridecards.mjs <outDir> <idx>` renders the level
    with her traced path — Read the PNG. Judge fun by `duration × %airborne`,
-   not duration. For live play, drive the deployed game (or `npm run dev`) via
-   `window.__goomba`: `state() / send({type:'place',...}) / send({type:'play'})`.
+   not duration. For live play, open the game with **`?debug`** — the LEVEL
+   LAB: every level as a card with live verdicts, tap to play it locally on
+   the shared sim (no server). Scriptable via `window.__goomba`:
+   `state() / send({type:'place',...}) / send({type:'play'}) /
+   send({type:'goto',level:i})` (goto is debug-only).
 6. **Update what the level makes stale**: the level-count claims in the root
    `README.md` and this folder's docs, and give the level a `hint` and `hint2`
    (hint2 appears after 3 failed runs).

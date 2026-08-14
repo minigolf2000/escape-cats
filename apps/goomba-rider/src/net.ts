@@ -1,8 +1,7 @@
-// Transport for the Goomba room. Same shape as hex-clicker's net.ts, minus the
-// debug backend: there is no solo mode here. The locked party rule is 4 bands
-// on every level with any player free to place the remainder, so even a single
-// phone in a room can play the whole game — which is exactly what ?debug used
-// to exist for.
+// Transport for the Goomba room. Same shape as hex-clicker's net.ts; the
+// ?debug backend lives in debug.js (the shared GoombaSim in-page, feeding the
+// LEVEL LAB) and swaps itself into `transport` exactly the way connectRoom
+// does, so the game code cannot tell which backend it is on.
 //
 // `partysocket` is imported dynamically for the same chunking reason as hex —
 // though with no serverless mode left the win is only initial paint.

@@ -12,6 +12,8 @@ Designing a level end-to-end is walked through in
 
 ```sh
 cd tools/goomba
+node verify.mjs 0      # THE GATE: full PASS/FAIL battery for one level (--quick to iterate)
+node verify.mjs all    # verdict per level (levels predating the party rule fail: known debt)
 node test.mjs          # every level: must FAIL bare, WIN with its solution
 node robust.mjs        # drop-one-band test + ±3-unit finger-slop tolerance
 node minbands.mjs [i]  # how many bands a level ACTUALLY needs (see below)

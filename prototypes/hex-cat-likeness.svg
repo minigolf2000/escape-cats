@@ -1,0 +1,127 @@
+<!--
+  Hex — eye pass on the drawn sticker.
+
+  Left panel is the sketch as drawn: hollow yellow ring eyes, 1:1 round. Right
+  panel is the same drawing with ONLY the eyes changed — filled chartreuse
+  lemon with a gold core and a vertical slit pupil. Silhouette, ears, brow
+  ticks and whiskers are identical between the two panels, so the sheet
+  isolates the one change.
+
+  Placement is deliberately untouched: the new eyes are centred exactly where
+  the rings were, sized to hold the same weight in the face (a 1.5:1 lemon at
+  the ring's width would read squinty, so it is scaled to match the ring's
+  area, not its width). Raising the eyes to the head's midline and spreading
+  them a further half-eye-width apart is a separate pass.
+
+  The result is hex-cat-sticker.svg, whose #eyeLeft/#eyeRight/#irisLeft/
+  #irisRight ids match hex-cat.svg's so it can be wired into hex-clicker
+  without touching the blink/gaze hooks.
+-->
+<svg width="1600" height="1460" viewBox="0 0 1600 1460" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="irisL" gradientUnits="userSpaceOnUse" cx="255" cy="505" r="95">
+    <stop offset="0" stop-color="#D6C752"/>
+    <stop offset="0.40" stop-color="#B0C44C"/>
+    <stop offset="1" stop-color="#7B9937"/>
+  </radialGradient>
+  <radialGradient id="irisR" gradientUnits="userSpaceOnUse" cx="492" cy="502" r="95">
+    <stop offset="0" stop-color="#D6C752"/>
+    <stop offset="0.40" stop-color="#B0C44C"/>
+    <stop offset="1" stop-color="#7B9937"/>
+  </radialGradient>
+  <filter id="wobble" x="-8%" y="-8%" width="116%" height="116%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+
+  <!-- everything except the eyes, shared by both panels so only the eyes differ -->
+  <g id="sketch">
+    <path d="M 180 260 L 212 88 C 216 78, 228 78, 236 88 L 330 178
+             C 360 168, 440 165, 470 175 L 556 82 C 566 72, 578 74, 582 86 L 604 258
+             C 690 320, 720 420, 700 500 C 680 590, 600 650, 470 668
+             C 400 678, 330 676, 270 662 C 150 634, 78 560, 82 470
+             C 86 380, 120 300, 180 260 Z"
+          fill="#111114" stroke="#F4F4F2" stroke-width="11" stroke-linejoin="round"/>
+    <path d="M 218 110 L 236 112 L 250 180 C 236 186, 222 172, 218 110 Z" fill="#9C6B66"/>
+    <path d="M 552 105 L 570 108 L 578 180 C 564 186, 550 170, 552 105 Z" fill="#9C6B66"/>
+  </g>
+  <g id="strokes" stroke="#F4F4F2" stroke-width="7" stroke-linecap="round" fill="none">
+    <path d="M 258 398 L 268 372"/>
+    <path d="M 276 402 L 288 378"/>
+    <path d="M 452 392 L 442 368"/>
+    <path d="M 470 396 L 458 374"/>
+    <path d="M 175 528 C 120 520, 60 512, 30 508"/>
+    <path d="M 172 545 C 115 548, 55 556, 28 566"/>
+    <path d="M 570 505 C 630 495, 690 490, 726 490"/>
+    <path d="M 572 522 C 634 526, 694 534, 730 542"/>
+  </g>
+</defs>
+
+<rect width="1600" height="1460" fill="#1b1b1d"/>
+
+<g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" fill="#F4F4F2">
+  <text x="80" y="70" font-size="34" font-weight="600">Hex — eye pass</text>
+  <text x="80" y="104" font-size="19" fill="#8d8d92">Same drawing, same strokes. Only the eyes change.</text>
+</g>
+
+<!-- ============================== PANEL A — as drawn ============================== -->
+<g transform="translate(110,150) scale(0.72)">
+  <g filter="url(#wobble)">
+    <use href="#sketch"/>
+    <ellipse cx="255" cy="505" rx="52" ry="50" fill="none" stroke="#D6D84E" stroke-width="20"/>
+    <ellipse cx="492" cy="502" rx="52" ry="50" fill="none" stroke="#D6D84E" stroke-width="20"/>
+    <use href="#strokes"/>
+  </g>
+</g>
+<g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <text x="110" y="790" font-size="22" font-weight="600" fill="#F4F4F2">As drawn</text>
+  <text x="110" y="820" font-size="17" fill="#8d8d92">Hollow ring — the black centre becomes the whole pupil.</text>
+</g>
+
+<!-- ============================== PANEL B — new eyes ============================== -->
+<g transform="translate(880,150) scale(0.72)">
+  <g filter="url(#wobble)">
+    <use href="#sketch"/>
+    <path d="M 182 494 C 196 468, 229 455, 261 458 C 296 462, 320 487, 328 514
+             C 315 542, 280 555, 246 552 C 212 548, 188 523, 182 494 Z" fill="url(#irisL)"/>
+    <path d="M 565 491 C 551 465, 518 452, 486 455 C 451 459, 427 484, 419 511
+             C 432 539, 467 552, 501 549 C 535 545, 559 520, 565 491 Z" fill="url(#irisR)"/>
+    <path d="M 255 464 C 267 482, 267 527, 255 545 C 243 527, 243 482, 255 464 Z" fill="#0A0B10"/>
+    <path d="M 492 461 C 504 479, 504 524, 492 542 C 480 524, 480 479, 492 461 Z" fill="#0A0B10"/>
+    <use href="#strokes"/>
+  </g>
+</g>
+<g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <text x="880" y="790" font-size="22" font-weight="600" fill="#F4F4F2">New eyes</text>
+  <text x="880" y="820" font-size="17" fill="#8d8d92">Filled chartreuse lemon, gold core, vertical slit pupil.</text>
+</g>
+
+<!-- ============================== EYE DETAIL ============================== -->
+<line x1="80" y1="870" x2="1520" y2="870" stroke="#33333a" stroke-width="2"/>
+<text x="80" y="920" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="24" font-weight="600" fill="#F4F4F2">The eye, up close</text>
+
+<rect x="80" y="946" width="690" height="384" rx="22" fill="#111114" stroke="#2c2c33" stroke-width="2"/>
+<rect x="830" y="946" width="690" height="384" rx="22" fill="#111114" stroke="#2c2c33" stroke-width="2"/>
+
+<g transform="translate(425,1128) scale(2.4) translate(-255,-505)">
+  <ellipse cx="255" cy="505" rx="52" ry="50" fill="none" stroke="#D6D84E" stroke-width="20"/>
+</g>
+
+<g transform="translate(1175,1128) scale(2.4) translate(-255,-505)">
+  <path d="M 182 494 C 196 468, 229 455, 261 458 C 296 462, 320 487, 328 514
+           C 315 542, 280 555, 246 552 C 212 548, 188 523, 182 494 Z" fill="url(#irisL)"/>
+  <path d="M 255 464 C 267 482, 267 527, 255 545 C 243 527, 243 482, 255 464 Z" fill="#0A0B10"/>
+  <!-- horizontal reference vs. the corner-to-corner axis -->
+  <path d="M 172 504 L 340 504" stroke="#F4F4F2" stroke-width="1.4" stroke-dasharray="6 8" opacity="0.28"/>
+  <path d="M 182 495 L 330 513" stroke="#F4F4F2" stroke-width="1.6" stroke-dasharray="9 7" opacity="0.5"/>
+</g>
+
+<g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" fill="#8d8d92">
+  <text x="112" y="1298">1:1 round and hollow — the black centre becomes the whole pupil.</text>
+  <text x="862" y="1298">Solid field ~1.5:1, gold at the pupil to green at the rim, ~7° lid slant.</text>
+</g>
+
+<g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" fill="#8d8d92">
+  <text x="80" y="1400">Colour stops: #D6C752 core → #B0C44C mid → #7B9937 rim.  Pupil ~13% of eye width, near full height, tapered top and bottom.</text>
+</g>
+</svg>

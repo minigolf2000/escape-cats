@@ -1,24 +1,70 @@
 <!--
-  Hex the cat — "faithful sticker" direction. Source of truth for Figma sync:
-  edit in Figma, export SVG, paste the result over this file (and the copy
-  inlined in hex-clicker.html's #catWrap), keeping these element ids so the
-  JS animation hooks in hex-clicker.html keep working:
-    #head        — main silhouette + keyline (fill + stroke)
-    #eyeLeft/#eyeRight       — green iris shapes (blink scales these)
-    #irisLeft/#irisRight     — black pupil dots (still named iris* — see
-                               hex-clicker.html's updateCat() for why the ids
-                               weren't renamed when the coloring flipped)
-    #mouth, #whiskers        — static features
-  A raw Figma export won't carry these ids unless the layers are named
-  exactly this way — if a fresh export drops them, re-add the id="..."
-  attributes below by hand before wiring it back into hex-clicker.html.
+  Hex the cat — the drawn sticker, wired for the game. Source of truth for
+  Figma sync: edit in Figma, export SVG, paste the result over this file (and
+  the copy inlined in apps/hex-clicker/index.html's #catWrap), keeping these
+  element ids so the JS animation hooks in apps/hex-clicker/src/cat.js keep
+  working:
+    #headFill    — solid black silhouette, NO stroke. Its ears are cut flat at
+                   y=150 rather than drawn to the tips: the fill only has to
+                   back an ear far enough that a flick can't open a gap to the
+                   stage behind it.
+    #headOutline — white keyline of the lower head + the valley between the
+                   ears. The ear edges are NOT in here; they belong to the ear
+                   groups so they rotate with them.
+    #earLeft/#earRight — a group each (black fill + rose inner ear + white V
+                   outline, base unstroked) pivoting at its own base.
+    #eyeLeft/#eyeRight — the chartreuse eye (blink scales these)
+    #irisLeft/#irisRight — the black slit PUPILS (still named iris* — see
+                   cat.js's PUPIL_SLIT comment for why the ids weren't renamed
+                   when the coloring flipped). Each sits inside a static
+                   clip-path wrapper; the clip must stay on the wrapper, never
+                   on the pupil, or it travels with the gaze and bounds nothing.
+    #mouth, #brows, #whiskers — the lip line, the brow whiskers, the muzzle
+                   whiskers. #brows is deliberately separate from #whiskers:
+                   the forward fan is meant to move the muzzle set only.
+  A raw Figma export won't carry these ids unless the layers are named exactly
+  this way — if a fresh export drops them, re-add the id="..." attributes below
+  by hand before wiring it back in. Every white stroke also needs class="catLine"
+  to pick up the Zoomies recolor.
+
+  Geometry is shared with hex-cat-sticker.svg, which is the same drawing with no
+  game rigging — that file is the one to look at for the art on its own, this one
+  for what the game animates. At rest the split pieces here compose back into
+  that drawing exactly.
+
+  Anything in cat.js measured in user units is tied to this 800x780 viewBox
+  (IRIS_LOOK_X/Y, the yawn's jaw ceiling). Rescale the art and those move too.
 -->
-<svg id="hexCat" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path id="head" d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z" fill="#111114" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round"/>
-<path id="eyeLeft" d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="#65C256"/>
-<path id="eyeRight" d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="#65C256"/>
-<path id="irisLeft" d="M68 128C72.4183 128 76 124.418 76 120C76 115.582 72.4183 112 68 112C63.5817 112 60 115.582 60 120C60 124.418 63.5817 128 68 128Z" fill="#0a0b10"/>
-<path id="irisRight" d="M135 131C139.418 131 143 127.418 143 123C143 118.582 139.418 115 135 115C130.582 115 127 118.582 127 123C127 127.418 130.582 131 135 131Z" fill="#0a0b10"/>
-<path id="mouth" d="M87 160C95 158.667 99 154.333 99 147C99 154.333 103 158.667 111 160" stroke="#F4F4F2" stroke-width="2.4" stroke-linecap="round"/>
-<path id="whiskers" d="M80 143L34 134M80 149H32M80 155L34 164M120 143L166 134M120 149H168M120 155L166 164" stroke="#F4F4F2" stroke-width="2.2" stroke-linecap="round"/>
+<svg id="hexCat" width="800" height="780" viewBox="0 0 800 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<radialGradient id="hexIrisL" gradientUnits="userSpaceOnUse" cx="255" cy="505" r="95">
+<stop offset="0" stop-color="#D6C752"/><stop offset="0.40" stop-color="#B0C44C"/><stop offset="1" stop-color="#7B9937"/>
+</radialGradient>
+<radialGradient id="hexIrisR" gradientUnits="userSpaceOnUse" cx="492" cy="502" r="95">
+<stop offset="0" stop-color="#D6C752"/><stop offset="0.40" stop-color="#B0C44C"/><stop offset="1" stop-color="#7B9937"/>
+</radialGradient>
+<clipPath id="hexEyeClipL"><path d="M 182 494 C 196 468, 229 455, 261 458 C 296 462, 320 487, 328 514 C 315 542, 280 555, 246 552 C 212 548, 188 523, 182 494 Z"/></clipPath>
+<clipPath id="hexEyeClipR"><path d="M 565 491 C 551 465, 518 452, 486 455 C 451 459, 427 484, 419 511 C 432 539, 467 552, 501 549 C 535 545, 559 520, 565 491 Z"/></clipPath>
+</defs>
+<g id="catFace">
+<path id="headFill" d="M 180 260 L 200 150 L 301 150 L 330 178 C 360 168, 440 165, 470 175 L 493 150 L 590 150 L 604 258 C 690 320, 720 420, 700 500 C 680 590, 600 650, 470 668 C 400 678, 330 676, 270 662 C 150 634, 78 560, 82 470 C 86 380, 120 300, 180 260 Z" fill="#111114"/>
+<path id="headOutline" class="catLine" d="M 330 178 C 360 168, 440 165, 470 175 M 604 258 C 690 320, 720 420, 700 500 C 680 590, 600 650, 470 668 C 400 678, 330 676, 270 662 C 150 634, 78 560, 82 470 C 86 380, 120 300, 180 260" fill="none" stroke="#F4F4F2" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>
+<g id="earLeft">
+<path d="M 180 260 L 212 88 C 216 78, 228 78, 236 88 L 330 178 Z" fill="#111114"/>
+<path d="M 218 110 L 236 112 L 250 180 C 236 186, 222 172, 218 110 Z" fill="#9C6B66"/>
+<path class="catLine" d="M 180 260 L 212 88 C 216 78, 228 78, 236 88 L 330 178" fill="none" stroke="#F4F4F2" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>
+</g>
+<g id="earRight">
+<path d="M 470 175 L 556 82 C 566 72, 578 74, 582 86 L 604 258 Z" fill="#111114"/>
+<path d="M 552 105 L 570 108 L 578 180 C 564 186, 550 170, 552 105 Z" fill="#9C6B66"/>
+<path class="catLine" d="M 470 175 L 556 82 C 566 72, 578 74, 582 86 L 604 258" fill="none" stroke="#F4F4F2" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>
+</g>
+<path id="eyeLeft" d="M 182 494 C 196 468, 229 455, 261 458 C 296 462, 320 487, 328 514 C 315 542, 280 555, 246 552 C 212 548, 188 523, 182 494 Z" fill="url(#hexIrisL)"/>
+<path id="eyeRight" d="M 565 491 C 551 465, 518 452, 486 455 C 451 459, 427 484, 419 511 C 432 539, 467 552, 501 549 C 535 545, 559 520, 565 491 Z" fill="url(#hexIrisR)"/>
+<g clip-path="url(#hexEyeClipL)"><path id="irisLeft" d="M 255 464 C 267 482, 267 527, 255 545 C 243 527, 243 482, 255 464 Z" fill="#0A0B10"/></g>
+<g clip-path="url(#hexEyeClipR)"><path id="irisRight" d="M 492 461 C 504 479, 504 524, 492 542 C 480 524, 480 479, 492 461 Z" fill="#0A0B10"/></g>
+<path id="mouth" class="catLine" d="M 332 600 C 360 596, 374 583, 374 560 C 374 583, 388 596, 416 600" fill="none" stroke="#F4F4F2" stroke-width="7" stroke-linecap="round"/>
+<path id="brows" class="catLine" d="M 258 398 L 268 372 M 276 402 L 288 378 M 452 392 L 442 368 M 470 396 L 458 374" fill="none" stroke="#F4F4F2" stroke-width="7" stroke-linecap="round"/>
+<path id="whiskers" class="catLine" d="M 175 528 C 120 520, 60 512, 30 508 M 172 545 C 115 548, 55 556, 28 566 M 570 505 C 630 495, 690 490, 726 490 M 572 522 C 634 526, 694 534, 730 542" fill="none" stroke="#F4F4F2" stroke-width="7" stroke-linecap="round"/>
+</g>
 </svg>

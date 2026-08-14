@@ -1,0 +1,122 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Goomba Rider</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❓</text></svg>">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #150a2a; }
+  #c { position: fixed; inset: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
+  #hud { position: fixed; inset: 0; pointer-events: none;
+         font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+         color: #f2ecff; }
+  #top { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
+         display: flex; align-items: center; justify-content: space-between; padding: 0 14px; gap: 8px; }
+  #lvl { font-weight: 700; font-size: 15px; letter-spacing: .02em; text-shadow: 0 2px 8px rgba(0,0,0,.6);
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #dots { display: flex; gap: 4px; }
+  .dot { box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%;
+         border: 2px solid #6b5a98; background: transparent; }
+  .dot.done { border-color: #57e6c9; background: rgba(87,230,201,.4); }
+  .dot.cur  { background: #ffd166; border-color: #ffd166; box-shadow: 0 0 10px rgba(255,209,102,.7); }
+  #inv { display: flex; gap: 4px; }
+  #inv .band { width: 27px; height: 27px; border-radius: 8px; border: 2.5px dashed rgba(201,189,240,.4);
+               box-sizing: border-box; transition: opacity .25s, transform .25s; }
+  #inv .band.used { border-style: solid; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+  #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 34px); left: 0; right: 0;
+          text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
+  #team { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 56px); left: 0; right: 0;
+          text-align: center; font-size: 11px; color: #8a80b0; text-shadow: 0 2px 6px rgba(0,0,0,.7);
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 20px; }
+  #team b { font-weight: 700; }
+  #team .off { opacity: .45; }
+  button { pointer-events: auto; font: inherit; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  #play { position: absolute; right: 16px; bottom: max(16px, env(safe-area-inset-bottom));
+          min-width: 118px; height: 56px; border-radius: 28px; font-size: 19px; font-weight: 800;
+          color: #1b0f38; background: linear-gradient(180deg, #67f2d4, #3fd4b4);
+          box-shadow: 0 6px 18px rgba(87,230,201,.35), inset 0 -3px 0 rgba(0,0,0,.15); letter-spacing: .03em; }
+  #play.stop { background: linear-gradient(180deg, #ff7ec1, #ff5db1); box-shadow: 0 6px 18px rgba(255,93,177,.35), inset 0 -3px 0 rgba(0,0,0,.15); }
+  #play.next { background: linear-gradient(180deg, #ffe08a, #ffd166); box-shadow: 0 6px 18px rgba(255,209,102,.4), inset 0 -3px 0 rgba(0,0,0,.15); }
+  #clear { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom));
+           height: 44px; padding: 0 16px; border-radius: 22px; font-size: 14px; font-weight: 700;
+           color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
+  #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.9);
+           background: rgba(20,10,45,.92); border: 2px solid #ffd166; color: #ffe9b3;
+           padding: 14px 26px; border-radius: 18px; font-size: 20px; font-weight: 800; text-align: center;
+           opacity: 0; transition: opacity .18s, transform .18s; white-space: nowrap; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+  #toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  #conn { position: absolute; left: 50%; top: max(10px, env(safe-area-inset-top));
+          transform: translateX(-50%); background: rgba(255,93,177,.92); color: #fff;
+          padding: 6px 14px; border-radius: 14px; font-size: 12px; font-weight: 700;
+          display: none; }
+  #conn.on { display: block; }
+
+  /* The waiting-room gate — the same contract as hex-clicker's: a phone the
+     proctor hasn't sorted yet waits here (and is already on the proctor's
+     board, because watching the lobby registers it). */
+  #gate { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+          justify-content: center; gap: 14px; background: rgba(13,6,30,.86); pointer-events: auto;
+          text-align: center; padding: 24px; }
+  #gate.hidden { display: none; }
+  #gate h1 { margin: 0; font-size: clamp(34px, 9vw, 56px); letter-spacing: .01em;
+             background: linear-gradient(90deg, #ff5db1, #ffd166, #57e6c9); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #gate .sub { color: #c9bdf0; font-size: 14px; margin-top: -8px; }
+  #gate .how { color: #f2ecff; font-size: 15px; line-height: 1.75; max-width: 350px; }
+  #gate .how b { color: #ffd166; }
+  #gateStatus { color: #c9bdf0; font-size: 14px; }
+  #gateErr { color: #ff8f8f; font-size: 13px; min-height: 1.2em; }
+
+  /* ---- PORTRAIT GATE — same rule as the prototype and hex clicker, kept in
+     sync BY HAND (see the prototype's comment for the breakpoint math). ---- */
+  #rotate { display: none; }
+  @media (orientation: landscape) and (max-height: 520px) {
+    #rotate {
+      display: flex; position: fixed; inset: 0; z-index: 100;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; padding: 24px; text-align: center;
+      background: #150a2a; color: #f2ecff; height: 100dvh;
+      font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    #rotate .glyph { font-size: 46px; animation: rotateHint 2.2s ease-in-out infinite; }
+    #rotate b { font-size: 19px; font-weight: 800; }
+    #rotate span { font-size: 14px; color: #c9bdf0; max-width: 30ch; }
+    #c, #hud { visibility: hidden; }
+  }
+  @keyframes rotateHint {
+    0%, 45%, 100% { transform: rotate(0deg); }
+    60%, 85% { transform: rotate(-90deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #rotate .glyph { animation: none; }
+  }
+</style>
+<canvas id="c"></canvas>
+<div id="rotate">
+  <div class="glyph">📱</div>
+  <b>Turn your phone upright</b>
+  <span>Goomba Rider is played in portrait.</span>
+</div>
+<div id="hud">
+  <div id="top">
+    <div id="lvl"></div>
+    <div id="dots"></div>
+    <div id="inv"></div>
+  </div>
+  <div id="hint"></div>
+  <div id="team"></div>
+  <div id="conn">reconnecting…</div>
+  <button id="clear">clear bands</button>
+  <button id="play">▶ PLAY</button>
+  <div id="toast"></div>
+  <div id="gate">
+    <h1>GOOMBA RIDER</h1>
+    <div class="sub">a silly-bandz line rider · cat games party game</div>
+    <div class="how">
+      Your team shares <b>4 silly bands</b> a level.<br>
+      <b>Two fingers</b> (or click-drag) stretch one; <b>one finger</b> pans.<br>
+      Tap a band to take it back. Anyone can hit <b>PLAY</b>. 🎂
+    </div>
+    <div id="gateStatus">Connecting…</div>
+    <div id="gateErr"></div>
+  </div>
+</div>
+<script type="module" src="/src/main.js"></script>

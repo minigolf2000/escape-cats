@@ -13,6 +13,7 @@ import { routePartykitRequest } from "partyserver";
 export { HexServer } from "./hex";
 export { LobbyServer } from "./lobby";
 export { ChatServer } from "./chat";
+export { GoombaServer } from "./goomba";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

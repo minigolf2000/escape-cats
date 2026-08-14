@@ -1,5 +1,10 @@
 # tools 🛠
 
+[`goomba/`](./goomba/) is the Goomba Rider level-design bench — node QA
+harnesses over the shared sim, plus the design guide (`DESIGNING.md`). It is
+its own world with its own README; everything below is about the two browser
+tools in this folder.
+
 Standalone browser tools — not games, not part of the multiplayer
 architecture. Each is a single self-contained HTML file with zero
 dependencies, zero build step, and no server, so it costs nothing to keep and

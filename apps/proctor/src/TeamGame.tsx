@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
 import {
   UPGRADES,
+  GOOMBA_LEVELS,
+  type GoombaServerMsg,
+  type GoombaSnapshot,
   type HexServerMsg,
   type HexSnapshot,
   type LobbyPlayer,
@@ -79,30 +82,27 @@ function GameBlock({
   );
 }
 
-/**
- * Goomba Rider, reserved. Its state has no server: the game keeps each player's
- * progress in that phone's localStorage, so there is nothing to report yet.
- * Wiring it up means a Durable Object roomed by team id feeding this block —
- * which is why TeamGame is keyed by TEAM rather than by game.
- *
- * Static, so it is built once rather than per render.
- */
-const GOOMBA_PENDING = (
-  <GameBlock
-    title="🍄 Goomba Rider"
-    progress={0}
-    pending
-    lines={[
-      {
-        text: "no server yet",
-        title:
-          "Goomba Rider has no room server: each phone keeps its own progress in localStorage, so there is nothing to report here yet.",
-      },
-      { text: "—" },
-      { text: "—" },
-    ]}
-  />
-);
+/** The Goomba readout — same fixed-line contract as hexStats: every line drawn
+ * in every state, absent values as placeholders, so the box never changes
+ * height. */
+function goombaStats(s: GoombaSnapshot | null): StatLine[] {
+  const total = GOOMBA_LEVELS.length;
+  if (!s) return [{ text: "…" }, { text: `…/${total} levels` }, { text: "…" }];
+  const phase =
+    s.phase === "run" ? "🛹 riding" : s.phase === "win" ? "🎉 cleared" : "✏️ placing";
+  const done = s.completed.filter(Boolean).length;
+  const finishedMs = s.finishedAt ? s.finishedAt - s.startedAt : null;
+  return [
+    { text: `${phase} · ${GOOMBA_LEVELS[s.level].name}` },
+    s.finishedAt
+      ? {
+          text: `✅ all ${total} levels${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,
+          className: "codeword",
+        }
+      : { text: `${done}/${total} levels done` },
+    { text: `${s.bands.length}/4 bands · ${s.fails} fails this level` },
+  ];
+}
 
 /**
  * One team's live game state, rendered inside that team's drop target so
@@ -124,6 +124,7 @@ export function TeamGame({
 }) {
   // The room id IS the team id, verbatim — nothing on any surface cases it.
   const { snap, reset } = useHexRoom(team.id, team.name);
+  const goomba = useGoombaRoom(team.id, team.name);
 
   const inRoom = new Set(
     (snap?.players ?? []).filter((p) => p.connected).map((p) => p.id),
@@ -162,9 +163,55 @@ export function TeamGame({
           Reset Hex
         </button>
       </GameBlock>
-      {GOOMBA_PENDING}
+      <GameBlock
+        title="🍄 Goomba Rider"
+        progress={goomba.snap?.progress ?? 0}
+        lines={goombaStats(goomba.snap)}
+      >
+        <button className="danger" onClick={goomba.reset}>
+          Reset Goomba
+        </button>
+      </GameBlock>
     </div>
   );
+}
+
+/** Watch one team's Goomba room as a spectator — the hex hook's shape, aimed
+ * at the `goomba` party. */
+function useGoombaRoom(
+  room: string,
+  teamName: string,
+): { snap: GoombaSnapshot | null; reset: () => void } {
+  const [snap, setSnap] = useState<GoombaSnapshot | null>(null);
+  const socketRef = useRef<PartySocket | null>(null);
+
+  useEffect(() => {
+    const socket = new PartySocket({
+      host: PARTYKIT_HOST,
+      room,
+      party: "goomba",
+      query: { role: "proctor" },
+    });
+    socketRef.current = socket;
+    socket.addEventListener("message", (e) => {
+      const msg: GoombaServerMsg = JSON.parse(e.data as string);
+      if (msg.type === "state") setSnap(msg.state);
+    });
+    const unbindVisibility = closeWhileHidden(socket);
+    return () => {
+      unbindVisibility();
+      socket.close();
+    };
+  }, [room]);
+
+  return {
+    snap,
+    reset: () => {
+      if (confirm(`Reset ${teamName}'s Goomba game back to level 1?`)) {
+        socketRef.current?.send(JSON.stringify({ type: "reset" }));
+      }
+    },
+  };
 }
 
 /** Watch one team's game room as a spectator. The snapshot is kept as it

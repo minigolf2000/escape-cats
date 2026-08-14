@@ -25,7 +25,7 @@ import {
   scoreRun,
 } from "@escape-cats/shared";
 import { connectRoom, watchTeam, transport, playerId } from "./net";
-import { debugFromUrl, startDebug } from "./debug";
+import { debugFromUrl, soloFromUrl, startDebug } from "./debug";
 
 const cv = document.getElementById("c");
 const ctx = cv.getContext("2d");
@@ -66,7 +66,8 @@ const BAND_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
 const BAND_DARK = ["#c23a85", "#2fae95", "#d0a53e", "#7f5ad9"];
 const EZ = 1.15, RZ = 1.9; // edit/run zoom (the prototype's tuned defaults)
 
-const DEBUG = debugFromUrl(); // ?debug — local sim + the LEVEL LAB, no server
+const DEBUG = debugFromUrl(); // debug menu on (?debug = in your room, ?solo = local)
+const SOLO = soloFromUrl();   // serverless backend for the same menu
 let labOpen = false;        // lab grid showing? (?debug only)
 function setLab(open) {
   labOpen = open;
@@ -136,6 +137,7 @@ function onSnapshot(s) {
     cushAnim = L().cushions.map(() => 0); popPrev = null;
     shownRunId = s.runId; shownLevel = s.level; shownPhase = s.phase;
     if (wasReset && !first) toast("fresh start! 🧽", 1400);
+    else if (levelChanged && !first) toast(L().name, 1400);
     syncHud();
     return;
   }
@@ -869,10 +871,15 @@ function boot() {
   if (DEBUG) {
     document.getElementById("hud").classList.add("debug");
     labBtn.style.display = "";
+  }
+  if (SOLO) {
+    // Serverless: the shared sim in-page, opening on the lab grid.
     setLab(true);
     startDebug({ onSnapshot });
     return;
   }
+  // ?debug without ?solo joins the real room like any player — the menu's
+  // card taps send a room-wide `goto`, so the whole team jumps together.
   const name = localStorage.getItem(NAME_KEY) ?? "Cat";
   gateStatusEl.textContent =
     "Waiting for your team — the proctor sorts you in, nothing to do here.";

@@ -47,12 +47,14 @@ tools/goomba/        Goomba level-design bench: QA tools over the shared sim
 - **Goomba levels & physics** — `packages/shared/src/goomba/levels.ts` and
   `physics.ts`; the multiplayer room state machine is `goomba/sim.ts`. The
   level-design loop and QA tools live in `tools/goomba/` (start with its
-  `DESIGNING.md`). `?debug` opens the **level lab** — the shared sim in-page
-  with every level as a card, live bare/solution verdicts, tap to play
-  locally (no server, no room; the same architecture as hex's `?debug`).
-  Multiplayer testing happens on the real game — assign yourself to a team
-  from `/proctor`; with any player free to place the remainder of the 4
-  bands, one phone in a room can play everything.
+  `DESIGNING.md`). The **debug menu**: `?debug` joins your real room with
+  the 🔬 **level lab** on top — every level as a card with live
+  bare/solution verdicts, and tapping a card jumps the whole room to that
+  level (teammates on plain URLs follow). `?solo` runs the same lab on the
+  in-page sim with no server (hex's `?debug` architecture). Testing happens
+  on the real game — assign yourself to a team from `/proctor`, open with
+  `?debug`; with any player free to place the remainder of the 4 bands, one
+  phone in a room can play everything.
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported
   canvas module, `apps/goomba-rider/src/main.js`.

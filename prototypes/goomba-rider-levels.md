@@ -20,7 +20,6 @@ Names are case-insensitive prefixes; everything else that has a **stroke** becom
 | `goal` or `cake` | small circle | the cake |
 | `cushion` | rect or horizontal line | bouncy pillow (its top edge; restitution > 1) |
 | `plant` (or `snake`) | small circle | snake plant — the cake stays locked until every one is collected |
-| `updraft` | rect | balloon column: sustained lift, she floats up through it |
 | `bumper` | small circle | piñata bumper: pinball-style radial kick that *adds* energy |
 | `pop` | a **line** | party popper: line start = position, direction = aim, **length = power** |
 | `sol` or `band` | lines | intended solution bands (optional — powers the 🧪 *verify level* button) |

@@ -1,14 +1,13 @@
-// Goomba Rider level data + physics constants — the SHIPPED copy.
+// Goomba Rider level data + physics constants — the ONLY copy.
 //
-// The design bench is still `prototypes/goomba-rider.html`: levels are sketched
-// and verified there (see prototypes/tools/DESIGNING.md for the loop), and a
-// level that ships gets MIRRORED here, verbatim. Two copies is the same deal the
-// hex prototype had before it was deleted; if the drift ever bites, the fix is a
-// parity harness, not guessing.
+// The single-file prototype these grew from is deleted; levels are designed by
+// editing THIS file and running the tools in tools/goomba/ (start with its
+// DESIGNING.md — the loop, the locked 4-band party rule, and the anti-shortcut
+// vocabulary live there).
 //
-// Numbers are the prototype's exactly — the client animates a run with this sim
-// while the server has already scored it with this sim, so any drift between
-// copies of these constants would show as a cat teleporting at the finish line.
+// The client animates a run with this sim while the server has already scored
+// it with the same sim, so a constant changed in only one place would show as
+// a cat teleporting at the finish line — there is deliberately no other place.
 
 export const G = 140; // gravity, units/s^2
 export const R = 2.2; // Goomba's collision radius
@@ -158,16 +157,54 @@ const popLane = (y: number, dir: number): GoombaPopper[] =>
   GRID_X.map((x) => ({ x, y, deg: dir > 0 ? 0 : 180, spd: 76 }));
 
 const RAW_LEVELS: GoombaLevel[] = [
-  // The tutorial: a smooth, slightly-downhill ride with two holes in it.
-  { name: '1 · Mind the Gap', budget: 2,
-    hint: 'the trail has holes — stretch a band across each one, lip to lip',
-    hint2: 'drag from one edge to the other; the ends snap onto the lips',
-    start: [-2, 10],
-    terrain: [ [[-6, 12], [30, 24]],
-               [[66, 50], [100, 60]],
-               [[138, 88], [172, 98]] ],
-    goal: [164, 94],
-    solution: [ [[30, 24], [66, 50]], [[100, 60], [138, 88]] ] },
+  // The tutorial, and the first level built for the locked party rule: four
+  // switchback floors, one band-sized hole in each, so 4 gaps = 4 bridges =
+  // 4 players. The walls between floors are the state-erasers (she hits one,
+  // loses all speed, drops to the next floor), which makes each floor's gap an
+  // independent stage no single band can shortcut across. A snake plant hangs
+  // just under each bridge line: riding the sagging band scoops it, while any
+  // ballistic hop over the gap sails above it — so every gap must actually be
+  // BRIDGED, not jumped, and the cake stays locked until all four were.
+  // Bare, she tours all four floors and falls out the bottom: the level
+  // demonstrates itself.
+  { name: '1 · Mind the Gap', budget: 4,
+    hint: 'four floors, four holes — bridge every one, lip to lip',
+    hint2: 'ride each bridge to scoop its snake plant; hopping the gap misses it',
+    start: [-2, 14],
+    terrain: [
+      // Each floor is a steep run (so she restarts snappily from a wall-drop's
+      // dead stop — shallower than ~0.12 and the idle pump can strand her
+      // creeping uphill) into a short SLIGHTLY-UPHILL shelf before the lip: a
+      // speed governor that keeps lip speed under ~40, below which a hop's arc
+      // can neither clear a 42-unit gap nor dip low enough to graze the plant.
+      // floor A, rightward
+      [[-6, 15], [24, 20], [40, 17.5]],
+      [[82, 21.5], [96, 24.5]],
+      [[103, 9], [103, 37]],     // right wall: kills her speed, drops her to B
+      // floor B, leftward
+      [[104, 58], [70, 68], [56, 65.5]],
+      [[14, 69.5], [0, 72.5]],
+      [[-7, 56], [-7, 85]],      // left wall, drops her to C
+      // floor C, rightward
+      [[-8, 101], [26, 111], [40, 108.5]],
+      [[82, 112.5], [96, 115.5]],
+      [[103, 99], [103, 128]],   // right wall, drops her to D
+      // floor D, leftward — the cake sits on its far ledge
+      [[104, 147], [70, 157], [56, 154.5]],
+      [[14, 158.5], [0, 161.5]] ],
+    goal: [6, 157.5],
+    // The plants sit ON the far shelves, not in the gaps. A plant hanging in a
+    // gap can be grazed by anything flying through it (a diagonal launcher
+    // band, a fall threading the gap column — both found by the beam search).
+    // A shelf can't be reached any way but ACROSS its gap: every shelf column
+    // has solid floor directly above, and the corridor below is 40+ units
+    // down — beyond the ~34 units of rise even a speed-capped launch can buy.
+    // So plant A gates "crossed gap A", B and C likewise, and the cake on the
+    // last shelf gates gap D: four crossings, and no crossing without a band
+    // on that floor.
+    plants: [[89, 22], [7, 70], [89, 113]],
+    solution: [ [[40, 17.5], [82, 21.5]], [[56, 65.5], [14, 69.5]],
+                [[40, 108.5], [82, 112.5]], [[56, 154.5], [14, 158.5]] ] },
 
   { name: '2 · Snake Plant Slalom', budget: 3,
     hint: 'grab every snake plant before the cake — slalom her down the shaft',

@@ -141,6 +141,18 @@ shallower than ~0.12 strand her (the idle pump fights the slope and she creeps
 into a stall), and a short uphill shelf before each lip pins bare lip speed to
 ~24, which no 42-unit gap forgives.
 
+**One deterministic launch is a spine (Pachinko Drop).** A popper's fire is
+exact, so a whole level can hang off a single parabola: rows placed so the
+BARE arc misses them by a few units, with a catch band whose only job is that
+nudge. Hard-won mechanics from building it: an entry ledge even **+1 above**
+the lip facing it is unjumpable (arcs only fall — check the fastest
+band-ramp arrival still lands short), but the crossing band SAGS ~1 per 20
+units, so the rider needs lip speed ≳ √(280·(rise+sag)) or she oscillates
+trapped in the sag valley; a floor ending nearer than ~5 units to a wall
+makes a wedge notch she stalls in (end floors ≥6 short of walls so she falls
+through); and a feed band that delivers her straight under a vertical fire
+gets smashed by it — angle the fire or end the feed outside the barrel line.
+
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — cake in a pocket with a ceiling, so falling arrivals are
   blocked and the only entry is horizontally through the mouth.

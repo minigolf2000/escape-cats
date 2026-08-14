@@ -291,11 +291,58 @@ const RAW_LEVELS: GoombaLevel[] = [
             { x: 85, y: 34, deg: -102, spd: 142 } ],
     solution: [ [[54, 80], [92, 118]] ] },
 
+  // PACHINKO: the plunger in the bottom-left corner fires her up-RIGHT at a
+  // fixed 80° — one deterministic parabola that the whole machine hangs off.
+  // Four bands run it: a FEED (the start pad rolls her away from the plunger;
+  // a reversal catch walks her back into the barrel), a CATCH that plucks the
+  // descending arc onto the top row (the bare arc misses the row by a few
+  // units — the catch's whole job is that nudge), and a BRIDGE across each of
+  // the two lower gaps. Three roofed plants gate the cake: one per stage
+  // after the feed. Landing entries sit 1 unit ABOVE the lip that faces them
+  // (arcs only fall — no jump can land them), roofs seal to walls, and both
+  // turns are wall-drops, so the chain has no free legs. After the third
+  // plant she drains through a slot into the basin, and the basin ends at
+  // the cake.
+  { name: '8 · Pachinko Drop', budget: 4, maxSpeed: 160,
+    hint: 'one fire runs the whole machine — feed it, catch it, bridge it',
+    hint2: 'bridge the pad to the barrel; a catch under the arc starts the chain',
+    start: [56, 186],
+    terrain: [
+      [[2, 86], [2, 228]],           // cabinet walls
+      [[102, 86], [102, 228]],
+      // Start pad tilts down-LEFT, steeper than the little start push: she
+      // rolls toward the plunger but the bare fall undershoots into a slot.
+      // The feed is a plain bridge from pad lip to barrel — band one.
+      [[52, 190], [64, 184]],
+      // row 1, rightward along the arc's descent, first plant under its roof
+      [[70, 124], [94, 129]],
+      [[74, 116], [88, 120]],
+      // row 2, leftward after the right-wall drop · gap A · landing A (plant 2)
+      [[100, 142], [76, 147]],
+      [[56, 145.5], [42, 149.5]],
+      [[60, 137], [38, 143]],
+      [[36, 148], [36, 161]],        // guard: drops the exit onto row 3
+      // row 3, rightward under the guard drop · gap C · landing C (plant 3)
+      [[36, 162], [68, 168.5], [72, 168]],
+      [[92, 167], [96, 169]],
+      [[88, 159], [102, 163]],
+      // slots — every one drains into the basin, the basin to the cake
+      [[14, 216], [14, 226]],
+      [[34, 216], [34, 226]],
+      [[56, 216], [56, 226]],
+      [[78, 216], [78, 226]],
+      [[4, 228], [52, 242], [100, 228]] ],
+    goal: [52, 239],
+    plants: [[81, 124.1], [49, 145.3], [95, 166.3]],
+    pops: [ { x: 19, y: 198, deg: -80, spd: 200 } ],
+    solution: [ [[52, 190], [26, 199]], [[52, 113], [64, 117]],
+                [[76, 147], [56, 145.5]], [[72, 168], [92, 167]] ] },
+
   // The 2D line maze finale: four lanes of forced poppers aimed in alternation.
   // Bands can't help her travel — the only verb is to WALL a lane so she
   // rebounds and drops into the lane below. The first level whose true minimum
   // is 4 bands, so a 4-player team all genuinely participate.
-  { name: '8 · The Popper Grid', budget: 4,
+  { name: '9 · The Popper Grid', budget: 4,
     hint: 'the poppers own every lane — a band is a WALL here, not a ramp',
     hint2: 'she rebounds and drops one popper BACK, so wall just past each plant',
     start: [-6, 8],

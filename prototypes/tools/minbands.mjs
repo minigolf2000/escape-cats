@@ -2,12 +2,13 @@
 // A level with budget N is only honest if the minimum is N — otherwise players get benched.
 // Usage: node minbands.mjs [levelIdx...]   (default: all)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+const GAME_URL = new URL('../goomba-rider.html', import.meta.url).href;
 
 const want = process.argv.slice(2).map(Number);
 const browser = await chromium.launch();
 const page = await browser.newPage();
 page.on('pageerror', e => console.log('PAGE ERROR:', e.message));
-await page.goto('file:///home/user/cat-games/prototypes/goomba-rider.html');
+await page.goto(GAME_URL);
 await page.waitForFunction(() => window.__gr);
 
 const idxs = want.length ? want
@@ -54,7 +55,7 @@ for (const li of idxs) {
     return res;
   }, li);
 
-  const min = [0, 1, 2, 3].find(k => r.k[k] && r.k[k].win > 0);
+  const found = [0, 1, 2, 3].find(k => r.k[k] && r.k[k].win > 0);
   console.log(`L${li + 1} ${r.name}  budget=${r.budget} intended=${r.intended ? r.intended.n + ' bands → ' + r.intended.result : 'none'}`);
   for (const k of [0, 1, 2, 3]) {
     if (!r.k[k]) continue;
@@ -62,7 +63,16 @@ for (const li of idxs) {
     console.log(`   ${k} band(s): ${v.win}/${v.of} win${k === 1 ? ' (exhaustive)' : k >= 2 ? ' (random sample)' : ''}` +
                 (v.eg && v.win ? `  e.g. ${JSON.stringify(v.eg.map(bd => bd.map(p => p.map(n => +n.toFixed(0)))))}` : ''));
   }
-  console.log(`   → minimum bands needed: ${min === undefined ? '>3' : min}` +
-              (min === r.budget ? '  ✓ matches budget' : `  ✗ budget says ${r.budget}`));
+  // The verdict combines two bounds. Lower: k=0/1 are exhaustive (so "no win" is
+  // proof); k=2/3 are random samples (so "no win" only means "none found"). Upper:
+  // the intended solution winning proves min ≤ its band count. When the bracket
+  // pinches — nothing exhaustive below, intended at the budget wins — the minimum
+  // IS the budget even if the random samples missed every needle.
+  const upper = r.intended && r.intended.result === 'win' ? r.intended.n : Infinity;
+  const lower = found !== undefined ? found : 2; // 0 and 1 are exhaustive
+  const min = Math.min(found !== undefined ? found : Infinity, upper);
+  console.log(`   → minimum bands needed: ${min === Infinity ? '>3' : found === undefined && min > lower ? `${lower}<n≤${min}` : min}` +
+              (min === r.budget ? (found === undefined ? `  ✓ no smaller set found, and the ${r.budget}-band solution wins` : '  ✓ matches budget')
+               : `  ✗ budget says ${r.budget}`));
 }
 await browser.close();

@@ -1,10 +1,11 @@
 // Diagnose the failure mode of jittered runs on one level.
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+const GAME_URL = new URL('../goomba-rider.html', import.meta.url).href;
 const li = +(process.argv[2] || 1); // 0-based level index
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
-await page.goto('file:///home/user/cat-games/prototypes/goomba-rider.html');
+await page.goto(GAME_URL);
 await page.waitForFunction(() => window.__gr);
 const out = await page.evaluate((li) => {
   const { simulate, LEVELS } = window.__gr;

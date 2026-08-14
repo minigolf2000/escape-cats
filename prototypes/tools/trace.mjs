@@ -1,13 +1,14 @@
 // Dense trajectory trace, for placing level geometry against where she actually flies.
 // Usage: node trace.mjs <levelIdx> ['[[[ax,ay],[bx,by]],...]']  (bands JSON, optional)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+const GAME_URL = new URL('../goomba-rider.html', import.meta.url).href;
 
 const li = +(process.argv[2] || 0);
 const bands = process.argv[3] ? JSON.parse(process.argv[3]) : [];
 const browser = await chromium.launch();
 const page = await browser.newPage();
 page.on('pageerror', e => console.log('PAGE ERROR:', e.message));
-await page.goto('file:///home/user/cat-games/prototypes/goomba-rider.html');
+await page.goto(GAME_URL);
 await page.waitForFunction(() => window.__gr);
 
 const r = await page.evaluate(({ li, bands }) => {

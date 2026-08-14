@@ -1,7 +1,7 @@
 // Goomba Rider level verifier: every level must FAIL with no bands and WIN with its solution.
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 
-const FILE = 'file:///home/user/cat-games/prototypes/goomba-rider.html';
+const FILE = new URL('../goomba-rider.html', import.meta.url).href;
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
 page.on('pageerror', e => console.log('PAGE ERROR:', e.message));

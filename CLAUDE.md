@@ -42,11 +42,13 @@ findings — do not design from intuition, the sim disproves it reliably.
   runs `check-routing.mjs`; keep its expectations current.
 - **Proctor box heights are fixed**: every stat line renders in every state
   (placeholders, never fewer lines) so boxes don't shift under a drag.
-- **`?debug` in Goomba Rider opens the LEVEL LAB**: the shared sim in-page
-  (no server, no room) showing every level as a card with live bare/solution
-  verdicts — tap one to play it locally. It's the design-triage surface;
-  multiplayer testing still happens on prod via `/proctor` (assign yourself
-  to a team). Hex keeps `?debug&speed=N` for balance work.
+- **Goomba Rider's debug menu**: `?debug` joins your REAL room with the
+  🔬 level lab on top — every level as a card with live bare/solution
+  verdicts, and tapping a card jumps THE WHOLE ROOM to that level (a real
+  wire intent; teammates on plain URLs follow). `?solo` runs the same lab on
+  the in-page sim with no server. Testing on prod: `/proctor`, assign
+  yourself to a team, open the game with `?debug`. Hex keeps
+  `?debug&speed=N` for balance work.
 
 ## Commands
 

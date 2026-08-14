@@ -1,16 +1,23 @@
-// ?debug — the shared GoombaSim running in-page, no server, no lobby. Same
-// architecture as hex-clicker's debug mode: the game code sees snapshots
-// arriving and intents leaving, and cannot tell there is no room behind them.
+// The two debug switches:
+//   ?solo   — the shared GoombaSim running in-page, no server, no lobby (hex's
+//             debug architecture: the game code sees snapshots arriving and
+//             intents leaving, and cannot tell there is no room behind them).
+//   ?debug  — the REAL multiplayer game plus the debug menu: the 🔬 level lab
+//             where tapping a card jumps the whole room (a real wire intent).
+//             ?solo implies the menu too.
 // The server validates everything in a real room, so shipping this costs
-// nothing security-wise; it exists so a level designer can open the LEVEL LAB
-// (see main.js) and poke any level on any phone straight from the deployed
-// site — the multiplayer stand-in for the deleted prototype's 🔬 button.
+// nothing security-wise.
 
 import { GoombaSim } from "@escape-cats/shared";
 import { transport } from "./net";
 
 export function debugFromUrl() {
-  return new URLSearchParams(location.search).has("debug");
+  const q = new URLSearchParams(location.search);
+  return q.has("debug") || q.has("solo");
+}
+
+export function soloFromUrl() {
+  return new URLSearchParams(location.search).has("solo");
 }
 
 export function startDebug(opts) {
@@ -62,17 +69,9 @@ export function startDebug(opts) {
       case "reset":
         sim.reset(now);
         break;
-      // Lab-only intent: jump straight to a level. Not in the wire protocol —
-      // a real room progresses linearly and the server would ignore it.
-      case "goto": {
-        sim.resolve(now);
-        sim.st.level = msg.level;
-        sim.st.phase = "edit";
-        sim.st.bands = [];
-        sim.st.runAt = sim.st.runResult = sim.st.runT = null;
-        sim.st.fails = 0;
+      case "goto":
+        sim.goto(msg.level, now);
         break;
-      }
     }
     emit();
   };

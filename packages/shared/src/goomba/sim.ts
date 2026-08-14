@@ -96,6 +96,10 @@ export type GoombaClientMsg =
   | { type: "stop" }
   /** Advance after a win (any player). */
   | { type: "next" }
+  /** Debug-menu jump: point the WHOLE ROOM at a level (any player — the
+   * debug menu is a trusted tool on the party's own phones, sent by clients
+   * opened with ?debug; there is no UI for it otherwise). */
+  | { type: "goto"; level: number }
   | { type: "reset" }; // proctor only
 
 export type GoombaServerMsg = { type: "state"; state: GoombaSnapshot };
@@ -204,6 +208,25 @@ export class GoombaSim {
     if (s.phase !== "run" || s.runAt === null) return;
     s.runAt = now - (s.runT ?? 0) * 1000 - 1;
     this.resolve(now);
+  }
+
+  /** The debug menu's level jump: fresh edit phase on the chosen level, for
+   * everyone in the room. Completed flags are untouched — jumping earns
+   * nothing. Also the solo (?solo) backend's card-tap, so both run the same
+   * transition. */
+  goto(level: unknown, now: number): void {
+    this.resolve(now);
+    if (!Number.isInteger(level)) return;
+    const li = level as number;
+    if (li < 0 || li >= GOOMBA_LEVELS.length) return;
+    const s = this.st;
+    s.level = li;
+    s.phase = "edit";
+    s.bands = [];
+    s.runAt = null;
+    s.runResult = null;
+    s.runT = null;
+    s.fails = 0;
   }
 
   next(now: number): void {

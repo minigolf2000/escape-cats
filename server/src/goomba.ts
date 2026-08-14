@@ -107,12 +107,17 @@ export class GoombaServer extends Server<Env> {
         if (!proctor) this.sim.stop(now);
         break;
       case "next":
-        if (!proctor) this.sim.next(now);
+        if (!proctor) { this.sim.next(now); this.previews.clear(); }
+        break;
+      case "goto":
+        // The debug menu's room-wide level jump — any player, like next/play.
+        if (!proctor) { this.sim.goto(msg.level, now); this.previews.clear(); }
         break;
       case "reset":
         if (!proctor) return;
         this.sim.reset(now);
         this.roster.reset();
+        this.previews.clear();
         break;
     }
     // Write-through on every mutation: bands land at human rate (a handful per

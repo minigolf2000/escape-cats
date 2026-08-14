@@ -38,10 +38,13 @@ must actually be ridden.
    (forgiveness). Aim for windows ≥ ~8 units. `node solve.mjs <idx> [k]` (beam
    search) finds the solutions you did NOT intend — run it at k = 1–3 to hunt
    shortcuts before a player does.
-4. **Bake the solution** into the level's `solution` field, then verify:
-   - `node test.mjs` — every level fails bare, wins with its solution.
-   - `node robust.mjs` — every solution band load-bearing; survives ±3-unit slop.
-   - `node minbands.mjs <idx>` — the honest minimum (see the party rule).
+4. **Bake the solution** into the level's `solution` field, then run THE GATE:
+   `node verify.mjs <idx>` — one PASS/FAIL over the whole battery (bare fails,
+   4-band solution wins, every band load-bearing, finger-slop, exhaustive
+   0/1-band, sampled 2/3-band, beam-search shortcut hunt). `--quick` while
+   iterating; the full gate before shipping. The individual tools (`test.mjs`,
+   `robust.mjs`, `minbands.mjs`) remain for richer diagnostics when a check
+   fails.
 5. **Look at the ride**: `node ridecards.mjs <outDir> <idx>` renders the level
    with her traced path — Read the PNG. Judge fun by `duration × %airborne`,
    not duration. For live play, drive the deployed game (or `npm run dev`) via

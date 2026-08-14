@@ -28,6 +28,7 @@ export const {
   GOOMBA_LEVELS: LEVELS,
   BAND_MAX,
   BAND_MIN,
+  MAX_BANDS,
   SUB,
   RUN_MAX,
   makeRun,

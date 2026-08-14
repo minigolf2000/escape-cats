@@ -1,5 +1,9 @@
 # Designing Goomba Rider levels in Figma (or any vector tool)
 
+> Designing a level in code instead (the usual Claude-thread path)? Start with
+> [`tools/DESIGNING.md`](./tools/DESIGNING.md) — the sketch→verify loop and the
+> 4-player band rule. This file is the physics reference both paths share.
+
 The fastest level-design loop we have:
 
 1. Draw the level in Figma on a **390 × 844 frame** (portrait phone). One frame = one level.
@@ -79,6 +83,20 @@ staircase, and a 4-stage staircase drifts ~200 units sideways — too wide to st
 A zigzag needs her to reverse, and the only robust reverser is a wall (hit it, lose all
 horizontal speed, drop). Combining wall-reversals with popper-lifts inside a portrait
 column is the unsolved bit.
+
+**Solved — by making the players build the walls.** The Popper Grid (the finale) lays four
+horizontal lanes of forced poppers, aimed in alternation like a 2D line maze, dense
+enough (16 units apart vs a ~8-unit trigger radius) that crossing a lane always gets her
+grabbed and re-flung. So bands can't help her travel — the poppers own all movement —
+and the players' only verb is to *wall* a lane: she rebounds off the band (band
+restitution ≈ .32 kills most of her speed), drops one popper back, falls through the
+gap into the lane below, which runs the other way. Zigzag achieved, portrait kept, and
+each lane needs its own wall — `minbands.mjs` confirms no 1/2/3-band set wins. Plants
+sit in the intended drop gaps so the exits are readable. Two tuning facts that made it
+work: the entry chute needs a wall to kill her ramp speed or she flies over the first
+lane's poppers, and a wall placed *before* a lane's plant strands the run (she walls,
+drops, and the cake stays locked) — that's what makes it a maze instead of four free
+choices.
 
 **Judge the ride in airborne seconds, not duration.** Across two review rounds,
 `duration × %airborne` predicted the fun ranking almost perfectly; raw duration predicted

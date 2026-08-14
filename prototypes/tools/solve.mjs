@@ -2,6 +2,7 @@
 // within its budget?" — and the solution it finds is the one a clever player would find.
 // Usage: node solve.mjs <levelIdx> [budget] [candidatesPerStage]
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+const GAME_URL = new URL('../goomba-rider.html', import.meta.url).href;
 
 const li = +(process.argv[2] || 0);
 const budgetArg = process.argv[3] ? +process.argv[3] : null;
@@ -10,7 +11,7 @@ const K = +(process.argv[4] || 4000);
 const browser = await chromium.launch();
 const page = await browser.newPage();
 page.on('pageerror', e => console.log('PAGE ERROR:', e.message));
-await page.goto('file:///home/user/cat-games/prototypes/goomba-rider.html');
+await page.goto(GAME_URL);
 await page.waitForFunction(() => window.__gr);
 
 const out = await page.evaluate(({ li, budgetArg, K }) => {

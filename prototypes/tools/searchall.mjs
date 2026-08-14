@@ -1,12 +1,13 @@
 // Tightness report for every single-band level: how many placements win, and how
 // many distinct solution families. Few families = a real puzzle; many = a gesture.
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+const GAME_URL = new URL('../goomba-rider.html', import.meta.url).href;
 
 const step = +(process.argv[2] || 10);
 const browser = await chromium.launch();
 const page = await browser.newPage();
 page.on('pageerror', e => console.log('PAGE ERROR:', e.message));
-await page.goto('file:///home/user/cat-games/prototypes/goomba-rider.html');
+await page.goto(GAME_URL);
 await page.waitForFunction(() => window.__gr);
 
 const out = await page.evaluate(step => {

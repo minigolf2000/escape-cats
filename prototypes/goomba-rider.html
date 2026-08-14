@@ -12,8 +12,12 @@
          display: flex; align-items: center; justify-content: space-between; padding: 0 14px; gap: 8px; }
   #lvl { font-weight: 700; font-size: 15px; letter-spacing: .02em; text-shadow: 0 2px 8px rgba(0,0,0,.6);
          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #dots { display: flex; gap: 7px; pointer-events: auto; }
-  .dot { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #6b5a98; background: transparent; }
+  /* The dot row is the only thing in #top that grows with the level count, and it
+     grows straight out of the level name's width. border-box + tighter gaps bought
+     the ninth level's dot back; past a dozen these need their own line. */
+  #dots { display: flex; gap: 4px; pointer-events: auto; }
+  .dot { box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%;
+         border: 2px solid #6b5a98; background: transparent; }
   .dot.open { border-color: #ffd166; }
   .dot.cur  { background: #ffd166; border-color: #ffd166; box-shadow: 0 0 10px rgba(255,209,102,.7); }
   #inv { display: flex; gap: 4px; }
@@ -208,6 +212,10 @@ const UPDRAFT_A = 205;                // balloon-arch updraft: beats gravity, so
 const BUMP_R = 5.5, BUMP_E = 1.18, BUMP_MIN = 58;  // piñata bumper: pinball-style radial kick
 
 // ---------- levels ----------
+// ADDING OR CHANGING A LEVEL? Read prototypes/tools/DESIGNING.md first — it is the
+// design loop (sketch → trace → scan → solve → minbands → ridecard), the 4-player
+// band rule, and the anti-shortcut vocabulary. The physics facts behind it live in
+// prototypes/goomba-rider-levels.md.
 // terrain: polylines (walls/cliffs are just steep segments). cushions: horizontal
 // bouncy pillows {x,y,w}. pops: party poppers {x,y,deg,spd} that re-launch Goomba
 // along their aim. goal: the cake. solution: a band set that clears the level
@@ -217,8 +225,27 @@ const BUMP_R = 5.5, BUMP_E = 1.18, BUMP_MIN = 58;  // piñata bumper: pinball-st
 // The set is a FUN HOUSE, not a ski hill: every level features at least one bouncy
 // toy, and snake plants make the cake a routing problem — one band can reach a place,
 // but it can't make her pass three scattered plants.
+// One row of the popper grid in the finale, The Popper Grid: every popper in a lane aims the same way,
+// which makes the lane a one-way street she cannot leave under her own power.
+const GRID_X = [16, 32, 48, 64, 80, 96];
+const popLane = (y, dir) => GRID_X.map(x => ({ x, y, deg: dir > 0 ? 0 : 180, spd: 76 }));
+
 const LEVELS = [
-  { name: '1 · Snake Plant Slalom', budget: 3,
+  // The tutorial: a smooth, slightly-downhill ride with two holes in it. Nothing to
+  // route, nothing to unlock — just "your band IS the track, stretch it lip to lip".
+  // Gaps are 40 and 46 wide: unjumpable bare (>45 only at speed she doesn't have yet),
+  // comfortably inside one band's 58-unit stretch, and the ends snap to the lips.
+  { name: '1 · Mind the Gap', budget: 2,
+    hint: 'the trail has holes — stretch a band across each one, lip to lip',
+    hint2: 'drag from one edge to the other; the ends snap onto the lips',
+    start: [-2, 10],
+    terrain: [ [[-6, 12], [30, 24]],
+               [[66, 50], [100, 60]],
+               [[138, 88], [172, 98]] ],
+    goal: [164, 94],
+    solution: [ [[30, 24], [66, 50]], [[100, 60], [138, 88]] ] },
+
+  { name: '2 · Snake Plant Slalom', budget: 3,
     hint: 'grab every snake plant before the cake — slalom her down the shaft',
     hint2: 'bank her off each band toward the next plant',
     start: [10, 22],
@@ -232,7 +259,7 @@ const LEVELS = [
   // Judge concept "SLOW RISE": fast fall past the visible cake, then three seconds of
   // floaty nothing in the balloon column — the comedy pause — then a kicker band
   // flicks her out and gravity snaps back on. The only tempo change in the game.
-  { name: '2 · Slow Rise', budget: 2,
+  { name: '3 · Slow Rise', budget: 2,
     hint: 'she falls right past the cake… the balloons bring her back',
     hint2: 'a kicker INSIDE the column flicks her out at the height you choose',
     start: [8, 12],
@@ -248,7 +275,7 @@ const LEVELS = [
   // Judge concept "THE SKIM": build speed in a chute, popper fires her nearly flat
   // through a long low slot, and the bands are lifts that keep her skimming between
   // ceiling and cushion floor. Sustained tension instead of one instant.
-  { name: '3 · The Skim', budget: 3, maxSpeed: 135,
+  { name: '4 · The Skim', budget: 3, maxSpeed: 135,
     hint: 'keep her skimming through the slot — every sag needs a lift',
     hint2: 'small flat bands under her path stop her clipping the pillows',
     start: [8, 12],
@@ -267,7 +294,7 @@ const LEVELS = [
   // The finale the party asked for: a sealed pinball box. She rattles off piñatas and
   // pillow floors, the plants gate the cake, and the only exit is the drain hole.
   // Bands are deflector plates steering the chaos. Losing is funnier than winning.
-  { name: '4 · The Puzzle Box', budget: 4, maxSpeed: 140,
+  { name: '5 · The Puzzle Box', budget: 4, maxSpeed: 140,
     hint: 'route her through the chaos: every plant, then out the drain',
     hint2: 'bands are deflector plates — steer the ricochets toward the hole',
     start: [8, 12],
@@ -283,7 +310,7 @@ const LEVELS = [
     cushions: [ { x: 10, y: 180, w: 28 }, { x: 66, y: 180, w: 36 } ],
     solution: [ [[59.8, 75.3], [14, 71.3]], [[38.1, 93.3], [4.9, 112.8]] ] },
 
-  { name: '5 · Piñata Alley', budget: 3,
+  { name: '6 · Piñata Alley', budget: 3,
     hint: 'piñatas hit BACK — bank her through the plants and out the bottom',
     hint2: 'bumpers add speed; aim her in and let them do the rest',
     start: [8, 14],
@@ -298,7 +325,7 @@ const LEVELS = [
                { x: 79, y: 122 }, { x: 97, y: 122 } ],
     solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
 
-  { name: '6 · Pillow Fort',
+  { name: '7 · Pillow Fort',
     hint: 'the pillow is comfy. TOO comfy.',
     hint2: 'lay a band across the shaft — she’ll land on it and slide out',
     start: [8, 10],
@@ -310,7 +337,7 @@ const LEVELS = [
     cushions: [ { x: 56, y: 190, w: 40 } ],
     solution: [ [[58, 126], [95, 102]] ] },
 
-  { name: '7 · Balloon Arch', budget: 2,
+  { name: '8 · Balloon Arch', budget: 2,
     hint: 'the balloon column is the only way up — decide where she leaves it',
     hint2: 'slant a band across the top of the column to fling her out sideways',
     start: [8, 12],
@@ -323,7 +350,7 @@ const LEVELS = [
     updrafts: [ { x: 60, y: 40, w: 48, h: 150 } ],
     solution: [ [[101.5, 26.7], [107.1, 34.4]] ] },
 
-  { name: '8 · Pop Goes Goomba',
+  { name: '9 · Pop Goes Goomba',
     hint: 'party poppers do the lifting — your band does the aiming',
     hint2: 'ramp her into the bottom popper; the rest is physics',
     start: [8, 54],
@@ -335,6 +362,33 @@ const LEVELS = [
             { x: 94, y: 80, deg: -97, spd: 142 },
             { x: 85, y: 34, deg: -102, spd: 142 } ],
     solution: [ [[54, 80], [92, 118]] ] },
+
+  // The 2D line maze the party kept drawing on napkins, built out of the one device
+  // that erases state. Four lanes of poppers, aimed in alternation, dense enough
+  // (16 apart, trigger radius 8.2) that anything crossing a lane gets grabbed and
+  // flung — so nothing steers her and the only verb the players have is STOP.
+  // Wall her with a band, she rebounds off it and drops one popper back into the
+  // lane below, which runs the other way. The plants sit in those drop gaps, so the
+  // maze is "pick four exits". Riding a lane to its end just throws her off the map.
+  //
+  // This is the first level in the set whose minimum really is 4 bands (see
+  // tools/minbands.mjs and the note in goomba-rider-levels.md): poppers make each
+  // lane independent of the one above, so no lone catch band can shortcut the
+  // descent — the trick the other eight levels all fall for.
+  { name: '10 · The Popper Grid', budget: 4,
+    hint: 'the poppers own every lane — a band is a WALL here, not a ramp',
+    hint2: 'she rebounds and drops one popper BACK, so wall just past each plant',
+    start: [-6, 8],
+    terrain: [ [[-8, 7], [12, 18]],       // entry ramp
+               [[21, 6], [21, 34]],       // chute wall: kills her sideways speed so
+                                          // she drops onto the first popper, not past it
+               [[28, 174], [48, 192], [68, 174]] ],  // the only floor: a V-basin catch-all
+    goal: [48, 190],
+    plants: [[53, 63], [28, 97], [68, 131]],
+    pops: [ ...popLane(46, +1), ...popLane(80, -1),
+            ...popLane(114, +1), ...popLane(148, -1) ],
+    solution: [ [[70, 34], [70, 60]], [[10, 68], [10, 94]],
+                [[86, 102], [86, 128]], [[26, 136], [26, 162]] ] },
 
 ];
 

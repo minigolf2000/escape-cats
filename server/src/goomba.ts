@@ -1,11 +1,16 @@
 import { Server, type Connection, type ConnectionContext, type WSMessage } from "partyserver";
 import {
   GoombaSim,
+  type GoombaBandPreview,
   type GoombaPersistedV1,
   type GoombaClientMsg,
   type GoombaServerMsg,
 } from "@escape-cats/shared";
 import { Roster } from "./connections";
+
+/** A ghost older than this is a dead drag (phone locked mid-stretch); prune
+ * it rather than broadcast it forever. Client-side fade uses the same idea. */
+const PREVIEW_TTL_MS = 3_000;
 
 // The Goomba Rider room: transport only, like hex.ts — every game rule lives in
 // the shared GoombaSim. Roomed by team id, exactly as the hex room and the chat
@@ -24,6 +29,10 @@ export class GoombaServer extends Server<Env> {
   private roster = new Roster(() => this.getConnections());
   private sim = new GoombaSim(Date.now());
   private runTimer: ReturnType<typeof setTimeout> | null = null;
+  /** pid -> the band that player is stretching right now. Ephemeral
+   * presentation state (hex's teammate-taps deal): never persisted, resets
+   * with an eviction, pruned by TTL. */
+  private previews = new Map<string, GoombaBandPreview>();
 
   async onStart() {
     const saved = await this.ctx.storage.get<GoombaPersistedV1>("goomba");
@@ -37,6 +46,8 @@ export class GoombaServer extends Server<Env> {
   }
 
   onClose(conn: Connection) {
+    const m = this.roster.get(conn);
+    if (m) this.previews.delete(m.pid); // no ghost left hanging by a dropped phone
     this.roster.disconnect(conn);
     this.broadcastState();
   }
@@ -57,7 +68,10 @@ export class GoombaServer extends Server<Env> {
         this.roster.rename(sender, String(msg.name).slice(0, 24));
         break;
       case "place":
-        if (!proctor && me) this.sim.place(me.pid, this.roster.slot(me.pid), msg, now);
+        if (!proctor && me) {
+          this.sim.place(me.pid, this.roster.slot(me.pid), msg, now);
+          this.previews.delete(me.pid); // the ghost became a real band
+        }
         break;
       case "remove":
         if (!proctor) this.sim.remove(msg.index, now);
@@ -65,6 +79,24 @@ export class GoombaServer extends Server<Env> {
       case "clear":
         if (!proctor) this.sim.clear(now);
         break;
+      case "preview": {
+        // A band being stretched right now — pure presentation, so this case
+        // returns early: no sim mutation, and crucially NO persist (drags
+        // stream at ~10Hz; writing storage per frame would be hex's
+        // per-tick-write mistake all over again).
+        if (proctor || !me) return;
+        const { ax, ay, bx, by } = msg;
+        if ([ax, ay, bx, by].every((v) => typeof v === "number" && Number.isFinite(v))) {
+          this.previews.set(me.pid, {
+            pid: me.pid, slot: this.roster.slot(me.pid),
+            ax: ax!, ay: ay!, bx: bx!, by: by!, at: now,
+          });
+        } else {
+          this.previews.delete(me.pid); // drag ended without a placement
+        }
+        this.broadcastState();
+        return;
+      }
       case "play":
         if (!proctor) {
           this.sim.play(now);
@@ -111,7 +143,10 @@ export class GoombaServer extends Server<Env> {
   }
 
   private broadcastState() {
-    const state = this.sim.snapshot(Date.now(), this.roster.list());
+    const now = Date.now();
+    for (const [pid, p] of this.previews)
+      if (now - p.at > PREVIEW_TTL_MS) this.previews.delete(pid);
+    const state = this.sim.snapshot(now, this.roster.list(), [...this.previews.values()]);
     const msg: GoombaServerMsg = { type: "state", state };
     this.broadcast(JSON.stringify(msg));
   }

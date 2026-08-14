@@ -264,6 +264,8 @@ function previewFrom(a, b) {
   preview.ok = len >= BAND_MIN && len <= BAND_MAX &&
     bands().length + (pending ? 1 : 0) < MAX_BANDS;
   preview.len = len;
+  // Teammates watch the stretch live — send what I'm seeing (snapped).
+  transport.preview({ ax: preview.ax, ay: preview.ay, bx: preview.bx, by: preview.by });
 }
 function previewFromTouches() {
   const [p, q] = [...touches.values()];
@@ -272,9 +274,13 @@ function previewFromTouches() {
 function placePreview() {
   if (preview && preview.ok) {
     // The server snaps again (authoritatively); the ghost bridges the gap.
+    // Placing also clears my streamed preview server-side, so no extra send.
     transport.send({ type: "place", ax: preview.ax, ay: preview.ay, bx: preview.bx, by: preview.by });
     pending = { ax: preview.ax, ay: preview.ay, bx: preview.bx, by: preview.by };
-  } else if (preview && preview.len > BAND_MAX) toast("too stretchy! 🫨", 900);
+  } else {
+    if (preview && preview.len > BAND_MAX) toast("too stretchy! 🫨", 900);
+    transport.preview(null); // drag ended without a placement
+  }
   preview = null;
 }
 function tryDelete(w) {
@@ -335,7 +341,10 @@ cv.addEventListener("touchend", (e) => {
   }
   if (touches.size === 0) panning = false;
 }, { passive: false });
-cv.addEventListener("touchcancel", () => { touches.clear(); preview = null; tapInfo = null; panning = false; });
+cv.addEventListener("touchcancel", () => {
+  if (preview) transport.preview(null);
+  touches.clear(); preview = null; tapInfo = null; panning = false;
+});
 
 cv.addEventListener("mousedown", (e) => {
   if (labOpen) { labTap(e.clientX, e.clientY); return; }
@@ -459,6 +468,30 @@ function drawBand(bd, colorIdx, excite, ghost) {
     ctx.beginPath(); ctx.arc(sxp(x), syp(y), 0.9 * cam.s, 0, 6.28); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.beginPath(); ctx.arc(sxp(x) - 0.25 * cam.s, syp(y) - 0.25 * cam.s, 0.3 * cam.s, 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** A teammate's band-in-progress: same sagging shape as a real band, but
+ * translucent with marching dashes and hollow endpoint rings — reads as
+ * "being dragged", never as "placed". */
+function drawTeammatePreview(p) {
+  const pts = bandPoints(p);
+  const col = BAND_COLORS[p.slot % 4];
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.globalAlpha = 0.5 + 0.15 * Math.sin(tGlobal * 6);
+  ctx.strokeStyle = col;
+  ctx.setLineDash([1.6 * cam.s, 1.6 * cam.s]);
+  ctx.lineDashOffset = -tGlobal * 8 * cam.s; // marching ants: motion at a glance
+  ctx.lineWidth = 1.0 * cam.s;
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => (i ? ctx.lineTo(sxp(x), syp(y)) : ctx.moveTo(sxp(x), syp(y))));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  for (const [x, y] of [pts[0], pts[8]]) {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 0.45 * cam.s;
+    ctx.beginPath(); ctx.arc(sxp(x), syp(y), 0.9 * cam.s, 0, 6.28); ctx.stroke();
   }
   ctx.globalAlpha = 1;
 }
@@ -783,6 +816,16 @@ function frame(nowMs) {
   lv.plants.forEach((m, i) => drawPlant(m[0], m[1], st ? st.got[i] : false, i));
   drawCake(lv, st);
   bands().forEach((bd, i) => drawBand(bd, bd.slot % 4, bandExcite.get(i) || 0, false));
+  if (snap.phase === "edit") {
+    // Teammates' bands-in-progress: unmistakably in motion (marching dashes,
+    // pulsing alpha) so nobody confuses a drag with a placed band.
+    const pid = playerId();
+    for (const p of snap.previews ?? []) {
+      if (p.pid === pid) continue;
+      if (now() - p.at > 2500) continue; // stale ghost from a dead drag
+      drawTeammatePreview(p);
+    }
+  }
   if (pending && snap.phase === "edit") drawBand(snapBand(lv, pending), mySlot() % 4, 0, true);
   if (preview && snap.phase === "edit") drawBand(preview, mySlot() % 4, 0, true);
   if (snap.phase !== "run") drawStartPad(lv);
@@ -862,5 +905,6 @@ boot();
 window.__goomba = {
   state: () => snap,
   send: (msg) => transport.send(msg),
+  preview: (bd) => transport.preview(bd),
   LEVELS: GOOMBA_LEVELS,
 };

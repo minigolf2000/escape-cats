@@ -13,6 +13,24 @@ The fastest level-design loop we have:
 5. When a level feels good, hand the SVG over and it gets baked into `LEVELS` and run through the
    verification harness (must fail with no bands, win with the solution, and tolerate sloppy fingers).
 
+## The Figma starter kit
+
+Two SVGs in this folder are made to be dragged straight into Figma:
+
+| File | What it is |
+| --- | --- |
+| `goomba-rider-template.svg` | The 390 × 844 frame, with rulers for the distances that matter and a minimal level already in it (roll off a lip, gap too wide to clear, cake on the far ledge). Verified: it fails bare and wins with its one `sol` band. Duplicate it per level. |
+| `goomba-rider-stencils.svg` | One of every element the importer understands, drawn to scale. Turn each into a Figma component and instance them into level frames. |
+
+At 390 × 844 the level lands at **1 world unit = 4.0 px**, so the numbers below convert directly:
+a band spans 232 px, a bare-jumpable gap is ~180 px, and nothing climbs more than 204 px.
+
+The stencil sheet holds: `start`, `goal`, `plant` (with its 7.5u pickup ring), `bumper` (with its
+5.5u kick ring), a `terrain` slope, a `wall`, a `cushion`, a full-power `pop` arrow, a max-length
+`sol` band, and a couple of `guide`/`note` shapes showing what gets skipped. **Keep the sheet on
+its own Figma page** — those are real elements, so exporting it beside a level would import the
+whole palette into that level.
+
 ## Layer-name conventions
 
 Names are case-insensitive prefixes; everything else that has a **stroke** becomes terrain.
@@ -24,7 +42,6 @@ Names are case-insensitive prefixes; everything else that has a **stroke** becom
 | `goal` or `cake` | small circle | the cake |
 | `cushion` | rect or horizontal line | bouncy pillow (its top edge; restitution > 1) |
 | `plant` (or `snake`) | small circle | snake plant — the cake stays locked until every one is collected |
-| `updraft` | rect | balloon column: sustained lift, she floats up through it |
 | `bumper` | small circle | piñata bumper: pinball-style radial kick that *adds* energy |
 | `pop` | a **line** | party popper: line start = position, direction = aim, **length = power** |
 | `sol` or `band` | lines | intended solution bands (optional — powers the 🧪 *verify level* button) |

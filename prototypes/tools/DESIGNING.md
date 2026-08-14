@@ -27,7 +27,7 @@ stage must actually be ridden.
    array in `goomba-rider.html` (its index = position in the array). Levels are plain
    data: `terrain` (polylines; walls are just steep segments), `start`, `goal`, and the
    toys — `plants` (collectibles that lock the cake), `pops` (poppers: forced re-launch,
-   erases state), `cushions`, `updrafts`, `bumpers`. World is portrait-leaning
+   erases state), `cushions`, `bumpers`. World is portrait-leaning
    (~110 wide × 200 tall), y is DOWN. Leave `solution: []` until you find one.
 2. **Trace the bare run**: `node trace.mjs <idx>` — the level must NOT win with no
    bands, and the failure should be legible (a smirk, not a shrug).

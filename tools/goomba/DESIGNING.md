@@ -156,7 +156,8 @@ shallower than ~0.12 strand her (the idle pump fights the slope and she creeps
 into a stall), and a short uphill shelf before each lip pins bare lip speed to
 ~24, which no 42-unit gap forgives.
 
-**One deterministic launch is a spine (Pachinko Drop).** A popper's fire is
+**One deterministic launch is a spine (Pachinko Drop — level removed, findings
+stand; git history has the geometry).** A popper's fire is
 exact, so a whole level can hang off a single parabola: rows placed so the
 BARE arc misses them by a few units, with a catch band whose only job is that
 nudge. Hard-won mechanics from building it: an entry ledge even **+1 above**

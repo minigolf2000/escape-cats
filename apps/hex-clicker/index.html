@@ -427,7 +427,19 @@
      it from the decode queue in some engines and the first pet of the game would
      then flash an empty head while the PNG loads. All five decode at boot and
      stay decoded; only one is shown. */
-  #hexCat .headFrame, #hexCat #coatDay { visibility: hidden; }
+  /* The shadow layer's strength and softness are variables so the debug panel can
+     offer them as options — the falloff SHAPE is baked geometry (it is a ramp
+     drawn into the PNG's alpha), but how far it is turned up, and how much it is
+     smeared, are both live. .58 is what shipped. */
+  #hexCat #catShadow {
+    opacity: var(--hex-shadow, .58);
+    filter: blur(var(--hex-shadow-soft, 0px));
+  }
+  #hexCat .shadowFrame, #hexCat .headFrame, #hexCat #coatDay { visibility: hidden; }
+  #hexCat[data-pose="day"] #shadowDay,
+  #hexCat[data-pose="s1"]  #shadowS1,
+  #hexCat[data-pose="s2"]  #shadowS2,
+  #hexCat[data-pose="s3"]  #shadowS3 { visibility: visible; }
   #hexCat[data-pose="day"] #coatDay,
   #hexCat[data-pose="s1"]  #headSquash1,
   #hexCat[data-pose="s2"]  #headSquash2,
@@ -1292,6 +1304,20 @@
            the same trick the old vector cat used with an unstroked headFill.
            Only the day coat is split: she sleeps at night, and the ears rested
            at night in the old rig too, so the night art stays one piece. -->
+      <!-- THE SHADOW, lifted out of the coat into its own layer. It is painted
+           into the artwork as coat-coloured pixels OUTSIDE the drawn line, at
+           full opacity, which is why it blocked the sunburst; carried here it
+           keeps the artist's colour and falloff shape but its STRENGTH becomes a
+           live value (--hex-shadow) instead of something baked into a PNG.
+           First in document order so it sits under her. The ears keep their own
+           band baked in: it is ~400px total and it has to travel with the ear
+           rather than with the head, so a shared layer would lag behind a perk. -->
+      <g id="catShadow">
+       <image class="shadowFrame" id="shadowDay" href="/art/hex-day-shadow.png" x="0" y="0" width="828" height="652"/>
+       <image class="shadowFrame" id="shadowS1" href="/art/hex-squash1-shadow.png" x="0" y="0" width="828" height="652"/>
+       <image class="shadowFrame" id="shadowS2" href="/art/hex-squash2-shadow.png" x="0" y="0" width="828" height="652"/>
+       <image class="shadowFrame" id="shadowS3" href="/art/hex-squash3-shadow.png" x="0" y="0" width="828" height="652"/>
+      </g>
       <g id="coatDay">
        <image id="headDay" href="/art/hex-day.png" x="0" y="0" width="828" height="652"/>
        <g id="earLeft"><image href="/art/hex-day-earL.png"

@@ -29,7 +29,7 @@ const SURFACES = [
   // into a game without being sorted onto a team first. /g00mBa's casing is
   // load-bearing -- URL paths are case-sensitive, so /g00mba is a 404.
   ["apps/hex-clicker/dist", "hexxygon", "Hex Clicker (coop)"],
-  ["apps/goomba-rider/dist", "g00mBa", "Goomba Rider (coop)"],
+  ["apps/goomba-glider/dist", "g00mBa", "Goomba Glider (coop)"],
   ["apps/proctor/dist", "proctor", "Proctor dashboard"],
   // Chat must live on THIS origin, not behind a vanity domain: it reads the
   // same localStorage pid the lobby wrote, and localStorage is per-origin.
@@ -40,11 +40,11 @@ const SURFACES = [
   ["tools/qr-studio.html", "qr-studio", "QR Art Studio"],
   ["tools/reveal-lab.html", "reveal-lab", "Night reveal wall lab"],
   // Its own surface so g00.mba/ar has somewhere short to land. The file also
-  // ships inside prototypes/ below; duplication is the same deal Goomba Rider
+  // ships inside prototypes/ below; duplication is the same deal Goomba Glider
   // already has, and is cheaper than a rewrite that would have to dodge the
   // vanity domain's catch-all.
   ["prototypes/scent-tracker.html", "ar", "Scent Tracker (AR prototype)"],
-  ["prototypes", "prototypes", "Prototypes menu + Goomba Rider"],
+  ["prototypes", "prototypes", "Prototypes menu + Goomba Glider"],
 ];
 
 const exists = async (p) =>

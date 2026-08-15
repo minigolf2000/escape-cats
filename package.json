@@ -12,7 +12,7 @@
     "dev": "concurrently -k -n server,hex,goomba,proctor,lobby,chat -c blue,magenta,red,green,cyan,yellow \"npm:dev:server\" \"npm:dev:hex\" \"npm:dev:goomba\" \"npm:dev:proctor\" \"npm:dev:lobby\" \"npm:dev:chat\"",
     "dev:server": "npm run dev -w server",
     "dev:hex": "npm run dev -w apps/hex-clicker",
-    "dev:goomba": "npm run dev -w apps/goomba-rider",
+    "dev:goomba": "npm run dev -w apps/goomba-glider",
     "dev:proctor": "npm run dev -w apps/proctor",
     "dev:lobby": "npm run dev -w apps/lobby",
     "dev:chat": "npm run dev -w apps/chat",

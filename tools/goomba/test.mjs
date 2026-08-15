@@ -1,4 +1,4 @@
-// Goomba Rider level verifier: every level must FAIL with no bands and WIN with its solution.
+// Goomba Glider level verifier: every level must FAIL with no bands and WIN with its solution.
 import { LEVELS, simulate } from "./lib.mjs";
 
 let allOk = true;

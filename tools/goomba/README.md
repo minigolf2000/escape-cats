@@ -1,4 +1,4 @@
-# Goomba Rider level QA tools
+# Goomba Glider level QA tools
 
 Node harnesses over the SHIPPED physics: `lib.mjs` bundles
 `packages/shared/src/goomba/` (the sim the room server scores runs with and

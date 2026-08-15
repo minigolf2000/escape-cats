@@ -164,7 +164,7 @@ export function TeamGame({
         </button>
       </GameBlock>
       <GameBlock
-        title="🍄 Goomba Rider"
+        title="🍄 Goomba Glider"
         progress={goomba.snap?.progress ?? 0}
         lines={goombaStats(goomba.snap)}
       >

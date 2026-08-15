@@ -1,10 +1,10 @@
 # Escape Cats — working notes for Claude threads
 
-Two coop 4-player party games (Hex Clicker, Goomba Rider) on one Cloudflare
+Two coop 4-player party games (Hex Clicker, Goomba Glider) on one Cloudflare
 Worker + one Vercel deploy. The [README](./README.md) is the full map; these
 are the invariants that bite.
 
-## Goomba Rider level design (most common task)
+## Goomba Glider level design (most common task)
 
 **Start at [`tools/goomba/DESIGNING.md`](./tools/goomba/DESIGNING.md).** It is
 the whole loop, the physics cheat sheet, and the accumulated anti-shortcut
@@ -42,7 +42,7 @@ findings — do not design from intuition, the sim disproves it reliably.
   runs `check-routing.mjs`; keep its expectations current.
 - **Proctor box heights are fixed**: every stat line renders in every state
   (placeholders, never fewer lines) so boxes don't shift under a drag.
-- **Goomba Rider's debug menu**: `?debug` joins your REAL room with the
+- **Goomba Glider's debug menu**: `?debug` joins your REAL room with the
   🔬 level lab on top — every level as a card with live bare/solution
   verdicts, and tapping a card jumps THE WHOLE ROOM to that level (a real
   wire intent; teammates on plain URLs follow). `?solo` runs the same lab on

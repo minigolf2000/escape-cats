@@ -1,5 +1,6 @@
-// The authoritative Goomba Rider ROOM state — who has placed which band, which
-// level the team is on, whether a run is in flight, and which levels are done.
+// The authoritative Goomba Glider ROOM state — who has placed which band,
+// which level the team is on, whether a run is in flight, and which levels are
+// done.
 //
 // Same shape as hex/sim.ts: the Durable Object wraps one of these per team and
 // is transport only. Unlike hex there is no economy ticking away — the room

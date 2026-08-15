@@ -1,4 +1,4 @@
-// Goomba Rider level data + physics constants — the ONLY copy.
+// Goomba Glider level data + physics constants — the ONLY copy.
 //
 // The single-file prototype these grew from is deleted; levels are designed by
 // editing THIS file and running the tools in tools/goomba/ (start with its

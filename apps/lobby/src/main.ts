@@ -132,7 +132,7 @@ function teamScreen(team: string) {
         .map((p) => escapeHtml(p.name))
         .join(", ") || "- just you so far"}</p>
       <a class="primary" href="${HEX_URL}/">Play Hex Clicker</a>
-      <a class="primary" href="${GOOMBA_URL}/">Play Goomba Rider</a>
+      <a class="primary" href="${GOOMBA_URL}/">Play Goomba Glider</a>
       <!-- Neither link carries the team. Both surfaces ask the lobby for this
            phone's pid, so a proctor re-sort takes effect on reload instead of
            being pinned by a stale URL, and there is no link anyone can edit to

@@ -1,0 +1,68 @@
+# Deploy the Cloudflare Worker (the four Durable Objects: game rooms, lobby,
+# chat, goomba). This is the "deploying the Worker on push" gap the README's
+# next-steps list has carried since the move off the PartyKit platform.
+#
+# Wrangler has no git integration, so before this workflow the Worker only went
+# out when someone ran `npm run deploy:server` from a laptop — while Vercel
+# deployed itself on every push. That asymmetry is exactly how a client can end
+# up speaking a protocol the live Worker doesn't know.
+#
+# ORDER STILL MATTERS. The repo invariant is Worker BEFORE the Vercel deploy
+# that depends on it, and a push to main starts both at once — this job is much
+# faster (no Vite builds, no assemble step), so it normally wins, but "normally"
+# is not a guarantee. For a genuinely breaking protocol or DO change, run this
+# workflow by hand against the PR branch FIRST, then merge: the Worker is
+# already live when Vercel picks the merge up. That is what workflow_dispatch
+# is here for.
+name: Deploy Worker
+
+on:
+  push:
+    branches: [main]
+    # Only what the Worker is actually built from. The Worker bundles
+    # @escape-cats/shared, so a shared-only change (an economy retune, a room
+    # rule like the band quota) MUST redeploy it — that path is not optional.
+    paths:
+      - "server/**"
+      - "packages/shared/**"
+      - "package-lock.json"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+# Never let two deploys overlap, and never cancel one in flight: a half-applied
+# migration is worse than a queued job. (Migrations are append-only and each
+# tag runs once, so a cancelled deploy is not something to retry blindly.)
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Guard, scoped to what is being deployed: `wrangler types` + tsc over the
+      # server workspace, which also typechecks the shared code the Worker
+      # imports. Deliberately NOT the root typecheck — a type error in the
+      # proctor dashboard should not block a room-server deploy.
+      - name: Typecheck the Worker
+        run: npm run typecheck -w server
+
+      - name: Deploy
+        run: npm run deploy:server
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Only needed if the token can see more than one account, in which
+          # case wrangler refuses to guess. Harmless when unset.
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

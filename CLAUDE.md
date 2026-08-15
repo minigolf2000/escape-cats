@@ -33,11 +33,13 @@ findings — do not design from intuition, the sim disproves it reliably.
 
 ## Repo invariants (violating these has burned us before)
 
-- **Deploy order**: the Worker (`npm run deploy:server`) must go out BEFORE a
-  Vercel deploy that depends on new protocol/DO classes. Wrangler has no git
-  integration; `wrangler.jsonc` migrations are APPEND-ONLY (new class = new
-  tag, never edit an old one). Renaming a Worker or DO class orphans its
-  storage.
+- **Deploy order**: the Worker must go out BEFORE a Vercel deploy that depends
+  on new protocol/DO classes. CI deploys it (`.github/workflows/deploy-worker.yml`,
+  on push to main touching `server/**` or `packages/shared/**`), but that RACES
+  Vercel's push build rather than ordering it — for a breaking change, run the
+  workflow manually on the branch first, confirm it's live, then merge.
+  `wrangler.jsonc` migrations are APPEND-ONLY (new class = new tag, never edit
+  an old one). Renaming a Worker or DO class orphans its storage.
 - **One origin**: vanity domains (hexxygon.com, g00.mba) REDIRECT to
   cat-games-tau.vercel.app — never turn them into rewrites; the localStorage
   pid (team identity) only follows players on one origin. No `?room=` params,

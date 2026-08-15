@@ -192,14 +192,32 @@ Can be done last if you just want the site up: the single-player surfaces
 client builds and deploys fine with a stub `VITE_PARTYKIT_HOST` — it renders
 its join screen and only fails at the point of joining a room.
 
+**CI deploys it now** — `.github/workflows/deploy-worker.yml`, on any push to
+`main` that touches `server/**`, `packages/shared/**` or the lock file, and on
+demand via **Run workflow** (`workflow_dispatch`) against any branch. It runs
+`npm run typecheck -w server` as a guard first, so a Worker that doesn't compile
+is never deployed. See "Deploy order" below for when to use the manual trigger.
+
+It authenticates with an API token, not the browser login: add
+**`CLOUDFLARE_API_TOKEN`** to the repo's Actions secrets, minted from the
+dashboard's **Edit Cloudflare Workers** template (Account → Workers Scripts:
+Edit, which covers Durable Objects and migrations). Nothing here uses custom
+domains, so no zone permissions are needed. If the token can see more than one
+Cloudflare account, wrangler refuses to guess — add
+**`CLOUDFLARE_ACCOUNT_ID`** as a second secret; it is ignored when unset.
+
+By hand, from the repo root:
+
 ```sh
 npm run cf:login        # once, per machine — opens a browser
 npm run deploy:server   # wrangler deploy
 ```
 
-Both from the repo root. Wrangler is a dependency of the `server` workspace, not
-of the root, so a bare `npx wrangler login` at the top level fails with "not
-recognized" — these scripts route it through the workspace for you.
+Wrangler is a dependency of the `server` workspace, not of the root, so a bare
+`npx wrangler login` at the top level fails with "not recognized" — these
+scripts route it through the workspace for you. `cf:login` is a browser OAuth
+flow, so it is for laptops only: a CI runner or a remote agent container has no
+browser and no persistent home directory, which is why those use the token.
 
 Three Durable Objects behind one Worker: the `Main` binding is the game room,
 `Lobby` is the team lobby and `Chat` is per-team chat, and
@@ -208,10 +226,20 @@ clients already speak. There are no deploy vars to set.
 
 Adding a DO class needs its own **new** migration tag in `wrangler.jsonc` —
 migrations are append-only and each tag runs once, so a new class is never an
-edit to an existing tag. Deploy the Worker BEFORE the Vercel build that depends
-on it: wrangler has no git integration here, so a client that speaks a protocol
-the live Worker doesn't know will simply be ignored (see the note in "Next
-steps").
+edit to an existing tag.
+
+**Deploy order.** The Worker must be live BEFORE the Vercel build that depends
+on it, or a client speaks a protocol the live Worker doesn't know and is simply
+ignored. CI has narrowed this gap but not closed it: a push to `main` starts the
+Worker deploy and the Vercel build *at the same time*. The Worker job normally
+wins by a wide margin — it has no Vite builds, no assemble step, no routing
+check — but "normally" is not a guarantee, and the two are independent.
+
+So for a **breaking** protocol or DO change, don't race them: run **Deploy
+Worker** manually against the PR branch first, confirm it is live, then merge.
+The Worker is already serving the new protocol when Vercel picks the merge up.
+For additive changes (a new snapshot field, a new intent the old client never
+sends) the race is harmless and the automatic path is fine.
 
 The Worker is live at **`escape-cats.escape-cats.workers.dev`** — the first
 label is the Worker name (`name` in `wrangler.jsonc`), the second is the
@@ -412,9 +440,11 @@ you intend to split those surfaces back out.
 ## Next steps (deliberately not in the scaffold)
 
 - Per-session code words configured from the proctor dashboard.
-- Deploying the Worker on push (wrangler has no git integration here, so
-  `packages/shared` can ship to Vercel while the server still runs the old
-  economy — see the Deploying note).
+- CI beyond the deploy guard: nothing runs `npm run typecheck` across the whole
+  repo, the level gates (`tools/goomba/verify.mjs`) or the room gate
+  (`quota.mjs`) on a pull request. The Worker deploy typechecks only the
+  workspace it ships, deliberately — a broken proctor page shouldn't block a
+  room-server deploy — so a PR check is still a separate job worth adding.
 
 ## Teams and the lobby
 

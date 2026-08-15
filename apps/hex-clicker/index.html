@@ -112,29 +112,42 @@
        The bloom warmed from blue to white/rose because it is lighting pink now;
        left cold it read as a grey haze on the art rather than sunlight.
 
-       THE PAPER TILES; IT DOES NOT STRETCH. This was
-       `bg-dots.jpg center center / cover no-repeat`: one 900x1295 sheet scaled
-       to whatever the viewport happened to be, so the dots were ~32px on a
-       phone and half again that on a tablet, and on a short landscape window
-       the sheet was cropped to a band of its own middle. Wallpaper does not
-       work that way — a dot is a fixed size and there are simply more of them
-       on a bigger wall. So the art is now a TILE repeated at a fixed 240px, and
-       the pattern is the same size everywhere.
-       bg-dots-tile.jpg is a 444x444 crop of the artist's sheet (from 148,428),
-       chosen because all four of its edges run through clean paper — no dot is
-       cut by the boundary, so the tile abuts itself with nothing to line up and
-       the repeat is seamless. It survives at all only because the painted field
-       is astonishingly even: block-averaged luma across the whole sheet spans
-       201.1-203.0, about 1%, so there is no vignette to show up as a grid of
-       light patches once it repeats. Re-crop rather than hand-fix if the art is
-       ever redrawn — the constraint is just "four dot-free edges".
-       `fixed` is deliberately gone with `cover`. Its whole effect was to hold
-       the stretched sheet still while the page moved; a tile that repeats
-       forever has nothing to hold still, and background-attachment: fixed on a
-       repeating layer is a known scroll-performance trap on mobile Safari. */
+       THE PAPER TILES; IT DOES NOT STRETCH, and it is no longer a file.
+       It was `bg-dots.jpg center center / cover no-repeat`: one 900x1295 sheet
+       scaled to whatever the viewport happened to be, so the dots were ~32px on a
+       phone and half again that on a tablet. Wallpaper does not work that way — a
+       dot is a fixed size and there are simply more of them on a bigger wall. That
+       was fixed by cropping a 444x444 tile and repeating it at 240px.
+       The tile is now drawn instead of shipped. The pattern is a flat ground and
+       one dot, which is exactly what two radial-gradients say, so the 17KB JPEG
+       bought nothing but its own compression artefacts — and being a photograph of
+       paint it could only ever be resampled, never re-rendered, so it softened on
+       a phone and showed JPEG ringing around each dot at 3x.
+       Measured off the artist's own tile rather than guessed: ground #F4C0C0, dot
+       #E7B7B7 (about 5% darker, which is the whole reason the pattern reads as
+       texture and not as spots), dot radius 13.4px and one dot per ~3390px2 of
+       wall. Two gradients half a cell apart give that density in an 82px cell,
+       which is the offset grid the art paints by hand.
+       The dots fade to their OWN colour at zero alpha rather than to `transparent`:
+       `transparent` is rgba(0,0,0,0), so interpolating to it drags every edge
+       through grey and leaves a dirty ring on a pink ground.
+       Seamlessness is now structural — a gradient cell cannot have a visible seam —
+       so the old constraint on re-cropping ("four dot-free edges") is retired with
+       the file. To restyle, move the two colours and the three lengths.
+       `fixed` is deliberately gone with `cover`. Its whole effect was to hold the
+       stretched sheet still while the page moved; a tile that repeats forever has
+       nothing to hold still, and background-attachment: fixed on a repeating layer
+       is a known scroll-performance trap on mobile Safari. */
+    --paper: #f4c0c0;
+    --paper-dot: #e7b7b7;
+    --paper-cell: 82px;
     --page-bg:
       radial-gradient(58vh 58vh at 50% 44%, rgba(255,255,255,.38), rgba(255,222,222,.14) 45%, transparent 70%),
-      url("/hexxygon/art/bg-dots-tile.jpg") 0 0 / 240px 240px repeat;
+      radial-gradient(circle at 25% 25%, var(--paper-dot) 0 15%, rgba(231,183,183,0) 17%)
+        0 0 / var(--paper-cell) var(--paper-cell) repeat,
+      radial-gradient(circle at 75% 75%, var(--paper-dot) 0 15%, rgba(231,183,183,0) 17%)
+        0 0 / var(--paper-cell) var(--paper-cell) repeat,
+      var(--paper);
     /* THE SHOP IS GREEN, AND IT IS A SURFACE.
        It was #FFFFFF at 30% over the page — a wash that let the polka dot read
        through. That is a faithful reading of the art file, and it left the shop
@@ -160,6 +173,7 @@
        on #dock (see `body:not(.night) #dock` below) rather than here — they are
        the shop's readings of these tokens, not the page's. */
     --shop-paper: #1F6B3D;
+    --shop-dot: #1D663A;   /* --shop-paper through the artist's dot ratio */
     --panel-bg: #1a5833;
     --plank: linear-gradient(#5FE08C, #35C069 44%, #22A054);
     --plank-line: #12602F;
@@ -542,7 +556,12 @@
      because a ring eye IS the pupil, visually.
      Colour comes through a variable so Zoomies can light both rings (and the
      shut lashes) by flipping one value, rather than naming each shape. */
-  #hexCat { --hex-eye: #D0D060; }
+  /* Hex's eyes ARE the shop's green — one value, used twice, so the tray and the
+     thing you tap are unmistakably the same hue rather than two greens that nearly
+     match. --plank's top stop is the loud one, which is what survives at eye size
+     against her coat; --shop-paper is the deep shelf green and would read as a
+     hole in her face. */
+  #hexCat { --hex-eye: #5FE08C; }
   #hexCat .eye path { fill: var(--hex-eye); }
   #catWrap.zoomies #hexCat { --hex-eye: #ffe98a; }
 
@@ -929,10 +948,19 @@
      and it is the only place in the game where a var means one thing inside an
      element and another outside it. */
   body:not(.night) #dock {
+    /* Same pattern as the page, one hue apart — still true, and now it is the same
+       CSS rather than the same file. The tile used to be laid over the green and
+       multiplied, which is how a photographic dot got tinted; drawn dots do not
+       need the trick, so --shop-dot is simply --shop-paper through the very ratio
+       measured off the artist's tile (dot/ground = .947, .953, .953). Identical
+       cell and offsets to :root, so the two surfaces stay in lockstep and the
+       dots carry through the tray exactly as they did. */
     background:
-      url("/hexxygon/art/bg-dots-tile.jpg") 0 0 / 240px 240px repeat,
+      radial-gradient(circle at 25% 25%, var(--shop-dot) 0 15%, rgba(29,102,58,0) 17%)
+        0 0 / var(--paper-cell) var(--paper-cell) repeat,
+      radial-gradient(circle at 75% 75%, var(--shop-dot) 0 15%, rgba(29,102,58,0) 17%)
+        0 0 / var(--paper-cell) var(--paper-cell) repeat,
       var(--shop-paper);
-    background-blend-mode: multiply;
     --ink: #F4F4F2;
     --muted: #B9D6C1;
     --dim: #9CC3A8;

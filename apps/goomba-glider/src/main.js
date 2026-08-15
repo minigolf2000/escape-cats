@@ -64,14 +64,29 @@ window.addEventListener(
 // ---------- state: the snapshot mirror + local presentation ----------
 const BAND_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
 const BAND_DARK = ["#c23a85", "#2fae95", "#d0a53e", "#7f5ad9"];
-const EZ = 1.15, RZ = 1.9; // edit/run zoom (the prototype's tuned defaults)
+// Run zoom only: the edit view sits at fitScale so the WHOLE level is on
+// screen. Nothing pans any more, so every point a band can reach has to be
+// reachable by a finger without moving the camera.
+const RZ = 1.9;
 
 const DEBUG = debugFromUrl(); // debug menu on (?debug = in your room, ?solo = local)
 const SOLO = soloFromUrl();   // serverless backend for the same menu
 let labOpen = false;        // lab grid showing? (?debug only)
+// A card tap is a wire intent, so the room answers a round trip later. Closing
+// the lab on the tap would uncover the OLD level for that gap and then swap it
+// under the player — so the tap only LATCHES, and the lab stays up until the
+// authority's snapshot lands on the chosen level. The timeout is the escape
+// hatch for an intent the room never echoes (dropped socket, proctor seat).
+let labJump = null;         // { level, timer } — tapped, awaiting the authority
+const LAB_JUMP_MS = 1500;
 function setLab(open) {
   labOpen = open;
   document.getElementById("hud").classList.toggle("lab", open);
+  if (!open) clearLabJump();
+}
+function clearLabJump() {
+  if (labJump) clearTimeout(labJump.timer);
+  labJump = null;
 }
 let labCells = [];          // hit targets for the lab's cards
 const labVerdicts = new Map(); // level idx -> {bare, sol, ok} from the real sim
@@ -86,8 +101,9 @@ let anim = null;            // { key, st } — the local replay of the scored ru
 let winFx = false;          // confetti fired for the current win
 let preview = null;         // band being stretched right now, local only
 let pending = null;         // optimistic ghost: sent to the server, not yet echoed
+let anchor = null;          // first tap of a tap-tap placement, awaiting its end
 let tGlobal = 0, toastT = 0, shake = 0;
-let cam = { x: 0, y: 0, s: 10 }, pan = { x: 0, y: 0 }, panning = false;
+let cam = { x: 0, y: 0, s: 10 };
 let parts = [], confetti = [], cushAnim = [], popPrev = null;
 
 const $ = (id) => document.getElementById(id);
@@ -123,16 +139,26 @@ function onSnapshot(s) {
   snap = s;
   pending = null; // whatever we sent, the authority has now spoken
 
+  // The latched card tap resolves here — on the goto's exact signature (that
+  // level, fresh edit phase, no bands), so a snapshot merely in flight when we
+  // tapped doesn't drop the grid early. Closing now, in the same handler that
+  // recenters the camera below, means the first frame without the lab is
+  // already the new level, framed: no gap for the old one to show through.
+  if (labJump && s.level === labJump.level && s.phase === "edit" && !s.bands.length)
+    setLab(false);
+
   if (first) {
     inited = true;
     gateEl.classList.add("hidden");
     requestAnimationFrame(frame);
   }
+  if (s.phase !== "edit") resetInput(); // a run kills any half-drawn band
+
   if (first || wasReset || levelChanged) {
     // Fresh footing: recenter the camera, drop run debris.
     const b = L().bounds;
-    pan = { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 };
-    Object.assign(cam, clampCam(pan.x, pan.y, fitScale(L()) * EZ, b));
+    Object.assign(cam, clampCam((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, fitScale(L()), b));
+    resetInput();
     anim = null; winFx = false; parts = []; confetti = [];
     cushAnim = L().cushions.map(() => 0); popPrev = null;
     shownRunId = s.runId; shownLevel = s.level; shownPhase = s.phase;
@@ -158,11 +184,12 @@ function syncHud() {
   const lv = L();
   lvlEl.textContent = lv.name;
   const done = s.completed.filter(Boolean).length;
+  // Levels carry a title and nothing else — the only line here is the win
+  // banner; editing and running say nothing.
   hintEl.textContent =
-    s.phase === "run" ? "" :
     s.phase === "win"
       ? (done === s.levelCount ? "ALL LEVELS CLEAR! 🎉🎂" : "LEVEL CLEAR! 🎉")
-      : (s.fails >= 3 && lv.hint2 ? "💡 " + lv.hint2 : lv.hint);
+      : "";
 
   dotsEl.innerHTML = "";
   s.completed.forEach((c, i) => {
@@ -211,7 +238,7 @@ playBtn.onclick = () => {
   else if (snap.phase === "run") transport.send({ type: "stop" });
   else if (snap.phase === "win") transport.send({ type: "next" });
 };
-clearBtn.onclick = () => transport.send({ type: "clear" });
+clearBtn.onclick = () => { resetInput(); transport.send({ type: "clear" }); };
 const labBtn = $("lab");
 labBtn.onclick = () => {
   if (!DEBUG) return;
@@ -253,12 +280,54 @@ function syncAnim() {
   return st;
 }
 
-// ---------- input: two fingers stretch a band; one finger pans ----------
+// ---------- input: three ways to lay a band, one way to take it back ----------
+// A band is just two world points, so nothing forces one gesture on everyone:
+//   · tap, then tap again — the anchor waits between them (calmest on a phone)
+//   · one finger down, drag, release
+//   · two fingers stretched apart (the original)
+// Tapping a placed band takes it back; tapping an open anchor cancels it.
+// There is no panning or zooming — the edit camera shows the whole level, so
+// a tap always means "this point", never "scroll".
 const toWorld = (px, py) => ({ x: (px - W / 2) / cam.s + cam.x, y: (py - H / 2) / cam.s + cam.y });
 const touches = new Map();
-let mouseDrag = null, tapInfo = null;
+let mouseDrag = null;
+let down = null;   // the single finger that's down: where it started, in both spaces
+let mode = null;   // null | "tap" | "drag" | "stretch" — what this gesture became
+const DRAG_SLOP = 10;    // px of travel that turns a press into a drag
+const ANCHOR_TTL = 8000;     // ms an open anchor waits before it gives up
+const ANCHOR_BEAT_MS = 1200; // re-send it this often; the room forgets ghosts at 3s
 
 const canEdit = () => snap && snap.phase === "edit";
+
+/** The open anchor, or null once it has timed out. Anything that reads the
+ * anchor goes through here so a forgotten tap can't place a band minutes
+ * later. */
+function liveAnchor() {
+  if (anchor && performance.now() - anchor.at > ANCHOR_TTL) closeAnchor();
+  return anchor;
+}
+/** Teammates see the waiting tap as a degenerate preview — both ends on the
+ * one point — which the wire already carries and everyone already draws
+ * (see GoombaBandPreview). Re-sent on a heartbeat because the room expires a
+ * ghost after 3s and an anchor may wait for 8. */
+function streamAnchor() {
+  if (!anchor) return;
+  anchor.sentAt = performance.now();
+  transport.preview({ ax: anchor.x, ay: anchor.y, bx: anchor.x, by: anchor.y });
+}
+/** The anchor goes away and so does everything drawn from it, here and on
+ * every teammate's phone. */
+function closeAnchor() {
+  if (!anchor) return;
+  anchor = null; preview = null;
+  transport.preview(null);
+}
+/** Drop every in-flight gesture (phase change, level change, cancelled touch). */
+function resetInput() {
+  if (preview || anchor) transport.preview(null);
+  touches.clear();
+  preview = null; anchor = null; down = null; mode = null; mouseDrag = null;
+}
 
 function previewFrom(a, b) {
   const len = Math.hypot(b.x - a.x, b.y - a.y);
@@ -277,13 +346,40 @@ function placePreview() {
   if (preview && preview.ok) {
     // The server snaps again (authoritatively); the ghost bridges the gap.
     // Placing also clears my streamed preview server-side, so no extra send.
-    transport.send({ type: "place", ax: preview.ax, ay: preview.ay, bx: preview.bx, by: preview.by });
+    // The ghost goes up BEFORE the send: ?solo answers synchronously, and a
+    // ghost set afterwards would outlive the snapshot that should retire it —
+    // which is what used to eat the 4th band in the lab.
     pending = { ax: preview.ax, ay: preview.ay, bx: preview.bx, by: preview.by };
+    transport.send({ type: "place", ax: preview.ax, ay: preview.ay, bx: preview.bx, by: preview.by });
   } else {
+    // Say why nothing landed — a tap-tap that silently does nothing reads as
+    // a broken screen. (Too SHORT stays quiet: that's the cancel gesture.)
     if (preview && preview.len > BAND_MAX) toast("too stretchy! 🫨", 900);
-    transport.preview(null); // drag ended without a placement
+    else if (preview && bands().length + (pending ? 1 : 0) >= MAX_BANDS)
+      toast("all 4 bands are out! 🫰", 900);
+    transport.preview(null); // gesture ended without a placement
   }
   preview = null;
+}
+/** One finger, one point, no travel: take a band back, close an open anchor,
+ * or open one. This is the whole tap-tap placement. */
+function tapAt(w) {
+  const a = liveAnchor();
+  if (a) {
+    if (Math.hypot(w.x - a.x, w.y - a.y) < BAND_MIN) {
+      // Tapped (near) the anchor again — that band was never going to be
+      // legal, so read it as "never mind".
+      closeAnchor();
+      return;
+    }
+    anchor = null; // the preview + place below supersede the marker, no clear
+    previewFrom(a, w);
+    placePreview();
+    return;
+  }
+  if (tryDelete(w)) return;
+  anchor = { x: w.x, y: w.y, at: performance.now(), sentAt: 0 };
+  streamAnchor();
 }
 function tryDelete(w) {
   const bs = bands();
@@ -305,72 +401,75 @@ cv.addEventListener("touchstart", (e) => {
   if (labOpen) { const t = e.changedTouches[0]; labTap(t.clientX, t.clientY); return; }
   if (!canEdit()) return;
   for (const t of e.changedTouches) touches.set(t.identifier, { cx: t.clientX, cy: t.clientY });
-  if (touches.size === 1) {
+  if (touches.size === 1 && mode === null) {
     const t = e.changedTouches[0];
-    tapInfo = { x: t.clientX, y: t.clientY, t: performance.now() };
-    panning = false;
+    // Undecided yet: this is a tap until the finger travels.
+    down = { sx: t.clientX, sy: t.clientY, w: toWorld(t.clientX, t.clientY) };
+    mode = "tap";
   }
-  if (touches.size === 2) { tapInfo = null; panning = false; previewFromTouches(); }
+  if (touches.size === 2) {
+    // Second finger down: the stretch wins over whatever the first was doing.
+    mode = "stretch"; down = null; anchor = null;
+    previewFromTouches();
+  }
 }, { passive: false });
 cv.addEventListener("touchmove", (e) => {
   e.preventDefault();
   if (!canEdit()) return;
   for (const t of e.changedTouches) {
     const rec = touches.get(t.identifier);
-    if (!rec) continue;
-    if (touches.size === 1) {
-      if (tapInfo && Math.hypot(t.clientX - tapInfo.x, t.clientY - tapInfo.y) > 10)
-        { panning = true; tapInfo = null; }
-      if (panning) {
-        pan.x -= (t.clientX - rec.cx) / cam.s;
-        pan.y -= (t.clientY - rec.cy) / cam.s;
-      }
-    }
-    rec.cx = t.clientX; rec.cy = t.clientY;
+    if (rec) { rec.cx = t.clientX; rec.cy = t.clientY; }
   }
-  if (touches.size === 2) previewFromTouches();
+  if (mode === "stretch") {
+    if (touches.size === 2) previewFromTouches();
+    return; // a lone leftover finger from a stretch never starts a drag
+  }
+  if (touches.size !== 1 || !down) return;
+  const t = [...touches.values()][0];
+  if (mode === "tap" && Math.hypot(t.cx - down.sx, t.cy - down.sy) > DRAG_SLOP) {
+    mode = "drag"; anchor = null; // dragging supersedes a half-finished tap-tap
+  }
+  if (mode === "drag") previewFrom(down.w, toWorld(t.cx, t.cy));
 }, { passive: false });
 cv.addEventListener("touchend", (e) => {
   e.preventDefault();
   for (const t of e.changedTouches) touches.delete(t.identifier);
-  if (!canEdit()) { touches.clear(); return; }
+  if (!canEdit()) { resetInput(); return; }
+  // A stretch places on the FIRST finger up; a drag places on its only one.
   if (preview && touches.size < 2) placePreview();
-  if (tapInfo && touches.size === 0) {
-    const t = e.changedTouches[0];
-    if (performance.now() - tapInfo.t < 300 && Math.hypot(t.clientX - tapInfo.x, t.clientY - tapInfo.y) < 12)
-      tryDelete(toWorld(t.clientX, t.clientY));
-    tapInfo = null;
-  }
-  if (touches.size === 0) panning = false;
+  if (mode === "tap" && touches.size === 0 && down) tapAt(down.w);
+  if (touches.size === 0) { mode = null; down = null; }
 }, { passive: false });
-cv.addEventListener("touchcancel", () => {
-  if (preview) transport.preview(null);
-  touches.clear(); preview = null; tapInfo = null; panning = false;
-});
+cv.addEventListener("touchcancel", resetInput);
 
+// Mouse (desktop + the design bench): click-drag stretches, click-click does
+// the same tap-tap as a finger, with a live rubber line in between.
 cv.addEventListener("mousedown", (e) => {
   if (labOpen) { labTap(e.clientX, e.clientY); return; }
   if (!canEdit()) return;
-  mouseDrag = { a: toWorld(e.clientX, e.clientY), px: e.clientX, py: e.clientY, t: performance.now() };
+  mouseDrag = { a: toWorld(e.clientX, e.clientY), px: e.clientX, py: e.clientY, dragging: false };
 });
 window.addEventListener("mousemove", (e) => {
-  if (!mouseDrag || !canEdit()) return;
-  if (Math.hypot(e.clientX - mouseDrag.px, e.clientY - mouseDrag.py) > 10)
-    previewFrom(mouseDrag.a, toWorld(e.clientX, e.clientY));
+  if (!canEdit()) return;
+  if (mouseDrag) {
+    if (Math.hypot(e.clientX - mouseDrag.px, e.clientY - mouseDrag.py) > DRAG_SLOP) {
+      mouseDrag.dragging = true; anchor = null;
+    }
+    if (mouseDrag.dragging) previewFrom(mouseDrag.a, toWorld(e.clientX, e.clientY));
+    return;
+  }
+  const a = liveAnchor();
+  if (a) previewFrom(a, toWorld(e.clientX, e.clientY)); // band follows the cursor
+  else if (preview) { preview = null; transport.preview(null); } // anchor expired
 });
 window.addEventListener("mouseup", (e) => {
   if (!mouseDrag) return;
-  if (canEdit()) {
-    if (preview) placePreview();
-    else if (performance.now() - mouseDrag.t < 350) tryDelete(toWorld(e.clientX, e.clientY));
-  }
-  mouseDrag = null; preview = null;
+  const drag = mouseDrag;
+  mouseDrag = null;
+  if (!canEdit()) { preview = null; return; }
+  if (drag.dragging) placePreview();
+  else tapAt(toWorld(e.clientX, e.clientY));
 });
-cv.addEventListener("wheel", (e) => {
-  if (!canEdit()) return;
-  e.preventDefault();
-  pan.x += e.deltaX / cam.s; pan.y += e.deltaY / cam.s;
-}, { passive: false });
 
 // ---------- rendering (ported from the prototype) ----------
 let camOX = 0, camOY = 0; // the lab draws levels into grid cells by offsetting the camera
@@ -496,6 +595,61 @@ function drawTeammatePreview(p) {
     ctx.beginPath(); ctx.arc(sxp(x), syp(y), 0.9 * cam.s, 0, 6.28); ctx.stroke();
   }
   ctx.globalAlpha = 1;
+}
+
+/** The waiting end of a tap-tap band: a pulsing ring where the first tap
+ * landed, with the instruction right under it. It fades out over its last
+ * second so an anchor that times out is seen dying, not found missing. */
+function drawAnchor(a) {
+  // Screen units, not world: the edit camera is whatever fits the level, and
+  // a fingertip is the same size on every one of them.
+  const x = sxp(a.x), y = syp(a.y);
+  const col = BAND_COLORS[mySlot() % 4];
+  const left = ANCHOR_TTL - (performance.now() - a.at);
+  ctx.globalAlpha = Math.max(0, Math.min(1, left / 900));
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]); ctx.lineDashOffset = -tGlobal * 22;
+  ctx.beginPath(); ctx.arc(x, y, 15 + 2 * Math.sin(tGlobal * 5), 0, 6.28); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.arc(x, y, 4, 0, 6.28); ctx.fill();
+  // Caption on a dark pill — it has to be readable over terrain and confetti.
+  ctx.font = "600 11px ui-rounded, system-ui, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const label = "tap the other end", w = ctx.measureText(label).width + 14;
+  ctx.fillStyle = "rgba(20,10,45,0.82)";
+  ctx.beginPath(); ctx.roundRect(x - w / 2, y + 21, w, 18, 9); ctx.fill();
+  ctx.fillStyle = col;
+  ctx.fillText(label, x, y + 30.5);
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.globalAlpha = 1;
+}
+
+/** The same waiting point, seen from a teammate's phone: their colour, their
+ * name, no instruction (it isn't your tap to finish). Drawn for any preview
+ * too short to be a band — see GoombaBandPreview. */
+function drawTeammateAnchor(p) {
+  const x = sxp(p.ax), y = syp(p.ay);
+  const col = BAND_COLORS[p.slot % 4];
+  const who = snap.players.find((q) => q.id === p.pid)?.name ?? "";
+  ctx.globalAlpha = 0.55 + 0.25 * Math.sin(tGlobal * 4);
+  ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]); ctx.lineDashOffset = -tGlobal * 22;
+  ctx.beginPath(); ctx.arc(x, y, 13, 0, 6.28); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.28); ctx.stroke();
+  if (!who) return;
+  const label = who.length > 12 ? who.slice(0, 11) + "…" : who;
+  ctx.font = "600 11px ui-rounded, system-ui, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const w = ctx.measureText(label).width + 12;
+  ctx.fillStyle = "rgba(20,10,45,0.82)";
+  ctx.beginPath(); ctx.roundRect(x - w / 2, y + 18, w, 17, 8.5); ctx.fill();
+  ctx.fillStyle = col;
+  ctx.fillText(label, x, y + 27);
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 }
 
 function drawCushion(c, squish) {
@@ -678,8 +832,8 @@ function drawStartPad(lv) {
   ctx.setLineDash([]);
 }
 
-// ---------- the LEVEL LAB (?debug) ----------
-// The deleted prototype's 🔬 view, on the shipped sim: every level as a card
+// ---------- the LEVELS menu (?debug) ----------
+// The deleted prototype's lab view, on the shipped sim: every level as a card
 // with live verdicts (bare must NOT win, the solution must) — tap one to play
 // it locally. Design triage on any phone, straight from the deployed site.
 function labVerdict(i) {
@@ -693,10 +847,23 @@ function labVerdict(i) {
   }
   return labVerdicts.get(i);
 }
+/** Ellipsise `s` to at most `maxW` px in the current ctx font. */
+function fitText(s, maxW) {
+  if (ctx.measureText(s).width <= maxW) return s;
+  let n = s.length;
+  while (n > 1 && ctx.measureText(s.slice(0, n) + "…").width > maxW) n--;
+  return s.slice(0, n) + "…";
+}
 function labTap(px, py) {
   for (const c of labCells) {
     if (px < c.x || px > c.x + c.w || py < c.y || py > c.y + c.h) continue;
-    setLab(false);
+    // Latch BEFORE sending: the ?solo backend answers inside send(), and that
+    // synchronous snapshot is what closes the lab. Tapping again retargets.
+    clearLabJump();
+    labJump = {
+      level: c.i,
+      timer: setTimeout(() => { labJump = null; setLab(false); }, LAB_JUMP_MS),
+    };
     transport.send({ type: "goto", level: c.i });
     return;
   }
@@ -706,10 +873,11 @@ function drawLab() {
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   ctx.font = "700 15px ui-rounded, system-ui, sans-serif";
   ctx.fillStyle = "#f2ecff";
-  ctx.fillText("Level Lab", 16, 30);
+  ctx.fillText("Levels", 16, 30);
   ctx.font = "12px ui-rounded, system-ui, sans-serif";
   ctx.fillStyle = "#8a80b0";
-  ctx.fillText("tap a card to play it locally — no server, no room", 16, 48);
+  ctx.fillText(SOLO ? "tap a card to play it locally — no server, no room"
+                    : "tap a card to jump the whole room there", 16, 48);
 
   const cols = W > H ? 3 : 2;
   const rows = Math.ceil(GOOMBA_LEVELS.length / cols);
@@ -743,15 +911,31 @@ function drawLab() {
     camOX = camOY = 0;
     ctx.restore();
     // frame + labels
-    ctx.strokeStyle = snap && i === snap.level ? "#ffd166" : "rgba(201,189,240,0.22)";
-    ctx.lineWidth = snap && i === snap.level ? 2.5 : 1.5;
+    const jumping = labJump !== null && i === labJump.level;
+    const current = snap !== null && i === snap.level;
+    ctx.strokeStyle = jumping ? "#57e6c9" : current ? "#ffd166" : "rgba(201,189,240,0.22)";
+    ctx.lineWidth = jumping || current ? 2.5 : 1.5;
     ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
     ctx.font = "700 12px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = "#f2ecff";
-    ctx.fillText(lv.name.length > 18 ? lv.name.slice(0, 17) + "…" : lv.name, x + 9, y + ch - 8);
+    // The title is all a card says, so trim to the card's real width rather
+    // than a guessed character count.
+    ctx.fillText(fitText(lv.name, cw - 18), x + 9, y + ch - 8);
     ctx.font = "10px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = v.ok ? "#57e6c9" : "#ff8f8f";
     ctx.fillText(`${v.ok ? "✓" : "✗"} bare:${v.bare} · sol:${v.sol ?? "none"}`, x + 9, y + 16);
+    // The round trip, made visible: the tap landed, the room is coming with us.
+    if (jumping) {
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.clip();
+      ctx.fillStyle = "rgba(16,7,34,0.55)"; ctx.fillRect(x, y, cw, ch);
+      ctx.globalAlpha = 0.55 + 0.45 * Math.sin(tGlobal * 6);
+      ctx.fillStyle = "#57e6c9";
+      ctx.font = "700 13px ui-rounded, system-ui, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("jumping…", x + cw / 2, y + ch / 2);
+      ctx.restore();
+    }
   });
   Object.assign(cam, savedCam);
 }
@@ -795,16 +979,12 @@ function frame(nowMs) {
   for (const [i, v] of bandExcite) bandExcite.set(i, Math.max(0, v - dt * 1.6));
   cushAnim = cushAnim.map((v) => Math.max(0, v - dt * 2.2));
 
-  // camera: pannable zoomed edit view; chase cam during runs
+  // camera: the whole level while editing (nothing pans), chase cam on a run
   const fs = fitScale(lv), b = lv.bounds;
-  let target;
-  if (riding && st) {
-    target = clampCam(st.p.x + st.face * 8, st.p.y, fs * RZ, b);
-  } else {
-    target = clampCam(pan.x, pan.y, fs * EZ, b);
-    pan.x = target.x; pan.y = target.y;
-  }
-  const k = Math.min(1, (panning ? 14 : 5) * dt);
+  const target = riding && st
+    ? clampCam(st.p.x + st.face * 8, st.p.y, fs * RZ, b)
+    : clampCam((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, fs, b);
+  const k = Math.min(1, 5 * dt);
   cam.x += (target.x - cam.x) * k; cam.y += (target.y - cam.y) * k; cam.s += (target.s - cam.s) * k;
 
   drawBackground(dt);
@@ -825,11 +1005,19 @@ function frame(nowMs) {
     for (const p of snap.previews ?? []) {
       if (p.pid === pid) continue;
       if (now() - p.at > 2500) continue; // stale ghost from a dead drag
-      drawTeammatePreview(p);
+      if (Math.hypot(p.bx - p.ax, p.by - p.ay) < BAND_MIN) drawTeammateAnchor(p);
+      else drawTeammatePreview(p);
     }
   }
   if (pending && snap.phase === "edit") drawBand(snapBand(lv, pending), mySlot() % 4, 0, true);
   if (preview && snap.phase === "edit") drawBand(preview, mySlot() % 4, 0, true);
+  if (snap.phase === "edit") {
+    const a = liveAnchor();
+    if (a && !preview) {
+      drawAnchor(a);
+      if (performance.now() - a.sentAt > ANCHOR_BEAT_MS) streamAnchor(); // keep it alive
+    }
+  }
   if (snap.phase !== "run") drawStartPad(lv);
 
   for (let i = parts.length - 1; i >= 0; i--) {

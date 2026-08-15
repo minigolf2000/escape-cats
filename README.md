@@ -48,13 +48,21 @@ tools/goomba/        Goomba level-design bench: QA tools over the shared sim
   `physics.ts`; the multiplayer room state machine is `goomba/sim.ts`. The
   level-design loop and QA tools live in `tools/goomba/` (start with its
   `DESIGNING.md`). The **debug menu**: `?debug` joins your real room with
-  the 🔬 **level lab** on top — every level as a card with live
-  bare/solution verdicts, and tapping a card jumps the whole room to that
-  level (teammates on plain URLs follow). `?solo` runs the same lab on the
-  in-page sim with no server (hex's `?debug` architecture). Testing happens
+  the **levels** grid on top (its button sits bottom-left, inline with PLAY)
+  — every level as a card with live bare/solution verdicts, and tapping a
+  card jumps the whole room to that level (teammates on plain URLs follow).
+  `?solo` runs the same grid on the in-page sim with no server (hex's
+  `?debug` architecture). Testing happens
   on the real game — assign yourself to a team from `/proctor`, open with
   `?debug`; with any player free to place the remainder of the 4 bands, one
-  phone in a room can play everything.
+  phone in a room can play everything. **Laying a band** (`main.js`) takes
+  whichever gesture a player reaches for — tap both ends, drag one end to the
+  other, or stretch between two fingers — all three funnel into the same
+  `place` intent. The edit camera is fixed at fit-the-whole-level and nothing
+  pans, so any point a band can reach is a point a finger can reach.
+  Teammates watch it happen: a drag streams as a ghost band, and a tap-tap
+  waiting on its second tap streams as a named marker (a preview shorter than
+  `BAND_MIN` — it can't become a band, so it reads as "choosing here").
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported
   canvas module, `apps/goomba-glider/src/main.js`.

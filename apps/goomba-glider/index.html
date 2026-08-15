@@ -11,7 +11,12 @@
          color: #f2ecff; }
   #top { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
          display: flex; align-items: center; justify-content: space-between; padding: 0 14px; gap: 8px; }
-  #lvl { font-weight: 700; font-size: 15px; letter-spacing: .02em; text-shadow: 0 2px 8px rgba(0,0,0,.6);
+  /* The title is the ONLY prose a level carries (no hints, no descriptions),
+     so it gets its own full-width line instead of fighting the dots and the
+     band slots for room in #top. */
+  #lvl { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 34px); left: 0; right: 0;
+         text-align: center; font-weight: 700; font-size: 16px; letter-spacing: .02em;
+         text-shadow: 0 2px 8px rgba(0,0,0,.6); padding: 0 20px;
          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #dots { display: flex; gap: 4px; }
   .dot { box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%;
@@ -22,9 +27,9 @@
   #inv .band { width: 27px; height: 27px; border-radius: 8px; border: 2.5px dashed rgba(201,189,240,.4);
                box-sizing: border-box; transition: opacity .25s, transform .25s; }
   #inv .band.used { border-style: solid; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
-  #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 34px); left: 0; right: 0;
+  #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 58px); left: 0; right: 0;
           text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
-  #team { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 56px); left: 0; right: 0;
+  #team { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 80px); left: 0; right: 0;
           text-align: center; font-size: 11px; color: #8a80b0; text-shadow: 0 2px 6px rgba(0,0,0,.7);
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 20px; }
   #team b { font-weight: 700; }
@@ -36,15 +41,14 @@
           box-shadow: 0 6px 18px rgba(87,230,201,.35), inset 0 -3px 0 rgba(0,0,0,.15); letter-spacing: .03em; }
   #play.stop { background: linear-gradient(180deg, #ff7ec1, #ff5db1); box-shadow: 0 6px 18px rgba(255,93,177,.35), inset 0 -3px 0 rgba(0,0,0,.15); }
   #play.next { background: linear-gradient(180deg, #ffe08a, #ffd166); box-shadow: 0 6px 18px rgba(255,209,102,.4), inset 0 -3px 0 rgba(0,0,0,.15); }
-  #clear { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom));
-           height: 44px; padding: 0 16px; border-radius: 22px; font-size: 14px; font-weight: 700;
-           color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
-  /* ?debug only: reopen the level lab */
-  #lab { position: absolute; left: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 54px);
-         height: 44px; padding: 0 16px; border-radius: 22px; font-size: 14px; font-weight: 700;
-         color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
+  /* The bottom-left row — secondary buttons sitting on PLAY's line, centred
+     against its taller pill. #lab is ?debug only. */
+  #btm { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom));
+         height: 56px; display: flex; align-items: center; gap: 8px; }
+  #btm button { height: 44px; padding: 0 16px; border-radius: 22px; font-size: 14px; font-weight: 700;
+                color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
   #hud.debug #team { display: none; }
-  /* lab open: the grid is the whole screen; tap a card to leave */
+  /* levels open: the grid is the whole screen; tap a card to leave */
   #hud.lab > * { visibility: hidden; }
   #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.9);
            background: rgba(20,10,45,.92); border: 2px solid #ffd166; color: #ffe9b3;
@@ -104,15 +108,17 @@
 </div>
 <div id="hud">
   <div id="top">
-    <div id="lvl"></div>
     <div id="dots"></div>
     <div id="inv"></div>
   </div>
+  <div id="lvl"></div>
   <div id="hint"></div>
   <div id="team"></div>
   <div id="conn">reconnecting…</div>
-  <button id="clear">clear bands</button>
-  <button id="lab" style="display:none">🔬 lab</button>
+  <div id="btm">
+    <button id="lab" style="display:none">levels</button>
+    <button id="clear">clear bands</button>
+  </div>
   <button id="play">▶ PLAY</button>
   <div id="toast"></div>
   <div id="gate">
@@ -120,7 +126,8 @@
     <div class="sub">a silly-bandz line rider · cat games party game</div>
     <div class="how">
       Your team shares <b>4 silly bands</b> a level.<br>
-      <b>Two fingers</b> (or click-drag) stretch one; <b>one finger</b> pans.<br>
+      Lay one however you like: <b>tap both ends</b>, <b>drag</b> one out with a
+      finger, or <b>stretch</b> it between two.<br>
       Tap a band to take it back. Anyone can hit <b>PLAY</b>. 🎂
     </div>
     <div id="gateStatus">Connecting…</div>

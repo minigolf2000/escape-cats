@@ -2,7 +2,7 @@
 //   ?solo   — the shared GoombaSim running in-page, no server, no lobby (hex's
 //             debug architecture: the game code sees snapshots arriving and
 //             intents leaving, and cannot tell there is no room behind them).
-//   ?debug  — the REAL multiplayer game plus the debug menu: the 🔬 level lab
+//   ?debug  — the REAL multiplayer game plus the debug menu: the LEVELS grid
 //             where tapping a card jumps the whole room (a real wire intent).
 //             ?solo implies the menu too.
 // The server validates everything in a real room, so shipping this costs
@@ -26,7 +26,7 @@ export function startDebug(opts) {
 
   const emit = () => {
     opts.onSnapshot(
-      sim.snapshot(Date.now(), [{ id: "debug", name: "🔬 lab", connected: true }]),
+      sim.snapshot(Date.now(), [{ id: "debug", name: "solo", connected: true }]),
     );
   };
   // The server's armRunTimer, in miniature: one timeout so win/fail lands

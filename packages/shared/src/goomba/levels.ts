@@ -61,8 +61,6 @@ export interface GoombaBumper {
 
 export interface GoombaLevel {
   name: string;
-  hint: string;
-  hint2?: string;
   /** Historical per-level allowance. The shipped game ignores it — the party
    * rule locks every level to MAX_BANDS slots — but the design bench still
    * reads it, so it rides along in the mirror. */
@@ -168,8 +166,6 @@ const RAW_LEVELS: GoombaLevel[] = [
   // Bare, she tours all four floors and falls out the bottom: the level
   // demonstrates itself.
   { name: '1 · Mind the Gap', budget: 4,
-    hint: 'four floors, four holes — bridge every one, lip to lip',
-    hint2: 'ride each bridge to scoop its snake plant; hopping the gap misses it',
     start: [-2, 14],
     terrain: [
       // Each floor is a steep run (so she restarts snappily from a wall-drop's
@@ -207,8 +203,6 @@ const RAW_LEVELS: GoombaLevel[] = [
                 [[40, 108.5], [82, 112.5]], [[56, 154.5], [14, 158.5]] ] },
 
   { name: '2 · Snake Plant Slalom', budget: 3,
-    hint: 'grab every snake plant before the cake — slalom her down the shaft',
-    hint2: 'bank her off each band toward the next plant',
     start: [10, 22],
     terrain: [ [[-4, 20], [30, 30]],
                [[6, 34], [6, 204], [104, 210], [104, 34]] ],
@@ -220,8 +214,6 @@ const RAW_LEVELS: GoombaLevel[] = [
   // "THE SKIM": build speed in a chute, popper fires her nearly flat through a
   // long low slot, and the bands are lifts that keep her skimming.
   { name: '3 · The Skim', budget: 3, maxSpeed: 135,
-    hint: 'keep her skimming through the slot — every sag needs a lift',
-    hint2: 'small flat bands under her path stop her clipping the pillows',
     start: [8, 12],
     terrain: [ [[-6, 10], [26, 22]],
                [[26, 22], [10, 56], [14, 96], [32, 112], [44, 118]],
@@ -236,8 +228,6 @@ const RAW_LEVELS: GoombaLevel[] = [
   // A sealed pinball box: piñatas, pillow floors, plants gating the cake, and
   // the only exit is the drain hole. Bands are deflector plates.
   { name: '4 · The Puzzle Box', budget: 4, maxSpeed: 140,
-    hint: 'route her through the chaos: every plant, then out the drain',
-    hint2: 'bands are deflector plates — steer the ricochets toward the hole',
     start: [8, 12],
     terrain: [ [[-6, 10], [32, 20]],
                [[46, 28], [104, 32]],
@@ -252,8 +242,6 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[59.8, 75.3], [14, 71.3]], [[38.1, 93.3], [4.9, 112.8]] ] },
 
   { name: '5 · Piñata Alley', budget: 3,
-    hint: 'piñatas hit BACK — bank her through the plants and out the bottom',
-    hint2: 'bumpers add speed; aim her in and let them do the rest',
     start: [8, 14],
     terrain: [ [[-6, 12], [38, 24]],
                [[4, 30], [4, 190], [106, 196], [106, 30]] ],
@@ -267,8 +255,6 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
 
   { name: '6 · Pillow Fort',
-    hint: 'the pillow is comfy. TOO comfy.',
-    hint2: 'lay a band across the shaft — she’ll land on it and slide out',
     start: [8, 10],
     terrain: [ [[-5, 8], [46, 20]],
                [[96, 40], [96, 190]],
@@ -279,8 +265,6 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[58, 126], [95, 102]] ] },
 
   { name: '7 · Pop Goes Goomba',
-    hint: 'party poppers do the lifting — your band does the aiming',
-    hint2: 'ramp her into the bottom popper; the rest is physics',
     start: [8, 54],
     terrain: [ [[-5, 52], [46, 62]],
                [[40, -14], [66, -8]] ],
@@ -304,8 +288,6 @@ const RAW_LEVELS: GoombaLevel[] = [
   // plant she drains through a slot into the basin, and the basin ends at
   // the cake.
   { name: '8 · Pachinko Drop', budget: 4, maxSpeed: 160,
-    hint: 'one fire runs the whole machine — feed it, catch it, bridge it',
-    hint2: 'bridge the pad to the barrel; a catch under the arc starts the chain',
     start: [56, 186],
     terrain: [
       [[2, 86], [2, 228]],           // cabinet walls
@@ -343,8 +325,6 @@ const RAW_LEVELS: GoombaLevel[] = [
   // rebounds and drops into the lane below. The first level whose true minimum
   // is 4 bands, so a 4-player team all genuinely participate.
   { name: '9 · The Popper Grid', budget: 4,
-    hint: 'the poppers own every lane — a band is a WALL here, not a ramp',
-    hint2: 'she rebounds and drops one popper BACK, so wall just past each plant',
     start: [-6, 8],
     terrain: [ [[-8, 7], [12, 18]],
                [[21, 6], [21, 34]],

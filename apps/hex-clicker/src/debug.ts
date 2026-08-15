@@ -262,6 +262,7 @@ function mountPanel(sim: HexSim, emit: () => void): void {
     <div class="r"><span>speed</span>${[1, 5, 20]
       .map((n) => `<button data-s="${n}">×${n}</button>`)
       .join("")}<button data-r="1">reset</button></div>
+    <div class="r"><span>eyes</span><button data-eye="1">amber</button></div>
     <details id="devList"><summary>buildings &amp; upgrades</summary><div id="devContent"></div></details>
   </details>`;
   document.body.appendChild(bar);
@@ -286,6 +287,15 @@ function mountPanel(sim: HexSim, emit: () => void): void {
     else if (b.dataset.s)
       sim.state.speed = Math.max(0.25, Math.min(50, Number(b.dataset.s)));
     else if (b.dataset.r) sim.reset(now);
+    else if (b.dataset.eye) {
+      // Purely a look, so it never touches the sim: it flips one class and the
+      // three --hex-* eye variables under it do the rest (see index.html).
+      // Here to settle a colour question on the real cat, at real size, in both
+      // phases — which is not a thing a static mock-up can answer.
+      const green = document.body.classList.toggle("eyes-green");
+      b.textContent = green ? "green" : "amber";
+      return; // no state moved, so nothing to emit or redraw
+    }
     emit();
     redrawList();
   });

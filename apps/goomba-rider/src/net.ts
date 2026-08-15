@@ -58,17 +58,25 @@ export function connectRoom(opts: {
 }): void {
   let socket: PartySocket | null = null;
 
-  transport.send = (msg) => {
-    if (socket && socket.readyState === socket.OPEN) {
-      socket.send(JSON.stringify(msg));
-    }
-  };
-
   // Throttle with a trailing send, so the ghost's final position lands even
   // if the last move fell inside the window. The clear (null) always goes out
   // immediately — a lingering ghost is worse than an extra message.
   let lastPreviewAt = 0;
   let previewTimer: ReturnType<typeof setTimeout> | null = null;
+
+  transport.send = (msg) => {
+    // A placement retires my ghost in the room. A trailing preview firing
+    // after it would raise a new one with no gesture behind it, and it would
+    // sit on every teammate's phone until the 3s TTL swept it — so the
+    // placement takes the queued send with it.
+    if (msg.type === "place" && previewTimer) {
+      clearTimeout(previewTimer); previewTimer = null; lastPreviewAt = 0;
+    }
+    if (socket && socket.readyState === socket.OPEN) {
+      socket.send(JSON.stringify(msg));
+    }
+  };
+
   transport.preview = (bd) => {
     if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
     if (bd === null) {

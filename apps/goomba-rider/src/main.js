@@ -273,7 +273,8 @@ let mouseDrag = null;
 let down = null;   // the single finger that's down: where it started, in both spaces
 let mode = null;   // null | "tap" | "drag" | "stretch" — what this gesture became
 const DRAG_SLOP = 10;    // px of travel that turns a press into a drag
-const ANCHOR_TTL = 8000; // ms an open anchor waits before it gives up
+const ANCHOR_TTL = 8000;     // ms an open anchor waits before it gives up
+const ANCHOR_BEAT_MS = 1200; // re-send it this often; the room forgets ghosts at 3s
 
 const canEdit = () => snap && snap.phase === "edit";
 
@@ -281,12 +282,28 @@ const canEdit = () => snap && snap.phase === "edit";
  * anchor goes through here so a forgotten tap can't place a band minutes
  * later. */
 function liveAnchor() {
-  if (anchor && performance.now() - anchor.at > ANCHOR_TTL) anchor = null;
+  if (anchor && performance.now() - anchor.at > ANCHOR_TTL) closeAnchor();
   return anchor;
+}
+/** Teammates see the waiting tap as a degenerate preview — both ends on the
+ * one point — which the wire already carries and everyone already draws
+ * (see GoombaBandPreview). Re-sent on a heartbeat because the room expires a
+ * ghost after 3s and an anchor may wait for 8. */
+function streamAnchor() {
+  if (!anchor) return;
+  anchor.sentAt = performance.now();
+  transport.preview({ ax: anchor.x, ay: anchor.y, bx: anchor.x, by: anchor.y });
+}
+/** The anchor goes away and so does everything drawn from it, here and on
+ * every teammate's phone. */
+function closeAnchor() {
+  if (!anchor) return;
+  anchor = null; preview = null;
+  transport.preview(null);
 }
 /** Drop every in-flight gesture (phase change, level change, cancelled touch). */
 function resetInput() {
-  if (preview) transport.preview(null);
+  if (preview || anchor) transport.preview(null);
   touches.clear();
   preview = null; anchor = null; down = null; mode = null; mouseDrag = null;
 }
@@ -328,19 +345,20 @@ function placePreview() {
 function tapAt(w) {
   const a = liveAnchor();
   if (a) {
-    anchor = null;
     if (Math.hypot(w.x - a.x, w.y - a.y) < BAND_MIN) {
       // Tapped (near) the anchor again — that band was never going to be
       // legal, so read it as "never mind".
-      if (preview) { preview = null; transport.preview(null); }
+      closeAnchor();
       return;
     }
+    anchor = null; // the preview + place below supersede the marker, no clear
     previewFrom(a, w);
     placePreview();
     return;
   }
   if (tryDelete(w)) return;
-  anchor = { x: w.x, y: w.y, at: performance.now() };
+  anchor = { x: w.x, y: w.y, at: performance.now(), sentAt: 0 };
+  streamAnchor();
 }
 function tryDelete(w) {
   const bs = bands();
@@ -584,6 +602,33 @@ function drawAnchor(a) {
   ctx.fillText(label, x, y + 30.5);
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   ctx.globalAlpha = 1;
+}
+
+/** The same waiting point, seen from a teammate's phone: their colour, their
+ * name, no instruction (it isn't your tap to finish). Drawn for any preview
+ * too short to be a band — see GoombaBandPreview. */
+function drawTeammateAnchor(p) {
+  const x = sxp(p.ax), y = syp(p.ay);
+  const col = BAND_COLORS[p.slot % 4];
+  const who = snap.players.find((q) => q.id === p.pid)?.name ?? "";
+  ctx.globalAlpha = 0.55 + 0.25 * Math.sin(tGlobal * 4);
+  ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]); ctx.lineDashOffset = -tGlobal * 22;
+  ctx.beginPath(); ctx.arc(x, y, 13, 0, 6.28); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.28); ctx.stroke();
+  if (!who) return;
+  const label = who.length > 12 ? who.slice(0, 11) + "…" : who;
+  ctx.font = "600 11px ui-rounded, system-ui, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const w = ctx.measureText(label).width + 12;
+  ctx.fillStyle = "rgba(20,10,45,0.82)";
+  ctx.beginPath(); ctx.roundRect(x - w / 2, y + 18, w, 17, 8.5); ctx.fill();
+  ctx.fillStyle = col;
+  ctx.fillText(label, x, y + 27);
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 }
 
 function drawCushion(c, squish) {
@@ -909,12 +954,19 @@ function frame(nowMs) {
     for (const p of snap.previews ?? []) {
       if (p.pid === pid) continue;
       if (now() - p.at > 2500) continue; // stale ghost from a dead drag
-      drawTeammatePreview(p);
+      if (Math.hypot(p.bx - p.ax, p.by - p.ay) < BAND_MIN) drawTeammateAnchor(p);
+      else drawTeammatePreview(p);
     }
   }
   if (pending && snap.phase === "edit") drawBand(snapBand(lv, pending), mySlot() % 4, 0, true);
   if (preview && snap.phase === "edit") drawBand(preview, mySlot() % 4, 0, true);
-  if (snap.phase === "edit") { const a = liveAnchor(); if (a && !preview) drawAnchor(a); }
+  if (snap.phase === "edit") {
+    const a = liveAnchor();
+    if (a && !preview) {
+      drawAnchor(a);
+      if (performance.now() - a.sentAt > ANCHOR_BEAT_MS) streamAnchor(); // keep it alive
+    }
+  }
   if (snap.phase !== "run") drawStartPad(lv);
 
   for (let i = parts.length - 1; i >= 0; i--) {

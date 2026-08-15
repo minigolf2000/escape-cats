@@ -110,24 +110,60 @@
        separate element above both and is untouched by this — the spiral still
        turns over the new paper exactly as it did over the old.
        The bloom warmed from blue to white/rose because it is lighting pink now;
-       left cold it read as a grey haze on the art rather than sunlight. */
+       left cold it read as a grey haze on the art rather than sunlight.
+
+       THE PAPER TILES; IT DOES NOT STRETCH. This was
+       `bg-dots.jpg center center / cover no-repeat`: one 900x1295 sheet scaled
+       to whatever the viewport happened to be, so the dots were ~32px on a
+       phone and half again that on a tablet, and on a short landscape window
+       the sheet was cropped to a band of its own middle. Wallpaper does not
+       work that way — a dot is a fixed size and there are simply more of them
+       on a bigger wall. So the art is now a TILE repeated at a fixed 240px, and
+       the pattern is the same size everywhere.
+       bg-dots-tile.jpg is a 444x444 crop of the artist's sheet (from 148,428),
+       chosen because all four of its edges run through clean paper — no dot is
+       cut by the boundary, so the tile abuts itself with nothing to line up and
+       the repeat is seamless. It survives at all only because the painted field
+       is astonishingly even: block-averaged luma across the whole sheet spans
+       201.1-203.0, about 1%, so there is no vignette to show up as a grid of
+       light patches once it repeats. Re-crop rather than hand-fix if the art is
+       ever redrawn — the constraint is just "four dot-free edges".
+       `fixed` is deliberately gone with `cover`. Its whole effect was to hold
+       the stretched sheet still while the page moved; a tile that repeats
+       forever has nothing to hold still, and background-attachment: fixed on a
+       repeating layer is a known scroll-performance trap on mobile Safari. */
     --page-bg:
       radial-gradient(58vh 58vh at 50% 44%, rgba(255,255,255,.38), rgba(255,222,222,.14) 45%, transparent 70%),
-      url("/hexxygon/art/bg-dots.jpg") center center / cover no-repeat fixed;
-    /* THE SHOP REGION, per the art file. Both the rail and the list area are
-       drawn there as plain #FFFFFF at 30% over the page — a wash that lets the
-       polka dot read through, not a surface of its own. The note the artist
-       parked in that area ("keep this area the same as in the original game")
-       sits INSIDE that white rectangle: it is about the shop's contents and
-       layout staying put, not about keeping the old blue wallpaper. Read the
-       other way round first, which is how the tray ended up as the last thing on
-       screen still wearing the pre-drop background.
-       The wood plank goes with it — a 30% wash cannot sit under an opaque timber
-       gradient and still be a wash. Set --wood back to the gradient to get the
-       plank returned; nothing else depends on it. */
-    --panel-bg: rgba(255,255,255,.30);
-    --wood: none;
-    --wood-line: rgba(49,43,42,.16);
+      url("/hexxygon/art/bg-dots-tile.jpg") 0 0 / 240px 240px repeat;
+    /* THE SHOP IS GREEN, AND IT IS A SURFACE.
+       It was #FFFFFF at 30% over the page — a wash that let the polka dot read
+       through. That is a faithful reading of the art file, and it left the shop
+       with no edge at all: the tray was the same pink as the wall, one shade
+       lighter, so the game's only spending surface was the least visible thing
+       on screen. It gets its own material back, in the one hue the palette had
+       not spent.
+       Green, specifically, because of what is already here. The page is pink
+       (#f4c1c0 paper), the mice are pink (#ff6fa5 in art.js), and the accents
+       are gold and teal — so green is ~200 degrees of hue from the pink it has
+       to sit beside, and clear of both accents. Nothing on this screen is
+       mistakable for anything else afterwards.
+       TWO values, not one, and the split does real work. The deep --shop-paper
+       is the shelf the rows print on: the price readout is the shop's whole
+       signal and it is COLOR (affordable / not), so its ground has to stay far
+       from both readings — a mid-green would have swallowed exactly the two it
+       exists to show. --plank is the loud green, spent on the rail, where it is
+       an awning over the shelf and the thing your thumb aims at. The rail's ink
+       goes dark (--rail-ink) rather than light for that reason: on a green this
+       bright, the art file's own #312B2A keyline is the legible choice and the
+       one already drawn on every day icon.
+       Row text, prices and coins re-pitch for the dark shelf in a scoped block
+       on #dock (see `body:not(.night) #dock` below) rather than here — they are
+       the shop's readings of these tokens, not the page's. */
+    --shop-paper: #1F6B3D;
+    --panel-bg: #1a5833;
+    --plank: linear-gradient(#5FE08C, #35C069 44%, #22A054);
+    --plank-line: #12602F;
+    --rail-ink: #312B2A;
     /* Everything the tray prints, re-pitched for a light ground. These were a
        cream-on-dark set; on a white wash over pink they were the same smudge the
        HUD was before it flipped. --ink is the art file's own "Text/outline". */
@@ -176,9 +212,14 @@
        FADES in — two gradient stacks cannot be transitioned into one another, so
        overriding this var would snap the whole screen from day to night on one
        frame. body keeps the day background all game; #nightSky covers it. */
+    /* The green shop is a DAY material, exactly as the wood before it was: at
+       night the tray goes back to blurring the sky, the rails to dark glass, and
+       the rail's ink back to the same --ink the rows use — the dark --rail-ink
+       exists only because the day rail is a bright green. */
     --panel-bg: rgba(9,11,18,.93);
-    --wood: none;
-    --wood-line: #262b36;
+    --plank: none;
+    --plank-line: #262b36;
+    --rail-ink: var(--ink);
     --ink: #b9c2d4;
     --muted: #77808f;
     --dim: #545d6c;
@@ -831,31 +872,82 @@
     #dock.show.dock-in { animation: none; }
   }
 
-  /* Cookie Clicker wood framing, in two lengths: the titled SHOP cap and the
-     inert Upgrades/Buildings divider. Cut from the same board here — three bands
-     each, carved line / wood / carved line. No bevel highlight: --wood is
-     already a light-to-dark gradient, and a second lit edge on top of the first
-     is what turns a short rail into a stack of hairlines.
+  /* Cookie Clicker framing, in two lengths: the titled SHOP cap and the inert
+     Upgrades/Buildings divider. Cut from the same board here — three bands each,
+     carved line / board / carved line. No bevel highlight: --plank is already a
+     light-to-dark gradient, and a second lit edge on top of the first is what
+     turns a short rail into a stack of hairlines.
 
-     Wood is a DAY material and only a day material: body.night sets `--wood: none`,
-     so at night these same two bands fall back to --panel-bg and read as dark glass
-     hairlined with --wood-line. One rule, two materials — which is why the class
-     names below say `shopHead`/`shopDivider` rather than naming the timber.
+     The vars were --wood/--wood-line, from when this was a timber gradient. The
+     board is green now, and a var named for a material it no longer is is the
+     kind of thing that gets read as a hint later — so --plank/--plank-line, which
+     names the SHAPE and outlives the next recolor the way `shopHead`/`shopDivider`
+     already do.
+
+     The board is a DAY material and only a day material: body.night sets
+     `--plank: none`, so at night these same two bands fall back to --panel-bg and
+     read as dark glass hairlined with --plank-line. One rule, two materials.
 
      Tapping the SHOP rail collapses/reopens the whole dock (#dock.collapsed).
      It's the ONLY hit target for that — the divider is inert, so a mistap while
      reaching for a row can't shut the shop. */
-  /* The tray is transparent-over-blur, so it takes its color from the PAGE
-     behind it — which is the polka dot now, exactly as intended. What it also
-     needs is the art file's wash over that: 30% white, which lifts the row type
-     off the dots without hiding them. Day only; at night the dock blurs the
-     night sky untouched. */
-  body:not(.night) #dock { background: var(--panel-bg); }
+  /* ---- THE DAY SHOP: its own room, its own tokens ----
+     The tray is transparent-over-blur and takes its color from the PAGE behind
+     it, which by night is what we want and by day is what left the shop
+     invisible against the wall. So day hands it a ground of its own.
+
+     That ground is THE SAME POLKA TILE as the page, multiplied by the shop
+     green: same paper, same dots, same 240px pitch, one hue apart. Blending the
+     art rather than laying a flat fill is what keeps the shop part of the
+     drawing — the artist's dots carry straight through the tray, and a flat
+     green would have read as a UI panel dropped on top of a painting. It also
+     means the tile is the only background asset either surface needs.
+     Layer order matters: multiply blends each layer with the one BELOW, so the
+     tile must sit above the color it is tinted by.
+
+     Everything under it re-pitches for a dark shelf. These are the same tokens
+     :root sets for the light page — scoped here rather than overwritten there,
+     because the page still needs its own readings: the join gate prints --ink on
+     pink, and the HUD's coin keeps the dark --mouse-line while the tray's coins
+     take the white one. The shop is a THIRD theme scope, after day and night,
+     and it is the only place in the game where a var means one thing inside an
+     element and another outside it. */
+  body:not(.night) #dock {
+    background:
+      url("/hexxygon/art/bg-dots-tile.jpg") 0 0 / 240px 240px repeat,
+      var(--shop-paper);
+    background-blend-mode: multiply;
+    --ink: #F4F4F2;
+    --muted: #B9D6C1;
+    --dim: #9CC3A8;
+    --line: rgba(0,0,0,.26);
+    --icon-bg: rgba(255,255,255,.13);
+    /* The affordable/can't-afford pair, brightened off the light-ground set
+       (#1C7F45 / #BE3B2E) that would now be two dark smudges on a dark shelf.
+       Both are checked against --shop-paper, not against the page: the mint
+       clears 5.8:1 there and the coral 3.2:1, which is the bar for the price
+       line specifically (20px at 700, so WCAG-large). */
+    --cost-ok: #7FE39B;
+    --cost-no: #FF7B70;
+    --row-press: rgba(255,255,255,.12);
+    --row-shadow: 0 1px 1px rgba(0,0,0,.35);
+    --glyph-shadow: drop-shadow(0 1px 1px rgba(0,0,0,.4));
+    /* Back to plain gold. --shop-accent was bronzed to #96690F for one reason —
+       #ffd44d on a white wash is a highlighter with nothing under it — and the
+       dark shelf removes it. Night already reads var(--gold) here, so the two
+       phases now agree on what the shop's emphasis color is. */
+    --shop-accent: var(--gold);
+    --crux-shadow: 0 1px 1px rgba(0,0,0,.4), 0 0 9px rgba(255,212,77,.45);
+    /* The price coin's keyline. The HUD's copy of the same mouse stays dark
+       (it is on pink); down here a dark keyline dissolves into the shelf and
+       the silhouette goes with it. */
+    --mouse-line: #F4F4F2;
+  }
 
   .shopHead, .shopDivider {
-    flex: none; background: var(--wood), var(--panel-bg);
+    flex: none; background: var(--plank), var(--panel-bg);
     border: 0;
-    border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
+    border-top: 1px solid var(--plank-line); border-bottom: 1px solid var(--plank-line);
   }
   .shopHead {
     position: relative;   /* anchor for #newBadge */
@@ -871,7 +963,10 @@
     height: calc(32px * var(--ss));
     display: flex; align-items: center; justify-content: center; gap: calc(5px * var(--ss));
     padding: 0; -webkit-appearance: none; appearance: none; border-radius: 0;
-    width: 100%; cursor: pointer; color: var(--ink);
+    /* --rail-ink, not --ink: by day the rail is the loud green and takes the art
+       file's dark keyline, while the rows an inch below it are light type on the
+       deep shelf. Night collapses the two back into one (see body.night). */
+    width: 100%; cursor: pointer; color: var(--rail-ink);
   }
   /* Both rail labels, styled together so the closed sign is the same stamp as the
      open one — only the word changes. */
@@ -1008,7 +1103,12 @@
      OWNS the hidden content, cleared by going and looking. Absolutely positioned
      so it can't shift the centred SHOP + chevron as the number changes width.
      Red is the only place this palette uses alarm colour, which is the point —
-     it has to read at a glance to someone whose eyes are on the cat. */
+     it has to read at a glance to someone whose eyes are on the cat.
+     The hairline ring is the cost of the rail turning green: red on a pale wash
+     was two values apart, red on green is the one pair a red-green colour vision
+     deficiency flattens outright, and this badge is 22px of nothing but hue. The
+     ring is what carries it — a light edge keeps the badge a distinct OBJECT on
+     the rail even when the two fills read as the same mud. */
   #newBadge {
     position: absolute; right: calc(10px * var(--ss)); top: 50%;
     transform: translateY(-50%);
@@ -1018,7 +1118,7 @@
     padding: 0 calc(4px * var(--ss));
     font: 700 calc(9px * var(--ss))/1 var(--ui-font); letter-spacing: 0;
     font-variant-numeric: tabular-nums;
-    box-shadow: 0 1px 3px rgba(0,0,0,.5);
+    box-shadow: 0 0 0 1.5px rgba(255,255,255,.6), 0 1px 3px rgba(0,0,0,.5);
   }
   #newBadge[hidden] { display: none; }
 

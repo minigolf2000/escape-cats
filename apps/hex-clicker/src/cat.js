@@ -31,21 +31,23 @@ export const anim = { squash: 0, stir: 0 };
 // CAT rendering — the SVG (#hexCat) is static markup; this just toggles
 // classes/state on it per frame (squash bounce, blink, Zoomies recolor).
 // ---------------------------------------------------------------------------
-// SVG user-units the pupil can travel off-centre before it would cross the ring.
-// The hole is ~54 across and a dilated pupil ~33, leaving ~20 of clearance; 14
-// keeps a margin at full dilation, which is the tightest case.
-const IRIS_LOOK = 14;
-// PUPIL width — independent of the eyelid squash, and on its own axis (X, not Y)
-// so a blink never resets it. Real cats rest with a vertical slit and round out
-// when aroused; a golden mouse on screen is the one thing this game has to be
-// excited about, so it's the trigger.
+// SVG user-units a ring can travel off-center before it'd cross the coat's edge.
+// 17 in the drawing's 828-wide box, which is the same fraction of her face the
+// old vector cat's 4-in-200 was — the number grew because the viewBox did.
+const IRIS_LOOK = 17;
+// Eye WIDTH — independent of the eyelid squash, and on its own axis (X, not Y)
+// so a blink never resets it. Real cats rest narrow and open up when aroused; a
+// golden mouse on screen is the one thing this game has to be excited about, so
+// it's the trigger.
 //
-// Back to the original 0.22 -> 1, a slit opening to a disc, now that the eye has
-// a pupil to open. The intermediate version scaled the whole hollow ring by 1.14
-// instead, which was all a ring with no pupil could say; it is not needed and it
-// read as her eyes growing rather than her pupils blowing.
-const PUPIL_SLIT = 0.22;  // resting
-const PUPIL_ROUND = 1;    // dilated
+// This used to be pupil width, 0.22 -> 1: a slit dilating to a disc. The drawn
+// eye has NO pupil — it's a hollow ring — so there is no slit to open. Dilation
+// re-reads as the ring itself growing, which is what a ring eye can say, and the
+// range is small for the same reason: at 1.0 -> 1.14 it's a widening; push it to
+// the old 4.5x ratio and her eyes leave her head. Same trigger, same tell, sized
+// to what the art can carry.
+const PUPIL_SLIT = 1;     // resting
+const PUPIL_ROUND = 1.14; // dilated
 
 // The pet squash, as the artist drew it: four registered frames, held in order.
 // This is the one animation that came out of the art file as an ANIMATION rather
@@ -190,22 +192,30 @@ export function updateCat(t) {
   const blink = !asleep && !lidBusy && Math.sin(t / 1400) > 0.985;
   hexCatEl.classList.toggle("blink", blink);
 
+  const lidT = lidBusy ? `scaleY(${lidOverride.toFixed(3)})` : "";
+  if (eyeLeftEl.style.transform !== lidT) {
+    eyeLeftEl.style.transform = lidT;
+    eyeRightEl.style.transform = lidT;
+  }
+
   // Look: toward the golden mouse by day; roving under the lashes at night.
   // Owned entirely by JS (not a CSS class) because it combines a look-direction
   // translate with the dilation scale, and CSS can't compose an inline transform
   // with a class rule's transform.
   //
-  // No vertical squash rides along here. The pupil sits INSIDE the lid group, so
-  // the lid's own scaleY already carries it down with a closing eye; applying it
-  // here as well shut her eyes at the square of the intended amount.
-  let lookX = 0, lookY = 0, remX = 0;
+  // No vertical squash rides along here any more. It used to, because the pupil
+  // was a separate shape INSIDE the socket and had to be squashed to follow a
+  // closing lid. The ring is the whole eye now and sits inside the lid group, so
+  // the lid's scaleY already carries it — applying it twice shut her eyes at the
+  // square of the intended amount.
+  let lookX = 0, lookY = 0;
   if (asleep && !lidBusy) {
     // REM: the lids stay shut but the eyes rove underneath. Deliberately
     // thematic — she's dreaming the wall you're watching. Two out-of-phase sines
-    // so it never reads as a clean loop. It drives the LASHES rather than the
-    // pupil, because the pupil is hidden behind them while she sleeps — moving it
-    // there would animate something nobody can see.
-    remX = 5 * Math.sin(t / 3100) + 2.5 * Math.sin(t / 1130);
+    // so it never reads as a clean loop. Bigger than it was (the old value moved
+    // a pupil inside a socket; this moves the whole lash arc across her face) but
+    // still under a lash-width per swing.
+    lookX = 5 * Math.sin(t / 3100) + 2.5 * Math.sin(t / 1130);
   } else if (!asleep && goldState.active) {
     const cx = stageEl.clientWidth / 2, cy = stageEl.clientHeight / 2;
     const dx = (goldState.x + 31) - cx, dy = (goldState.y + 31) - cy; // golden mouse's own center, stage-relative
@@ -227,21 +237,10 @@ export function updateCat(t) {
   // behind, so her eyes stay wide through the sprint rather than snapping shut
   // the instant the mouse is gone. Not during sleep even if a golden is drifting
   // past, matching the branch above where asleep never looks toward it either.
-  const pupilScaleX = (!asleep && (goldState.active || zoomBuff() > 1)) ? PUPIL_ROUND : PUPIL_SLIT;
-  const irisTransform = `translate(${lookX.toFixed(2)}px, ${lookY.toFixed(2)}px) scale(${pupilScaleX}, 1)`;
+  const eyeScaleX = (!asleep && (goldState.active || zoomBuff() > 1)) ? PUPIL_ROUND : PUPIL_SLIT;
+  const irisTransform = `translate(${lookX.toFixed(2)}px, ${lookY.toFixed(2)}px) scale(${eyeScaleX})`;
   irisLeftEl.style.transform = irisTransform;
   irisRightEl.style.transform = irisTransform;
-
-  // Lids LAST, because this line reads remX, which the look block above is what
-  // computes. The lid group also carries the sleeping REM drift, since it is the
-  // only ancestor of the shut lashes; the two never overlap (remX is zero unless
-  // she is asleep with no override running).
-  const lidT = lidBusy ? `scaleY(${lidOverride.toFixed(3)})`
-             : remX ? `translateX(${remX.toFixed(2)}px)` : "";
-  if (eyeLeftEl.style.transform !== lidT) {
-    eyeLeftEl.style.transform = lidT;
-    eyeRightEl.style.transform = lidT;
-  }
 
   // "Alert" = awake with a golden actually on screen. It drives the chatter and
   // the lean, and it's the same condition the eye widening above uses — one idea

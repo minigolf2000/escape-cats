@@ -158,6 +158,20 @@ makes a wedge notch she stalls in (end floors ≥6 short of walls so she falls
 through); and a feed band that delivers her straight under a vertical fire
 gets smashed by it — angle the fire or end the feed outside the barrel line.
 
+**A chain of different gates needs one band each, without any state erasure
+(Four Ways to Help).** The other route to "requires 4" is four stages that fail
+*differently*: bridge, wall, bridge, choose-the-hole. Nothing has to reset her
+speed, because no band can substitute for a band doing a different job. Two
+rules make it hold. Give every gap a far lip **1 unit above** its near lip —
+arcs only fall, so no speed ever crosses it and gap width becomes purely a
+question of band length. And **floor every dead column with a bowl**: the
+level's tall empty space is where shortcuts live, and the beam search found a
+2-band win that simply dropped her down the column under the start pad onto a
+much later ledge, collecting its plant en route. A wide V-basin under that
+column turns the whole family into a stall. Bonus for a tutorial: four gates
+with four distinct deaths means every partial solution reads as a specific
+lesson rather than a generic "she died".
+
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — cake in a pocket with a ceiling, so falling arrivals are
   blocked and the only entry is horizontally through the mouth.

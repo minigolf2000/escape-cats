@@ -155,7 +155,61 @@ const popLane = (y: number, dir: number): GoombaPopper[] =>
   GRID_X.map((x) => ({ x, y, deg: dir > 0 ? 0 : 180, spd: 76 }));
 
 const RAW_LEVELS: GoombaLevel[] = [
-  // The tutorial, and the first level built for the locked party rule: four
+  // THE TUTORIAL. Four bands, four DIFFERENT jobs, in the order a player meets
+  // them — so the first level teaches the whole vocabulary instead of one trick
+  // four times. Each stage is a hard gate with its own legible death, and the
+  // deaths are all different, which is what makes the level teach:
+  //   1. a SHORT bridge over a small gap   — bare: she drops in, bowl, stuck
+  //   2. a WALL in mid-air                 — bare: she sails off the right edge
+  //   3. a LONG bridge, near full stretch  — bare: she drops in, bowl, stuck
+  //   4. a LID over the wrong hole         — bare: she falls in the empty one
+  //
+  // No jump can ever substitute for a bridge here: every far lip sits 1 unit
+  // ABOVE its near lip, and arcs only fall, so both gaps are honestly
+  // uncrossable at any speed. That is also why the two gaps can differ in size
+  // without differing in difficulty — the lesson is band LENGTH, not timing.
+  //
+  // A plant sits past each gate (ramp flat, far ledge, between the two holes),
+  // so the cake stays locked unless all four jobs were actually done — and the
+  // three ugly-looking bits of geometry are all there to keep those plants
+  // honest, each one added after the beam search cheated past them:
+  //   · the BOWLS floor the level's two dead columns. Empty vertical space is
+  //     where shortcuts live: one catch band under a gap otherwise turns the
+  //     whole fall into a free ride to somewhere much later.
+  //   · the upper bowl's right arm CLIMBS to meet the ramp's lip, sealing the
+  //     pocket under the ramp — a band caught her in the small gap and flew her
+  //     underneath the ramp and straight out onto stage 3, skipping the wall.
+  //   · the far ledge is a closed SLAB, not a line. A plant on a one-segment
+  //     ledge is grabbable from directly beneath it (pickup radius 9.7 against
+  //     zero thickness), so a catch band slung under the big gap collected it
+  //     without ever crossing. Twelve units of belly puts it out of reach.
+  { name: '1 · Four Ways to Help', budget: 4,
+    start: [-12, 9],
+    terrain: [
+      // stage 1 — the small gap. Far lip sits 1 unit HIGH, so no jump crosses.
+      [[-14, 10], [30, 17]],
+      [[-20, 60], [20, 72], [60, 58], [92, 46]], // miss the small gap and this holds her
+      // stage 2 — the ramp that throws her off the right edge of the world
+      [[54, 16], [76, 34], [92, 34]],
+      // stage 3 — the catch floor, then the big gap
+      [[55, 116], [115, 96]],
+      [[-15, 118], [5, 115], [5, 128], [-15, 131], [-15, 118]],
+      [[0, 138], [24, 146], [48, 138]], // miss the big gap and this holds her
+      [[-24, 110], [-24, 148]],  // left wall: kills her speed, drops her to 4
+      // stage 4 — two holes, one cake
+      [[-22, 150], [26, 162]],
+      [[42, 161], [58, 166]],
+      [[42, 161], [42, 190]],     // back wall of the wrong pocket
+      [[74, 165], [90, 170]],
+      [[74, 165], [74, 190]],     // back wall of the cake pocket
+      [[20, 192], [31, 198], [42, 192]],
+      [[58, 192], [66, 198], [74, 192]] ],
+    goal: [66, 196],
+    plants: [[86, 30], [-6, 114], [50, 165]],
+    solution: [ [[30, 17], [54, 16]], [[105, 20], [105, 60]],
+                [[55, 116], [5, 115]], [[26, 162], [42, 161]] ] },
+
+  // The first level built for the locked party rule: four
   // switchback floors, one band-sized hole in each, so 4 gaps = 4 bridges =
   // 4 players. The walls between floors are the state-erasers (she hits one,
   // loses all speed, drops to the next floor), which makes each floor's gap an
@@ -165,7 +219,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // BRIDGED, not jumped, and the cake stays locked until all four were.
   // Bare, she tours all four floors and falls out the bottom: the level
   // demonstrates itself.
-  { name: '1 · Mind the Gap', budget: 4,
+  { name: '2 · Mind the Gap', budget: 4,
     start: [-2, 14],
     terrain: [
       // Each floor is a steep run (so she restarts snappily from a wall-drop's
@@ -202,7 +256,7 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[40, 17.5], [82, 21.5]], [[56, 65.5], [14, 69.5]],
                 [[40, 108.5], [82, 112.5]], [[56, 154.5], [14, 158.5]] ] },
 
-  { name: '2 · Snake Plant Slalom', budget: 3,
+  { name: '3 · Snake Plant Slalom', budget: 3,
     start: [10, 22],
     terrain: [ [[-4, 20], [30, 30]],
                [[6, 34], [6, 204], [104, 210], [104, 34]] ],
@@ -213,7 +267,7 @@ const RAW_LEVELS: GoombaLevel[] = [
 
   // "THE SKIM": build speed in a chute, popper fires her nearly flat through a
   // long low slot, and the bands are lifts that keep her skimming.
-  { name: '3 · The Skim', budget: 3, maxSpeed: 135,
+  { name: '4 · The Skim', budget: 3, maxSpeed: 135,
     start: [8, 12],
     terrain: [ [[-6, 10], [26, 22]],
                [[26, 22], [10, 56], [14, 96], [32, 112], [44, 118]],
@@ -227,7 +281,7 @@ const RAW_LEVELS: GoombaLevel[] = [
 
   // A sealed pinball box: piñatas, pillow floors, plants gating the cake, and
   // the only exit is the drain hole. Bands are deflector plates.
-  { name: '4 · The Puzzle Box', budget: 4, maxSpeed: 140,
+  { name: '5 · The Puzzle Box', budget: 4, maxSpeed: 140,
     start: [8, 12],
     terrain: [ [[-6, 10], [32, 20]],
                [[46, 28], [104, 32]],
@@ -241,7 +295,7 @@ const RAW_LEVELS: GoombaLevel[] = [
     cushions: [ { x: 10, y: 180, w: 28 }, { x: 66, y: 180, w: 36 } ],
     solution: [ [[59.8, 75.3], [14, 71.3]], [[38.1, 93.3], [4.9, 112.8]] ] },
 
-  { name: '5 · Piñata Alley', budget: 3,
+  { name: '6 · Piñata Alley', budget: 3,
     start: [8, 14],
     terrain: [ [[-6, 12], [38, 24]],
                [[4, 30], [4, 190], [106, 196], [106, 30]] ],
@@ -254,7 +308,7 @@ const RAW_LEVELS: GoombaLevel[] = [
                { x: 79, y: 122 }, { x: 97, y: 122 } ],
     solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
 
-  { name: '6 · Pillow Fort',
+  { name: '7 · Pillow Fort',
     start: [8, 10],
     terrain: [ [[-5, 8], [46, 20]],
                [[96, 40], [96, 190]],
@@ -264,7 +318,7 @@ const RAW_LEVELS: GoombaLevel[] = [
     cushions: [ { x: 56, y: 190, w: 40 } ],
     solution: [ [[58, 126], [95, 102]] ] },
 
-  { name: '7 · Pop Goes Goomba',
+  { name: '8 · Pop Goes Goomba',
     start: [8, 54],
     terrain: [ [[-5, 52], [46, 62]],
                [[40, -14], [66, -8]] ],
@@ -287,7 +341,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // turns are wall-drops, so the chain has no free legs. After the third
   // plant she drains through a slot into the basin, and the basin ends at
   // the cake.
-  { name: '8 · Pachinko Drop', budget: 4, maxSpeed: 160,
+  { name: '9 · Pachinko Drop', budget: 4, maxSpeed: 160,
     start: [56, 186],
     terrain: [
       [[2, 86], [2, 228]],           // cabinet walls
@@ -324,7 +378,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // Bands can't help her travel — the only verb is to WALL a lane so she
   // rebounds and drops into the lane below. The first level whose true minimum
   // is 4 bands, so a 4-player team all genuinely participate.
-  { name: '9 · The Popper Grid', budget: 4,
+  { name: '10 · The Popper Grid', budget: 4,
     start: [-6, 8],
     terrain: [ [[-8, 7], [12, 18]],
                [[21, 6], [21, 34]],

@@ -69,9 +69,21 @@ const EZ = 1.15, RZ = 1.9; // edit/run zoom (the prototype's tuned defaults)
 const DEBUG = debugFromUrl(); // debug menu on (?debug = in your room, ?solo = local)
 const SOLO = soloFromUrl();   // serverless backend for the same menu
 let labOpen = false;        // lab grid showing? (?debug only)
+// A card tap is a wire intent, so the room answers a round trip later. Closing
+// the lab on the tap would uncover the OLD level for that gap and then swap it
+// under the player — so the tap only LATCHES, and the lab stays up until the
+// authority's snapshot lands on the chosen level. The timeout is the escape
+// hatch for an intent the room never echoes (dropped socket, proctor seat).
+let labJump = null;         // { level, timer } — tapped, awaiting the authority
+const LAB_JUMP_MS = 1500;
 function setLab(open) {
   labOpen = open;
   document.getElementById("hud").classList.toggle("lab", open);
+  if (!open) clearLabJump();
+}
+function clearLabJump() {
+  if (labJump) clearTimeout(labJump.timer);
+  labJump = null;
 }
 let labCells = [];          // hit targets for the lab's cards
 const labVerdicts = new Map(); // level idx -> {bare, sol, ok} from the real sim
@@ -122,6 +134,14 @@ function onSnapshot(s) {
   const wasReset = s.runId !== shownRunId;
   snap = s;
   pending = null; // whatever we sent, the authority has now spoken
+
+  // The latched card tap resolves here — on the goto's exact signature (that
+  // level, fresh edit phase, no bands), so a snapshot merely in flight when we
+  // tapped doesn't drop the grid early. Closing now, in the same handler that
+  // recenters the camera below, means the first frame without the lab is
+  // already the new level, framed: no gap for the old one to show through.
+  if (labJump && s.level === labJump.level && s.phase === "edit" && !s.bands.length)
+    setLab(false);
 
   if (first) {
     inited = true;
@@ -696,7 +716,13 @@ function labVerdict(i) {
 function labTap(px, py) {
   for (const c of labCells) {
     if (px < c.x || px > c.x + c.w || py < c.y || py > c.y + c.h) continue;
-    setLab(false);
+    // Latch BEFORE sending: the ?solo backend answers inside send(), and that
+    // synchronous snapshot is what closes the lab. Tapping again retargets.
+    clearLabJump();
+    labJump = {
+      level: c.i,
+      timer: setTimeout(() => { labJump = null; setLab(false); }, LAB_JUMP_MS),
+    };
     transport.send({ type: "goto", level: c.i });
     return;
   }
@@ -743,8 +769,10 @@ function drawLab() {
     camOX = camOY = 0;
     ctx.restore();
     // frame + labels
-    ctx.strokeStyle = snap && i === snap.level ? "#ffd166" : "rgba(201,189,240,0.22)";
-    ctx.lineWidth = snap && i === snap.level ? 2.5 : 1.5;
+    const jumping = labJump !== null && i === labJump.level;
+    const current = snap !== null && i === snap.level;
+    ctx.strokeStyle = jumping ? "#57e6c9" : current ? "#ffd166" : "rgba(201,189,240,0.22)";
+    ctx.lineWidth = jumping || current ? 2.5 : 1.5;
     ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
     ctx.font = "700 12px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = "#f2ecff";
@@ -752,6 +780,18 @@ function drawLab() {
     ctx.font = "10px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = v.ok ? "#57e6c9" : "#ff8f8f";
     ctx.fillText(`${v.ok ? "✓" : "✗"} bare:${v.bare} · sol:${v.sol ?? "none"}`, x + 9, y + 16);
+    // The round trip, made visible: the tap landed, the room is coming with us.
+    if (jumping) {
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.clip();
+      ctx.fillStyle = "rgba(16,7,34,0.55)"; ctx.fillRect(x, y, cw, ch);
+      ctx.globalAlpha = 0.55 + 0.45 * Math.sin(tGlobal * 6);
+      ctx.fillStyle = "#57e6c9";
+      ctx.font = "700 13px ui-rounded, system-ui, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("jumping…", x + cw / 2, y + ch / 2);
+      ctx.restore();
+    }
   });
   Object.assign(cam, savedCam);
 }

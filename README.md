@@ -108,11 +108,10 @@ This starts everything:
 | Team lobby    | http://localhost:5176                      |
 | Team chat     | http://localhost:5177                      |
 
-Open the proctor page and scan its QR code (one for the whole room — it points
-at the lobby) with phones on the same wifi, then drag each phone onto a team.
-The vite servers listen on the LAN; point `VITE_PARTYKIT_HOST` at your
-machine's LAN IP for phone testing, and `VITE_LOBBY_URL` at the lobby's LAN
-address so the QR code is scannable — see `.env` handling below.
+Open the lobby on phones on the same wifi (one address for the whole room),
+then drag each phone onto a team from the proctor page. The vite servers listen
+on the LAN; point `VITE_PARTYKIT_HOST` at your machine's LAN IP for phone
+testing — see `.env` handling below.
 
 Simulate 4 players locally with 4 browser tabs — but note the persistent
 player id is per-browser-profile, so use different profiles/incognito
@@ -161,10 +160,6 @@ Client env vars (Vite, set in `apps/*/.env.local`):
   Kept under its old name: it is what `partysocket` reads on every client.
 - `VITE_HEX_URL` / `VITE_GOOMBA_URL` — public game URLs the lobby's **Play**
   buttons point at
-- `VITE_LOBBY_URL` — what the proctor's QR code encodes. Defaults to this
-  page's own origin root, which is correct in production (one origin, lobby at
-  `/`) and therefore needs no Vercel var; set it only in dev, where the proctor
-  and the lobby are on different ports
 
 The server takes no vars. The code word is a constant
 (`HEX_CODEWORD` in `packages/shared/src/hex/data.ts`, paired with the wall

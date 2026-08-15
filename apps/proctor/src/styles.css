@@ -21,23 +21,6 @@ body {
   padding: 24px;
 }
 
-/* ---- How players get in: one code for the whole room ---- */
-.join {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  text-align: left;
-  background: #241f33;
-  border: 1px solid #352e4a;
-  border-radius: 12px;
-  padding: 14px;
-}
-.join-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
 button {
   font-family: inherit;
   font-size: 16px;
@@ -52,18 +35,6 @@ button {
 .danger {
   background: #d64b3b;
   color: white;
-}
-
-.qr {
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
-}
-
-.join-url {
-  font-size: 12px;
-  color: #b39ddb;
-  word-break: break-all;
 }
 
 .progressbar {

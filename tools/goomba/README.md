@@ -52,6 +52,11 @@ Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is
 each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
 one player hoarding, but only geometry can make a level *need* four bands, so
 the level gate below still does the load-bearing work.
-Four levels pass the full gate — Four Ways to Help (1), Mind the Gap (2),
-Pachinko Drop (9) and The Popper Grid (10) — and the middle levels (3-8) still
-collapse to 1 band, which is the standing rebalance debt.
+Three levels pass the full gate — Four Ways to Help (1), Mind the Gap (2) and
+The Popper Grid (10) — and levels 3-9 still collapse to 1 band, which is the
+standing rebalance debt. Space Cadet (9) joined that debt knowingly: it
+replaced Pachinko Drop, which passed, so the passing count went 4 → 3. It was
+taken as a deliberate step toward levels that are ROUTING choices rather than
+precision shots (a band picks which way the machine goes, instead of threading
+a window), and closing the gap means finding levels with several distinct
+routes that each still need four bands.

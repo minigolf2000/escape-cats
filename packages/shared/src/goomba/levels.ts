@@ -330,50 +330,56 @@ const RAW_LEVELS: GoombaLevel[] = [
             { x: 85, y: 34, deg: -102, spd: 142 } ],
     solution: [ [[54, 80], [92, 118]] ] },
 
-  // PACHINKO: the plunger in the bottom-left corner fires her up-RIGHT at a
-  // fixed 80° — one deterministic parabola that the whole machine hangs off.
-  // Four bands run it: a FEED (the start pad rolls her away from the plunger;
-  // a reversal catch walks her back into the barrel), a CATCH that plucks the
-  // descending arc onto the top row (the bare arc misses the row by a few
-  // units — the catch's whole job is that nudge), and a BRIDGE across each of
-  // the two lower gaps. Three roofed plants gate the cake: one per stage
-  // after the feed. Landing entries sit 1 unit ABOVE the lip that faces them
-  // (arcs only fall — no jump can land them), roofs seal to walls, and both
-  // turns are wall-drops, so the chain has no free legs. After the third
-  // plant she drains through a slot into the basin, and the basin ends at
-  // the cake.
-  { name: '9 · Pachinko Drop', budget: 4, maxSpeed: 160,
-    start: [56, 186],
+  // SPACE CADET: a pinball cabinet. She starts loaded in the shooter lane up the
+  // right edge; three kickers walk her up it and the dome slings her into the
+  // playfield, where she rattles off the piñatas and drains — a whole show that
+  // collects only the free chime in the right lane. The left wall answers the
+  // plunger with two channels: wall-hugging descents thread the slot under the
+  // awning into a RELAY popper that walks her back up, where the dome turns the
+  // launch into a re-orbit, so the table LOOPS and the plants can be taken in
+  // different orders. Outlane drops instead hit the KICKBACK, whose tilted fire
+  // escapes the relay's grab and threads the roofed pocket — no fall can reach
+  // that plant, the awning blocks it.
+  //
+  // KNOWN DEBT, eyes open: this one collapses to 1 band, so it fails the party
+  // rule exactly like levels 3–8, and it replaced Pachinko Drop (which passed).
+  // Shipped anyway as a deliberate step toward levels that are ROUTING choices
+  // rather than precision shots: two distinct winning rides with opposite plant
+  // orders (lane→pocket→bank at 67% tolerance to ±5u slop, bank-first at 33%),
+  // where a band picks which way the machine goes instead of threading a window.
+  // Reconciling that with "requires 4" — several routes that each need 4 bands —
+  // is the open problem. A first requires-4 restaging of this table (shooter →
+  // dome → four wall-drop rows, each with a 20-unit gap) was abandoned to the
+  // sag rule already in DESIGNING.md: the rows delivered her to each lip under
+  // the ~24 lip-speed threshold, so she settled into the bridge's sag valley
+  // and rocked there instead of crossing. Give every row an uphill shelf first.
+  { name: '9 · Space Cadet', budget: 4, maxSpeed: 140,
+    start: [103, 178],
     terrain: [
-      [[2, 86], [2, 228]],           // cabinet walls
-      [[102, 86], [102, 228]],
-      // Start pad tilts down-LEFT, steeper than the little start push: she
-      // rolls toward the plunger but the bare fall undershoots into a slot.
-      // The feed is a plain bridge from pad lip to barrel — band one.
-      [[52, 190], [64, 184]],
-      // row 1, rightward along the arc's descent, first plant under its roof
-      [[70, 124], [94, 129]],
-      [[74, 116], [88, 120]],
-      // row 2, leftward after the right-wall drop · gap A · landing A (plant 2)
-      [[100, 142], [76, 147]],
-      [[56, 145.5], [42, 149.5]],
-      [[60, 137], [38, 143]],
-      [[36, 148], [36, 161]],        // guard: drops the exit onto row 3
-      // row 3, rightward under the guard drop · gap C · landing C (plant 3)
-      [[36, 162], [68, 168.5], [72, 168]],
-      [[92, 167], [96, 169]],
-      [[88, 159], [102, 163]],
-      // slots — every one drains into the basin, the basin to the cake
-      [[14, 216], [14, 226]],
-      [[34, 216], [34, 226]],
-      [[56, 216], [56, 226]],
-      [[78, 216], [78, 226]],
-      [[4, 228], [52, 242], [100, 228]] ],
-    goal: [52, 239],
-    plants: [[81, 124.1], [49, 145.3], [95, 166.3]],
-    pops: [ { x: 19, y: 198, deg: -80, spd: 200 } ],
-    solution: [ [[52, 190], [26, 199]], [[52, 113], [64, 117]],
-                [[76, 147], [56, 145.5]], [[72, 168], [92, 167]] ] },
+      // table shell: left wall, rounded top, the orbit shoulder, shooter-lane wall
+      [[6, 152], [6, 66], [9, 50], [16, 36], [28, 25], [44, 18], [62, 17],
+       [78, 22], [92, 31], [102, 43], [108, 58], [110, 80], [110, 184], [96, 186]],
+      // shooter-lane divider — the mouth up top is where she leaves the lane
+      [[96, 62], [96, 186]],
+      // flippers funnelling into the drain: everything ends up in the hole
+      [[6, 152], [40, 178], [51, 188], [62, 178], [96, 152]],
+      // awning: roofs the pocket plant so no fall can collect it, and stops short
+      // of the wall so wall-hugging descents thread the slot down to the relay
+      [[11, 72], [32, 76]],
+    ],
+    goal: [51, 185],
+    // target bank / right inner lane (the bare ride takes this one — the free
+    // chime that says "the machine works, now steer it") / roofed pocket (up-only)
+    plants: [[34, 55], [92, 115], [22, 88]],
+    bumpers: [ { x: 40, y: 60 }, { x: 60, y: 52 }, { x: 50, y: 78 } ],
+    // slingshots: their gaps are the splitter — centre drains, edges are lanes
+    cushions: [ { x: 14, y: 128, w: 24 }, { x: 64, y: 128, w: 24 } ],
+    pops: [ { x: 103, y: 178, deg: -90, spd: 170 },
+            { x: 103, y: 130, deg: -90, spd: 170 },
+            { x: 103, y: 82,  deg: -90, spd: 170 },
+            { x: 8, y: 146, deg: -80, spd: 150 },   // kickback → pocket
+            { x: 8, y: 90,  deg: -90, spd: 150 } ], // relay → re-orbit
+    solution: [ [[104, 51], [108, 101]], [[70, 147], [94, 121]] ] },
 
   // The 2D line maze finale: four lanes of forced poppers aimed in alternation.
   // Bands can't help her travel — the only verb is to WALL a lane so she

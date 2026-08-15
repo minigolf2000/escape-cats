@@ -47,6 +47,6 @@ because each of *my* three bands was load-bearing; that says nothing about a
 completely different lone band.
 
 The party rule is locked at 4 players × 4 bands per level (see DESIGNING.md).
-Three levels pass the full gate — Mind the Gap (1), Pachinko Drop (8) and
-The Popper Grid (9) — and the middle levels (2-7) still collapse to 1 band,
-which is the standing rebalance debt.
+Four levels pass the full gate — Four Ways to Help (1), Mind the Gap (2),
+Pachinko Drop (9) and The Popper Grid (10) — and the middle levels (3-8) still
+collapse to 1 band, which is the standing rebalance debt.

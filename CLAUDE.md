@@ -20,9 +20,10 @@ findings — do not design from intuition, the sim disproves it reliably.
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
-- Levels 2–7 predate the party rule and still collapse to 1 band — known
-  debt. Don't copy their structure; copy Mind the Gap (shelf-gated
-  switchback) or The Popper Grid (forced popper lanes).
+- Levels 3–8 predate the party rule and still collapse to 1 band — known
+  debt. Don't copy their structure; copy Four Ways to Help (one gate per
+  band, each with its own death), Mind the Gap (shelf-gated switchback) or
+  The Popper Grid (forced popper lanes).
 - Parallel level threads: work on your own branch — `levels.ts` is where
   every level thread edits, and sharing a branch collides.
 

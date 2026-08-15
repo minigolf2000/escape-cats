@@ -52,6 +52,6 @@ Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is
 each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
 one player hoarding, but only geometry can make a level *need* four bands, so
 the level gate below still does the load-bearing work.
-Three levels pass the full gate — Mind the Gap (1), Pachinko Drop (8) and
-The Popper Grid (9) — and the middle levels (2-7) still collapse to 1 band,
-which is the standing rebalance debt.
+Four levels pass the full gate — Four Ways to Help (1), Mind the Gap (2),
+Pachinko Drop (9) and The Popper Grid (10) — and the middle levels (3-8) still
+collapse to 1 band, which is the standing rebalance debt.

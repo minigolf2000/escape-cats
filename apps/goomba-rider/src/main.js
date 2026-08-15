@@ -158,11 +158,12 @@ function syncHud() {
   const lv = L();
   lvlEl.textContent = lv.name;
   const done = s.completed.filter(Boolean).length;
+  // Levels carry a title and nothing else — the only line here is the win
+  // banner; editing and running say nothing.
   hintEl.textContent =
-    s.phase === "run" ? "" :
     s.phase === "win"
       ? (done === s.levelCount ? "ALL LEVELS CLEAR! 🎉🎂" : "LEVEL CLEAR! 🎉")
-      : (s.fails >= 3 && lv.hint2 ? "💡 " + lv.hint2 : lv.hint);
+      : "";
 
   dotsEl.innerHTML = "";
   s.completed.forEach((c, i) => {
@@ -678,8 +679,8 @@ function drawStartPad(lv) {
   ctx.setLineDash([]);
 }
 
-// ---------- the LEVEL LAB (?debug) ----------
-// The deleted prototype's 🔬 view, on the shipped sim: every level as a card
+// ---------- the LEVELS menu (?debug) ----------
+// The deleted prototype's lab view, on the shipped sim: every level as a card
 // with live verdicts (bare must NOT win, the solution must) — tap one to play
 // it locally. Design triage on any phone, straight from the deployed site.
 function labVerdict(i) {
@@ -692,6 +693,13 @@ function labVerdict(i) {
     labVerdicts.set(i, { bare, sol, ok: bare !== "win" && sol === "win" });
   }
   return labVerdicts.get(i);
+}
+/** Ellipsise `s` to at most `maxW` px in the current ctx font. */
+function fitText(s, maxW) {
+  if (ctx.measureText(s).width <= maxW) return s;
+  let n = s.length;
+  while (n > 1 && ctx.measureText(s.slice(0, n) + "…").width > maxW) n--;
+  return s.slice(0, n) + "…";
 }
 function labTap(px, py) {
   for (const c of labCells) {
@@ -706,10 +714,11 @@ function drawLab() {
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   ctx.font = "700 15px ui-rounded, system-ui, sans-serif";
   ctx.fillStyle = "#f2ecff";
-  ctx.fillText("Level Lab", 16, 30);
+  ctx.fillText("Levels", 16, 30);
   ctx.font = "12px ui-rounded, system-ui, sans-serif";
   ctx.fillStyle = "#8a80b0";
-  ctx.fillText("tap a card to play it locally — no server, no room", 16, 48);
+  ctx.fillText(SOLO ? "tap a card to play it locally — no server, no room"
+                    : "tap a card to jump the whole room there", 16, 48);
 
   const cols = W > H ? 3 : 2;
   const rows = Math.ceil(GOOMBA_LEVELS.length / cols);
@@ -748,7 +757,9 @@ function drawLab() {
     ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
     ctx.font = "700 12px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = "#f2ecff";
-    ctx.fillText(lv.name.length > 18 ? lv.name.slice(0, 17) + "…" : lv.name, x + 9, y + ch - 8);
+    // The title is all a card says, so trim to the card's real width rather
+    // than a guessed character count.
+    ctx.fillText(fitText(lv.name, cw - 18), x + 9, y + ch - 8);
     ctx.font = "10px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = v.ok ? "#57e6c9" : "#ff8f8f";
     ctx.fillText(`${v.ok ? "✓" : "✗"} bare:${v.bare} · sol:${v.sol ?? "none"}`, x + 9, y + 16);

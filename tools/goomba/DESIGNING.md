@@ -47,15 +47,16 @@ must actually be ridden.
    fails.
 5. **Look at the ride**: `node ridecards.mjs <outDir> <idx>` renders the level
    with her traced path — Read the PNG. Judge fun by `duration × %airborne`,
-   not duration. For live play, open the game with **`?solo`** — the LEVEL
-   LAB on the in-page sim (no server) — or with **`?debug`** in a real room,
-   where tapping a lab card jumps the whole room to that level (multiplayer
+   not duration. For live play, open the game with **`?solo`** — the LEVELS
+   grid on the in-page sim (no server) — or with **`?debug`** in a real room,
+   where tapping a level card jumps the whole room to that level (multiplayer
    playtesting). Scriptable via `window.__goomba`:
    `state() / send({type:'place',...}) / send({type:'play'}) /
    send({type:'goto',level:i})`.
 6. **Update what the level makes stale**: the level-count claims in the root
-   `README.md` and this folder's docs, and give the level a `hint` and `hint2`
-   (hint2 appears after 3 failed runs).
+   `README.md` and this folder's docs. A level carries a `name` and nothing
+   else prose-wise — there are no hint/description fields, so the title is
+   the only text players read; make it earn its place.
 
 ## Physics cheat sheet (world units)
 

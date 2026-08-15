@@ -31,7 +31,8 @@ export interface GoombaSimState {
   runResult: RunResult | null;
   /** Seconds the scored run lasts — phones animate exactly this long. */
   runT: number | null;
-  /** Failed attempts on the current level — drives the hint2 escalation. */
+  /** Failed attempts on the current level — the proctor's "how stuck are
+   * they" read. */
   fails: number;
   /** Epoch ms every level went done, else null — the proctor's finish line. */
   finishedAt: number | null;

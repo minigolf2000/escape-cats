@@ -401,6 +401,19 @@
      the children the way the vector cat did would make the empty corners of the
      box pettable. #catHit carries the silhouette instead. */
   #hexCat #catHit { pointer-events: auto; cursor: pointer; touch-action: manipulation; }
+  /* NIGHT PET FEEDBACK. The drawn squash frames are painted in the day coat, so
+     they cannot play over the black one — which left a night poke moving nothing
+     at all: the "Zzz"/"grr…" float appeared and Hex sat perfectly still. This is
+     the same beat expressed as the one thing that works on either coat, a scale.
+     .big is the annoyed stir (the same beat that gets the full drawn sequence by
+     day) and presses harder. #hexCat already carries `transition: transform .1s
+     ease-out`, which is what eases both back.
+     Sized against how big she IS at night rather than against the day cat: the
+     wall reveal parks her at a quarter scale, where a 2-3% squash is a pixel or
+     two and reads as nothing. Proportional, so it carries at whatever size the
+     camera has left her at. */
+  body.night #catWrap.squash #hexCat { transform: scale(.95); }
+  body.night #catWrap.squash.big #hexCat { transform: scale(.90); }
   #catWrap.zoomies #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
 
   /* THE HEAD, as drawn. One frame visible at a time, picked by data-pose:

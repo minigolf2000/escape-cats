@@ -20,12 +20,29 @@ import { nightActive, zoomBuff } from "./state.js";
 import { goldState } from "./golden.js";
 import { petState } from "./pet.js";
 
-// Pet -> cat animation channel: pet() sets these, updateCat eases squash back
-// down. `stir` is how BIG the reaction is, not how far through it we are: 0 is an
-// ordinary tap, 1 is one of the two beats the game already calls a bigger
-// reaction (a sustained day streak, or the night's annoyed grumble). It picks
-// which squash frames are allowed to play — see SQUASH_FRAMES.
-export const anim = { squash: 0, stir: 0 };
+// Pet -> cat animation channel. pet() calls squashPet(big); everything about HOW
+// it plays lives here.
+//
+// This used to be a scalar that pet() set to 1 and updateCat decayed by 0.08 EVERY
+// FRAME, with the current frame picked by thresholding it. Three things were
+// wrong with that, and together they are what made petting feel broken:
+//
+//   1. 0.08/frame is a frame-rate clock. The whole squash ran 167ms on a 60Hz
+//      screen and 83ms on a 120Hz one, so the animation was literally twice as
+//      fast on a ProMotion phone as on the desktop it was tuned on.
+//   2. Each drawn frame got ~3 frames of screen time (~50ms, ~25ms at 120Hz).
+//      Below about 60ms a sprite swap stops reading as motion and starts reading
+//      as a glitch — and these frames differ a lot, so it flashed.
+//   3. Worst: a tap RESET the scalar and its stir flag, so the very next tap
+//      during a petting streak downgraded the big reaction mid-play. Measured on
+//      a 6-tap streak, the flattest frame showed for 50ms and the middle frame
+//      never appeared at all. The one moment the artist's animation was supposed
+//      to play was the one moment it got cut off.
+//
+// So it is a timed player now: an explicit [frame, ms] list, advanced against the
+// same clock the frame loop already carries, and a big reaction cannot be
+// downgraded by an ordinary tap landing on top of it.
+export const anim = { squash: 0 };
 
 // ---------------------------------------------------------------------------
 // CAT rendering — the SVG (#hexCat) is static markup; this just toggles
@@ -58,18 +75,16 @@ const PUPIL_ROUND = 1.14; // dilated
 // GRADED, because the artist's squash folds the ears as part of the same drawn
 // gesture and there is no way to subtract them from it. Ear movement is supposed
 // to be an idle tell — rare, and hers rather than the player's — so the full
-// three-frame fold is held back for the two beats the game already treats as a
-// bigger reaction, and an ordinary tap only ever reaches the gentlest frame,
-// where the ears barely move. Petting still squashes on every tap; what it stops
-// doing is spending the ear gesture every time.
-const SQUASH_FRAMES = [
-  [0.62, "s3"],   // flattest — ears folded right back
-  [0.38, "s2"],
-  [0.15, "s1"],   // barely dented; below this she's at rest
-];
-// An ordinary tap is clamped to this one. Same decay, same timing — it just
-// never reaches for the harder two.
-const SQUASH_GENTLE = "s1";
+// sequence is held back for the two beats the game already treats as a bigger
+// reaction, and an ordinary tap only ever shows the gentlest frame, where the
+// ears barely move.
+//
+// Impact first, then recovery: contact in a real squash is instantaneous, so the
+// flattest frame leads and the rest is her head coming back up. Durations are the
+// point of the list — each frame gets long enough to be seen as a pose rather
+// than a flicker.
+const SQUASH_BIG = [["s3", 80], ["s2", 70], ["s1", 90]];
+const SQUASH_SOFT = [["s1", 110]];
 
 // ---------------------------------------------------------------------------
 // IDLE ANIMATIONS — one flag each, all independent. These are cat behaviours
@@ -128,14 +143,16 @@ const yawnEnv = p => Math.sin(Math.PI * clamp01(p));
 
 let wasAsleep = null, yawnStart = -1;
 export function updateCat(t) {
-  if (anim.squash > 0) anim.squash = Math.max(0, anim.squash - 0.08);
-
-  // The class name used to be "anim.squash" — a token with a dot in it, which
-  // no selector can match, so `#catWrap.squash` never applied and a pet produced
-  // no squash at all. Fixed here; day squashes through the drawn frames below,
-  // and the CSS rule is now night-only (see index.html) because those frames are
-  // painted in the day coat.
-  catEl.classList.toggle("squash", anim.squash > 0.15);
+  // The frame this pet is on, or null once it has finished. Also the .squash /
+  // .big classes, which are what gives the NIGHT phase its feedback: the drawn
+  // frames are painted in the day coat and cannot play over the black one, so at
+  // night the same beat is a small CSS scale instead (see index.html).
+  // (The class was previously toggled as "anim.squash" — a token with a dot in
+  // it, which no selector can ever match — so night pets moved nothing at all.)
+  const squashPose = squashFrame(t);
+  catEl.classList.toggle("squash", squashPose !== null);
+  catEl.classList.toggle("big", squashBig && squashPose !== null);
+  anim.squash = squashPose === null ? 0 : 1;
 
   catEl.classList.toggle("zoomies", zoomBuff() > 1);
 
@@ -155,10 +172,7 @@ export function updateCat(t) {
   // onto a black one for two frames.
   let pose = "day";
   if (asleep) pose = "night";
-  else if (anim.squash >= 0.15)
-    pose = anim.stir >= 1
-      ? SQUASH_FRAMES.find(([threshold]) => anim.squash >= threshold)[1]
-      : SQUASH_GENTLE;
+  else if (squashPose) pose = squashPose;
   if (hexCatEl.dataset.pose !== pose) hexCatEl.dataset.pose = pose;
 
   // --- Lid overrides: the yawn and the slow blink -------------------------
@@ -336,6 +350,32 @@ function updateEars(t, asleep, alert) {
     const v = s === 1 ? "" : `scaleY(${s.toFixed(3)})`;
     if (el.style.transform !== v) el.style.transform = v;
   }
+}
+
+// The squash player. `big` picks the sequence; an ordinary tap can never
+// downgrade a big one that is already running, which is the bug that stopped the
+// artist's animation from ever playing through. A big one always restarts (a
+// second annoyed stir should re-hit), and soft-on-soft restarts too, so holding a
+// steady petting rhythm keeps her squashed rather than popping in and out.
+let squashSeq = null, squashAt = 0, squashBig = false;
+export function squashPet(big) {
+  if (squashSeq && squashBig && !big) return;
+  squashSeq = big ? SQUASH_BIG : SQUASH_SOFT;
+  squashBig = big;
+  squashAt = performance.now();
+}
+// Wall-clock, not a per-frame decrement, so the sequence lasts the same wall time
+// at 60Hz and 120Hz. `t` is the frame loop's rAF timestamp, same origin as the
+// performance.now() stamped above.
+function squashFrame(t) {
+  if (!squashSeq) return null;
+  let e = t - squashAt;
+  for (const [frame, ms] of squashSeq) {
+    if (e < ms) return frame;
+    e -= ms;
+  }
+  squashSeq = null;
+  return null;
 }
 
 // Dream twitch: a single whole-head jerk every ~9-20s while asleep, the

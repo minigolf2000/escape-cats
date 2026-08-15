@@ -9,7 +9,7 @@
 // nothing security-wise.
 
 import { GoombaSim } from "@escape-cats/shared";
-import { transport } from "./net";
+import { transport, playerId } from "./net";
 
 export function debugFromUrl() {
   const q = new URLSearchParams(location.search);
@@ -24,9 +24,14 @@ export function startDebug(opts) {
   const sim = new GoombaSim(Date.now());
   let runTimer = null;
 
+  // A one-player room, and this phone's REAL pid: the band quota divides by
+  // the roster, so the lab has to look like a room of one rather than a room
+  // of nobody — ⌈4/1⌉ = 4, all four bands to the one player, which is exactly
+  // what a solo bench wants.
+  const pid = playerId();
   const emit = () => {
     opts.onSnapshot(
-      sim.snapshot(Date.now(), [{ id: "debug", name: "solo", connected: true }]),
+      sim.snapshot(Date.now(), [{ id: pid, name: "solo", connected: true }]),
     );
   };
   // The server's armRunTimer, in miniature: one timeout so win/fail lands
@@ -48,7 +53,7 @@ export function startDebug(opts) {
       case "preview":
         return; // presentation-only; nothing to show solo
       case "place":
-        sim.place("debug", 0, msg, now);
+        sim.place(pid, 0, msg, now, 1);
         break;
       case "remove":
         sim.remove(msg.index, now);

@@ -23,6 +23,7 @@ import {
   snapBand,
   bandPoints,
   scoreRun,
+  bandsHeldBy,
 } from "@escape-cats/shared";
 import { connectRoom, watchTeam, transport, playerId } from "./net";
 import { debugFromUrl, soloFromUrl, startDebug } from "./debug";
@@ -117,6 +118,22 @@ const L = () => GOOMBA_LEVELS[level()];
 const bands = () => (snap ? snap.bands : []);
 const now = () => Date.now() + serverOffset; // the room's shared clock
 
+// ---------- my share of the 4 bands ----------
+// The room divides MAX_BANDS by its live headcount (snap.quota = ⌈4/n⌉) and
+// nobody may hold more than that. The server enforces it; these read the same
+// snapshot so the gesture is refused BEFORE it goes on the wire — a tap that
+// silently does nothing reads as a broken screen.
+//
+// `pending` (my optimistic ghost, already sent) counts as mine: without it the
+// 4-player case lets a fast double-tap send a second band that the room throws
+// away, and the phone shows a band that then vanishes.
+const myBands = () =>
+  bandsHeldBy(bands(), playerId()) + (pending ? 1 : 0);
+const myQuota = () => (snap ? snap.quota : MAX_BANDS);
+/** Free slot in the room AND under my own quota. */
+const iMayPlace = () =>
+  bands().length + (pending ? 1 : 0) < MAX_BANDS && myBands() < myQuota();
+
 const FAIL_MSG = {
   fall: "Goomba fell! 🙀", left: "she rolled away! 🙀", flew: "overshot the party! 🙀",
   stall: "ran out of zoom… 😿", loop: "she’s stuck! try different bands 😹",
@@ -200,7 +217,12 @@ function syncHud() {
   });
 
   // The 4 band slots — the locked team budget. Filled slots wear the OWNER's
-  // colour, so the row doubles as "who has placed".
+  // colour, so the row doubles as "who has placed". Of the empty ones, the
+  // next `quota - mine` wear MY colour: that is my share of the four, shown
+  // before I reach for it rather than explained by a toast after I'm refused.
+  const pid = playerId();
+  const mySlot = Math.max(0, s.players.findIndex((p) => p.id === pid));
+  let mine = Math.max(0, s.quota - bandsHeldBy(s.bands, pid));
   invEl.innerHTML = "";
   for (let i = 0; i < MAX_BANDS; i++) {
     const el = document.createElement("div");
@@ -209,12 +231,15 @@ function syncHud() {
     if (bd) {
       el.style.borderColor = BAND_COLORS[bd.slot % 4];
       el.style.background = BAND_COLORS[bd.slot % 4] + "33";
+    } else if (mine > 0 && s.phase === "edit") {
+      mine--;
+      el.className += " mine";
+      el.style.borderColor = BAND_COLORS[mySlot % 4];
     }
     invEl.appendChild(el);
   }
 
   // Roster line: teammates in slot colours; my own name bold.
-  const pid = playerId();
   teamEl.innerHTML = s.players
     .map((p, i) => {
       const name = escapeHtml(p.name);
@@ -332,8 +357,7 @@ function resetInput() {
 function previewFrom(a, b) {
   const len = Math.hypot(b.x - a.x, b.y - a.y);
   preview = snapBand(L(), { ax: a.x, ay: a.y, bx: b.x, by: b.y });
-  preview.ok = len >= BAND_MIN && len <= BAND_MAX &&
-    bands().length + (pending ? 1 : 0) < MAX_BANDS;
+  preview.ok = len >= BAND_MIN && len <= BAND_MAX && iMayPlace();
   preview.len = len;
   // Teammates watch the stretch live — send what I'm seeing (snapped).
   transport.preview({ ax: preview.ax, ay: preview.ay, bx: preview.bx, by: preview.by });
@@ -357,6 +381,13 @@ function placePreview() {
     if (preview && preview.len > BAND_MAX) toast("too stretchy! 🫨", 900);
     else if (preview && bands().length + (pending ? 1 : 0) >= MAX_BANDS)
       toast("all 4 bands are out! 🫰", 900);
+    else if (preview && myBands() >= myQuota())
+      toast(
+        myQuota() === 1
+          ? "that was your band — a teammate lays the next 🤝"
+          : `your ${myQuota()} bands are out — pass it on 🤝`,
+        1300,
+      );
     transport.preview(null); // gesture ended without a placement
   }
   preview = null;

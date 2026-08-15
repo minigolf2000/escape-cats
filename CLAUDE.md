@@ -14,7 +14,11 @@ findings — do not design from intuition, the sim disproves it reliably.
   (the prototype is deleted). Server scoring, phone animation, and the design
   tools all run this exact code.
 - **The party rule is locked: every level must genuinely REQUIRE 4 bands**
-  (4 players × 1; anyone may place remainders). Not "allow" — require.
+  (4 players × 1). Not "allow" — require. Its other half is enforced in code:
+  a player may hold at most **⌈4 / connected players⌉** bands at once
+  (`bandQuota` in `goomba/sim.ts`), so four players is one each. Geometry that
+  needs 4 bands + a cap of 1 each = nobody spectates. `node quota.mjs` is that
+  half's gate; a lone tester is `n=1`, quota 4, so solo play still works.
 - **The gate: `cd tools/goomba && node verify.mjs <levelIdx>`** must print
   PASS before a level ships. It runs the bare/solution checks, load-bearing +
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
@@ -59,4 +63,5 @@ npm run dev            # everything: server :1999, hex :5173, goomba :5178,
 npm run typecheck      # all workspaces
 npm run build:vercel   # full build + assemble + routing check
 cd tools/goomba && node verify.mjs <idx>   # the level-design gate
+cd tools/goomba && node quota.mjs          # the participation gate (room rule)
 ```

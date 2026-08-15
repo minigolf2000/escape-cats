@@ -9,8 +9,9 @@ minutes.
   puts her to sleep, and the night wall's drifting dream-mice gradually ink
   the code word — identically on every phone.
 - **Goomba Glider** — a line rider where the track is silly bandz. The team
-  shares 4 elastic bands a level (4 players × 1; anyone may place remainder
-  bands); anyone hits PLAY and every phone watches the same deterministic
+  shares 4 elastic bands a level, and no player may hold more than
+  ⌈4 ÷ players in the room⌉ of them — four players means one each, nobody
+  spectates. Anyone hits PLAY and every phone watches the same deterministic
   ride to the birthday cake.
 
 ## Layout
@@ -54,8 +55,9 @@ tools/goomba/        Goomba level-design bench: QA tools over the shared sim
   `?solo` runs the same grid on the in-page sim with no server (hex's
   `?debug` architecture). Testing happens
   on the real game — assign yourself to a team from `/proctor`, open with
-  `?debug`; with any player free to place the remainder of the 4 bands, one
-  phone in a room can play everything. **Laying a band** (`main.js`) takes
+  `?debug`; the band quota divides by the players actually CONNECTED, so a
+  lone tester's quota is all 4 and one phone can still play everything (see
+  "The band quota" below). **Laying a band** (`main.js`) takes
   whichever gesture a player reaches for — tap both ends, drag one end to the
   other, or stretch between two fingers — all three funnel into the same
   `place` intent. The edit camera is fixed at fit-the-whole-level and nothing
@@ -445,6 +447,85 @@ its own reset button. Every level is played with the full 4-band budget; the
 finish line the proctor watches for is all levels completed, shown with the
 run time in the same slot the in-progress count occupies (the box never
 changes height).
+
+### The band quota
+
+Goomba Glider's 4 bands are shared out by a rule rather than by manners. With
+`n` players in the room, **no player may hold more than**
+
+```
+quota  k(n) = ceil(MAX_BANDS / n)      →   n = 1  2  3  4
+                                           k = 4  2  2  1
+```
+
+**bands at once.** That single ceiling is the whole rule, and it is the
+*tightest* cap the team can still finish a level under: `n·k ≥ 4` by
+definition of the ceiling, while `n·(k−1) < 4` would leave the fourth band
+unplaceable. Smallest legal cap ⟺ most forced participation.
+
+Two things fall out of the one formula, which is why it is stated as one:
+
+- **When `n` divides 4 the cap becomes an equality.** The counts are each ≤ `k`
+  and must sum to `4 = n·k`, so everyone places *exactly* `k` — "two each" at
+  n=2 and "one each" at n=4 are not separate rules, they are this one.
+- **Otherwise the slack `n·k − 4` is the freedom a short team gets.** n=3 has 2
+  spare units, which is exactly why a third player *may* sit out (up to two
+  each) where a fourth may not.
+
+By pigeonhole at least `⌈4/k⌉` distinct players touch every completed level:
+1, 2, 2, 4 for n = 1…4.
+
+The rule caps hoarding; it cannot conjure effort. What makes a level actually
+*require* four pairs of hands is this rule **plus** the level-design gate —
+geometry that genuinely needs 4 bands (`tools/goomba/verify.mjs`) means a team
+of four cannot win without all four placing. Two halves, two gates:
+`verify.mjs` for the geometry, `tools/goomba/quota.mjs` for the room.
+
+Mechanics worth knowing before changing any of it:
+
+- **`n` counts CONNECTED players, not roster seats** (`activePlayerCount`). A
+  phone that locks or drops keeps its seat but stops holding a share nobody
+  can spend — otherwise a team sits at 3/4 bands with no legal way to lay the
+  fourth. It also keeps solo testing working: one connected phone is `n=1`,
+  quota 4.
+- **The quota counts current holdings, never a lifetime tally.** Taking a band
+  back returns its share, so repositioning your own band is free, and removing
+  a teammate's band (still allowed, by the same trust as everything else here)
+  hands the share to *them*, gaining the remover nothing.
+- **Already-placed bands are never retracted** when the quota tightens under a
+  mid-level join, so a player can sit legitimately over quota. A level still
+  cannot wedge: room headroom `Σ max(0, k − cᵢ) ≥ n·k − Σcᵢ ≥ 4 − placed`, so
+  while bands remain, someone may always lay one.
+- **One rule, two enforcement points, one implementation.** `canPlaceBand` in
+  `goomba/sim.ts` is what the Durable Object rejects with *and* what the client
+  greys the gesture out with — the phone refuses the tap before it reaches the
+  wire (with a toast saying why), and the server refuses it anyway.
+
+**What this asks of partyserver.** The quota turns *presence* into a game rule,
+which is the one part of the sim that cannot live in the sim — so the headcount
+is read off the roster at placement time (`activePlayerCount(roster.list())`)
+and passed into `sim.place`, rather than the sim holding a roster. Four
+existing properties of the room carry the rest, and none of them needed
+changing:
+
+- **Presence is already the connection set.** `Roster` derives it from
+  `getConnections()`, and per-connection identity rides the socket attachment
+  (`conn.setState`), so it survives hibernation. The `onConnect`/`onClose`
+  broadcasts that existed to redraw the roster line are now also what hands a
+  dropped player's share back to the room, live, on every phone.
+- **A Durable Object handles one message at a time**, so the last band needs no
+  locking: two eligible players racing for it are serialized, and the loser is
+  refused by the `bands.length` check the room already had.
+- **Eviction cannot change the quota.** An eviction drops the roster's memory
+  of *offline* players, which is exactly the set `activePlayerCount` doesn't
+  count. Had the rule divided by roster seats, a room waking up would silently
+  hand everyone a bigger share.
+- **Seat reclaim keeps band ownership.** Bands store the placer's `pid`, and
+  the pid is the persistent localStorage identity, so a phone that drops and
+  rejoins still owns the bands it laid — its quota is spent, not refunded.
+
+The proctor connects as a spectator and is never in the roster, so watching a
+team never changes their quota.
 
 The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
 lists everyone currently on that page as **five boxes** — Unassigned, then one

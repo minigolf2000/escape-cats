@@ -78,6 +78,11 @@ export interface GoombaSnapshot extends GoombaSimState {
   /** 0..1 for the proctor progress bar: levels completed / levels. */
   progress: number;
   levelCount: number;
+  /** Bands one player may hold right now — ⌈MAX_BANDS / connected players⌉,
+   * see `bandQuota`. Derived from `players`, but stamped by the authority so
+   * every surface reads the number the server is actually enforcing rather
+   * than re-deriving one that could drift. */
+  quota: number;
 }
 
 export type GoombaClientMsg =
@@ -90,8 +95,9 @@ export type GoombaClientMsg =
       bx: number;
       by: number;
     }
-  /** Take a band back. Any player may remove any band — the same trust that
-   * lets anyone place the remainder bands. `index` into `bands`. */
+  /** Take a band back. Any player may remove ANY band, including a teammate's:
+   * the quota counts current holdings, so removing a band hands its share back
+   * to its owner and gains the remover nothing. `index` into `bands`. */
   | { type: "remove"; index: number }
   | { type: "clear" }
   /** The band being stretched right now (already snapped by the sender);
@@ -114,6 +120,80 @@ export type GoombaServerMsg = { type: "state"; state: GoombaSnapshot };
 
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
+
+// ---------------------------------------------------------------------------
+// The participation rule
+// ---------------------------------------------------------------------------
+
+/** How many players the band budget is divided between: the players CONNECTED
+ * right now, counted by pid (two tabs on one phone are one player).
+ *
+ * Connected, not rostered, is the load-bearing choice. A phone that locks or
+ * drops wifi keeps its seat in the roster, but its quota would then be a share
+ * nobody can spend — the team would sit at 3/4 bands with no legal way to lay
+ * the fourth. Counting live sockets means a dropped player's share is handed
+ * back to the room within one socket close, and reclaimed when they return. */
+export const activePlayerCount = (players: PlayerInfo[]): number =>
+  players.reduce((n, p) => n + (p.connected ? 1 : 0), 0);
+
+/**
+ * **The party rule, as one number.** A level's `MAX_BANDS` bands are shared by
+ * the `n` players in the room, and no player may hold more than
+ *
+ *     quota  k(n) = ⌈MAX_BANDS / n⌉
+ *
+ * bands at once. That ceiling is the whole rule, and it is the *tightest* cap
+ * the team can still finish a level under: `n·k ≥ MAX_BANDS` by definition of
+ * the ceiling, while `n·(k−1) < MAX_BANDS` would leave the fourth band
+ * unplaceable. Smallest legal cap ⟺ most forced participation.
+ *
+ * | players `n` | quota `k` | what it forces (`MAX_BANDS` = 4)          |
+ * | ----------- | --------- | ----------------------------------------- |
+ * | 1           | 4         | one player lays all four                  |
+ * | 2           | 2         | exactly two each                          |
+ * | 3           | 2         | up to two each; at least two players place |
+ * | 4           | 1         | exactly one each — nobody is a spectator  |
+ *
+ * Two consequences fall out of the same formula, which is why it is worth
+ * stating as one:
+ *
+ * - **When `n` divides `MAX_BANDS`, the cap becomes an equality.** The counts
+ *   are each ≤ `k` and must sum to `MAX_BANDS = n·k`, so every player places
+ *   *exactly* `k`. That is where "each must place 2" (n=2) and "each must
+ *   place 1" (n=4) come from — they are not separate rules.
+ * - **Otherwise the slack `n·k − MAX_BANDS` is the freedom a short team gets.**
+ *   n=3 has 2 spare units, which is exactly why a third player *may* sit out
+ *   where a fourth may not.
+ *
+ * And by pigeonhole, at least `⌈MAX_BANDS / k⌉` distinct players touch every
+ * completed level: 1, 2, 2, 4 for n = 1…4.
+ */
+export const bandQuota = (playerCount: number): number =>
+  Math.ceil(MAX_BANDS / Math.max(1, playerCount));
+
+/** Bands this player is holding on the board. Current holdings, never a
+ * lifetime tally: taking a band back returns its share, so a player who
+ * repositions their own band a dozen times is never locked out. */
+export const bandsHeldBy = (bands: GoombaBand[], pid: string): number =>
+  bands.reduce((n, b) => n + (b.pid === pid ? 1 : 0), 0);
+
+/**
+ * The whole enforcement predicate: room has a free slot AND this player is
+ * under quota. Shared so the client greys out the band it may not lay and the
+ * server rejects it — one rule, not a UI copy of one.
+ *
+ * **A level can never wedge.** Quotas tighten when a player joins mid-level,
+ * and already-placed bands are never retracted, so a player can legitimately
+ * sit *over* quota (laid 3 alone, then three teammates arrive). Even then the
+ * room's remaining headroom
+ *
+ *     Σᵢ max(0, k − cᵢ)  ≥  Σᵢ (k − cᵢ)  =  n·k − Σᵢ cᵢ  ≥  MAX_BANDS − placed
+ *
+ * covers every band still to place — so while bands remain, someone may
+ * always lay one.
+ */
+export const canPlaceBand = (bands: GoombaBand[], pid: string, playerCount: number): boolean =>
+  bands.length < MAX_BANDS && bandsHeldBy(bands, pid) < bandQuota(playerCount);
 
 function freshState(now: number): GoombaSimState {
   return {
@@ -166,11 +246,23 @@ export class GoombaSim {
     return Math.max(0, s.runAt + s.runT * 1000 - now);
   }
 
-  place(pid: string, slot: number, msg: { ax: unknown; ay: unknown; bx: unknown; by: unknown }, now: number): void {
+  /** `playerCount` is the room's live headcount (`activePlayerCount`); it sets
+   * this player's quota. The caller passes it rather than the sim holding a
+   * roster: presence belongs to the transport, the rule belongs here. */
+  place(
+    pid: string,
+    slot: number,
+    msg: { ax: unknown; ay: unknown; bx: unknown; by: unknown },
+    now: number,
+    playerCount: number,
+  ): void {
     this.resolve(now);
     const s = this.st;
     if (s.phase !== "edit") return;
-    if (s.bands.length >= MAX_BANDS) return;
+    // Free slot AND under quota — the participation rule, enforced on the
+    // authority. The client greys the gesture out with the same predicate;
+    // this is what makes it true.
+    if (!canPlaceBand(s.bands, pid, playerCount)) return;
     const ax = num(msg.ax),
       ay = num(msg.ay),
       bx = num(msg.bx),
@@ -271,6 +363,7 @@ export class GoombaSim {
       serverTime: now,
       progress: done / GOOMBA_LEVELS.length,
       levelCount: GOOMBA_LEVELS.length,
+      quota: bandQuota(activePlayerCount(players)),
     };
   }
 

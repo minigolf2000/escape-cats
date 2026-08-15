@@ -262,12 +262,6 @@ function mountPanel(sim: HexSim, emit: () => void): void {
     <div class="r"><span>speed</span>${[1, 5, 20]
       .map((n) => `<button data-s="${n}">×${n}</button>`)
       .join("")}<button data-r="1">reset</button></div>
-    <div class="r"><span>shadow</span>${[0, 25, 40, 58, 75, 100]
-      .map((n) => `<button data-sh="${n}">${n ? n + "%" : "off"}</button>`)
-      .join("")}</div>
-    <div class="r"><span>soften</span>${[0, 2, 4, 8]
-      .map((n) => `<button data-sb="${n}">${n}px</button>`)
-      .join("")}</div>
     <details id="devList"><summary>buildings &amp; upgrades</summary><div id="devContent"></div></details>
   </details>`;
   document.body.appendChild(bar);
@@ -292,20 +286,6 @@ function mountPanel(sim: HexSim, emit: () => void): void {
     else if (b.dataset.s)
       sim.state.speed = Math.max(0.25, Math.min(50, Number(b.dataset.s)));
     else if (b.dataset.r) sim.reset(now);
-    else if (b.dataset.sh || b.dataset.sb) {
-      // The shadow behind Hex. Purely a look, so it never touches the sim — it
-      // writes one CSS variable and the layer under it does the rest.
-      // These exist because the shadow is ARTWORK: it is painted into the PNGs as
-      // coat-coloured pixels outside her outline, so "how strong should it be" is
-      // not answerable from a mock-up — it has to be seen at real size with the
-      // sunburst turning behind it. The falloff SHAPE is still baked (it is a ramp
-      // in the PNG's own alpha); `soften` blurs the layer, which is the nearest
-      // live stand-in for making it reach further.
-      const root = document.documentElement.style;
-      if (b.dataset.sh) root.setProperty("--hex-shadow", String(Number(b.dataset.sh) / 100));
-      else root.setProperty("--hex-shadow-soft", b.dataset.sb + "px");
-      return; // no state moved, so nothing to emit or redraw
-    }
     emit();
     redrawList();
   });

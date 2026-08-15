@@ -468,14 +468,18 @@
      it from the decode queue in some engines and the first pet of the game would
      then flash an empty head while the PNG loads. All five decode at boot and
      stay decoded; only one is shown. */
-  /* The shadow layer's strength and softness are variables so the debug panel can
-     offer them as options — the falloff SHAPE is baked geometry (it is a ramp
-     drawn into the PNG's alpha), but how far it is turned up, and how much it is
-     smeared, are both live. .58 is what shipped. */
-  #hexCat #catShadow {
-    opacity: var(--hex-shadow, .58);
-    filter: blur(var(--hex-shadow-soft, 0px));
-  }
+  /* Settled at .58 after comparing the options on the real cat: enough to read as
+     shadow down her right side, light enough that the sunburst turns through it.
+     A flat value rather than a variable now that the question is answered — the
+     debug rows that offered 0-100% and a blur have done their job and are gone.
+     Restoring them is the one rule here plus the branch in debug.ts.
+     No blur: the chosen softness was 0px, and a filter on this layer would force
+     a compositing layer every frame for a no-op.
+     The layer itself stays split out of the coat. That is not scaffolding — it is
+     the correct shape for this art. The shadow is painted OUTSIDE her outline, so
+     keeping it separate is what lets it be translucent at all without punching a
+     hole in her. */
+  #hexCat #catShadow { opacity: .58; }
   #hexCat .shadowFrame, #hexCat .headFrame, #hexCat #coatDay { visibility: hidden; }
   #hexCat[data-pose="day"] #shadowDay,
   #hexCat[data-pose="s1"]  #shadowS1,
@@ -1407,8 +1411,8 @@
       <!-- THE SHADOW, lifted out of the coat into its own layer. It is painted
            into the artwork as coat-coloured pixels OUTSIDE the drawn line, at
            full opacity, which is why it blocked the sunburst; carried here it
-           keeps the artist's colour and falloff shape but its STRENGTH becomes a
-           live value (--hex-shadow) instead of something baked into a PNG.
+           keeps the artist's colour and falloff shape while its strength is set
+           once in CSS (.58) rather than being fixed in the pixels.
            First in document order so it sits under her. The ears keep their own
            band baked in: it is ~400px total and it has to travel with the ear
            rather than with the head, so a shared layer would lag behind a perk. -->

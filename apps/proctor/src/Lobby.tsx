@@ -27,7 +27,19 @@ const teamOf = (zone: string) => (zone === UNSORTED ? null : zone);
  * stray click on a name never reassigns anyone. */
 const DRAG_SLOP = 5;
 
+/** A drag held within this many px of the viewport's top/bottom edge scrolls
+ * the board (up to SCROLL_MAX px per frame). Dragging is the only way to sort
+ * anyone, so a zone below the fold must be reachable mid-drag — rows set
+ * `touch-action: none`, which kills native scrolling for exactly the gesture
+ * that needs it most. */
+const SCROLL_EDGE = 56;
+const SCROLL_MAX = 14;
+
 interface Drag {
+  /** The pointer this drag belongs to. There is one drag record, so a second
+   * finger landing on another row must be ignored, not adopted — otherwise
+   * both fingers steer one ghost and somebody gets dropped on the wrong team. */
+  pointerId: number;
   pid: string;
   name: string;
   /** Zone the player was in when the drag started — dropping back is a no-op. */
@@ -44,13 +56,6 @@ interface Drag {
   moved: boolean;
 }
 
-/** The four handlers every draggable row needs, built once per render. */
-interface RowDrag {
-  down: (p: LobbyPlayer, e: React.PointerEvent) => void;
-  move: (e: React.PointerEvent) => void;
-  up: () => void;
-  cancel: () => void;
-}
 
 /**
  * The board: five boxes, and dragging a name between them is the only way to
@@ -73,6 +78,8 @@ export function Lobby() {
   /** Live drag state for the handlers — `drag` is for rendering, and a pointerup
    * must not act on a frame-stale copy of it. */
   const dragRef = useRef<Drag | null>(null);
+  /** Detaches the active drag's window listeners and autoscroll loop. */
+  const dragCleanup = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const socket = new PartySocket({
@@ -132,48 +139,107 @@ export function Lobby() {
     document.elementFromPoint(x, y)?.closest<HTMLElement>(".zone")?.dataset
       .zone ?? null;
 
-  const rowDrag: RowDrag = {
-    down: (p, e) => {
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-      // Capture so the drag survives the pointer leaving the row it started on —
-      // which it does immediately, since the target is another box.
-      e.currentTarget.setPointerCapture(e.pointerId);
-      setDragState({
-        pid: p.pid,
-        name: p.name,
-        from: zoneOf(p.team),
-        x0: e.clientX,
-        y0: e.clientY,
-        x: e.clientX,
-        y: e.clientY,
-        over: null,
-        moved: false,
-      });
-    },
-    move: (e) => {
-      const d = dragRef.current;
-      if (!d) return;
-      const moved =
-        d.moved ||
-        Math.abs(e.clientX - d.x0) + Math.abs(e.clientY - d.y0) > DRAG_SLOP;
-      setDragState({
-        ...d,
-        x: e.clientX,
-        y: e.clientY,
-        over: moved ? zoneAt(e.clientX, e.clientY) : null,
-        moved,
-      });
-    },
-    up: () => {
-      const d = dragRef.current;
-      setDragState(null);
-      if (!d || !d.moved || !d.over || d.over === d.from) return;
-      // A full team refuses the drop; the box already showed it wouldn't take it.
-      if (isFull(d.over)) return;
-      send({ type: "assign", pid: d.pid, team: teamOf(d.over) });
-    },
-    cancel: () => setDragState(null),
+  const endDrag = () => {
+    dragCleanup.current?.();
+    dragCleanup.current = null;
+    setDragState(null);
   };
+
+  // The move/up/cancel handlers live on WINDOW for the drag's duration, not on
+  // the row. Handlers on the row die with it — and a lobby broadcast can
+  // unmount the dragged row mid-drag (another proctor tab sorting the same
+  // player), which used to strand the ghost on screen and leave a live drag
+  // record that the next unrelated pointerup turned into a surprise assign.
+  // The pointerId check is the other half: only the pointer that started the
+  // drag may steer or finish it.
+  const onDragMove = (e: PointerEvent) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    // A release we never got to see (capture lost while off-window, say):
+    // no buttons down means this drag already ended, so end it.
+    if (e.buttons === 0) return endDrag();
+    const moved =
+      d.moved ||
+      Math.abs(e.clientX - d.x0) + Math.abs(e.clientY - d.y0) > DRAG_SLOP;
+    setDragState({
+      ...d,
+      x: e.clientX,
+      y: e.clientY,
+      over: moved ? zoneAt(e.clientX, e.clientY) : null,
+      moved,
+    });
+  };
+  const onDragUp = (e: PointerEvent) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    endDrag();
+    if (!d.moved || !d.over || d.over === d.from) return;
+    // A full team refuses the drop; the box already showed it wouldn't take it.
+    if (isFull(d.over)) return;
+    send({ type: "assign", pid: d.pid, team: teamOf(d.over) });
+  };
+  const onDragCancel = (e: PointerEvent) => {
+    const d = dragRef.current;
+    if (d && e.pointerId === d.pointerId) endDrag();
+  };
+
+  // The window listeners are bound once per drag, but must never act on a
+  // stale closure — a drop reads isFull from the CURRENT roster, not the one
+  // at drag start. So they delegate through a ref re-pointed every render.
+  const liveDrag = useRef({ move: onDragMove, up: onDragUp, cancel: onDragCancel });
+  liveDrag.current = { move: onDragMove, up: onDragUp, cancel: onDragCancel };
+
+  const startDrag = (p: LobbyPlayer, e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (dragRef.current) return; // one drag at a time; later fingers are ignored
+    // Capture so a MOUSE drag keeps reporting while outside the browser window.
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragState({
+      pointerId: e.pointerId,
+      pid: p.pid,
+      name: p.name,
+      from: zoneOf(p.team),
+      x0: e.clientX,
+      y0: e.clientY,
+      x: e.clientX,
+      y: e.clientY,
+      over: null,
+      moved: false,
+    });
+    const move = (ev: PointerEvent) => liveDrag.current.move(ev);
+    const up = (ev: PointerEvent) => liveDrag.current.up(ev);
+    const cancel = (ev: PointerEvent) => liveDrag.current.cancel(ev);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    // Held near the viewport's top/bottom edge, the board scrolls under the
+    // drag. The pointer doesn't move while that happens, so the drop target
+    // has to be re-asked here, not in the move handler.
+    let raf = requestAnimationFrame(function tick() {
+      const d = dragRef.current;
+      if (d?.moved) {
+        const h = window.innerHeight;
+        let dy = 0;
+        if (d.y < SCROLL_EDGE) dy = -SCROLL_MAX * (1 - d.y / SCROLL_EDGE);
+        else if (d.y > h - SCROLL_EDGE) dy = SCROLL_MAX * (1 - (h - d.y) / SCROLL_EDGE);
+        if (dy) {
+          window.scrollBy(0, dy);
+          const over = zoneAt(d.x, d.y);
+          if (over !== d.over) setDragState({ ...d, over });
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    });
+    dragCleanup.current = () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+    };
+  };
+
+  // A drag must not outlive the board (proctor navigates mid-drag).
+  useEffect(() => () => dragCleanup.current?.(), []);
 
   const forget = (p: LobbyPlayer) => {
     // Always asks. It would be nicer to skip the prompt for someone who has
@@ -243,7 +309,7 @@ export function Lobby() {
                     // team it would strike through everyone who is playing.
                     offline={!isTeam && !p.connected}
                     lifted={Boolean(drag?.moved) && drag?.pid === p.pid}
-                    drag={rowDrag}
+                    onDragStart={startDrag}
                     onForget={forget}
                   />
                 ))}
@@ -303,13 +369,13 @@ function PlayerRow({
   player,
   offline,
   lifted,
-  drag,
+  onDragStart,
   onForget,
 }: {
   player: LobbyPlayer;
   offline: boolean;
   lifted: boolean;
-  drag: RowDrag;
+  onDragStart: (p: LobbyPlayer, e: React.PointerEvent) => void;
   onForget: (p: LobbyPlayer) => void;
 }) {
   return (
@@ -317,10 +383,9 @@ function PlayerRow({
       className={[offline && "offline", lifted && "lifted"]
         .filter(Boolean)
         .join(" ")}
-      onPointerDown={(e) => drag.down(player, e)}
-      onPointerMove={drag.move}
-      onPointerUp={drag.up}
-      onPointerCancel={drag.cancel}
+      // Only the press starts here — the rest of the drag is handled on
+      // window, so it survives this row unmounting under a lobby update.
+      onPointerDown={(e) => onDragStart(player, e)}
     >
       <span className="pname">{player.name}</span>
       <button

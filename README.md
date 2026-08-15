@@ -8,7 +8,7 @@ minutes.
   shared buildings and upgrades. Petting Hex mints mice; buying the twist
   puts her to sleep, and the night wall's drifting dream-mice gradually ink
   the code word — identically on every phone.
-- **Goomba Rider** — a line rider where the track is silly bandz. The team
+- **Goomba Glider** — a line rider where the track is silly bandz. The team
   shares 4 elastic bands a level (4 players × 1; anyone may place remainder
   bands); anyone hits PLAY and every phone watches the same deterministic
   ride to the birthday cake.
@@ -18,7 +18,7 @@ minutes.
 ```
 apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering split
                      into modules (see its src/README.md for the map)
-apps/goomba-rider/   Player client for Goomba Rider: the prototype's canvas
+apps/goomba-glider/  Player client for Goomba Glider: the prototype's canvas
                      rendering on the shared sim, driven by room snapshots
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on, with a link into the game
@@ -65,7 +65,7 @@ tools/goomba/        Goomba level-design bench: QA tools over the shared sim
   `BAND_MIN` — it can't become a band, so it reads as "choosing here").
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported
-  canvas module, `apps/goomba-rider/src/main.js`.
+  canvas module, `apps/goomba-glider/src/main.js`.
 - **The prototype** (`hex/index.html`) is **deleted**. It was the tuning bench;
   that job moved to the multiplayer client's `?debug&speed=N` mode, which runs
   the same shared sim in-page. It had been frozen since #88 and was drifting
@@ -111,7 +111,7 @@ This starts everything:
 | ------------- | ------------------------------------------ |
 | Room server   | 127.0.0.1:1999 (wrangler dev)              |
 | Hex Clicker   | http://localhost:5173/hexxygon/            |
-| Goomba Rider  | http://localhost:5178/g00mBa/              |
+| Goomba Glider | http://localhost:5178/g00mBa/              |
 | Proctor       | http://localhost:5175                      |
 | Team lobby    | http://localhost:5176                      |
 | Team chat     | http://localhost:5177                      |
@@ -255,7 +255,7 @@ come from `vercel.json`, so there is nothing to override in the dashboard.
 | --- | --- | --- |
 | `/` | `apps/lobby` | Team lobby (landing page) |
 | `/hexxygon/` | `apps/hex-clicker` | Hex Clicker (coop) |
-| `/g00mBa/` | `apps/goomba-rider` | Goomba Rider (coop) |
+| `/g00mBa/` | `apps/goomba-glider` | Goomba Glider (coop) |
 | `/chat/` | `apps/chat` | Per-team chat |
 | `/proctor/` | `apps/proctor` | Proctor dashboard |
 | `/qr-studio/` | `tools/qr-studio.html` | QR Art Studio |
@@ -342,7 +342,7 @@ rewriting to it:
 | Domain | Redirects to | Serves |
 | --- | --- | --- |
 | `hexxygon.com` | `/hexxygon/` | Hex Clicker coop |
-| `g00.mba` | `/g00mBa/` | Goomba Rider coop |
+| `g00.mba` | `/g00mBa/` | Goomba Glider coop |
 | `g00.mba/ar` | `/ar/` | Scent Tracker (AR prototype) |
 
 `g00.mba/ar` borrows the Goomba domain purely as a short URL to type on a
@@ -438,7 +438,7 @@ values become placeholders, and the finished-run line occupies the same slot the
 "codeword locked" line does), and long values are CLIPPED rather than wrapped.
 Adding a line to a game block is therefore a layout decision, not a free one.
 
-Goomba Rider's block in each team box is live: the fourth Durable Object
+Goomba Glider's block in each team box is live: the fourth Durable Object
 (`Goomba` binding, roomed by team id like everything else) feeds it phase,
 current level, levels completed out of the set, bands placed and fails — plus
 its own reset button. Every level is played with the full 4-band budget; the

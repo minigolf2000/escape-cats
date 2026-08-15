@@ -12,8 +12,8 @@ import { Roster } from "./connections";
  * it rather than broadcast it forever. Client-side fade uses the same idea. */
 const PREVIEW_TTL_MS = 3_000;
 
-// The Goomba Rider room: transport only, like hex.ts — every game rule lives in
-// the shared GoombaSim. Roomed by team id, exactly as the hex room and the chat
+// The Goomba Glider room: transport only, like hex.ts — every game rule lives
+// in the shared GoombaSim. Roomed by team id, exactly as the hex room and chat
 // channel are, so the proctor sorting someone onto t2 is also what picks their
 // Goomba room.
 //

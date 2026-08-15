@@ -1,6 +1,6 @@
 # tools 🛠
 
-[`goomba/`](./goomba/) is the Goomba Rider level-design bench — node QA
+[`goomba/`](./goomba/) is the Goomba Glider level-design bench — node QA
 harnesses over the shared sim, plus the design guide (`DESIGNING.md`). It is
 its own world with its own README; everything below is about the two browser
 tools in this folder.

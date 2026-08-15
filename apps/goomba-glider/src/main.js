@@ -1,4 +1,4 @@
-// Goomba Rider, multiplayer client. The rendering and input are the
+// Goomba Glider, multiplayer client. The rendering and input are the
 // prototype's (prototypes/goomba-rider.html), ported nearly verbatim; what
 // changed is who owns the state. The room server owns the bands, the level,
 // the phase and the score; this file renders snapshots and sends intents —

@@ -1,4 +1,4 @@
-// The Goomba Rider physics, ported verbatim from the prototype
+// The Goomba Glider physics, ported verbatim from the prototype
 // (prototypes/goomba-rider.html). Deterministic and side-effect free: the room
 // server scores a run with it the instant PLAY lands, and every phone animates
 // the same run with it in real time — both walk the identical 240Hz substeps,

@@ -1,7 +1,7 @@
-# Designing a Goomba Rider level (read this first)
+# Designing a Goomba Glider level (read this first)
 
 This folder is the whole level-design bench. The game itself is the coop app in
-`apps/goomba-rider/` on the shared sim in `packages/shared/src/goomba/`; the
+`apps/goomba-glider/` on the shared sim in `packages/shared/src/goomba/`; the
 single-player prototype it grew from is deleted (git history has it), so there
 is exactly **one copy of the physics and one copy of the levels** —
 `packages/shared/src/goomba/levels.ts`. Every tool here bundles that TypeScript

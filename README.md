@@ -55,7 +55,14 @@ tools/goomba/        Goomba level-design bench: QA tools over the shared sim
   `?debug` architecture). Testing happens
   on the real game — assign yourself to a team from `/proctor`, open with
   `?debug`; with any player free to place the remainder of the 4 bands, one
-  phone in a room can play everything.
+  phone in a room can play everything. **Laying a band** (`main.js`) takes
+  whichever gesture a player reaches for — tap both ends, drag one end to the
+  other, or stretch between two fingers — all three funnel into the same
+  `place` intent. The edit camera is fixed at fit-the-whole-level and nothing
+  pans, so any point a band can reach is a point a finger can reach.
+  Teammates watch it happen: a drag streams as a ghost band, and a tap-tap
+  waiting on its second tap streams as a named marker (a preview shorter than
+  `BAND_MIN` — it can't become a band, so it reads as "choosing here").
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported
   canvas module, `apps/goomba-rider/src/main.js`.

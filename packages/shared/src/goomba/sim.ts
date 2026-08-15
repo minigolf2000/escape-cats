@@ -48,7 +48,13 @@ export interface GoombaPersistedV1 {
  * streamed while they drag and gone when they release. Presentation only —
  * the sim never reads these; they exist so the other phones can watch a
  * band take shape (and yell about where it should go). Same deal as hex's
- * teammate taps: ephemeral, never persisted, rides the snapshot. */
+ * teammate taps: ephemeral, never persisted, rides the snapshot.
+ *
+ * A preview SHORTER than BAND_MIN means "I'm choosing here", not "here is my
+ * band" — it can't become one, since the sim would reject it. That's how the
+ * tap-tap placement streams its waiting first tap: both ends on the same
+ * point. Clients draw those as a marker rather than a band ghost; no extra
+ * wire shape, and a half-finished drag reads honestly the same way. */
 export interface GoombaBandPreview {
   pid: string;
   slot: number;

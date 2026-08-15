@@ -241,17 +241,9 @@ export function Lobby() {
   // A drag must not outlive the board (proctor navigates mid-drag).
   useEffect(() => () => dragCleanup.current?.(), []);
 
+  // No confirm: forgetting is cheap to undo — the phone reappears in Unassigned
+  // the moment it reconnects — and the prompt fired on every tidy-up.
   const forget = (p: LobbyPlayer) => {
-    // Always asks. It would be nicer to skip the prompt for someone who has
-    // gone home, but the lobby's `connected` cannot tell us that for a sorted
-    // player, so a conditional prompt would fire on exactly the wrong half. The
-    // × also sits inside a drag handle, where a misclick is cheap.
-    if (
-      !confirm(
-        `Forget ${p.name}? They drop off the board until their phone reconnects.`,
-      )
-    )
-      return;
     send({ type: "forget", pid: p.pid });
   };
 
@@ -273,13 +265,15 @@ export function Lobby() {
         </span>
       </div>
 
-      <p className="muted">
-        {players.length === 0
-          ? online
+      {/* Only speaks up when the board is empty — with names on it, the board
+       * explains itself and the line was just standing there. */}
+      {players.length === 0 && (
+        <p className="muted">
+          {online
             ? "Nobody has opened the landing page yet."
-            : "Can't reach the lobby — is the room server running?"
-          : "Drag a name between boxes to sort it. × forgets a player."}
-      </p>
+            : "Can't reach the lobby — is the room server running?"}
+        </p>
+      )}
 
       <div className="zones">
         {ZONES.map((z) => {

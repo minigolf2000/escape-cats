@@ -389,11 +389,15 @@
     width: min(55%, 300px); height: auto; max-height: 84%;
     pointer-events: none;
     /* day: sitting in the sunburst, so a warm white bloom like CC's cookie */
-    /* The drawing already carries its own soft shadow, so this is a much lighter
-       touch than the vector cat needed — and warm rather than cool, because the
-       old cold bloom reads as grey haze once the page behind it is pink. The
-       sunburst is doing the "lit from behind" job the second drop-shadow used to. */
-    filter: drop-shadow(0 4px 9px rgba(120,70,70,.30));
+    /* The drawing carries its own soft shadow — a wide band of COAT-COLOURED
+       pixels at partial alpha, painted into the PNG — so this only has to add a
+       little contact darkness under her, not build the whole shadow. Kept warm
+       rather than cool: the old cold bloom read as grey haze once the page behind
+       it went pink.
+       Deliberately light. Both this and the baked band are things the sunburst
+       has to show through, and they stack: at the previous .30 the two together
+       muted the spokes into a grey smear right where they converge on her. */
+    filter: drop-shadow(0 3px 7px rgba(120,70,70,.18));
     transition: transform .1s ease-out;
   }
   /* Only the traced hit path takes taps. The head is five <image> layers now,

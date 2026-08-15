@@ -14,6 +14,7 @@ Designing a level end-to-end is walked through in
 cd tools/goomba
 node verify.mjs 0      # THE GATE: full PASS/FAIL battery for one level (--quick to iterate)
 node verify.mjs all    # verdict per level (levels predating the party rule fail: known debt)
+node quota.mjs         # THE OTHER GATE: the room's per-player band quota, ceil(4/n)
 node test.mjs          # every level: must FAIL bare, WIN with its solution
 node robust.mjs        # drop-one-band test + ±3-unit finger-slop tolerance
 node minbands.mjs [i]  # how many bands a level ACTUALLY needs (see below)
@@ -47,6 +48,10 @@ because each of *my* three bands was load-bearing; that says nothing about a
 completely different lone band.
 
 The party rule is locked at 4 players × 4 bands per level (see DESIGNING.md).
+Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is one
+each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
+one player hoarding, but only geometry can make a level *need* four bands, so
+the level gate below still does the load-bearing work.
 Three levels pass the full gate — Mind the Gap (1), Pachinko Drop (8) and
 The Popper Grid (9) — and the middle levels (2-7) still collapse to 1 band,
 which is the standing rebalance debt.

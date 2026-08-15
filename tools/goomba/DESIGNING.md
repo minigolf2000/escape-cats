@@ -12,9 +12,19 @@ happen on the deployed game by assigning yourself to a team from `/proctor`.
 ## The party rule (non-negotiable)
 
 **This is a 4-player game, locked. Every level must genuinely REQUIRE 4 bands**
-— not merely allow them — or a player gets benched. (A 3-player team has
-someone place two; anyone may place remainder bands. Either way, 4 bands go
-down.) `minbands.mjs` is the judge: exhaustive at 0–1 bands, sampled at 2–3,
+— not merely allow them — or a player gets benched.
+
+The rule has two halves, and level design owns the first. The room enforces the
+second: a player may hold at most **⌈4 / connected players⌉** bands at once
+(`bandQuota` in `packages/shared/src/goomba/sim.ts`; `node quota.mjs` is its
+gate), so a full team is one band each and a 3-player team is up to two each.
+That cap stops one player laying all four — but it cannot make a level *need*
+all four. **A level that wins on 1 band still wins on 1 band with four players
+in the room**; the other three just place decoration. Only geometry can close
+that gap, which is why this half is non-negotiable and why the two gates are
+separate.
+
+`minbands.mjs` is the judge: exhaustive at 0–1 bands, sampled at 2–3,
 plus your 4-band solution as the upper bound. The structural trick that makes
 "requires 4" possible is **state erasure between stages**: poppers and
 wall-drops reset her speed, so stages become independent and no single band can

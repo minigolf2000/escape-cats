@@ -1,6 +1,7 @@
 import { Server, type Connection, type ConnectionContext, type WSMessage } from "partyserver";
 import {
   GoombaSim,
+  activePlayerCount,
   type GoombaBandPreview,
   type GoombaPersistedV1,
   type GoombaClientMsg,
@@ -49,6 +50,9 @@ export class GoombaServer extends Server<Env> {
     const m = this.roster.get(conn);
     if (m) this.previews.delete(m.pid); // no ghost left hanging by a dropped phone
     this.roster.disconnect(conn);
+    // Presence is now a game rule, not just a roster line: this broadcast is
+    // what hands a dropped player's band share back to the room (and the one
+    // in onConnect is what takes it away again).
     this.broadcastState();
   }
 
@@ -69,7 +73,11 @@ export class GoombaServer extends Server<Env> {
         break;
       case "place":
         if (!proctor && me) {
-          this.sim.place(me.pid, this.roster.slot(me.pid), msg, now);
+          // The band quota divides MAX_BANDS by who is HERE, so the headcount
+          // is read at placement time, off the live roster — not stored. A
+          // teammate joining or dropping between two placements legitimately
+          // changes what the next one is allowed to be.
+          this.sim.place(me.pid, this.roster.slot(me.pid), msg, now, this.players());
           this.previews.delete(me.pid); // the ghost became a real band
         }
         break;
@@ -141,6 +149,13 @@ export class GoombaServer extends Server<Env> {
         this.broadcastState();
       }
     }, ms + 50);
+  }
+
+  /** Live headcount for the band quota. Proctors are spectators and the roster
+   * never lists them; a phone that dropped is listed but not connected, and
+   * does not hold a share it cannot spend. */
+  private players() {
+    return activePlayerCount(this.roster.list());
   }
 
   private persist() {

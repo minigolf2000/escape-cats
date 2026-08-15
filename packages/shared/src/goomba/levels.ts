@@ -16,8 +16,9 @@ export const MAX_SPEED = 120;
 export const BAND_MAX = 58; // one silly band's worth of stretch
 export const BAND_MIN = 6;
 /** Team budget: 4 players × 1 band. This is the LOCKED party rule — every level
- * ships with 4 band slots, and a 3-player team has someone place two (anyone
- * may place remainder bands). */
+ * ships with 4 band slots, and how they are shared out is not up to the team:
+ * no player may hold more than ⌈MAX_BANDS / players in the room⌉ of them at
+ * once (`bandQuota` in sim.ts). Four players means exactly one each. */
 export const MAX_BANDS = 4;
 export const SUB = 1 / 240; // physics substep
 export const RUN_MAX = 15; // seconds before we call a run stuck

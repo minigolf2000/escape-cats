@@ -18,7 +18,10 @@ const entry = join(dir, "entry.ts");
 await writeFile(
   entry,
   `export * from ${JSON.stringify(join(srcDir, "levels.ts"))};\n` +
-  `export * from ${JSON.stringify(join(srcDir, "physics.ts"))};\n`,
+  `export * from ${JSON.stringify(join(srcDir, "physics.ts"))};\n` +
+  // sim.ts too, so the ROOM rules (the band quota) are testable off the same
+  // bundle as the physics — same three files shared/src/index.ts re-exports.
+  `export * from ${JSON.stringify(join(srcDir, "sim.ts"))};\n`,
 );
 const outfile = join(dir, "sim.mjs");
 await build({ entryPoints: [entry], bundle: true, format: "esm", outfile, logLevel: "silent" });
@@ -26,6 +29,11 @@ const sim = await import(pathToFileURL(outfile).href);
 
 export const {
   GOOMBA_LEVELS: LEVELS,
+  GoombaSim,
+  activePlayerCount,
+  bandQuota,
+  bandsHeldBy,
+  canPlaceBand,
   BAND_MAX,
   BAND_MIN,
   MAX_BANDS,

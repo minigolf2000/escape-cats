@@ -48,6 +48,15 @@ findings — do not design from intuition, the sim disproves it reliably.
 - **Vite `base` is absolute** per app and must match its `dist/` subdirectory
   (`/hexxygon/`, `/g00mBa/` — casing is load-bearing). `npm run build:vercel`
   runs `check-routing.mjs`; keep its expectations current.
+- **Two cursors in the games, ever**: `pointer` if a tap does something,
+  `default` if it does not. These are phone games — almost nobody playing has a
+  cursor, so a third value cannot be telling players anything, it can only be
+  inconsistent (the shop shipped `not-allowed` for "too expensive" and `default`
+  for "still locked", two disabled states telling two stories). `npm run
+  build:vercel` runs `check-cursors.mjs`, which fails on anything else in
+  apps/{hex-clicker,goomba-glider,lobby,chat}. `apps/proctor` and `tools/` are
+  deliberately exempt: one operator, one laptop, and `grab`/`crosshair` are doing
+  real work there.
 - **Proctor box heights are fixed**: every stat line renders in every state
   (placeholders, never fewer lines) so boxes don't shift under a drag.
 - **Goomba Glider's debug menu**: `?debug` joins your REAL room with the
@@ -64,7 +73,8 @@ findings — do not design from intuition, the sim disproves it reliably.
 npm run dev            # everything: server :1999, hex :5173, goomba :5178,
                        # proctor :5175, lobby :5176, chat :5177
 npm run typecheck      # all workspaces
-npm run build:vercel   # full build + assemble + routing check
+npm run build:vercel   # full build + assemble + routing & cursor checks
+npm run check:cursors  # the two-cursor rule, on its own
 cd tools/goomba && node verify.mjs <idx>   # the level-design gate
 cd tools/goomba && node quota.mjs          # the participation gate (room rule)
 ```

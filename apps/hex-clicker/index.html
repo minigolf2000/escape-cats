@@ -1195,7 +1195,7 @@
   .item {
     display: flex; align-items: center; gap: 0; width: 100%; text-align: left;
     background: transparent; border: none; border-bottom: 1px solid var(--line);
-    padding: 0 calc(11px * var(--ss)) 0 0; color: var(--muted); cursor: not-allowed;
+    padding: 0 calc(11px * var(--ss)) 0 0; color: var(--muted); cursor: default;
     transition: background .1s, opacity .15s; opacity: .5;
   }
   /* The wood divider right below opens with its own line, so the last row's
@@ -1205,6 +1205,13 @@
   /* Resting rows stay transparent so the page background shows through the
      tray; .can:active keeps a background because that's tap feedback, not
      the row's resting look. */
+  /* TWO CURSORS IN THIS GAME, EVER: `pointer` if a tap does something, `default`
+     if it does not. This row used to say `not-allowed` when you couldn't afford
+     it and `default` when it was still locked — two disabled states telling two
+     different stories, which reads as a bug rather than a distinction. It is a
+     phone game: almost nobody playing has a cursor at all, so the value cannot be
+     carrying information, and the only thing a third value can do is be
+     inconsistent. Enforced by scripts/check-cursors.mjs, which fails the build. */
   .item.can { cursor: pointer; opacity: 1; }
   .item.can:active { background: var(--row-press); }
   .item .icon {

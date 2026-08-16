@@ -23,7 +23,8 @@ import {
   upgradesEl,
   upgradeSecEl,
   shopScrollEl,
-  newBadgeEl,
+  moreUpEl,
+  moreDownEl,
   buildingSecEl,
   dockEl,
   shopToggleEl,
@@ -109,29 +110,61 @@ export function shopSoldOut() {
   return allRailBought(game);
 }
 
-// How many unlocked, unbought upgrades you have never had on screen.
-export function refreshBadge() {
-  let n = 0;
-  for (const u of UPGRADES)
-    if (
-      !game.bought[u.key] &&
-      game.unlocked[u.key] &&
-      !game.seen[u.key] &&
-      onRailInPhase(u)
-    )
-      n++;
-  if (n === badgeN) return;
-  badgeN = n;
-  if (n > 0) newBadgeEl.textContent = n;
-  newBadgeEl.hidden = n === 0;
-  // The rail's accessible name carries the count too — the badge itself is
-  // aria-hidden. Rewritten on every change of n, not just visibility flips.
+// The unseen-upgrade count, split by WHICH EDGE it is hiding behind.
+//
+// `seen` is set by a row's midpoint entering the visible box (updSeen below),
+// so an unseen row is precisely one you have not scrolled to. That is a fact
+// about the scroller, not about the shop, which is why this reads at the
+// scroller's two edges instead of as a number on the tab: an edge chip can say
+// which way to go, and a tab badge could only ever say "somewhere".
+//
+// A row sitting INSIDE the box counts as neither, even while it is still
+// unseen — it is in front of you, waiting only on updSeen's look gate, and
+// pointing at something already on screen would be noise.
+export function refreshMoreHints() {
+  const box = shopScrollEl.getBoundingClientRect();
+  let up = 0,
+    down = 0;
+  // A collapsed tray has no edges to hang these off, and nothing in it can be
+  // marked seen either — so every row would count as "below" and the chip would
+  // be both invisible and wrong. The accessible name below still reports the
+  // total, which is the one number worth having while the tray is shut.
+  if (box.height > 1) {
+    for (const [key, r] of upRows) {
+      if (game.seen[key]) continue;
+      const b = r.el.getBoundingClientRect();
+      if (b.height <= 0) continue;
+      const mid = b.top + b.height / 2;
+      if (mid < box.top) up++;
+      else if (mid > box.bottom) down++;
+    }
+  }
+  writeHint(moreUpEl, up);
+  writeHint(moreDownEl, down);
+
+  // The rail's accessible name carries the TOTAL, counted independently of
+  // where the rows sit: a screen reader gets no edge chips to feel for, and the
+  // count is most useful to it in the one state the chips cannot render at all.
+  let total = 0;
+  for (const [key] of upRows) if (!game.seen[key]) total++;
+  if (total === labelN) return;
+  labelN = total;
   shopToggleEl.setAttribute(
     "aria-label",
-    n > 0 ? `Shop, ${n} new upgrades` : "Shop",
+    total > 0 ? `Shop, ${total} new upgrades` : "Shop",
   );
 }
-let badgeN = -1;
+let labelN = -1;
+// Guarded per element: this runs on every scroll event and four times a second,
+// and writing an unchanged string is a style invalidation on a node parked on
+// top of a scrolling list.
+const hintN = new WeakMap();
+function writeHint(el, n) {
+  if (hintN.get(el) === n) return;
+  hintN.set(el, n);
+  if (n > 0) el.firstElementChild.textContent = `${n} more`;
+  el.hidden = n === 0;
+}
 
 // ---------------------------------------------------------------------------
 // UPGRADE TEXT — every row's description is DERIVED from `effect`; the joke
@@ -421,7 +454,7 @@ export function refreshUpgrades() {
         programmaticScroll = false;
       });
     }
-    refreshBadge();
+    refreshMoreHints();
   }
 
   for (const u of shown) {
@@ -563,11 +596,15 @@ export function initShopSkin() {
         changed = true;
       }
     }
-    if (changed) refreshBadge();
+    if (changed) refreshMoreHints();
   }
   function tick() {
     scrollers.forEach(updAff);
     updSeen();
+    // Unconditionally, unlike updSeen: the look gate decides whether a row gets
+    // CREDITED as seen, but which edge the unseen ones are hiding behind
+    // changes on any scroll, resize or reveal, gate or no gate.
+    refreshMoreHints();
   }
   scrollers.forEach((el) =>
     el.addEventListener(
@@ -578,6 +615,7 @@ export function initShopSkin() {
         if (!programmaticScroll) lastShopLookAt = performance.now();
         updAff(el);
         updSeen();
+        refreshMoreHints();
       },
       { passive: true },
     ),

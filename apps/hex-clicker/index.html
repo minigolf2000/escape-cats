@@ -1184,29 +1184,6 @@
   #upgradeSec:not(.show) + #buildingSec .shopDivider,
   #dock.collapsed .shopDivider { display: none; }
 
-  /* Unseen-upgrade badge, the mobile-game convention: a count on the thing that
-     OWNS the hidden content, cleared by going and looking. Absolutely positioned
-     so it can't shift the centred SHOP + chevron as the number changes width.
-     Red is the only place this palette uses alarm colour, which is the point —
-     it has to read at a glance to someone whose eyes are on the cat.
-     The hairline ring is the cost of the rail turning green: red on a pale wash
-     was two values apart, red on green is the one pair a red-green colour vision
-     deficiency flattens outright, and this badge is 22px of nothing but hue. The
-     ring is what carries it — a light edge keeps the badge a distinct OBJECT on
-     the rail even when the two fills read as the same mud. */
-  #newBadge {
-    position: absolute; right: calc(10px * var(--ss)); top: 50%;
-    transform: translateY(-50%);
-    background: #e5484d; color: #fff; border-radius: 999px;
-    min-width: calc(15px * var(--ss)); height: calc(15px * var(--ss));
-    display: flex; align-items: center; justify-content: center;
-    padding: 0 calc(4px * var(--ss));
-    font: 700 calc(9px * var(--ss))/1 var(--ui-font); letter-spacing: 0;
-    font-variant-numeric: tabular-nums;
-    box-shadow: 0 0 0 1.5px rgba(255,255,255,.6), 0 1px 3px rgba(0,0,0,.5);
-  }
-  #newBadge[hidden] { display: none; }
-
   /* THE shop scroller — the only one. Upgrades and Buildings are plain blocks
      inside it, so a single drag runs the whole shop end to end.
      `overscroll-behavior: contain` so scrolling past the end stops here instead
@@ -1387,6 +1364,50 @@
   }
   #shopScroll.can-up::before { opacity: 1; }
   #shopScroll.can-down::after { opacity: 1; }
+
+  /* ---- "N MORE": the unseen-upgrade count, at the edge it is hiding behind ----
+     This used to be a red badge on the SHOP tab, and the tab was the wrong
+     place for it. A row is marked SEEN when its midpoint enters this box and
+     you have scrolled recently (updSeen in shop.js) — so "unseen" does not mean
+     "new", it means "you have not scrolled to it". That is a fact about this
+     scroller, and a number on the tab could only ever say "somewhere". Here it
+     can point, so there are two: one per edge, each counting only what is
+     hiding past that edge.
+     Sticky rather than absolute, so each rides its own end of the content and
+     lands on the first or last VISIBLE row wherever the scroll happens to be.
+     The negative margin is what keeps it an overlay: it cancels the height so
+     the pill floats on the edge row instead of reserving a strip of the tray,
+     which is a fifth of it — the tray caps at ~46vh, about five rows.
+     pointer-events: none is load-bearing, not tidiness: the pill sits ON a
+     buyable row, so a tap that lands on it has to reach the row underneath.
+     z-index clears the edge shadows above (3), which it is meant to sit on.
+     It wears the RAIL's paint rather than a colour of its own — --plank-line is
+     the material the dividers and the tab's edges are cut from, so the chip
+     reads as a piece of the shop's own furniture in every phase, and the night
+     skin needs no second answer. */
+  .moreHint {
+    position: sticky; z-index: 4; pointer-events: none;
+    height: calc(24px * var(--ss));
+    display: flex; align-items: center; justify-content: center;
+    font: 700 calc(10px * var(--ss))/1 var(--ui-font);
+    letter-spacing: .10em; text-transform: uppercase;
+  }
+  /* Stated, because .moreHint's own `display: flex` outranks the UA's
+     `[hidden] { display: none }` and the pills would never hide. */
+  .moreHint[hidden] { display: none; }
+  .moreHint.up   { top: 0;    margin-bottom: calc(-24px * var(--ss)); }
+  .moreHint.down { bottom: 0; margin-top:    calc(-24px * var(--ss)); }
+  .moreHint .pill {
+    background: var(--plank-line); color: var(--rail-ink);
+    border-radius: 999px; padding: calc(4px * var(--ss)) calc(10px * var(--ss));
+    box-shadow: 0 2px 6px rgba(0,0,0,.45);
+    font-variant-numeric: tabular-nums;
+  }
+  /* The arrow is the DIRECTION, so it comes off the class — leaving the count
+     as the only thing any JS writes into this. NBSP, so it can never be the
+     place the pill wraps. */
+  .moreHint.up .pill::before { content: "\2191\00a0"; }
+  .moreHint.down .pill::after { content: "\00a0\2193"; }
 
   /* ---- PORTRAIT GATE -------------------------------------------------------
      This game is portrait: the shop rail and the night wall are stacked
@@ -1650,10 +1671,11 @@
          refresh path ever writes rail text and the sign cannot flash the wrong
          word for a frame. -->
     <span class="soldTitle">Sold Out</span><span class="chev" aria-hidden="true"></span>
-    <!-- Unseen-upgrade count. aria-hidden because the rail's accessible name is
-         relabelled with the same number (see refreshBadge) — left visible it
-         reads out as the bare digit tacked onto "Shop". -->
-    <span id="newBadge" aria-hidden="true" hidden>0</span>
+    <!-- The unseen-upgrade count used to sit here as a red badge. It reads at
+         the scroller's edges now (.moreHint below) — the count is a fact about
+         SCROLLING, so it belongs where the scrolling is. The tab keeps carrying
+         it in its accessible name, which is the one place a number still has to
+         exist while the tray is shut. -->
   </button>
   <!-- ONE scroller for both lists. Upgrades and Buildings used to scroll
        independently, which meant the shop had two thumb-catching regions
@@ -1661,6 +1683,12 @@
        to the bottom of the building list in one gesture. They are one list with
        a plank between them now; only #shopScroll scrolls. -->
   <div id="shopScroll">
+    <!-- "N MORE", one per edge. Permanently in the DOM and picked by [hidden],
+         the same way the closed sign and the locked rows are: no refresh path
+         has to build them, only write the number.
+         Direction is a CLASS, not text — the arrow comes from .up/.down in the
+         CSS — so the only thing JS ever writes here is the count. -->
+    <div class="moreHint up" aria-hidden="true" hidden><span class="pill"></span></div>
     <div id="upgradeSec">
       <div id="upgrades"></div>
     </div>
@@ -1668,6 +1696,7 @@
       <div class="shopDivider"></div>
       <div id="shop"></div>
     </div>
+    <div class="moreHint down" aria-hidden="true" hidden><span class="pill"></span></div>
   </div>
 </div>
 

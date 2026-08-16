@@ -20,7 +20,10 @@ export const shopEl = $("#shop");
 export const upgradesEl = $("#upgrades");
 export const upgradeSecEl = $("#upgradeSec");
 export const shopScrollEl = $("#shopScroll");
-export const newBadgeEl = $("#newBadge");
+// The unseen-upgrade count, one chip per scroller edge — see the .moreHint
+// block in index.html for why it lives here and not on the shop tab.
+export const moreUpEl = $("#shopScroll .moreHint.up");
+export const moreDownEl = $("#shopScroll .moreHint.down");
 export const buildingSecEl = $("#buildingSec");
 export const dockEl = $("#dock");
 export const shopToggleEl = $("#shopToggle");

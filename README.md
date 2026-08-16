@@ -22,7 +22,7 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
 apps/goomba-glider/  Player client for Goomba Glider: the prototype's canvas
                      rendering on the shared sim, driven by room snapshots
 apps/lobby/          Landing page: name entry, then the team the proctor put
-                     you on, with a link into the game
+                     you on (and its chat) — no links into the games
 apps/chat/           Per-team chat: one channel per team, roomed by team id
 apps/proctor/        Hidden proctor dashboard, one flat page: five boxes, where a
                      team's box is BOTH its drag-and-drop drop target and its
@@ -168,8 +168,11 @@ Client env vars (Vite, set in `apps/*/.env.local`):
 
 - `VITE_PARTYKIT_HOST` — host:port of the room server (default `127.0.0.1:1999`).
   Kept under its old name: it is what `partysocket` reads on every client.
-- `VITE_HEX_URL` / `VITE_GOOMBA_URL` — public game URLs the lobby's **Play**
-  buttons point at
+
+`VITE_HEX_URL` / `VITE_GOOMBA_URL` used to point the lobby's **Play** buttons at
+the public game URLs. The lobby no longer links to the games — a sorted player
+sees their team and nothing else, and the games are reached by their own URLs —
+so nothing reads those vars. They are harmless if still set in Vercel.
 
 The server takes no vars. The code word is a constant
 (`HEX_CODEWORD` in `packages/shared/src/hex/data.ts`, paired with the wall
@@ -301,8 +304,6 @@ every surface points at one server):
 
 ```
 VITE_PARTYKIT_HOST=escape-cats.escape-cats.workers.dev
-VITE_HEX_URL=https://hexxygon.com
-VITE_GOOMBA_URL=https://g00.mba
 ```
 
 **Root Directory must be blank.** `vercel.json` overrides the dashboard's
@@ -561,7 +562,10 @@ The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
 lists everyone currently on that page as **five boxes** — Unassigned, then one
 per team — and sorting is **drag and drop between them**, the only assignment
 gesture there is. Once assigned, the player's page turns into their team name
-plus a link into the game.
+and who else is on it — no game links. The games are reached by their own URLs
+(the vanity domains, which redirect onto this origin), and because no surface
+ever carried the team in a link, dropping the buttons changes nothing about how
+a phone finds its room: it asks the lobby for this pid.
 
 Sorting is deliberately all manual: an auto-assign button existed and was
 removed. Who sits with whom is a judgement call made in the room (friends,

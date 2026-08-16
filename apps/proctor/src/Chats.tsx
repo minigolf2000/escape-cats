@@ -1,19 +1,27 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
 import {
+  OPEN_ROOM_OPEN,
+  OPEN_TEAM,
   TEAMS,
   type ChatClientMsg,
   type ChatMessage,
   type ChatServerMsg,
+  type Team,
 } from "@escape-cats/shared";
 import { closeWhileHidden } from "./closeWhileHidden";
 import { PARTYKIT_HOST } from "./net";
 
+/** Every channel that can have anybody in it: the four teams, and the testing
+ * room while it is open. Same list drives the sockets, the columns and the
+ * clear-all fan-out, so they cannot disagree about what "all chats" means. */
+const ROOMS: Team[] = OPEN_ROOM_OPEN ? [...TEAMS, OPEN_TEAM] : TEAMS;
+
 /**
- * Every team's chat, side by side, read-only.
+ * Every channel, side by side, read-only.
  *
- * Chat is a channel from a team to the proctor as much as between teammates,
- * so the dashboard reads all four rather than making someone open four tabs.
+ * Chat is a line from a team to the proctor as much as between teammates, so
+ * the dashboard reads them all rather than making someone open five tabs.
  * The proctor connects as `?role=proctor` — a spectator, exactly as in the
  * game rooms: the server refuses a `say` from this connection, and the Roster
  * never counts it, so watching a channel does not change the "n here" line the
@@ -27,11 +35,11 @@ import { PARTYKIT_HOST } from "./net";
  */
 export function Chats() {
   const [byTeam, setByTeam] = useState<Record<string, ChatMessage[]>>({});
-  /** One socket per team, kept for the clear-all fan-out. */
+  /** One socket per room, kept for the clear-all fan-out. */
   const socketsRef = useRef<PartySocket[]>([]);
 
   useEffect(() => {
-    const opened = TEAMS.map((t) => {
+    const opened = ROOMS.map((t) => {
       const socket = new PartySocket({
         host: PARTYKIT_HOST,
         room: t.id,
@@ -80,7 +88,7 @@ export function Chats() {
    * is this fan-out over the sockets the page already holds — not a new
    * server-side broadcast path between rooms. */
   const clearAll = () => {
-    if (!confirm("Delete every message in all four team chats?")) return;
+    if (!confirm(`Delete every message in all ${ROOMS.length} chats?`)) return;
     const msg: ChatClientMsg = { type: "clear" };
     for (const socket of socketsRef.current) socket.send(JSON.stringify(msg));
   };
@@ -92,14 +100,15 @@ export function Chats() {
       <div className="chats-head">
         <h2>Team chat</h2>
         <span className="muted">
-          {total} {total === 1 ? "message" : "messages"} across four teams
+          {total} {total === 1 ? "message" : "messages"} across {ROOMS.length}{" "}
+          rooms
         </span>
         <button className="danger small" disabled={total === 0} onClick={clearAll}>
           Clear all chats
         </button>
       </div>
       <div className="chat-cols">
-        {TEAMS.map((t) => (
+        {ROOMS.map((t) => (
           <ChatColumn
             key={t.id}
             name={t.name}
@@ -115,8 +124,8 @@ export function Chats() {
 const hhmm = (at: number) =>
   new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
-/** One team's log. Fixed height and scrolled internally, so four unequal
- * conversations keep the row the same height. */
+/** One room's log. Fixed height and scrolled internally, so unequal
+ * conversations keep the row one height rather than several. */
 function ChatColumn({
   name,
   messages,

@@ -11,6 +11,7 @@
 // when someone actually joins a room. Keep the type-only import below type-only.
 
 import type PartySocket from "partysocket";
+import { roomFor } from "@escape-cats/shared";
 import type {
   HexClientMsg,
   HexServerMsg,
@@ -151,11 +152,19 @@ export function connectRoom(opts: {
 }
 
 /**
- * Watch the lobby for this phone's team assignment. Connecting also REGISTERS
- * the phone in the lobby roster (same pid+name contract the landing page
- * uses), so a player who lands here unsorted appears on the proctor's board and
- * slots in the moment the proctor drags them onto a team — the "error screen"
- * is really a waiting room.
+ * Watch the lobby for this phone's room. Connecting also REGISTERS the phone in
+ * the lobby roster (same pid+name contract the landing page uses), so a player
+ * who lands here unsorted appears on the proctor's board.
+ *
+ * Which room that is comes from `roomFor`, not from here — a sorted phone gets
+ * its team, and an unsorted one gets the shared testing room (or `null`, the
+ * old waiting screen, when that room is closed). One rule, three surfaces.
+ *
+ * Once we are in a REAL team the socket closes: the answer cannot change under
+ * us in a way this phone should follow silently, and the lobby object should be
+ * free to hibernate. A phone in the testing room keeps it open instead, because
+ * for that one the answer very much can change — the proctor sorting a tester
+ * onto a team mid-session reloads the page into it.
  */
 export function watchTeam(opts: {
   name: string;
@@ -171,16 +180,25 @@ export function watchTeam(opts: {
       party: "lobby",
       query: { pid, name: opts.name },
     });
+    let joined: string | null = null;
     socket.addEventListener("open", () => opts.onStatus(true));
     socket.addEventListener("close", () => opts.onStatus(false));
     socket.addEventListener("message", (e) => {
       const msg: LobbyServerMsg = JSON.parse(e.data as string);
       if (msg.type !== "lobby") return;
       const me = msg.snapshot.players.find((p) => p.pid === pid);
-      if (me?.team) {
-        socket.close();
-        opts.onTeam(me.team, me.name);
+      const room = roomFor(me?.team ?? null);
+      if (room === null) return; // unsorted, and the testing room is closed
+      if (joined === null) {
+        joined = room;
+        if (me?.team) socket.close();
+        opts.onTeam(room, me?.name ?? opts.name);
+        return;
       }
+      // Only reachable from the testing room, whose socket stayed open.
+      // A reload is the whole move: the room is never in the URL, so the
+      // fresh boot re-asks the lobby and lands in the new team.
+      if (room !== joined) location.reload();
     });
   })();
 }

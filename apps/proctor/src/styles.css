@@ -378,3 +378,17 @@ button.small:disabled {
   font-style: italic;
   padding: 8px 0;
 }
+
+/* ---- The shared testing room ---- */
+/* Not one of the board's boxes on purpose — see TestRoom.tsx. It borrows the
+ * .zone skin so it reads as the same kind of thing, at the width of one. */
+.testroom {
+  text-align: left;
+}
+.testroom .zone {
+  max-width: 340px;
+}
+.testroom .muted {
+  display: block;
+  margin-bottom: 2px;
+}

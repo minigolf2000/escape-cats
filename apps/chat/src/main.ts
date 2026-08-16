@@ -8,7 +8,9 @@ import PartySocket from "partysocket";
 import {
   CHAT_BURST,
   CHAT_MAX_TEXT,
+  OPEN_TEAM,
   TEAMS,
+  roomFor,
   type ChatClientMsg,
   type ChatMessage,
   type ChatServerMsg,
@@ -65,8 +67,10 @@ function myName(): string {
 }
 
 function teamName(id: string): string {
-  // Falls back to the raw id, though the lobby only ever hands out real team
-  // ids — it validates every assignment against TEAMS.
+  // Falls back to the raw id, though the only ids that reach here are a real
+  // team's (the lobby validates every assignment against TEAMS) or the testing
+  // room's, which is not one of them by design.
+  if (id === OPEN_TEAM.id) return OPEN_TEAM.name;
   return TEAMS.find((t) => t.id === id)?.name ?? id;
 }
 
@@ -75,13 +79,18 @@ function teamName(id: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Watch the lobby for this phone's team, then open that team's channel.
+ * Watch the lobby for this phone's room, then open that channel.
+ *
+ * Which room comes from `roomFor`, the same rule both games use: a sorted
+ * phone gets its team's channel, an unsorted one gets the shared testing
+ * room's (or none, and the waiting screen, when that room is closed).
  *
  * Connecting also REGISTERS the phone in the lobby roster (the same pid+name
  * contract the landing page and the game use), so a player who opens chat
- * before being sorted shows up on the proctor's list and drops into their
- * channel the moment they are assigned. The waiting screen is a waiting room,
- * not an error.
+ * before being sorted shows up on the proctor's list. In a real team the
+ * socket closes; in the testing room it stays open, so a tester the proctor
+ * later sorts is reloaded into their team's channel rather than left talking
+ * to the testers.
  */
 function watchTeam() {
   const lobby = new PartySocket({
@@ -99,11 +108,16 @@ function watchTeam() {
     }
     if (msg.type !== "lobby") return;
     const me = msg.snapshot.players.find((p) => p.pid === pid);
-    if (!me?.team) return;
-    lobby.close();
-    room = me.team;
-    connect();
-    render();
+    const next = roomFor(me?.team ?? null);
+    if (next === null) return;
+    if (room === null) {
+      room = next;
+      if (me?.team) lobby.close();
+      connect();
+      render();
+      return;
+    }
+    if (next !== room) location.reload();
   });
 }
 

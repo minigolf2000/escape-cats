@@ -109,6 +109,11 @@ export function setEyes(v) {
   eyeVariant = EYE_VARIANTS.includes(v) ? v : EYE_VARIANTS[0];
   hexCatEl.dataset.eyes = eyeVariant;
 }
+/** Which variant is painted right now — the debug panel's eyes control is a
+ * toggle, so it has to label itself with the state rather than assume it. */
+export function eyesVariant() {
+  return eyeVariant;
+}
 export function initEyes() {
   setEyes(new URLSearchParams(location.search).get("eyes"));
 }

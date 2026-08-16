@@ -19,7 +19,7 @@ import {
   type HexUpgrade,
   type HexSnapshot,
 } from "@escape-cats/shared";
-import { EYE_VARIANTS, setEyes } from "./cat.js";
+import { EYE_VARIANTS, eyesVariant, setEyes } from "./cat.js";
 import { effectText } from "./shop.js";
 import { transport } from "./net";
 
@@ -186,26 +186,52 @@ function devContentHTML(sim: HexSim): string {
     <tbody>${uRows}</tbody></table>`;
 }
 
-/** The floating 🛠 panel: grant, story-beat jumps, a forced golden, time scale,
- * reset, and the buildings & upgrades dump. DOM is injected only here, so
- * nothing panel-related ships into a real session.
+/** The one grant size. 1M is the day's whole ladder in one press (Catnap
+ * Hypnalysis, the last thing the day sells, costs exactly this) and a hundredth
+ * of the night's, so it is both "skip the grind" and a usable step. */
+const GRANT = 1e6;
+/** The fast half of the speed toggle. ×10 rather than the old ×20: it is the
+ * fastest scale at which the wall's hand-over and the shop's reveal order are
+ * still watchable rather than a jump-cut, which is what the dial is for. */
+const FAST = 10;
+
+/** The floating 🛠 panel: story-beat jumps, then one row of single-press
+ * controls — grant, a forced golden, time scale, the eye variant, reset — over
+ * the buildings & upgrades dump. DOM is injected only here, so nothing
+ * panel-related ships into a real session.
  *
- * Returns a sync callback the tick loop calls, for the one control whose
- * availability depends on state the panel does not itself move (see below). */
+ * The controls row is deliberately one button per control rather than one per
+ * VALUE: the panel sits over a phone-sized game and every row it takes is a row
+ * of Hex it covers. Three grant sizes were two too many (the ladder's tiers are
+ * 10K/1M/100M apart, so +1M pressed 0–100 times reaches any of them), and where
+ * a control has two states — speed, eyes — a button that SHOWS the live state
+ * and flips it costs one button instead of N and answers "which is on?", which
+ * a row of push buttons never did.
+ *
+ * Returns a sync callback the tick loop calls: every stateful control here
+ * (golden's availability, both toggle labels) can move without passing through
+ * the panel's own click handler — a purchase brings the night, and reset and
+ * every preset jump put speed back to ×1. */
 function mountPanel(sim: HexSim, emit: () => void): () => void {
   const st = document.createElement("style");
   st.textContent = `
+    /* 11px and tight padding: this is a dev overlay on a phone-sized game, and
+       the space it saves is Hex. The controls are all buttons — a finger target
+       is the button box, not the glyph — so the type can go below the game's
+       own floor without the row becoming hard to hit. */
     #devbar { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 10px; z-index: 40;
-      font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       color: #e8eaf0; }
     #devbar details { background: rgba(9,11,18,.92); border: 1px solid #363b4d;
-      border-radius: 10px; padding: 4px 8px; }
+      border-radius: 10px; padding: 3px 6px; }
     #devbar summary { cursor: pointer; user-select: none; opacity: .85; }
-    #devbar .r { display: flex; gap: 4px; align-items: baseline; flex-wrap: wrap;
-      margin: 4px 0; }
-    #devbar .r > span { opacity: .55; min-width: 38px; }
+    /* No label column: with each control down to a single button, the row's
+       38px-wide "grant"/"speed" gutters were wider than most of what they
+       labelled, and the buttons say the same thing (see mountPanel). */
+    #devbar .r { display: flex; gap: 3px; align-items: baseline; flex-wrap: wrap;
+      margin: 3px 0; }
     #devbar button { font: inherit; color: inherit; background: #1c2030;
-      border: 1px solid #363b4d; border-radius: 6px; padding: 1px 7px;
+      border: 1px solid #363b4d; border-radius: 6px; padding: 1px 5px;
       cursor: pointer; }
     #devbar button:active { background: #2a3049; }
     #devbar button:disabled { opacity: .4; cursor: default; }
@@ -257,25 +283,17 @@ function mountPanel(sim: HexSim, emit: () => void): () => void {
   // main.js). On the panel it costs nothing — there is no pettable cat under it
   // — and it is what lets the dump below scroll under a finger.
   bar.dataset.nativeTouch = "";
-  const grants: [string, number][] = [
-    ["+10K", 1e4],
-    ["+1M", 1e6],
-    ["+100M", 1e8],
-  ];
   bar.innerHTML = `<details open><summary>🛠 debug</summary>
-    <div class="r"><span>grant</span>${grants
-      .map(([label, n]) => `<button data-g="${n}">${label}</button>`)
+    <div class="r">${Object.keys(DEBUG_PRESETS)
+      .map((k) => `<button data-p="${k}" title="jump to ${k}">${k}</button>`)
       .join("")}</div>
-    <div class="r"><span>jump</span>${Object.keys(DEBUG_PRESETS)
-      .map((k) => `<button data-p="${k}">${k}</button>`)
-      .join("")}</div>
-    <div class="r"><span>spawn</span><button data-gold="1">🐭 golden</button></div>
-    <div class="r"><span>eyes</span>${EYE_VARIANTS.map(
-      (v) => `<button data-eyes="${v}">${v}</button>`,
-    ).join("")}</div>
-    <div class="r"><span>speed</span>${[1, 5, 20]
-      .map((n) => `<button data-s="${n}">×${n}</button>`)
-      .join("")}<button data-r="1">reset</button></div>
+    <div class="r">
+      <button data-g="${GRANT}" title="grant 1M mice">+1M</button>
+      <button data-gold="1">🐭 golden</button>
+      <button data-s="1"></button>
+      <button data-eyes="1"></button>
+      <button data-r="1" title="reset the run">reset</button>
+    </div>
     <details id="devList"><summary>buildings &amp; upgrades</summary><div id="devContent"></div></details>
   </details>`;
   document.body.appendChild(bar);
@@ -296,17 +314,39 @@ function mountPanel(sim: HexSim, emit: () => void): () => void {
   // on a reset or a day preset), so this is driven from the tick loop, not only
   // from the click handler below.
   const goldBtn = bar.querySelector("[data-gold]") as HTMLButtonElement;
+  const speedBtn = bar.querySelector("[data-s]") as HTMLButtonElement;
+  const eyesBtn = bar.querySelector("[data-eyes]") as HTMLButtonElement;
   let goldWas: boolean | null = null; // null so the first sync always paints
-  const syncGold = () => {
+  let speedWas: number | null = null;
+  const sync = () => {
     const night = sim.night();
-    if (goldWas === night) return;
-    goldWas = night;
-    goldBtn.disabled = night;
-    goldBtn.title = night
-      ? "day-only: Zoomies multiplies pets, which mint nothing at night"
-      : "put a golden mouse up now";
+    if (goldWas !== night) {
+      goldWas = night;
+      goldBtn.disabled = night;
+      goldBtn.title = night
+        ? "day-only: Zoomies multiplies pets, which mint nothing at night"
+        : "put a golden mouse up now";
+    }
+    // The speed button labels itself from the SIM, not from what it last set:
+    // reset and every preset jump run through reset(), which puts speed back to
+    // ×1 without the panel hearing about it, and ?speed=N can start the run at
+    // a scale neither toggle position names.
+    const speed = sim.state.speed;
+    if (speedWas !== speed) {
+      speedWas = speed;
+      speedBtn.textContent = `×${speed}`;
+      speedBtn.title = `time scale — tap for ×${speed >= FAST ? 1 : FAST}`;
+    }
   };
-  syncGold();
+  // Not in sync(): nothing outside this button moves the variant (it is a
+  // render choice, not sim state), so it repaints on press instead of being
+  // polled four times a second.
+  const paintEyes = () => {
+    eyesBtn.textContent = `👁 ${eyesVariant()}`;
+    eyesBtn.title = "eye variant — tap to flip";
+  };
+  sync();
+  paintEyes();
 
   bar.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest("button");
@@ -319,14 +359,16 @@ function mountPanel(sim: HexSim, emit: () => void): () => void {
     // never touches the sim (and so a real room's teammates keep whatever they
     // opened the game with). Here as well as ?eyes= because judging the two
     // wants them flipped back and forth in place, not compared across reloads.
-    else if (b.dataset.eyes) setEyes(b.dataset.eyes);
-    else if (b.dataset.s)
-      sim.state.speed = Math.max(0.25, Math.min(50, Number(b.dataset.s)));
+    else if (b.dataset.eyes) {
+      const i = EYE_VARIANTS.indexOf(eyesVariant());
+      setEyes(EYE_VARIANTS[(i + 1) % EYE_VARIANTS.length]);
+      paintEyes();
+    } else if (b.dataset.s) sim.state.speed = sim.state.speed >= FAST ? 1 : FAST;
     else if (b.dataset.r) sim.reset(now);
     emit();
-    syncGold();
+    sync();
     redrawList();
   });
 
-  return syncGold;
+  return sync;
 }

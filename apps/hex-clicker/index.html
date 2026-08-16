@@ -148,36 +148,33 @@
       radial-gradient(circle at 75% 75%, var(--paper-dot) 0 15%, rgba(231,183,183,0) 17%)
         0 0 / var(--paper-cell) var(--paper-cell) repeat,
       var(--paper);
-    /* THE SHOP IS GREEN, AND IT IS A SURFACE.
-       It was #FFFFFF at 30% over the page — a wash that let the polka dot read
-       through. That is a faithful reading of the art file, and it left the shop
-       with no edge at all: the tray was the same pink as the wall, one shade
-       lighter, so the game's only spending surface was the least visible thing
-       on screen. It gets its own material back, in the one hue the palette had
-       not spent.
-       Green, specifically, because of what is already here. The page is pink
-       (#f4c1c0 paper), the mice are pink (#ff6fa5 in art.js), and the accents
-       are gold and teal — so green is ~200 degrees of hue from the pink it has
-       to sit beside, and clear of both accents. Nothing on this screen is
-       mistakable for anything else afterwards.
-       TWO values, not one, and the split does real work. The deep --shop-paper
-       is the shelf the rows print on: the price readout is the shop's whole
-       signal and it is COLOR (affordable / not), so its ground has to stay far
-       from both readings — a mid-green would have swallowed exactly the two it
-       exists to show. --plank is the loud green, spent on the rail, where it is
-       an awning over the shelf and the thing your thumb aims at. The rail's ink
-       goes dark (--rail-ink) rather than light for that reason: on a green this
-       bright, the art file's own #312B2A keyline is the legible choice and the
-       one already drawn on every day icon.
-       Row text, prices and coins re-pitch for the dark shelf in a scoped block
-       on #dock (see `body:not(.night) #dock` below) rather than here — they are
-       the shop's readings of these tokens, not the page's. */
-    --shop-paper: #1F6B3D;
-    --shop-dot: #1D663A;   /* --shop-paper through the artist's dot ratio */
-    --panel-bg: #1a5833;
-    --plank: linear-gradient(#5FE08C, #35C069 44%, #22A054);
-    --plank-line: #12602F;
-    --rail-ink: #312B2A;
+    /* THE SHOP IS BRUTALIST: white ground, black ink, hard rules.
+       It has been three things now — a wash that let the polka dot through (no
+       edge at all), then a green surface (#151, which fixed the edge). This is
+       the third, and it fixes something the green could not: the RAIL.
+       A 48px black-green band spanning the full width sat between Hex and her
+       shop, and it was the single largest opaque object on the screen. The tab
+       below reclaims it — see .shopHead.
+       White rather than another hue because the page is already carrying the
+       art. The wallpaper is pink and painted, Hex is a drawing, the mice are
+       five colours; a shop that is simply paper and rules is the one surface
+       that does not compete with any of it, and it makes the price readout —
+       green when affordable, red when not, the shop's whole signal — the only
+       colour on the shelf.
+       --plank keeps its name and stops being a gradient: the rail is one flat
+       ink now, because a tab that small has nowhere to put a gradient. Row text,
+       prices and coins re-pitch in the scoped block on #dock below rather than
+       here, since they are the shop's readings of these tokens, not the page's. */
+    --shop-paper: #FFFFFF;
+    --shop-dot: #FFFFFF;   /* no dots on the shelf — it is paper, not wallpaper */
+    --panel-bg: #FFFFFF;
+    /* A GRADIENT, not a colour, and that is load-bearing: .shopHead paints
+       `background: var(--plank), var(--panel-bg)`, and CSS only allows a colour in
+       the LAST background layer — a flat colour here drops the whole declaration
+       and the tab renders transparent. Two identical stops keep it flat. */
+    --plank: linear-gradient(#141110, #141110);
+    --plank-line: #141110;
+    --rail-ink: #FFFFFF;
     /* Everything the tray prints, re-pitched for a light ground. These were a
        cream-on-dark set; on a white wash over pink they were the same smudge the
        HUD was before it flipped. --ink is the art file's own "Text/outline". */
@@ -556,12 +553,10 @@
      because a ring eye IS the pupil, visually.
      Colour comes through a variable so Zoomies can light both rings (and the
      shut lashes) by flipping one value, rather than naming each shape. */
-  /* Hex's eyes ARE the shop's green — one value, used twice, so the tray and the
-     thing you tap are unmistakably the same hue rather than two greens that nearly
-     match. --plank's top stop is the loud one, which is what survives at eye size
-     against her coat; --shop-paper is the deep shelf green and would read as a
-     hole in her face. */
-  #hexCat { --hex-eye: #5FE08C; }
+  /* The artist's yellow. Briefly the shop's green, to tie the tray to the thing
+     you tap — that tie is gone with the green shop, and a brutalist tray has no
+     hue to match anyway, so the eyes go back to the drawing. */
+  #hexCat { --hex-eye: #D0D060; }
   #hexCat .eye path { fill: var(--hex-eye); }
   #catWrap.zoomies #hexCat { --hex-eye: #ffe98a; }
 
@@ -948,70 +943,71 @@
      and it is the only place in the game where a var means one thing inside an
      element and another outside it. */
   body:not(.night) #dock {
-    /* Same pattern as the page, one hue apart — still true, and now it is the same
-       CSS rather than the same file. The tile used to be laid over the green and
-       multiplied, which is how a photographic dot got tinted; drawn dots do not
-       need the trick, so --shop-dot is simply --shop-paper through the very ratio
-       measured off the artist's tile (dot/ground = .947, .953, .953). Identical
-       cell and offsets to :root, so the two surfaces stay in lockstep and the
-       dots carry through the tray exactly as they did. */
-    background:
-      radial-gradient(circle at 25% 25%, var(--shop-dot) 0 15%, rgba(29,102,58,0) 17%)
-        0 0 / var(--paper-cell) var(--paper-cell) repeat,
-      radial-gradient(circle at 75% 75%, var(--shop-dot) 0 15%, rgba(29,102,58,0) 17%)
-        0 0 / var(--paper-cell) var(--paper-cell) repeat,
-      var(--shop-paper);
-    --ink: #F4F4F2;
-    --muted: #B9D6C1;
-    --dim: #9CC3A8;
-    --line: rgba(0,0,0,.26);
-    --icon-bg: rgba(255,255,255,.13);
-    /* The affordable/can't-afford pair, brightened off the light-ground set
-       (#1C7F45 / #BE3B2E) that would now be two dark smudges on a dark shelf.
-       Both are checked against --shop-paper, not against the page: the mint
-       clears 5.8:1 there and the coral 3.2:1, which is the bar for the price
-       line specifically (20px at 700, so WCAG-large). */
-    --cost-ok: #7FE39B;
-    --cost-no: #FF7B70;
-    --row-press: rgba(255,255,255,.12);
-    --row-shadow: 0 1px 1px rgba(0,0,0,.35);
-    --glyph-shadow: drop-shadow(0 1px 1px rgba(0,0,0,.4));
-    /* Back to plain gold. --shop-accent was bronzed to #96690F for one reason —
-       #ffd44d on a white wash is a highlighter with nothing under it — and the
-       dark shelf removes it. Night already reads var(--gold) here, so the two
-       phases now agree on what the shop's emphasis color is. */
-    --shop-accent: var(--gold);
-    --crux-shadow: 0 1px 1px rgba(0,0,0,.4), 0 0 9px rgba(255,212,77,.45);
-    /* The price coin's keyline. The HUD's copy of the same mouse stays dark
-       (it is on pink); down here a dark keyline dissolves into the shelf and
-       the silhouette goes with it. */
-    --mouse-line: #F4F4F2;
+    /* Plain paper. No dots: the page is wallpaper, the shop is a sheet laid on
+       it, and carrying the pattern through both was what made the tray read as
+       part of the wall in the first place. The only ornament left is the rules. */
+    background: var(--shop-paper);
+    --ink: #141110;
+    --muted: #55504E;
+    --dim: #6E6866;
+    --line: #141110;
+    --icon-bg: #FFFFFF;
+    /* Darkened off the dark-shelf pair (#7FE39B / #FF7B70), which were tuned to
+       glow on green and are two pastels on paper. Checked against white: 4.7:1
+       and 4.6:1, comfortably past the bar for the price line (20px at 700). */
+    --cost-ok: #157F3F;
+    --cost-no: #B33A2B;
+    --row-press: #EDEAE8;
+    --row-shadow: none;
+    --glyph-shadow: none;
+    /* Gold cannot survive on paper — #ffd44d on white is a highlighter with
+       nothing under it — so the shop's accent goes to the ink it prints in and
+       earns emphasis from weight instead of hue. */
+    --shop-accent: #141110;
   }
+
 
   .shopHead, .shopDivider {
     flex: none; background: var(--plank), var(--panel-bg);
     border: 0;
     border-top: 1px solid var(--plank-line); border-bottom: 1px solid var(--plank-line);
   }
+  /* THE RAIL IS A TAB, not a band. It used to be a full-width bar 48px tall —
+     the largest opaque object on the screen, parked between Hex and her shop for
+     no reason except that it was where the label lived. Taken out of the dock's
+     flow and hung off its top-left corner, it costs the play area a tab-sized
+     notch instead of a whole stripe, and the tray's first row starts where the
+     band used to.
+     Everything the band held is on the tab: the storefront mark shrinks and sits
+     beside the word rather than floating in its own centred cluster, and the
+     chevron follows the word it belongs to. One shape, one control.
+     It stays a comfortable target — 44px tall, which is Apple's minimum and
+     Material's within a pixel — because the point was never to make the CONTROL
+     small, only to stop it spanning the screen. Absolute positioning does not
+     take it out of the button: taps on the tab still toggle the tray. */
   .shopHead {
-    position: relative;   /* anchor for #newBadge */
-    /* Sized as a THUMB TARGET, not as a caption. This rail is the only hit area
-       that opens and closes the dock (the divider is deliberately inert), so it
-       has to be comfortable to hit blind while the other thumb is mashing Hex.
-       At the old 19 × --ss it came out 28.5px — under Apple's 44pt AND Material's
-       48dp, i.e. the one control in the shop that was too small to aim at. 32 ×
-       --ss = 48px clears both. The band is centered content on a fixed height, so
-       the extra height is wood around the same SHOP + chevron, not bigger type.
-       Safe to retune freely: #catWrap parks Hex on the sunburst hub (--sun-y) as
-       a CONSTANT, so the rail's height can't shift the thing you're tapping. */
-    height: calc(32px * var(--ss));
-    display: flex; align-items: center; justify-content: center; gap: calc(5px * var(--ss));
-    padding: 0; -webkit-appearance: none; appearance: none; border-radius: 0;
-    /* --rail-ink, not --ink: by day the rail is the loud green and takes the art
-       file's dark keyline, while the rows an inch below it are light type on the
-       deep shelf. Night collapses the two back into one (see body.night). */
-    width: 100%; cursor: pointer; color: var(--rail-ink);
+    position: absolute; bottom: 100%; left: 0; z-index: 2;
+    width: auto; height: auto;
+    /* 44px of target: Apple's minimum, Material's within a pixel. The point was
+       never to make the CONTROL small — only to stop it spanning the screen. */
+    padding: calc(8px * var(--ss)) calc(9px * var(--ss));
+    display: flex; align-items: center; justify-content: center;
+    gap: calc(4px * var(--ss));
+    -webkit-appearance: none; appearance: none;
+    border-radius: 0 calc(7px * var(--ss)) 0 0;
+    cursor: pointer; color: var(--rail-ink);
   }
+  /* The mark shrinks and joins the word instead of floating in its own centred
+     cluster — on a tab this size the two read as one lockup. */
+  .shopHead .shopIcon svg {
+    width: calc(13px * var(--ss)); height: calc(13px * var(--ss));
+  }
+  /* The tab hangs off the dock's top edge, so the dock must not clip it. */
+  #dock { overflow: visible; }
+  /* The band used to be the tray's top edge. With it gone the sheet needs its
+     own, or the first row floats with nothing closing it off. */
+  #shopScroll { border-top: 3px solid var(--plank-line); }
+
   /* Both rail labels, styled together so the closed sign is the same stamp as the
      open one — only the word changes. */
   .shopTitle, .soldTitle {

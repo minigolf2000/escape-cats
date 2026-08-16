@@ -10,8 +10,9 @@ import {
   catFaceEl,
   earLeftEl,
   earRightEl,
-  irisLeftEl,
-  irisRightEl,
+  lookEls,
+  pupilLeftEl,
+  pupilRightEl,
   eyeLeftEl,
   eyeRightEl,
   stageEl,
@@ -48,23 +49,69 @@ export const anim = { squash: 0 };
 // CAT rendering — the SVG (#hexCat) is static markup; this just toggles
 // classes/state on it per frame (squash bounce, blink, Zoomies recolor).
 // ---------------------------------------------------------------------------
-// SVG user-units a ring can travel off-center before it'd cross the coat's edge.
-// 17 in the drawing's 828-wide box, which is the same fraction of her face the
-// old vector cat's 4-in-200 was — the number grew because the viewBox did.
-const IRIS_LOOK = 17;
-// Eye WIDTH — independent of the eyelid squash, and on its own axis (X, not Y)
-// so a blink never resets it. Real cats rest narrow and open up when aroused; a
-// golden mouse on screen is the one thing this game has to be excited about, so
-// it's the trigger.
+// How far the PUPIL travels off-centre, in SVG user units of the drawing's
+// 828x652 box. Two numbers rather than one because the socket is not round: its
+// hole is 109x98 (left) / 105x104 (right) and the pupil is ~58x71, so there is
+// roughly twice as much room sideways as there is up and down. One shared value
+// would be set by the tighter axis and throw away half the horizontal range —
+// and the horizontal range is the one that reads, since a golden mouse is far
+// more often beside her than above her.
+// The socket clip is what lets these stay at the full range: a glance pushes the
+// dilated pupil AGAINST the socket's rim rather than through it, so the numbers
+// are set by how far a cat's eye visibly travels and not by how much room the
+// widest pupil happens to leave. Unclipped, the saucer below would have had 4%
+// of this range left before it crossed the outline.
+const LOOK_X = 14;
+const LOOK_Y = 8;
+// Pupil SIZE — independent of the eyelid squash, on its own element so a blink
+// never resets it. Real cats rest narrow and open up when aroused; a golden
+// mouse on screen is the one thing this game has to be excited about, so it's
+// the trigger.
 //
-// This used to be pupil width, 0.22 -> 1: a slit dilating to a disc. The drawn
-// eye has NO pupil — it's a hollow ring — so there is no slit to open. Dilation
-// re-reads as the ring itself growing, which is what a ring eye can say, and the
-// range is small for the same reason: at 1.0 -> 1.14 it's a widening; push it to
-// the old 4.5x ratio and her eyes leave her head. Same trigger, same tell, sized
-// to what the art can carry.
-const PUPIL_SLIT = 1;     // resting
-const PUPIL_ROUND = 1.14; // dilated
+// A slit dilating to a disc, which is what this originally was and what the
+// artist's sheet draws on its own three heads: a tall bar on one, a round dot on
+// the others. The intervening art drop had no pupil at all — just a hollow ring
+// — and the tell had to be faked as the ring itself swelling 14%, a range so
+// small it barely registered. There is a pupil again, so the tell is legible
+// again.
+//
+// Rest is the same slit in both variants — narrow on X, drawn height on Y.
+// How far it OPENS is per-variant, because the two are not equally free to grow:
+//   ring  — the pupil is the same yellow as the ring it sits inside, with only
+//           coat between them, so a big one closes that gap and the eye reads as
+//           one yellow smear rather than a pupil in a socket. 1 is the size the
+//           artist drew, and it is also about as large as this variant can go
+//           before it stops reading. Left at the drawing.
+//   solid — dark on yellow has contrast to spare, and nothing to merge with, so
+//           it can open right out to a saucer. The socket clip is what makes
+//           that safe; see LOOK_X/LOOK_Y above.
+const PUPIL_SLIT = 0.34;
+const PUPIL_ROUND = { ring: 1, solid: 1.35 };
+
+// ---------------------------------------------------------------------------
+// EYE VARIANT. Two readings of the artist's socket, both shipped, because which
+// one is right is a taste call and taste calls want to be made against the
+// running game on a real phone rather than against a drawing on a desk:
+//   "ring"  — the socket as drawn, a hollow yellow ring with the coat showing
+//             through it and the pupil in the same yellow.
+//   "solid" — the same outline filled edge to edge, pupil inked in the drawing's
+//             own line colour. Bolder, and much more legible at the size Hex
+//             actually renders at on a phone.
+// Everything else about the rig is identical: same socket outline, same pupil
+// shape, same look and dilation. Only which shapes are painted, and in what
+// colour — see the eye-variant block in index.html.
+// ?eyes=solid rather than a debug-only control, so it can be tried in a REAL
+// room on a real phone (the debug panel joins the sim, which is the wrong place
+// to judge how the eyes read while a mouse is actually running past).
+export const EYE_VARIANTS = ["ring", "solid"];
+let eyeVariant = EYE_VARIANTS[0];
+export function setEyes(v) {
+  eyeVariant = EYE_VARIANTS.includes(v) ? v : EYE_VARIANTS[0];
+  hexCatEl.dataset.eyes = eyeVariant;
+}
+export function initEyes() {
+  setEyes(new URLSearchParams(location.search).get("eyes"));
+}
 
 // The pet squash, as the artist drew it: four registered frames, held in order.
 // This is the one animation that came out of the art file as an ANIMATION rather
@@ -213,15 +260,12 @@ export function updateCat(t) {
   }
 
   // Look: toward the golden mouse by day; roving under the lashes at night.
-  // Owned entirely by JS (not a CSS class) because it combines a look-direction
-  // translate with the dilation scale, and CSS can't compose an inline transform
-  // with a class rule's transform.
+  // Owned entirely by JS (not a CSS class) because a gaze is a continuous
+  // direction and classes can only enumerate poses.
   //
-  // No vertical squash rides along here any more. It used to, because the pupil
-  // was a separate shape INSIDE the socket and had to be squashed to follow a
-  // closing lid. The ring is the whole eye now and sits inside the lid group, so
-  // the lid's scaleY already carries it — applying it twice shut her eyes at the
-  // square of the intended amount.
+  // No vertical squash rides along here. The look group sits inside the lid
+  // group, so the lid's scaleY already carries the pupil down with it; applying
+  // it here as well shut her eyes at the square of the intended amount.
   let lookX = 0, lookY = 0;
   if (asleep && !lidBusy) {
     // REM: the lids stay shut but the eyes rove underneath. Deliberately
@@ -234,8 +278,8 @@ export function updateCat(t) {
     const cx = stageEl.clientWidth / 2, cy = stageEl.clientHeight / 2;
     const dx = (goldState.x + 31) - cx, dy = (goldState.y + 31) - cy; // golden mouse's own center, stage-relative
     const mag = Math.hypot(dx, dy) || 1;
-    lookX = (dx / mag) * IRIS_LOOK;
-    lookY = (dy / mag) * IRIS_LOOK;
+    lookX = (dx / mag) * LOOK_X;
+    lookY = (dy / mag) * LOOK_Y;
   } else if (!asleep && IDLE.gazeDrift) {
     // Nothing to look at, so she looks at nothing in particular. Without this
     // she stares dead ahead for the ~40-90s between goldens, which is most of
@@ -243,18 +287,29 @@ export function updateCat(t) {
     // sweeping at constant speed, but the product stalls near either factor's
     // zero-crossing, so she drifts, dwells, drifts — closer to looking at
     // things than scanning for them.
-    lookX = IRIS_LOOK * 0.5 * Math.sin(t / 2300) * Math.sin(t / 5700);
-    lookY = IRIS_LOOK * 0.3 * Math.sin(t / 3300) * Math.sin(t / 7100);
+    lookX = LOOK_X * 0.5 * Math.sin(t / 2300) * Math.sin(t / 5700);
+    lookY = LOOK_Y * 0.3 * Math.sin(t / 3300) * Math.sin(t / 7100);
   }
   // Widened while awake AND excited: either a golden is actually out there, or
   // Zoomies is running (pets worth more) — the buff a caught golden leaves
   // behind, so her eyes stay wide through the sprint rather than snapping shut
   // the instant the mouse is gone. Not during sleep even if a golden is drifting
   // past, matching the branch above where asleep never looks toward it either.
-  const eyeScaleX = (!asleep && (goldState.active || zoomBuff() > 1)) ? PUPIL_ROUND : PUPIL_SLIT;
-  const irisTransform = `translate(${lookX.toFixed(2)}px, ${lookY.toFixed(2)}px) scale(${eyeScaleX})`;
-  irisLeftEl.style.transform = irisTransform;
-  irisRightEl.style.transform = irisTransform;
+  const lookT = `translate(${lookX.toFixed(2)}px, ${lookY.toFixed(2)}px)`;
+  for (const el of lookEls) el.style.transform = lookT;
+  // Dilation lands one level in, on the pupils themselves, so it composes with
+  // the look instead of replacing it — and so it stays off the shut-lash arc,
+  // which no longer even shares a group with it.
+  // Rest opens on X alone (a slit is the drawn height, just narrow); dilating
+  // grows BOTH axes, which is what makes a saucer read as a pupil opening rather
+  // than as one being stretched sideways.
+  const wide = !asleep && (goldState.active || zoomBuff() > 1);
+  const r = PUPIL_ROUND[eyeVariant];
+  const pupilT = wide ? `scale(${r}, ${r})` : `scale(${PUPIL_SLIT}, 1)`;
+  if (pupilLeftEl.style.transform !== pupilT) {
+    pupilLeftEl.style.transform = pupilT;
+    pupilRightEl.style.transform = pupilT;
+  }
 
   // "Alert" = awake with a golden actually on screen. It drives the chatter and
   // the lean, and it's the same condition the eye widening above uses — one idea

@@ -547,18 +547,41 @@
      pivots of their own — they are painted into the frames above, and the four
      squash frames already fold them, which is the ear motion the art ships. */
   #catFace { transform-box: fill-box; transform-origin: 50% 96%; }
-  /* THE EYES. Both are hollow rings in the drawing — no pupil — which changes
-     what "look" and "dilate" can mean here: the whole ring moves and the whole
-     ring grows, instead of a dot sliding inside a socket. That reads correctly
-     because a ring eye IS the pupil, visually.
-     Colour comes through a variable so Zoomies can light both rings (and the
-     shut lashes) by flipping one value, rather than naming each shape. */
+  /* THE EYES. The artist's latest sheet puts a PUPIL back inside the socket —
+     the previous drop was a bare hollow ring, which is why look and dilate had
+     to be expressed as the whole ring sliding and the whole ring growing. There
+     is a dot inside the socket again, so both go back to meaning what they
+     normally mean: the socket holds still and the pupil moves and widens in it.
+     Colour comes through variables so Zoomies can light every yellow shape (and
+     the shut lashes) by flipping one value, rather than naming each shape. */
   /* The artist's yellow. Briefly the shop's green, to tie the tray to the thing
      you tap — that tie is gone with the green shop, and a brutalist tray has no
      hue to match anyway, so the eyes go back to the drawing. */
-  #hexCat { --hex-eye: #D0D060; }
+  #hexCat { --hex-eye: #D0D060; --hex-pupil: var(--hex-eye); }
   #hexCat .eye path { fill: var(--hex-eye); }
+  #hexCat .eye path.pupil { fill: var(--hex-pupil); }
   #catWrap.zoomies #hexCat { --hex-eye: #ffe98a; }
+
+  /* ---- EYE VARIANT (data-eyes on #hexCat; set from ?eyes= — see cat.js) ----
+     Two readings of the same sheet, switchable because they are a taste call and
+     not a correctness one:
+       "ring"  (default) — the socket as drawn: a hollow yellow ring with the
+                coat showing through it, and a yellow pupil inside. This is what
+                is on the artist's page.
+       "solid" — the same outline filled yellow edge to edge with the pupil
+                inked in the drawing's own line colour (#302B2A, sampled off
+                hex-day.png rather than guessed). Reads as a conventional cat
+                eye; bolder and much more legible at a phone's real size.
+     The disc is its own path rather than the ring with its hole patched: two
+     shapes meeting along the hole's edge leave an antialiasing seam, and the
+     seam lands in the middle of the eye where it is impossible not to see.
+     :not(.shut) so the sleeping lash arc still wins — the pair below hides
+     .eyeOpen wholesale, and this rule would otherwise tie with it and, being
+     later, put an open socket back under the closed lashes. */
+  #hexCat .eyeDisc { visibility: hidden; }
+  #hexCat[data-eyes="solid"] .eyeRing { visibility: hidden; }
+  #hexCat[data-eyes="solid"]:not(.shut) .eyeDisc { visibility: visible; }
+  #hexCat[data-eyes="solid"] { --hex-pupil: #302B2A; }
 
   /* Open ring vs the drawn shut-lash arc. Swapped as a pair, never blended:
      the artist drew the closed eye as its own gesture (a lash curve with three
@@ -573,13 +596,27 @@
     transform-box: fill-box; transform-origin: center; transition: transform .06s;
   }
   #hexCat.blink #eyeLeft, #hexCat.blink #eyeRight { transform: scaleY(.14); }
-  /* LOOK. JS-owned (updateCat), not class-driven like the lids — it has to
-     combine a look-direction translate with a dilation scale, and CSS can't
-     compose an inline transform with a class rule's transform (one wins
-     outright). Nested INSIDE the lid group so a blink and a glance multiply
-     instead of overwriting each other. */
-  #hexCat #irisLeft, #hexCat #irisRight {
+  /* LOOK. JS-owned (updateCat), not class-driven like the lids — a gaze is a
+     continuous direction, which no set of classes can express. Nested INSIDE the
+     lid group so a blink and a glance multiply instead of overwriting each
+     other.
+     A class rather than the four ids, because there are four of these now and
+     they all get the same value: the pupil's group (inside the socket clip) and
+     the sleeping lash arc's (outside it, since the clip would shave the lashes).
+     updateCat writes them in one pass. */
+  #hexCat .look {
     transform-box: fill-box; transform-origin: center; transition: transform .12s ease-out;
+  }
+  /* DILATION, on its own element one level further in. It is a scale and the
+     look is a translate, and a single transform cannot hold both — that is the
+     same reason the lids are split from the look. Its own element also keeps it
+     off the lash arc: scaling THAT on X would squeeze the closed eye narrow
+     every time she rested.
+     Slower than the look on purpose (.22s vs .12s). A pupil dilating is a
+     physical response with visible ramp; a glance is a snap. Same numbers as the
+     ease on #catFace, so the whole face reads as one animal. */
+  #hexCat .pupil {
+    transform-box: fill-box; transform-origin: center; transition: transform .22s ease-out;
   }
 
   /* ---- Night phase (post–Catnap Hypnalysis): Hex sleeps, the wall wakes ----
@@ -1147,29 +1184,6 @@
   #upgradeSec:not(.show) + #buildingSec .shopDivider,
   #dock.collapsed .shopDivider { display: none; }
 
-  /* Unseen-upgrade badge, the mobile-game convention: a count on the thing that
-     OWNS the hidden content, cleared by going and looking. Absolutely positioned
-     so it can't shift the centred SHOP + chevron as the number changes width.
-     Red is the only place this palette uses alarm colour, which is the point —
-     it has to read at a glance to someone whose eyes are on the cat.
-     The hairline ring is the cost of the rail turning green: red on a pale wash
-     was two values apart, red on green is the one pair a red-green colour vision
-     deficiency flattens outright, and this badge is 22px of nothing but hue. The
-     ring is what carries it — a light edge keeps the badge a distinct OBJECT on
-     the rail even when the two fills read as the same mud. */
-  #newBadge {
-    position: absolute; right: calc(10px * var(--ss)); top: 50%;
-    transform: translateY(-50%);
-    background: #e5484d; color: #fff; border-radius: 999px;
-    min-width: calc(15px * var(--ss)); height: calc(15px * var(--ss));
-    display: flex; align-items: center; justify-content: center;
-    padding: 0 calc(4px * var(--ss));
-    font: 700 calc(9px * var(--ss))/1 var(--ui-font); letter-spacing: 0;
-    font-variant-numeric: tabular-nums;
-    box-shadow: 0 0 0 1.5px rgba(255,255,255,.6), 0 1px 3px rgba(0,0,0,.5);
-  }
-  #newBadge[hidden] { display: none; }
-
   /* THE shop scroller — the only one. Upgrades and Buildings are plain blocks
      inside it, so a single drag runs the whole shop end to end.
      `overscroll-behavior: contain` so scrolling past the end stops here instead
@@ -1351,6 +1365,50 @@
   #shopScroll.can-up::before { opacity: 1; }
   #shopScroll.can-down::after { opacity: 1; }
 
+  /* ---- "N MORE": the unseen-upgrade count, at the edge it is hiding behind ----
+     This used to be a red badge on the SHOP tab, and the tab was the wrong
+     place for it. A row is marked SEEN when its midpoint enters this box and
+     you have scrolled recently (updSeen in shop.js) — so "unseen" does not mean
+     "new", it means "you have not scrolled to it". That is a fact about this
+     scroller, and a number on the tab could only ever say "somewhere". Here it
+     can point, so there are two: one per edge, each counting only what is
+     hiding past that edge.
+     Sticky rather than absolute, so each rides its own end of the content and
+     lands on the first or last VISIBLE row wherever the scroll happens to be.
+     The negative margin is what keeps it an overlay: it cancels the height so
+     the pill floats on the edge row instead of reserving a strip of the tray,
+     which is a fifth of it — the tray caps at ~46vh, about five rows.
+     pointer-events: none is load-bearing, not tidiness: the pill sits ON a
+     buyable row, so a tap that lands on it has to reach the row underneath.
+     z-index clears the edge shadows above (3), which it is meant to sit on.
+     It wears the RAIL's paint rather than a colour of its own — --plank-line is
+     the material the dividers and the tab's edges are cut from, so the chip
+     reads as a piece of the shop's own furniture in every phase, and the night
+     skin needs no second answer. */
+  .moreHint {
+    position: sticky; z-index: 4; pointer-events: none;
+    height: calc(24px * var(--ss));
+    display: flex; align-items: center; justify-content: center;
+    font: 700 calc(10px * var(--ss))/1 var(--ui-font);
+    letter-spacing: .10em; text-transform: uppercase;
+  }
+  /* Stated, because .moreHint's own `display: flex` outranks the UA's
+     `[hidden] { display: none }` and the pills would never hide. */
+  .moreHint[hidden] { display: none; }
+  .moreHint.up   { top: 0;    margin-bottom: calc(-24px * var(--ss)); }
+  .moreHint.down { bottom: 0; margin-top:    calc(-24px * var(--ss)); }
+  .moreHint .pill {
+    background: var(--plank-line); color: var(--rail-ink);
+    border-radius: 999px; padding: calc(4px * var(--ss)) calc(10px * var(--ss));
+    box-shadow: 0 2px 6px rgba(0,0,0,.45);
+    font-variant-numeric: tabular-nums;
+  }
+  /* The arrow is the DIRECTION, so it comes off the class — leaving the count
+     as the only thing any JS writes into this. NBSP, so it can never be the
+     place the pill wraps. */
+  .moreHint.up .pill::before { content: "\2191\00a0"; }
+  .moreHint.down .pill::after { content: "\00a0\2193"; }
+
   /* ---- PORTRAIT GATE -------------------------------------------------------
      This game is portrait: the shop rail and the night wall are stacked
      vertically, so a sideways phone squeezes the wall — the one thing the
@@ -1427,6 +1485,25 @@
          three drifting glyphs are decoration, not information a reader needs. -->
     <div id="sleepZ" aria-hidden="true"><span>z</span><span>z</span><span>z</span></div>
     <svg id="hexCat" role="button" aria-label="Pet Hex" width="828" height="652" viewBox="0 0 828 652" fill="none" xmlns="http://www.w3.org/2000/svg">
+     <defs>
+      <!-- THE SOCKET CLIP. The pupil is bounded by the socket the way a real
+           pupil is bounded by its iris: it can grow until it fills the eye and a
+           glance then slides it AGAINST the rim instead of through it.
+           Without it the two constraints fight, because dilation and gaze always
+           happen together — she only widens when a golden is out there, which is
+           exactly when she is looking hardest. Measured over the whole gaze
+           ellipse, the saucer pupil left 4% of the look range before it crossed
+           the outline; clipped, it keeps all of it.
+           The clip is the socket's own INNER contour, so what survives a
+           full-gaze press is the ring's thickness in yellow — the drawn rim,
+           doing exactly what an iris does.
+           It hangs on a wrapper OUTSIDE the look group, never on the pupil
+           itself: a clip-path rides along with its element's own transform, so
+           clipping the pupil directly would drag the socket around with the
+           glance and clip nothing at all. -->
+      <clipPath id="socketClipL"><path d="M293.5 552.0 296.0 551.5 300.0 548.5 301.0 548.5 310.5 539.0 310.5 537.0 313.5 533.0 313.5 530.0 314.5 529.0 314.5 526.0 315.5 525.0 315.5 520.0 316.5 519.0 315.5 517.0 315.5 514.0 316.5 513.0 316.5 498.0 317.5 497.0 316.5 492.0 314.5 489.0 314.5 484.0 310.5 480.0 308.5 476.0 304.5 472.0 303.5 469.0 302.0 467.5 301.0 467.5 300.5 466.0 294.0 460.5 288.0 457.5 285.0 457.5 284.0 456.5 283.0 457.5 269.0 457.5 268.0 456.5 262.0 456.5 260.0 454.5 254.0 454.5 253.0 455.5 248.0 455.5 247.0 454.5 234.0 454.5 223.5 466.0 222.5 469.0 220.5 471.0 220.5 473.0 216.5 481.0 216.5 487.0 214.5 491.0 214.5 495.0 212.0 498.5 208.5 499.0 209.5 503.0 212.5 505.0 213.5 511.0 215.5 514.0 215.5 517.0 218.5 521.0 218.5 524.0 220.5 528.0 223.5 531.0 225.5 535.0 236.0 544.5 240.0 546.5 243.0 546.5 246.0 548.5 254.0 550.5 255.0 551.5 265.0 551.5 266.0 552.5 270.0 552.5 271.0 551.5 274.0 551.5 275.0 552.5 284.0 552.5 285.0 551.5 291.0 551.5 292.0 552.5Z"/></clipPath>
+      <clipPath id="socketClipR"><path d="M539.5 526.0 542.0 525.5 545.0 523.5 550.0 522.5 553.0 520.5 555.0 520.5 557.0 518.5 561.0 517.5 563.0 515.5 564.0 515.5 566.0 513.5 567.0 513.5 569.0 511.5 572.0 510.5 573.5 509.0 575.5 500.0 578.5 497.0 578.5 493.0 579.5 492.0 579.5 486.0 578.5 485.0 578.5 480.0 579.5 479.0 579.5 471.0 580.5 470.0 580.5 463.0 579.5 462.0 579.5 459.0 578.5 458.0 578.5 456.0 575.5 452.0 574.5 446.0 563.0 435.5 561.0 434.5 557.0 434.5 549.0 430.5 544.0 429.5 540.0 426.5 534.0 423.5 528.0 423.5 527.0 422.5 523.0 422.5 522.0 423.5 509.0 423.5 501.0 427.5 499.0 427.5 491.5 435.0 491.5 437.0 486.5 442.0 486.5 444.0 484.5 447.0 484.5 449.0 479.5 458.0 479.5 462.0 478.5 463.0 478.5 465.0 476.5 469.0 476.5 482.0 475.5 483.0 475.5 487.0 476.5 488.0 476.5 496.0 483.0 508.5 484.0 508.5 487.0 511.5 494.0 514.5 497.0 517.5 500.0 518.5 502.0 520.5 517.0 520.5 518.0 521.5 520.0 521.5 524.0 523.5 530.0 524.5 533.0 526.5Z"/></clipPath>
+     </defs>
      <g id="catFace">
       <!-- HEAD: the artist's drawing, five poses, all exported onto ONE 828x652
            canvas and registered to each other by eye position.
@@ -1478,23 +1555,77 @@
              x="0" y="0" width="828" height="652"/>
       <!-- EYES: the one part kept as markup, because it is the only part that has
            to move independently every frame — lids, gaze and dilation all live
-           here. Two rings and two shut-lash arcs, traced from the artist's own
-           eyes (open pair off the day cat, shut pair off her sleeping pose) so
-           they carry the same wobble as the coat they sit on.
-           #eyeLeft/#eyeRight are the LIDS (scaleY); #irisLeft/#irisRight inside
-           them are the LOOK (translate + dilation scale). Splitting it that way
-           is what lets a blink and a glance compose instead of overwriting each
-           other — the same division of labour the old vector cat had, so
-           updateCat still drives the same four ids. -->
+           here. Sockets and shut-lash arcs are traced from the artist's own eyes
+           (open pair off the day cat, shut pair off her sleeping pose) so they
+           carry the same wobble as the coat they sit on.
+           THREE nested channels, one job each, because they have to COMPOSE: a
+           blink, a glance and a dilation all happen at once and a single
+           transform can only say one of them.
+             #eyeLeft/#eyeRight     — the LIDS (scaleY)
+             .look (iris + lash)    — the LOOK (translate)
+             #pupilLeft/#pupilRight — the DILATION (scale)
+           The pupil is new with the artist's latest sheet, and it moved the look
+           down a level: the ring used to BE the eye, so a glance slid the whole
+           outline across her face. Now the socket is the outline (fixed, as an
+           outline should be) and the pupil is what looks at things, inside a clip
+           that keeps it there however wide it opens. -->
       <g id="eyeLeft" class="eye">
-       <g id="irisLeft">
-        <path class="eyeOpen" d="M290.0 569.5 285.0 569.5 284.0 568.5 253.0 568.5 252.0 567.5 249.0 567.5 246.0 565.5 244.0 565.5 240.0 563.5 236.0 563.5 230.0 558.5 228.0 558.5 225.0 556.5 223.0 556.5 220.0 553.5 219.0 553.5 218.5 552.0 217.0 551.5 213.5 548.0 212.5 545.0 207.5 539.0 206.5 535.0 201.5 527.0 201.5 524.0 199.5 521.0 199.5 519.0 198.5 518.0 198.5 514.0 197.5 513.0 199.5 507.0 201.0 505.5 204.0 505.5 206.5 503.0 203.5 499.0 204.5 498.0 204.0 497.5 199.0 497.5 197.5 496.0 197.5 491.0 199.5 487.0 199.5 481.0 203.5 473.0 204.5 466.0 208.5 461.0 213.5 449.0 219.0 443.5 221.0 443.5 224.0 440.5 228.0 439.5 229.0 438.5 231.0 438.5 232.0 437.5 253.0 437.5 254.0 438.5 257.0 438.5 258.0 439.5 265.0 439.5 269.0 441.5 270.0 440.5 273.0 440.5 279.0 437.5 282.0 437.5 286.0 439.5 296.0 440.5 299.0 443.5 301.0 443.5 308.0 449.5 309.0 449.5 312.5 453.0 314.5 457.0 323.5 467.0 326.5 473.0 326.5 477.0 328.5 479.0 330.5 483.0 330.5 487.0 331.5 488.0 331.5 491.0 333.5 495.0 333.5 512.0 332.5 513.0 333.5 515.0 332.5 516.0 332.5 523.0 331.5 524.0 331.5 528.0 330.5 529.0 330.5 531.0 327.5 536.0 327.5 542.0 325.5 546.0 322.5 549.0 320.5 554.0 317.5 557.0 317.0 558.5 303.0 565.5 298.0 565.5ZM293.5 552.0 296.0 551.5 300.0 548.5 301.0 548.5 310.5 539.0 310.5 537.0 313.5 533.0 313.5 530.0 314.5 529.0 314.5 526.0 315.5 525.0 315.5 520.0 316.5 519.0 315.5 517.0 315.5 514.0 316.5 513.0 316.5 498.0 317.5 497.0 316.5 492.0 314.5 489.0 314.5 484.0 310.5 480.0 308.5 476.0 304.5 472.0 303.5 469.0 302.0 467.5 301.0 467.5 300.5 466.0 294.0 460.5 288.0 457.5 285.0 457.5 284.0 456.5 283.0 457.5 269.0 457.5 268.0 456.5 262.0 456.5 260.0 454.5 254.0 454.5 253.0 455.5 248.0 455.5 247.0 454.5 234.0 454.5 223.5 466.0 222.5 469.0 220.5 471.0 220.5 473.0 216.5 481.0 216.5 487.0 214.5 491.0 214.5 495.0 212.0 498.5 208.5 499.0 209.5 503.0 212.5 505.0 213.5 511.0 215.5 514.0 215.5 517.0 218.5 521.0 218.5 524.0 220.5 528.0 223.5 531.0 225.5 535.0 236.0 544.5 240.0 546.5 243.0 546.5 246.0 548.5 254.0 550.5 255.0 551.5 265.0 551.5 266.0 552.5 270.0 552.5 271.0 551.5 274.0 551.5 275.0 552.5 284.0 552.5 285.0 551.5 291.0 551.5 292.0 552.5Z"/>
+       <!-- THE SOCKET. Fixed to the head: it is the eye's outline, and an
+            outline does not slide around a face. Two drawings of the same
+            socket, one visible at a time (see the eye-variant block in the CSS):
+            .eyeRing is the artist's hollow ring, .eyeDisc is its outer contour
+            alone, filled. The disc is a SEPARATE path rather than the ring plus
+            a patch over its hole — two abutting shapes leave an antialiasing
+            seam right down the middle of the eye. -->
+       <path class="eyeOpen eyeRing" d="M290.0 569.5 285.0 569.5 284.0 568.5 253.0 568.5 252.0 567.5 249.0 567.5 246.0 565.5 244.0 565.5 240.0 563.5 236.0 563.5 230.0 558.5 228.0 558.5 225.0 556.5 223.0 556.5 220.0 553.5 219.0 553.5 218.5 552.0 217.0 551.5 213.5 548.0 212.5 545.0 207.5 539.0 206.5 535.0 201.5 527.0 201.5 524.0 199.5 521.0 199.5 519.0 198.5 518.0 198.5 514.0 197.5 513.0 199.5 507.0 201.0 505.5 204.0 505.5 206.5 503.0 203.5 499.0 204.5 498.0 204.0 497.5 199.0 497.5 197.5 496.0 197.5 491.0 199.5 487.0 199.5 481.0 203.5 473.0 204.5 466.0 208.5 461.0 213.5 449.0 219.0 443.5 221.0 443.5 224.0 440.5 228.0 439.5 229.0 438.5 231.0 438.5 232.0 437.5 253.0 437.5 254.0 438.5 257.0 438.5 258.0 439.5 265.0 439.5 269.0 441.5 270.0 440.5 273.0 440.5 279.0 437.5 282.0 437.5 286.0 439.5 296.0 440.5 299.0 443.5 301.0 443.5 308.0 449.5 309.0 449.5 312.5 453.0 314.5 457.0 323.5 467.0 326.5 473.0 326.5 477.0 328.5 479.0 330.5 483.0 330.5 487.0 331.5 488.0 331.5 491.0 333.5 495.0 333.5 512.0 332.5 513.0 333.5 515.0 332.5 516.0 332.5 523.0 331.5 524.0 331.5 528.0 330.5 529.0 330.5 531.0 327.5 536.0 327.5 542.0 325.5 546.0 322.5 549.0 320.5 554.0 317.5 557.0 317.0 558.5 303.0 565.5 298.0 565.5ZM293.5 552.0 296.0 551.5 300.0 548.5 301.0 548.5 310.5 539.0 310.5 537.0 313.5 533.0 313.5 530.0 314.5 529.0 314.5 526.0 315.5 525.0 315.5 520.0 316.5 519.0 315.5 517.0 315.5 514.0 316.5 513.0 316.5 498.0 317.5 497.0 316.5 492.0 314.5 489.0 314.5 484.0 310.5 480.0 308.5 476.0 304.5 472.0 303.5 469.0 302.0 467.5 301.0 467.5 300.5 466.0 294.0 460.5 288.0 457.5 285.0 457.5 284.0 456.5 283.0 457.5 269.0 457.5 268.0 456.5 262.0 456.5 260.0 454.5 254.0 454.5 253.0 455.5 248.0 455.5 247.0 454.5 234.0 454.5 223.5 466.0 222.5 469.0 220.5 471.0 220.5 473.0 216.5 481.0 216.5 487.0 214.5 491.0 214.5 495.0 212.0 498.5 208.5 499.0 209.5 503.0 212.5 505.0 213.5 511.0 215.5 514.0 215.5 517.0 218.5 521.0 218.5 524.0 220.5 528.0 223.5 531.0 225.5 535.0 236.0 544.5 240.0 546.5 243.0 546.5 246.0 548.5 254.0 550.5 255.0 551.5 265.0 551.5 266.0 552.5 270.0 552.5 271.0 551.5 274.0 551.5 275.0 552.5 284.0 552.5 285.0 551.5 291.0 551.5 292.0 552.5Z"/>
+       <path class="eyeOpen eyeDisc" d="M290.0 569.5 285.0 569.5 284.0 568.5 253.0 568.5 252.0 567.5 249.0 567.5 246.0 565.5 244.0 565.5 240.0 563.5 236.0 563.5 230.0 558.5 228.0 558.5 225.0 556.5 223.0 556.5 220.0 553.5 219.0 553.5 218.5 552.0 217.0 551.5 213.5 548.0 212.5 545.0 207.5 539.0 206.5 535.0 201.5 527.0 201.5 524.0 199.5 521.0 199.5 519.0 198.5 518.0 198.5 514.0 197.5 513.0 199.5 507.0 201.0 505.5 204.0 505.5 206.5 503.0 203.5 499.0 204.5 498.0 204.0 497.5 199.0 497.5 197.5 496.0 197.5 491.0 199.5 487.0 199.5 481.0 203.5 473.0 204.5 466.0 208.5 461.0 213.5 449.0 219.0 443.5 221.0 443.5 224.0 440.5 228.0 439.5 229.0 438.5 231.0 438.5 232.0 437.5 253.0 437.5 254.0 438.5 257.0 438.5 258.0 439.5 265.0 439.5 269.0 441.5 270.0 440.5 273.0 440.5 279.0 437.5 282.0 437.5 286.0 439.5 296.0 440.5 299.0 443.5 301.0 443.5 308.0 449.5 309.0 449.5 312.5 453.0 314.5 457.0 323.5 467.0 326.5 473.0 326.5 477.0 328.5 479.0 330.5 483.0 330.5 487.0 331.5 488.0 331.5 491.0 333.5 495.0 333.5 512.0 332.5 513.0 333.5 515.0 332.5 516.0 332.5 523.0 331.5 524.0 331.5 528.0 330.5 529.0 330.5 531.0 327.5 536.0 327.5 542.0 325.5 546.0 322.5 549.0 320.5 554.0 317.5 557.0 317.0 558.5 303.0 565.5 298.0 565.5Z"/>
+       <g clip-path="url(#socketClipL)">
+        <g class="look" id="irisLeft">
+         <!-- THE PUPIL. Derived from the socket's own inner contour scaled to
+              55% x 71% about its centre, so it carries the artist's wobble and is
+              registered to the socket by construction rather than by eye; every
+              2nd point kept, since at 55% the dropped detail is under a pixel at
+              Hex's real size. Drawn at the RING variant's dilated size — the
+              resting slit scales it down, and the solid variant's saucer scales
+              it up (see PUPIL_ROUND in cat.js). -->
+         <path class="eyeOpen pupil" id="pupilLeft" d="M279.8 537.9 283.4 535.5 289.1 528.7 290.8 524.4 291.3 521.6 291.9 518.8 292.4 514.5 291.9 511 292.4 499.6 292.4 495.3 291.3 489.7 288 484 285.3 479 283.9 477.9 280.1 473 275.1 470.8 274 470.8 265.8 470.1 261.4 468.7 257.5 469.4 254.2 468.7 241.3 476.9 239.6 480.4 237.4 487.5 236.3 494.6 235 500 233.6 503.1 235.8 508.8 236.9 513.1 238.5 518.1 241.3 523 248.2 532.6 252 534 258.1 536.9 264.1 537.6 266.9 538.3 269.1 537.6 274.6 538.3 278.4 537.6Z"/>
+        </g>
+       </g>
+       <!-- The sleeping lash arc drifts with the same look the pupil does (that
+            is the REM tell) but is NOT in the clipped group: it is drawn wider
+            than the socket it closes, so the socket clip would shave its ends
+            off. Hence a second .look group rather than one shared parent. -->
+       <g class="look" id="lashLeft">
         <path class="eyeShut" d="M281.0 519.5 276.0 519.5 271.5 516.0 271.5 510.0 270.5 509.0 270.0 505.5 266.0 505.5 265.0 504.5 261.0 504.5 260.0 503.5 258.5 504.0 258.5 508.0 251.0 515.5 246.0 515.5 244.5 514.0 244.5 513.0 242.5 512.0 242.5 511.0 243.5 510.0 244.5 504.0 247.5 500.0 244.0 496.5 241.0 495.5 236.0 490.5 235.0 490.5 226.5 482.0 226.5 481.0 222.5 477.0 222.5 476.0 220.5 475.0 219.5 473.0 220.5 472.0 220.5 468.0 224.0 464.5 228.0 463.5 233.5 468.0 233.5 470.0 236.5 473.0 237.5 476.0 239.0 477.5 240.0 477.5 245.0 482.5 257.0 488.5 261.0 491.5 263.0 491.5 264.0 492.5 269.0 492.5 270.0 493.5 276.0 493.5 277.0 494.5 278.0 493.5 288.0 493.5 292.0 491.5 295.0 491.5 296.0 490.5 298.0 490.5 302.0 488.5 308.0 487.5 308.5 486.0 319.0 476.5 320.0 476.5 320.5 475.0 325.0 470.5 329.0 469.5 331.0 471.5 332.0 471.5 333.5 473.0 333.5 477.0 332.5 478.0 332.5 480.0 329.5 483.0 329.5 485.0 319.0 494.5 315.0 495.5 310.5 500.0 314.5 508.0 313.5 512.0 311.0 514.5 306.0 514.5 304.0 512.5 303.0 512.5 301.5 511.0 300.5 508.0 297.0 504.5 295.0 505.5 290.0 505.5 289.0 506.5 287.0 505.5 283.5 508.0 283.5 510.0 284.5 511.0 283.5 513.0 283.5 517.0Z"/>
        </g>
       </g>
       <g id="eyeRight" class="eye">
-       <g id="irisRight">
-        <path class="eyeOpen" d="M537.0 543.5 535.0 542.5 534.0 543.5 532.0 543.5 531.0 542.5 525.0 541.5 524.0 540.5 521.0 540.5 520.0 539.5 514.0 539.5 511.0 537.5 506.0 537.5 505.0 536.5 502.0 536.5 501.0 535.5 499.0 535.5 498.0 534.5 496.0 534.5 492.0 532.5 489.0 532.5 485.0 530.5 482.0 527.5 479.0 526.5 474.5 522.0 474.5 521.0 464.5 512.0 464.5 510.0 462.5 507.0 462.5 503.0 460.5 500.0 460.5 491.0 459.5 490.0 460.5 488.0 460.5 481.0 459.5 480.0 459.5 470.0 460.5 469.0 460.5 464.0 462.5 461.0 462.5 458.0 463.5 457.0 463.5 453.0 467.5 445.0 467.5 443.0 469.5 439.0 472.5 436.0 475.5 428.0 479.5 425.0 483.5 418.0 488.0 414.5 492.0 413.5 495.0 410.5 499.0 409.5 504.0 406.5 509.0 406.5 510.0 405.5 519.0 405.5 520.0 406.5 528.0 406.5 529.0 407.5 533.0 407.5 535.0 406.5 536.0 407.5 540.0 408.5 544.0 411.5 548.0 411.5 554.0 414.5 556.0 414.5 557.0 413.5 558.0 414.5 562.0 414.5 566.0 416.5 568.0 418.5 571.0 419.5 582.5 431.0 583.5 434.0 590.5 442.0 592.5 446.0 592.5 448.0 593.5 449.0 594.5 455.0 595.5 456.0 596.5 486.0 595.5 487.0 595.5 493.0 594.5 494.0 594.5 499.0 592.5 503.0 592.5 509.0 591.5 511.0 588.5 514.0 588.5 515.0 585.5 518.0 585.5 519.0 574.0 529.5 570.0 530.5 565.0 534.5 562.0 535.5 560.0 537.5 558.0 537.5 556.0 539.5 549.0 540.5 545.0 542.5 541.0 541.5ZM539.5 526.0 542.0 525.5 545.0 523.5 550.0 522.5 553.0 520.5 555.0 520.5 557.0 518.5 561.0 517.5 563.0 515.5 564.0 515.5 566.0 513.5 567.0 513.5 569.0 511.5 572.0 510.5 573.5 509.0 575.5 500.0 578.5 497.0 578.5 493.0 579.5 492.0 579.5 486.0 578.5 485.0 578.5 480.0 579.5 479.0 579.5 471.0 580.5 470.0 580.5 463.0 579.5 462.0 579.5 459.0 578.5 458.0 578.5 456.0 575.5 452.0 574.5 446.0 563.0 435.5 561.0 434.5 557.0 434.5 549.0 430.5 544.0 429.5 540.0 426.5 534.0 423.5 528.0 423.5 527.0 422.5 523.0 422.5 522.0 423.5 509.0 423.5 501.0 427.5 499.0 427.5 491.5 435.0 491.5 437.0 486.5 442.0 486.5 444.0 484.5 447.0 484.5 449.0 479.5 458.0 479.5 462.0 478.5 463.0 478.5 465.0 476.5 469.0 476.5 482.0 475.5 483.0 475.5 487.0 476.5 488.0 476.5 496.0 483.0 508.5 484.0 508.5 487.0 511.5 494.0 514.5 497.0 517.5 500.0 518.5 502.0 520.5 517.0 520.5 518.0 521.5 520.0 521.5 524.0 523.5 530.0 524.5 533.0 526.5Z"/>
+       <!-- THE SOCKET. Fixed to the head: it is the eye's outline, and an
+            outline does not slide around a face. Two drawings of the same
+            socket, one visible at a time (see the eye-variant block in the CSS):
+            .eyeRing is the artist's hollow ring, .eyeDisc is its outer contour
+            alone, filled. The disc is a SEPARATE path rather than the ring plus
+            a patch over its hole — two abutting shapes leave an antialiasing
+            seam right down the middle of the eye. -->
+       <path class="eyeOpen eyeRing" d="M537.0 543.5 535.0 542.5 534.0 543.5 532.0 543.5 531.0 542.5 525.0 541.5 524.0 540.5 521.0 540.5 520.0 539.5 514.0 539.5 511.0 537.5 506.0 537.5 505.0 536.5 502.0 536.5 501.0 535.5 499.0 535.5 498.0 534.5 496.0 534.5 492.0 532.5 489.0 532.5 485.0 530.5 482.0 527.5 479.0 526.5 474.5 522.0 474.5 521.0 464.5 512.0 464.5 510.0 462.5 507.0 462.5 503.0 460.5 500.0 460.5 491.0 459.5 490.0 460.5 488.0 460.5 481.0 459.5 480.0 459.5 470.0 460.5 469.0 460.5 464.0 462.5 461.0 462.5 458.0 463.5 457.0 463.5 453.0 467.5 445.0 467.5 443.0 469.5 439.0 472.5 436.0 475.5 428.0 479.5 425.0 483.5 418.0 488.0 414.5 492.0 413.5 495.0 410.5 499.0 409.5 504.0 406.5 509.0 406.5 510.0 405.5 519.0 405.5 520.0 406.5 528.0 406.5 529.0 407.5 533.0 407.5 535.0 406.5 536.0 407.5 540.0 408.5 544.0 411.5 548.0 411.5 554.0 414.5 556.0 414.5 557.0 413.5 558.0 414.5 562.0 414.5 566.0 416.5 568.0 418.5 571.0 419.5 582.5 431.0 583.5 434.0 590.5 442.0 592.5 446.0 592.5 448.0 593.5 449.0 594.5 455.0 595.5 456.0 596.5 486.0 595.5 487.0 595.5 493.0 594.5 494.0 594.5 499.0 592.5 503.0 592.5 509.0 591.5 511.0 588.5 514.0 588.5 515.0 585.5 518.0 585.5 519.0 574.0 529.5 570.0 530.5 565.0 534.5 562.0 535.5 560.0 537.5 558.0 537.5 556.0 539.5 549.0 540.5 545.0 542.5 541.0 541.5ZM539.5 526.0 542.0 525.5 545.0 523.5 550.0 522.5 553.0 520.5 555.0 520.5 557.0 518.5 561.0 517.5 563.0 515.5 564.0 515.5 566.0 513.5 567.0 513.5 569.0 511.5 572.0 510.5 573.5 509.0 575.5 500.0 578.5 497.0 578.5 493.0 579.5 492.0 579.5 486.0 578.5 485.0 578.5 480.0 579.5 479.0 579.5 471.0 580.5 470.0 580.5 463.0 579.5 462.0 579.5 459.0 578.5 458.0 578.5 456.0 575.5 452.0 574.5 446.0 563.0 435.5 561.0 434.5 557.0 434.5 549.0 430.5 544.0 429.5 540.0 426.5 534.0 423.5 528.0 423.5 527.0 422.5 523.0 422.5 522.0 423.5 509.0 423.5 501.0 427.5 499.0 427.5 491.5 435.0 491.5 437.0 486.5 442.0 486.5 444.0 484.5 447.0 484.5 449.0 479.5 458.0 479.5 462.0 478.5 463.0 478.5 465.0 476.5 469.0 476.5 482.0 475.5 483.0 475.5 487.0 476.5 488.0 476.5 496.0 483.0 508.5 484.0 508.5 487.0 511.5 494.0 514.5 497.0 517.5 500.0 518.5 502.0 520.5 517.0 520.5 518.0 521.5 520.0 521.5 524.0 523.5 530.0 524.5 533.0 526.5Z"/>
+       <path class="eyeOpen eyeDisc" d="M537.0 543.5 535.0 542.5 534.0 543.5 532.0 543.5 531.0 542.5 525.0 541.5 524.0 540.5 521.0 540.5 520.0 539.5 514.0 539.5 511.0 537.5 506.0 537.5 505.0 536.5 502.0 536.5 501.0 535.5 499.0 535.5 498.0 534.5 496.0 534.5 492.0 532.5 489.0 532.5 485.0 530.5 482.0 527.5 479.0 526.5 474.5 522.0 474.5 521.0 464.5 512.0 464.5 510.0 462.5 507.0 462.5 503.0 460.5 500.0 460.5 491.0 459.5 490.0 460.5 488.0 460.5 481.0 459.5 480.0 459.5 470.0 460.5 469.0 460.5 464.0 462.5 461.0 462.5 458.0 463.5 457.0 463.5 453.0 467.5 445.0 467.5 443.0 469.5 439.0 472.5 436.0 475.5 428.0 479.5 425.0 483.5 418.0 488.0 414.5 492.0 413.5 495.0 410.5 499.0 409.5 504.0 406.5 509.0 406.5 510.0 405.5 519.0 405.5 520.0 406.5 528.0 406.5 529.0 407.5 533.0 407.5 535.0 406.5 536.0 407.5 540.0 408.5 544.0 411.5 548.0 411.5 554.0 414.5 556.0 414.5 557.0 413.5 558.0 414.5 562.0 414.5 566.0 416.5 568.0 418.5 571.0 419.5 582.5 431.0 583.5 434.0 590.5 442.0 592.5 446.0 592.5 448.0 593.5 449.0 594.5 455.0 595.5 456.0 596.5 486.0 595.5 487.0 595.5 493.0 594.5 494.0 594.5 499.0 592.5 503.0 592.5 509.0 591.5 511.0 588.5 514.0 588.5 515.0 585.5 518.0 585.5 519.0 574.0 529.5 570.0 530.5 565.0 534.5 562.0 535.5 560.0 537.5 558.0 537.5 556.0 539.5 549.0 540.5 545.0 542.5 541.0 541.5Z"/>
+       <g clip-path="url(#socketClipR)">
+        <g class="look" id="irisRight">
+         <!-- THE PUPIL. Derived from the socket's own inner contour scaled to
+              55% x 71% about its centre, so it carries the artist's wobble and is
+              registered to the socket by construction rather than by eye; every
+              2nd point kept, since at 55% the dropped detail is under a pixel at
+              Hex's real size. Drawn at the RING variant's dilated size — the
+              resting slit scales it down, and the solid variant's saucer scales
+              it up (see PUPIL_ROUND in cat.js). -->
+         <path class="eyeOpen pupil" id="pupilRight" d="M534.3 511.1 537.4 509.3 541.8 507.2 544 505.7 547.3 503.6 548.9 502.2 550.6 500.8 553 499 555.8 490.5 556.3 486.9 555.8 482 556.3 477.7 556.9 471.3 556.3 465.6 555.8 462.8 554.1 458.5 547.3 446.8 544 446.1 536.8 442.6 531.3 438.3 527.5 437.6 524.7 438.3 513.2 441.1 507.9 446.5 505.2 451.4 504.1 455 501.3 462.8 500.8 466.3 499.7 470.6 499.1 480.5 499.7 484.1 503.3 498.6 505.5 500.8 511 505 513.7 507.2 522.5 507.9 525.8 509.3 530.8 511.4Z"/>
+        </g>
+       </g>
+       <!-- The sleeping lash arc drifts with the same look the pupil does (that
+            is the REM tell) but is NOT in the clipped group: it is drawn wider
+            than the socket it closes, so the socket clip would shave its ends
+            off. Hence a second .look group rather than one shared parent. -->
+       <g class="look" id="lashRight">
         <path class="eyeShut" d="M490.0 495.5 487.0 495.5 484.0 492.5 482.5 492.0 483.5 490.0 482.5 486.0 485.5 483.0 485.5 480.0 486.5 478.0 483.0 477.5 482.0 476.5 480.0 476.5 476.0 474.5 472.0 474.5 470.0 472.5 468.0 472.5 464.0 469.5 461.0 468.5 460.5 467.0 457.0 463.5 456.0 463.5 450.5 457.0 450.5 455.0 449.5 454.0 449.5 449.0 451.0 446.5 453.0 446.5 454.0 445.5 458.0 445.5 460.0 446.5 461.5 451.0 466.0 455.5 467.0 455.5 470.0 458.5 480.0 463.5 502.0 463.5 503.0 464.5 510.0 464.5 511.0 463.5 514.0 463.5 515.0 464.5 519.0 462.5 521.0 460.5 524.0 459.5 526.0 457.5 529.0 457.5 533.0 453.5 536.0 452.5 546.5 443.0 546.5 442.0 552.5 435.0 552.5 433.0 554.0 430.5 555.0 430.5 557.0 428.5 561.0 428.5 564.5 431.0 565.5 433.0 565.5 436.0 564.5 437.0 564.5 440.0 562.5 443.0 562.5 445.0 552.0 456.5 549.0 457.5 547.5 459.0 547.5 460.0 543.5 463.0 543.5 464.0 545.0 465.5 546.0 465.5 549.0 468.5 551.0 468.5 555.5 473.0 556.5 477.0 554.0 479.5 553.0 479.5 552.0 481.5 548.0 482.5 543.0 478.5 540.0 478.5 538.0 477.5 534.5 474.0 533.5 470.0 532.0 469.5 526.0 472.5 524.5 474.0 525.5 476.0 525.5 479.0 527.5 483.0 526.5 490.0 525.0 491.5 519.0 492.5 517.0 490.5 516.0 490.5 513.5 487.0 513.5 480.0 512.5 479.0 512.5 477.0 504.0 476.5 503.0 475.5 502.0 476.5 498.5 477.0 499.5 478.0 498.5 480.0 498.5 484.0 495.5 488.0 494.5 492.0Z"/>
        </g>
       </g>
@@ -1540,10 +1671,11 @@
          refresh path ever writes rail text and the sign cannot flash the wrong
          word for a frame. -->
     <span class="soldTitle">Sold Out</span><span class="chev" aria-hidden="true"></span>
-    <!-- Unseen-upgrade count. aria-hidden because the rail's accessible name is
-         relabelled with the same number (see refreshBadge) — left visible it
-         reads out as the bare digit tacked onto "Shop". -->
-    <span id="newBadge" aria-hidden="true" hidden>0</span>
+    <!-- The unseen-upgrade count used to sit here as a red badge. It reads at
+         the scroller's edges now (.moreHint below) — the count is a fact about
+         SCROLLING, so it belongs where the scrolling is. The tab keeps carrying
+         it in its accessible name, which is the one place a number still has to
+         exist while the tray is shut. -->
   </button>
   <!-- ONE scroller for both lists. Upgrades and Buildings used to scroll
        independently, which meant the shop had two thumb-catching regions
@@ -1551,6 +1683,12 @@
        to the bottom of the building list in one gesture. They are one list with
        a plank between them now; only #shopScroll scrolls. -->
   <div id="shopScroll">
+    <!-- "N MORE", one per edge. Permanently in the DOM and picked by [hidden],
+         the same way the closed sign and the locked rows are: no refresh path
+         has to build them, only write the number.
+         Direction is a CLASS, not text — the arrow comes from .up/.down in the
+         CSS — so the only thing JS ever writes here is the count. -->
+    <div class="moreHint up" aria-hidden="true" hidden><span class="pill"></span></div>
     <div id="upgradeSec">
       <div id="upgrades"></div>
     </div>
@@ -1558,6 +1696,7 @@
       <div class="shopDivider"></div>
       <div id="shop"></div>
     </div>
+    <div class="moreHint down" aria-hidden="true" hidden><span class="pill"></span></div>
   </div>
 </div>
 

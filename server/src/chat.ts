@@ -76,6 +76,13 @@ export class ChatServer extends Server<Env> {
     } catch {
       return;
     }
+    if (msg.type === "clear") {
+      // The proctor role is a claim, not a credential — the same trust every
+      // other control on that page runs on. What it protects here is a wipe of
+      // one team's channel, which the proctor can already read in full.
+      if (this.roster.isProctor(sender)) await this.clear();
+      return;
+    }
     if (msg.type !== "say") return;
 
     const me = this.roster.get(sender);
@@ -123,6 +130,39 @@ export class ChatServer extends Server<Env> {
       const dropped = this.history.splice(0, this.history.length - CHAT_HISTORY);
       await this.ctx.storage.delete(dropped.map((m) => key(m.id)));
     }
+  }
+
+  /**
+   * Empty the channel, in storage and in memory, and tell everyone. Used
+   * between groups, so the next team does not open chat onto the last one's
+   * conversation.
+   *
+   * The wipe goes out as a plain `chat` snapshot — the same message a fresh
+   * connection gets — so every client that already replaces its history on
+   * that message (all of them, for reconnects) wipes with no new case to
+   * handle.
+   *
+   * `nextId` is deliberately NOT rewound: clients dedupe on id, and reusing
+   * ids a still-connected phone might remember buys nothing. An eviction
+   * re-derives it from an empty history anyway, which is the same restart by
+   * another route.
+   */
+  private async clear() {
+    // By prefix rather than deleteAll(), so a key this room might store later
+    // for something other than a message isn't collateral. Chunked because
+    // storage.delete() takes at most 128 keys at a time and CHAT_HISTORY is
+    // larger than that.
+    const keys = [...(await this.ctx.storage.list({ prefix: "m:" })).keys()];
+    for (let i = 0; i < keys.length; i += 128) {
+      await this.ctx.storage.delete(keys.slice(i, i + 128));
+    }
+    this.history = [];
+    const wiped: ChatServerMsg = {
+      type: "chat",
+      messages: [],
+      players: this.roster.list(),
+    };
+    this.broadcast(JSON.stringify(wiped));
   }
 
   /**

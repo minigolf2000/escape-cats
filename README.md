@@ -26,7 +26,8 @@ apps/lobby/          Landing page: name entry, then the team the proctor put
 apps/chat/           Per-team chat: one channel per team, roomed by team id
 apps/proctor/        Hidden proctor dashboard, one flat page: five boxes, where a
                      team's box is BOTH its drag-and-drop drop target and its
-                     live game status (+ reset), plus one QR into the lobby
+                     live game status (+ reset), plus one QR into the lobby —
+                     and every team's chat below it, read-only
 packages/shared/     Wire protocol, seeded RNG, and BOTH whole games: hex
                      balance/rules/sim (hex/), and goomba levels + physics +
                      room sim (goomba/)
@@ -654,10 +655,39 @@ What the chat server enforces (`server/src/chat.ts`, tunables in
 - **No ticker.** Chat is entirely event-driven, so unlike the game room this DO
   does nothing at all between messages.
 
+**Where the messages actually live.** In the chat Durable Object's own
+`ctx.storage`, on the Worker — one DO per team (`t1`…`t4`, roomed by team id),
+one key per message: `m:` plus the zero-padded message id, so the order
+`storage.list({prefix:"m:"})` returns is chronological and `onStart` can
+rehydrate by listing the prefix. `this.history` is a memory mirror of exactly
+that, capped and trimmed in the same step that appends. Nothing is stored on
+Vercel, nothing in `localStorage` — a phone re-reads the room's history on every
+connect. Storage survives Worker redeploys and DO eviction; it does not survive
+renaming the Worker or the DO class (see "Deploy order").
+
+**The proctor reads every channel.** Chat is a line from a team to the proctor
+as much as between teammates, so the dashboard shows all four logs below the
+board (`apps/proctor/src/Chats.tsx`), one column each, live. It connects with
+`?role=proctor`, which the chat server already treated as a spectator: a `say`
+from that connection is refused, and the Roster never counts it, so watching a
+channel doesn't change the "n here" line the team sees. The logs sit BELOW the
+board rather than inside the team boxes because a box is a fixed-height drop
+target — see the box-height rule above.
+
+**Clear all chats** wipes every channel, for use between groups. It is
+per-room on the wire (`{type:"clear"}`, proctor only — a Durable Object can
+only clear its own storage), and "global" is the proctor page fanning that one
+message out over the four sockets it already holds. The server deletes the
+`m:` keys by prefix, in chunks of 128 (`storage.delete` takes no more at once,
+and `CHAT_HISTORY` is larger), then broadcasts an ordinary `chat` snapshot with
+an empty list — the same message a fresh connection gets, which every client
+already replaces its history on, so the wipe needed no new client case.
+
 Two client-side notes that are easy to undo by accident:
 
-- Message bodies are set with `textContent`, never `innerHTML`. This is the one
-  string on any surface in the repo that is arbitrary player-authored text.
+- Message bodies are set with `textContent`, never `innerHTML` (in the proctor's
+  React log, by rendering the string as a child). This is the one string on any
+  surface in the repo that is arbitrary player-authored text.
 - A line typed before the socket opens (or during a wifi drop) is **queued**,
   not dropped — the composer is on screen a moment before partysocket has
   connected. The hex client queues taps for exactly the same reason.

@@ -56,7 +56,15 @@ The markup + CSS are in `index.html`, ported verbatim from the prototype plus
 the multiplayer shell (join gate, team strip, reconnect toast) at the bottom.
 
 Debug: `window.__hex` exposes the mirror + `send()` for console/Playwright
-driving. `?debug&speed=20` fast-forwards a debug run. The 🛠 panel's `spawn
-golden` puts a golden mouse up immediately (day only — greyed out at night,
-where a golden pays nothing), and its `eyes` row flips the socket variant in
-place so the two can be judged against each other without a reload.
+driving. `?debug&speed=20` fast-forwards a debug run at any scale up to ×50.
+
+The 🛠 panel is two rows: the story-beat jumps, then one button per control —
+`+1M` (the only grant size; press it again for the tiers above it), `🐭 golden`
+(puts a golden mouse up immediately — day only, greyed out at night, where a
+golden pays nothing), `×1`/`×10` and `👁 ring`/`👁 solid`, and `reset`. The last
+two are toggles that label themselves with the LIVE value, not push buttons per
+value: it is half the width and it answers "which is on?". The speed one reads
+off the sim, so it follows `?speed=`, and shows ×1 again after a reset or a
+preset jump (both of which run through `reset()`). Flipping the eye variant in
+place is how the two socket drawings get judged against each other without a
+reload.

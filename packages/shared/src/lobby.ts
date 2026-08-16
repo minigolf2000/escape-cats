@@ -19,6 +19,46 @@ export const TEAMS: Team[] = [
 
 export const TEAM_IDS: string[] = TEAMS.map((t) => t.id);
 
+/**
+ * Where a phone the proctor hasn't sorted plays: one shared room holding
+ * everybody unsorted.
+ *
+ * This exists for the device-testing window — new phones, new browsers, new
+ * screen sizes, no proctor in the room. Without it every test device waits on
+ * a drag that nobody is there to make, which is the right behaviour on an
+ * event night and the wrong one for two weeks of "does it work on this
+ * handset".
+ *
+ * It is deliberately NOT in `TEAMS`: the proctor's board draws its drop
+ * targets from that list, and the lobby validates assignments against it, so
+ * keeping it out means nobody can be sorted INTO the testing room by accident
+ * and it never becomes a fifth seat on the board. The proctor watches it from
+ * its own box instead (`apps/proctor/src/App.tsx`).
+ */
+export const OPEN_TEAM: Team = { id: "t0", name: "Testing Room" };
+
+/**
+ * The one switch for the above. `false` restores the waiting room: an unsorted
+ * phone sits on "waiting for the proctor" exactly as it did before, on every
+ * surface, because all three ask `roomFor`. Flip it back when the testing
+ * window closes.
+ */
+export const OPEN_ROOM_OPEN = true;
+
+/**
+ * The room id a phone should join, given what the lobby says about it.
+ * `null` means "no room — wait for the proctor", which is what every surface
+ * renders its waiting screen on.
+ *
+ * A team id doubles as a room id, so a sorted phone's answer is just its team.
+ * The interesting case is the unsorted one, and it is answered HERE rather
+ * than three times over in the clients.
+ */
+export function roomFor(team: string | null): string | null {
+  if (team) return team;
+  return OPEN_ROOM_OPEN ? OPEN_TEAM.id : null;
+}
+
 /** Players per team. The game is designed around four — it is what the room's
  * slot colours and the wall art assume — so the proctor's board draws four
  * seats per team and refuses a fifth drop. Nothing enforces it below the

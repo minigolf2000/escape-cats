@@ -49,10 +49,22 @@ export interface ChatMessage {
   at: number;
 }
 
-export type ChatClientMsg = { type: "say"; text: string };
+export type ChatClientMsg =
+  | { type: "say"; text: string }
+  /**
+   * Wipe this room's history — proctor only, and the one destructive thing a
+   * chat room can be asked to do. It is per ROOM because a Durable Object can
+   * only clear itself; the proctor page's "Clear all chats" is one button
+   * fanned out over the socket it already holds to each team.
+   */
+  | { type: "clear" };
 
 export type ChatServerMsg =
-  /** Sent once per connection, before anything else: the room as it stands. */
+  /**
+   * The room as it stands. Sent once per connection before anything else —
+   * and again to everyone after a proctor clear, which is why clients REPLACE
+   * their history on it rather than treating it as a hello.
+   */
   | { type: "chat"; messages: ChatMessage[]; players: PlayerInfo[] }
   /** One accepted message, fanned out to the room. */
   | { type: "said"; message: ChatMessage }

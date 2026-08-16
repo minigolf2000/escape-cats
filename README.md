@@ -22,11 +22,12 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
 apps/goomba-glider/  Player client for Goomba Glider: the prototype's canvas
                      rendering on the shared sim, driven by room snapshots
 apps/lobby/          Landing page: name entry, then the team the proctor put
-                     you on, with a link into the game
+                     you on (and its chat) — no links into the games
 apps/chat/           Per-team chat: one channel per team, roomed by team id
 apps/proctor/        Hidden proctor dashboard, one flat page: five boxes, where a
                      team's box is BOTH its drag-and-drop drop target and its
-                     live game status (+ reset), plus one QR into the lobby
+                     live game status (+ reset), plus one QR into the lobby —
+                     and every team's chat below it, read-only
 packages/shared/     Wire protocol, seeded RNG, and BOTH whole games: hex
                      balance/rules/sim (hex/), and goomba levels + physics +
                      room sim (goomba/)
@@ -130,14 +131,15 @@ windows to appear as different players.
 **Locally, start each fake player at the GAME, not at the lobby.** In
 production every surface shares one origin, so a phone sorted on the landing
 page carries its pid into the game. In dev they are separate vite ports, which
-means separate origins and separate `localStorage` — so tapping the lobby's
-**Play** button mints a brand-new pid and lands that phone in the waiting room
-as an unsorted "Cat". `?room=` used to paper over this and is gone (see
-`?room=` below). Open `localhost:5173/hexxygon/` directly instead: the game page
-registers itself in the lobby roster, appears on the proctor's board, and drops
-into its team the moment you drag it onto one. Set `escape-cats-name` in that
-origin's `localStorage` first if you want it to show up as something other than
-"Cat". Serving every app through one dev port would remove the whole wrinkle.
+means separate origins and separate `localStorage` — so a game opened on its own
+port is a brand-new pid the proctor has never sorted, which lands it in the
+testing room (or, with that closed, on a waiting screen) as an unsorted "Cat".
+`?room=` used to paper over this and is gone (see `?room=` below). Open
+`localhost:5173/hexxygon/` directly instead: the game page registers itself in
+the lobby roster, appears on the proctor's board, and reloads into its team the
+moment you drag it onto one. Set `escape-cats-name` in that origin's
+`localStorage` first if you want it to show up as something other than "Cat".
+Serving every app through one dev port would remove the whole wrinkle.
 
 For balance work on Hex, **`?debug`** runs the shared sim in the page with no
 server at all, and `?speed=N` fast-forwards it — so
@@ -168,8 +170,11 @@ Client env vars (Vite, set in `apps/*/.env.local`):
 
 - `VITE_PARTYKIT_HOST` — host:port of the room server (default `127.0.0.1:1999`).
   Kept under its old name: it is what `partysocket` reads on every client.
-- `VITE_HEX_URL` / `VITE_GOOMBA_URL` — public game URLs the lobby's **Play**
-  buttons point at
+
+`VITE_HEX_URL` / `VITE_GOOMBA_URL` used to point the lobby's **Play** buttons at
+the public game URLs. The lobby no longer links to the games — a sorted player
+sees their team and nothing else, and the games are reached by their own URLs —
+so nothing reads those vars. They are harmless if still set in Vercel.
 
 The server takes no vars. The code word is a constant
 (`HEX_CODEWORD` in `packages/shared/src/hex/data.ts`, paired with the wall
@@ -301,8 +306,6 @@ every surface points at one server):
 
 ```
 VITE_PARTYKIT_HOST=escape-cats.escape-cats.workers.dev
-VITE_HEX_URL=https://hexxygon.com
-VITE_GOOMBA_URL=https://g00.mba
 ```
 
 **Root Directory must be blank.** `vercel.json` overrides the dashboard's
@@ -561,7 +564,10 @@ The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
 lists everyone currently on that page as **five boxes** — Unassigned, then one
 per team — and sorting is **drag and drop between them**, the only assignment
 gesture there is. Once assigned, the player's page turns into their team name
-plus a link into the game.
+and who else is on it — no game links. The games are reached by their own URLs
+(the vanity domains, which redirect onto this origin), and because no surface
+ever carried the team in a link, dropping the buttons changes nothing about how
+a phone finds its room: it asks the lobby for this pid.
 
 Sorting is deliberately all manual: an auto-assign button existed and was
 removed. Who sits with whom is a judgement call made in the room (friends,
@@ -576,13 +582,45 @@ re-registers if it is still connected), and **Clear teams** sends everybody
 back to Unassigned between groups.
 
 **The game has no menu.** `apps/hex-clicker` never shows a form: it asks the
-lobby for this pid's team and slots straight in. A phone the proctor hasn't
-sorted yet gets a waiting screen, not an error — opening the game page
+lobby for this pid's room and slots straight in. Opening the game page also
 registers the phone in the lobby roster (same pid+name contract as the landing
-page), so it appears on the proctor's list and enters the game the moment it's
-assigned. `?debug` bypasses the server entirely. The room is never written into
-the URL, so a refresh re-asks the lobby and a proctor re-sort takes effect on
-reload.
+page), so it appears on the proctor's list either way. `?debug` bypasses the
+server entirely. The room is never written into the URL, so a refresh re-asks
+the lobby and a proctor re-sort takes effect on reload.
+
+### The testing room
+
+**An unsorted phone plays too, in one shared room.** `roomFor(team)` in
+`packages/shared/src/lobby.ts` is the whole rule and all three surfaces (both
+games and chat) ask it: a sorted phone gets its team, an unsorted one gets
+`OPEN_TEAM` — room `t0`, "Testing Room". It exists for the device-testing
+window, where new handsets turn up with no proctor in the room to drag them
+anywhere; `OPEN_ROOM_OPEN = false` restores the old waiting screen everywhere at
+once, which is what an event night wants.
+
+The details that make it behave:
+
+- **`t0` is not in `TEAMS`.** The proctor's drop targets and the lobby's
+  assignment validation both read that list, so the testing room can never be
+  dragged into, and the board stays five boxes.
+- **A sorted phone still closes its lobby socket** the moment it learns its
+  team, exactly as before. A phone in the testing room keeps it OPEN, because
+  that answer can still change: when the proctor sorts a tester onto a real
+  team, the page reloads and re-asks — which lands it in the team's room, chat
+  included. That is the only new socket this adds, and only for phones that
+  would have been sitting on a waiting screen anyway.
+- **The proctor watches it from its own box** (`apps/proctor/src/TestRoom.tsx`),
+  below the board rather than in it: same two game readouts, same two reset
+  buttons, which is the only way to unwedge a room nobody is sorted into. Its
+  chat is the fifth column in the chat panel.
+- **What degrades with a crowd.** Both games are built for four. Goomba's band
+  quota is `⌈4/n⌉`, already 1 at four phones, so with more than four connected
+  only four can hold a band at a time and the rest watch (the room still works,
+  it just stops being a party). Hex's click income is per tap, so it scales with
+  however many phones are tapping — weakly: the sim puts 20 phones about 14%
+  ahead of 4, well inside the noise of how a team spends. Neither is a reason
+  not to test on it; both are reasons not to leave `OPEN_ROOM_OPEN` on for a
+  real group.
 
 **`?room=` is gone, and asking the lobby is the only way in.** It used to
 override the lookup — the proctor's per-team QR codes carried it — and it had
@@ -625,10 +663,10 @@ convention the game rooms use, so the proctor sorting someone onto `t2` is also
 what puts them in t2's channel. There is no team picker and no way to end up in
 another team's chat.
 
-Like the game, chat has no menu: it asks the lobby for this pid's team and slots
-in. An unsorted phone gets the same waiting room the game gives, and opening
-chat registers the phone in the lobby roster, so it appears on the proctor's
-list.
+Like the game, chat has no menu: it asks the lobby for this pid's room (the
+same `roomFor` both games use, so an unsorted phone lands in the testing room's
+channel), and opening chat registers the phone in the lobby roster, so it
+appears on the proctor's list.
 
 Neither of the lobby's buttons carries a team in its URL — see `?room=` above.
 Both surfaces ask the lobby, so a proctor re-sort takes effect on reload instead
@@ -650,10 +688,40 @@ What the chat server enforces (`server/src/chat.ts`, tunables in
 - **No ticker.** Chat is entirely event-driven, so unlike the game room this DO
   does nothing at all between messages.
 
+**Where the messages actually live.** In the chat Durable Object's own
+`ctx.storage`, on the Worker — one DO per team (`t1`…`t4`, roomed by team id),
+one key per message: `m:` plus the zero-padded message id, so the order
+`storage.list({prefix:"m:"})` returns is chronological and `onStart` can
+rehydrate by listing the prefix. `this.history` is a memory mirror of exactly
+that, capped and trimmed in the same step that appends. Nothing is stored on
+Vercel, nothing in `localStorage` — a phone re-reads the room's history on every
+connect. Storage survives Worker redeploys and DO eviction; it does not survive
+renaming the Worker or the DO class (see "Deploy order").
+
+**The proctor reads every channel.** Chat is a line from a team to the proctor
+as much as between teammates, so the dashboard shows every log below the board
+(`apps/proctor/src/Chats.tsx`) — one column per team, plus the testing room
+while it is open — live. It connects with
+`?role=proctor`, which the chat server already treated as a spectator: a `say`
+from that connection is refused, and the Roster never counts it, so watching a
+channel doesn't change the "n here" line the team sees. The logs sit BELOW the
+board rather than inside the team boxes because a box is a fixed-height drop
+target — see the box-height rule above.
+
+**Clear all chats** wipes every channel, for use between groups. It is
+per-room on the wire (`{type:"clear"}`, proctor only — a Durable Object can
+only clear its own storage), and "global" is the proctor page fanning that one
+message out over the four sockets it already holds. The server deletes the
+`m:` keys by prefix, in chunks of 128 (`storage.delete` takes no more at once,
+and `CHAT_HISTORY` is larger), then broadcasts an ordinary `chat` snapshot with
+an empty list — the same message a fresh connection gets, which every client
+already replaces its history on, so the wipe needed no new client case.
+
 Two client-side notes that are easy to undo by accident:
 
-- Message bodies are set with `textContent`, never `innerHTML`. This is the one
-  string on any surface in the repo that is arbitrary player-authored text.
+- Message bodies are set with `textContent`, never `innerHTML` (in the proctor's
+  React log, by rendering the string as a child). This is the one string on any
+  surface in the repo that is arbitrary player-authored text.
 - A line typed before the socket opens (or during a wifi drop) is **queued**,
   not dropped — the composer is on screen a moment before partysocket has
   connected. The hex client queues taps for exactly the same reason.

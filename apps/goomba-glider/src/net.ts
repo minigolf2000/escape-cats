@@ -7,6 +7,7 @@
 // though with no serverless mode left the win is only initial paint.
 
 import type PartySocket from "partysocket";
+import { roomFor } from "@escape-cats/shared";
 import type {
   GoombaClientMsg,
   GoombaServerMsg,
@@ -113,9 +114,10 @@ export function connectRoom(opts: {
   })();
 }
 
-/** Watch the lobby for this phone's team — verbatim the hex-clicker contract:
- * connecting also registers the phone in the lobby roster, so an unsorted
- * phone appears on the proctor's board and slots in when dragged to a team. */
+/** Watch the lobby for this phone's room — verbatim the hex-clicker contract,
+ * including the `roomFor` fallback into the shared testing room and the socket
+ * that stays open there so a mid-session sort reloads into the real team.
+ * Connecting also registers the phone in the lobby roster. */
 export function watchTeam(opts: {
   name: string;
   onTeam: (team: string, name: string) => void;
@@ -130,16 +132,22 @@ export function watchTeam(opts: {
       party: "lobby",
       query: { pid, name: opts.name },
     });
+    let joined: string | null = null;
     socket.addEventListener("open", () => opts.onStatus(true));
     socket.addEventListener("close", () => opts.onStatus(false));
     socket.addEventListener("message", (e) => {
       const msg: LobbyServerMsg = JSON.parse(e.data as string);
       if (msg.type !== "lobby") return;
       const me = msg.snapshot.players.find((p) => p.pid === pid);
-      if (me?.team) {
-        socket.close();
-        opts.onTeam(me.team, me.name);
+      const room = roomFor(me?.team ?? null);
+      if (room === null) return;
+      if (joined === null) {
+        joined = room;
+        if (me?.team) socket.close();
+        opts.onTeam(room, me?.name ?? opts.name);
+        return;
       }
+      if (room !== joined) location.reload();
     });
   })();
 }

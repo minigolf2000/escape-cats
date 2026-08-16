@@ -8,8 +8,6 @@ import "./styles.css";
 
 const PARTYKIT_HOST =
   import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
-const HEX_URL = import.meta.env.VITE_HEX_URL ?? "http://localhost:5173";
-const GOOMBA_URL = import.meta.env.VITE_GOOMBA_URL ?? "http://localhost:5178";
 
 const PID_KEY = "escape-cats-pid";
 const NAME_KEY = "escape-cats-name";
@@ -131,15 +129,13 @@ function teamScreen(team: string) {
         .filter((p) => p.pid !== pid)
         .map((p) => escapeHtml(p.name))
         .join(", ") || "- just you so far"}</p>
-      <a class="primary" href="${HEX_URL}/">Play Hex Clicker</a>
-      <a class="primary" href="${GOOMBA_URL}/">Play Goomba Glider</a>
-      <!-- Neither link carries the team. Both surfaces ask the lobby for this
-           phone's pid, so a proctor re-sort takes effect on reload instead of
-           being pinned by a stale URL, and there is no link anyone can edit to
-           walk into another team's room. The game may be reached through a
-           vanity domain, but those REDIRECT onto this origin (see the README's
-           origin constraint), so the pid the proctor sorted is the pid the game
-           sees. -->
+      <!-- No game links. The games are reached by their own URLs (the vanity
+           domains, which REDIRECT onto this origin — see the README's origin
+           constraint), so the lobby's job ends at "here is your team". A link
+           here never carried the team anyway: every surface asks the lobby for
+           this phone's pid, which is what makes a proctor re-sort take effect
+           on reload. Putting the buttons back is a one-line change; they used
+           VITE_HEX_URL / VITE_GOOMBA_URL. -->
       <a class="secondary" href="/chat/">Team chat</a>
       <button id="rename" class="link">Not ${escapeHtml(myName())}?</button>
     </div>

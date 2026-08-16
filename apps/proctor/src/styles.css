@@ -282,3 +282,113 @@ button.small:disabled {
   opacity: 0.4;
   cursor: default;
 }
+
+/* ---- Team chat, read-only ---- */
+/* Below the board, never inside a team's box: a box is a drop target of fixed
+ * height, and a log that grew with every message would move the boxes beside
+ * it out from under a mid-drag finger. See the note in Chats.tsx. */
+.chats {
+  text-align: left;
+  border-top: 1px solid #1e2230;
+  padding-top: 16px;
+}
+.chats-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.chats h2 {
+  margin: 0;
+  font-size: 19px;
+}
+/* The one destructive control down here. Sits after button.small in the file
+ * so it wins the background back. */
+.chats-head button.small.danger {
+  margin-top: 0;
+  margin-left: auto;
+  background: #d64b3b;
+  border-color: #d64b3b;
+  color: white;
+}
+.chat-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-top: 12px;
+}
+.chat-col {
+  background: #12141b;
+  border: 1px solid #1e2230;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.chat-col h3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8a90a2;
+  margin-bottom: 6px;
+}
+/* Fixed height and scrolled internally, so four unequal conversations leave
+ * the row one height rather than four. */
+.chat-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.chat-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #1a1d28;
+  font-size: 13px;
+}
+.chat-who {
+  font-weight: 700;
+  color: #57e6c9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-at {
+  color: #5d6272;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+/* The only arbitrary player-authored text on this page — wrapped, not clipped:
+ * nothing here is load-bearing for the drag's geometry, and a proctor reading
+ * a message needs all of it. */
+.chat-body {
+  grid-column: 1 / -1;
+  color: #ece9f5;
+  overflow-wrap: anywhere;
+}
+.chat-empty {
+  color: #4c5162;
+  font-size: 12px;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* ---- The shared testing room ---- */
+/* Not one of the board's boxes on purpose — see TestRoom.tsx. It borrows the
+ * .zone skin so it reads as the same kind of thing, at the width of one. */
+.testroom {
+  text-align: left;
+}
+.testroom .zone {
+  max-width: 340px;
+}
+.testroom .muted {
+  display: block;
+  margin-bottom: 2px;
+}

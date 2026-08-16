@@ -19,6 +19,7 @@ import {
   type HexUpgrade,
   type HexSnapshot,
 } from "@escape-cats/shared";
+import { EYE_VARIANTS, setEyes } from "./cat.js";
 import { effectText } from "./shop.js";
 import { transport } from "./net";
 
@@ -269,6 +270,9 @@ function mountPanel(sim: HexSim, emit: () => void): () => void {
       .map((k) => `<button data-p="${k}">${k}</button>`)
       .join("")}</div>
     <div class="r"><span>spawn</span><button data-gold="1">🐭 golden</button></div>
+    <div class="r"><span>eyes</span>${EYE_VARIANTS.map(
+      (v) => `<button data-eyes="${v}">${v}</button>`,
+    ).join("")}</div>
     <div class="r"><span>speed</span>${[1, 5, 20]
       .map((n) => `<button data-s="${n}">×${n}</button>`)
       .join("")}<button data-r="1">reset</button></div>
@@ -311,6 +315,11 @@ function mountPanel(sim: HexSim, emit: () => void): () => void {
     if (b.dataset.g) sim.grant(Number(b.dataset.g), now);
     else if (b.dataset.p) sim.applyPreset(DEBUG_PRESETS[b.dataset.p], now);
     else if (b.dataset.gold) sim.spawnGold(now);
+    // Purely local: the socket variant is a render choice, not state, so it
+    // never touches the sim (and so a real room's teammates keep whatever they
+    // opened the game with). Here as well as ?eyes= because judging the two
+    // wants them flipped back and forth in place, not compared across reloads.
+    else if (b.dataset.eyes) setEyes(b.dataset.eyes);
     else if (b.dataset.s)
       sim.state.speed = Math.max(0.25, Math.min(50, Number(b.dataset.s)));
     else if (b.dataset.r) sim.reset(now);

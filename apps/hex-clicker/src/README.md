@@ -33,6 +33,17 @@ poses. The heads are exported onto one shared 828x652 canvas registered by eye
 position, with the eyes painted out, so `#hexCat` can swap them freely under a
 single rigged pair of eyes.
 
+That rigged pair is three nested groups, one transform channel each, because a
+blink, a glance and a dilation all happen at once and one transform can only say
+one of them: `#eyeLeft/#eyeRight` are the lids (scaleY), `#irisLeft/#irisRight`
+inside them are the look (translate), `#pupilLeft/#pupilRight` inside those are
+the dilation (scaleX). The socket itself does not move — it is the eye's
+outline. Two socket drawings ship and `?eyes=` picks between them: `ring`
+(default) is the hollow ring the artist drew, with the coat showing through and
+a yellow pupil in it; `solid` fills the same outline edge to edge and inks the
+pupil in the drawing's own line colour. Same rig either way — see the eye blocks
+in `index.html` and `cat.js`.
+
 Game RULES live in `packages/shared/src/hex/` (data/rules/sim) — never here.
 The markup + CSS are in `index.html`, ported verbatim from the prototype plus
 the multiplayer shell (join gate, team strip, reconnect toast) at the bottom.
@@ -40,4 +51,5 @@ the multiplayer shell (join gate, team strip, reconnect toast) at the bottom.
 Debug: `window.__hex` exposes the mirror + `send()` for console/Playwright
 driving. `?debug&speed=20` fast-forwards a debug run. The 🛠 panel's `spawn
 golden` puts a golden mouse up immediately (day only — greyed out at night,
-where a golden pays nothing).
+where a golden pays nothing), and its `eyes` row flips the socket variant in
+place so the two can be judged against each other without a reload.

@@ -30,8 +30,10 @@ export const catEl = $("#catWrap");
 export const hexCatEl = $("#hexCat");
 export const catMotionEl = $("#catMotion");
 export const catFaceEl = $("#catFace");
-// #eyeLeft/#eyeRight are the LIDS, #irisLeft/#irisRight inside them are the
-// LOOK — see the eye block in index.html for why the pair is split that way.
+// The eye is three nested groups, one transform channel each: #eyeLeft/#eyeRight
+// are the LIDS (scaleY), #irisLeft/#irisRight inside them are the LOOK
+// (translate), #pupilLeft/#pupilRight inside those are the DILATION (scaleX).
+// See the eye block in index.html for why they can't be collapsed.
 // #earLeft/#earRight are back: the day coat is split into a head plus two ear
 // layers, so the ears have their own channel again (a perk from the base — see
 // the pivot note in index.html). #whiskers and #mouth are still gone, since the
@@ -40,6 +42,8 @@ export const earLeftEl = $("#earLeft");
 export const earRightEl = $("#earRight");
 export const irisLeftEl = $("#irisLeft");
 export const irisRightEl = $("#irisRight");
+export const pupilLeftEl = $("#pupilLeft");
+export const pupilRightEl = $("#pupilRight");
 export const eyeLeftEl = $("#eyeLeft");
 export const eyeRightEl = $("#eyeRight");
 

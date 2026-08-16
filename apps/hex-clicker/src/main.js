@@ -49,7 +49,7 @@ import { initPetInput } from "./pet.js";
 import { spawnGold, despawnGold, moveGold, initGoldenInput } from "./golden.js";
 import { updatePops } from "./fx.js";
 import { clearMateTaps, enqueueMateTaps, updateMateTaps } from "./mates.js";
-import { updateCat } from "./cat.js";
+import { initEyes, updateCat } from "./cat.js";
 import { syncPhase, runNightCutscene, isNightInited } from "./phase.js";
 import { drawWall, startWallNeon, resetWallClock } from "./wall.js";
 import { currencyIconSVG } from "./art.js";
@@ -237,6 +237,10 @@ function frame(now) {
 const NAME_KEY = "escape-cats-name";
 
 function boot() {
+  // Before anything can paint a frame, so the chosen socket is the first one on
+  // screen rather than a swap the player watches happen.
+  initEyes();
+
   if (debugFromUrl()) {
     setRoomSeed("DEBUG");
     // initGame hides the gate when the first snapshot lands — startDebug emits

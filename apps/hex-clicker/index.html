@@ -1002,6 +1002,14 @@
   .shopHead .shopIcon svg {
     width: calc(13px * var(--ss)); height: calc(13px * var(--ss));
   }
+  /* DAY ONLY. The storefront is a daytime idea — a shop you walk into, drawn in
+     the same hand as the cat and the mice — and by day it sits on a black tab
+     over a pink wall, where it reads instantly. At night the whole surface is
+     already near-black, the tab is a dark shape on a dark sky, and the mark
+     becomes a smudge competing with the one word that has to survive there.
+     display:none rather than opacity: it must leave the flex row entirely, or
+     the gap it was holding stays and the word sits off-centre on its own tab. */
+  body.night .shopHead .shopIcon { display: none; }
   /* The tab hangs off the dock's top edge, so the dock must not clip it. */
   #dock { overflow: visible; }
   /* The band used to be the tray's top edge. With it gone the sheet needs its

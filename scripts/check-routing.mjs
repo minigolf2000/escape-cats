@@ -98,13 +98,22 @@ async function fetchPath(pathname, host) {
   return { status: 508, pathname };
 }
 
-/** Every reference a page makes, resolved against the URL it is served at. */
+/** Every reference a page makes, resolved against the URL it is served at.
+ *
+ * Markup refs AND stylesheet refs. It was href/src only, which meant an asset
+ * named solely from CSS — `background: url(...)`, the hex page's wallpaper —
+ * was invisible to this check: rename or move one and the build stayed green
+ * while the page shipped with a 404 behind it. Both apps inline their whole
+ * stylesheet into index.html, so one regex over the served HTML sees them. */
 function refsOf(html, pageUrl) {
   const out = [];
-  for (const m of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
-    const raw = m[1];
-    if (/^(https?:|data:|mailto:|#|\/\/)/.test(raw)) continue;
-    out.push(new URL(raw, "https://x" + pageUrl).pathname);
+  const patterns = [/(?:href|src)="([^"]+)"/g, /url\(\s*["']?([^"')]+)["']?\s*\)/g];
+  for (const re of patterns) {
+    for (const m of html.matchAll(re)) {
+      const raw = m[1].trim();
+      if (/^(https?:|data:|mailto:|#|\/\/)/.test(raw)) continue;
+      out.push(new URL(raw, "https://x" + pageUrl).pathname);
+    }
   }
   return out;
 }

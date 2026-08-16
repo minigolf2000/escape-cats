@@ -13,14 +13,25 @@ verbatim where possible; the typed seams are TS.
 | `debug.ts`  | `?debug` mode — the shared HexSim running in-page, no server (typed)  |
 | `shop.js`   | dock, building rows, upgrade rail, HUD, badge/seen, sold-out beat     |
 | `wall.js`   | the night reveal: tracer, glyphs, moon scene, cast, canvas drawing    |
-| `cat.js`    | Hex herself — blink, gaze, ears, purr, yawn, dream twitches           |
+| `cat.js`    | Hex herself — blink, gaze, lean, purr, yawn, dream twitches, squash   |
 | `golden.js` | the golden mouse (server decides WHEN; each phone decides WHERE)      |
 | `pet.js`    | tap handling, streaks, night pokes                                    |
 | `fx.js`     | "+N" floats and mouse-pop particles                                   |
 | `phase.js`  | day/night projection, starfield, the night cutscene                   |
 | `art.js`    | the one mouse silhouette + palette every renderer builds from         |
+| `mouse-geom.js` | GENERATED — the mouse traced from the art file; art.js's input    |
 | `format.js` | `fmt` — the one number formatter (night appends "M")                  |
 | `dom.js`    | every element ref                                                     |
+
+Art comes from the Figma file "Hexxxygon" (page Hex, node 22-3) and lands in two
+shapes. Anything that has to be RECOLOURED or drawn to canvas is traced to
+vector — the mouse (`mouse-geom.js`, consumed by `art.js`) and the shop icon
+(inline in `index.html`) — because the mouse keeps the game's own five colours
+and the night wall draws it with canvas path calls. Anything that only has to be
+DISPLAYED ships as PNG in `public/art/`: the background and Hex's five head
+poses. The heads are exported onto one shared 828x652 canvas registered by eye
+position, with the eyes painted out, so `#hexCat` can swap them freely under a
+single rigged pair of eyes.
 
 Game RULES live in `packages/shared/src/hex/` (data/rules/sim) — never here.
 The markup + CSS are in `index.html`, ported verbatim from the prototype plus

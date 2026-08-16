@@ -10,25 +10,28 @@
 
 import { mulberry32 } from "@escape-cats/shared";
 import { stageEl, goldenEl, hudEl, dockEl } from "./dom.js";
-import { mods, wallNow } from "./state.js";
+import { mods, wallNow, nightActive } from "./state.js";
 import { floatNum } from "./fx.js";
 import { transport } from "./net";
-import { mouseParts } from "./art.js";
+import { mouseParts, MOUSE_BOX, MOUSE_KEYLINE_DAY, MOUSE_KEYLINE_NIGHT } from "./art.js";
 
 const GOLD_MARGIN = 10; // px of stage edge the golden won't drift past
 
-// Day: the mouse, gilded. Same 54x28 box as the click-pop, so it sits in the
-// same art family at a glance — only the material differs. (Gold is a gradient
-// rather than flat #ffd44d, which would read as "the yellow mouse".)
+// The mouse, gilded. Same box as the click-pop, so it sits in the same art
+// family at a glance — only the material differs. (Gold is a gradient rather
+// than flat #ffd44d, which would read as "the yellow mouse".)
+// Keyline follows the phase for the same reason the click-pop's does: a golden
+// can be on screen in either one, and each phase has exactly one line color
+// that survives its background.
 const goldenMouseSVG = () =>
-  `<svg viewBox="0 0 54 28" xmlns="http://www.w3.org/2000/svg">
+  `<svg viewBox="0 0 ${MOUSE_BOX.w} ${MOUSE_BOX.h}" xmlns="http://www.w3.org/2000/svg">
      <defs>
        <linearGradient id="gmBody" x1="0" y1="0" x2="0" y2="1">
          <stop offset="0" stop-color="#fff6c4"/><stop offset=".45" stop-color="#ffd44d"/><stop offset="1" stop-color="#c98a12"/>
        </linearGradient>
      </defs>
-     ${mouseParts("url(#gmBody)")}
-     <path d="M14 14 C16 11 20 9.4 25 9" fill="none" stroke="#fffbe6" stroke-width="1.7" stroke-linecap="round" opacity=".8"/>
+     ${mouseParts("url(#gmBody)", nightActive() ? MOUSE_KEYLINE_NIGHT : MOUSE_KEYLINE_DAY)}
+     <path d="M20 24 C22 20 26 17.5 31 16.5" fill="none" stroke="#fffbe6" stroke-width="1.7" stroke-linecap="round" opacity=".8"/>
    </svg>`;
 
 // Live-golden state, exported for the cat (her eyes track it, ears swivel).

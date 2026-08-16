@@ -9,7 +9,7 @@ import { fmt } from "./format.js";
 import { floatNum, spawnMousePop } from "./fx.js";
 import { refreshHud } from "./shop.js";
 import { transport } from "./net";
-import { anim, IDLE } from "./cat.js";
+import { squashPet, IDLE } from "./cat.js";
 
 // Petting streak. Feeds two idle animations (the purr, and the slow blink she
 // gives you for a sustained streak). Wall-clock, not frame count.
@@ -39,11 +39,11 @@ export function pet(clientX, clientY) {
     nightPokes++;
     lastPokeAt = now;
     if (nightPokes >= NIGHT_GRUMBLE_POKES) {
-      anim.squash = 1; // a bigger, annoyed stir
+      squashPet(true); // a bigger, annoyed stir
       floatNum(x, y, "grr…");
       nightPokes = 0;
     } else {
-      anim.squash = 0.6; // a gentle half-stir
+      squashPet(false); // a gentle half-stir
       floatNum(x, y, "Zzz");
     }
     return; // no mice, no mouse-pop, no HUD write, nothing sent
@@ -63,7 +63,11 @@ export function pet(clientX, clientY) {
       (clientY - cat.top) / cat.height,
     ),
   );
-  anim.squash = 1;
+  // Every tap squashes; only a sustained one spends the ear gesture. This is the
+  // ordinary reaction — the streak beat below upgrades it, and squashPet ignores
+  // a soft call that lands on top of a big one already playing, so a tap during
+  // the big reaction can no longer cut it short.
+  squashPet(false);
 
   const now = performance.now();
   if (now - petState.lastPetAt > PET_STREAK_WINDOW_MS) petState.petStreak = 0;
@@ -77,6 +81,10 @@ export function pet(clientX, clientY) {
   ) {
     petState.slowBlinkStart = now;
     petState.petStreak = 0;
+    // The one day beat that earns the full drawn squash — the same threshold
+    // that earns the slow blink, so "she really is being petted" has one meaning
+    // in this file rather than two.
+    squashPet(true);
   }
 
   floatNum(x, y, "+" + fmt(gain));

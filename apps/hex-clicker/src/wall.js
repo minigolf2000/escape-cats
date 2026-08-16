@@ -18,7 +18,7 @@ import {
 } from "@escape-cats/shared";
 import { game, mods, nightActive, wallSeed, wallNow } from "./state.js";
 import { wallCv, hexCatEl } from "./dom.js";
-import { MOUSE_COLORS } from "./art.js";
+import { MOUSE_COLORS, MOUSE_KEYLINE, MOUSE_EYE, SIL_LO, BODY_LO } from "./art.js";
 
 // ---------------------------------------------------------------------------
 // NIGHT WALL — the reveal, ported from reveal-lab.html (moon scene only; the
@@ -921,21 +921,32 @@ function wallPosAt(m, t, out) {
 // so re-measure them if it moves again.
 const WALL_MOUSE_R = 1.55;
 
-// Same silhouette as mouseSVG (the click-pop particle) — body blob with a
-// white keyline, one ear, a dark eye dot, a curled tail — reproduced here as
-// canvas path calls by scaling/translating mouseSVG's own 54x28 coordinate
-// space, point for point, so the two can't visually drift apart. `r` plays
-// the same role it did in the old shape (roughly the body's vertical half-
-// size), so existing call sites don't need retuning.
+// Same silhouette as mouseSVG (the click-pop particle) — drawn from the very
+// same traced rings (SIL_LO/BODY_LO in mouse-geom.js), so the two cannot drift
+// apart: there is no second copy of the geometry here to fall out of date, the
+// way the hand-transcribed bezier list that used to live in this function did.
+// LO is the simplified trace, because a wall mouse is ~7.6px across and the
+// full-detail rings cost fill rate for points no one can resolve.
+//
+// The keyline is not a stroke. It's the silhouette ring painted underneath and
+// showing around the slightly smaller body ring — the same inversion mouseParts
+// uses, and the reason the line thickens at the nose and thins along the back
+// exactly as drawn. Stroking would give an even outline and lose that.
+//
+// `r` keeps its old meaning — roughly the body's vertical half-size — so no
+// call site needs retuning. The divisor moved from 10 to 13.15 only because
+// that is the new drawing's own body half-height in its coordinate box; at a
+// given `r` the mouse is now a little narrower and a little rounder than the
+// old one, which is the shape change, not a scale bug.
+//
 // The art faces +x at rest, so `angle` (radians, canvas convention) is the
-// heading to rotate it toward; 0 keeps the old unrotated look. Rotating in place
-// via translate/rotate rather than baking it into P() keeps the body/tail/ear
-// geometry below character-for-character identical to mouseSVG's.
+// heading to rotate it toward; 0 keeps the old unrotated look.
 // `alpha` (default 1) multiplies the whole sprite rather than any one part: the
-// Counting Mice cross-fade needs the body, outline, ear and eye to arrive
-// together, and the save/restore already scoping the transform scopes it for free.
+// Counting Mice cross-fade needs the body, outline and eye to arrive together,
+// and the save/restore already scoping the transform scopes it for free.
+const WALL_MOUSE_CX = 30.5, WALL_MOUSE_CY = 16.35, WALL_MOUSE_UNIT = 13.15;
 function drawWallMouse(x, y, color, r, angle, alpha) {
-  const s = r / 10, cx = 30.5, cy = 14;
+  const s = r / WALL_MOUSE_UNIT, cx = WALL_MOUSE_CX, cy = WALL_MOUSE_CY;
   wctx.save();
   // The unlit night dims the whole sprite the same way `alpha` does, so it rides
   // the same globalAlpha rather than being folded into every fillStyle below.
@@ -944,40 +955,28 @@ function drawWallMouse(x, y, color, r, angle, alpha) {
     wctx.globalAlpha = (alpha === undefined ? 1 : alpha) * glow;
   wctx.translate(x, y);
   wctx.rotate(angle || 0);
-  const P = (px, py) => [(px - cx) * s, (py - cy) * s];
-  const seg = (c1x, c1y, c2x, c2y, ex, ey) => {
-    const [a, b] = P(c1x, c1y), [c, d] = P(c2x, c2y), [e, f] = P(ex, ey);
-    wctx.bezierCurveTo(a, b, c, d, e, f);
+
+  // One path per layer, every ring of that layer inside it, filled even-odd so
+  // the inner rings punch their holes (the gap under the chin, the eye of the
+  // tail's curl) instead of painting over them.
+  const rings = layer => {
+    wctx.beginPath();
+    for (const ring of layer) {
+      wctx.moveTo((ring[0] - cx) * s, (ring[1] - cy) * s);
+      for (let i = 2; i < ring.length; i += 2)
+        wctx.lineTo((ring[i] - cx) * s, (ring[i + 1] - cy) * s);
+      wctx.closePath();
+    }
   };
 
-  // tail — a curled stroke off the rear
-  const [tx0, ty0] = P(12, 17);
-  wctx.strokeStyle = color; wctx.lineWidth = r * 0.16; wctx.lineCap = 'round';
-  wctx.beginPath(); wctx.moveTo(tx0, ty0);
-  seg(4, 21, 2, 10, 8, 7);
-  wctx.stroke();
+  rings(SIL_LO); wctx.fillStyle = MOUSE_KEYLINE; wctx.fill('evenodd');
+  rings(BODY_LO); wctx.fillStyle = color; wctx.fill('evenodd');
 
-  // body
-  const [bx0, by0] = P(51, 16);
-  wctx.beginPath(); wctx.moveTo(bx0, by0);
-  seg(46, 8, 37, 4, 27, 5);
-  seg(16, 6, 10, 10, 10, 16);
-  seg(10, 21, 17, 24, 27, 24);
-  seg(37, 24, 47, 21, 51, 16);
-  wctx.closePath();
-  wctx.fillStyle = color; wctx.fill();
-  wctx.strokeStyle = '#f4f4f2'; wctx.lineWidth = r * 0.14; wctx.stroke();
-
-  // ear
-  const [ex, ey] = P(33, 7);
-  wctx.beginPath(); wctx.arc(ex, ey, 4.6 * s, 0, 6.283);
-  wctx.fillStyle = color; wctx.fill();
-  wctx.strokeStyle = '#f4f4f2'; wctx.lineWidth = r * 0.14; wctx.stroke();
-
-  // eye
-  const [ix, iy] = P(42, 12);
-  wctx.beginPath(); wctx.arc(ix, iy, 1.8 * s, 0, 6.283);
-  wctx.fillStyle = '#0a0b10'; wctx.fill();
+  // eye — keyline-colored, like the drawing: a hole punched in the body, not a
+  // dark dot of its own. At wall size it is the one mark that still reads.
+  wctx.beginPath();
+  wctx.arc((MOUSE_EYE.cx - cx) * s, (MOUSE_EYE.cy - cy) * s, MOUSE_EYE.r * s, 0, 6.283);
+  wctx.fillStyle = MOUSE_KEYLINE; wctx.fill();
   wctx.restore();
 }
 

@@ -103,21 +103,119 @@
     --pose-fit: 1;
 
     --ui-font: 'Baloo 2', system-ui, sans-serif;
+    /* The daytime page is the hand-painted polka dot from the art file. It is a
+       LAYER LIST, and the order matters: the bloom stays on top of the art, so
+       the same soft convergence at --sun-y that used to sit over the blue
+       stripes now sits over the dots. #rays (the slow conic spiral) is a
+       separate element above both and is untouched by this — the spiral still
+       turns over the new paper exactly as it did over the old.
+       The bloom warmed from blue to white/rose because it is lighting pink now;
+       left cold it read as a grey haze on the art rather than sunlight.
+
+       THE PAPER TILES; IT DOES NOT STRETCH, and it is no longer a file.
+       It was `bg-dots.jpg center center / cover no-repeat`: one 900x1295 sheet
+       scaled to whatever the viewport happened to be, so the dots were ~32px on a
+       phone and half again that on a tablet. Wallpaper does not work that way — a
+       dot is a fixed size and there are simply more of them on a bigger wall. That
+       was fixed by cropping a 444x444 tile and repeating it at 240px.
+       The tile is now drawn instead of shipped. The pattern is a flat ground and
+       one dot, which is exactly what two radial-gradients say, so the 17KB JPEG
+       bought nothing but its own compression artefacts — and being a photograph of
+       paint it could only ever be resampled, never re-rendered, so it softened on
+       a phone and showed JPEG ringing around each dot at 3x.
+       Measured off the artist's own tile rather than guessed: ground #F4C0C0, dot
+       #E7B7B7 (about 5% darker, which is the whole reason the pattern reads as
+       texture and not as spots), dot radius 13.4px and one dot per ~3390px2 of
+       wall. Two gradients half a cell apart give that density in an 82px cell,
+       which is the offset grid the art paints by hand.
+       The dots fade to their OWN colour at zero alpha rather than to `transparent`:
+       `transparent` is rgba(0,0,0,0), so interpolating to it drags every edge
+       through grey and leaves a dirty ring on a pink ground.
+       Seamlessness is now structural — a gradient cell cannot have a visible seam —
+       so the old constraint on re-cropping ("four dot-free edges") is retired with
+       the file. To restyle, move the two colours and the three lengths.
+       `fixed` is deliberately gone with `cover`. Its whole effect was to hold the
+       stretched sheet still while the page moved; a tile that repeats forever has
+       nothing to hold still, and background-attachment: fixed on a repeating layer
+       is a known scroll-performance trap on mobile Safari. */
+    --paper: #f4c0c0;
+    --paper-dot: #e7b7b7;
+    --paper-cell: 82px;
     --page-bg:
-      radial-gradient(58vh 58vh at 50% 44%, rgba(150,205,255,.34), rgba(90,160,220,.10) 45%, transparent 70%),
-      repeating-linear-gradient(90deg, #2e6699 0 26px, #295c8b 26px 52px);
-    --panel-bg: repeating-linear-gradient(90deg, #24537d 0 26px, #204a70 26px 52px);
-    --wood: linear-gradient(#b07c45, #855427 42%, #5e3a1a);
-    --wood-line: #3d240f;
-    --ink: #f6f1e6;
-    --muted: #cbbda4;
-    --dim: #a1917a;
-    --line: rgba(0,0,0,.34);
-    --icon-bg: rgba(0,0,0,.26);
-    --cost-ok: #7fe37f;
-    --cost-no: #e2645e;
-    --title-color: #fff;
-    --title-shadow: 0 2px 0 rgba(0,0,0,.5), 0 0 14px rgba(0,0,0,.45);
+      radial-gradient(58vh 58vh at 50% 44%, rgba(255,255,255,.38), rgba(255,222,222,.14) 45%, transparent 70%),
+      radial-gradient(circle at 25% 25%, var(--paper-dot) 0 15%, rgba(231,183,183,0) 17%)
+        0 0 / var(--paper-cell) var(--paper-cell) repeat,
+      radial-gradient(circle at 75% 75%, var(--paper-dot) 0 15%, rgba(231,183,183,0) 17%)
+        0 0 / var(--paper-cell) var(--paper-cell) repeat,
+      var(--paper);
+    /* THE SHOP IS BRUTALIST: white ground, black ink, hard rules.
+       It has been three things now — a wash that let the polka dot through (no
+       edge at all), then a green surface (#151, which fixed the edge). This is
+       the third, and it fixes something the green could not: the RAIL.
+       A 48px black-green band spanning the full width sat between Hex and her
+       shop, and it was the single largest opaque object on the screen. The tab
+       below reclaims it — see .shopHead.
+       White rather than another hue because the page is already carrying the
+       art. The wallpaper is pink and painted, Hex is a drawing, the mice are
+       five colours; a shop that is simply paper and rules is the one surface
+       that does not compete with any of it, and it makes the price readout —
+       green when affordable, red when not, the shop's whole signal — the only
+       colour on the shelf.
+       --plank keeps its name and stops being a gradient: the rail is one flat
+       ink now, because a tab that small has nowhere to put a gradient. Row text,
+       prices and coins re-pitch in the scoped block on #dock below rather than
+       here, since they are the shop's readings of these tokens, not the page's. */
+    --shop-paper: #FFFFFF;
+    --shop-dot: #FFFFFF;   /* no dots on the shelf — it is paper, not wallpaper */
+    --panel-bg: #FFFFFF;
+    /* A GRADIENT, not a colour, and that is load-bearing: .shopHead paints
+       `background: var(--plank), var(--panel-bg)`, and CSS only allows a colour in
+       the LAST background layer — a flat colour here drops the whole declaration
+       and the tab renders transparent. Two identical stops keep it flat. */
+    --plank: linear-gradient(#141110, #141110);
+    --plank-line: #141110;
+    --rail-ink: #FFFFFF;
+    /* Everything the tray prints, re-pitched for a light ground. These were a
+       cream-on-dark set; on a white wash over pink they were the same smudge the
+       HUD was before it flipped. --ink is the art file's own "Text/outline". */
+    --ink: #312B2A;
+    --muted: #6E5A57;
+    --dim: #93807C;
+    --line: rgba(49,43,42,.16);
+    --icon-bg: rgba(255,255,255,.52);
+    /* Darkened to carry on a light row — the old pair were tuned to glow on the
+       blue and both washed out here, red worst. Still the same two readings. */
+    --cost-ok: #1C7F45;
+    --cost-no: #BE3B2E;
+    /* The two treatments that assumed a dark tray and so cannot be tokens the
+       rows already had: the press flash (a light lift on dark, a dark press on
+       light) and the text shadow under row names (a drop shadow only reads when
+       the type is light on dark). --glyph-shadow is the same idea for the shop
+       icon, where it has to be a filter rather than a text-shadow. */
+    --row-press: rgba(49,43,42,.07);
+    --row-shadow: none;
+    --glyph-shadow: none;
+    /* The shop's "this is the number that matters" highlight. NOT --gold itself:
+       that hex is the golden mouse, the night titles and the yellow mouse, and it
+       has to stay put. This is only the shop's reading of it, deepened to a
+       bronze so it still carries on a white wash — #ffd44d on pale pink is a
+       highlighter with nothing under it. The crux glow goes dark for the same
+       reason: a yellow bloom is invisible on a light ground, so the emphasis has
+       to come from the color and the weight instead. */
+    --shop-accent: #96690F;
+    --crux-shadow: none;
+    /* Flipped from white-on-dark to the art file's own ink, because the page
+       under this text went from a deep blue to a pale pink: white with a black
+       drop shadow was legible on the stripes and is a smudge on the dots. The
+       shadow becomes a light halo for the same reason — it now has to lift the
+       ink OFF a light ground, not punch it out of a dark one. This is the art
+       file's "Text/outline" swatch, the same one the mice's daytime keyline
+       uses, so the HUD and the mice share one line color by construction. */
+    --title-color: #312B2A;
+    --title-shadow: 0 1px 0 rgba(255,255,255,.55), 0 0 12px rgba(255,255,255,.5);
+    /* The mouse keyline, for the one mouse that is markup rather than art:
+       the price coin (currencyIconSVG), which is on screen in both phases. */
+    --mouse-line: #312B2A;
   }
   body.night {
     --ui-font: 'Baloo 2', system-ui, sans-serif;
@@ -125,9 +223,14 @@
        FADES in — two gradient stacks cannot be transitioned into one another, so
        overriding this var would snap the whole screen from day to night on one
        frame. body keeps the day background all game; #nightSky covers it. */
+    /* The green shop is a DAY material, exactly as the wood before it was: at
+       night the tray goes back to blurring the sky, the rails to dark glass, and
+       the rail's ink back to the same --ink the rows use — the dark --rail-ink
+       exists only because the day rail is a bright green. */
     --panel-bg: rgba(9,11,18,.93);
-    --wood: none;
-    --wood-line: #262b36;
+    --plank: none;
+    --plank-line: #262b36;
+    --rail-ink: var(--ink);
     --ink: #b9c2d4;
     --muted: #77808f;
     --dim: #545d6c;
@@ -135,8 +238,14 @@
     --icon-bg: #171a21;
     --cost-ok: var(--gold);
     --cost-no: #6b5535;
+    --row-press: rgba(255,255,255,.11);
+    --row-shadow: 0 1px 1px rgba(0,0,0,.45);
+    --glyph-shadow: drop-shadow(0 1px 1px rgba(0,0,0,.5));
+    --shop-accent: var(--gold);
+    --crux-shadow: 0 1px 1px rgba(0,0,0,.45), 0 0 9px rgba(255,212,77,.55);
     --title-color: var(--gold);
     --title-shadow: 0 0 18px rgba(255,212,77,.4);
+    --mouse-line: #F4F4F2;
   }
   * { box-sizing: border-box; }
   /* RESTORING A NIGHT SAVE MUST NOT REPLAY THE TWIST.
@@ -332,49 +441,145 @@
     width: min(55%, 300px); height: auto; max-height: 84%;
     pointer-events: none;
     /* day: sitting in the sunburst, so a warm white bloom like CC's cookie */
-    filter: drop-shadow(0 3px 10px rgba(0,0,0,.45)) drop-shadow(0 0 30px rgba(200,235,255,.45));
+    /* The drawing carries its own soft shadow — a wide band of COAT-COLOURED
+       pixels at partial alpha, painted into the PNG — so this only has to add a
+       little contact darkness under her, not build the whole shadow. Kept warm
+       rather than cool: the old cold bloom read as grey haze once the page behind
+       it went pink.
+       Deliberately light. Both this and the baked band are things the sunburst
+       has to show through, and they stack: at the previous .30 the two together
+       muted the spokes into a grey smear right where they converge on her. */
+    filter: drop-shadow(0 3px 7px rgba(120,70,70,.18));
     transition: transform .1s ease-out;
   }
-  #hexCat > * { pointer-events: auto; cursor: pointer; touch-action: manipulation; }
-  #catWrap.squash #hexCat { transform: scale(.93); }
+  /* Only the traced hit path takes taps. The head is five <image> layers now,
+     and an <image> hit-tests its whole RECTANGLE — so handing pointer-events to
+     the children the way the vector cat did would make the empty corners of the
+     box pettable. #catHit carries the silhouette instead. */
+  #hexCat #catHit { pointer-events: auto; cursor: pointer; touch-action: manipulation; }
+  /* NIGHT PET FEEDBACK. The drawn squash frames are painted in the day coat, so
+     they cannot play over the black one — which left a night poke moving nothing
+     at all: the "Zzz"/"grr…" float appeared and Hex sat perfectly still. This is
+     the same beat expressed as the one thing that works on either coat, a scale.
+     .big is the annoyed stir (the same beat that gets the full drawn sequence by
+     day) and presses harder. #hexCat already carries `transition: transform .1s
+     ease-out`, which is what eases both back.
+     Sized against how big she IS at night rather than against the day cat: the
+     wall reveal parks her at a quarter scale, where a 2-3% squash is a pixel or
+     two and reads as nothing. Proportional, so it carries at whatever size the
+     camera has left her at. */
+  body.night #catWrap.squash #hexCat { transform: scale(.95); }
+  body.night #catWrap.squash.big #hexCat { transform: scale(.90); }
   #catWrap.zoomies #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
-  #catWrap.zoomies #hexCat .catLine { stroke: #ffd44d; }
-  /* idle-motion pivots: the head tilts about the neck; each ear about its base */
+
+  /* THE HEAD, as drawn. One frame visible at a time, picked by data-pose:
+       day  -> resting daytime coat        s1..s3 -> the pet squash, in order
+       night-> the black night coat
+     Visibility rather than display, because display:none on an <image> can drop
+     it from the decode queue in some engines and the first pet of the game would
+     then flash an empty head while the PNG loads. All five decode at boot and
+     stay decoded; only one is shown. */
+  /* Settled at .58 after comparing the options on the real cat: enough to read as
+     shadow down her right side, light enough that the sunburst turns through it.
+     A flat value rather than a variable now that the question is answered — the
+     debug rows that offered 0-100% and a blur have done their job and are gone.
+     Restoring them is the one rule here plus the branch in debug.ts.
+     No blur: the chosen softness was 0px, and a filter on this layer would force
+     a compositing layer every frame for a no-op.
+     The layer itself stays split out of the coat. That is not scaffolding — it is
+     the correct shape for this art. The shadow is painted OUTSIDE her outline, so
+     keeping it separate is what lets it be translucent at all without punching a
+     hole in her. */
+  #hexCat #catShadow { opacity: .58; }
+  #hexCat .shadowFrame, #hexCat .headFrame, #hexCat #coatDay { visibility: hidden; }
+  #hexCat[data-pose="day"] #shadowDay,
+  #hexCat[data-pose="s1"]  #shadowS1,
+  #hexCat[data-pose="s2"]  #shadowS2,
+  #hexCat[data-pose="s3"]  #shadowS3 { visibility: visible; }
+  #hexCat[data-pose="day"] #coatDay,
+  #hexCat[data-pose="s1"]  #headSquash1,
+  #hexCat[data-pose="s2"]  #headSquash2,
+  #hexCat[data-pose="s3"]  #headSquash3 { visibility: visible; }
+
+  /* EAR PIVOT. fill-box + 50% 100% puts the origin on the BASE of each ear's own
+     cropped box, and the idle gesture is a scaleY about that line — so the base
+     pixels do not move at all and the drawn outline stays joined to the head.
+     That is why this is a perk and not the old rig's rotation: rotating a slice
+     cut out of one continuous hand-drawn line always nicks it where the line was
+     cut, and at Hex's real size that nick is plainly visible. Scaling from the
+     base is invisible in the same place, and "ears prick up" is the same thing
+     the flick was saying. */
+  #hexCat .ear, #hexCat #earLeft, #hexCat #earRight {
+    transform-box: fill-box; transform-origin: 50% 100%;
+  }
+
+  /* THE COAT CHANGE. Day and night are two drawings of the same cat, one brown
+     and one black, and picking between them on a class flip cut from one to the
+     other in a single frame — at the one moment in the game where she is
+     supposed to be falling asleep. So the night coat CROSS-FADES in over the day
+     one, on the same 1.8s and the same curve as the camera move, and she darkens
+     into the night rather than being replaced by it.
+     The day coat stays FULLY OPAQUE underneath for the whole fade instead of
+     fading out in step with it: two half-transparent layers would let a quarter
+     of the page through the middle of the blend and she would go briefly
+     ghostly. It hides only after the fade, on a delayed visibility flip, because
+     the night drawing's white keyline makes it ~2% wider than the day one —
+     left underneath at full opacity that 2% reads as a thin brown fringe all the
+     way round her.
+     The delay is declared on the NIGHT rule alone, so the return leg (a dev jump
+     back to day) reads 0s off the day rule and she brightens immediately. Same
+     cascade rule as #dock's cutscene fade: the browser takes a transition from
+     the after-change style. */
+  #hexCat #headNight {
+    visibility: visible; opacity: 0;
+    transition: opacity 1.8s cubic-bezier(.22, .61, .36, 1);
+  }
+  #hexCat[data-pose="night"] #headNight { opacity: 1; }
+  #hexCat[data-pose="night"] #coatDay {
+    visibility: hidden; transition: visibility 0s linear 1.8s;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #hexCat #headNight { transition: none; }
+    #hexCat[data-pose="night"] #coatDay { transition: none; }
+  }
+
+  /* idle-motion pivot: the head tilts about the neck. The ears no longer have
+     pivots of their own — they are painted into the frames above, and the four
+     squash frames already fold them, which is the ear motion the art ships. */
   #catFace { transform-box: fill-box; transform-origin: 50% 96%; }
-  #earLeft { transform-box: fill-box; transform-origin: 52% 90%; }
-  #earRight { transform-box: fill-box; transform-origin: 48% 82%; }
-  /* Zoomies lights up the IRIS (#eyeLeft/#eyeRight), leaving the pupil black.
-     This used to target #irisLeft/#irisRight, which was right back when those
-     were the green iris dots — after the eye coloring flipped (green iris,
-     black pupil) the same rule was recoloring her PUPILS pale yellow, which
-     read as a yellow slit floating in a green eye instead of eyes lighting up. */
-  #catWrap.zoomies #hexCat #eyeLeft, #catWrap.zoomies #hexCat #eyeRight { fill: #ffe98a; }
+  /* THE EYES. Both are hollow rings in the drawing — no pupil — which changes
+     what "look" and "dilate" can mean here: the whole ring moves and the whole
+     ring grows, instead of a dot sliding inside a socket. That reads correctly
+     because a ring eye IS the pupil, visually.
+     Colour comes through a variable so Zoomies can light both rings (and the
+     shut lashes) by flipping one value, rather than naming each shape. */
+  /* The artist's yellow. Briefly the shop's green, to tie the tray to the thing
+     you tap — that tie is gone with the green shop, and a brutalist tray has no
+     hue to match anyway, so the eyes go back to the drawing. */
+  #hexCat { --hex-eye: #D0D060; }
+  #hexCat .eye path { fill: var(--hex-eye); }
+  #catWrap.zoomies #hexCat { --hex-eye: #ffe98a; }
+
+  /* Open ring vs the drawn shut-lash arc. Swapped as a pair, never blended:
+     the artist drew the closed eye as its own gesture (a lash curve with three
+     strokes under it), and cross-fading it with the ring would show two eyes at
+     once through the middle of every transition. */
+  #hexCat .eyeShut { visibility: hidden; }
+  #hexCat.shut .eyeOpen { visibility: hidden; }
+  #hexCat.shut .eyeShut { visibility: visible; }
+
+  /* LIDS. scaleY on the ring, about its own centre. */
   #hexCat #eyeLeft, #hexCat #eyeRight {
     transform-box: fill-box; transform-origin: center; transition: transform .06s;
   }
   #hexCat.blink #eyeLeft, #hexCat.blink #eyeRight { transform: scaleY(.14); }
-  /* Iris transform is JS-owned (updateCat), not class-driven like the lids —
-     it has to combine a look-direction translate with the same blink/asleep
-     squash the lids get, and CSS can't compose an inline transform with a
-     class rule's transform (one wins outright). This is also the fix for a
-     regression from the pre-SVG canvas cat: that version drew one neon
-     ellipse per eye, so squashing it for a blink squashed the whole eye. This
-     SVG cat draws the white socket and the iris as two separate shapes, and
-     only the socket was ever wired to blink/asleep — the iris sat there
-     full-size the entire time, which reads as a stuck-open eye asleep. */
+  /* LOOK. JS-owned (updateCat), not class-driven like the lids — it has to
+     combine a look-direction translate with a dilation scale, and CSS can't
+     compose an inline transform with a class rule's transform (one wins
+     outright). Nested INSIDE the lid group so a blink and a glance multiply
+     instead of overwriting each other. */
   #hexCat #irisLeft, #hexCat #irisRight {
     transform-box: fill-box; transform-origin: center; transition: transform .12s ease-out;
-  }
-  /* whiskers: twitch while asleep, fan forward at prey while awake (JS-driven) */
-  #hexCat #whiskers {
-    transform-box: fill-box; transform-origin: center; transition: transform .18s ease-in-out;
-  }
-  /* Jaw (chatter, yawn). Origin is TOP center, not center: the mouth hangs off
-     the muzzle, so scaling it should drop the jaw downward rather than grow it
-     symmetrically through her chin. No transition — chatter is ~11Hz and JS
-     already eases the yawn, so any smoothing here only fights both. */
-  #hexCat #mouth {
-    transform-box: fill-box; transform-origin: center top;
   }
 
   /* ---- Night phase (post–Catnap Hypnalysis): Hex sleeps, the wall wakes ----
@@ -427,7 +632,12 @@
      and the starfield below. */
   body.dissolving #catPose { transition-delay: 3.3s; }
   body.night #hexCat { filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
-  #hexCat.asleep #eyeLeft, #hexCat.asleep #eyeRight { transform: scaleY(.07); }
+  /* Asleep no longer SQUASHES the eye to a sliver — it swaps in the eye the
+     artist actually drew for sleeping (.shut, the lash arc with three strokes
+     under it). A 0.07 scaleY of the open ring was the best a hollow circle could
+     do at "closed"; there is a real drawing of it now, so use that instead.
+     The REM drift underneath still plays — it just moves lashes rather than
+     pupils. */
 
   /* ---- Sleeping: subdued signs of life ----
      Breath is the only always-on one; it's what separates "asleep" from
@@ -639,6 +849,8 @@
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
     display: none; flex-direction: column;
     background: transparent; backdrop-filter: blur(10px);
+    /* See the day override below — the tray borrows its color from the page,
+       and the page changed. */
     padding-bottom: env(safe-area-inset-bottom);
     /* Lives on the base rule, NOT on .cutscene-hidden, so the cutscene fade runs
        BOTH ways. A transition declared only on the state class exists only while
@@ -690,47 +902,135 @@
     #dock.show.dock-in { animation: none; }
   }
 
-  /* Cookie Clicker wood framing, in two lengths: the titled SHOP cap and the
-     inert Upgrades/Buildings divider. Cut from the same board here — three bands
-     each, carved line / wood / carved line. No bevel highlight: --wood is
-     already a light-to-dark gradient, and a second lit edge on top of the first
-     is what turns a short rail into a stack of hairlines.
+  /* Cookie Clicker framing, in two lengths: the titled SHOP cap and the inert
+     Upgrades/Buildings divider. Cut from the same board here — three bands each,
+     carved line / board / carved line. No bevel highlight: --plank is already a
+     light-to-dark gradient, and a second lit edge on top of the first is what
+     turns a short rail into a stack of hairlines.
 
-     Wood is a DAY material and only a day material: body.night sets `--wood: none`,
-     so at night these same two bands fall back to --panel-bg and read as dark glass
-     hairlined with --wood-line. One rule, two materials — which is why the class
-     names below say `shopHead`/`shopDivider` rather than naming the timber.
+     The vars were --wood/--wood-line, from when this was a timber gradient. The
+     board is green now, and a var named for a material it no longer is is the
+     kind of thing that gets read as a hint later — so --plank/--plank-line, which
+     names the SHAPE and outlives the next recolor the way `shopHead`/`shopDivider`
+     already do.
+
+     The board is a DAY material and only a day material: body.night sets
+     `--plank: none`, so at night these same two bands fall back to --panel-bg and
+     read as dark glass hairlined with --plank-line. One rule, two materials.
 
      Tapping the SHOP rail collapses/reopens the whole dock (#dock.collapsed).
      It's the ONLY hit target for that — the divider is inert, so a mistap while
      reaching for a row can't shut the shop. */
+  /* ---- THE DAY SHOP: its own room, its own tokens ----
+     The tray is transparent-over-blur and takes its color from the PAGE behind
+     it, which by night is what we want and by day is what left the shop
+     invisible against the wall. So day hands it a ground of its own.
+
+     That ground is THE SAME POLKA TILE as the page, multiplied by the shop
+     green: same paper, same dots, same 240px pitch, one hue apart. Blending the
+     art rather than laying a flat fill is what keeps the shop part of the
+     drawing — the artist's dots carry straight through the tray, and a flat
+     green would have read as a UI panel dropped on top of a painting. It also
+     means the tile is the only background asset either surface needs.
+     Layer order matters: multiply blends each layer with the one BELOW, so the
+     tile must sit above the color it is tinted by.
+
+     Everything under it re-pitches for a dark shelf. These are the same tokens
+     :root sets for the light page — scoped here rather than overwritten there,
+     because the page still needs its own readings: the join gate prints --ink on
+     pink, and the HUD's coin keeps the dark --mouse-line while the tray's coins
+     take the white one. The shop is a THIRD theme scope, after day and night,
+     and it is the only place in the game where a var means one thing inside an
+     element and another outside it. */
+  body:not(.night) #dock {
+    /* Plain paper. No dots: the page is wallpaper, the shop is a sheet laid on
+       it, and carrying the pattern through both was what made the tray read as
+       part of the wall in the first place. The only ornament left is the rules. */
+    background: var(--shop-paper);
+    --ink: #141110;
+    --muted: #55504E;
+    --dim: #6E6866;
+    --line: #141110;
+    --icon-bg: #FFFFFF;
+    /* Darkened off the dark-shelf pair (#7FE39B / #FF7B70), which were tuned to
+       glow on green and are two pastels on paper. Checked against white: 4.7:1
+       and 4.6:1, comfortably past the bar for the price line (20px at 700). */
+    --cost-ok: #157F3F;
+    --cost-no: #B33A2B;
+    --row-press: #EDEAE8;
+    --row-shadow: none;
+    --glyph-shadow: none;
+    /* Gold cannot survive on paper — #ffd44d on white is a highlighter with
+       nothing under it — so the shop's accent goes to the ink it prints in and
+       earns emphasis from weight instead of hue. */
+    --shop-accent: #141110;
+  }
+
+
   .shopHead, .shopDivider {
-    flex: none; background: var(--wood), var(--panel-bg);
+    flex: none; background: var(--plank), var(--panel-bg);
     border: 0;
-    border-top: 1px solid var(--wood-line); border-bottom: 1px solid var(--wood-line);
+    border-top: 1px solid var(--plank-line); border-bottom: 1px solid var(--plank-line);
   }
+  /* THE RAIL IS A TAB, not a band. It used to be a full-width bar 48px tall —
+     the largest opaque object on the screen, parked between Hex and her shop for
+     no reason except that it was where the label lived. Taken out of the dock's
+     flow and hung off its top-left corner, it costs the play area a tab-sized
+     notch instead of a whole stripe, and the tray's first row starts where the
+     band used to.
+     Everything the band held is on the tab: the storefront mark shrinks and sits
+     beside the word rather than floating in its own centred cluster, and the
+     chevron follows the word it belongs to. One shape, one control.
+     It stays a comfortable target — 44px tall, which is Apple's minimum and
+     Material's within a pixel — because the point was never to make the CONTROL
+     small, only to stop it spanning the screen. Absolute positioning does not
+     take it out of the button: taps on the tab still toggle the tray. */
   .shopHead {
-    position: relative;   /* anchor for #newBadge */
-    /* Sized as a THUMB TARGET, not as a caption. This rail is the only hit area
-       that opens and closes the dock (the divider is deliberately inert), so it
-       has to be comfortable to hit blind while the other thumb is mashing Hex.
-       At the old 19 × --ss it came out 28.5px — under Apple's 44pt AND Material's
-       48dp, i.e. the one control in the shop that was too small to aim at. 32 ×
-       --ss = 48px clears both. The band is centered content on a fixed height, so
-       the extra height is wood around the same SHOP + chevron, not bigger type.
-       Safe to retune freely: #catWrap parks Hex on the sunburst hub (--sun-y) as
-       a CONSTANT, so the rail's height can't shift the thing you're tapping. */
-    height: calc(32px * var(--ss));
-    display: flex; align-items: center; justify-content: center; gap: calc(5px * var(--ss));
-    padding: 0; -webkit-appearance: none; appearance: none; border-radius: 0;
-    width: 100%; cursor: pointer; color: var(--ink);
+    position: absolute; bottom: 100%; left: 0; z-index: 2;
+    width: auto; height: auto;
+    /* 44px of target: Apple's minimum, Material's within a pixel. The point was
+       never to make the CONTROL small — only to stop it spanning the screen. */
+    padding: calc(8px * var(--ss)) calc(9px * var(--ss));
+    display: flex; align-items: center; justify-content: center;
+    gap: calc(4px * var(--ss));
+    -webkit-appearance: none; appearance: none;
+    border-radius: 0 calc(7px * var(--ss)) 0 0;
+    cursor: pointer; color: var(--rail-ink);
   }
+  /* The mark shrinks and joins the word instead of floating in its own centred
+     cluster — on a tab this size the two read as one lockup. */
+  .shopHead .shopIcon svg {
+    width: calc(13px * var(--ss)); height: calc(13px * var(--ss));
+  }
+  /* DAY ONLY. The storefront is a daytime idea — a shop you walk into, drawn in
+     the same hand as the cat and the mice — and by day it sits on a black tab
+     over a pink wall, where it reads instantly. At night the whole surface is
+     already near-black, the tab is a dark shape on a dark sky, and the mark
+     becomes a smudge competing with the one word that has to survive there.
+     display:none rather than opacity: it must leave the flex row entirely, or
+     the gap it was holding stays and the word sits off-centre on its own tab. */
+  body.night .shopHead .shopIcon { display: none; }
+  /* The tab hangs off the dock's top edge, so the dock must not clip it. */
+  #dock { overflow: visible; }
+  /* The band used to be the tray's top edge. With it gone the sheet needs its
+     own, or the first row floats with nothing closing it off. */
+  #shopScroll { border-top: 3px solid var(--plank-line); }
+
   /* Both rail labels, styled together so the closed sign is the same stamp as the
      open one — only the word changes. */
   .shopTitle, .soldTitle {
     font: 700 11px var(--ui-font); font-size: calc(10.5px * var(--ss));
     letter-spacing: .14em; text-transform: uppercase; line-height: 1;
-    text-shadow: 0 1px 1px rgba(0,0,0,.5);
+    text-shadow: var(--row-shadow);
+  }
+  /* Sized off the cap height of .shopTitle rather than the rail, so the mark and
+     the word read as one lockup at any --ss. Same drop shadow the labels carry as
+     a text-shadow — on a filled glyph that has to be a filter to follow the
+     holes. */
+  .shopHead .shopIcon { display: flex; align-items: center; }
+  .shopHead .shopIcon svg {
+    display: block; width: calc(16px * var(--ss)); height: calc(16px * var(--ss));
+    fill: currentColor; filter: var(--glyph-shadow);
   }
   .soldTitle { display: none; }
   /* Border-corner caret rather than a glyph — scales with --ss, no font
@@ -851,7 +1151,12 @@
      OWNS the hidden content, cleared by going and looking. Absolutely positioned
      so it can't shift the centred SHOP + chevron as the number changes width.
      Red is the only place this palette uses alarm colour, which is the point —
-     it has to read at a glance to someone whose eyes are on the cat. */
+     it has to read at a glance to someone whose eyes are on the cat.
+     The hairline ring is the cost of the rail turning green: red on a pale wash
+     was two values apart, red on green is the one pair a red-green colour vision
+     deficiency flattens outright, and this badge is 22px of nothing but hue. The
+     ring is what carries it — a light edge keeps the badge a distinct OBJECT on
+     the rail even when the two fills read as the same mud. */
   #newBadge {
     position: absolute; right: calc(10px * var(--ss)); top: 50%;
     transform: translateY(-50%);
@@ -861,7 +1166,7 @@
     padding: 0 calc(4px * var(--ss));
     font: 700 calc(9px * var(--ss))/1 var(--ui-font); letter-spacing: 0;
     font-variant-numeric: tabular-nums;
-    box-shadow: 0 1px 3px rgba(0,0,0,.5);
+    box-shadow: 0 0 0 1.5px rgba(255,255,255,.6), 0 1px 3px rgba(0,0,0,.5);
   }
   #newBadge[hidden] { display: none; }
 
@@ -901,7 +1206,7 @@
      tray; .can:active keeps a background because that's tap feedback, not
      the row's resting look. */
   .item.can { cursor: pointer; opacity: 1; }
-  .item.can:active { background: rgba(255,255,255,.11); }
+  .item.can:active { background: var(--row-press); }
   .item .icon {
     /* Fixed WIDTH for every row, full row HEIGHT. Rows still vary in height
        (upgrade effect text wraps, and the one building blurb adds a line), so a
@@ -932,7 +1237,7 @@
   .item .titleRow { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .item .nm {
     font: 700 13.5px var(--ui-font); font-size: calc(13.5px * var(--ss)); line-height: 1.12;
-    color: var(--ink); text-shadow: 0 1px 1px rgba(0,0,0,.45);
+    color: var(--ink); text-shadow: var(--row-shadow);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
   }
   /* The wall rows that CHANGE something rather than giving more of it — see CRUX_KEYS.
@@ -942,8 +1247,8 @@
      that is mashing, not reading. Only the fill and shadow change, so it cannot shift
      the row's metrics or reflow the rail. */
   #upgrades .item.crux .nm {
-    color: var(--gold);
-    text-shadow: 0 1px 1px rgba(0,0,0,.45), 0 0 9px rgba(255,212,77,.55);
+    color: var(--shop-accent);
+    text-shadow: var(--crux-shadow);
   }
   .item .rate {
     flex: none; display: inline-flex; align-items: center; gap: 3px;
@@ -955,7 +1260,7 @@
   .item .rate .coin { flex: none; width: calc(10px * var(--ss)); height: auto; display: block; }
   /* Every upgrade row, and the one building row with a blurb. */
   .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px; }
-  .item .fx b { color: var(--gold); font-weight: 700; }
+  .item .fx b { color: var(--shop-accent); font-weight: 700; }
   /* The blurb is a pre-purchase tease: own one and the row drops to the standard
      name + rate + price. Upgrade rows never get .bought, so their effect text
      stays for as long as the row exists. */
@@ -979,7 +1284,7 @@
      at a glance like CC's big count rather than as a label beside a label. */
   .item .own {
     flex: none; min-width: calc(26px * var(--ss)); text-align: right;
-    font: 800 26px var(--ui-font); font-size: calc(20px * var(--ss)); line-height: 1; color: var(--dim); text-shadow: 0 1px 1px rgba(0,0,0,.45);
+    font: 800 26px var(--ui-font); font-size: calc(20px * var(--ss)); line-height: 1; color: var(--dim); text-shadow: var(--row-shadow);
     font-variant-numeric: tabular-nums;
   }
   .item.can .own { color: var(--ink); }
@@ -1114,30 +1419,85 @@
     <!-- Idle sleep sign. aria-hidden: the night phase is announced elsewhere, and
          three drifting glyphs are decoration, not information a reader needs. -->
     <div id="sleepZ" aria-hidden="true"><span>z</span><span>z</span><span>z</span></div>
-    <svg id="hexCat" role="button" aria-label="Pet Hex" width="200" height="210" viewBox="0 0 200 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg id="hexCat" role="button" aria-label="Pet Hex" width="828" height="652" viewBox="0 0 828 652" fill="none" xmlns="http://www.w3.org/2000/svg">
      <g id="catFace">
-      <!-- Head split so the ears can flick independently: a solid black FILL for
-           the whole silhouette (no stroke, so a tilting ear reveals only black
-           behind it), the white OUTLINE of just the lower head + the valley
-           between the ears, and each EAR as its own group (black fill + a white V
-           outline, base unstroked) that pivots at its base. At rest the three
-           compose back into the original head exactly. -->
-      <path id="headFill" d="M26.5 57.5L32.1 44L69.7 44L86.5 71.5C93.5 67.5 111 66.5 119.5 71.5L138.2 44L166.5 44L170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5Z" fill="#111114"/>
-      <path id="headOutline" class="catLine" d="M86.5 71.5C93.5 67.5 111 66.5 119.5 71.5M170.5 56C190.5 74 172.5 126 166.5 148C160.5 174 156 174 126 183C110 187 90 187 74 183C44 174 39.5 174 33.5 148C27.5 126 6.5 75.5 26.5 57.5" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-      <g id="earLeft">
-       <path d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5Z" fill="#111114"/>
-       <path class="catLine" d="M26.5 57.5L44.5 13.9999C46.5 11.3332 49.1667 11.9999 52.5 15.9999L86.5 71.5" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- HEAD: the artist's drawing, five poses, all exported onto ONE 828x652
+           canvas and registered to each other by eye position.
+           NOTE the href form: "/art/..." here, but "/hexxygon/art/..." in the
+           CSS above. Not a typo — Vite rewrites asset URLs in HTML ATTRIBUTES
+           through `base` and leaves url() in a <style> block alone, so writing
+           the same string in both places gets one of them wrong (an attribute
+           written with the prefix comes out as /hexxygon/hexxygon/art/...). That shared
+           registration is the whole trick — she squashes around her eyes exactly
+           as drawn, so swapping frames needs no per-frame offset table and the
+           eye overlay below never has to chase the head.
+           The eyes are painted OUT of these PNGs (inpainted with the surrounding
+           coat) so the rigged pair below is the only pair on screen; leave them
+           baked in and every blink would show a second, open eye underneath. -->
+      <!-- The DAY coat, in three pieces so the ears can move on their own again.
+           The head has had its ears cut away and a soft collar of flat coat left
+           where each one sat, so a moving ear reveals coat rather than a hole —
+           the same trick the old vector cat used with an unstroked headFill.
+           Only the day coat is split: she sleeps at night, and the ears rested
+           at night in the old rig too, so the night art stays one piece. -->
+      <!-- THE SHADOW, lifted out of the coat into its own layer. It is painted
+           into the artwork as coat-coloured pixels OUTSIDE the drawn line, at
+           full opacity, which is why it blocked the sunburst; carried here it
+           keeps the artist's colour and falloff shape while its strength is set
+           once in CSS (.58) rather than being fixed in the pixels.
+           First in document order so it sits under her. The ears keep their own
+           band baked in: it is ~400px total and it has to travel with the ear
+           rather than with the head, so a shared layer would lag behind a perk. -->
+      <g id="catShadow">
+       <image class="shadowFrame" id="shadowDay" href="/art/hex-day-shadow.png" x="0" y="0" width="828" height="652"/>
+       <image class="shadowFrame" id="shadowS1" href="/art/hex-squash1-shadow.png" x="0" y="0" width="828" height="652"/>
+       <image class="shadowFrame" id="shadowS2" href="/art/hex-squash2-shadow.png" x="0" y="0" width="828" height="652"/>
+       <image class="shadowFrame" id="shadowS3" href="/art/hex-squash3-shadow.png" x="0" y="0" width="828" height="652"/>
       </g>
-      <g id="earRight">
-       <path d="M119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56Z" fill="#111114"/>
-       <path class="catLine" d="M119.5 71.5L151.739 24C155.072 20 157.5 20.3333 159.5 23L170.5 56" fill="none" stroke="#F4F4F2" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+      <g id="coatDay">
+       <image id="headDay" href="/art/hex-day.png" x="0" y="0" width="828" height="652"/>
+       <g id="earLeft"><image href="/art/hex-day-earL.png"
+          x="165.6" y="33.6" width="161.7" height="137.1"/></g>
+       <g id="earRight"><image href="/art/hex-day-earR.png"
+          x="402.4" y="2.6" width="218.6" height="168.2"/></g>
       </g>
-      <path id="eyeLeft" d="M47 120C61.3333 105.333 75.6667 105.333 90 120C75.6667 134.667 61.3333 134.667 47 120Z" fill="#65C256"/>
-      <path id="eyeRight" d="M115 122C128.333 108.667 141.667 108.667 155 122C141.667 135.333 128.333 135.333 115 122Z" fill="#65C256"/>
-      <path id="irisLeft" d="M68 128C72.4183 128 76 124.418 76 120C76 115.582 72.4183 112 68 112C63.5817 112 60 115.582 60 120C60 124.418 63.5817 128 68 128Z" fill="#0a0b10"/>
-      <path id="irisRight" d="M135 131C139.418 131 143 127.418 143 123C143 118.582 139.418 115 135 115C130.582 115 127 118.582 127 123C127 127.418 130.582 131 135 131Z" fill="#0a0b10"/>
-      <path id="mouth" d="M87 160C95 158.667 99 154.333 99 147C99 154.333 103 158.667 111 160" stroke="#F4F4F2" stroke-width="2.4" stroke-linecap="round"/>
-      <path id="whiskers" d="M80 143L34 134M80 149H32M80 155L34 164M120 143L166 134M120 149H168M120 155L166 164" stroke="#F4F4F2" stroke-width="2.2" stroke-linecap="round"/>
+      <image class="headFrame" id="headSquash1" href="/art/hex-squash1.png"
+             x="0" y="0" width="828" height="652"/>
+      <image class="headFrame" id="headSquash2" href="/art/hex-squash2.png"
+             x="0" y="0" width="828" height="652"/>
+      <image class="headFrame" id="headSquash3" href="/art/hex-squash3.png"
+             x="0" y="0" width="828" height="652"/>
+      <image class="headFrame" id="headNight" href="/art/hex-night.png"
+             x="0" y="0" width="828" height="652"/>
+      <!-- EYES: the one part kept as markup, because it is the only part that has
+           to move independently every frame — lids, gaze and dilation all live
+           here. Two rings and two shut-lash arcs, traced from the artist's own
+           eyes (open pair off the day cat, shut pair off her sleeping pose) so
+           they carry the same wobble as the coat they sit on.
+           #eyeLeft/#eyeRight are the LIDS (scaleY); #irisLeft/#irisRight inside
+           them are the LOOK (translate + dilation scale). Splitting it that way
+           is what lets a blink and a glance compose instead of overwriting each
+           other — the same division of labour the old vector cat had, so
+           updateCat still drives the same four ids. -->
+      <g id="eyeLeft" class="eye">
+       <g id="irisLeft">
+        <path class="eyeOpen" d="M290.0 569.5 285.0 569.5 284.0 568.5 253.0 568.5 252.0 567.5 249.0 567.5 246.0 565.5 244.0 565.5 240.0 563.5 236.0 563.5 230.0 558.5 228.0 558.5 225.0 556.5 223.0 556.5 220.0 553.5 219.0 553.5 218.5 552.0 217.0 551.5 213.5 548.0 212.5 545.0 207.5 539.0 206.5 535.0 201.5 527.0 201.5 524.0 199.5 521.0 199.5 519.0 198.5 518.0 198.5 514.0 197.5 513.0 199.5 507.0 201.0 505.5 204.0 505.5 206.5 503.0 203.5 499.0 204.5 498.0 204.0 497.5 199.0 497.5 197.5 496.0 197.5 491.0 199.5 487.0 199.5 481.0 203.5 473.0 204.5 466.0 208.5 461.0 213.5 449.0 219.0 443.5 221.0 443.5 224.0 440.5 228.0 439.5 229.0 438.5 231.0 438.5 232.0 437.5 253.0 437.5 254.0 438.5 257.0 438.5 258.0 439.5 265.0 439.5 269.0 441.5 270.0 440.5 273.0 440.5 279.0 437.5 282.0 437.5 286.0 439.5 296.0 440.5 299.0 443.5 301.0 443.5 308.0 449.5 309.0 449.5 312.5 453.0 314.5 457.0 323.5 467.0 326.5 473.0 326.5 477.0 328.5 479.0 330.5 483.0 330.5 487.0 331.5 488.0 331.5 491.0 333.5 495.0 333.5 512.0 332.5 513.0 333.5 515.0 332.5 516.0 332.5 523.0 331.5 524.0 331.5 528.0 330.5 529.0 330.5 531.0 327.5 536.0 327.5 542.0 325.5 546.0 322.5 549.0 320.5 554.0 317.5 557.0 317.0 558.5 303.0 565.5 298.0 565.5ZM293.5 552.0 296.0 551.5 300.0 548.5 301.0 548.5 310.5 539.0 310.5 537.0 313.5 533.0 313.5 530.0 314.5 529.0 314.5 526.0 315.5 525.0 315.5 520.0 316.5 519.0 315.5 517.0 315.5 514.0 316.5 513.0 316.5 498.0 317.5 497.0 316.5 492.0 314.5 489.0 314.5 484.0 310.5 480.0 308.5 476.0 304.5 472.0 303.5 469.0 302.0 467.5 301.0 467.5 300.5 466.0 294.0 460.5 288.0 457.5 285.0 457.5 284.0 456.5 283.0 457.5 269.0 457.5 268.0 456.5 262.0 456.5 260.0 454.5 254.0 454.5 253.0 455.5 248.0 455.5 247.0 454.5 234.0 454.5 223.5 466.0 222.5 469.0 220.5 471.0 220.5 473.0 216.5 481.0 216.5 487.0 214.5 491.0 214.5 495.0 212.0 498.5 208.5 499.0 209.5 503.0 212.5 505.0 213.5 511.0 215.5 514.0 215.5 517.0 218.5 521.0 218.5 524.0 220.5 528.0 223.5 531.0 225.5 535.0 236.0 544.5 240.0 546.5 243.0 546.5 246.0 548.5 254.0 550.5 255.0 551.5 265.0 551.5 266.0 552.5 270.0 552.5 271.0 551.5 274.0 551.5 275.0 552.5 284.0 552.5 285.0 551.5 291.0 551.5 292.0 552.5Z"/>
+        <path class="eyeShut" d="M281.0 519.5 276.0 519.5 271.5 516.0 271.5 510.0 270.5 509.0 270.0 505.5 266.0 505.5 265.0 504.5 261.0 504.5 260.0 503.5 258.5 504.0 258.5 508.0 251.0 515.5 246.0 515.5 244.5 514.0 244.5 513.0 242.5 512.0 242.5 511.0 243.5 510.0 244.5 504.0 247.5 500.0 244.0 496.5 241.0 495.5 236.0 490.5 235.0 490.5 226.5 482.0 226.5 481.0 222.5 477.0 222.5 476.0 220.5 475.0 219.5 473.0 220.5 472.0 220.5 468.0 224.0 464.5 228.0 463.5 233.5 468.0 233.5 470.0 236.5 473.0 237.5 476.0 239.0 477.5 240.0 477.5 245.0 482.5 257.0 488.5 261.0 491.5 263.0 491.5 264.0 492.5 269.0 492.5 270.0 493.5 276.0 493.5 277.0 494.5 278.0 493.5 288.0 493.5 292.0 491.5 295.0 491.5 296.0 490.5 298.0 490.5 302.0 488.5 308.0 487.5 308.5 486.0 319.0 476.5 320.0 476.5 320.5 475.0 325.0 470.5 329.0 469.5 331.0 471.5 332.0 471.5 333.5 473.0 333.5 477.0 332.5 478.0 332.5 480.0 329.5 483.0 329.5 485.0 319.0 494.5 315.0 495.5 310.5 500.0 314.5 508.0 313.5 512.0 311.0 514.5 306.0 514.5 304.0 512.5 303.0 512.5 301.5 511.0 300.5 508.0 297.0 504.5 295.0 505.5 290.0 505.5 289.0 506.5 287.0 505.5 283.5 508.0 283.5 510.0 284.5 511.0 283.5 513.0 283.5 517.0Z"/>
+       </g>
+      </g>
+      <g id="eyeRight" class="eye">
+       <g id="irisRight">
+        <path class="eyeOpen" d="M537.0 543.5 535.0 542.5 534.0 543.5 532.0 543.5 531.0 542.5 525.0 541.5 524.0 540.5 521.0 540.5 520.0 539.5 514.0 539.5 511.0 537.5 506.0 537.5 505.0 536.5 502.0 536.5 501.0 535.5 499.0 535.5 498.0 534.5 496.0 534.5 492.0 532.5 489.0 532.5 485.0 530.5 482.0 527.5 479.0 526.5 474.5 522.0 474.5 521.0 464.5 512.0 464.5 510.0 462.5 507.0 462.5 503.0 460.5 500.0 460.5 491.0 459.5 490.0 460.5 488.0 460.5 481.0 459.5 480.0 459.5 470.0 460.5 469.0 460.5 464.0 462.5 461.0 462.5 458.0 463.5 457.0 463.5 453.0 467.5 445.0 467.5 443.0 469.5 439.0 472.5 436.0 475.5 428.0 479.5 425.0 483.5 418.0 488.0 414.5 492.0 413.5 495.0 410.5 499.0 409.5 504.0 406.5 509.0 406.5 510.0 405.5 519.0 405.5 520.0 406.5 528.0 406.5 529.0 407.5 533.0 407.5 535.0 406.5 536.0 407.5 540.0 408.5 544.0 411.5 548.0 411.5 554.0 414.5 556.0 414.5 557.0 413.5 558.0 414.5 562.0 414.5 566.0 416.5 568.0 418.5 571.0 419.5 582.5 431.0 583.5 434.0 590.5 442.0 592.5 446.0 592.5 448.0 593.5 449.0 594.5 455.0 595.5 456.0 596.5 486.0 595.5 487.0 595.5 493.0 594.5 494.0 594.5 499.0 592.5 503.0 592.5 509.0 591.5 511.0 588.5 514.0 588.5 515.0 585.5 518.0 585.5 519.0 574.0 529.5 570.0 530.5 565.0 534.5 562.0 535.5 560.0 537.5 558.0 537.5 556.0 539.5 549.0 540.5 545.0 542.5 541.0 541.5ZM539.5 526.0 542.0 525.5 545.0 523.5 550.0 522.5 553.0 520.5 555.0 520.5 557.0 518.5 561.0 517.5 563.0 515.5 564.0 515.5 566.0 513.5 567.0 513.5 569.0 511.5 572.0 510.5 573.5 509.0 575.5 500.0 578.5 497.0 578.5 493.0 579.5 492.0 579.5 486.0 578.5 485.0 578.5 480.0 579.5 479.0 579.5 471.0 580.5 470.0 580.5 463.0 579.5 462.0 579.5 459.0 578.5 458.0 578.5 456.0 575.5 452.0 574.5 446.0 563.0 435.5 561.0 434.5 557.0 434.5 549.0 430.5 544.0 429.5 540.0 426.5 534.0 423.5 528.0 423.5 527.0 422.5 523.0 422.5 522.0 423.5 509.0 423.5 501.0 427.5 499.0 427.5 491.5 435.0 491.5 437.0 486.5 442.0 486.5 444.0 484.5 447.0 484.5 449.0 479.5 458.0 479.5 462.0 478.5 463.0 478.5 465.0 476.5 469.0 476.5 482.0 475.5 483.0 475.5 487.0 476.5 488.0 476.5 496.0 483.0 508.5 484.0 508.5 487.0 511.5 494.0 514.5 497.0 517.5 500.0 518.5 502.0 520.5 517.0 520.5 518.0 521.5 520.0 521.5 524.0 523.5 530.0 524.5 533.0 526.5Z"/>
+        <path class="eyeShut" d="M490.0 495.5 487.0 495.5 484.0 492.5 482.5 492.0 483.5 490.0 482.5 486.0 485.5 483.0 485.5 480.0 486.5 478.0 483.0 477.5 482.0 476.5 480.0 476.5 476.0 474.5 472.0 474.5 470.0 472.5 468.0 472.5 464.0 469.5 461.0 468.5 460.5 467.0 457.0 463.5 456.0 463.5 450.5 457.0 450.5 455.0 449.5 454.0 449.5 449.0 451.0 446.5 453.0 446.5 454.0 445.5 458.0 445.5 460.0 446.5 461.5 451.0 466.0 455.5 467.0 455.5 470.0 458.5 480.0 463.5 502.0 463.5 503.0 464.5 510.0 464.5 511.0 463.5 514.0 463.5 515.0 464.5 519.0 462.5 521.0 460.5 524.0 459.5 526.0 457.5 529.0 457.5 533.0 453.5 536.0 452.5 546.5 443.0 546.5 442.0 552.5 435.0 552.5 433.0 554.0 430.5 555.0 430.5 557.0 428.5 561.0 428.5 564.5 431.0 565.5 433.0 565.5 436.0 564.5 437.0 564.5 440.0 562.5 443.0 562.5 445.0 552.0 456.5 549.0 457.5 547.5 459.0 547.5 460.0 543.5 463.0 543.5 464.0 545.0 465.5 546.0 465.5 549.0 468.5 551.0 468.5 555.5 473.0 556.5 477.0 554.0 479.5 553.0 479.5 552.0 481.5 548.0 482.5 543.0 478.5 540.0 478.5 538.0 477.5 534.5 474.0 533.5 470.0 532.0 469.5 526.0 472.5 524.5 474.0 525.5 476.0 525.5 479.0 527.5 483.0 526.5 490.0 525.0 491.5 519.0 492.5 517.0 490.5 516.0 490.5 513.5 487.0 513.5 480.0 512.5 479.0 512.5 477.0 504.0 476.5 503.0 475.5 502.0 476.5 498.5 477.0 499.5 478.0 498.5 480.0 498.5 484.0 495.5 488.0 494.5 492.0Z"/>
+       </g>
+      </g>
+      <!-- Hit target, invisible. An <image> hit-tests its whole rectangle, so
+           without this a tap anywhere in the 828x652 box — the empty corners
+           included — would count as a pet, which is the exact bug the old
+           per-shape SVG could not have. Traced from the UNION of all five poses
+           so mid-squash and the wider night keyline are both covered. Last in
+           document order so it sits on top and takes every tap itself. -->
+      <path id="catHit" d="M392.0 646.2 265.2 632.0 221.2 619.1 157.8 579.0 73.7 624.2 70.5 610.6 102.2 588.0 42.7 591.9 20.1 578.3 27.2 558.3 88.6 547.3 51.8 549.2 16.8 532.4 3.2 517.5 9.1 503.9 40.1 491.0 49.8 504.6 37.5 518.1 96.4 509.7 65.3 404.9 77.0 315.7 57.6 306.6 49.8 274.3 88.6 239.3 71.8 217.4 74.4 176.0 133.9 138.4 143.0 94.4 176.0 75.7 199.2 42.0 225.1 34.3 270.4 58.9 323.4 136.5 432.1 124.8 480.6 34.9 508.4 11.0 544.7 3.2 570.5 14.9 616.5 64.7 628.1 122.9 681.8 152.0 698.0 172.1 700.6 204.4 676.0 226.4 701.9 262.6 722.6 329.9 718.7 430.8 751.0 410.1 750.4 390.1 767.2 388.8 800.2 417.9 770.4 438.6 813.8 437.9 827.4 461.9 753.6 482.6 787.9 481.9 782.7 507.8 738.7 500.0 676.0 511.0 771.1 525.9 773.7 538.8 670.2 520.7 605.5 588.0 558.9 616.5Z" fill="transparent"/>
      </g>
     </svg>
    </div></div></div>
@@ -1160,6 +1520,13 @@
        plank; both share a single scroller. -->
   <button type="button" id="shopToggle" class="shopHead"
           aria-expanded="true" aria-controls="shopScroll">
+    <!-- The storefront from the art file, traced to one even-odd path (its ink is
+         the drawing, the holes are the awning scallops and the doorway). Inherits
+         .shopHead's currentColor, exactly like .chev does, so it is the same
+         two-phase color the rail already had rather than a third decision — and
+         the art file's own dark-line/white-line pair falls out for free.
+         Purely decorative: the button is already named by .shopTitle. -->
+    <span class="shopIcon" aria-hidden="true"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M12.31 21.54 2.31 21.38 1.77 20.38 2.08 20.08 2.54 13.31 1.54 13.08 0.23 12.08 -0.08 10.54 0.08 9.77 0.85 8.38 2.77 6.62 3.54 6.15 4.54 6.08 4.08 5.0 4.38 4.38 4.38 3.46 5.23 2.62 8.46 2.31 12.15 2.62 19.08 2.46 19.92 3.31 20.54 6.23 21.38 6.31 23.15 8.08 23.92 10.23 23.92 11.62 22.46 13.23 21.85 13.54 20.54 13.62 20.08 20.54 19.54 21.38 13.69 21.23ZM15.92 6.54 18.62 6.31 18.62 4.0 16.92 4.31 15.23 4.31 14.77 4.0 6.0 4.15 5.77 5.62 5.31 6.08 5.85 6.31 10.0 6.15 14.15 6.62ZM2.69 11.62 3.54 11.54 4.69 10.69 5.77 8.54 5.85 7.85 4.31 7.69 1.92 9.62 1.62 11.15 2.0 11.54ZM9.46 13.0 10.62 12.46 11.46 11.31 11.92 9.92 12.0 8.0 7.85 7.85 7.62 8.08 6.54 11.0 6.54 12.08 7.85 13.08ZM20.69 11.92 21.69 11.85 22.23 11.31 22.38 10.38 22.08 9.31 20.77 7.85 19.23 7.85 18.85 8.08 18.85 8.38 19.15 9.0 19.31 10.54 19.62 11.31 20.31 12.0ZM16.23 12.85 16.77 12.62 17.46 11.77 17.46 8.69 17.08 8.0 14.0 8.15 13.31 11.0 13.46 12.08 14.0 12.77 14.46 12.62ZM8.23 19.92 9.0 19.77 8.85 17.92 9.46 16.08 10.77 14.77 12.46 14.46 14.0 14.62 15.46 15.77 16.38 17.92 16.23 19.0 16.62 19.85 18.46 19.69 19.0 13.15 18.62 12.92 17.38 14.15 16.62 14.46 14.92 14.46 13.54 14.0 12.31 12.92 10.77 14.31 10.0 14.62 8.0 14.77 6.15 14.0 4.77 12.62 4.08 13.15 4.23 13.46 3.77 15.92 3.92 17.0 3.62 19.77ZM14.38 19.77 14.69 19.46 14.69 17.62 14.08 16.54 13.23 16.15 11.38 16.31 10.54 17.46 10.54 19.62 11.85 19.85ZM13.38 18.92 12.54 18.54 12.69 17.62 13.23 17.38 13.92 18.08Z"/></svg></span>
     <span class="shopTitle">Shop</span>
     <!-- The closed sign. Permanently in the DOM, picked by #dock.sold-out, exactly
          like a building row's ??? (.lockedNm): the state swap is a class, so no

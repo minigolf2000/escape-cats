@@ -330,56 +330,82 @@ const RAW_LEVELS: GoombaLevel[] = [
             { x: 85, y: 34, deg: -102, spd: 142 } ],
     solution: [ [[54, 80], [92, 118]] ] },
 
-  // SPACE CADET: a pinball cabinet. She starts loaded in the shooter lane up the
-  // right edge; three kickers walk her up it and the dome slings her into the
-  // playfield, where she rattles off the piñatas and drains — a whole show that
-  // collects only the free chime in the right lane. The left wall answers the
-  // plunger with two channels: wall-hugging descents thread the slot under the
-  // awning into a RELAY popper that walks her back up, where the dome turns the
-  // launch into a re-orbit, so the table LOOPS and the plants can be taken in
-  // different orders. Outlane drops instead hit the KICKBACK, whose tilted fire
-  // escapes the relay's grab and threads the roofed pocket — no fall can reach
-  // that plant, the awning blocks it.
+  // SPACE CADET: a pinball cabinet, rebuilt to the reference table's bumper
+  // layout (one lone bumper high in the dome + a tight nest of three, from the
+  // design sketch) with pinball furniture mapped onto our toys: bouncy floors
+  // are the flippers and slingshots, party poppers are the plunger kickers and
+  // the outlane kickback. Three kickers walk her up the shooter lane, the dome
+  // slings her across the playfield, the raised lane divider is the one-way
+  // gate (playfield balls can't fall back in), and everything drains into the
+  // basin between the flippers where the cake sits, gated by FIVE plants:
+  //   loop  (40,38)  — under the dome, on the band-A shelf ride
+  //   bank  (25,45)  — upper-left, swept only by band A's exit arc
+  //   mid   (52,86)  — on the band-B ride line across midfield
+  //   pocket(20,84)  — roofed by the awning; only a kickback lob bent by
+  //                    band C and popped off the left slingshot gets up there
+  //   save  (32,182) — under the left flipper; band D roofs the drain gap and
+  //                    rolls her through it onto the basin's left arm
+  // The intended ride is one 12-second tour: orbit → dome shelf (loop) → exit
+  // arc (bank) → awning roll → midfield shelf (mid) → lane → kickback lob →
+  // C-bend → slingshot pop (pocket) → wall ledge kicks her back right → drain
+  // roof (save) → basin arm → cake. The wall ledge and the sealed awning are
+  // anti-cycle geometry: poppers re-fire deterministically, so every pocket
+  // exit is routed AWAY from the kickback or the table loops forever.
   //
-  // KNOWN DEBT, eyes open: this one collapses to 1 band, so it fails the party
-  // rule exactly like levels 3–8, and it replaced Pachinko Drop (which passed).
-  // Shipped anyway as a deliberate step toward levels that are ROUTING choices
-  // rather than precision shots: two distinct winning rides with opposite plant
-  // orders (lane→pocket→bank at 67% tolerance to ±5u slop, bank-first at 33%),
-  // where a band picks which way the machine goes instead of threading a window.
-  // Reconciling that with "requires 4" — several routes that each need 4 bands —
-  // is the open problem. A first requires-4 restaging of this table (shooter →
-  // dome → four wall-drop rows, each with a 20-unit gap) was abandoned to the
-  // sag rule already in DESIGNING.md: the rows delivered her to each lip under
-  // the ~24 lip-speed threshold, so she settled into the bridge's sag valley
-  // and rocked there instead of crossing. Give every row an uphill shelf first.
+  // GATE STATUS, eyes open (replaces the old 1-band-collapse debt): bare run
+  // fails legibly, the solution is 4 legal bands, it wins at ~11.9s, every
+  // band is load-bearing (drop-one fails four different ways), and minbands
+  // found NO smaller win — 1 band exhaustive (0/9796), 2–3 bands sampled
+  // (0/50000). What still fails is finger slop: ±3u jitter wins 0/30 — five
+  // chained ballistic hand-offs each tolerate ~2-4u, and nothing re-centers
+  // her between stages (the beam-search check never runs; the gate stops at
+  // jitter). The fix direction (not attempted yet): funnel geometry between
+  // stages — poppers erase her SPEED, but only V-basins erase her POSITION,
+  // and the jitter check effectively demands both between every job.
   { name: '9 · Space Cadet', budget: 4, maxSpeed: 140,
     start: [103, 178],
     terrain: [
       // table shell: left wall, rounded top, the orbit shoulder, shooter-lane wall
       [[6, 152], [6, 66], [9, 50], [16, 36], [28, 25], [44, 18], [62, 17],
        [78, 22], [92, 31], [102, 43], [108, 58], [110, 80], [110, 184], [96, 186]],
-      // shooter-lane divider — the mouth up top is where she leaves the lane
-      [[96, 62], [96, 186]],
-      // flippers funnelling into the drain: everything ends up in the hole
-      [[6, 152], [40, 178], [51, 188], [62, 178], [96, 152]],
-      // awning: roofs the pocket plant so no fall can collect it, and stops short
-      // of the wall so wall-hugging descents thread the slot down to the relay
-      [[11, 72], [32, 76]],
+      // shooter-lane divider — the mouth up top is where she leaves the lane;
+      // its top reaches close enough to the dome shoulder that the launch still
+      // exits along the shell but playfield balls can't fall back into the lane
+      [[96, 50], [96, 186]],
+      // outlane guides funnel toward the flipper pit; the flippers themselves
+      // are the cushions below (bouncy floors, not walls)
+      [[6, 152], [26, 172]],
+      [[96, 152], [68, 172]],
+      // drain basin under the gap between the flipper cushions — its left arm
+      // reaches under the left flipper (the save excursion's floor) and turns
+      // up into a corner wall that kills leftward skips dead
+      [[14, 170], [18, 183], [51, 197], [66, 188]],
+      // awning: runs wall-to-edge, roofing the pocket plant (no fall collects
+      // it) and turning left-side descents into a roll toward midfield
+      [[6, 70], [32, 76]],
+      // wall ledge: kicks pocket-exit falls back toward the flippers, so they
+      // can't dribble down the wall into the kickback and orbit it forever
+      [[6, 94], [16, 102]],
     ],
-    goal: [51, 185],
-    // target bank / right inner lane (the bare ride takes this one — the free
-    // chime that says "the machine works, now steer it") / roofed pocket (up-only)
-    plants: [[34, 55], [92, 115], [22, 88]],
-    bumpers: [ { x: 40, y: 60 }, { x: 60, y: 52 }, { x: 50, y: 78 } ],
-    // slingshots: their gaps are the splitter — centre drains, edges are lanes
-    cushions: [ { x: 14, y: 128, w: 24 }, { x: 64, y: 128, w: 24 } ],
+    goal: [51, 194],
+    // loop (under the dome) / bank (upper-left, relay-arc only) / mid (band-B
+    // ride line) / roofed pocket (up-only, under the awning) / drain save
+    // (under the left flipper) — nothing on the bare tour
+    plants: [[40, 38], [25, 45], [52, 86], [20, 84], [32, 182]],
+    // (bumpers/cushions tuned so no free path reaches any of the five)
+    // the drawing's four: a lone bumper high in the dome + a tight nest of three
+    bumpers: [ { x: 28, y: 36 },
+               { x: 48, y: 53 }, { x: 62, y: 49 }, { x: 54, y: 65 } ],
+    // bouncy floors: two slingshots (their gaps are the splitter — centre
+    // drains, edges are lanes) and two flippers flanking the drain gap
+    cushions: [ { x: 22, y: 128, w: 5 }, { x: 68, y: 128, w: 10 },
+                { x: 26, y: 172, w: 12 }, { x: 54, y: 172, w: 14 } ],
     pops: [ { x: 103, y: 178, deg: -90, spd: 170 },
             { x: 103, y: 130, deg: -90, spd: 170 },
             { x: 103, y: 82,  deg: -90, spd: 170 },
-            { x: 8, y: 146, deg: -80, spd: 150 },   // kickback → pocket
-            { x: 8, y: 90,  deg: -90, spd: 150 } ], // relay → re-orbit
-    solution: [ [[104, 51], [108, 101]], [[70, 147], [94, 121]] ] },
+            { x: 8, y: 146, deg: -80, spd: 150 } ], // kickback → pocket lob
+    solution: [ [[34, 46], [56, 46]], [[36, 90], [68, 90]],
+                [[30, 90], [30, 96]], [[54, 168], [38, 179]] ] },
 
   // The 2D line maze finale: four lanes of forced poppers aimed in alternation.
   // Bands can't help her travel — the only verb is to WALL a lane so she

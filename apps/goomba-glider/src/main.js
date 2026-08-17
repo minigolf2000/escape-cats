@@ -205,7 +205,7 @@ function syncHud() {
   // banner; editing and running say nothing.
   hintEl.textContent =
     s.phase === "win"
-      ? (done === s.levelCount ? "ALL LEVELS CLEAR! 🎉🎂" : "LEVEL CLEAR! 🎉")
+      ? (done === s.levelCount ? "ALL LEVELS CLEAR! 🎉🪴" : "LEVEL CLEAR! 🎉")
       : "";
 
   dotsEl.innerHTML = "";
@@ -300,7 +300,7 @@ function syncAnim() {
       c: BAND_COLORS[i % 4], r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 10,
       life: 2.2 + Math.random(),
     });
-    toast(s.completed.filter(Boolean).length === s.levelCount ? "ALL LEVELS CLEAR! 🎉🎂" : "LEVEL CLEAR! 🎉", 1800);
+    toast(s.completed.filter(Boolean).length === s.levelCount ? "ALL LEVELS CLEAR! 🎉🪴" : "LEVEL CLEAR! 🎉", 1800);
   }
   return st;
 }
@@ -726,26 +726,28 @@ function drawPopper(pp, i) {
   ctx.restore();
 }
 
-function drawPlant(mx, my, taken, i) {
+// The collectible: a watering can, mid-pour and dripping.
+function drawCan(mx, my, taken, i) {
   if (taken) return;
   const u = Math.max(cam.s, 2.2), x = sxp(mx), y = syp(my);
-  const sway = Math.sin(tGlobal * 2.2 + i * 1.7) * 0.08;
-  ctx.save(); ctx.translate(x, y);
+  ctx.save(); ctx.translate(x, y + Math.sin(tGlobal * 2.2 + i * 1.7) * 0.3 * u); ctx.rotate(-0.16);
   ctx.fillStyle = "rgba(87,230,201,0.13)";
-  ctx.beginPath(); ctx.arc(0, -1.2 * u, 4.6 * u, 0, 6.28); ctx.fill();
-  ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 0.4 * u; ctx.lineCap = "round"; ctx.lineJoin = "round";
-  ctx.beginPath();
-  ctx.moveTo(-1.5 * u, 1.0 * u); ctx.lineTo(-1.1 * u, 2.6 * u);
-  ctx.lineTo(1.1 * u, 2.6 * u); ctx.lineTo(1.5 * u, 1.0 * u); ctx.closePath(); ctx.stroke();
-  ctx.strokeStyle = "#57e6c9"; ctx.lineWidth = 0.42 * u;
-  ctx.rotate(sway);
-  for (const [bx, h, lean] of [[-1.0, 3.4, -0.55], [-0.35, 4.6, -0.15], [0.3, 4.0, 0.3], [0.95, 3.0, 0.6]]) {
-    ctx.beginPath();
-    ctx.moveTo(bx * u, 1.0 * u);
-    ctx.quadraticCurveTo((bx + lean * 0.4) * u, (1.0 - h * 0.6) * u, (bx + lean) * u, (1.0 - h) * u);
-    ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 4.6 * u, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = "#ffd166"; ctx.lineCap = "round"; ctx.lineWidth = 0.42 * u;
+  ctx.beginPath(); ctx.arc(0.1 * u, -1.1 * u, 1.5 * u, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+  ctx.lineWidth = 0.75 * u;                                            // spout, out to the left and up
+  ctx.beginPath(); ctx.moveTo(-1.2 * u, 0.4 * u); ctx.lineTo(-3.2 * u, -1.1 * u); ctx.stroke();
+  ctx.fillStyle = "#ffd166";                                           // sprinkler rose, then the body
+  ctx.beginPath(); ctx.ellipse(-3.4 * u, -1.25 * u, 0.8 * u, 0.5 * u, -0.65, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-1.5 * u, -1.2 * u, 3.4 * u, 3.2 * u, 0.7 * u); ctx.fill();
+  ctx.fillStyle = "#57e6c9";                                           // the water inside
+  ctx.beginPath(); ctx.roundRect(-1.1 * u, 0.1 * u, 2.6 * u, 1.75 * u, 0.5 * u); ctx.fill();
+  for (let d = 0; d < 3; d++) {   // drops off the rose, each on its own loop
+    const ph = (tGlobal * 0.85 + d * 0.34 + i * 0.19) % 1;
+    ctx.globalAlpha = 1 - ph;
+    ctx.beginPath(); ctx.arc((-3.5 - ph * 0.5) * u, (-0.8 + ph * 3.2) * u, 0.34 * u, 0, 6.28); ctx.fill();
   }
-  ctx.restore();
+  ctx.globalAlpha = 1; ctx.restore();
 }
 
 function drawBumper(bp, hot) {
@@ -772,32 +774,45 @@ function drawBumper(bp, hot) {
   ctx.restore();
 }
 
-function drawCake(lv, st) {
+// The goal: the snake plant Goomba is watering. Thirsty, its leaves are short,
+// leant out and dulled; with the last can in they stand up bright — so the
+// badge is a second telling of a state the plant itself already shows.
+function drawGoalPlant(lv, st) {
   const x = sxp(lv.goal[0]), y = syp(lv.goal[1]), u = Math.max(cam.s, 2.6);
+  const left = lv.cans.length - (st ? st.gotN : 0), ready = left === 0;
   const pulse = 1 + Math.sin(tGlobal * 3) * 0.05;
   ctx.save(); ctx.translate(x, y + 2 * u); ctx.scale(pulse, pulse);
-  ctx.fillStyle = "rgba(255,209,102,0.12)";
-  ctx.beginPath(); ctx.arc(0, -2 * u, 7.5 * u, 0, 6.28); ctx.fill();
-  ctx.fillStyle = "#cfc4ec"; ctx.beginPath(); ctx.ellipse(0, 0.4 * u, 4.6 * u, 0.8 * u, 0, 0, 6.28); ctx.fill();
-  ctx.fillStyle = "#ff9dce"; ctx.beginPath(); ctx.roundRect(-3.6 * u, -2.6 * u, 7.2 * u, 3 * u, 0.8 * u); ctx.fill();
-  ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.roundRect(-2.4 * u, -4.6 * u, 4.8 * u, 2.2 * u, 0.7 * u); ctx.fill();
-  ctx.fillStyle = "#fff";
-  for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.arc(i * u, -2.6 * u, 0.55 * u, 0, 6.28); ctx.fill(); }
-  ctx.fillStyle = "#57e6c9"; ctx.fillRect(-0.3 * u, -6.2 * u, 0.6 * u, 1.6 * u);
-  const fl = 1 + Math.sin(tGlobal * 11) * 0.25;
-  ctx.fillStyle = "#ffb54a";
-  ctx.beginPath(); ctx.ellipse(0, -6.8 * u, 0.45 * u * fl, 0.8 * u * fl, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = ready ? "rgba(87,230,201,0.2)" : "rgba(255,209,102,0.12)";
+  ctx.beginPath(); ctx.arc(0, -3 * u, 7.5 * u, 0, 6.28); ctx.fill();
+  ctx.save(); ctx.rotate(Math.sin(tGlobal * 1.7) * (ready ? 0.05 : 0.02));
+  ctx.fillStyle = ready ? "#57e6c9" : "#49a08f";   // leaves first: the rim overlaps where they root
+  ctx.strokeStyle = "rgba(255,209,102,0.7)"; ctx.lineWidth = 0.18 * u; ctx.lineJoin = "round";
+  for (const [bx, h, lean, w] of [[-1.4, 5.4, -1.5, 0.7], [-0.6, 7.4, -0.6, 0.8], [0.2, 8.2, 0.2, 0.85],
+                                  [1, 6.6, 1.1, 0.75], [1.6, 4.4, 1.9, 0.6]]) {
+    const th = h * (ready ? 1 : 0.86), tl = lean * (ready ? 1 : 1.2), mid = (-2.2 - th * 0.55) * u;
+    ctx.beginPath(); ctx.moveTo((bx - w) * u, -2.2 * u);
+    ctx.quadraticCurveTo((bx + tl * 0.4 - w * 0.8) * u, mid, (bx + tl) * u, (-2.2 - th) * u);
+    ctx.quadraticCurveTo((bx + tl * 0.4 + w * 0.8) * u, mid, (bx + w) * u, -2.2 * u);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
   ctx.restore();
-  const left = lv.plants.length - (st ? st.gotN : 0);
+  ctx.fillStyle = "#cfc4ec";   // saucer, then the tapered pot and its rim
+  ctx.beginPath(); ctx.ellipse(0, 0.8 * u, 4.2 * u, 0.8 * u, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = "#ff9dce";
+  ctx.beginPath(); ctx.moveTo(-3.1 * u, -2.4 * u); ctx.lineTo(3.1 * u, -2.4 * u);
+  ctx.lineTo(2.3 * u, 0.8 * u); ctx.lineTo(-2.3 * u, 0.8 * u); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#ffd166";
+  ctx.beginPath(); ctx.roundRect(-3.5 * u, -3.2 * u, 7 * u, 1.3 * u, 0.6 * u); ctx.fill();
+  ctx.restore();
   if (left > 0) {
-    ctx.save(); ctx.translate(x, y - 9.5 * u);
+    ctx.save(); ctx.translate(x, y - 12.5 * u);
     ctx.fillStyle = "rgba(20,10,45,0.85)";
     ctx.beginPath(); ctx.roundRect(-3.4 * u, -1.6 * u, 6.8 * u, 3.2 * u, 1.2 * u); ctx.fill();
     ctx.strokeStyle = "#57e6c9"; ctx.lineWidth = 0.28 * u; ctx.stroke();
     ctx.fillStyle = "#57e6c9";
     ctx.font = `700 ${2.3 * u}px ui-rounded, system-ui, sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("🌱" + left, 0, 0.1 * u);
+    ctx.fillText("💧" + left, 0, 0.1 * u);
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
     ctx.restore();
   }
@@ -935,8 +950,8 @@ function drawLab() {
     lv.cushions.forEach((cu) => drawCushion(cu, 0));
     lv.pops.forEach((pp, k) => drawPopper(pp, k));
     lv.bumpers.forEach((bp) => drawBumper(bp, 0));
-    lv.plants.forEach((m, k) => drawPlant(m[0], m[1], false, k));
-    drawCake(lv, null);
+    lv.cans.forEach((m, k) => drawCan(m[0], m[1], false, k));
+    drawGoalPlant(lv, null);
     (lv.solution || []).forEach((sol, k) => drawBand(
       snapBand(lv, { ax: sol[0][0], ay: sol[0][1], bx: sol[1][0], by: sol[1][1] }), k % 4, 0, false));
     camOX = camOY = 0;
@@ -1026,8 +1041,8 @@ function frame(nowMs) {
   lv.cushions.forEach((c, i) => drawCushion(c, cushAnim[i] || 0));
   lv.pops.forEach((pp, i) => drawPopper(pp, i));
   lv.bumpers.forEach((bp, i) => drawBumper(bp, st ? Math.max(0, 1 - (st.t - st.bumpT[i]) * 4) : 0));
-  lv.plants.forEach((m, i) => drawPlant(m[0], m[1], st ? st.got[i] : false, i));
-  drawCake(lv, st);
+  lv.cans.forEach((m, i) => drawCan(m[0], m[1], st ? st.got[i] : false, i));
+  drawGoalPlant(lv, st);
   bands().forEach((bd, i) => drawBand(bd, bd.slot % 4, bandExcite.get(i) || 0, false));
   if (snap.phase === "edit") {
     // Teammates' bands-in-progress: unmistakably in motion (marching dashes,

@@ -55,7 +55,7 @@ the level gate below still does the load-bearing work.
 Three levels pass the full gate — Four Ways to Help (1), Mind the Gap (2) and
 The Popper Grid (10) — and levels 3-8 still collapse to 1 band, which is the
 standing rebalance debt. Space Cadet (9) has been rebuilt as a pinball
-machine with five plants: `minbands` finds no ≤3-band win (exhaustive at 1
+machine with five cans: `minbands` finds no ≤3-band win (exhaustive at 1
 band, 0/50000 sampled at 2-3), its 4-band solution wins with every band
 load-bearing, and what keeps it out of the passing list is now the ±3u
 finger-slop check (0/30) — five chained ballistic hand-offs, each tolerating

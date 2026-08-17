@@ -30,7 +30,7 @@ export const FR_KIND = [0.18, 0.06, 0.02]; // friction
 export const POP_R = 6; // party-popper trigger radius
 export const POP_R2 = (POP_R + R) * (POP_R + R);
 export const POP_COOLDOWN = 0.8;
-export const PLANT_R = 7.5; // snake-plant pickup radius
+export const CAN_R = 7.5; // watering-can pickup radius
 export const BUMP_R = 5.5,
   BUMP_E = 1.18,
   BUMP_MIN = 58; // piñata bumper: pinball-style radial kick
@@ -70,7 +70,8 @@ export interface GoombaLevel {
   start: Pt;
   goal: Pt;
   terrain: Pt[][];
-  plants?: Pt[];
+  /** Watering cans: all of them must be collected before the goal unlocks. */
+  cans?: Pt[];
   cushions?: GoombaCushion[];
   pops?: GoombaPopper[];
   bumpers?: GoombaBumper[];
@@ -82,7 +83,7 @@ export interface GoombaLevel {
 
 /** A level with every optional collection and derived field filled in. */
 export interface GoombaLevelInit extends GoombaLevel {
-  plants: Pt[];
+  cans: Pt[];
   cushions: GoombaCushion[];
   pops: Required<GoombaPopper>[];
   bumpers: GoombaBumper[];
@@ -95,7 +96,7 @@ export interface GoombaLevelInit extends GoombaLevel {
 export function initLevel(L: GoombaLevel): GoombaLevelInit {
   L.cushions = L.cushions || [];
   L.pops = L.pops || [];
-  L.plants = L.plants || [];
+  L.cans = L.cans || [];
   L.bumpers = L.bumpers || [];
   let x0 = 1e9,
     y0 = 1e9,
@@ -116,7 +117,7 @@ export function initLevel(L: GoombaLevel): GoombaLevelInit {
     eat(pp.x - 6, pp.y - 6);
     eat(pp.x + 6, pp.y + 6);
   }
-  for (const m of L.plants) eat(m[0], m[1]);
+  for (const m of L.cans) eat(m[0], m[1]);
   for (const bp of L.bumpers) {
     eat(bp.x - BUMP_R, bp.y - BUMP_R);
     eat(bp.x + BUMP_R, bp.y + BUMP_R);
@@ -170,17 +171,18 @@ const RAW_LEVELS: GoombaLevel[] = [
   // uncrossable at any speed. That is also why the two gaps can differ in size
   // without differing in difficulty — the lesson is band LENGTH, not timing.
   //
-  // A plant sits past each gate (ramp flat, far ledge, between the two holes),
-  // so the cake stays locked unless all four jobs were actually done — and the
-  // three ugly-looking bits of geometry are all there to keep those plants
-  // honest, each one added after the beam search cheated past them:
+  // A watering can sits past each gate (ramp flat, far ledge, between the two
+  // holes), so the snake plant stays unwatered unless all four jobs were
+  // actually done — and the three ugly-looking bits of geometry are all there
+  // to keep those cans honest, each one added after the beam search cheated
+  // past them:
   //   · the BOWLS floor the level's two dead columns. Empty vertical space is
   //     where shortcuts live: one catch band under a gap otherwise turns the
   //     whole fall into a free ride to somewhere much later.
   //   · the upper bowl's right arm CLIMBS to meet the ramp's lip, sealing the
   //     pocket under the ramp — a band caught her in the small gap and flew her
   //     underneath the ramp and straight out onto stage 3, skipping the wall.
-  //   · the far ledge is a closed SLAB, not a line. A plant on a one-segment
+  //   · the far ledge is a closed SLAB, not a line. A can on a one-segment
   //     ledge is grabbable from directly beneath it (pickup radius 9.7 against
   //     zero thickness), so a catch band slung under the big gap collected it
   //     without ever crossing. Twelve units of belly puts it out of reach.
@@ -197,16 +199,16 @@ const RAW_LEVELS: GoombaLevel[] = [
       [[-15, 118], [5, 115], [5, 128], [-15, 131], [-15, 118]],
       [[0, 138], [24, 146], [48, 138]], // miss the big gap and this holds her
       [[-24, 110], [-24, 148]],  // left wall: kills her speed, drops her to 4
-      // stage 4 — two holes, one cake
+      // stage 4 — two holes, one snake plant
       [[-22, 150], [26, 162]],
       [[42, 161], [58, 166]],
       [[42, 161], [42, 190]],     // back wall of the wrong pocket
       [[74, 165], [90, 170]],
-      [[74, 165], [74, 190]],     // back wall of the cake pocket
+      [[74, 165], [74, 190]],     // back wall of the snake plant's pocket
       [[20, 192], [31, 198], [42, 192]],
       [[58, 192], [66, 198], [74, 192]] ],
     goal: [66, 196],
-    plants: [[86, 30], [-6, 114], [50, 165]],
+    cans: [[86, 30], [-6, 114], [50, 165]],
     solution: [ [[30, 17], [54, 16]], [[105, 20], [105, 60]],
                 [[55, 116], [5, 115]], [[26, 162], [42, 161]] ] },
 
@@ -214,10 +216,11 @@ const RAW_LEVELS: GoombaLevel[] = [
   // switchback floors, one band-sized hole in each, so 4 gaps = 4 bridges =
   // 4 players. The walls between floors are the state-erasers (she hits one,
   // loses all speed, drops to the next floor), which makes each floor's gap an
-  // independent stage no single band can shortcut across. A snake plant hangs
+  // independent stage no single band can shortcut across. A watering can hangs
   // just under each bridge line: riding the sagging band scoops it, while any
   // ballistic hop over the gap sails above it — so every gap must actually be
-  // BRIDGED, not jumped, and the cake stays locked until all four were.
+  // BRIDGED, not jumped, and the snake plant stays unwatered until all four
+  // were.
   // Bare, she tours all four floors and falls out the bottom: the level
   // demonstrates itself.
   { name: '2 · Mind the Gap', budget: 4,
@@ -227,7 +230,7 @@ const RAW_LEVELS: GoombaLevel[] = [
       // dead stop — shallower than ~0.12 and the idle pump can strand her
       // creeping uphill) into a short SLIGHTLY-UPHILL shelf before the lip: a
       // speed governor that keeps lip speed under ~40, below which a hop's arc
-      // can neither clear a 42-unit gap nor dip low enough to graze the plant.
+      // can neither clear a 42-unit gap nor dip low enough to graze the can.
       // floor A, rightward
       [[-6, 15], [24, 20], [40, 17.5]],
       [[82, 21.5], [96, 24.5]],
@@ -240,29 +243,29 @@ const RAW_LEVELS: GoombaLevel[] = [
       [[-8, 101], [26, 111], [40, 108.5]],
       [[82, 112.5], [96, 115.5]],
       [[103, 99], [103, 128]],   // right wall, drops her to D
-      // floor D, leftward — the cake sits on its far ledge
+      // floor D, leftward — the snake plant sits on its far ledge
       [[104, 147], [70, 157], [56, 154.5]],
       [[14, 158.5], [0, 161.5]] ],
     goal: [6, 157.5],
-    // The plants sit ON the far shelves, not in the gaps. A plant hanging in a
+    // The cans sit ON the far shelves, not in the gaps. A can hanging in a
     // gap can be grazed by anything flying through it (a diagonal launcher
     // band, a fall threading the gap column — both found by the beam search).
     // A shelf can't be reached any way but ACROSS its gap: every shelf column
     // has solid floor directly above, and the corridor below is 40+ units
     // down — beyond the ~34 units of rise even a speed-capped launch can buy.
-    // So plant A gates "crossed gap A", B and C likewise, and the cake on the
-    // last shelf gates gap D: four crossings, and no crossing without a band
-    // on that floor.
-    plants: [[89, 22], [7, 70], [89, 113]],
+    // So can A gates "crossed gap A", B and C likewise, and the snake plant on
+    // the last shelf gates gap D: four crossings, and no crossing without a
+    // band on that floor.
+    cans: [[89, 22], [7, 70], [89, 113]],
     solution: [ [[40, 17.5], [82, 21.5]], [[56, 65.5], [14, 69.5]],
                 [[40, 108.5], [82, 112.5]], [[56, 154.5], [14, 158.5]] ] },
 
-  { name: '3 · Snake Plant Slalom', budget: 3,
+  { name: '3 · Watering Can Slalom', budget: 3,
     start: [10, 22],
     terrain: [ [[-4, 20], [30, 30]],
                [[6, 34], [6, 204], [104, 210], [104, 34]] ],
     goal: [96, 205],
-    plants: [[32, 72], [76, 118], [32, 164]],
+    cans: [[32, 72], [76, 118], [32, 164]],
     solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],
                 [[87, 132.3], [45.9, 160.8]] ] },
 
@@ -276,12 +279,12 @@ const RAW_LEVELS: GoombaLevel[] = [
                [[150, 126], [162, 176], [150, 186], [128, 180]] ],
     goal: [148, 179],
     cushions: [ { x: 46, y: 138, w: 100 } ],
-    plants: [[74, 134], [116, 112]],
+    cans: [[74, 134], [116, 112]],
     pops: [ { x: 48, y: 122, deg: -6, spd: 112 } ],
     solution: [ [[123.5, 98.3], [99.1, 130.1]] ] },
 
-  // A sealed pinball box: piñatas, pillow floors, plants gating the cake, and
-  // the only exit is the drain hole. Bands are deflector plates.
+  // A sealed pinball box: piñatas, pillow floors, cans gating the snake plant,
+  // and the only exit is the drain hole. Bands are deflector plates.
   { name: '5 · The Puzzle Box', budget: 4, maxSpeed: 140,
     start: [8, 12],
     terrain: [ [[-6, 10], [32, 20]],
@@ -290,7 +293,7 @@ const RAW_LEVELS: GoombaLevel[] = [
                [[64, 188], [104, 182], [104, 32]],
                [[36, 196], [52, 210], [68, 198]] ],
     goal: [52, 206],
-    plants: [[28, 70], [78, 104], [16, 164]],
+    cans: [[28, 70], [78, 104], [16, 164]],
     bumpers: [ { x: 56, y: 62 }, { x: 84, y: 78 }, { x: 22, y: 106 },
                { x: 62, y: 128 }, { x: 88, y: 152 } ],
     cushions: [ { x: 10, y: 180, w: 28 }, { x: 66, y: 180, w: 36 } ],
@@ -301,7 +304,7 @@ const RAW_LEVELS: GoombaLevel[] = [
     terrain: [ [[-6, 12], [38, 24]],
                [[4, 30], [4, 190], [106, 196], [106, 30]] ],
     goal: [96, 191],
-    plants: [[24, 92], [86, 150]],
+    cans: [[24, 92], [86, 150]],
     // curtains, not obstacles: the gaps are narrower than she is, so she MUST bounce
     bumpers: [ { x: 16, y: 62 }, { x: 34, y: 62 }, { x: 52, y: 62 },
                { x: 70, y: 62 }, { x: 88, y: 62 },
@@ -337,7 +340,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // the outlane kickback. Three kickers walk her up the shooter lane, the dome
   // slings her across the playfield, the raised lane divider is the one-way
   // gate (playfield balls can't fall back in), and everything drains into the
-  // basin between the flippers where the cake sits, gated by FIVE plants:
+  // basin between the flippers where the snake plant sits, gated by FIVE cans:
   //   loop  (40,38)  — under the dome, on the band-A shelf ride
   //   bank  (25,45)  — upper-left, swept only by band A's exit arc
   //   mid   (52,86)  — on the band-B ride line across midfield
@@ -348,7 +351,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // The intended ride is one 12-second tour: orbit → dome shelf (loop) → exit
   // arc (bank) → awning roll → midfield shelf (mid) → lane → kickback lob →
   // C-bend → slingshot pop (pocket) → wall ledge kicks her back right → drain
-  // roof (save) → basin arm → cake. The wall ledge and the sealed awning are
+  // roof (save) → basin arm → plant. The wall ledge and the sealed awning are
   // anti-cycle geometry: poppers re-fire deterministically, so every pocket
   // exit is routed AWAY from the kickback or the table loops forever.
   //
@@ -380,7 +383,7 @@ const RAW_LEVELS: GoombaLevel[] = [
       // reaches under the left flipper (the save excursion's floor) and turns
       // up into a corner wall that kills leftward skips dead
       [[14, 170], [18, 183], [51, 197], [66, 188]],
-      // awning: runs wall-to-edge, roofing the pocket plant (no fall collects
+      // awning: runs wall-to-edge, roofing the pocket can (no fall collects
       // it) and turning left-side descents into a roll toward midfield
       [[6, 70], [32, 76]],
       // wall ledge: kicks pocket-exit falls back toward the flippers, so they
@@ -391,7 +394,7 @@ const RAW_LEVELS: GoombaLevel[] = [
     // loop (under the dome) / bank (upper-left, relay-arc only) / mid (band-B
     // ride line) / roofed pocket (up-only, under the awning) / drain save
     // (under the left flipper) — nothing on the bare tour
-    plants: [[40, 38], [25, 45], [52, 86], [20, 84], [32, 182]],
+    cans: [[40, 38], [25, 45], [52, 86], [20, 84], [32, 182]],
     // (bumpers/cushions tuned so no free path reaches any of the five)
     // the drawing's four: a lone bumper high in the dome + a tight nest of three
     bumpers: [ { x: 28, y: 36 },
@@ -417,7 +420,7 @@ const RAW_LEVELS: GoombaLevel[] = [
                [[21, 6], [21, 34]],
                [[28, 174], [48, 192], [68, 174]] ],
     goal: [48, 190],
-    plants: [[53, 63], [28, 97], [68, 131]],
+    cans: [[53, 63], [28, 97], [68, 131]],
     pops: [ ...popLane(46, +1), ...popLane(80, -1),
             ...popLane(114, +1), ...popLane(148, -1) ],
     solution: [ [[70, 34], [70, 60]], [[10, 68], [10, 94]],

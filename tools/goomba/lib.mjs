@@ -85,6 +85,6 @@ export function rideTrace(li, bandPairs) {
     result: st.result ?? "timeout", t: +st.t.toFixed(2),
     airPct: +((100 * air) / Math.max(st.t, 0.01)).toFixed(0),
     topSpeed: +fastest.toFixed(0),
-    plants: `${st.gotN}/${L.plants.length}`,
+    cans: `${st.gotN}/${L.cans.length}`,
   };
 }

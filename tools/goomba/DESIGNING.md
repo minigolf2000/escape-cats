@@ -28,15 +28,16 @@ separate.
 plus your 4-band solution as the upper bound. The structural trick that makes
 "requires 4" possible is **state erasure between stages**: poppers and
 wall-drops reset her speed, so stages become independent and no single band can
-shortcut across them. Off-path snake plants then gate the cake so every stage
-must actually be ridden.
+shortcut across them. Off-path watering cans then gate the snake plant so
+every stage must actually be ridden.
 
 ## The loop
 
 1. **Sketch in data, not in your head.** Add the candidate level to
    `packages/shared/src/goomba/levels.ts` (its index = position in the array).
    Levels are plain data: `terrain` (polylines; walls are just steep segments),
-   `start`, `goal`, and the toys — `plants` (collectibles that lock the cake),
+   `start`, `goal`, and the toys — `cans` (watering cans: the collectibles that
+   lock the goal snake plant),
    `pops` (poppers: forced re-launch, erases state), `cushions`, `bumpers`.
    World is portrait-leaning (~110 wide × 200 tall), y is DOWN. Leave
    `solution: []` until you find one.
@@ -94,7 +95,7 @@ Findings from brute-forcing the solution space (`minbands.mjs`). These are
 physics facts about this game, not opinions — each came from a level that
 failed a check.
 
-**The universal shortcut is "long fall + one catch band."** If the cake sits at
+**The universal shortcut is "long fall + one catch band."** If the plant sits at
 the bottom and the start at the top, gravity does all the work and a single
 band near the goal wins. Grand Finale shipped as a 3-band level and had 380
 one-band solutions. Anything that descends toward its goal has this problem.
@@ -124,7 +125,7 @@ restitution ≈ .32 kills most of her speed), drops one popper back, falls
 through the gap into the lane below, which runs the other way. Each lane needs
 its own wall — `minbands.mjs` confirms no 1/2/3-band set wins. Two tuning
 facts that made it work: the entry chute needs a wall to kill her ramp speed or
-she flies over the first lane, and a wall placed *before* a lane's plant
+she flies over the first lane, and a wall placed *before* a lane's can
 strands the run — that's what makes it a maze instead of four free choices.
 
 **Judge the ride in airborne seconds, not duration.** Across two review rounds,
@@ -132,23 +133,23 @@ strands the run — that's what makes it a maze instead of four free choices.
 predicted nothing. Lengthening the boring part is metric-gaming.
 
 **A collectible on the line she'd fly anyway is a chime, not a constraint.**
-Plants only create routing pressure when they're *expensive* — off the greedy
-path, costing speed or height or another plant. (An early draft hung plants a
+Cans only create routing pressure when they're *expensive* — off the greedy
+path, costing speed or height or another can. (An early draft hung cans a
 few units under each bridge line — the beam search disproved it; see
 shelf-gating below for why in-gap collectibles never survive scrutiny.)
 
-**Collectibles beat geometry for forcing multi-band.** Scattered snake plants
-make the cake a *routing* problem instead of a reachability one: one band can
+**Collectibles beat geometry for forcing multi-band.** Scattered watering cans
+make the plant a *routing* problem instead of a reachability one: one band can
 drop her down a shaft, but it can't make her pass three separate points.
 
 **Shelf-gating — the switchback pattern (Mind the Gap).** Floors alternating
 direction, a band-sized gap in each, walls between floors erasing her speed.
 What makes it honestly need one band per floor is WHERE the collectibles sit:
 **on the far shelves between gap and wall, never hanging in the gaps**. A
-plant in a gap can be grazed by anything flying through it — the beam search
+watering can in a gap can be grazed by anything flying through it — the beam search
 found both a diagonal launcher band that overflew a whole floor through its
 gap, and an under-floor band that dropped her down a column past a lower
-plant. A shelf, by contrast, has solid floor directly above (no fall reaches
+can. A shelf, by contrast, has solid floor directly above (no fall reaches
 it) and sits 40+ units above the next corridor (beyond the ~34 units of rise
 a speed-capped launch can buy — check this number when changing the pitch),
 so the only way onto it is across its gap. Two supporting facts: floors
@@ -178,14 +179,14 @@ arcs only fall, so no speed ever crosses it and gap width becomes purely a
 question of band length. And **floor every dead column with a bowl**: the
 level's tall empty space is where shortcuts live, and the beam search found a
 2-band win that simply dropped her down the column under the start pad onto a
-much later ledge, collecting its plant en route. A wide V-basin under that
+much later ledge, collecting its can en route. A wide V-basin under that
 column turns the whole family into a stall. Bonus for a tutorial: four gates
 with four distinct deaths means every partial solution reads as a specific
 lesson rather than a generic "she died".
 
 **Anti-shortcut devices that do work:**
-- **Roofed pocket** — cake in a pocket with a ceiling, so falling arrivals are
-  blocked and the only entry is horizontally through the mouth.
+- **Roofed pocket** — the goal plant in a pocket with a ceiling, so falling
+  arrivals are blocked and the only entry is horizontally through the mouth.
 - **Ceiling over a run** — caps how high she can arc, so extra speed can't
   skip a gap.
 - **Goal above the start** — falling can never reach it.

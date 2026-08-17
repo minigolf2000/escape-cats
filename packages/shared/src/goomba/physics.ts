@@ -24,7 +24,7 @@ import {
   FR_KIND,
   POP_R2,
   POP_COOLDOWN,
-  PLANT_R,
+  CAN_R,
   BUMP_R,
   BUMP_E,
   BUMP_MIN,
@@ -162,7 +162,7 @@ function segsFor(
 
 export type RunResult = "win" | "fall" | "left" | "flew" | "stall" | "loop" | "timeout";
 
-export type RunEvent = [kind: "bump" | "plant" | "pop", x: number, y: number, t: number];
+export type RunEvent = [kind: "bump" | "can" | "pop", x: number, y: number, t: number];
 
 export interface RunState {
   L: GoombaLevelInit;
@@ -206,7 +206,7 @@ export function makeRun(
     bandHits: bands.map(() => 0),
     cushHits: L.cushions.map(() => 0),
     popT: L.pops.map(() => -9),
-    got: L.plants.map(() => false),
+    got: L.cans.map(() => false),
     gotN: 0,
     bumpT: L.bumpers.map(() => -9),
     events: [],
@@ -290,15 +290,15 @@ export function stepRun(st: RunState, dt: number): void {
       st.events.push(["bump", st.p.x, st.p.y, st.t]);
     }
   }
-  // neon plants: collect every one before the cake unlocks
-  for (let i = 0; i < L.plants.length; i++) {
+  // neon watering cans: collect every one before the snake plant unlocks
+  for (let i = 0; i < L.cans.length; i++) {
     if (st.got[i]) continue;
-    const dx = st.p.x - L.plants[i][0],
-      dy = st.p.y - L.plants[i][1];
-    if (dx * dx + dy * dy < (PLANT_R + R) * (PLANT_R + R)) {
+    const dx = st.p.x - L.cans[i][0],
+      dy = st.p.y - L.cans[i][1];
+    if (dx * dx + dy * dy < (CAN_R + R) * (CAN_R + R)) {
       st.got[i] = true;
       st.gotN++;
-      st.events.push(["plant", L.plants[i][0], L.plants[i][1], st.t]);
+      st.events.push(["can", L.cans[i][0], L.cans[i][1], st.t]);
     }
   }
   // party poppers: fly close and she gets re-launched along the popper's aim
@@ -346,7 +346,7 @@ export function stepRun(st: RunState, dt: number): void {
   else st.slowT = 0;
   const gdx = st.p.x - L.goal[0],
     gdy = st.p.y - L.goal[1];
-  if (gdx * gdx + gdy * gdy < 81 && st.gotN === L.plants.length) {
+  if (gdx * gdx + gdy * gdy < 81 && st.gotN === L.cans.length) {
     st.result = "win";
     return;
   }

@@ -25,7 +25,7 @@ findings — do not design from intuition, the sim disproves it reliably.
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
 - Levels 3–8 collapse to 1 band — known debt (they predate the party rule).
-  Space Cadet (9) was rebuilt as a five-plant machine: no ≤3-band win found
+  Space Cadet (9) was rebuilt as a five-can machine: no ≤3-band win found
   (1-band exhaustive, 2–3 sampled), 4-band solution with every band
   load-bearing — but it fails the ±3u finger-slop check (0/30), so its debt
   is now precision, not collapse (see its comment in `levels.ts`). Don't

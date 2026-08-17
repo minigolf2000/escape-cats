@@ -34,9 +34,9 @@ function svgCard(li) {
   }
   for (const bp of L.bumpers)
     el.push(`<circle cx="${X(bp.x)}" cy="${Y(bp.y)}" r="${(5.5 * s).toFixed(1)}" fill="#ff5db1" stroke="#ffd166"/>`);
-  for (const m of L.plants)
+  for (const m of L.cans)
     el.push(`<circle cx="${X(m[0])}" cy="${Y(m[1])}" r="${(3 * s).toFixed(1)}" fill="none" stroke="#57e6c9" stroke-width="2"/>`);
-  el.push(`<text x="${X(L.goal[0])}" y="${Y(L.goal[1])}" font-size="${(6 * s).toFixed(0)}" text-anchor="middle">🎂</text>`);
+  el.push(`<text x="${X(L.goal[0])}" y="${Y(L.goal[1])}" font-size="${(6 * s).toFixed(0)}" text-anchor="middle">🪴</text>`);
   r.bands.forEach((bd, i) =>
     el.push(`<polyline points="${poly(bandPoints(bd))}" fill="none" stroke="${COLORS[i % 4]}" stroke-width="${(1.2 * s).toFixed(1)}" stroke-linecap="round"/>`));
 
@@ -55,9 +55,9 @@ function svgCard(li) {
   el.push(`<circle cx="${X(r.end.x)}" cy="${Y(r.end.y)}" r="4" fill="#fff"/>`);
 
   const stats = `${r.result} · ${r.t.toFixed(1)}s · ${r.airPct}% airborne · top speed ${r.topSpeed}` +
-    ` · bands ${r.bands.length}` + (L.plants.length ? ` · plants ${r.plants}` : "");
+    ` · bands ${r.bands.length}` + (L.cans.length ? ` · cans ${r.cans}` : "");
   return {
-    stats: { level: li + 1, result: r.result, t: r.t, airPct: r.airPct, topSpeed: r.topSpeed, events: r.events.length, plants: r.plants },
+    stats: { level: li + 1, result: r.result, t: r.t, airPct: r.airPct, topSpeed: r.topSpeed, events: r.events.length, cans: r.cans },
     svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_W}" height="${CARD_H}">
 <rect width="100%" height="100%" fill="#150a2a"/>
 <text x="14" y="26" fill="#f2ecff" font-family="system-ui,sans-serif" font-weight="700" font-size="15">${L.name}</text>

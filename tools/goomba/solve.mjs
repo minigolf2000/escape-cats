@@ -12,7 +12,7 @@ const L = LEVELS[li], b = L.bounds;
 let seed = 8675309;
 const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
 // A band only matters if she touches it, so seed candidates near her current path
-// (or near an uncollected plant) instead of uniformly over the level.
+// (or near an uncollected can) instead of uniformly over the level.
 const randBand = (traj) => {
   for (let tries = 0; tries < 40; tries++) {
     let cx, cy;
@@ -20,8 +20,8 @@ const randBand = (traj) => {
     if (roll < 0.6 && traj && traj.length) {
       const p = traj[(rnd() * traj.length) | 0];
       cx = p[0] + (rnd() * 2 - 1) * 16; cy = p[1] + (rnd() * 2 - 1) * 16;
-    } else if (roll < 0.85 && L.plants.length) {
-      const m = L.plants[(rnd() * L.plants.length) | 0];
+    } else if (roll < 0.85 && L.cans.length) {
+      const m = L.cans[(rnd() * L.cans.length) | 0];
       cx = m[0] + (rnd() * 2 - 1) * 26; cy = m[1] + (rnd() * 2 - 1) * 26;
     } else {
       cx = b.x0 + rnd() * (b.x1 - b.x0); cy = b.y0 + rnd() * (b.y1 - b.y0);
@@ -35,19 +35,19 @@ const randBand = (traj) => {
   }
   return null;
 };
-// score a run: winning dominates, then plants, then getting near the goal
+// score a run: winning dominates, then cans, then getting near the goal
 const score = (set) => {
   const r = simulate(li, set);
-  let best = 1e9, plants = 0;
-  const got = L.plants.map(() => false);
+  let best = 1e9, cans = 0;
+  const got = L.cans.map(() => false);
   for (const p of r.traj) {
     const d = Math.hypot(p[0] - L.goal[0], p[1] - L.goal[1]);
     if (d < best) best = d;
-    L.plants.forEach((m, i) => {
-      if (!got[i] && Math.hypot(p[0] - m[0], p[1] - m[1]) < 8) { got[i] = true; plants++; }
+    L.cans.forEach((m, i) => {
+      if (!got[i] && Math.hypot(p[0] - m[0], p[1] - m[1]) < 8) { got[i] = true; cans++; }
     });
   }
-  return { s: (r.result === "win" ? 1e6 : 0) + plants * 1000 - best, r: r.result, plants,
+  return { s: (r.result === "win" ? 1e6 : 0) + cans * 1000 - best, r: r.result, cans,
            near: +best.toFixed(1), traj: r.traj };
 };
 
@@ -66,9 +66,9 @@ for (let stage = 1; stage <= budget && !found; stage++) {
     }
   }
   cands.sort((p, q) => q.s - p.s);
-  const uniq = [], seen = new Map(); // keep the beam diverse across plants-counts
+  const uniq = [], seen = new Map(); // keep the beam diverse across cans-counts
   for (const c of cands) {
-    const key = c.plants + ":" + Math.round(c.near / 12);
+    const key = c.cans + ":" + Math.round(c.near / 12);
     if ((seen.get(key) || 0) >= 2) continue;
     seen.set(key, (seen.get(key) || 0) + 1);
     uniq.push(c);
@@ -76,7 +76,7 @@ for (let stage = 1; stage <= budget && !found; stage++) {
   }
   if (!uniq.length) { console.log(`  stage ${stage}: no improvement found`); break; }
   beam = uniq;
-  console.log(`  stage ${stage}: best=${beam[0].r} plants=${beam[0].plants} near=${beam[0].near}`);
+  console.log(`  stage ${stage}: best=${beam[0].r} cans=${beam[0].cans} near=${beam[0].near}`);
   if (beam[0].r === "win") found = true;
 }
 console.log(`L${li + 1} within ${budget} band(s): ${found ? "✓ SOLVED" : "✗ no solution found"}`);

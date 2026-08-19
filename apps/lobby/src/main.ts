@@ -127,7 +127,7 @@ function waitingScreen() {
 const CARD_EAR_W = 96;
 /** Matches the card's border-width in styles.css: the ear's base overlaps the
  * border by exactly this, so the two outlines meet. */
-const CARD_BORDER = 3;
+const CARD_BORDER = 2;
 
 function teamScreen(team: string) {
   const mates = players.filter((p) => p.team === team);
@@ -139,7 +139,12 @@ function teamScreen(team: string) {
     : `class="card"`;
   app.innerHTML = `
     <div ${skin}>
-      ${teamEarsSvg(team, { width: CARD_EAR_W, strokeWidth: CARD_BORDER })}
+      ${teamEarsSvg(team, {
+        width: CARD_EAR_W,
+        strokeWidth: CARD_BORDER,
+        // --panel, as a literal: the ear is filled with the card it grows out of.
+        panel: "#14161d",
+      })}
       <p class="sub">You're on</p>
       <h1 class="team">${escapeHtml(teamName(team))}</h1>
       <p class="muted">with ${mates

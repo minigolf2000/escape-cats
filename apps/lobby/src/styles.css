@@ -70,7 +70,7 @@ h1.team {
        the ear's base and the border meet at a visible step. */
 .card.eared {
   position: relative;
-  border: 3px solid var(--tc);
+  border: 2px solid var(--tc);
   margin-top: var(--ear-h);
 }
 

@@ -317,6 +317,9 @@ export function Lobby() {
                     __html: teamEarsSvg(z.id, {
                       width: ZONE_EAR_W,
                       strokeWidth: ZONE_BORDER,
+                      // Resting background only — .zone sets --ear-fill per
+                      // drag state so the ear's interior tracks the box's.
+                      panel: "#12141b",
                     }),
                   }}
                 />

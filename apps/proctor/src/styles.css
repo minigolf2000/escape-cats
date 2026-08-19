@@ -165,6 +165,9 @@ button {
 }
 .zone {
   background: #12141b;
+  /* The ear's interior, kept in step with the box's background below — an ear
+     filled with yesterday's colour reads as a sticker sitting on the box. */
+  --ear-fill: #12141b;
   /* THE EARED BOX. A team's box wears its team's headband: the border is the
      band and the ears (teamEarsSvg, injected as the box's first child) grow out
      of it — the ear's fill hides the border under its base and its stroke runs
@@ -241,11 +244,13 @@ button {
 .zone.over {
   --zone-tc: #57e6c9;
   background: #16211f;
+  --ear-fill: #16211f;
 }
 /* Dragging over a team that already has its four. */
 .zone.blocked {
   --zone-tc: #d64b3b;
   background: #23161a;
+  --ear-fill: #23161a;
 }
 .zone-head {
   display: flex;

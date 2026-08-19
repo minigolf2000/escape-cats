@@ -86,14 +86,25 @@ findings — do not design from intuition, the sim disproves it reliably.
   laptop, and `grab`/`crosshair` are doing real work there.
 - **Proctor box heights are fixed**: every stat line renders in every state
   (placeholders, never fewer lines) so boxes don't shift under a drag.
-- **Goomba Glider's debug menu**: `?debug` joins your REAL room with the
-  **levels** grid on top (the level dots top-left ARE its button: in debug
-  the dot strip wears a plate and a ▦, and tapping it opens the grid) —
-  every level as a card with live bare/solution verdicts, and tapping a card
-  jumps THE WHOLE ROOM to that level (a real wire intent; teammates on plain
-  URLs follow). `?solo` runs the same grid on the in-page sim with no server. Testing on prod: `/proctor`, assign
-  yourself to a team, open the game with `?debug`. Hex keeps
-  `?debug&speed=N` for balance work.
+- **Goomba Glider's level selector is EARNED, and `?debug` only overrides that
+  gate**: a room that has cleared every level (`goombaCleared` = `finishedAt`
+  set, in `goomba/sim.ts`) unlocks the **levels** grid for all four phones on
+  the same snapshot, and a proctor **reset** takes it back with the rest of the
+  room state. The level dots top-left ARE its button: once unlocked the dot
+  strip wears a plate and a ▦, and tapping it opens the grid — every level as a
+  card with live bare/solution verdicts, and tapping a card jumps THE WHOLE
+  ROOM to that level (a real wire intent; teammates follow). `?debug` puts one
+  phone in the unlocked state without playing the game first — that is ALL it
+  does now, so don't add features behind it that a cleared room doesn't get.
+  `?solo` runs the same grid on the in-page sim with no server. Testing on
+  prod: `/proctor`, assign yourself to a team, open the game with `?debug`. Hex
+  keeps `?debug&speed=N` for balance work.
+- **NEXT off the finale of a cleared room lands on the `splash` phase**, not a
+  victory lap: a terminal, deliberately BLANK screen (`drawSplash` in
+  `main.js`, where the artwork goes) whose only control is the level selector
+  the clear just unlocked. Nothing places or plays from it; the ways out are a
+  `goto` and a proctor reset. `nextLeadsToSplash` is the one predicate for that
+  transition — the PLAY button's "FINISH ▸" label reads it too.
 
 ## Commands
 

@@ -118,7 +118,11 @@ export class GoombaServer extends Server<Env> {
         if (!proctor) { this.sim.next(now); this.previews.clear(); }
         break;
       case "goto":
-        // The debug menu's room-wide level jump — any player, like next/play.
+        // The level selector's room-wide jump — any player, like next/play. The
+        // selector is EARNED (every level cleared; ?debug overrides that gate
+        // on one phone), but the gate is presentation: honouring the intent
+        // from anyone in the room is what lets a tester drive a real team's
+        // room, and a jump can never earn a completed flag (see sim.goto).
         if (!proctor) { this.sim.goto(msg.level, now); this.previews.clear(); }
         break;
       case "reset":

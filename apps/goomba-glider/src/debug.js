@@ -1,12 +1,16 @@
-// The two debug switches:
+// The two debug switches. Neither one OWNS the levels grid any more: a team
+// that clears every level earns it (goombaCleared in goomba/sim.ts), and these
+// are the tester's way into that state without playing the game first.
 //   ?solo   — the shared GoombaSim running in-page, no server, no lobby (hex's
 //             debug architecture: the game code sees snapshots arriving and
 //             intents leaving, and cannot tell there is no room behind them).
-//   ?debug  — the REAL multiplayer game plus the debug menu: the LEVELS grid
-//             where tapping a card jumps the whole room (a real wire intent).
-//             ?solo implies the menu too.
+//   ?debug  — the REAL multiplayer game, with the level selector unlocked on
+//             THIS phone as if the room had cleared: the LEVELS grid where
+//             tapping a card jumps the whole room (a real wire intent).
+//             ?solo implies the override too.
 // The server validates everything in a real room, so shipping this costs
-// nothing security-wise.
+// nothing security-wise — the override is a client-side gate, and the `goto`
+// behind it was always open to any player in the room.
 
 import { GoombaSim } from "@escape-cats/shared";
 import { transport, playerId } from "./net";

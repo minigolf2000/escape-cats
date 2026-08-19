@@ -24,6 +24,8 @@ import {
   bandPoints,
   scoreRun,
   bandsHeldBy,
+  goombaCleared,
+  nextLeadsToSplash,
 } from "@escape-cats/shared";
 import { connectRoom, watchTeam, transport, playerId } from "./net";
 import { debugFromUrl, soloFromUrl, startDebug } from "./debug";
@@ -70,9 +72,16 @@ const BAND_DARK = ["#c23a85", "#2fae95", "#d0a53e", "#7f5ad9"];
 // reachable by a finger without moving the camera.
 const RZ = 1.9;
 
-const DEBUG = debugFromUrl(); // debug menu on (?debug = in your room, ?solo = local)
+const DEBUG = debugFromUrl(); // selector override (?debug = your room, ?solo = local)
 const SOLO = soloFromUrl();   // serverless backend for the same menu
-let labOpen = false;        // lab grid showing? (?debug only)
+// WHO GETS THE LEVEL SELECTOR: a team that has CLEARED the game. That is room
+// state off the snapshot (goombaCleared = every level done), so all four phones
+// unlock on the same message and a proctor reset takes it back with everything
+// else. `?debug` is nothing more than a local override of this one gate — it
+// puts a tester in the state a cleared room is already in, instead of being a
+// second way in with its own rules.
+const levelSelect = () => DEBUG || (snap !== null && goombaCleared(snap));
+let labOpen = false;        // levels grid showing?
 // A card tap is a wire intent, so the room answers a round trip later. Closing
 // the lab on the tap would uncover the OLD level for that gap and then swap it
 // under the player — so the tap only LATCHES, and the lab stays up until the
@@ -82,7 +91,7 @@ let labJump = null;         // { level, timer } — tapped, awaiting the authori
 const LAB_JUMP_MS = 1500;
 function setLab(open) {
   labOpen = open;
-  document.getElementById("hud").classList.toggle("lab", open);
+  hudEl.classList.toggle("lab", open);
   if (!open) clearLabJump();
 }
 function clearLabJump() {
@@ -108,6 +117,7 @@ let cam = { x: 0, y: 0, s: 10 };
 let parts = [], confetti = [], cushAnim = [], popPrev = null;
 
 const $ = (id) => document.getElementById(id);
+const hudEl = $("hud");
 const lvlEl = $("lvl"), hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   teamEl = $("team"), playBtn = $("play"), clearBtn = $("clear"), toastEl = $("toast"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
@@ -153,6 +163,11 @@ function onSnapshot(s) {
   const first = !inited;
   const levelChanged = s.level !== shownLevel;
   const wasReset = s.runId !== shownRunId;
+  // Crossing into or out of the splash is fresh footing as much as a level
+  // change is: leaving it via a `goto` can land on the SAME level it was
+  // covering (the finale), which no other signal here would notice — and that
+  // would leave the finale's confetti and its finished run replay on screen.
+  const splashEdge = (s.phase === "splash") !== (shownPhase === "splash");
   snap = s;
   pending = null; // whatever we sent, the authority has now spoken
 
@@ -171,7 +186,7 @@ function onSnapshot(s) {
   }
   if (s.phase !== "edit") resetInput(); // a run kills any half-drawn band
 
-  if (first || wasReset || levelChanged) {
+  if (first || wasReset || levelChanged || splashEdge) {
     // Fresh footing: recenter the camera, drop run debris.
     const b = L().bounds;
     Object.assign(cam, clampCam((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, fitScale(L()), b));
@@ -207,6 +222,12 @@ function syncHud() {
     s.phase === "win"
       ? (done === s.levelCount ? "ALL LEVELS CLEAR! 🎉🪴" : "LEVEL CLEAR! 🎉")
       : "";
+
+  // Both of these are room state, so they are re-read every snapshot: the
+  // selector arrives when the team clears the game and leaves on a reset, and
+  // the splash is a phase like any other.
+  hudEl.classList.toggle("cleared", levelSelect());
+  hudEl.classList.toggle("splash", s.phase === "splash");
 
   dotsEl.innerHTML = "";
   s.completed.forEach((c, i) => {
@@ -248,9 +269,12 @@ function syncHud() {
     })
     .join(" · ");
 
+  // On the finale of a cleared room NEXT is the curtain call, not another
+  // level — nextLeadsToSplash is the sim's own predicate for that transition,
+  // so the label cannot disagree with where the button actually goes.
   playBtn.textContent =
     s.phase === "run" ? "■ STOP" :
-    s.phase === "win" ? (done === s.levelCount ? "↺ AGAIN" : "NEXT ▸") : "▶ PLAY";
+    s.phase === "win" ? (nextLeadsToSplash(s) ? "FINISH ▸" : "NEXT ▸") : "▶ PLAY";
   playBtn.className = s.phase === "run" ? "stop" : s.phase === "win" ? "next" : "";
   clearBtn.style.display = s.phase === "edit" && s.bands.length ? "" : "none";
 }
@@ -265,7 +289,7 @@ playBtn.onclick = () => {
 clearBtn.onclick = () => { resetInput(); transport.send({ type: "clear" }); };
 const labBtn = $("lab");
 labBtn.onclick = () => {
-  if (!DEBUG) return;
+  if (!levelSelect()) return; // an indicator until the team clears the game
   if (snap && snap.phase === "run") transport.send({ type: "stop" });
   setLab(true);
 };
@@ -920,10 +944,12 @@ function drawStartPad(lv) {
   ctx.setLineDash([]);
 }
 
-// ---------- the LEVELS menu (?debug) ----------
+// ---------- the LEVELS menu (the level selector) ----------
 // The deleted prototype's lab view, on the shipped sim: every level as a card
-// with live verdicts (bare must NOT win, the solution must) — tap one to play
-// it locally. Design triage on any phone, straight from the deployed site.
+// with live verdicts (bare must NOT win, the solution must) — tap one to send
+// the whole room there. Design triage on any phone straight from the deployed
+// site, and, for a team that has cleared the game, its free-play menu. Who may
+// open it is `levelSelect()` above; this draws the same grid either way.
 function labVerdict(i) {
   if (!labVerdicts.has(i)) {
     const lv = GOOMBA_LEVELS[i];
@@ -1028,6 +1054,17 @@ function drawLab() {
   Object.assign(cam, savedCam);
 }
 
+// ---------- the splash (phase "splash") ----------
+// Where a cleared room lands when it takes NEXT off the finale, instead of the
+// old victory lap. Deliberately BLANK: the artwork comes later, and this is the
+// one place it will go. Everything else about the state is already real — the
+// room is in it together, the level selector (which clearing the game unlocked)
+// is the way out of it, and a proctor reset ends it.
+function drawSplash() {
+  ctx.fillStyle = "#150a2a"; // the page's own background: nothing on screen
+  ctx.fillRect(0, 0, W, H);
+}
+
 // ---------- main loop ----------
 const bandExcite = new Map(); // band index -> 0..1 wobble
 
@@ -1037,6 +1074,7 @@ function frame(nowMs) {
   tGlobal += dt;
   if (!snap) return;
   if (labOpen) { drawLab(); return; }
+  if (snap.phase === "splash") { drawSplash(); return; }
   const lv = L();
   const st = syncAnim();
   const riding = st && snap.phase === "run";
@@ -1144,8 +1182,11 @@ function mySlot() {
 const NAME_KEY = "escape-cats-name";
 
 function boot() {
+  // `.debug` is now only the tester's chrome (it drops the roster line); the
+  // SELECTOR rides `.cleared`, which syncHud toggles off the room's snapshot —
+  // ?debug simply forces that predicate true (see levelSelect).
   if (DEBUG) {
-    document.getElementById("hud").classList.add("debug");
+    hudEl.classList.add("debug");
   }
   if (SOLO) {
     // Serverless: the shared sim in-page, opening on the lab grid.
@@ -1153,8 +1194,10 @@ function boot() {
     startDebug({ onSnapshot });
     return;
   }
-  // ?debug without ?solo joins the real room like any player — the menu's
-  // card taps send a room-wide `goto`, so the whole team jumps together.
+  // Everything else joins the real room like any player, ?debug or not — the
+  // selector's card taps send a room-wide `goto`, so the whole team jumps
+  // together, and a ?debug phone differs only in getting at the selector
+  // before the team has earned it.
   const name = localStorage.getItem(NAME_KEY) ?? "Cat";
   gateStatusEl.textContent =
     "Waiting for your team — the proctor sorts you in, nothing to do here.";

@@ -18,18 +18,21 @@
          text-align: center; font-weight: 700; font-size: 16px; letter-spacing: .02em;
          text-shadow: 0 2px 8px rgba(0,0,0,.6); padding: 0 20px;
          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  /* The level dots — and, in ?debug, the level grid's button: the strip the
+  /* The level dots — and, once the team has CLEARED the game (or on a ?debug
+     phone, which overrides that gate), the level grid's button: the strip the
      dots already sit on IS the selector, so the grid opens from the thing it
-     is about instead of a second control parked down on PLAY's line. Outside
-     debug the same element is an indicator and nothing else, hence the
-     pointer-events and cursor reset off the global button rule. */
+     is about instead of a second control parked down on PLAY's line. Before
+     the clear the same element is an indicator and nothing else, hence the
+     pointer-events and cursor reset off the global button rule — and hence
+     `.cleared` toggling per snapshot (syncHud) rather than once at boot: it is
+     room state, and a proctor reset takes it away again. */
   #lab { display: flex; align-items: center; gap: 4px; padding: 0;
          background: none; pointer-events: none; cursor: default; }
-  #hud.debug #lab { padding: 5px 10px; border-radius: 13px; gap: 7px;
-                    background: rgba(255,255,255,.08);
-                    border: 1.5px solid rgba(201,189,240,.35);
-                    pointer-events: auto; cursor: pointer; }
-  #hud.debug #lab::after { content: "▦"; font-size: 12px; color: #c9bdf0; line-height: 1; }
+  #hud.cleared #lab { padding: 5px 10px; border-radius: 13px; gap: 7px;
+                      background: rgba(255,255,255,.08);
+                      border: 1.5px solid rgba(201,189,240,.35);
+                      pointer-events: auto; cursor: pointer; }
+  #hud.cleared #lab::after { content: "▦"; font-size: 12px; color: #c9bdf0; line-height: 1; }
   #dots { display: flex; gap: 4px; }
   .dot { box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%;
          border: 2px solid #6b5a98; background: transparent; }
@@ -68,6 +71,14 @@
   #hud.debug #team { display: none; }
   /* levels open: the grid is the whole screen; tap a card to leave */
   #hud.lab > * { visibility: hidden; }
+  /* The splash a cleared room lands on (phase "splash", see goomba/sim.ts):
+     a blank screen whose ONLY control is the level selector the clear just
+     unlocked — so the strip stays up and the rest of the HUD goes. Same
+     visibility idiom as .lab above, so nothing here moves any layout; the
+     :not(.lab) keeps the grid a whole screen when it opens from here. */
+  #hud.splash > * { visibility: hidden; }
+  #hud.splash:not(.lab) #top, #hud.splash:not(.lab) #lab { visibility: visible; }
+  #hud.splash #inv { visibility: hidden; }
   #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.9);
            background: rgba(20,10,45,.92); border: 2px solid #ffd166; color: #ffe9b3;
            padding: 14px 26px; border-radius: 18px; font-size: 20px; font-weight: 800; text-align: center;

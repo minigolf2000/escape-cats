@@ -10,10 +10,19 @@ and only to rasterise an SVG.
 Designing a level end-to-end is walked through in
 [`DESIGNING.md`](./DESIGNING.md) — start there.
 
+There is also a browser bench: the **level editor** at `/editor/`
+(`apps/goomba-editor`, :5179 in dev). It drags geometry against this same
+shipped sim, grades the cheap half of the gate on every edit, hunts shortcuts in
+background workers, and saves a level into its own URL. That last part is why
+`verify.mjs` grew `--hash`: a level can be finished, shared and gated before it
+is ever a diff.
+
 ```sh
 cd tools/goomba
 node verify.mjs 0      # THE GATE: full PASS/FAIL battery for one level (--quick to iterate)
 node verify.mjs all    # verdict per level (levels predating the party rule fail: known debt)
+node verify.mjs --hash <editor link>   # same gate, on a level that is still just a URL
+node verify.mjs --file team3.links     # same gate, on a file of them (the editor's tray)
 node quota.mjs         # THE OTHER GATE: the room's per-player band quota, ceil(4/n)
 node test.mjs          # every level: must FAIL bare, WIN with its solution
 node robust.mjs        # drop-one-band test + ±3-unit finger-slop tolerance

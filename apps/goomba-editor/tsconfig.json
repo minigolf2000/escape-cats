@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Like goomba-glider: the editor body is plain JS and only the typed seam
+    // (store.ts — the save format's one consumer) is checked. allowJs lets the
+    // checker read the JS it imports without implicit-any errors.
+    "allowJs": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/**/*.ts"]
+}

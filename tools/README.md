@@ -5,6 +5,12 @@ harnesses over the shared sim, plus the design guide (`DESIGNING.md`). It is
 its own world with its own README; everything below is about the two browser
 tools in this folder.
 
+The bench's browser half, the **level editor**, is not here: it lives in
+`apps/goomba-editor` and ships at `/editor/`. It imports the shared sim,
+so it needs a build step and cannot be one dependency-free HTML file the way
+these two are — the folder a thing lives in follows from whether it builds, not
+from whether it is a tool.
+
 Standalone browser tools — not games, not part of the multiplayer
 architecture. Each is a single self-contained HTML file with zero
 dependencies, zero build step, and no server, so it costs nothing to keep and

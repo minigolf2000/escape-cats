@@ -21,6 +21,9 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
                      into modules (see its src/README.md for the map)
 apps/goomba-glider/  Player client for Goomba Glider: the prototype's canvas
                      rendering on the shared sim, driven by room snapshots
+apps/goomba-editor/  Goomba level editor (/editor/): drag geometry against
+                     the shipped physics, live verdicts, background shortcut
+                     hunt, and a level saves by BEING a URL
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on (and its chat) — no links into the games
 apps/chat/           Per-team chat: one channel per team, roomed by team id
@@ -34,8 +37,9 @@ packages/shared/     Wire protocol, seeded RNG, and BOTH whole games: hex
 server/              Cloudflare Worker: two game rooms, team lobby and team
                      chat, as four Durable Objects (partyserver, NOT the
                      PartyKit platform)
-tools/goomba/        Goomba level-design bench: QA tools over the shared sim
-                     + the design guide (DESIGNING.md)
+tools/goomba/        Goomba level-design bench: node QA tools over the shared
+                     sim + the design guide (DESIGNING.md). `verify.mjs` is the
+                     gate, and it accepts an editor link as well as an index
 ```
 
 ## Where things live (so a retune touches one file)
@@ -67,6 +71,15 @@ tools/goomba/        Goomba level-design bench: QA tools over the shared sim
   Teammates watch it happen: a drag streams as a ghost band, and a tap-tap
   waiting on its second tap streams as a named marker (a preview shorter than
   `BAND_MIN` — it can't become a band, so it reads as "choosing here").
+- **The level editor** — `apps/goomba-editor`, shipped at `/editor/`.
+  Drag terrain, cans, poppers, cushions, bumpers and the four solution bands;
+  every edit re-runs the cheap half of the gate (bare run fails, the four-band
+  solution wins, every band load-bearing, ±3u finger slop) on the same shipped
+  sim the server scores with, and a pool of web workers hunts the expensive
+  half in the background — exhaustive at one band, sampled at two and three —
+  drawing the cheat it finds on the canvas in red. `node verify.mjs` is still
+  the gate; the editor is the fast loop. See "The editor saves into its URL"
+  below for the storage story.
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported
   canvas module, `apps/goomba-glider/src/main.js`.
@@ -119,6 +132,7 @@ This starts everything:
 | Proctor       | http://localhost:5175                      |
 | Team lobby    | http://localhost:5176                      |
 | Team chat     | http://localhost:5177                      |
+| Level editor  | http://localhost:5179/editor/              |
 
 Open the lobby on phones on the same wifi (one address for the whole room),
 then drag each phone onto a team from the proctor page. The vite servers listen
@@ -440,6 +454,39 @@ build rather than reaching a player's phone.
 folders were their own Vercel projects. They are inert under the
 single-project setup (only the root `vercel.json` is read); keep them only if
 you intend to split those surfaces back out.
+
+## The editor saves into its URL
+
+The level editor has no server, no database and no account, and that is the
+design rather than a shortcut. A design session produces twenty candidate
+levels, nineteen of which never ship; standing up storage for them would be
+more machinery than the levels are worth, and it would put a login between a
+person and a drawing tool.
+
+So a level IS a link. `encodeLevel` (`packages/shared/src/goomba/codec.ts`)
+packs a whole level — name, terrain, cans, poppers, cushions, bumpers, start,
+goal, the four-band solution — into 100–450 base64url characters, which fits in
+a URL, a chat message, a sticky note or a QR code. Every level currently in
+`levels.ts` round-trips through it byte-identical (coordinates are stored in
+tenths of a world unit, which is exactly the precision the design tools emit).
+This is the trade `tools/qr-studio.html` already makes for its drawings, and
+the storage tiers are the same three:
+
+1. **`location.hash` — sharing.** Read at boot, written when someone presses
+   *copy link*. Not rewritten on every drag: a hash that changes with each
+   gesture turns the back button into an undo log and buries the link the
+   designer arrived on.
+2. **`localStorage` — the draft.** Autosaved continuously, so a reload or a
+   closed lid costs nothing.
+3. **The tray** — a named list of links in `localStorage`, so one laptop can
+   hold a whole group's output, and *download .links* writes the file
+   `node verify.mjs --file` reads.
+
+The payoff is that the codec is shared code, not editor code: `lib.mjs` bundles
+it for the node bench too, so `node verify.mjs --hash <link>` runs the full
+gate — including the beam search the browser never runs — on a level that
+nobody has committed. A design can be made, shared, gated and rejected before
+it is ever a diff.
 
 ## Next steps (deliberately not in the scaffold)
 

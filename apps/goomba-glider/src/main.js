@@ -212,7 +212,6 @@ function syncHud() {
   s.completed.forEach((c, i) => {
     const d = document.createElement("div");
     d.className = "dot" + (i === s.level ? " cur" : c ? " done" : "");
-    if (DEBUG) d.onclick = () => { if (s.phase !== "run") transport.send({ type: "goto", level: i }); };
     dotsEl.appendChild(d);
   });
 
@@ -1147,7 +1146,6 @@ const NAME_KEY = "escape-cats-name";
 function boot() {
   if (DEBUG) {
     document.getElementById("hud").classList.add("debug");
-    labBtn.style.display = "";
   }
   if (SOLO) {
     // Serverless: the shared sim in-page, opening on the lab grid.

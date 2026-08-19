@@ -34,14 +34,23 @@ findings — do not design from intuition, the sim disproves it reliably.
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
-- Levels 3–8 collapse to 1 band — known debt (they predate the party rule).
-  Space Cadet (9) was rebuilt as a five-can machine: no ≤3-band win found
+- **Six levels ship.** The Skim, The Puzzle Box, Pillow Fort and Mind the Gap
+  were cut, and the survivors renumbered 1–6 — a level's display number is
+  its array index + 1, so removing one renumbers everything after it.
+- Levels 2–4 need fewer than 4 bands — the standing debt (they predate the
+  party rule). Re-measured with `minbands`, not inherited: Watering Can
+  Slalom (2) needs 3, Piñata Alley (3) needs 2, and only Pop Goes Goomba (4)
+  actually collapses to 1 (195/8738 one-band wins, exhaustive). The old
+  blanket "these all collapse to 1 band" note was stale for 2 and 3 — if you
+  are about to repeat a debt claim, re-run the tool first.
+  Space Cadet (5) was rebuilt as a five-can machine: no ≤3-band win found
   (1-band exhaustive, 2–3 sampled), 4-band solution with every band
   load-bearing — but it fails the ±3u finger-slop check (0/30), so its debt
-  is now precision, not collapse (see its comment in `levels.ts`). Don't
-  copy the 3–8 structure; copy Four Ways to Help (one gate per band, each
-  with its own death), Mind the Gap (shelf-gated switchback) or The Popper
-  Grid (forced popper lanes).
+  is precision, not collapse (see its comment in `levels.ts`). Don't copy the
+  2–4 structure; copy Four Ways to Help (one gate per band, each with its own
+  death) or The Popper Grid (forced popper lanes). The shelf-gated switchback
+  that Mind the Gap demonstrated is still a good pattern and still written up
+  in DESIGNING.md — the level is gone, the finding is not.
 - Parallel level threads: work on your own branch — `levels.ts` is where
   every level thread edits, and sharing a branch collides.
 
@@ -73,7 +82,8 @@ findings — do not design from intuition, the sim disproves it reliably.
 - **Proctor box heights are fixed**: every stat line renders in every state
   (placeholders, never fewer lines) so boxes don't shift under a drag.
 - **Goomba Glider's debug menu**: `?debug` joins your REAL room with the
-  **levels** grid on top (its button sits bottom-left, on PLAY's line) —
+  **levels** grid on top (the level dots top-left ARE its button: in debug
+  the dot strip wears a plate and a ▦, and tapping it opens the grid) —
   every level as a card with live bare/solution verdicts, and tapping a card
   jumps THE WHOLE ROOM to that level (a real wire intent; teammates on plain
   URLs follow). `?solo` runs the same grid on the in-page sim with no server. Testing on prod: `/proctor`, assign

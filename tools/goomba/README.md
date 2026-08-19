@@ -61,9 +61,16 @@ Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is
 each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
 one player hoarding, but only geometry can make a level *need* four bands, so
 the level gate below still does the load-bearing work.
-Three levels pass the full gate — Four Ways to Help (1), Mind the Gap (2) and
-The Popper Grid (10) — and levels 3-8 still collapse to 1 band, which is the
-standing rebalance debt. Space Cadet (9) has been rebuilt as a pinball
+Six levels ship. Two pass the full gate — Four Ways to Help (1) and The
+Popper Grid (6) — and levels 2-4 are the standing rebalance debt: they win
+with fewer than 4 bands. Freshly measured, not inherited: Watering Can
+Slalom (2) needs 3 (0/10325 at one band, exhaustive), Piñata Alley (3) needs
+2, and only Pop Goes Goomba (4) truly collapses to 1 (195/8738, exhaustive).
+The blanket "levels 3-8 collapse to 1 band" this file used to carry was
+stale for two of its members. (The Skim, The Puzzle Box and Pillow Fort were
+cut, and Mind the Gap, which passed, was cut with them. Level numbers are
+array index + 1, so those removals renumbered everything after them.)
+Space Cadet (5) has been rebuilt as a pinball
 machine with five cans: `minbands` finds no ≤3-band win (exhaustive at 1
 band, 0/50000 sampled at 2-3), its 4-band solution wins with every band
 load-bearing, and what keeps it out of the passing list is now the ±3u

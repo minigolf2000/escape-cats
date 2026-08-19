@@ -18,6 +18,18 @@
          text-align: center; font-weight: 700; font-size: 16px; letter-spacing: .02em;
          text-shadow: 0 2px 8px rgba(0,0,0,.6); padding: 0 20px;
          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* The level dots — and, in ?debug, the level grid's button: the strip the
+     dots already sit on IS the selector, so the grid opens from the thing it
+     is about instead of a second control parked down on PLAY's line. Outside
+     debug the same element is an indicator and nothing else, hence the
+     pointer-events and cursor reset off the global button rule. */
+  #lab { display: flex; align-items: center; gap: 4px; padding: 0;
+         background: none; pointer-events: none; cursor: default; }
+  #hud.debug #lab { padding: 5px 10px; border-radius: 13px; gap: 7px;
+                    background: rgba(255,255,255,.08);
+                    border: 1.5px solid rgba(201,189,240,.35);
+                    pointer-events: auto; cursor: pointer; }
+  #hud.debug #lab::after { content: "▦"; font-size: 12px; color: #c9bdf0; line-height: 1; }
   #dots { display: flex; gap: 4px; }
   .dot { box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%;
          border: 2px solid #6b5a98; background: transparent; }
@@ -48,7 +60,7 @@
   #play.stop { background: linear-gradient(180deg, #ff7ec1, #ff5db1); box-shadow: 0 6px 18px rgba(255,93,177,.35), inset 0 -3px 0 rgba(0,0,0,.15); }
   #play.next { background: linear-gradient(180deg, #ffe08a, #ffd166); box-shadow: 0 6px 18px rgba(255,209,102,.4), inset 0 -3px 0 rgba(0,0,0,.15); }
   /* The bottom-left row — secondary buttons sitting on PLAY's line, centred
-     against its taller pill. #lab is ?debug only. */
+     against its taller pill. */
   #btm { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom));
          height: 56px; display: flex; align-items: center; gap: 8px; }
   #btm button { height: 44px; padding: 0 16px; border-radius: 22px; font-size: 14px; font-weight: 700;
@@ -114,7 +126,7 @@
 </div>
 <div id="hud">
   <div id="top">
-    <div id="dots"></div>
+    <button id="lab"><div id="dots"></div></button>
     <div id="inv"></div>
   </div>
   <div id="lvl"></div>
@@ -122,7 +134,6 @@
   <div id="team"></div>
   <div id="conn">reconnecting…</div>
   <div id="btm">
-    <button id="lab" style="display:none">levels</button>
     <button id="clear">clear bands</button>
   </div>
   <button id="play">▶ PLAY</button>

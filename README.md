@@ -50,7 +50,8 @@ tools/goomba/        Goomba level-design bench: QA tools over the shared sim
   `physics.ts`; the multiplayer room state machine is `goomba/sim.ts`. The
   level-design loop and QA tools live in `tools/goomba/` (start with its
   `DESIGNING.md`). The **debug menu**: `?debug` joins your real room with
-  the **levels** grid on top (its button sits bottom-left, inline with PLAY)
+  the **levels** grid on top (the top-left level dots are its button: in
+  debug the strip wears a plate and a ▦, and tapping it opens the grid)
   — every level as a card with live bare/solution verdicts, and tapping a
   card jumps the whole room to that level (teammates on plain URLs follow).
   `?solo` runs the same grid on the in-page sim with no server (hex's

@@ -212,10 +212,18 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[30, 17], [54, 16]], [[105, 20], [105, 60]],
                 [[55, 116], [5, 115]], [[26, 162], [42, 161]] ] },
 
+  // The floor is pitched 20 units over 98 (0.204), not the 6 it used to be.
+  // The old 0.061 was under the ~0.12 stranding threshold, and worse, under
+  // what it takes to beat the snowboard pump: the pump shoves her the way she
+  // FACES, so a soft leftward landing near the left wall pumped her into the
+  // corner and stalled there — 741 of 3312 sampled left-side arrivals never
+  // reached the plant. At 0.204 gravity outvotes the pump and every one of
+  // those 3312 slides down to the plant on the right. It cost nothing: the
+  // 3-band solution still wins (1.3s faster) and the level still needs 3.
   { name: '2 · Watering Can Slalom', budget: 3,
     start: [10, 22],
     terrain: [ [[-4, 20], [30, 30]],
-               [[6, 34], [6, 204], [104, 210], [104, 34]] ],
+               [[6, 34], [6, 190], [104, 210], [104, 34]] ],
     goal: [96, 205],
     cans: [[32, 72], [76, 118], [32, 164]],
     solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],

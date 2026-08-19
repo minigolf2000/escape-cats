@@ -194,6 +194,16 @@ lesson rather than a generic "she died".
 - **Speed governor** — a short gentle shelf just below a wall-drop; at ~15
   speed even a 20-unit gap is uncrossable.
 
+**A run-out floor has to outvote the pump, not just the stall threshold.** The
+snowboard pump (`sp < 12` while grounded) pushes her the way she FACES, so a
+floor that only just clears the ~0.12 stranding pitch still traps anything that
+lands on it moving the WRONG way: she pumps into the far corner and stalls
+facing it. Watering Can Slalom's floor was 0.061 and stranded 741 of 3312
+sampled left-side arrivals; at 0.204 all 3312 slide to the goal. If a floor's
+job is "wherever she lands, she ends up at the plant", pitch it ~0.2, and test
+it with arrivals that carry velocity AWAY from the goal — a straight drop keeps
+her facing the way she already was and will tell you the floor is fine.
+
 **Useful numbers:** gaps wider than ~45 units aren't jumpable at typical speed,
 and a band only spans 58 — so the "needs exactly one band" window is roughly
 45–58 units, and it widens a lot if you slow her down first. Two segments

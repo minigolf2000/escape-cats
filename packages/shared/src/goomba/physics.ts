@@ -290,7 +290,7 @@ export function stepRun(st: RunState, dt: number): void {
       st.events.push(["bump", st.p.x, st.p.y, st.t]);
     }
   }
-  // neon watering cans: collect every one before the snake plant unlocks
+  // neon watering cans: collect every one before the spider plant unlocks
   for (let i = 0; i < L.cans.length; i++) {
     if (st.got[i]) continue;
     const dx = st.p.x - L.cans[i][0],

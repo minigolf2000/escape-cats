@@ -12,7 +12,7 @@ minutes.
   shares 4 elastic bands a level, and no player may hold more than
   ⌈4 ÷ players in the room⌉ of them — four players means one each, nobody
   spectates. Anyone hits PLAY and every phone watches the same deterministic
-  ride: collect every watering can, then land on the thirsty snake plant.
+  ride: collect every watering can, then land on the thirsty spider plant.
 
 ## Layout
 

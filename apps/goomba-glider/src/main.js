@@ -774,35 +774,78 @@ function drawBumper(bp, hot) {
   ctx.restore();
 }
 
-// The goal: the snake plant Goomba is watering. Thirsty, its leaves are short,
-// leant out and dulled; with the last can in they stand up bright — so the
-// badge is a second telling of a state the plant itself already shows.
+// The goal: the spider plant Goomba is watering. Thirsty, its blades barely
+// lift out of the crown and hang limp, dulled, and the plantlet on its runner
+// droops; with the last can in the whole fountain arches up bright and the
+// baby swings — so the badge is a second telling of a state the plant itself
+// already shows.
+//
+// [dir, reach, rise, drop, width] per blade: dir/reach set which way and how
+// far it fans, rise how hard it arches on the way out, drop where the tip
+// lands relative to the crown (+ is BELOW it — the outer blades spill over
+// the rim, which is what makes it read as a spider plant and not a spike).
+const SPIDER_BLADES = [
+  [-1, 5.2, 2.4, 3.6, 0.7], [1, 5.4, 2.2, 3.9, 0.7],
+  [-1, 4.4, 4.2, 1.7, 0.78], [1, 4.6, 4.0, 2.0, 0.78],
+  [-1, 3.2, 6.0, -0.4, 0.85], [1, 3.4, 5.7, -0.2, 0.85],
+  [-1, 1.6, 7.4, -3.4, 0.7], [1, 1.9, 7.0, -3.0, 0.7],
+  [1, 0.5, 5.8, -5.4, 0.6],
+];
+const CROWN_Y = -3.4;   // the crown sits just ABOVE the pot rim, so the blades
+                        // drape in front of it instead of being sliced by it
+
 function drawGoalPlant(lv, st) {
   const x = sxp(lv.goal[0]), y = syp(lv.goal[1]), u = Math.max(cam.s, 2.6);
   const left = lv.cans.length - (st ? st.gotN : 0), ready = left === 0;
   const pulse = 1 + Math.sin(tGlobal * 3) * 0.05;
   ctx.save(); ctx.translate(x, y + 2 * u); ctx.scale(pulse, pulse);
   ctx.fillStyle = ready ? "rgba(87,230,201,0.2)" : "rgba(255,209,102,0.12)";
-  ctx.beginPath(); ctx.arc(0, -3 * u, 7.5 * u, 0, 6.28); ctx.fill();
-  ctx.save(); ctx.rotate(Math.sin(tGlobal * 1.7) * (ready ? 0.05 : 0.02));
-  ctx.fillStyle = ready ? "#57e6c9" : "#49a08f";   // leaves first: the rim overlaps where they root
-  ctx.strokeStyle = "rgba(255,209,102,0.7)"; ctx.lineWidth = 0.18 * u; ctx.lineJoin = "round";
-  for (const [bx, h, lean, w] of [[-1.4, 5.4, -1.5, 0.7], [-0.6, 7.4, -0.6, 0.8], [0.2, 8.2, 0.2, 0.85],
-                                  [1, 6.6, 1.1, 0.75], [1.6, 4.4, 1.9, 0.6]]) {
-    const th = h * (ready ? 1 : 0.86), tl = lean * (ready ? 1 : 1.2), mid = (-2.2 - th * 0.55) * u;
-    ctx.beginPath(); ctx.moveTo((bx - w) * u, -2.2 * u);
-    ctx.quadraticCurveTo((bx + tl * 0.4 - w * 0.8) * u, mid, (bx + tl) * u, (-2.2 - th) * u);
-    ctx.quadraticCurveTo((bx + tl * 0.4 + w * 0.8) * u, mid, (bx + w) * u, -2.2 * u);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-  }
-  ctx.restore();
-  ctx.fillStyle = "#cfc4ec";   // saucer, then the tapered pot and its rim
+  ctx.beginPath(); ctx.ellipse(0, -3.5 * u, 8.8 * u, 7.5 * u, 0, 0, 6.28); ctx.fill();
+  // pot first — saucer, tapered body, rim: a spider plant's blades hang OVER
+  // the rim, so every one of them rides in front of the pot, not behind it
+  ctx.fillStyle = "#cfc4ec";
   ctx.beginPath(); ctx.ellipse(0, 0.8 * u, 4.2 * u, 0.8 * u, 0, 0, 6.28); ctx.fill();
   ctx.fillStyle = "#ff9dce";
   ctx.beginPath(); ctx.moveTo(-3.1 * u, -2.4 * u); ctx.lineTo(3.1 * u, -2.4 * u);
   ctx.lineTo(2.3 * u, 0.8 * u); ctx.lineTo(-2.3 * u, 0.8 * u); ctx.closePath(); ctx.fill();
   ctx.fillStyle = "#ffd166";
   ctx.beginPath(); ctx.roundRect(-3.5 * u, -3.2 * u, 7 * u, 1.3 * u, 0.6 * u); ctx.fill();
+
+  ctx.save(); ctx.rotate(Math.sin(tGlobal * 1.7) * (ready ? 0.05 : 0.02));
+  const leaf = ready ? "#57e6c9" : "#49a08f";
+  // the runner: a wiry stolon out past the rim with a baby plantlet on its end
+  const swing = Math.sin(tGlobal * 1.9) * (ready ? 0.55 : 0.15) * u;
+  const rx = 6.0 * u + swing, ry = (ready ? -1.2 : 0.2) * u;
+  ctx.strokeStyle = ready ? "#8fe3c4" : "#5f8f7f";
+  ctx.lineWidth = 0.22 * u; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.beginPath(); ctx.moveTo(0.4 * u, CROWN_Y * u);
+  ctx.quadraticCurveTo(3.4 * u, (CROWN_Y - 2.6) * u, rx, ry); ctx.stroke();
+  ctx.fillStyle = leaf;
+  for (const [ax, ay] of [[-1.7, 0.4], [-1.1, 1.2], [0, 1.5], [1.1, 1.1], [1.7, 0.3]]) {
+    ctx.beginPath(); ctx.moveTo(rx, ry);
+    ctx.quadraticCurveTo(rx + ax * 0.65 * u, ry + ay * 0.35 * u, rx + ax * u, ry + ay * u);
+    ctx.quadraticCurveTo(rx + ax * 0.3 * u, ry + ay * 0.7 * u, rx, ry);
+    ctx.fill();
+  }
+  // the blades, each a tapered arc with the cream stripe down its middle
+  const lift = ready ? 1 : 0.62, sag = ready ? 0 : 1.6, spread = ready ? 1 : 0.88;
+  for (const [dir, reach, rise, drop, w] of SPIDER_BLADES) {
+    const tx = dir * reach * spread * u, ty = (CROWN_Y + drop + sag) * u;
+    const cx = dir * reach * 0.42 * u, cy = (CROWN_Y - rise * lift) * u;
+    const by = CROWN_Y * u;
+    const len = Math.hypot(tx, ty - by) || 1;         // blade normal, for the taper
+    const nx = (ty - by) / len * w * u, ny = -tx / len * w * u;
+    ctx.fillStyle = leaf;
+    ctx.strokeStyle = "rgba(255,209,102,0.7)"; ctx.lineWidth = 0.18 * u;
+    ctx.beginPath(); ctx.moveTo(0, by);
+    ctx.quadraticCurveTo(cx + nx, cy + ny, tx, ty);
+    ctx.quadraticCurveTo(cx - nx, cy - ny, 0, by);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = ready ? "rgba(240,255,248,0.8)" : "rgba(214,236,228,0.35)";
+    ctx.lineWidth = w * 0.22 * u;
+    ctx.beginPath(); ctx.moveTo(0, by); ctx.quadraticCurveTo(cx, cy, tx, ty); ctx.stroke();
+  }
+  ctx.restore();
   ctx.restore();
   if (left > 0) {
     ctx.save(); ctx.translate(x, y - 12.5 * u);

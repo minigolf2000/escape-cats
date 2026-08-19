@@ -157,60 +157,49 @@ const popLane = (y: number, dir: number): GoombaPopper[] =>
   GRID_X.map((x) => ({ x, y, deg: dir > 0 ? 0 : 180, spd: 76 }));
 
 const RAW_LEVELS: GoombaLevel[] = [
-  // THE TUTORIAL. Four bands, four DIFFERENT jobs, in the order a player meets
-  // them — so the first level teaches the whole vocabulary instead of one trick
-  // four times. Each stage is a hard gate with its own legible death, and the
-  // deaths are all different, which is what makes the level teach:
-  //   1. a SHORT bridge over a small gap   — bare: she drops in, bowl, stuck
-  //   2. a WALL in mid-air                 — bare: she sails off the right edge
-  //   3. a LONG bridge, near full stretch  — bare: she drops in, bowl, stuck
-  //   4. a LID over the wrong hole         — bare: she falls in the empty one
+  // Rebuilt from a hand sketch: a staircase of four ledges the eye reads
+  // top-left → top-right → across → down-right, with the spider plant alone on
+  // the ground far below. The shapes are the sketch's, transcribed 1:1.
   //
-  // No jump can ever substitute for a bridge here: every far lip sits 1 unit
-  // ABOVE its near lip, and arcs only fall, so both gaps are honestly
-  // uncrossable at any speed. That is also why the two gaps can differ in size
-  // without differing in difficulty — the lesson is band LENGTH, not timing.
+  //   1. the start pad, pitched down-right, ending in a small gap
+  //   2. the V, top-right — can 1 rides in its throat, and its short right arm
+  //      throws her off the right edge of the world
+  //   3. the big chevron across the middle — the bowl that eats a missed
+  //      bridge: she rocks in it and never climbs out
+  //   4. the diagonal, lower-right, and the second can hanging under it
   //
-  // A watering can sits past each gate (ramp flat, far ledge, between the two
-  // holes), so the spider plant stays unwatered unless all four jobs were
-  // actually done — and the three ugly-looking bits of geometry are all there
-  // to keep those cans honest, each one added after the beam search cheated
-  // past them:
-  //   · the BOWLS floor the level's two dead columns. Empty vertical space is
-  //     where shortcuts live: one catch band under a gap otherwise turns the
-  //     whole fall into a free ride to somewhere much later.
-  //   · the upper bowl's right arm CLIMBS to meet the ramp's lip, sealing the
-  //     pocket under the ramp — a band caught her in the small gap and flew her
-  //     underneath the ramp and straight out onto stage 3, skipping the wall.
-  //   · the far ledge is a closed SLAB, not a line. A can on a one-segment
-  //     ledge is grabbable from directly beneath it (pickup radius 9.7 against
-  //     zero thickness), so a catch band slung under the big gap collected it
-  //     without ever crossing. Twelve units of belly puts it out of reach.
-  { name: '1 · Four Ways to Help', budget: 4,
-    start: [-12, 9],
+  // DEBT, measured not inherited: this one is honestly a THREE-band level, and
+  // ships that way (budget 3, a 3-band solution) alongside levels 2 and 3 —
+  // `solve.mjs 0 1` and `0 2` both come back empty, `0 3` solves. It is not a
+  // shortcut that wants patching: `node reach.mjs 0 3 --drop-can 1 --near
+  // 72,82` reports ZERO cells a 4-band win reaches that a 3-band win does not,
+  // so no position for the second can forces a 4th band. Two reasons, both
+  // structural — a band stretches 58 units across a world only ~110 wide, and
+  // the flat full-width ground is near-frictionless, so it delivers her to the
+  // plant from anywhere on it. Requiring 4 would take geometry the sketch does
+  // not have (a broken floor, a popper, a fence). Kept as drawn on purpose.
+  //
+  // The three jobs, each with its own legible death (drop-one, measured:
+  // loop / fall / fall):
+  //   1. BRIDGE the pad's gap  — drop it and she passes UNDER the V's left arm
+  //      into the chevron, where she rocks until the run is called
+  //   2. WALL the right shaft  — drop it and the V's short right arm throws her
+  //      clean off the right edge of the world
+  //   3. CATCH her under the diagonal — drop it and she lands on the diagonal
+  //      instead, rides it out over the plant with only one can, and slides off
+  //      the left end of the ground with the plant still locked
+  { name: '1 · The Long Way Down', budget: 3,
+    start: [8, 4],
     terrain: [
-      // stage 1 — the small gap. Far lip sits 1 unit HIGH, so no jump crosses.
-      [[-14, 10], [30, 17]],
-      [[-20, 60], [20, 72], [60, 58], [92, 46]], // miss the small gap and this holds her
-      // stage 2 — the ramp that throws her off the right edge of the world
-      [[54, 16], [76, 34], [92, 34]],
-      // stage 3 — the catch floor, then the big gap
-      [[55, 116], [115, 96]],
-      [[-15, 118], [5, 115], [5, 128], [-15, 131], [-15, 118]],
-      [[0, 138], [24, 146], [48, 138]], // miss the big gap and this holds her
-      [[-24, 110], [-24, 148]],  // left wall: kills her speed, drops her to 4
-      // stage 4 — two holes, one spider plant
-      [[-22, 150], [26, 162]],
-      [[42, 161], [58, 166]],
-      [[42, 161], [42, 190]],     // back wall of the wrong pocket
-      [[74, 165], [90, 170]],
-      [[74, 165], [74, 190]],     // back wall of the spider plant's pocket
-      [[20, 192], [31, 198], [42, 192]],
-      [[58, 192], [66, 198], [74, 192]] ],
-    goal: [66, 196],
-    cans: [[86, 30], [-6, 114], [50, 165]],
-    solution: [ [[30, 17], [54, 16]], [[105, 20], [105, 60]],
-                [[55, 116], [5, 115]], [[26, 162], [42, 161]] ] },
+      [[6, 6], [41, 13]],               // the start pad
+      [[58, 11], [77, 27], [91, 25]],   // the V — can 1 in its throat
+      [[0, 46], [32, 56], [89, 35]],    // the chevron: the bowl that eats a miss
+      [[61, 68], [106, 51]],            // the diagonal
+      [[0, 121], [110, 121]] ],         // the ground, the plant near its left end
+    goal: [27, 120],
+    cans: [[84, 22], [72, 82]],
+    solution: [ [[41, 13], [58, 11]], [[117, 32], [110, 73]],
+                [[112, 74], [64, 95]] ] },
 
   // The floor is pitched 20 units over 98 (0.204), not the 6 it used to be.
   // The old 0.061 was under the ~0.12 stranding threshold, and worse, under

@@ -25,3 +25,16 @@ animation phase beyond the three the export picks. Everything is emitted at
 u = 10 (one canvas unit = 10 SVG units) in named `<g>` layers, so Figma gets
 `pot`, `blades`, `runner`, `drips` and friends as named groups rather than one
 flattened path soup.
+
+## The splash picture is NOT one of these
+
+`public/art/splash.webp` is a real loaded asset — the only one this app has —
+drawn by `drawSplash` on the `splash` phase (the screen a cleared room lands on).
+Replace that file and the game picks it up; nothing in `main.js` needs to change,
+including the sky colours that extend it past the ends of a tall phone, which are
+sampled from the picture's own top and bottom rows.
+
+It currently holds the same picture as hex-clicker's win screen
+(`apps/hex-clicker/public/art/hex-splash.webp`) — a deliberate stand-in until
+Goomba's own splash exists. Two copies, because the two games are separately
+deployed bundles and these are expected to diverge, not one asset shared.

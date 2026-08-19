@@ -13,6 +13,7 @@ import {
   gateEl,
   gateStatusEl,
   gateErrEl,
+  wonPillEl,
 } from "./dom.js";
 import {
   game,
@@ -50,7 +51,10 @@ import { spawnGold, despawnGold, moveGold, initGoldenInput } from "./golden.js";
 import { updatePops } from "./fx.js";
 import { clearMateTaps, enqueueMateTaps, updateMateTaps } from "./mates.js";
 import { initEyes, updateCat } from "./cat.js";
-import { syncPhase, runNightCutscene, isNightInited } from "./phase.js";
+import {
+  syncPhase, runNightCutscene, isNightInited,
+  initSplashArt, setSplash, syncWon, toggleSplash,
+} from "./phase.js";
 import { drawWall, startWallNeon, resetWallClock } from "./wall.js";
 import { currencyIconSVG } from "./art.js";
 
@@ -113,6 +117,8 @@ function onSnapshot(snap) {
       despawnGold();
       resetWallClock();
       syncPhase();
+      // syncWon below retires the pill and drops the splash — a reset takes the
+      // win back with everything else, so there is no separate un-win path.
     }
     if (e.nightFlip) {
       // THE TWIST, live: same ordering as the prototype's buy path —
@@ -123,6 +129,11 @@ function onSnapshot(snap) {
       despawnGold();
       runNightCutscene();
     }
+    if (e.wonFlip) {
+      // The proctor just pressed it: every phone in the room raises the picture
+      // together, and the pill is right there to go back with.
+      setSplash(true);
+    }
     if (e.neonOn && isNightInited()) startWallNeon();
     // The purchase that empties the rail closes the shop — an edge, so a
     // rejoin that arrives already sold out retires it silently (syncDock).
@@ -131,6 +142,7 @@ function onSnapshot(snap) {
     if (e.goldGone) despawnGold();
   }
 
+  syncWon(); // projection, not an edge — see phase.js
   updateTeam();
   // No direct refresh calls: the frame loop repaints within ≤83ms, which is
   // the same 12fps cadence every other HUD/shop write already runs at.
@@ -145,6 +157,8 @@ function initGame() {
   initShopSkin();
   initPetInput();
   initGoldenInput();
+  initSplashArt();
+  wonPillEl.onclick = toggleSplash;
   refreshHud();
   refreshShop();
   refreshUpgrades();

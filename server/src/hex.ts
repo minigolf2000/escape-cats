@@ -171,12 +171,23 @@ export class HexServer extends Server<Env> {
       case "catchGold":
         if (!proctor) this.sim.catchGold(msg.id, now);
         break;
+      case "won":
+        // The one intent that is the PROCTOR's game action rather than their
+        // housekeeping: they heard the code word, so the room is won. Same
+        // write-through as reset below, and for the same reason — rehydrating a
+        // pre-win save would silently un-win a team who are already looking at
+        // their splash.
+        if (!proctor) return;
+        this.sim.setWon(msg.won !== false, now);
+        void this.persist();
+        break;
       case "reset":
         if (!proctor) return;
         this.sim.reset(now);
         this.roster.reset();
-        // Write-through, alone of all mutations: rehydrating the PREVIOUS run
-        // after an eviction would silently undo the proctor's reset.
+        // Write-through, like the win mark above and unlike every player
+        // mutation: rehydrating the PREVIOUS run after an eviction would
+        // silently undo the proctor's reset.
         void this.persist();
         break;
     }

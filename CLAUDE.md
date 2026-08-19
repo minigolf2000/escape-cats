@@ -100,11 +100,37 @@ findings — do not design from intuition, the sim disproves it reliably.
   prod: `/proctor`, assign yourself to a team, open the game with `?debug`. Hex
   keeps `?debug&speed=N` for balance work.
 - **NEXT off the finale of a cleared room lands on the `splash` phase**, not a
-  victory lap: a terminal, deliberately BLANK screen (`drawSplash` in
-  `main.js`, where the artwork goes) whose only control is the level selector
+  victory lap: a terminal screen (`drawSplash` in `main.js`) that is one
+  full-screen picture and nothing else — its only control is the level selector
   the clear just unlocked. Nothing places or plays from it; the ways out are a
   `goto` and a proctor reset. `nextLeadsToSplash` is the one predicate for that
   transition — the PLAY button's "FINISH ▸" label reads it too.
+- **The splash pictures are drop-in files, and there are TWO of them**:
+  `apps/goomba-glider/public/art/splash.webp` and
+  `apps/hex-clicker/public/art/hex-splash.webp`. Same image today (the cat on
+  the moon) as a deliberate stand-in until Goomba has its own; two copies
+  because the apps are separately deployed bundles and are expected to diverge,
+  not one asset shared. Replace a file and nothing in code changes: both games
+  fit the picture to the WIDTH (a phone is far narrower than these are tall, and
+  cropping sideways would cut the subject in half) and extend the sky past both
+  ends with colours SAMPLED from the picture's own top and bottom pixel rows.
+  Don't hardcode a sky.
+- **Hex's win is the PROCTOR's press, and it unlocks a splash you can toggle
+  away from**: hex cannot score its own win — the code word leaves the game on a
+  phone and comes back as four people reading it out — so `wonAt`
+  (`hex/sim.ts`, `hexWon`) is set by a proctor-only `won` intent, the 🏆 button
+  in each team's Hex box. A toggle, not a latch (a mis-pressed team box must not
+  need a whole-game reset), and taking a win BACK confirms while granting it
+  does not. Room state like everything else: all four phones light up on one
+  snapshot, it survives a reload, a reset clears it. `#wonPill` top-left is the
+  only control the win adds, and it ping-pongs — `🏆 win screen` ⇄ `← back to
+  Hex` — because the night wall they just read is what they EARNED and a victory
+  screen that buried it for good would be taking it away. Which of the two a
+  phone is looking at is LOCAL (Goomba's card taps move what the room PLAYS, so
+  those are wire intents; these are one room state seen two ways). The splash
+  raises itself once, on the live edge only — a rejoin gets the pill, not a
+  replayed celebration, exactly as the night cutscene never replays. `?debug`
+  gets a 🏆 toggle in the 🛠 panel so the screen is testable without a proctor.
 
 ## Commands
 

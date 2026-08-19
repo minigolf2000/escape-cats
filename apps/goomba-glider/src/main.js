@@ -1056,13 +1056,55 @@ function drawLab() {
 
 // ---------- the splash (phase "splash") ----------
 // Where a cleared room lands when it takes NEXT off the finale, instead of the
-// old victory lap. Deliberately BLANK: the artwork comes later, and this is the
-// one place it will go. Everything else about the state is already real — the
-// room is in it together, the level selector (which clearing the game unlocked)
-// is the way out of it, and a proctor reset ends it.
+// old victory lap: one full-screen picture, and the level selector's strip over
+// it. Nothing else — no HUD, no PLAY (index.html hides them on #hud.splash).
+//
+// DROP-IN ART: replace public/art/splash.webp and nothing here changes. The
+// file is a stand-in shared with hex-clicker's win screen until Goomba's own
+// splash is drawn (hex has its own copy, at art/hex-splash.webp — one picture
+// today, two pictures the moment either game wants its own).
+const splashImg = new Image();
+let splashReady = false;
+let splashBands = null; // { top, bottom } — the art's own edge rows, see below
+splashImg.onload = () => {
+  splashReady = true;
+  splashBands = { top: edgeColor(splashImg, 0), bottom: edgeColor(splashImg, splashImg.height - 1) };
+};
+// BASE_URL, not a bare path: this app is served from /g00mBa/ and dev serves it
+// from /, so the one absolute path that works in both is Vite's own.
+splashImg.src = import.meta.env.BASE_URL + "art/splash.webp";
+
+/** The average colour of one PIXEL ROW of an image, as a css string. Squeezing
+ * a full-width, 1px-tall slice into a 1x1 canvas makes the browser do the
+ * averaging. Used to extend the art's top and bottom edges over a screen taller
+ * than the picture — the art is a sky, so its own end rows continue it far
+ * better than any colour picked here could, and they keep doing that when the
+ * art is replaced. */
+function edgeColor(img, y) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 1;
+  const g = c.getContext("2d");
+  g.drawImage(img, 0, y, img.width, 1, 0, 0, 1, 1);
+  const [r, gr, b] = g.getImageData(0, 0, 1, 1).data;
+  return `rgb(${r},${gr},${b})`;
+}
+
 function drawSplash() {
-  ctx.fillStyle = "#150a2a"; // the page's own background: nothing on screen
+  ctx.fillStyle = "#150a2a"; // until the art lands: the page's own background
   ctx.fillRect(0, 0, W, H);
+  if (!splashReady) return;
+  // Fit the WIDTH, never crop it: a phone is much narrower than this picture is
+  // tall, and cropping sideways is what would cut the subject in half.
+  const h = (splashImg.height * W) / splashImg.width;
+  const y = (H - h) / 2;
+  if (y > 0) {
+    // Screen taller than the picture — extend its own sky past both ends.
+    ctx.fillStyle = splashBands.top;
+    ctx.fillRect(0, 0, W, Math.ceil(y) + 1);
+    ctx.fillStyle = splashBands.bottom;
+    ctx.fillRect(0, Math.floor(y + h) - 1, W, H - h - y + 2);
+  }
+  ctx.drawImage(splashImg, 0, y, W, h);
 }
 
 // ---------- main loop ----------

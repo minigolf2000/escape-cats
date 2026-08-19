@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
 import { closeWhileHidden } from "./closeWhileHidden";
 import {
+  earsFor,
+  earsHeight,
+  teamEarsSvg,
   TEAM_SIZE,
   TEAMS,
   type LobbyClientMsg,
@@ -22,6 +25,13 @@ const ZONES: Team[] = [{ id: UNSORTED, name: "Unassigned" }, ...TEAMS];
 
 const zoneOf = (team: string | null) => team ?? UNSORTED;
 const teamOf = (zone: string) => (zone === UNSORTED ? null : zone);
+
+/** Ear width on a zone box, in px. Small — the board is five boxes at once and
+ * the ears are here to be matched against heads across the room, not admired. */
+const ZONE_EAR_W = 64;
+/** Matches .zone's border-width in styles.css, so the ear's base and the box's
+ * border meet without a step. */
+const ZONE_BORDER = 2;
 
 /** How far the pointer must travel before a press counts as a drag, so a
  * stray click on a name never reassigns anyone. */
@@ -275,18 +285,45 @@ export function Lobby() {
         </p>
       )}
 
-      <div className="zones">
+      <div
+        className="zones"
+        style={{ "--ear-h": `${earsHeight(ZONE_EAR_W)}px` } as React.CSSProperties}
+      >
         {ZONES.map((z) => {
           const isTeam = z.id !== UNSORTED;
           const members = byZone.get(z.id) ?? [];
           const hovered =
             drag?.moved && drag.over === z.id && drag.from !== z.id;
+          const ears = earsFor(isTeam ? z.id : null);
           return (
             <div
               key={z.id}
               data-zone={z.id}
               className={`zone${hovered ? (isFull(z.id) ? " blocked" : " over") : ""}`}
+              // --team-tc is the box's resting colour; the drag states override
+              // it through --zone-tc, which is a CLASS and would lose to an
+              // inline --zone-tc here (see .zone in styles.css). The ears keep
+              // the team's colour throughout — they say WHICH team this is,
+              // and that doesn't change because a name is hovering over it.
+              style={ears ? ({ "--team-tc": ears.ink } as React.CSSProperties) : undefined}
             >
+              {/* Markup from our own colour table — no player input reaches it.
+                  It goes in raw because the ears have to be a child of the box
+                  they hang off, and one drawing serves this React board, the
+                  lobby's template literals and chat alike. */}
+              {ears && (
+                <span
+                  dangerouslySetInnerHTML={{
+                    __html: teamEarsSvg(z.id, {
+                      width: ZONE_EAR_W,
+                      strokeWidth: ZONE_BORDER,
+                      // Resting background only — .zone sets --ear-fill per
+                      // drag state so the ear's interior tracks the box's.
+                      panel: "#12141b",
+                    }),
+                  }}
+                />
+              )}
               <div className="zone-head">
                 <strong>{z.name}</strong>
                 <span className="muted">

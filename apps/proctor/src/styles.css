@@ -165,9 +165,22 @@ button {
 }
 .zone {
   background: #12141b;
-  border: 1px solid #1e2230;
+  /* The ear's interior, kept in step with the box's background below — an ear
+     filled with yesterday's colour reads as a sticker sitting on the box. */
+  --ear-fill: #12141b;
+  /* THE EARED BOX. A team's box wears its team's headband: the border is the
+     band and the ears (teamEarsSvg, injected as the box's first child) grow out
+     of it — the ear's fill hides the border under its base and its stroke runs
+     open into it, so box and ears are one outline. Hence position: relative,
+     and hence the border width being 2px in BOTH places (see ZONE_BORDER in
+     Lobby.tsx) — a mismatch shows up as a step where they meet. */
+  position: relative;
+  border: 2px solid var(--zone-tc, var(--team-tc, #1e2230));
   border-radius: 12px;
   padding: 12px;
+  /* Room for the ears standing above the box — reserved on ALL five, including
+     the earless holding pen, so the row of box tops stays on one line. */
+  margin-top: var(--ear-h, 0px);
   /* An empty box still has to be a target you can hit. */
   min-height: 96px;
 }
@@ -224,14 +237,20 @@ button {
   font-size: 12px;
   border-radius: 9px;
 }
+/* The drag states set --zone-tc rather than border-color: the team's own colour
+   arrives as an INLINE --team-tc, and inline wins over a class for the same
+   custom property. Two names, one cascade, and the ears stay team-coloured
+   while the box flashes. */
 .zone.over {
-  border-color: #57e6c9;
+  --zone-tc: #57e6c9;
   background: #16211f;
+  --ear-fill: #16211f;
 }
 /* Dragging over a team that already has its four. */
 .zone.blocked {
-  border-color: #d64b3b;
+  --zone-tc: #d64b3b;
   background: #23161a;
+  --ear-fill: #23161a;
 }
 .zone-head {
   display: flex;

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-90 -70 165 130" width="165" height="130">
+  <title>Watering can — Goomba Glider</title>
+  <g id="watering-can" transform="rotate(-9.17)">
+    <circle id="glow" cx="0" cy="0" r="46" fill="#57e6c9" opacity="0.13"/>
+    <path id="handle" d="M -13.82,-13.35 A 15,15 0 0 1 15.82,-13.35"
+          fill="none" stroke="#ffd166" stroke-width="4.2" stroke-linecap="round"/>
+    <path id="spout" d="M -12,4 L -32,-11"
+          fill="none" stroke="#ffd166" stroke-width="7.5" stroke-linecap="round"/>
+    <ellipse id="sprinkler-rose" cx="-34" cy="-12.5" rx="8" ry="5"
+             fill="#ffd166" transform="rotate(-37.24 -34 -12.5)"/>
+    <rect id="body" x="-15" y="-12" width="34" height="32" rx="7" fill="#ffd166"/>
+    <rect id="water" x="-11" y="1" width="26" height="17.5" rx="5" fill="#57e6c9"/>
+    <g id="drips">
+      <circle id="drip-1" cx="-35.5" cy="-4.8" r="3.4" fill="#ffd166" opacity="0.90"/>
+      <circle id="drip-2" cx="-37.2" cy="6.08" r="3.4" fill="#ffd166" opacity="0.56"/>
+      <circle id="drip-3" cx="-38.9" cy="16.96" r="3.4" fill="#ffd166" opacity="0.22"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-95 -125 195 180" width="195" height="180">
+  <title>Spider plant, watered — Goomba Glider</title>
+  <g id="spider-plant-watered">
+    <ellipse id="glow" cx="0" cy="-35" rx="88" ry="75"
+             fill="#57e6c9" opacity="0.2"/>
+    <g id="pot">
+      <ellipse id="saucer" cx="0" cy="8" rx="42" ry="8" fill="#cfc4ec"/>
+      <path id="body" d="M -31,-24 L 31,-24 L 23,8 L -23,8 Z" fill="#ff9dce"/>
+    <rect id="rim" x="-35" y="-32" width="70" height="13" rx="6" fill="#ffd166"/>
+    </g>
+    <g id="runner">
+      <path id="stolon" d="M 4,-34 Q 34,-60 60,-12"
+            fill="none" stroke="#8fe3c4" stroke-width="2.2" stroke-linecap="round"/>
+      <g id="plantlet">
+        <path id="baby-leaf-1" d="M 60,-12 Q 48.95,-10.6 43,-8 Q 54.9,-9.2 60,-12 Z" fill="#57e6c9"/>
+        <path id="baby-leaf-2" d="M 60,-12 Q 52.85,-7.8 49,0 Q 56.7,-3.6 60,-12 Z" fill="#57e6c9"/>
+        <path id="baby-leaf-3" d="M 60,-12 Q 60,-6.75 60,3 Q 60,-1.5 60,-12 Z" fill="#57e6c9"/>
+        <path id="baby-leaf-4" d="M 60,-12 Q 67.15,-8.15 71,-1 Q 63.3,-4.3 60,-12 Z" fill="#57e6c9"/>
+        <path id="baby-leaf-5" d="M 60,-12 Q 71.05,-10.95 77,-9 Q 65.1,-9.9 60,-12 Z" fill="#57e6c9"/>
+      </g>
+    </g>
+    <g id="blades">
+      <g id="blade-1">
+        <path d="M 0,-34 Q -17.86,-52.24 -52,2 Q -25.82,-63.76 0,-34 Z"
+              fill="#57e6c9" stroke="#ffd166" stroke-opacity="0.7" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M 0,-34 Q -21.84,-58 -52,2"
+              fill="none" stroke="#f0fff8" stroke-opacity="0.8" stroke-width="1.54" stroke-linecap="round"/>
+      </g>
+      <g id="blade-2">
+        <path d="M 0,-34 Q 26.78,-61.67 54,5 Q 18.58,-50.33 0,-34 Z"
+              fill="#57e6c9" stroke="#ffd166" stroke-opacity="0.7" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M 0,-34 Q 22.68,-56 54,5"
+              fill="none" stroke="#f0fff8" stroke-opacity="0.8" stroke-width="1.54" stroke-linecap="round"/>
+      </g>
+      <g id="blade-3">
+        <path d="M 0,-34 Q -15.67,-68.72 -44,-17 Q -21.29,-83.28 0,-34 Z"
+              fill="#57e6c9" stroke="#ffd166" stroke-opacity="0.7" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M 0,-34 Q -18.48,-76 -44,-17"
+              fill="none" stroke="#f0fff8" stroke-opacity="0.8" stroke-width="1.72" stroke-linecap="round"/>
+      </g>
+      <g id="blade-4">
+        <path d="M 0,-34 Q 22.43,-81.15 46,-14 Q 16.21,-66.85 0,-34 Z"
+              fill="#57e6c9" stroke="#ffd166" stroke-opacity="0.7" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M 0,-34 Q 19.32,-74 46,-14"
+              fill="none" stroke="#f0fff8" stroke-opacity="0.8" stroke-width="1.72" stroke-linecap="round"/>
+      </g>
+      <g id="blade-5">
+        <path d="M 0,-34 Q -14.49,-85.57 -32,-38 Q -12.39,-102.43 0,-34 Z"
+              fill="#57e6c9" stroke="#ffd166" stroke-opacity="0.7" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M 0,-34 Q -13.44,-94 -32,-38"
+              fill="none" stroke="#f0fff8" stroke-opacity="0.8" stroke-width="1.87" stroke-linecap="round"/>
+      </g>
+      <g id="blade-6">
+        <path d="M 0,-34 Q 13.78,-99.49 34,-36 Q 14.78,-82.51 0,-34 Z"
+              fill="#57e6c9" stroke="#ffd166" stroke-opacity="0.7" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M 0,-34 Q 14.28,-91 34,-36"
+              fill="none" stroke="#f0fff8" stroke-opacity="0.8" stroke-width="1.87" stroke-linecap="round"/>
+      </g>
+      <g id="blade-7">
+        <path d="M 0,-34 Q -13.05,-105.02 -16,-68 Q -0.39,-110.98 0,-34 Z"
+              fill="#57e6c9" stroke="#ffd166" stroke-opacity="0.7" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M 0,-34 Q -6.72,-108 -16,-68"
+              fill="none" stroke="#f0fff8" stroke-opacity="0.8" stroke-width="1.54" stroke-linecap="round"/>
+      </g>
+      <g id="blade-8">
+        <path d="M 0,-34 Q 2.07,-107.75 19,-64 Q 13.89,-100.25 0,-34 Z"
+              fill="#57e6c9" stroke="#ffd166" stroke-opacity="0.7" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M 0,-34 Q 7.98,-104 19,-64"
+              fill="none" stroke="#f0fff8" stroke-opacity="0.8" stroke-width="1.54" stroke-linecap="round"/>
+      </g>
+      <g id="blade-9">
+        <path d="M 0,-34 Q -3.87,-92.55 5,-88 Q 8.07,-91.45 0,-34 Z"
+              fill="#57e6c9" stroke="#ffd166" stroke-opacity="0.7" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M 0,-34 Q 2.1,-92 5,-88"
+              fill="none" stroke="#f0fff8" stroke-opacity="0.8" stroke-width="1.32" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+</svg>

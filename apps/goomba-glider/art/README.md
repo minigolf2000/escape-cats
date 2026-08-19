@@ -1,0 +1,27 @@
+# Goomba Glider prop art — SVG exports
+
+Design copies of the two props, for Figma and anything else that wants vectors.
+
+| file | what |
+| --- | --- |
+| `watering-can.svg` | the collectible, mid-pour, with its three drips |
+| `spider-plant-thirsty.svg` | the goal plant with cans still outstanding — blades barely lifted, sagging, dulled |
+| `spider-plant-watered.svg` | the goal plant with the last can in — the fountain arched up and bright |
+
+**The game does not load these.** `apps/goomba-glider/src/main.js` draws both
+props procedurally on canvas (`drawCan`, `drawGoalPlant`), and that is still
+the only copy the game runs — editing an SVG here changes nothing on screen.
+
+`export-svg.mjs` is where these come from, and it mirrors that canvas geometry
+by hand. So the two can drift: **retune the art in `main.js`, then re-run the
+export and commit the result.**
+
+```sh
+cd apps/goomba-glider/art && node export-svg.mjs
+```
+
+Both plant states are frozen at t=0 — no idle sway, no runner swing, no drip
+animation phase beyond the three the export picks. Everything is emitted at
+u = 10 (one canvas unit = 10 SVG units) in named `<g>` layers, so Figma gets
+`pot`, `blades`, `runner`, `drips` and friends as named groups rather than one
+flattened path soup.

@@ -27,6 +27,7 @@ node quota.mjs         # THE OTHER GATE: the room's per-player band quota, ceil(
 node test.mjs          # every level: must FAIL bare, WIN with its solution
 node robust.mjs        # drop-one-band test + ±3-unit finger-slop tolerance
 node minbands.mjs [i]  # how many bands a level ACTUALLY needs (see below)
+node reach.mjs 0 3     # could ANY can placement force a 4th band? (often: no)
 node searchall.mjs     # solution-space tightness: how many placements win, how many families
 node search.mjs 2      # same, one level, with the winning families listed
 node trace.mjs 4 '[[[10,20],[40,30]]]'   # dense trajectory dump, for placing geometry
@@ -61,11 +62,14 @@ Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is
 each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
 one player hoarding, but only geometry can make a level *need* four bands, so
 the level gate below still does the load-bearing work.
-Six levels ship. Two pass the full gate — Four Ways to Help (1) and The
-Popper Grid (6) — and levels 2-4 are the standing rebalance debt: they win
-with fewer than 4 bands. Freshly measured, not inherited: Watering Can
+Six levels ship. One passes the full gate — The Popper Grid (6) — and levels
+1-4 are the standing rebalance debt: they win with fewer than 4 bands.
+Freshly measured, not inherited: The Long Way Down (1) needs 3, Watering Can
 Slalom (2) needs 3 (0/10325 at one band, exhaustive), Piñata Alley (3) needs
 2, and only Pop Goes Goomba (4) truly collapses to 1 (195/8738, exhaustive).
+Level 1 joined that list deliberately: it was rebuilt to a hand sketch whose
+silhouette cannot carry a 4th gate (see DESIGNING.md on why no can placement
+fixes it), replacing Four Ways to Help, which passed.
 The blanket "levels 3-8 collapse to 1 band" this file used to carry was
 stale for two of its members. (The Skim, The Puzzle Box and Pillow Fort were
 cut, and Mind the Gap, which passed, was cut with them. Level numbers are

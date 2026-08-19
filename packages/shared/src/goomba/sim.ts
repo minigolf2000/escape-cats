@@ -15,7 +15,16 @@ import type { PlayerInfo } from "../protocol";
 import { GOOMBA_LEVELS, MAX_BANDS, BAND_MIN, BAND_MAX } from "./levels";
 import { snapBand, scoreRun, type GoombaBand, type RunResult } from "./physics";
 
-export type GoombaPhase = "edit" | "run" | "win";
+/**
+ * `edit` → `run` → (`win` | back to `edit`), plus one terminal screen:
+ *
+ * `splash` is where NEXT lands after the finale of a room that has cleared
+ * every level — the party's curtain call rather than a victory lap on the last
+ * level. Nothing may be placed or played from it; the only ways out are the
+ * level selector (a `goto`, which the clear itself unlocks — see
+ * `goombaCleared`) and a proctor `reset`.
+ */
+export type GoombaPhase = "edit" | "run" | "win" | "splash";
 
 export interface GoombaSimState {
   /** Bumped on every proctor reset — clients treat a new runId as a fresh boot. */
@@ -35,7 +44,8 @@ export interface GoombaSimState {
   /** Failed attempts on the current level — the proctor's "how stuck are
    * they" read. */
   fails: number;
-  /** Epoch ms every level went done, else null — the proctor's finish line. */
+  /** Epoch ms every level went done, else null — the proctor's finish line,
+   * and the room's "we cleared it" flag (see `goombaCleared`). */
   finishedAt: number | null;
 }
 
@@ -110,9 +120,11 @@ export type GoombaClientMsg =
   | { type: "stop" }
   /** Advance after a win (any player). */
   | { type: "next" }
-  /** Debug-menu jump: point the WHOLE ROOM at a level (any player — the
-   * debug menu is a trusted tool on the party's own phones, sent by clients
-   * opened with ?debug; there is no UI for it otherwise). */
+  /** Level-selector jump: point the WHOLE ROOM at a level (any player). The
+   * selector is what a team EARNS by clearing every level (`goombaCleared`);
+   * `?debug` is only a local override of that gate, so the intent itself stays
+   * open to any player — the party's own phones are the trusted tool here,
+   * exactly as `play`/`next` already assume. */
   | { type: "goto"; level: number }
   | { type: "reset" }; // proctor only
 
@@ -194,6 +206,28 @@ export const bandsHeldBy = (bands: GoombaBand[], pid: string): number =>
  */
 export const canPlaceBand = (bands: GoombaBand[], pid: string, playerCount: number): boolean =>
   bands.length < MAX_BANDS && bandsHeldBy(bands, pid) < bandQuota(playerCount);
+
+// ---------------------------------------------------------------------------
+// The clear, and what it unlocks
+// ---------------------------------------------------------------------------
+
+/**
+ * **Has this ROOM cleared the game?** Every level done, which is exactly what
+ * `finishedAt` records (set once, in `resolve`, the moment the last flag flips).
+ *
+ * Room state, not per-phone state: the team clears it together, so all four
+ * phones unlock the level selector on the same snapshot — and a proctor
+ * `reset` takes it back, because it is the same field the finish line is.
+ * `?debug` is a client-side override of this gate and nothing more; nothing on
+ * the authority knows or cares which phones are holding one.
+ */
+export const goombaCleared = (s: GoombaSimState): boolean => s.finishedAt !== null;
+
+/** Where NEXT goes from the current win: the splash iff this is the finale of a
+ * cleared room. One copy so the sim's transition and the button that triggers
+ * it cannot disagree about which it is. */
+export const nextLeadsToSplash = (s: GoombaSimState): boolean =>
+  s.phase === "win" && s.level === GOOMBA_LEVELS.length - 1 && goombaCleared(s);
 
 function freshState(now: number): GoombaSimState {
   return {
@@ -310,10 +344,11 @@ export class GoombaSim {
     this.resolve(now);
   }
 
-  /** The debug menu's level jump: fresh edit phase on the chosen level, for
+  /** The level selector's jump: fresh edit phase on the chosen level, for
    * everyone in the room. Completed flags are untouched — jumping earns
-   * nothing. Also the solo (?solo) backend's card-tap, so both run the same
-   * transition. */
+   * nothing. Legal from the splash too, which is how a cleared room picks its
+   * next victory lap. Also the solo (?solo) backend's card-tap, so both run
+   * the same transition. */
   goto(level: unknown, now: number): void {
     this.resolve(now);
     if (!Number.isInteger(level)) return;
@@ -333,14 +368,20 @@ export class GoombaSim {
     this.resolve(now);
     const s = this.st;
     if (s.phase !== "win") return;
-    s.phase = "edit";
+    const splash = nextLeadsToSplash(s);
+    s.phase = splash ? "splash" : "edit";
     s.bands = [];
     s.runAt = null;
     s.runResult = null;
     s.runT = null;
     s.fails = 0;
-    // Past the last level: wrap to the first level not yet completed, or stay
-    // on the finale for victory laps once everything is done.
+    // The finale of a cleared room lands on the splash instead of a victory
+    // lap, and stays pointed at the finale behind it — a `goto` out of the
+    // splash is what picks the next level now, and clearing the game is what
+    // handed the team that selector.
+    if (splash) return;
+    // Otherwise: on to the next level, or (past the last one, with levels still
+    // open) wrap to the first that isn't done.
     if (s.level < GOOMBA_LEVELS.length - 1) s.level++;
     else {
       const open = s.completed.findIndex((c) => !c);

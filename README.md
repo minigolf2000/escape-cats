@@ -53,12 +53,17 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
 - **Goomba levels & physics** — `packages/shared/src/goomba/levels.ts` and
   `physics.ts`; the multiplayer room state machine is `goomba/sim.ts`. The
   level-design loop and QA tools live in `tools/goomba/` (start with its
-  `DESIGNING.md`). The **debug menu**: `?debug` joins your real room with
-  the **levels** grid on top (the top-left level dots are its button: in
-  debug the strip wears a plate and a ▦, and tapping it opens the grid)
-  — every level as a card with live bare/solution verdicts, and tapping a
-  card jumps the whole room to that level (teammates on plain URLs follow).
-  `?solo` runs the same grid on the in-page sim with no server (hex's
+  `DESIGNING.md`). The **level selector** is what a team earns by clearing
+  every level (`goombaCleared` in `goomba/sim.ts`, which is the same
+  `finishedAt` the proctor's finish line reads — so it arrives on one snapshot
+  for all four phones and a proctor reset takes it back): the **levels** grid,
+  opened from the top-left level dots (once unlocked the strip wears a plate
+  and a ▦), every level a card with live bare/solution verdicts, and tapping
+  a card jumps the whole room to that level (teammates follow). Taking NEXT off
+  the finale of a cleared room lands on the blank **splash** phase, whose only
+  control is that selector. `?debug` is nothing but a local override of the
+  unlock — one phone in the state a cleared room is in — and `?solo` runs the
+  same grid on the in-page sim with no server (hex's
   `?debug` architecture). Testing happens
   on the real game — assign yourself to a team from `/proctor`, open with
   `?debug`; the band quota divides by the players actually CONNECTED, so a
@@ -527,7 +532,9 @@ current level, levels completed out of the set, bands placed and fails — plus
 its own reset button. Every level is played with the full 4-band budget; the
 finish line the proctor watches for is all levels completed, shown with the
 run time in the same slot the in-progress count occupies (the box never
-changes height).
+changes height). That same finish line is what unlocks the team's level
+selector and what its `🏁 splash` phase means, so the proctor's reset is also
+how a cleared room is put back to level 1 with the grid locked again.
 
 ### The band quota
 

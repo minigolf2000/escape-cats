@@ -84,7 +84,9 @@ every stage must actually be ridden.
    not duration. For live play, open the game with **`?solo`** — the LEVELS
    grid on the in-page sim (no server) — or with **`?debug`** in a real room,
    where tapping a level card jumps the whole room to that level (multiplayer
-   playtesting). Scriptable via `window.__goomba`:
+   playtesting). `?debug` no longer OWNS that grid: it overrides the gate a
+   team otherwise earns by clearing every level, so the selector you design
+   against is the one players get. Scriptable via `window.__goomba`:
    `state() / send({type:'place',...}) / send({type:'play'}) /
    send({type:'goto',level:i})`.
 6. **Update what the level makes stale**: the level-count claims in the root

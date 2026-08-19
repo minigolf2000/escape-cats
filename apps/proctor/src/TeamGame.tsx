@@ -89,7 +89,10 @@ function goombaStats(s: GoombaSnapshot | null): StatLine[] {
   const total = GOOMBA_LEVELS.length;
   if (!s) return [{ text: "…" }, { text: `…/${total} levels` }, { text: "…" }];
   const phase =
-    s.phase === "run" ? "🛹 riding" : s.phase === "win" ? "🎉 cleared" : "✏️ placing";
+    s.phase === "run" ? "🛹 riding"
+    : s.phase === "win" ? "🎉 cleared"
+    : s.phase === "splash" ? "🏁 splash" // done with the game, on the curtain call
+    : "✏️ placing";
   const done = s.completed.filter(Boolean).length;
   const finishedMs = s.finishedAt ? s.finishedAt - s.startedAt : null;
   return [

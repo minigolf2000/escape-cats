@@ -52,9 +52,38 @@ h1 {
 
 h1.team {
   font-size: 40px;
-  color: var(--neon);
-  text-shadow: 0 0 22px rgba(87, 230, 201, 0.4);
+  /* The team's own colour when it has one (an eared card sets --tc), the house
+     neon otherwise — the testing room, which is not a team and wears nothing. */
+  color: var(--tc, var(--neon));
+  text-shadow: 0 0 22px color-mix(in srgb, var(--tc, var(--neon)) 40%, transparent);
   margin: 4px 0 10px;
+}
+
+/* THE EARED CARD. The card is the cat: its border is the headband and the two
+   ears (injected by teamEarsSvg) grow straight out of it — the ear's fill hides
+   the border under its base and its stroke is open at the base, so the outlines
+   are one continuous line. Which means:
+     - position: relative, because the ears are absolutely positioned to it;
+     - margin-top: --ear-h, because they stand ABOVE it and would otherwise be
+       clipped off the top of the screen on a phone;
+     - border-width must equal the strokeWidth passed to teamEarsSvg (3px), or
+       the ear's base and the border meet at a visible step. */
+.card.eared {
+  position: relative;
+  border: 3px solid var(--tc);
+  margin-top: var(--ear-h);
+}
+
+/* "Grab the pink ears" — the line that turns the colour into an instruction. */
+.wear {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--tc) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, transparent);
+  border-radius: 999px;
+  padding: 8px 13px;
+  margin: 0 0 18px;
 }
 
 .sub {
@@ -115,7 +144,7 @@ input:focus {
   font-size: 16px;
   font-family: inherit;
   font-weight: 600;
-  color: var(--neon);
+  color: var(--tc, var(--neon));
   background: transparent;
   border: 1px solid var(--line);
   border-radius: 12px;

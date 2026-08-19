@@ -1,8 +1,11 @@
 import PartySocket from "partysocket";
-import type {
-  LobbyPlayer,
-  LobbyServerMsg,
-  Team,
+import {
+  earsFor,
+  earsHeight,
+  teamEarsSvg,
+  type LobbyPlayer,
+  type LobbyServerMsg,
+  type Team,
 } from "@escape-cats/shared";
 import "./styles.css";
 
@@ -119,16 +122,37 @@ function waitingScreen() {
   };
 }
 
+/** Ear width on the "you're on" card, in px — the one moment this phone is
+ * ABOUT the team, so the ears are the biggest they get anywhere. */
+const CARD_EAR_W = 96;
+/** Matches the card's border-width in styles.css: the ear's base overlaps the
+ * border by exactly this, so the two outlines meet. */
+const CARD_BORDER = 3;
+
 function teamScreen(team: string) {
   const mates = players.filter((p) => p.team === team);
+  // A team always has ears (see TEAM_EARS); the testing room does not, and then
+  // the card is simply the card it always was.
+  const ears = earsFor(team);
+  const skin = ears
+    ? `class="card eared" style="--tc:${ears.ink};--ear-h:${earsHeight(CARD_EAR_W)}px"`
+    : `class="card"`;
   app.innerHTML = `
-    <div class="card">
+    <div ${skin}>
+      ${teamEarsSvg(team, { width: CARD_EAR_W, strokeWidth: CARD_BORDER })}
       <p class="sub">You're on</p>
       <h1 class="team">${escapeHtml(teamName(team))}</h1>
       <p class="muted">with ${mates
         .filter((p) => p.pid !== pid)
         .map((p) => escapeHtml(p.name))
         .join(", ") || "- just you so far"}</p>
+      ${
+        // The one line that turns a colour into an instruction. Without it the
+        // card is a nice shade of pink and the headbands are a pile on a table.
+        ears
+          ? `<p class="wear">Grab the ${ears.hue.toLowerCase()} ears \u{1F43E}</p>`
+          : ``
+      }
       <!-- No game links. The games are reached by their own URLs (the vanity
            domains, which REDIRECT onto this origin — see the README's origin
            constraint), so the lobby's job ends at "here is your team". A link

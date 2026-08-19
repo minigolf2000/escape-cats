@@ -19,8 +19,11 @@ await writeFile(
   entry,
   `export * from ${JSON.stringify(join(srcDir, "levels.ts"))};\n` +
   `export * from ${JSON.stringify(join(srcDir, "physics.ts"))};\n` +
+  // codec.ts, so the bench can open a level that arrived as a share link from
+  // the editor instead of as a diff to levels.ts.
+  `export * from ${JSON.stringify(join(srcDir, "codec.ts"))};\n` +
   // sim.ts too, so the ROOM rules (the band quota) are testable off the same
-  // bundle as the physics — same three files shared/src/index.ts re-exports.
+  // bundle as the physics — the same files shared/src/index.ts re-exports.
   `export * from ${JSON.stringify(join(srcDir, "sim.ts"))};\n`,
 );
 const outfile = join(dir, "sim.mjs");
@@ -43,6 +46,9 @@ export const {
   stepRun,
   snapBand,
   bandPoints,
+  encodeLevel,
+  decodeLevel,
+  initLevel,
 } = sim;
 
 /** The prototype's `__gr.simulate`, verbatim: run a level with a band set,

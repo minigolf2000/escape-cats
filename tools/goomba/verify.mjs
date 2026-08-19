@@ -7,6 +7,17 @@
 //   node verify.mjs <levelIdx> --quick  smaller samples while iterating; run
 //                                       the full gate before shipping
 //   node verify.mjs all                 one-line verdict per level + summary
+//   node verify.mjs --hash <link>       gate a level that is still just a
+//                                       share link from the editor (paste the
+//                                       whole URL or only the part after #)
+//   node verify.mjs --file <path>       same, for a file of links, one per
+//                                       line — the batch a jam produces
+//
+// The two link forms exist because the editor (apps/goomba-editor) saves a
+// design INTO its URL, so a level can be finished and shared long before
+// anyone opens levels.ts. The editor hunts shortcuts in the background, but it
+// samples; this is still the gate, and a level ships only when this prints
+// PASS.
 //
 // What it checks, in order (cheap first):
 //   1. bare run fails, and fails legibly
@@ -19,15 +30,44 @@
 //   7. no ≤3-band win found by beam search — the hunter that has caught
 //      every exploit random sampling missed (launcher bands, under-floor
 //      falls), so do not skip it because 5 and 6 came back clean
-import { LEVELS, BAND_MAX, MAX_BANDS, simulate } from "./lib.mjs";
+import { LEVELS, BAND_MAX, MAX_BANDS, simulate, decodeLevel, initLevel } from "./lib.mjs";
+import { readFileSync } from "node:fs";
 
 const JITTER_MIN_WINS = 18; // of 30 trials — below this, real fingers suffer
 
-const arg = process.argv[2];
-const quick = process.argv.includes("--quick");
-if (arg === undefined) {
+const argv = process.argv.slice(2);
+let quick = false, hashArg, fileArg, arg;
+for (let i = 0; i < argv.length; i++) {
+  const a = argv[i];
+  if (a === "--quick") quick = true;
+  else if (a === "--hash") hashArg = argv[++i];
+  else if (a === "--file") fileArg = argv[++i];
+  else if (arg === undefined) arg = a;
+}
+if (arg === undefined && hashArg === undefined && fileArg === undefined) {
   console.error("usage: node verify.mjs <levelIdx>|all [--quick]");
+  console.error("       node verify.mjs --hash <share link> [--quick]");
+  console.error("       node verify.mjs --file <file of links> [--quick]");
   process.exit(2);
+}
+
+/**
+ * Take a level that only exists as an editor share link and give it an index
+ * the rest of this file can use. LEVELS is the live array `simulate` reads, so
+ * appending puts the candidate one past the shipped levels without touching
+ * levels.ts — which is the point: a jam produces links, and links have to face
+ * the same gate as a diff does.
+ */
+const shippedCount = LEVELS.length;
+
+function adoptLink(link, label) {
+  const L = decodeLevel(link);
+  if (!L) {
+    console.error(`${label}: not a level link (expected the part after # of an editor share URL)`);
+    process.exit(2);
+  }
+  LEVELS.push(initLevel(L));
+  return LEVELS.length - 1;
 }
 
 const mulberry = (seed) => () =>
@@ -189,14 +229,31 @@ function verify(li) {
   return checks;
 }
 
-const idxs = arg === "all" ? LEVELS.map((_, i) => i) : [Number(arg)];
+let idxs;
+if (hashArg !== undefined) idxs = [adoptLink(hashArg, "--hash")];
+else if (fileArg !== undefined) {
+  // One link per line, blank lines and `//` comments skipped — so a team can
+  // keep their day's levels in one file with a note beside each.
+  const lines = readFileSync(fileArg, "utf8").split("\n")
+    .map((l) => l.trim()).filter((l) => l && !l.startsWith("//"));
+  if (!lines.length) {
+    console.error(`${fileArg}: no links in it`);
+    process.exit(2);
+  }
+  idxs = lines.map((l, i) => adoptLink(l, `${fileArg}:${i + 1}`));
+} else if (arg === "all") idxs = LEVELS.map((_, i) => i);
+else idxs = [Number(arg)];
+
 let allOk = true;
 for (const li of idxs) {
   if (!(li >= 0 && li < LEVELS.length)) {
     console.error(`no level at index ${arg} (0..${LEVELS.length - 1})`);
     process.exit(2);
   }
-  console.log(`L${li + 1} ${LEVELS[li].name}${quick ? "  (--quick: smaller samples)" : ""}`);
+  // A link-borne level was appended past the shipped ones, so its index is an
+  // implementation detail rather than the L-number a player would see.
+  const label = li < shippedCount ? `L${li + 1} ` : "link ";
+  console.log(`${label}${LEVELS[li].name}${quick ? "  (--quick: smaller samples)" : ""}`);
   const checks = verify(li);
   const ok = checks.every((c) => c.ok);
   allOk &&= ok;

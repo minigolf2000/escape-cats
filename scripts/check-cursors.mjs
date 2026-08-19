@@ -14,11 +14,14 @@
  * adjudicate: `pointer` if a tap does something, `default` if it does not.
  * Anything else is a build failure with a file:line.
  *
- * NOT applied to apps/proctor or tools/. Those run on a laptop, in front of one
- * operator who does have a cursor: the proctor drags teams between boxes
- * (`grab`/`grabbing` is the affordance doing real work there) and qr-studio is a
- * canvas editor (`crosshair`, `text`). The rule is about what players touch, not
- * about banning a CSS property.
+ * NOT applied to apps/proctor, apps/goomba-editor or tools/. Those run on a
+ * laptop, in front of one operator who does have a cursor: the proctor drags
+ * teams between boxes (`grab`/`grabbing` is the affordance doing real work
+ * there), qr-studio is a canvas editor (`crosshair`, `text`), and the level
+ * editor drags level geometry (`crosshair` to place, `move` to drag a vertex,
+ * `grabbing` to pan). The rule is about what players touch, not about banning a
+ * CSS property — so ROOTS below is a list of the PLAYER-FACING apps, and a new
+ * app belongs in it only if players open it.
  *
  * Run: node scripts/check-cursors.mjs
  */
@@ -28,7 +31,8 @@ import { dirname, join, resolve, relative, extname } from "node:path";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Player-facing apps only — see the header for why proctor and tools are out. */
+/** Player-facing apps only — see the header for why proctor, the level editor
+ * and tools are out. */
 const ROOTS = [
   "apps/hex-clicker",
   "apps/goomba-glider",

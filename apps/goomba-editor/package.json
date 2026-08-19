@@ -1,0 +1,18 @@
+{
+  "name": "@escape-cats/goomba-editor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5179",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --port 5179"
+  },
+  "dependencies": {
+    "@escape-cats/shared": "*"
+  },
+  "devDependencies": {
+    "vite": "^7.3.6"
+  }
+}

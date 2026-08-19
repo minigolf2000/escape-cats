@@ -10,6 +10,14 @@ are the invariants that bite.
 the whole loop, the physics cheat sheet, and the accumulated anti-shortcut
 findings — do not design from intuition, the sim disproves it reliably.
 
+- **The level editor** (`apps/goomba-editor`, served at `/level-editor/`,
+  :5179 in dev) is the fast loop: drag geometry against the shipped sim, live
+  verdicts on every edit, a background worker pool hunting for the ≤3-band win
+  that would break the level. A level **saves by being a URL** — `encodeLevel`
+  in `packages/shared/src/goomba/codec.ts` packs one into ~100–450 base64url
+  chars, so designs travel as links and `node verify.mjs --hash <link>` gates
+  one that was never committed. The codec lives in shared/ because the browser
+  and the node bench must agree on it byte for byte; never fork it.
 - Levels live in **`packages/shared/src/goomba/levels.ts`** — the ONLY copy
   (the prototype is deleted). Server scoring, phone animation, and the design
   tools all run this exact code.
@@ -57,9 +65,9 @@ findings — do not design from intuition, the sim disproves it reliably.
   inconsistent (the shop shipped `not-allowed` for "too expensive" and `default`
   for "still locked", two disabled states telling two stories). `npm run
   build:vercel` runs `check-cursors.mjs`, which fails on anything else in
-  apps/{hex-clicker,goomba-glider,lobby,chat}. `apps/proctor` and `tools/` are
-  deliberately exempt: one operator, one laptop, and `grab`/`crosshair` are doing
-  real work there.
+  apps/{hex-clicker,goomba-glider,lobby,chat}. `apps/proctor`,
+  `apps/goomba-editor` and `tools/` are deliberately exempt: one operator, one
+  laptop, and `grab`/`crosshair` are doing real work there.
 - **Proctor box heights are fixed**: every stat line renders in every state
   (placeholders, never fewer lines) so boxes don't shift under a drag.
 - **Goomba Glider's debug menu**: `?debug` joins your REAL room with the
@@ -79,5 +87,7 @@ npm run typecheck      # all workspaces
 npm run build:vercel   # full build + assemble + routing & cursor checks
 npm run check:cursors  # the two-cursor rule, on its own
 cd tools/goomba && node verify.mjs <idx>   # the level-design gate
+cd tools/goomba && node verify.mjs --hash <editor link>   # same gate, no diff
+cd tools/goomba && node verify.mjs --file <file of links> # ...on a batch
 cd tools/goomba && node quota.mjs          # the participation gate (room rule)
 ```

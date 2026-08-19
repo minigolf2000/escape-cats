@@ -8,5 +8,6 @@ export * from "./hex/rules";
 export * from "./hex/sim";
 export * from "./hex/presets";
 export * from "./goomba/levels";
+export * from "./goomba/codec";
 export * from "./goomba/physics";
 export * from "./goomba/sim";

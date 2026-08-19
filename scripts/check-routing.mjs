@@ -135,6 +135,7 @@ const ENTRIES = [
   ["/chat", "cat-games-tau.vercel.app", "/chat/"],
   ["/g00mBa", "cat-games-tau.vercel.app", "/g00mBa/"],
   ["/prototypes", "cat-games-tau.vercel.app", "/prototypes/"],
+  ["/level-editor", "cat-games-tau.vercel.app", "/level-editor/"],
   ["/qr-studio", "cat-games-tau.vercel.app", "/qr-studio/"],
   ["/reveal-lab", "cat-games-tau.vercel.app", "/reveal-lab/"],
   // The vanity roots. Each MUST land in its game's subdirectory, never at the

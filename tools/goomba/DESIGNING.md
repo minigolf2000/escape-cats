@@ -1,13 +1,24 @@
 # Designing a Goomba Glider level (read this first)
 
-This folder is the whole level-design bench. The game itself is the coop app in
+**Fastest way in: open the level editor at `/level-editor/`** (`npm run dev`
+serves it on :5179). Drag geometry, watch the bare run and the four-band
+solution be re-scored on the shipped physics as you drag, and let a pool of
+web workers hunt in the background for the one-band win that would break the
+level. It saves by putting the whole level in its own URL, so a design travels
+as a link — including to this bench: `node verify.mjs --hash <link>` runs the
+full gate on a level that was never committed. The editor is the fast loop; the
+gate below is still the authority.
+
+This folder is the rest of the level-design bench. The game itself is the coop app in
 `apps/goomba-glider/` on the shared sim in `packages/shared/src/goomba/`; the
 single-player prototype it grew from is deleted (git history has it), so there
 is exactly **one copy of the physics and one copy of the levels** —
 `packages/shared/src/goomba/levels.ts`. Every tool here bundles that TypeScript
 on the fly (`lib.mjs`) and drives the identical code the server scores runs
-with. Design happens by editing `levels.ts` and running these tools; playtests
-happen on the deployed game by assigning yourself to a team from `/proctor`.
+with — as does the editor, which imports the same package rather than carrying
+a copy. Design happens in the editor or by editing `levels.ts`, graded by these
+tools; playtests happen on the deployed game by assigning yourself to a team
+from `/proctor`.
 
 ## The party rule (non-negotiable)
 
@@ -33,14 +44,18 @@ every stage must actually be ridden.
 
 ## The loop
 
-1. **Sketch in data, not in your head.** Add the candidate level to
-   `packages/shared/src/goomba/levels.ts` (its index = position in the array).
-   Levels are plain data: `terrain` (polylines; walls are just steep segments),
-   `start`, `goal`, and the toys — `cans` (watering cans: the collectibles that
-   lock the goal spider plant),
+1. **Sketch in data, not in your head.** Either drag it in the **editor**
+   (`/level-editor/`, and start from a level that already passes rather than
+   from the skeleton — remixing structure that works beats inventing it), or
+   add the candidate straight to `packages/shared/src/goomba/levels.ts` (its
+   index = position in the array). Levels are plain data either way: `terrain`
+   (polylines; walls are just steep segments), `start`, `goal`, and the toys —
+   `cans` (watering cans: the collectibles that lock the goal spider plant),
    `pops` (poppers: forced re-launch, erases state), `cushions`, `bumpers`.
    World is portrait-leaning (~110 wide × 200 tall), y is DOWN. Leave
-   `solution: []` until you find one.
+   `solution: []` until you find one. The editor's *copy levels.ts entry*
+   button emits the array entry when the shape is settled — every shipped level
+   round-trips through it byte-identical, so the paste is safe.
 2. **Trace the bare run**: `node trace.mjs <idx>` — the level must NOT win with
    no bands, and the failure should be legible (a smirk, not a shrug).
 3. **Find where bands work**: `node scan.mjs <idx> v|h <spanLo> <spanHi>
@@ -53,9 +68,17 @@ every stage must actually be ridden.
    `node verify.mjs <idx>` — one PASS/FAIL over the whole battery (bare fails,
    4-band solution wins, every band load-bearing, finger-slop, exhaustive
    0/1-band, sampled 2/3-band, beam-search shortcut hunt). `--quick` while
-   iterating; the full gate before shipping. The individual tools (`test.mjs`,
-   `robust.mjs`, `minbands.mjs`) remain for richer diagnostics when a check
-   fails.
+   iterating; the full gate before shipping. A level still living in an editor
+   link takes `--hash <link>`, and a file of links (what the editor's tray
+   downloads) takes `--file <path>` — same battery, same verdict, no diff
+   required. The individual tools (`test.mjs`, `robust.mjs`, `minbands.mjs`)
+   remain for richer diagnostics when a check fails.
+
+   The editor runs checks 1–4 of that battery live and hunts checks 5–6 in the
+   background, which catches most breakage in seconds. It is not a substitute:
+   its samples are smaller and it never runs the beam search, which is the
+   hunter that has caught every exploit random sampling missed. **PASS from
+   `verify.mjs` is the only thing that ships a level.**
 5. **Look at the ride**: `node ridecards.mjs <outDir> <idx>` renders the level
    with her traced path — Read the PNG. Judge fun by `duration × %airborne`,
    not duration. For live play, open the game with **`?solo`** — the LEVELS

@@ -28,7 +28,7 @@ separate.
 plus your 4-band solution as the upper bound. The structural trick that makes
 "requires 4" possible is **state erasure between stages**: poppers and
 wall-drops reset her speed, so stages become independent and no single band can
-shortcut across them. Off-path watering cans then gate the snake plant so
+shortcut across them. Off-path watering cans then gate the spider plant so
 every stage must actually be ridden.
 
 ## The loop
@@ -37,7 +37,7 @@ every stage must actually be ridden.
    `packages/shared/src/goomba/levels.ts` (its index = position in the array).
    Levels are plain data: `terrain` (polylines; walls are just steep segments),
    `start`, `goal`, and the toys — `cans` (watering cans: the collectibles that
-   lock the goal snake plant),
+   lock the goal spider plant),
    `pops` (poppers: forced re-launch, erases state), `cushions`, `bumpers`.
    World is portrait-leaning (~110 wide × 200 tall), y is DOWN. Leave
    `solution: []` until you find one.

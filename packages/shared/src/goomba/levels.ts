@@ -172,7 +172,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // without differing in difficulty — the lesson is band LENGTH, not timing.
   //
   // A watering can sits past each gate (ramp flat, far ledge, between the two
-  // holes), so the snake plant stays unwatered unless all four jobs were
+  // holes), so the spider plant stays unwatered unless all four jobs were
   // actually done — and the three ugly-looking bits of geometry are all there
   // to keep those cans honest, each one added after the beam search cheated
   // past them:
@@ -199,12 +199,12 @@ const RAW_LEVELS: GoombaLevel[] = [
       [[-15, 118], [5, 115], [5, 128], [-15, 131], [-15, 118]],
       [[0, 138], [24, 146], [48, 138]], // miss the big gap and this holds her
       [[-24, 110], [-24, 148]],  // left wall: kills her speed, drops her to 4
-      // stage 4 — two holes, one snake plant
+      // stage 4 — two holes, one spider plant
       [[-22, 150], [26, 162]],
       [[42, 161], [58, 166]],
       [[42, 161], [42, 190]],     // back wall of the wrong pocket
       [[74, 165], [90, 170]],
-      [[74, 165], [74, 190]],     // back wall of the snake plant's pocket
+      [[74, 165], [74, 190]],     // back wall of the spider plant's pocket
       [[20, 192], [31, 198], [42, 192]],
       [[58, 192], [66, 198], [74, 192]] ],
     goal: [66, 196],
@@ -219,7 +219,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // independent stage no single band can shortcut across. A watering can hangs
   // just under each bridge line: riding the sagging band scoops it, while any
   // ballistic hop over the gap sails above it — so every gap must actually be
-  // BRIDGED, not jumped, and the snake plant stays unwatered until all four
+  // BRIDGED, not jumped, and the spider plant stays unwatered until all four
   // were.
   // Bare, she tours all four floors and falls out the bottom: the level
   // demonstrates itself.
@@ -243,7 +243,7 @@ const RAW_LEVELS: GoombaLevel[] = [
       [[-8, 101], [26, 111], [40, 108.5]],
       [[82, 112.5], [96, 115.5]],
       [[103, 99], [103, 128]],   // right wall, drops her to D
-      // floor D, leftward — the snake plant sits on its far ledge
+      // floor D, leftward — the spider plant sits on its far ledge
       [[104, 147], [70, 157], [56, 154.5]],
       [[14, 158.5], [0, 161.5]] ],
     goal: [6, 157.5],
@@ -253,7 +253,7 @@ const RAW_LEVELS: GoombaLevel[] = [
     // A shelf can't be reached any way but ACROSS its gap: every shelf column
     // has solid floor directly above, and the corridor below is 40+ units
     // down — beyond the ~34 units of rise even a speed-capped launch can buy.
-    // So can A gates "crossed gap A", B and C likewise, and the snake plant on
+    // So can A gates "crossed gap A", B and C likewise, and the spider plant on
     // the last shelf gates gap D: four crossings, and no crossing without a
     // band on that floor.
     cans: [[89, 22], [7, 70], [89, 113]],
@@ -283,7 +283,7 @@ const RAW_LEVELS: GoombaLevel[] = [
     pops: [ { x: 48, y: 122, deg: -6, spd: 112 } ],
     solution: [ [[123.5, 98.3], [99.1, 130.1]] ] },
 
-  // A sealed pinball box: piñatas, pillow floors, cans gating the snake plant,
+  // A sealed pinball box: piñatas, pillow floors, cans gating the spider plant,
   // and the only exit is the drain hole. Bands are deflector plates.
   { name: '5 · The Puzzle Box', budget: 4, maxSpeed: 140,
     start: [8, 12],
@@ -340,7 +340,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // the outlane kickback. Three kickers walk her up the shooter lane, the dome
   // slings her across the playfield, the raised lane divider is the one-way
   // gate (playfield balls can't fall back in), and everything drains into the
-  // basin between the flippers where the snake plant sits, gated by FIVE cans:
+  // basin between the flippers where the spider plant sits, gated by FIVE cans:
   //   loop  (40,38)  — under the dome, on the band-A shelf ride
   //   bank  (25,45)  — upper-left, swept only by band A's exit arc
   //   mid   (52,86)  — on the band-B ride line across midfield

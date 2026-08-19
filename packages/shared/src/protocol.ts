@@ -76,6 +76,10 @@ export type HexClientMsg =
   | { type: "buyBuilding"; id: string }
   | { type: "buyUpgrade"; key: string }
   | { type: "catchGold"; id: number }
+  /** The proctor witnessing the win: this team read the code word out. Proctor
+   * only, and a toggle rather than a latch so a mis-pressed team box can be
+   * taken back without resetting that team's game (see HexSim.setWon). */
+  | { type: "won"; won: boolean }
   | { type: "reset" }; // proctor only
 
 

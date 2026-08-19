@@ -230,12 +230,34 @@ button {
 .game.pending .stat {
   opacity: 0.45;
 }
-.game .danger {
+/* A game block's controls, on one row. The row is what keeps the block's height
+ * fixed while a label changes ("Mark won" -> "Won ✓"): two buttons side by side
+ * cannot become two stacked lines, because neither ever wraps. */
+.game .btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.game .danger,
+.game .won {
   align-self: start;
   margin-top: 4px;
   padding: 6px 11px;
   font-size: 12px;
   border-radius: 9px;
+  white-space: nowrap;
+}
+.game .btns .danger,
+.game .btns .won {
+  margin-top: 0;
+}
+/* The win mark. Neutral until pressed, gold after — the same trophy the readout
+ * line above it wears, so the state reads twice in the same box. */
+.game .won.on {
+  background: #ffd44d;
+  color: #2a2410;
+  font-weight: 700;
 }
 /* The drag states set --zone-tc rather than border-color: the team's own colour
    arrives as an INLINE --team-tc, and inline wins over a class for the same

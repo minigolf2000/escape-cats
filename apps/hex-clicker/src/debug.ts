@@ -270,6 +270,11 @@ function mountPanel(sim: HexSim, emit: () => void): () => void {
       .map((k) => `<button data-p="${k}">${k}</button>`)
       .join("")}</div>
     <div class="r"><span>spawn</span><button data-gold="1">🐭 golden</button></div>
+    <!-- The win is the PROCTOR's press in a real room (HexSim.setWon), so a
+         debug phone needs its own way in or the splash is only ever testable
+         with a second surface open. Same sim call the room makes, and a toggle
+         for the same reason theirs is one. -->
+    <div class="r"><span>won</span><button data-won="1">🏆 toggle</button></div>
     <div class="r"><span>eyes</span>${EYE_VARIANTS.map(
       (v) => `<button data-eyes="${v}">${v}</button>`,
     ).join("")}</div>
@@ -322,6 +327,7 @@ function mountPanel(sim: HexSim, emit: () => void): () => void {
     else if (b.dataset.eyes) setEyes(b.dataset.eyes);
     else if (b.dataset.s)
       sim.state.speed = Math.max(0.25, Math.min(50, Number(b.dataset.s)));
+    else if (b.dataset.won) sim.setWon(sim.state.wonAt === null, now);
     else if (b.dataset.r) sim.reset(now);
     emit();
     syncGold();

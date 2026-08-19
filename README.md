@@ -168,8 +168,9 @@ the only mode besides the real game, and the only fast-forward — a real room
 always runs at ×1. (`?solo` was the interim name and still works.)
 
 `?debug` also mounts a floating **🛠 panel** — grant buttons, story-beat jumps
-(`day` → `legible`, see `packages/shared/src/hex/presets.ts`), time scale and
-reset. This is the old prototype panel ported onto the SHIPPED economy: presets
+(`day` → `legible`, see `packages/shared/src/hex/presets.ts`), a 🏆 win toggle
+(the stand-in for the proctor's press, so the win splash is testable without a
+second surface open), time scale and reset. This is the old prototype panel ported onto the SHIPPED economy: presets
 drive the real `HexSim`, so what you tune here is what players get. The panel's
 controls call the sim directly and exist only in this mode — nothing
 debug-related is in the wire protocol, so there is no path to a real room.
@@ -536,6 +537,16 @@ changes height). That same finish line is what unlocks the team's level
 selector and what its `🏁 splash` phase means, so the proctor's reset is also
 how a cleared room is put back to level 1 with the grid locked again.
 
+Hex's block carries the one control on this dashboard that is a GAME action
+rather than housekeeping: **🏆 Mark won**. Hex cannot score its own win — the
+code word leaves the game on a phone and comes back as four people reading it
+out to you — so the win is something you witness and press, and pressing it
+unlocks that team's win splash on all four of their phones (see "The win
+splash" below). The readout line above the button swaps its ✅ for a 🏆 to
+match. It is a toggle: press it again to take a win back, which asks first,
+because it pulls a picture off four phones mid-event. Granting one does not
+ask — you are standing in front of the team who just read the word out.
+
 ### The band quota
 
 Goomba Glider's 4 bands are shared out by a rule rather than by manners. With
@@ -642,6 +653,41 @@ registers the phone in the lobby roster (same pid+name contract as the landing
 page), so it appears on the proctor's list either way. `?debug` bypasses the
 server entirely. The room is never written into the URL, so a refresh re-asks
 the lobby and a proctor re-sort takes effect on reload.
+
+### The win splash
+
+Both games end on the same picture and reach it two different ways, because the
+two wins are different KINDS of fact.
+
+**Goomba Glider scores its own.** Clearing every level sets `finishedAt`
+(`goombaCleared`), and taking NEXT off the finale then lands the room on a
+terminal `splash` phase — one full-screen picture whose only control is the
+level selector that same clear unlocked. `nextLeadsToSplash` is the single
+predicate for that transition, so the PLAY button's "FINISH ▸" label and the
+sim's own branch cannot disagree.
+
+**Hex cannot.** Its ending is a code word that leaves the game on a phone and
+comes back as four people reading it out to the proctor, so no amount of state
+in the room proves it happened. The proctor presses **🏆 Mark won** instead
+(`wonAt`, a proctor-only `won` intent, `hexWon`), and that unlocks a **gold pill
+top-left** which the team can flip back and forth with: `🏆 win screen` shows
+the picture, `← back to Hex` returns to the night scene. The wall stays live
+behind the artwork the whole time — it is the thing they earned, and a victory
+screen that buried it for good would be taking it away. Which view a phone is on
+is that phone's business (Goomba's card taps move what the room PLAYS, so those
+travel; these are one room state seen two ways). The splash raises itself once,
+on the live edge, exactly as the night cutscene fires once and never replays for
+a rejoining phone.
+
+Both pictures are ordinary files —
+`apps/{goomba-glider,hex-clicker}/public/art/*splash.webp`, the same image for
+now as a stand-in until Goomba has its own — and both are drawn the same way:
+fitted to the WIDTH (a phone is far narrower than these are tall; cropping to
+fill would cut the subject in half) with the sky extended past both ends in
+colours sampled from the picture's own top and bottom pixel rows. Replace a file
+and it brings its own sky; there is no palette to update.
+
+Either win is taken back by that game's **reset**, along with everything else.
 
 ### The testing room
 

@@ -1748,10 +1748,68 @@
     display: none;
   }
   #connToast.on { display: block; }
+
+  /* ---- THE WIN SPLASH (the proctor pressed "Mark won" — see HexSim.setWon) ----
+     One full-screen picture, over the night scene rather than instead of it: the
+     team can flip back and forth with the one pill below, so this covers the game
+     and never unbuilds it.
+
+     Always in the DOM, faded out — so the picture is decoded before the win lands
+     (nobody watches a 200KB blank) and the arrival is a cross-fade rather than a
+     cut. `pointer-events` is what makes an invisible full-screen div harmless:
+     off, every tap goes through to the cat; on, it eats them, so there is no
+     petting through the artwork.
+
+     z-index 35 clears the whole game — the dock (10), the HUD (6), the golden
+     mouse, and the cutscene veil (30) — while staying under the ?debug panel
+     (40, which has to be reachable FROM this screen or a tester cannot get back
+     out of it), the join gate (60) and the reconnect toast (70). A room you are
+     not in yet and a socket that just dropped both outrank a victory lap. */
+  #splash {
+    position: fixed; inset: 0; z-index: 35;
+    opacity: 0; pointer-events: none; transition: opacity .28s ease;
+    /* The sky, continued past the ends of a picture that is nowhere near as tall
+       as a phone: a hard two-stop gradient, split at the vertical centre the
+       picture is centred on, so the top band gets the art's top row and the
+       bottom band its bottom row. The fallbacks are THIS art's own edge rows;
+       initSplashArt() re-samples whatever file is actually there and overwrites
+       them, so a new splash brings its own sky with it. */
+    background: linear-gradient(var(--sky-top, #81a2d2) 0 50%, var(--sky-bottom, #90c2cf) 50% 100%);
+  }
+  #splash.on { opacity: 1; pointer-events: auto; }
+  /* The picture itself, fitted to the WIDTH and never cropped sideways — a phone
+     is much narrower than this is tall, so cropping to fill would cut the subject
+     in half. Its own element so the gradient above is never fighting a
+     multi-layer background shorthand. */
+  #splashArt {
+    position: absolute; inset: 0;
+    background-repeat: no-repeat; background-position: center; background-size: 100% auto;
+  }
+  /* THE TOGGLE — the only control the win adds, and the only one on the splash.
+     Hidden until the proctor marks the team won, then it ping-pongs: over the
+     game it opens the splash, over the splash it goes back. Top-left because
+     that is the corner nothing else uses (#bank centres, #team sits right), and
+     because Goomba's level selector opens from the same corner — one habit
+     across both games. */
+  #wonPill {
+    position: fixed; z-index: 36; display: none;
+    top: max(10px, env(safe-area-inset-top)); left: 10px;
+    padding: 7px 13px; border-radius: 999px;
+    font: 700 12px var(--ui-font); letter-spacing: .04em;
+    color: #2a2410; background: var(--gold);
+    border: none; box-shadow: 0 2px 10px rgba(0,0,0,.35);
+  }
+  #wonPill.on { display: block; }
 </style>
 
 <div id="team" aria-live="off"></div>
 <div id="connToast">reconnecting…</div>
+
+<!-- The win splash and its toggle. Ordered after the shell so they paint over
+     the game without a stacking fight, and before the gate/rotate covers, which
+     outrank them (see the z-index note in the CSS above). -->
+<div id="splash" aria-hidden="true"><div id="splashArt"></div></div>
+<button id="wonPill" type="button">🏆 win screen</button>
 
 <div id="gate">
   <h1>🐱 Hex Clicker</h1>

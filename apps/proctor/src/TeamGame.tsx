@@ -3,6 +3,7 @@ import PartySocket from "partysocket";
 import {
   UPGRADES,
   GOOMBA_LEVELS,
+  hexWon,
   type GoombaServerMsg,
   type GoombaSnapshot,
   type HexServerMsg,
@@ -126,7 +127,7 @@ export function TeamGame({
   assigned: LobbyPlayer[];
 }) {
   // The room id IS the team id, verbatim — nothing on any surface cases it.
-  const { snap, reset } = useHexRoom(team.id, team.name);
+  const { snap, reset, setWon } = useHexRoom(team.id, team.name);
   const goomba = useGoombaRoom(team.id, team.name);
 
   const inRoom = new Set(
@@ -138,6 +139,8 @@ export function TeamGame({
   // already on screen: the roster above this block, minus these names.
   const missing = assigned.filter((p) => !inRoom.has(p.pid)).map((p) => p.name);
   const finishedMs = snap?.legibleAt ? snap.legibleAt - snap.startedAt : null;
+  // The proctor's own mark, not something the game scored — see HexSim.setWon.
+  const won = snap !== null && hexWon(snap);
 
   const lines: StatLine[] = [
     ...hexStats(snap).map((text) => ({ text })),
@@ -149,10 +152,13 @@ export function TeamGame({
     },
     snap?.codeword
       ? {
-          text: `✅ ${snap.codeword}${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,
+          // The trophy replaces the tick once the word has actually been read
+          // out to me: same line, same height, and it is the line I am looking
+          // at when I press the button, so the two cannot disagree on screen.
+          text: `${won ? "🏆" : "✅"} ${snap.codeword}${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,
           className: "codeword",
         }
-      : { text: "codeword locked" },
+      : { text: won ? "🏆 marked won" : "codeword locked" },
   ];
 
   return (
@@ -162,9 +168,19 @@ export function TeamGame({
         progress={snap?.progress ?? 0}
         lines={lines}
       >
-        <button className="danger" onClick={reset}>
-          Reset Hex
-        </button>
+        <div className="btns">
+          {/* The win, as the proctor witnesses it: they hear the code word, they
+              press this, and all four of that team's phones get their splash.
+              Pressing it again takes it back (a mis-pressed team box must not
+              need a whole-game reset to fix) — that direction confirms, the
+              granting direction doesn't. */}
+          <button className={won ? "won on" : "won"} onClick={() => setWon(!won)}>
+            {won ? "🏆 Won ✓" : "🏆 Mark won"}
+          </button>
+          <button className="danger" onClick={reset}>
+            Reset Hex
+          </button>
+        </div>
       </GameBlock>
       <GameBlock
         title="🍄 Goomba Glider"
@@ -223,7 +239,11 @@ function useGoombaRoom(
 function useHexRoom(
   room: string,
   teamName: string,
-): { snap: HexSnapshot | null; reset: () => void } {
+): {
+  snap: HexSnapshot | null;
+  reset: () => void;
+  setWon: (won: boolean) => void;
+} {
   const [snap, setSnap] = useState<HexSnapshot | null>(null);
   const socketRef = useRef<PartySocket | null>(null);
 
@@ -251,6 +271,13 @@ function useHexRoom(
       if (confirm(`Reset ${teamName}'s Hex game back to the start?`)) {
         socketRef.current?.send(JSON.stringify({ type: "reset" }));
       }
+    },
+    setWon: (won: boolean) => {
+      // Granting a win is one tap: it happens with the team standing in front
+      // of me having just read the word out. TAKING it back is the one that
+      // asks, because it pulls a splash off four phones mid-event.
+      if (!won && !confirm(`Take back ${teamName}'s Hex win?`)) return;
+      socketRef.current?.send(JSON.stringify({ type: "won", won }));
     },
   };
 }

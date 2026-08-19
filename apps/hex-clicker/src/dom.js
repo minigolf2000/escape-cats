@@ -52,6 +52,11 @@ export const pupilRightEl = $("#pupilRight");
 export const eyeLeftEl = $("#eyeLeft");
 export const eyeRightEl = $("#eyeRight");
 
+// The win splash (proctor-marked win) and its one control
+export const splashEl = $("#splash");
+export const splashArtEl = $("#splashArt");
+export const wonPillEl = $("#wonPill");
+
 // Multiplayer shell
 export const gateEl = $("#gate");
 export const gateStatusEl = $("#gateStatus");

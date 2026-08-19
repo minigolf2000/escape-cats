@@ -53,6 +53,20 @@ export interface HexSimState extends HexCore {
   gold: HexGold | null;
   nightAt: number | null; // epoch ms the twist fired
   legibleAt: number | null; // epoch ms the word became readable
+  /**
+   * Epoch ms the PROCTOR marked this team as having won, else null.
+   *
+   * The one piece of hex state no player can reach: the code word leaves the
+   * game on a phone and comes back as four humans reading it out, so the win is
+   * something the proctor witnesses and presses (`setWon`) rather than something
+   * the sim can score. Room state all the same — it unlocks the win splash for
+   * all four phones on one snapshot, and a reset takes it back.
+   *
+   * `legibleAt` is the neighbouring but different fact: the word is READABLE.
+   * That one the sim knows on its own, and it says nothing about whether anybody
+   * read it out.
+   */
+  wonAt: number | null;
   /** The wall's odometer: scene units walked as of `wallAt`, re-banked by the
    * authority whenever wallSpeed changes (Paper Lantern is the one row that
    * does). Every phone reads position off this pair rather than integrating
@@ -96,6 +110,10 @@ export interface HexPersistedV1 {
   zoomUntil: number;
   /** So a restored room can't reissue a golden id a client already saw. */
   goldSeq: number;
+  /** The proctor's win mark (see HexSimState). OPTIONAL for the same reason
+   * `wallBase` is: a save written before this existed should rehydrate as "not
+   * won yet" rather than be refused outright. Cheap to re-press if it was. */
+  wonAt?: number | null;
   /** The wall odometer (see HexSimState). OPTIONAL rather than a version bump:
    * a room saved before this existed rehydrates with wallAt = nightAt, which
    * replays that night at its current speed — one eviction's worth of drift on
@@ -130,6 +148,12 @@ function freshCore(): HexCore {
   return { mice: 0, total: 0, clicks: 0, goldCaught: 0, owned, bought: {} };
 }
 
+/** Has the proctor marked this room as won? The one gate on hex's win splash —
+ * named so every surface asks the same question of the snapshot instead of each
+ * one remembering which field carries it (goomba's `goombaCleared`, for the
+ * game whose win the sim CAN score by itself). */
+export const hexWon = (s: { wonAt: number | null }): boolean => s.wonAt !== null;
+
 export class HexSim {
   state: HexSimState;
   mods: HexMods;
@@ -146,6 +170,7 @@ export class HexSim {
       gold: null,
       nightAt: null,
       legibleAt: null,
+      wonAt: null,
       wallBase: 0,
       wallAt: null,
       wallFrom: 0,
@@ -172,6 +197,7 @@ export class HexSim {
       legibleAt: s.legibleAt,
       zoomUntil: s.zoomUntil,
       goldSeq: this.goldSeq,
+      wonAt: s.wonAt,
       wallBase: s.wallBase,
       wallAt: s.wallAt,
       wallFrom: s.wallFrom,
@@ -205,6 +231,7 @@ export class HexSim {
       gold: null,
       nightAt: p.nightAt,
       legibleAt: p.legibleAt,
+      wonAt: p.wonAt ?? null,
       wallBase: p.wallBase ?? 0,
       wallAt: p.wallAt ?? p.nightAt,
       wallFrom: 0,
@@ -233,6 +260,21 @@ export class HexSim {
     }
   }
 
+  /**
+   * The proctor's win mark — the team read the code word out, so their room is
+   * won (and their splash unlocks). Proctor-only at the transport; nothing a
+   * player sends can reach this.
+   *
+   * A TOGGLE, not a latch, because the mis-press is the realistic failure: four
+   * team boxes side by side on one dashboard, and pressing the wrong one has to
+   * be undoable without resetting that team's whole game. Marking an
+   * already-won room again keeps the original timestamp, so a double-press
+   * cannot quietly restamp the finish.
+   */
+  setWon(won: boolean, now: number): void {
+    this.state.wonAt = won ? (this.state.wonAt ?? now) : null;
+  }
+
   reset(now: number): void {
     const runId = this.state.runId + 1;
     this.state = {
@@ -243,6 +285,7 @@ export class HexSim {
       gold: null,
       nightAt: null,
       legibleAt: null,
+      wonAt: null,
       wallBase: 0,
       wallAt: null,
       wallFrom: 0,

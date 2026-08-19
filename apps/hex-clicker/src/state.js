@@ -33,6 +33,7 @@ export const game = {
   seen: {}, // upgrade key -> 1 once its row has been laid eyes on
   zoomUntil: 0, // performance.now() ms while Zoomies is active (converted from server time)
   nightAt: null, // wall-clock (server epoch) ms the twist fired — anchors the wall
+  wonAt: null, // server epoch ms the PROCTOR marked this team won (see HexSim.setWon)
   // The wall's odometer, banked by the authority (see HexWallClock in rules.ts):
   // scene units walked as of `wallAt` (server epoch ms), out of the rate and glow
   // it was holding then. wall.js reads position AND brightness off this, so every
@@ -157,6 +158,7 @@ export function applySnapshot(snap) {
     first,
     reset: !first && snap.runId !== runId,
     nightFlip: false, // day -> night while we watch (the cutscene beat)
+    wonFlip: false, // the proctor marked us won while we watch (raise the splash)
     neonOn: false, // Counting Mice landed live
     goldSpawn: null, // a golden mouse just appeared
     goldGone: false, // ...or just left (caught or escaped)
@@ -164,6 +166,7 @@ export function applySnapshot(snap) {
   };
   runId = snap.runId;
 
+  const wonBefore = game.wonAt !== null;
   const nightBefore = nightOf(game.bought);
   const neonBefore = !!mods.neon;
   const soldOutBefore = allRailBought(game);
@@ -182,6 +185,7 @@ export function applySnapshot(snap) {
   game.owned = { ...snap.owned };
   game.bought = { ...snap.bought };
   game.nightAt = snap.nightAt;
+  game.wonAt = snap.wonAt ?? null;
   game.wallBase = snap.wallBase ?? 0;
   game.wallAt = snap.wallAt ?? snap.nightAt;
   game.speed = snap.speed;
@@ -203,6 +207,11 @@ export function applySnapshot(snap) {
 
   const nightAfter = nightOf(game.bought);
   edges.nightFlip = !first && !nightBefore && nightAfter;
+  // Live edge only, exactly like nightFlip: the splash RAISES itself the moment
+  // the proctor presses, and a phone that joins an already-won room lands on the
+  // game with the toggle lit instead of on a celebration it missed (the night
+  // cutscene set that precedent — a rejoin gets the state, not the beat).
+  edges.wonFlip = !first && !wonBefore && game.wonAt !== null;
   edges.neonOn = !first && !neonBefore && !!mods.neon;
   edges.soldOut = !first && !soldOutBefore && allRailBought(game);
   const gid = snap.gold ? snap.gold.id : null;

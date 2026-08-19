@@ -1,11 +1,15 @@
 // PHASE — day/night as a PROJECTION of folded state, the seeded starfield,
-// and the night-transition cutscene. In multiplayer the cutscene fires off the
-// snapshot's day->night edge (see main.js), so every phone in the room takes
-// the beat together — including phones whose player never touched the button.
+// the night-transition cutscene, and the win splash. In multiplayer the cutscene
+// fires off the snapshot's day->night edge (see main.js), so every phone in the
+// room takes the beat together — including phones whose player never touched the
+// button. The win splash arrives the same way, off the proctor's `wonAt`.
 
 import { mulberry32 } from "@escape-cats/shared";
-import { nightActive, wallSeed } from "./state.js";
-import { hexCatEl, starsEl, dockEl, cutsceneVeilEl } from "./dom.js";
+import { game, nightActive, wallSeed } from "./state.js";
+import {
+  hexCatEl, starsEl, dockEl, cutsceneVeilEl,
+  splashEl, splashArtEl, wonPillEl,
+} from "./dom.js";
 import { loadWallScene, resizeWall } from "./wall.js";
 import { YAWN_MS, ZZZ_HOLD_MS } from "./cat.js";
 
@@ -49,6 +53,76 @@ function makeStars() {
     frag.appendChild(s);
   }
   starsEl.appendChild(frag);
+}
+
+// ---------------------------------------------------------------------------
+// THE WIN SPLASH — the picture a won team gets, and the toggle off it
+// ---------------------------------------------------------------------------
+// Hex cannot score its own win: the code word leaves the game on a phone and
+// comes back as four people reading it out, so the proctor presses the button
+// and `wonAt` arrives on the snapshot (see HexSim.setWon). What that unlocks is
+// this splash — and, deliberately, a way BACK to the night scene, because the
+// wall the team just read is the thing they earned and a victory screen that
+// buried it for good would be taking it away.
+//
+// Which of the two a phone is looking at is LOCAL, unlike Goomba's level cards
+// (a card tap moves what the whole room PLAYS, so it has to be a wire intent).
+// Here both views are the same room state seen two ways, so one player peeking
+// at the picture has no business yanking a teammate's screen.
+let splashOpen = false;
+
+/** Point the splash at its picture and take the sky colours FROM that picture —
+ * the same trick Goomba's canvas splash uses (drawSplash in its main.js), which
+ * is why neither game hardcodes a sky: replace the file, get a new one.
+ *
+ * BASE_URL rather than a literal /hexxygon/: this is a public/ asset referenced
+ * from JS, and Vite's base is the one string that is right in dev and in the
+ * built bundle both. */
+export function initSplashArt() {
+  const url = import.meta.env.BASE_URL + "art/hex-splash.webp";
+  splashArtEl.style.backgroundImage = `url("${url}")`;
+  const img = new Image();
+  img.onload = () => {
+    splashEl.style.setProperty("--sky-top", edgeColor(img, 0));
+    splashEl.style.setProperty("--sky-bottom", edgeColor(img, img.height - 1));
+  };
+  img.src = url; // same URL, so this is the cache hit the CSS already fetched
+}
+
+/** Average colour of one pixel ROW, as css — a full-width 1px slice squeezed
+ * into a 1x1 canvas, so the browser does the averaging. (Goomba's main.js has
+ * the twin of this for its canvas splash; six lines of pixel plumbing is not
+ * worth a shared module that the WORKER would then be importing canvas code
+ * through.) */
+function edgeColor(img, y) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 1;
+  const g = c.getContext("2d");
+  g.drawImage(img, 0, y, img.width, 1, 0, 0, 1, 1);
+  const [r, gr, b] = g.getImageData(0, 0, 1, 1).data;
+  return `rgb(${r},${gr},${b})`;
+}
+
+/** Show or hide the splash. Local, idempotent, and the pill's label follows it
+ * so the one control always says where it goes rather than where you are. */
+export function setSplash(open) {
+  splashOpen = open && game.wonAt !== null; // no splash without the win
+  splashEl.classList.toggle("on", splashOpen);
+  wonPillEl.textContent = splashOpen ? "← back to Hex" : "🏆 win screen";
+}
+
+/** The pill's whole job: whichever of the two views you are not looking at. */
+export function toggleSplash() {
+  setSplash(!splashOpen);
+}
+
+/** A PROJECTION of `wonAt`, the same way syncPhase is one of the night: every
+ * snapshot re-asserts it, so the proctor taking a win back (or resetting the
+ * room) drops the splash and retires the pill with no inverse to hand-write. */
+export function syncWon() {
+  const won = game.wonAt !== null;
+  wonPillEl.classList.toggle("on", won);
+  if (!won) setSplash(false);
 }
 
 // The night-transition CUTSCENE. Fired once, only on the live day->night edge (a

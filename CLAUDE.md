@@ -10,7 +10,7 @@ are the invariants that bite.
 the whole loop, the physics cheat sheet, and the accumulated anti-shortcut
 findings — do not design from intuition, the sim disproves it reliably.
 
-- **The level editor** (`apps/goomba-editor`, served at `/level-editor/`,
+- **The level editor** (`apps/goomba-editor`, served at `/editor/`,
   :5179 in dev) is the fast loop: drag geometry against the shipped sim, live
   verdicts on every edit, a background worker pool hunting for the ≤3-band win
   that would break the level. A level **saves by being a URL** — `encodeLevel`

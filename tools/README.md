@@ -6,7 +6,7 @@ its own world with its own README; everything below is about the two browser
 tools in this folder.
 
 The bench's browser half, the **level editor**, is not here: it lives in
-`apps/goomba-editor` and ships at `/level-editor/`. It imports the shared sim,
+`apps/goomba-editor` and ships at `/editor/`. It imports the shared sim,
 so it needs a build step and cannot be one dependency-free HTML file the way
 these two are — the folder a thing lives in follows from whether it builds, not
 from whether it is a tool.

@@ -39,7 +39,7 @@ const SURFACES = [
   // cannot be one dependency-free HTML file the way qr-studio is). Lowercase
   // path on purpose: it is typed off a whiteboard by people who did not write
   // /g00mBa's casing rule.
-  ["apps/goomba-editor/dist", "level-editor", "Goomba Glider level editor"],
+  ["apps/goomba-editor/dist", "editor", "Goomba Glider level editor"],
   // The two standalone tools. Each is one self-contained file with no relative
   // references, so landing it as <name>/index.html puts it at its own pretty
   // URL with no rewrite involved -- the path IS the file.

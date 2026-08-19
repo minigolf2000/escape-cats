@@ -21,7 +21,7 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
                      into modules (see its src/README.md for the map)
 apps/goomba-glider/  Player client for Goomba Glider: the prototype's canvas
                      rendering on the shared sim, driven by room snapshots
-apps/goomba-editor/  Goomba level editor (/level-editor/): drag geometry against
+apps/goomba-editor/  Goomba level editor (/editor/): drag geometry against
                      the shipped physics, live verdicts, background shortcut
                      hunt, and a level saves by BEING a URL
 apps/lobby/          Landing page: name entry, then the team the proctor put
@@ -70,7 +70,7 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   Teammates watch it happen: a drag streams as a ghost band, and a tap-tap
   waiting on its second tap streams as a named marker (a preview shorter than
   `BAND_MIN` — it can't become a band, so it reads as "choosing here").
-- **The level editor** — `apps/goomba-editor`, shipped at `/level-editor/`.
+- **The level editor** — `apps/goomba-editor`, shipped at `/editor/`.
   Drag terrain, cans, poppers, cushions, bumpers and the four solution bands;
   every edit re-runs the cheap half of the gate (bare run fails, the four-band
   solution wins, every band load-bearing, ±3u finger slop) on the same shipped
@@ -131,7 +131,7 @@ This starts everything:
 | Proctor       | http://localhost:5175                      |
 | Team lobby    | http://localhost:5176                      |
 | Team chat     | http://localhost:5177                      |
-| Level editor  | http://localhost:5179/level-editor/        |
+| Level editor  | http://localhost:5179/editor/              |
 
 Open the lobby on phones on the same wifi (one address for the whole room),
 then drag each phone onto a team from the proctor page. The vite servers listen

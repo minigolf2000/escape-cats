@@ -10,7 +10,7 @@ and only to rasterise an SVG.
 Designing a level end-to-end is walked through in
 [`DESIGNING.md`](./DESIGNING.md) — start there.
 
-There is also a browser bench: the **level editor** at `/level-editor/`
+There is also a browser bench: the **level editor** at `/editor/`
 (`apps/goomba-editor`, :5179 in dev). It drags geometry against this same
 shipped sim, grades the cheap half of the gate on every edit, hunts shortcuts in
 background workers, and saves a level into its own URL. That last part is why

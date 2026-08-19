@@ -1,6 +1,6 @@
 # Designing a Goomba Glider level (read this first)
 
-**Fastest way in: open the level editor at `/level-editor/`** (`npm run dev`
+**Fastest way in: open the level editor at `/editor/`** (`npm run dev`
 serves it on :5179). Drag geometry, watch the bare run and the four-band
 solution be re-scored on the shipped physics as you drag, and let a pool of
 web workers hunt in the background for the one-band win that would break the
@@ -45,7 +45,7 @@ every stage must actually be ridden.
 ## The loop
 
 1. **Sketch in data, not in your head.** Either drag it in the **editor**
-   (`/level-editor/`, and start from a level that already passes rather than
+   (`/editor/`, and start from a level that already passes rather than
    from the skeleton — remixing structure that works beats inventing it), or
    add the candidate straight to `packages/shared/src/goomba/levels.ts` (its
    index = position in the array). Levels are plain data either way: `terrain`

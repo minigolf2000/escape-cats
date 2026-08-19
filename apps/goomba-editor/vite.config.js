@@ -8,6 +8,6 @@ export default defineConfig({
   // Lowercase, unlike the game's /g00mBa/: this is the path a room full of
   // level designers types off a whiteboard, and the casing trap that makes
   // /g00mba 404 is not one to hand fifteen people on purpose.
-  base: "/level-editor/",
+  base: "/editor/",
   server: { host: true },
 });

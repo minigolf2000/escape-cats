@@ -142,7 +142,8 @@ shelf-gating below for why in-gap collectibles never survive scrutiny.)
 make the plant a *routing* problem instead of a reachability one: one band can
 drop her down a shaft, but it can't make her pass three separate points.
 
-**Shelf-gating — the switchback pattern (Mind the Gap).** Floors alternating
+**Shelf-gating — the switchback pattern (Mind the Gap — level removed,
+findings stand; git history has the geometry).** Floors alternating
 direction, a band-sized gap in each, walls between floors erasing her speed.
 What makes it honestly need one band per floor is WHERE the collectibles sit:
 **on the far shelves between gap and wall, never hanging in the gaps**. A

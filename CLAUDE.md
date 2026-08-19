@@ -24,14 +24,19 @@ findings — do not design from intuition, the sim disproves it reliably.
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
-- Levels 3–8 collapse to 1 band — known debt (they predate the party rule).
-  Space Cadet (9) was rebuilt as a five-can machine: no ≤3-band win found
+- **Six levels ship.** The Skim, The Puzzle Box, Pillow Fort and Mind the Gap
+  were cut, and the survivors renumbered 1–6 — a level's display number is
+  its array index + 1, so removing one renumbers everything after it.
+- Levels 2–4 collapse to 1 band — known debt (they predate the party rule).
+  Space Cadet (5) was rebuilt as a five-can machine: no ≤3-band win found
   (1-band exhaustive, 2–3 sampled), 4-band solution with every band
   load-bearing — but it fails the ±3u finger-slop check (0/30), so its debt
   is now precision, not collapse (see its comment in `levels.ts`). Don't
-  copy the 3–8 structure; copy Four Ways to Help (one gate per band, each
-  with its own death), Mind the Gap (shelf-gated switchback) or The Popper
-  Grid (forced popper lanes).
+  copy the 2–4 structure; copy Four Ways to Help (one gate per band, each
+  with its own death) or The Popper Grid (forced popper lanes). The
+  shelf-gated switchback that Mind the Gap demonstrated is still a good
+  pattern and still written up in DESIGNING.md — the level is gone, the
+  finding is not.
 - Parallel level threads: work on your own branch — `levels.ts` is where
   every level thread edits, and sharing a branch collides.
 

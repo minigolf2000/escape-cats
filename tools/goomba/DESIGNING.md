@@ -142,7 +142,8 @@ shelf-gating below for why in-gap collectibles never survive scrutiny.)
 make the plant a *routing* problem instead of a reachability one: one band can
 drop her down a shaft, but it can't make her pass three separate points.
 
-**Shelf-gating — the switchback pattern (Mind the Gap).** Floors alternating
+**Shelf-gating — the switchback pattern (Mind the Gap — level removed,
+findings stand; git history has the geometry).** Floors alternating
 direction, a band-sized gap in each, walls between floors erasing her speed.
 What makes it honestly need one band per floor is WHERE the collectibles sit:
 **on the far shelves between gap and wall, never hanging in the gaps**. A
@@ -192,6 +193,16 @@ lesson rather than a generic "she died".
 - **Goal above the start** — falling can never reach it.
 - **Speed governor** — a short gentle shelf just below a wall-drop; at ~15
   speed even a 20-unit gap is uncrossable.
+
+**A run-out floor has to outvote the pump, not just the stall threshold.** The
+snowboard pump (`sp < 12` while grounded) pushes her the way she FACES, so a
+floor that only just clears the ~0.12 stranding pitch still traps anything that
+lands on it moving the WRONG way: she pumps into the far corner and stalls
+facing it. Watering Can Slalom's floor was 0.061 and stranded 741 of 3312
+sampled left-side arrivals; at 0.204 all 3312 slide to the goal. If a floor's
+job is "wherever she lands, she ends up at the plant", pitch it ~0.2, and test
+it with arrivals that carry velocity AWAY from the goal — a straight drop keeps
+her facing the way she already was and will tell you the floor is fine.
 
 **Useful numbers:** gaps wider than ~45 units aren't jumpable at typical speed,
 and a band only spans 58 — so the "needs exactly one band" window is roughly

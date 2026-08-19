@@ -43,6 +43,7 @@ export const {
   stepRun,
   snapBand,
   bandPoints,
+  initLevel,
 } = sim;
 
 /** The prototype's `__gr.simulate`, verbatim: run a level with a band set,

@@ -172,7 +172,8 @@ through); and a feed band that delivers her straight under a vertical fire
 gets smashed by it — angle the fire or end the feed outside the barrel line.
 
 **A chain of different gates needs one band each, without any state erasure
-(Four Ways to Help).** The other route to "requires 4" is four stages that fail
+(Four Ways to Help — level replaced, findings stand; git history has the
+geometry).** The other route to "requires 4" is four stages that fail
 *differently*: bridge, wall, bridge, choose-the-hole. Nothing has to reset her
 speed, because no band can substitute for a band doing a different job. Two
 rules make it hold. Give every gap a far lip **1 unit above** its near lip —
@@ -184,6 +185,23 @@ much later ledge, collecting its can en route. A wide V-basin under that
 column turns the whole family into a stall. Bonus for a tutorial: four gates
 with four distinct deaths means every partial solution reads as a specific
 lesson rather than a generic "she died".
+
+**A 58-unit band is half this world — "requires 4" needs structure, not a
+better collectible placement (The Long Way Down).** Rebuilding level 1 from a
+hand sketch — four ledges descending to a plant on a flat, full-width ground —
+the obvious lever was "move the second can somewhere a 3-band solution cannot
+reach". It does not exist, and `reach.mjs` is the tool that says so: it paints
+every winning trajectory the beam search can find at k bands and at k+1 onto a
+grid and reports the cells only k+1 reaches. Here (`node reach.mjs 0 3
+--drop-can 1`) that list is EMPTY — the 3-band reachable set covers the 4-band
+one, so there is no cell to put the can in. Two reasons, both
+structural. A band stretches 58 units across a world only ~110 wide, so one
+band spans half of anywhere; and a flat full-width floor is nearly frictionless
+here (she slid 24 units in 0.47 s losing almost nothing), so it delivers her to
+the plant from anywhere on it — the last stage is free no matter what happens
+above. If a level must REQUIRE 4, the floor has to be broken, tilted away from
+the plant, or fenced, and the descent has to be interrupted by something that
+erases state. No amount of collectible placement substitutes.
 
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — the goal plant in a pocket with a ceiling, so falling

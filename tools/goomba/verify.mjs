@@ -30,10 +30,12 @@
 //   7. no ≤3-band win found by beam search — the hunter that has caught
 //      every exploit random sampling missed (launcher bands, under-floor
 //      falls), so do not skip it because 5 and 6 came back clean
-import { LEVELS, BAND_MAX, MAX_BANDS, simulate, decodeLevel, initLevel } from "./lib.mjs";
+import {
+  LEVELS, BAND_MAX, BAND_MIN, MAX_BANDS, simulateLevel, decodeLevel, initLevel,
+  legalBands, mulberry, jitterSolution, JITTER_TRIALS, JITTER_MIN_WINS, JITTER_SEED,
+} from "./lib.mjs";
 import { readFileSync } from "node:fs";
 
-const JITTER_MIN_WINS = 18; // of 30 trials — below this, real fingers suffer
 
 const argv = process.argv.slice(2);
 let quick = false, hashArg, fileArg, arg;
@@ -52,45 +54,25 @@ if (arg === undefined && hashArg === undefined && fileArg === undefined) {
 }
 
 /**
- * Take a level that only exists as an editor share link and give it an index
- * the rest of this file can use. LEVELS is the live array `simulate` reads, so
- * appending puts the candidate one past the shipped levels without touching
- * levels.ts — which is the point: a jam produces links, and links have to face
- * the same gate as a diff does.
+ * A level that only exists as an editor share link, made runnable: decoded
+ * and initLevel'ed into the same shape a LEVELS entry has. Never pushed into
+ * LEVELS — the gate runs on level OBJECTS (`simulateLevel`), so a link-borne
+ * candidate needs no index. That is the point: a jam produces links, and
+ * links face the same gate as a diff does.
  */
-const shippedCount = LEVELS.length;
-
 function adoptLink(link, label) {
   const L = decodeLevel(link);
   if (!L) {
     console.error(`${label}: not a level link (expected the part after # of an editor share URL)`);
     process.exit(2);
   }
-  LEVELS.push(initLevel(L));
-  return LEVELS.length - 1;
-}
-
-const mulberry = (seed) => () =>
-  (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-
-/** Every legal single band on a 10-unit grid over the level bounds. */
-function legalBands(L) {
-  const b = L.bounds, pts = [];
-  for (let x = b.x0; x <= b.x1; x += 10)
-    for (let y = b.y0; y <= b.y1; y += 10) pts.push([x, y]);
-  const legal = [];
-  for (let i = 0; i < pts.length; i++)
-    for (let j = i + 1; j < pts.length; j++) {
-      const len = Math.hypot(pts[j][0] - pts[i][0], pts[j][1] - pts[i][1]);
-      if (len >= 6 && len <= BAND_MAX) legal.push([pts[i], pts[j]]);
-    }
-  return legal;
+  return initLevel(L);
 }
 
 /** Beam-search hunt for a win within `budget` bands — solve.mjs's search,
  * verdict-only. Returns the winning set or null. */
-function beamHunt(li, budget, K) {
-  const L = LEVELS[li], b = L.bounds;
+function beamHunt(L, budget, K) {
+  const b = L.bounds;
   const rnd = mulberry(8675309);
   const randBand = (traj) => {
     for (let tries = 0; tries < 40; tries++) {
@@ -115,7 +97,7 @@ function beamHunt(li, budget, K) {
     return null;
   };
   const score = (set) => {
-    const r = simulate(li, set);
+    const r = simulateLevel(L, set);
     let best = 1e9, cans = 0;
     const got = L.cans.map(() => false);
     for (const p of r.traj) {
@@ -156,10 +138,9 @@ function beamHunt(li, budget, K) {
   return null;
 }
 
-/** Run the gate. Returns a list of check results; stops at the first failure
- * unless `all` (the summary table wants the first failure per level anyway). */
-function verify(li) {
-  const L = LEVELS[li];
+/** Run the gate on one level. Returns a list of check results; stops at the
+ * first failure (the summary table wants the first failure per level anyway). */
+function verify(L) {
   const checks = [];
   const check = (name, ok, detail) => {
     checks.push({ name, ok, detail });
@@ -168,7 +149,7 @@ function verify(li) {
   };
 
   // 1. bare
-  const bare = simulate(li, []);
+  const bare = simulateLevel(L, []);
   if (!check("bare run fails", bare.result !== "win", `${bare.result}@${bare.t}s`)) return checks;
 
   // 2. solution shape + win
@@ -176,34 +157,30 @@ function verify(li) {
   const lens = sol.map(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1]));
   if (!check(`solution is ${MAX_BANDS} bands (party rule)`, sol.length === MAX_BANDS,
              `${sol.length} band(s)`)) return checks;
-  if (!check("solution band lengths legal", lens.every((l) => l >= 6 && l <= BAND_MAX),
+  if (!check("solution band lengths legal", lens.every((l) => l >= BAND_MIN && l <= BAND_MAX),
              lens.map((l) => l.toFixed(1)).join(","))) return checks;
-  const win = simulate(li, sol);
+  const win = simulateLevel(L, sol);
   if (!check("solution wins", win.result === "win", `${win.result}@${win.t}s`)) return checks;
 
   // 3. every band load-bearing
-  const partials = sol.map((_, k) => simulate(li, sol.filter((_, j) => j !== k)).result);
+  const partials = sol.map((_, k) => simulateLevel(L, sol.filter((_, j) => j !== k)).result);
   if (!check("every band load-bearing", partials.every((p) => p !== "win"),
              `drop-one → [${partials.join(", ")}]`)) return checks;
 
   // 4. finger slop
-  const rnd = mulberry(12345);
+  const rnd = mulberry(JITTER_SEED);
   let jwins = 0;
-  for (let t = 0; t < 30; t++) {
-    const jit = sol.map(([a, b]) => [
-      [a[0] + (rnd() * 2 - 1) * 3, a[1] + (rnd() * 2 - 1) * 3],
-      [b[0] + (rnd() * 2 - 1) * 3, b[1] + (rnd() * 2 - 1) * 3],
-    ]);
-    if (simulate(li, jit).result === "win") jwins++;
-  }
-  if (!check(`jitter ±3u wins ≥ ${JITTER_MIN_WINS}/30`, jwins >= JITTER_MIN_WINS, `${jwins}/30`))
+  for (let t = 0; t < JITTER_TRIALS; t++)
+    if (simulateLevel(L, jitterSolution(sol, rnd)).result === "win") jwins++;
+  if (!check(`jitter ±3u wins ≥ ${JITTER_MIN_WINS}/${JITTER_TRIALS}`,
+             jwins >= JITTER_MIN_WINS, `${jwins}/${JITTER_TRIALS}`))
     return checks;
 
   // 5. exhaustive 0/1-band
   const legal = legalBands(L);
   let oneBandWin = null;
   for (const bd of legal)
-    if (simulate(li, [bd]).result === "win") { oneBandWin = bd; break; }
+    if (simulateLevel(L, [bd]).result === "win") { oneBandWin = bd; break; }
   if (!check(`no 1-band win (exhaustive, ${legal.length} placements)`, !oneBandWin,
              oneBandWin ? `e.g. ${JSON.stringify(oneBandWin)}` : "")) return checks;
 
@@ -215,7 +192,7 @@ function verify(li) {
     let hit = null;
     for (let t = 0; t < N && !hit; t++) {
       const set = []; for (let m = 0; m < k; m++) set.push(pick());
-      if (simulate(li, set).result === "win") hit = set;
+      if (simulateLevel(L, set).result === "win") hit = set;
     }
     if (!check(`no ${k}-band win (${N} random samples)`, !hit,
                hit ? `e.g. ${JSON.stringify(hit)}` : "")) return checks;
@@ -223,14 +200,16 @@ function verify(li) {
 
   // 7. beam-search hunt at ≤3 bands
   const K = quick ? 3000 : 8000;
-  const hunted = beamHunt(li, 3, K);
+  const hunted = beamHunt(L, 3, K);
   check(`no ≤3-band win (beam search, ${K}/stage)`, !hunted,
         hunted ? `FOUND: ${JSON.stringify(hunted)}` : "");
   return checks;
 }
 
-let idxs;
-if (hashArg !== undefined) idxs = [adoptLink(hashArg, "--hash")];
+/** [{ L, label }] — link-borne levels get a "link" label; only shipped ones
+ * have an L-number a player would ever see. */
+let targets;
+if (hashArg !== undefined) targets = [{ L: adoptLink(hashArg, "--hash"), label: "link" }];
 else if (fileArg !== undefined) {
   // One link per line, blank lines and `//` comments skipped — so a team can
   // keep their day's levels in one file with a note beside each.
@@ -240,21 +219,21 @@ else if (fileArg !== undefined) {
     console.error(`${fileArg}: no links in it`);
     process.exit(2);
   }
-  idxs = lines.map((l, i) => adoptLink(l, `${fileArg}:${i + 1}`));
-} else if (arg === "all") idxs = LEVELS.map((_, i) => i);
-else idxs = [Number(arg)];
+  targets = lines.map((l, i) => ({ L: adoptLink(l, `${fileArg}:${i + 1}`), label: "link" }));
+} else {
+  const idxs = arg === "all" ? LEVELS.map((_, i) => i) : [Number(arg)];
+  for (const li of idxs)
+    if (!(li >= 0 && li < LEVELS.length)) {
+      console.error(`no level at index ${arg} (0..${LEVELS.length - 1})`);
+      process.exit(2);
+    }
+  targets = idxs.map((li) => ({ L: LEVELS[li], label: `L${li + 1}` }));
+}
 
 let allOk = true;
-for (const li of idxs) {
-  if (!(li >= 0 && li < LEVELS.length)) {
-    console.error(`no level at index ${arg} (0..${LEVELS.length - 1})`);
-    process.exit(2);
-  }
-  // A link-borne level was appended past the shipped ones, so its index is an
-  // implementation detail rather than the L-number a player would see.
-  const label = li < shippedCount ? `L${li + 1} ` : "link ";
-  console.log(`${label}${LEVELS[li].name}${quick ? "  (--quick: smaller samples)" : ""}`);
-  const checks = verify(li);
+for (const { L, label } of targets) {
+  console.log(`${label} ${L.name}${quick ? "  (--quick: smaller samples)" : ""}`);
+  const checks = verify(L);
   const ok = checks.every((c) => c.ok);
   allOk &&= ok;
   console.log(`  → ${ok ? "PASS ✓" : `FAIL ✗ (${checks.find((c) => !c.ok).name})`}\n`);

@@ -45,9 +45,8 @@
            overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
   h2 { margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 700; }
   .card { border: 1px solid var(--line); border-radius: 12px; padding: 11px; display: flex; flex-direction: column; gap: 9px; }
-  input, select, textarea { font: inherit; font-size: 13px; color: var(--ink); background: rgba(0,0,0,.28);
-                            border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; width: 100%; }
-  textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  input, select { font: inherit; font-size: 13px; color: var(--ink); background: rgba(0,0,0,.28);
+                  border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; width: 100%; }
   .btn { font: inherit; font-size: 13px; font-weight: 600; color: var(--dim); background: rgba(255,255,255,.07);
          border: 1.5px solid var(--line); border-radius: 9px; padding: 8px 11px; cursor: pointer; }
   .btn:hover { background: rgba(255,255,255,.12); }
@@ -96,11 +95,9 @@
     <div class="card">
       <h2>Level</h2>
       <input id="name" placeholder="name — the only prose players read" autocomplete="off">
-      <div class="row">
-        <select id="starter">
-          <option value="">start from…</option>
-        </select>
-      </div>
+      <select id="starter">
+        <option value="">start from…</option>
+      </select>
       <div id="banner"></div>
     </div>
 

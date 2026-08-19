@@ -18,6 +18,9 @@ const SAMPLES = { 2: 12000, 3: 8000 };
  * workers spend their time competing for memory bandwidth. */
 const POOL = Math.max(1, Math.min(6, (navigator.hardwareConcurrency || 4) - 1));
 
+/** Milliseconds of quiet after the last edit before a hunt starts. */
+const SETTLE_MS = 700;
+
 export function createHunter(onUpdate) {
   let workers = [];
   let state = null;
@@ -33,23 +36,21 @@ export function createHunter(onUpdate) {
   /** Start a hunt on this level, abandoning any hunt in flight. */
   function run(level) {
     stop();
-    const hash = encodeLevel(level);
-    state = {
-      running: true,
-      found: null,
-      checked: 0,
-      legal: 0,
-      total: 0,
-      stagesDone: 0,
-      pool: POOL,
-    };
+    let hash;
+    try {
+      hash = encodeLevel(level);
+    } catch {
+      // A level too detailed for the save format can't reach the workers
+      // (they receive it as a hash). Say so rather than pretending the hunt
+      // came back clean.
+      state = { running: false, found: null, checked: 0, legal: 0, total: 0, pool: POOL, unencodable: true };
+      return emit();
+    }
+    state = { running: true, found: null, checked: 0, legal: 0, total: 0, pool: POOL };
     emit();
 
     const per = new Array(POOL).fill(0);
     let finished = 0;
-    // Stage completions are counted across the pool: stage 1 is only really
-    // clear once every shard of it is.
-    const stageDone = new Array(4).fill(0);
 
     for (let i = 0; i < POOL; i++) {
       const w = new Worker(new URL("./hunter.worker.js", import.meta.url), { type: "module" });
@@ -65,23 +66,14 @@ export function createHunter(onUpdate) {
         if (m.type === "found") {
           // First find wins: the rest of the pool is now searching for a
           // second way to break a level we already know is broken.
-          state.found = { bands: m.bands, stage: m.stage };
+          state.found = { bands: m.bands };
           state.running = false;
           stop();
           return emit();
         }
-        if (m.type === "progress" || m.type === "stage-done" || m.type === "done") {
-          per[i] = m.checked;
-          state.checked = per.reduce((a, b) => a + b, 0);
-        }
-        if (m.type === "stage-done") {
-          stageDone[m.stage]++;
-          state.stagesDone = [1, 2, 3].filter((k) => stageDone[k] >= POOL).length;
-        }
-        if (m.type === "done") {
-          finished++;
-          if (finished >= POOL) state.running = false;
-        }
+        per[i] = m.checked;
+        state.checked = per.reduce((a, b) => a + b, 0);
+        if (m.type === "done" && ++finished >= POOL) state.running = false;
         emit();
       };
       w.postMessage({ hash, shard: i, shards: POOL, samples: SAMPLES });
@@ -93,18 +85,12 @@ export function createHunter(onUpdate) {
     /** Edits call this; the hunt starts once they stop. Restarting is cheap
      * and abandoning a stale hunt is mandatory — a verdict about the level as
      * it was three drags ago is worse than no verdict. */
-    schedule(level, delay = 700) {
+    schedule(level) {
       clearTimeout(restartTimer);
       stop();
-      state = { running: false, found: null, checked: 0, legal: 0, total: 0, stagesDone: 0, pool: POOL, pending: true };
+      state = { running: false, found: null, checked: 0, legal: 0, total: 0, pool: POOL, pending: true };
       emit();
-      restartTimer = setTimeout(() => run(level), delay);
-    },
-    cancel() {
-      clearTimeout(restartTimer);
-      stop();
-      state = null;
-      emit();
+      restartTimer = setTimeout(() => run(level), SETTLE_MS);
     },
     samples: SAMPLES,
   };

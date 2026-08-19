@@ -17,7 +17,9 @@ findings — do not design from intuition, the sim disproves it reliably.
   in `packages/shared/src/goomba/codec.ts` packs one into ~100–450 base64url
   chars, so designs travel as links and `node verify.mjs --hash <link>` gates
   one that was never committed. The codec lives in shared/ because the browser
-  and the node bench must agree on it byte for byte; never fork it.
+  and the node bench must agree on it byte for byte; never fork it. Same for
+  `goomba/gate.ts` — the thresholds that DEFINE a pass (jitter, hunt grid,
+  legal-band lattice) are one copy that both graders import.
 - Levels live in **`packages/shared/src/goomba/levels.ts`** — the ONLY copy
   (the prototype is deleted). Server scoring, phone animation, and the design
   tools all run this exact code.

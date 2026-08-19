@@ -36,7 +36,6 @@ export interface TrayEntry {
   id: string;
   name: string;
   hash: string;
-  savedAt: number;
 }
 
 /** localStorage that never throws — Safari private mode, quota, disabled. */
@@ -130,7 +129,6 @@ export function saveToTray(level: GoombaLevel): TrayEntry[] {
     id: at >= 0 ? entries[at].id : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
     name,
     hash,
-    savedAt: Date.now(),
   };
   if (at >= 0) entries[at] = entry;
   else entries.push(entry);

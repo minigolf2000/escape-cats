@@ -28,26 +28,23 @@ export function toTypeScript(L) {
   lines.push(`  { name: ${str(L.name || "untitled")}, budget: 4,`);
   if (typeof L.maxSpeed === "number") lines.push(`    maxSpeed: ${n(L.maxSpeed)},`);
   lines.push(`    start: ${pt(L.start)},`);
-  lines.push(`    terrain: [`);
-  L.terrain.forEach((poly, i) => {
-    const tail = i === L.terrain.length - 1 ? " ]," : ",";
-    lines.push(`      [${pts(poly)}]${tail}`);
-  });
-  if (!L.terrain.length) lines[lines.length - 1] = `    terrain: [],`;
+  lines.push(
+    L.terrain.length
+      ? `    terrain: [\n${L.terrain.map((poly) => `      [${pts(poly)}]`).join(",\n")} ],`
+      : `    terrain: [],`,
+  );
   lines.push(`    goal: ${pt(L.goal)},`);
   if (L.cans?.length) lines.push(`    cans: [${pts(L.cans)}],`);
   if (L.cushions?.length)
     lines.push(
       `    cushions: [${L.cushions.map((c) => `{ x: ${n(c.x)}, y: ${n(c.y)}, w: ${n(c.w)} }`).join(", ")}],`,
     );
-  if (L.pops?.length) {
-    lines.push(`    pops: [`);
-    L.pops.forEach((p, i) =>
-      lines.push(
-        `      { x: ${n(p.x)}, y: ${n(p.y)}, deg: ${n(p.deg)}, spd: ${n(p.spd)} }${i === L.pops.length - 1 ? " ]," : ","}`,
-      ),
+  if (L.pops?.length)
+    lines.push(
+      `    pops: [\n${L.pops
+        .map((p) => `      { x: ${n(p.x)}, y: ${n(p.y)}, deg: ${n(p.deg)}, spd: ${n(p.spd)} }`)
+        .join(",\n")} ],`,
     );
-  }
   if (L.bumpers?.length)
     lines.push(
       `    bumpers: [${L.bumpers.map((b) => `{ x: ${n(b.x)}, y: ${n(b.y)} }`).join(", ")}],`,

@@ -37,7 +37,7 @@
 // 3-band level past the gate.
 import type { GoombaLevel, Pt } from "./levels";
 
-export const LEVEL_CODEC_FMT = 1;
+const LEVEL_CODEC_FMT = 1;
 
 /** Fixed-point scale: tenths of a unit. Exact for every coordinate the design
  * tools produce, and ±3276.7 is far more world than a portrait level uses. */
@@ -57,12 +57,14 @@ class Writer {
     this.fx(p[0]);
     this.fx(p[1]);
   }
-  /** Length-prefixed collection. Counts are u8, so 255 of anything is the cap
-   * — far past what a portrait level can hold, and it keeps the header small. */
+  /** Length-prefixed collection. Counts are u8, so 255 of anything is the
+   * cap — far past what a portrait level can hold. Exceeding it THROWS rather
+   * than truncating: this is the format boundary, and a link that silently
+   * dropped geometry would be a different level everywhere it was opened. */
   count(n: number): number {
-    const c = Math.min(255, n);
-    this.u8(c);
-    return c;
+    if (n > 255) throw new Error(`level too detailed to encode (${n} of something, max 255)`);
+    this.u8(n);
+    return n;
   }
 }
 

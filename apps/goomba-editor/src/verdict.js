@@ -6,9 +6,20 @@
 // whether some OTHER, smaller solution exists — a search over thousands of
 // placements, and the only question a human genuinely cannot answer by looking.
 // That one runs in the background (hunter.js) and, for real, on the bench.
-import { BAND_MAX, BAND_MIN, MAX_BANDS, bandLen, mulberry, runResult } from "./sim.js";
-
-const JITTER_MIN_WINS = 18; // of 30 — verify.mjs's threshold, kept in step
+//
+// Every threshold comes from the shared gate module, so a row here is the
+// same claim the bench makes — one copy, no "kept in step" comment to trust.
+import {
+  BAND_MAX,
+  BAND_MIN,
+  JITTER_MIN_WINS,
+  JITTER_SEED,
+  JITTER_TRIALS,
+  MAX_BANDS,
+  jitterSolution,
+  mulberry,
+} from "@escape-cats/shared";
+import { bandLen, runResult } from "./sim.js";
 
 /**
  * Grade a prepared level. Returns one row per check in the order verify.mjs
@@ -19,21 +30,15 @@ const JITTER_MIN_WINS = 18; // of 30 — verify.mjs's threshold, kept in step
 export function verdicts(init) {
   const sol = init.solution ?? [];
   const rows = [];
-  const row = (name, state, detail) => {
-    rows.push({ name, state, detail });
-    return state === "ok";
-  };
+  const row = (name, state, detail) => rows.push({ name, state, detail });
 
   // 1. Bare. A level that wins with no bands is not a level.
   const bare = runResult(init, []);
   row("bare run fails", bare.result === "win" ? "fail" : "ok", `${bare.result} @ ${bare.t}s`);
 
   // 2. The party rule's shape, then whether it actually wins.
-  const shaped = row(
-    `solution is ${MAX_BANDS} bands`,
-    sol.length === MAX_BANDS ? "ok" : "fail",
-    `${sol.length} placed`,
-  );
+  const shaped = sol.length === MAX_BANDS;
+  row(`solution is ${MAX_BANDS} bands`, shaped ? "ok" : "fail", `${sol.length} placed`);
   const lens = sol.map(bandLen);
   const legal = lens.every((l) => l >= BAND_MIN && l <= BAND_MAX);
   row(
@@ -65,19 +70,14 @@ export function verdicts(init) {
   //    coordinates the designer typed.
   let jwins = 0;
   if (solved) {
-    const rnd = mulberry(12345);
-    for (let t = 0; t < 30; t++) {
-      const jit = sol.map(([a, b]) => [
-        [a[0] + (rnd() * 2 - 1) * 3, a[1] + (rnd() * 2 - 1) * 3],
-        [b[0] + (rnd() * 2 - 1) * 3, b[1] + (rnd() * 2 - 1) * 3],
-      ]);
-      if (runResult(init, jit).result === "win") jwins++;
-    }
+    const rnd = mulberry(JITTER_SEED);
+    for (let t = 0; t < JITTER_TRIALS; t++)
+      if (runResult(init, jitterSolution(sol, rnd)).result === "win") jwins++;
   }
   row(
-    `±3u finger slop ≥ ${JITTER_MIN_WINS}/30`,
+    `±3u finger slop ≥ ${JITTER_MIN_WINS}/${JITTER_TRIALS}`,
     !solved ? "skip" : jwins >= JITTER_MIN_WINS ? "ok" : "fail",
-    solved ? `${jwins}/30` : "—",
+    solved ? `${jwins}/${JITTER_TRIALS}` : "—",
   );
 
   return rows;

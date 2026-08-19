@@ -12,12 +12,12 @@
 // saves is a link (see store.ts). Everything it claims is re-checkable on the
 // bench with `node verify.mjs`, which remains the gate — the editor is the fast
 // loop, not the authority.
-import { GOOMBA_LEVELS, MAX_BANDS, decodeLevel, makeRun, stepRun } from "@escape-cats/shared";
-import { BAND_MAX, RUN_MAX, SUB, bandLen, cloneLevel, prepare, runTrace, toBands } from "./sim.js";
+import { BAND_MAX, GOOMBA_LEVELS, MAX_BANDS, RUN_MAX, SUB, decodeLevel, makeRun, stepRun } from "@escape-cats/shared";
+import { bandLen, cloneLevel, prepare, toBands } from "./sim.js";
 import { verdicts } from "./verdict.js";
 import { createHunter } from "./hunter.js";
 import { toTypeScript } from "./emit.js";
-import { draw, fitCam, makeCam, toWorld } from "./view.js";
+import { draw, fitCam, makeCam, popTip, toWorld } from "./view.js";
 import { bootLevel, readTray, removeFromTray, saveDraft, saveToTray, shareLink, trayFile } from "./store";
 
 const $ = (id) => document.getElementById(id);
@@ -86,7 +86,7 @@ function pushUndo() {
 
 /** Every mutation ends here: re-derive the simulable level, re-grade it, save
  * the draft, and send the hunter back to work. */
-function changed({ rehunt = true } = {}) {
+function changed() {
   init = prepare(level);
   trace = null;
   runner = null;
@@ -96,12 +96,12 @@ function changed({ rehunt = true } = {}) {
   // exactly the false confidence this whole tool exists to remove.
   $("runstat").textContent = "";
   saveDraft(level);
-  renderVerdicts();
-  if (rehunt) hunter.schedule(level);
+  scheduleVerdicts();
+  hunter.schedule(level);
   syncSelection();
 }
 
-function loadLevel(next, { fit = true } = {}) {
+function loadLevel(next) {
   pushUndo();
   level = cloneLevel(next);
   level.cans ??= [];
@@ -113,7 +113,7 @@ function loadLevel(next, { fit = true } = {}) {
   pending = null;
   $("name").value = level.name ?? "";
   init = prepare(level);
-  if (fit) fitCam(cam, init, W, H);
+  fitCam(cam, init, W, H);
   changed();
 }
 
@@ -132,11 +132,6 @@ function distToSeg(px, py, a, b) {
   return Math.hypot(px - (a[0] + t * dx), py - (a[1] + t * dy));
 }
 
-const popTip = (pp) => {
-  const a = (pp.deg * Math.PI) / 180;
-  const arm = 5 + pp.spd / 14;
-  return [pp.x + Math.cos(a) * arm, pp.y + Math.sin(a) * arm];
-};
 
 /**
  * What is under this world point. Ordered smallest-and-most-specific first —
@@ -310,13 +305,22 @@ function frame() {
     const budget = 1 / 60; // one frame of sim per frame of screen: real time
     let acc = 0;
     while (acc < budget && !runner.st.result && runner.st.t < RUN_MAX + 1) {
+      const wasGround = runner.st.grounded;
       stepRun(runner.st, SUB);
       acc += SUB;
-      runner.path.push([runner.st.p.x, runner.st.p.y, runner.st.grounded ? 1 : 0]);
+      if (!wasGround) runner.air += SUB;
+      // Decimate to 1/60 like runs traced anywhere else in the repo — the
+      // path gets stroked twice per frame for as long as it stays on screen,
+      // so a 240Hz sample rate would be 4× the stroke work for no visible gain.
+      runner.acc += SUB;
+      if (runner.acc >= 1 / 60) {
+        runner.acc = 0;
+        runner.path.push([runner.st.p.x, runner.st.p.y, runner.st.grounded ? 1 : 0]);
+      }
     }
     trace = { path: runner.path, events: runner.st.events };
     if (runner.st.result || runner.st.t >= RUN_MAX + 1) {
-      showRunStat(runner.st.result ?? "timeout", runner.st.t, runner.label);
+      showRunStat(runner);
       runner = null;
     }
   }
@@ -327,7 +331,6 @@ function frame() {
   draw(ctx, {
     cam, W, H,
     level: shown,
-    init,
     trace,
     runner: runner ? runner.st.p : null,
     cheat,
@@ -342,6 +345,16 @@ function frame() {
 const evWorld = (e) => {
   const r = cv.getBoundingClientRect();
   return toWorld(cam, W, H, e.clientX - r.left, e.clientY - r.top);
+};
+
+/** The place-one-object tools: which array they grow, what a new one looks
+ * like, and what its selection is called. One table, so adding a toy is one
+ * row instead of a push-branch and a selection-ternary kept in step. */
+const SPAWN = {
+  can:     { list: () => level.cans,     make: (x, y) => [x, y],                     kind: "can" },
+  popper:  { list: () => level.pops,     make: (x, y) => ({ x, y, deg: 0, spd: 76 }), kind: "pop" },
+  cushion: { list: () => level.cushions, make: (x, y) => ({ x, y, w: 24 }),           kind: "cushion" },
+  bumper:  { list: () => level.bumpers,  make: (x, y) => ({ x, y }),                  kind: "bumper" },
 };
 
 cv.addEventListener("pointerdown", (e) => {
@@ -372,20 +385,15 @@ cv.addEventListener("pointerdown", (e) => {
     }
     pushUndo();
     level.solution.push([[snap(w.x), snap(w.y)], [snap(w.x), snap(w.y)]]);
-    drag = { hit: { kind: "bandEnd", i: level.solution.length - 1, j: 1 }, last: w, fresh: true };
+    drag = { hit: { kind: "bandEnd", i: level.solution.length - 1, j: 1 }, last: w };
     return;
   }
-  if (tool === "can" || tool === "popper" || tool === "cushion" || tool === "bumper") {
+  const spawn = SPAWN[tool];
+  if (spawn) {
     pushUndo();
-    if (tool === "can") level.cans.push([snap(w.x), snap(w.y)]);
-    if (tool === "popper") level.pops.push({ x: snap(w.x), y: snap(w.y), deg: 0, spd: 76 });
-    if (tool === "cushion") level.cushions.push({ x: snap(w.x), y: snap(w.y), w: 24 });
-    if (tool === "bumper") level.bumpers.push({ x: snap(w.x), y: snap(w.y) });
-    selection =
-      tool === "can" ? { kind: "can", i: level.cans.length - 1 }
-      : tool === "popper" ? { kind: "pop", i: level.pops.length - 1 }
-      : tool === "cushion" ? { kind: "cushion", i: level.cushions.length - 1 }
-      : { kind: "bumper", i: level.bumpers.length - 1 };
+    const list = spawn.list();
+    list.push(spawn.make(snap(w.x), snap(w.y)));
+    selection = { kind: spawn.kind, i: list.length - 1 };
     setTool("select");
     changed();
     return;
@@ -435,10 +443,7 @@ cv.addEventListener("pointermove", (e) => {
     moveHit(drag.hit, w.x - drag.last.x, w.y - drag.last.y);
     drag.last = w;
     drag.moved = true;
-    // Re-derive as we go: the bounds move with the geometry, and a verdict
-    // that lagged a drag by one gesture would be worse than none.
-    init = prepare(level);
-    return;
+    return; // draw() reads `level` directly; init is re-derived at pointer-up
   }
   hover = hitTest(w);
 });
@@ -449,15 +454,18 @@ const endPointer = () => {
     cv.classList.remove("panning");
   }
   if (drag) {
-    const wasFresh = drag.fresh;
     const moved = drag.moved;
     drag = null;
     cv.classList.remove("grabbing");
-    // A band the designer clicked without dragging is zero-length and illegal;
-    // drop it rather than leaving an invisible band in a solution slot.
-    if (wasFresh && !moved) level.solution.pop();
-    if (!moved && !wasFresh) undo.pop(); // a click that selected but moved nothing
-    changed();
+    if (moved) changed();
+    else {
+      // A click that moved nothing: restore the snapshot pushed at pointer-
+      // down. For a plain select that's a no-op; for the band tool it removes
+      // the zero-length band the click spawned. Either way the level is what
+      // was already graded, so no re-grade and no hunter restart.
+      level = JSON.parse(undo.pop());
+      syncSelection();
+    }
   }
 };
 cv.addEventListener("pointerup", endPointer);
@@ -516,7 +524,7 @@ addEventListener("keydown", (e) => {
     deleteHit(selection?.kind === "band" ? { kind: "bandEnd", i: selection.i } : selection);
     return;
   }
-  if (e.key === "f") return fitCam(cam, init, W, H);
+  if (e.key === "f") return fitCam(cam, prepare(level), W, H); // current geometry, even mid-drag
   const nudge = { ArrowLeft: [-0.5, 0], ArrowRight: [0.5, 0], ArrowUp: [0, -0.5], ArrowDown: [0, 0.5] }[e.key];
   if (nudge && selection) {
     e.preventDefault();
@@ -565,20 +573,33 @@ function play(bare) {
   runner = {
     st: makeRun(init, toBands(init, pairs)),
     path: [],
+    acc: 0,
+    air: 0,
     label: bare ? "bare" : `${pairs.length}-band`,
   };
   $("runstat").textContent = `${runner.label} run…`;
 }
-function showRunStat(result, t, label) {
-  const r = runTrace(init, label === "bare" ? [] : (level.solution ?? []));
+/** The run just animated IS the run being reported — everything comes off the
+ * runner's own state, no second simulation. */
+function showRunStat({ st, air, label }) {
+  const result = st.result ?? "timeout";
+  const airPct = Math.round((100 * air) / Math.max(st.t, 0.01));
   $("runstat").textContent =
-    `${label}: ${result} @ ${t.toFixed(2)}s · ${r.airPct}% airborne · cans ${r.cans}/${init.cans.length}`;
+    `${label}: ${result} @ ${st.t.toFixed(2)}s · ${airPct}% airborne · cans ${st.gotN}/${init.cans.length}`;
   $("runstat").style.color = result === "win" ? "var(--ok)" : "var(--bad)";
 }
 $("play").onclick = () => play(false);
 $("bare").onclick = () => play(true);
 
 // ---------- verdicts ----------
+/** Grading a solved level is ~36 full sims (drop-one + 30 jitter trials) —
+ * 25-335ms of main-thread work. Debounce it so a held arrow key or a burst of
+ * placements grades once, after the burst, instead of 30 times during it. */
+let verdictTimer = null;
+function scheduleVerdicts() {
+  clearTimeout(verdictTimer);
+  verdictTimer = setTimeout(renderVerdicts, 150);
+}
 function renderVerdicts() {
   const rows = verdicts(init);
   $("verdicts").innerHTML = rows
@@ -598,10 +619,10 @@ const hunter = createHunter((s) => {
   const bar = $("huntbar").firstElementChild,
     msg = $("huntmsg");
   $("huntShow").style.display = s?.found ? "" : "none";
-  if (!s) {
+  if (s.unencodable) {
     bar.style.width = "0%";
-    msg.className = "";
-    msg.textContent = "—";
+    msg.className = "bad";
+    msg.textContent = "level too detailed for the save format — the hunt can't run";
     return;
   }
   if (s.pending) {
@@ -636,53 +657,44 @@ $("huntShow").onclick = () => {
 };
 
 // ---------- selection inspector ----------
+/** What the inspector shows per selection kind: [label, container, key]
+ * triples. Reads and writes both go through container[key], so a field is one
+ * entry rather than a getter and a setter kept in sync. */
 const FIELDS = {
-  vertex: (h) => [["x", () => level.terrain[h.i][h.j][0], (v) => (level.terrain[h.i][h.j][0] = v)],
-                  ["y", () => level.terrain[h.i][h.j][1], (v) => (level.terrain[h.i][h.j][1] = v)]],
-  can: (h) => [["x", () => level.cans[h.i][0], (v) => (level.cans[h.i][0] = v)],
-               ["y", () => level.cans[h.i][1], (v) => (level.cans[h.i][1] = v)]],
-  pop: (h) => [["x", () => level.pops[h.i].x, (v) => (level.pops[h.i].x = v)],
-               ["y", () => level.pops[h.i].y, (v) => (level.pops[h.i].y = v)],
-               ["deg", () => level.pops[h.i].deg, (v) => (level.pops[h.i].deg = v)],
-               ["spd", () => level.pops[h.i].spd, (v) => (level.pops[h.i].spd = v)]],
-  bumper: (h) => [["x", () => level.bumpers[h.i].x, (v) => (level.bumpers[h.i].x = v)],
-                  ["y", () => level.bumpers[h.i].y, (v) => (level.bumpers[h.i].y = v)]],
-  cushion: (h) => [["x", () => level.cushions[h.i].x, (v) => (level.cushions[h.i].x = v)],
-                   ["y", () => level.cushions[h.i].y, (v) => (level.cushions[h.i].y = v)],
-                   ["w", () => level.cushions[h.i].w, (v) => (level.cushions[h.i].w = v)]],
-  start: () => [["x", () => level.start[0], (v) => (level.start[0] = v)],
-                ["y", () => level.start[1], (v) => (level.start[1] = v)]],
-  goal: () => [["x", () => level.goal[0], (v) => (level.goal[0] = v)],
-               ["y", () => level.goal[1], (v) => (level.goal[1] = v)]],
-  band: (h) => [["ax", () => level.solution[h.i][0][0], (v) => (level.solution[h.i][0][0] = v)],
-                ["ay", () => level.solution[h.i][0][1], (v) => (level.solution[h.i][0][1] = v)],
-                ["bx", () => level.solution[h.i][1][0], (v) => (level.solution[h.i][1][0] = v)],
-                ["by", () => level.solution[h.i][1][1], (v) => (level.solution[h.i][1][1] = v)]],
+  vertex: (h) => [["x", level.terrain[h.i][h.j], 0], ["y", level.terrain[h.i][h.j], 1]],
+  can: (h) => [["x", level.cans[h.i], 0], ["y", level.cans[h.i], 1]],
+  pop: (h) => ["x", "y", "deg", "spd"].map((k) => [k, level.pops[h.i], k]),
+  bumper: (h) => [["x", level.bumpers[h.i], "x"], ["y", level.bumpers[h.i], "y"]],
+  cushion: (h) => ["x", "y", "w"].map((k) => [k, level.cushions[h.i], k]),
+  start: () => [["x", level.start, 0], ["y", level.start, 1]],
+  goal: () => [["x", level.goal, 0], ["y", level.goal, 1]],
+  band: (h) => [["ax", level.solution[h.i][0], 0], ["ay", level.solution[h.i][0], 1],
+                ["bx", level.solution[h.i][1], 0], ["by", level.solution[h.i][1], 1]],
 };
 
 function syncSelection() {
   const box = $("selFields");
   box.innerHTML = "";
   const s = selection;
-  const kind = s?.kind === "poly" ? "poly" : s?.kind;
+  const kind = s?.kind;
   const make = kind && FIELDS[kind];
   $("selTitle").textContent = s
     ? `Selection · ${kind}${s.kind === "band" ? ` ${s.i + 1} · ${bandLen(level.solution[s.i]).toFixed(1)}u` : ""}`
     : "Selection · nothing";
   $("selDelete").style.display = s && kind !== "start" && kind !== "goal" ? "" : "none";
   if (!make) return;
-  for (const [label, get, set] of make(s)) {
+  for (const [label, container, key] of make(s)) {
     const l = document.createElement("label");
     l.textContent = label;
     const inp = document.createElement("input");
     inp.type = "number";
     inp.step = "0.5";
-    inp.value = String(get());
+    inp.value = String(container[key]);
     inp.onchange = () => {
       const v = Number(inp.value);
       if (!Number.isFinite(v)) return;
       pushUndo();
-      set(v);
+      container[key] = v;
       changed();
     };
     box.append(l, inp);
@@ -741,7 +753,12 @@ async function copy(text, btn, done) {
   setTimeout(() => (btn.textContent = label), 1600);
 }
 $("copyLink").onclick = (e) => {
-  const url = shareLink(level);
+  let url;
+  try {
+    url = shareLink(level);
+  } catch (err) {
+    return banner(String(err.message || err)); // encodeLevel refuses to drop geometry
+  }
   // Put it in the address bar as well as the clipboard: if the clipboard is
   // blocked the designer can still select it by hand, and a reload now keeps
   // the level rather than falling back to the draft.
@@ -788,7 +805,11 @@ function renderTray(entries = readTray()) {
   if (!entries.length) $("trayList").innerHTML = `<div class="note">empty</div>`;
 }
 $("trayAdd").onclick = () => {
-  renderTray(saveToTray(level));
+  try {
+    renderTray(saveToTray(level));
+  } catch (err) {
+    return banner(String(err.message || err)); // encodeLevel refuses to drop geometry
+  }
   banner(`“${level.name || "untitled"}” saved to the tray`);
 };
 $("trayFile").onclick = () => {

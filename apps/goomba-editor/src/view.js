@@ -6,7 +6,9 @@
 // because the thing a designer is looking at here is geometry, and geometry
 // reads better with its vertices showing. The two never disagree about the
 // level because neither of them is the level: `levels.ts` is.
-export const BAND_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
+import { bandPoints } from "@escape-cats/shared";
+
+const BAND_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
 const TERRAIN = "#f3e9d6";
 const CAN = "#57e6c9";
 const POP = "#ffd166";
@@ -26,7 +28,7 @@ export function fitCam(cam, init, W, H) {
   return cam;
 }
 
-export const toScreen = (cam, W, H, x, y) => ({
+const toScreen = (cam, W, H, x, y) => ({
   x: (x - cam.x) * cam.s + W / 2,
   y: (y - cam.y) * cam.s + H / 2,
 });
@@ -35,36 +37,29 @@ export const toWorld = (cam, W, H, px, py) => ({
   y: (py - H / 2) / cam.s + cam.y,
 });
 
-/** Sag a band the way the physics does, so the drawn curve is the surface she
- * will actually ride rather than the straight line the designer dragged. */
-export function bandCurve(a, b) {
-  const dx = b[0] - a[0],
-    dy = b[1] - a[1];
-  const sag = Math.min(3.5, Math.hypot(dx, dy) * 0.05);
-  const cx = (a[0] + b[0]) / 2,
-    cy = (a[1] + b[1]) / 2 + sag;
-  const out = [];
-  for (let i = 0; i <= 8; i++) {
-    const t = i / 8,
-      u = 1 - t;
-    out.push([
-      u * u * a[0] + 2 * u * t * cx + t * t * b[0],
-      u * u * a[1] + 2 * u * t * cy + t * t * b[1],
-    ]);
-  }
-  return out;
-}
+/** The band's sagging curve, from the SHIPPED physics (`bandPoints`) — so the
+ * drawn curve is exactly the surface she will collide with, by construction
+ * rather than by a copy kept in step. Takes an endpoint pair. */
+const bandCurve = ([a, b]) => bandPoints({ ax: a[0], ay: a[1], bx: b[0], by: b[1] });
+
+/** Where a popper's aim handle sits, in world units — the arm length tracks
+ * launch speed. One copy: main.js grabs the same point this file draws, so the
+ * dot you can see is always the dot you can click. */
+export const popTip = (pp) => {
+  const a = (pp.deg * Math.PI) / 180;
+  const arm = 5 + pp.spd / 14;
+  return [pp.x + Math.cos(a) * arm, pp.y + Math.sin(a) * arm];
+};
 
 export function draw(ctx, opts) {
-  const { cam, W, H, level, trace, runner, cheat, hover, selection, showGrid } = opts;
+  const { cam, W, H, level, trace, runner, cheat, hover, selection } = opts;
   const S = (x, y) => toScreen(cam, W, H, x, y);
-  const path = (points, close) => {
+  const path = (points) => {
     ctx.beginPath();
     points.forEach(([x, y], i) => {
       const p = S(x, y);
       i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
     });
-    if (close) ctx.closePath();
   };
 
   ctx.fillStyle = "#150a2a";
@@ -72,7 +67,7 @@ export function draw(ctx, opts) {
 
   // ---- grid. Ten-unit majors because that is the grid the shortcut hunt
   // enumerates on, so "on a major" is the resolution the gate actually sees.
-  if (showGrid) {
+  {
     const tl = toWorld(cam, W, H, 0, 0),
       br = toWorld(cam, W, H, W, H);
     const step = cam.s > 6 ? 5 : 10;
@@ -137,11 +132,10 @@ export function draw(ctx, opts) {
     ctx.arc(p.x, p.y, 6 * cam.s, 0, 6.283);
     ctx.stroke();
     ctx.setLineDash([]);
-    const a = (pp.deg * Math.PI) / 180;
     // Aim arm length tracks launch speed, so a row of poppers reads as a row
     // of different launches rather than a row of identical circles.
-    const arm = (5 + pp.spd / 14) * cam.s;
-    const tip = { x: p.x + Math.cos(a) * arm, y: p.y + Math.sin(a) * arm };
+    const [tx, ty] = popTip(pp);
+    const tip = S(tx, ty);
     ctx.strokeStyle = HOT;
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -237,7 +231,7 @@ export function draw(ctx, opts) {
     const picked = selection?.kind === "band" && selection.i === i;
     ctx.strokeStyle = BAND_COLORS[i % 4];
     ctx.lineWidth = Math.max(2, 1.4 * cam.s);
-    path(bandCurve(bd[0], bd[1]));
+    path(bandCurve(bd));
     ctx.stroke();
     for (const end of bd) {
       const p = S(end[0], end[1]);
@@ -256,7 +250,7 @@ export function draw(ctx, opts) {
       ctx.strokeStyle = "#ff4a4a";
       ctx.lineWidth = Math.max(2, 1.4 * cam.s);
       ctx.setLineDash([8, 6]);
-      path(bandCurve(bd[0], bd[1]));
+      path(bandCurve(bd));
       ctx.stroke();
       ctx.setLineDash([]);
     });

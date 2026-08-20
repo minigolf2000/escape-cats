@@ -7,8 +7,10 @@
 //        node scan.mjs <levelIdx> h <spanLo> <spanHi> ['[fixed bands JSON]'] [sweepLo sweepHi]
 //   v: sweeps a wall  [[x,spanLo],[x,spanHi]]  over x
 //   h: sweeps a shelf [[spanLo,y],[spanHi,y]]  over y
-// Example — where can a lane-0 wall go in The Popper Grid, given the other three?
-//   node scan.mjs 7 v 34 60 '[[[10,68],[10,94]],[[86,102],[86,128]],[[26,136],[26,162]]]'
+// Example — where can Cat's Cradle's lane-1 wall go, given the other three?
+//   node scan.mjs 3 v 14 40 '[[[-6,4],[22,20]],[[15,40],[15,80]],[[98,66],[98,116]]]'
+// It only sweeps axis-aligned bands; for a tilted one, or for "how much room has
+// this band got in every direction at once", use slack.mjs.
 import { LEVELS, simulate } from "./lib.mjs";
 
 const li = +(process.argv[2] || 0);

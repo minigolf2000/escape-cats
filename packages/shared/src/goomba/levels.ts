@@ -454,92 +454,82 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[34, 46], [56, 46]], [[36, 90], [68, 90]],
                 [[30, 90], [30, 96]], [[54, 168], [38, 179]] ] },
 
-  // ── PHYSICS TESTBED (sketch transcription) ──────────────────────────────
-  // A popper pinball board, transcribed from a hand sketch: a 5×9 lattice (20
-  // apart in x, 18 in y) whose piñata bumpers are the walls and whose seven
-  // poppers are the only motive power. Apart from the start shelf there is no
-  // terrain at all, so almost every band is a free-air redirect — which is the
-  // point: the sketch's whole verb is "bend her as she leaves a popper".
+  // ── UP THE MIDDLE ───────────────────────────────────────────────────────
+  // Grown over several rounds from a hand sketch, then finished by hand in the
+  // editor. A narrow board on a 20×18 lattice: one wall of piñata bumpers at
+  // x=55, one four-popper up-column at x=75 with the spider plant buried INSIDE
+  // it at (75,48), and three cans thrown wide — far right (95,120), in the
+  // column (75,84), and top (45,12).
   //
-  // The intended loop: drop into the bottom-left popper, run the y=138 lane
-  // right, get lifted into the x=75 up-column, ride it past the near can
-  // (75,102) and THROUGH the still-locked plant at (75,66), out the top for the
-  // far can (55,12) — then back down the x=35 column and right along y=84,
-  // where the same (75,84) popper that flung her past the plant now flings her
-  // into it.
+  // Every popper is load-bearing in the intended ride, and the ride is a lap
+  // and a half:
+  //   pop(6.5,120)↗ → pop(55,120)→ → can(95,120) far right → band A turns her
+  //   back → pop(75,138) into the column → pop(75,102) → can(75,84) →
+  //   pop(75,66) past the LOCKED plant → pop(75,30) out the top → band B tips
+  //   her onto can(45,12) → pop(35,30)↙ throws her the full width of the board
+  //   back into pop(6.5,120) → up the column a second time → pop(75,66) → the
+  //   plant, now unlocked. 5.9s, three bands.
   //
-  // Two departures from the sketch, both forced by the sim and both measured:
-  //   · the start needed a SHELF. Drawn as a bare dot at (15,120) she leaves
-  //     with START_VX=20 and her drop line passes 9.7 units from the popper
-  //     below her — the trigger is 8.2, so she sailed straight past it and the
-  //     board never started. The shelf leaves her off its lip at x=10, which
-  //     arcs into (15,138) with room to spare. It is also the only terrain in
-  //     the level, which used to be load-bearing twice over — `decodeLevel`
-  //     rejected a level with no polylines, so a terrain-less board could not
-  //     travel as an editor link. That is no longer true (the codec asks for
-  //     furniture of any kind now, because Cat's Cradle has no terrain at all),
-  //     so the shelf earns its place on the physics alone.
-  //   · the launch lane SAGS. 40 units at ~74 u/s costs her 20 units of
-  //     height, so the relay popper at (55,138) is under her arc, not on it —
-  //     patching that sag is band A's whole job.
-  { name: '7 · Popper Pinball (testbed)', budget: 4,
-    start: [3, 118],
-    terrain: [ [[2, 120], [10, 124]] ],   // the start shelf — the only terrain
-    goal: [75, 66],
-    cans: [[55, 12], [75, 102]],
+  // WHY THE ↙ RETURN POPPER SITS WHERE IT DOES, because it is the one piece
+  // that has been wrong twice and the reason is not obvious from the picture.
+  // Its job is to catch her off the top can and throw her the length of the
+  // board, so what matters is whether its aim has ROOM downrange:
+  //   · at (55,30) it worked but was hard to hit — about half the bands that
+  //     collected the top can fed it (1030/2186 sampled), though every one that
+  //     did then landed in the bottom-left popper (1030/1030).
+  //   · moving it to (35,30) alone inverted that. Easy to hit (73%) and fatal:
+  //     0 of 5045 firing runs reached the bottom-left popper. A 135° launch is
+  //     exactly diagonal, so from x=35 she travels left as fast as she falls
+  //     and crossed the world's left edge about 41 units into a 90-unit drop.
+  //     Aim sweep at that position: 105–125° lands, 130°+ exits left.
+  //   · the fix was not the popper. Moving the FEED popper left, (15,120) →
+  //     (6.5,120), moved the landing zone out to meet the 135° throw. Same
+  //     popper, same aim, now a return again — the board got wider under it.
+  // If either of those two x-coordinates moves, re-check this leg.
+  //
+  // The other edit that matters: the second feed popper is aimed −20°, nearly
+  // flat, not −45° like the first. That is what carries her the long way out to
+  // the far-right can, and it is why the bare run now gets one can on its own
+  // before flying off the right edge.
+  //
+  // GATE STATUS, measured: bare fails (flew@2.12s), all three bands are
+  // load-bearing with three different deaths (drop-one → flew / loop / left),
+  // every band is in-bounds and under BAND_MAX (33.1 / 35.6 / 51.1), and finger
+  // slop is 29/30 against a threshold of 18 — comfortably CLEAR, and the best
+  // any board here has scored with a bumper in the loop. The one thing it
+  // fails is the party rule: the true minimum is 3 bands, not 4. Two stages
+  // still carry themselves — the bare feed chain hands her the far-right can
+  // for free, and the up-column self-chains once she is in it — so those are
+  // where geometry would have to go to force a fourth.
+  //
+  // The start shelf is the only terrain, and it is not decoration: a bare start
+  // dot leaves with START_VX=20 and sails past the popper beneath it, and
+  // `decodeLevel` rejects a level with no terrain at all, so the shelf is also
+  // what lets this board travel as an editor link.
+  { name: '7 · Up the Middle (testbed)', budget: 4,
+    start: [3, 100],
+    terrain: [ [[-1.5, 103], [3, 107]] ],  // the start shelf — the only terrain
+    goal: [75, 48],
+    cans: [[45, 12], [75, 84], [95, 120]],
+    // Four, not five: the (55,102) bumper was deleted along the way — it is the
+    // one the feed hop used to hit flat, and its absence is what opens the lane
+    // from the bottom-left popper across the wall and into the column.
     bumpers: [
-      { x: 95, y: 12 },
-      { x: 55, y: 30 }, { x: 95, y: 30 },
-      { x: 15, y: 48 }, { x: 55, y: 48 }, { x: 95, y: 48 },
-      { x: 15, y: 66 }, { x: 55, y: 66 }, { x: 95, y: 66 },
-      { x: 15, y: 84 },
-      { x: 15, y: 102 }, { x: 35, y: 102 }, { x: 55, y: 102 }, { x: 95, y: 102 },
-      { x: 55, y: 120 }, { x: 95, y: 120 },
-      { x: 95, y: 138 },
-      { x: 55, y: 156 }, { x: 75, y: 156 }, { x: 95, y: 156 },
+      { x: 55, y: 48 }, { x: 55, y: 66 }, { x: 55, y: 84 }, { x: 55, y: 138 },
     ],
     pops: [
-      { x: 15, y: 138, deg: 0, spd: 90 },    // launch lane, left  → right
-      { x: 55, y: 138, deg: 0, spd: 90 },    // launch lane, relay → right
-      { x: 75, y: 120, deg: -90, spd: 120 }, // the up-column, three stages
-      { x: 75, y: 84, deg: -90, spd: 120 },
-      { x: 75, y: 48, deg: -90, spd: 120 },
-      { x: 35, y: 48, deg: 90, spd: 120 },   // the return column: down…
-      { x: 35, y: 84, deg: 0, spd: 90 },     // …then right, back under the plant
+      { x: 6.5, y: 120, deg: -45, spd: 110 }, // ↗ feed, off the start shelf
+      { x: 55, y: 120, deg: -20, spd: 110 },  // → feed, second stage: nearly flat
+      { x: 75, y: 138, deg: -90, spd: 130 },  // the up-column, four rungs
+      { x: 75, y: 102, deg: -90, spd: 130 },
+      { x: 75, y: 66, deg: -90, spd: 130 },
+      { x: 75, y: 30, deg: -90, spd: 130 },
+      { x: 35, y: 30, deg: 135, spd: 110 },   // ↙ the return, back down-left
     ],
-    // TWO bands, and they ride the intended loop end to end (event trace:
-    // pop(15,138) → pop(55,138) → corner bumpers → pop(75,120) → can(75,102) →
-    // pop(75,84) → past the locked plant → pop(75,48) → can(55,12) → bumper
-    // (55,30) → pop(35,48)↓ → pop(35,84)→ → pop(75,84)↑ → plant, 6.1s, 100%
-    // airborne). A is the lane bridge, B is the apex deflection that breaks her
-    // out of the up-column.
-    //
-    // GATE STATUS, measured: bare fails legibly (left@1.65s), both bands are
-    // load-bearing (drop-one → left / loop, two different deaths), and the
-    // 1-band hunt is empty — 0/7430 exhaustive, so the "long fall + one catch
-    // band" shortcut that kills descending levels does not exist here; the
-    // poppers own all the motive power, so there is no free fall to catch.
-    // Two things keep it out of the passing list:
-    //   · it needs 2 bands, not 4 — the party rule. Two of the four stages are
-    //     free: the bottom-right corner bumpers lift her into the up-column on
-    //     their own, and the return column (down → right → up) drives itself
-    //     once she is dropped anywhere near x=30–37 up top (5/5 sampled drops
-    //     win). Those are the two places to spend geometry if this is ever to
-    //     require 4.
-    //   · finger slop is 10/30 (the gate wants 18), and it is ENTIRELY band B:
-    //     (`robust.mjs` prints 12/30 for the same solution — it shares ONE RNG
-    //     stream across all seven levels, where `verify.mjs` reseeds per level
-    //     from JITTER_SEED. 10/30 is the gate's number; neither is stale.)
-    //     jitter A alone and it is 30/30, jitter B alone and it is 10/30. B has
-    //     to catch her at the apex of a ~120 u/s vertical launch and bend her
-    //     into a bumper, and BUMP_E is 1.18 — a bumper multiplies placement
-    //     error instead of erasing it, which is the exact opposite of what a
-    //     popper does. Same debt class as Space Cadet (5), same suspected fix:
-    //     a funnel that erases POSITION between stages, not just speed.
-    //     The failure is at least legible — 16 of the 30 misses are `loop`,
-    //     i.e. she falls back into the up-column and cycles on (75,48) every
-    //     1.31s until the run is called, which reads as "you missed the exit".
-    solution: [ [[12, 142], [44, 138]], [[68, 4], [80, 40]] ] },
+    // A: catch her out of the flat feed and turn her into the column's base.
+    // B: tip her off the column's apex onto the top can. C: the left-side
+    // return that steers her out of the ↙ popper's throw and into the plant.
+    solution: [ [[90, 108], [88, 141]], [[70, 0], [92, 28]], [[12, 65], [32, 18]] ] },
 ];
 
 export const GOOMBA_LEVELS: GoombaLevelInit[] = RAW_LEVELS.map(initLevel);

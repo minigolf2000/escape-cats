@@ -398,27 +398,44 @@ and letting them cover most of the slope, so every arc lands in a notch rather
 than on a pad. Before trusting a beam-search pass, ask it yourself for each pair
 of jobs: could one band stand in both of these places at once?
 
-**A popper erases error; a bumper multiplies it (Popper Pinball, level 7).**
+**A popper erases error; a bumper multiplies it.**
 The two toys look interchangeable — both hurl her somewhere — but they sit on
 opposite sides of the finger-slop check. A popper *grabs her to its centre*
 before firing, so every trajectory that triggers it leaves identically: it is a
 position AND direction reset, and slop upstream of one costs nothing. A bumper
 reflects off wherever she happened to touch it, at `BUMP_E` 1.18, so a 3-unit
-error in where she strikes becomes a larger error in where she goes next. Level
-7 measures the gap on one solution: the band whose job ends in a popper jitters
-30/30, the band whose job ends in a bumper jitters 10/30, and the whole
-solution scores the bumper band's number. Consequence for design: a bumper is
+error in where she strikes becomes a larger error in where she goes next.
+Popper Pinball — a testbed since removed, findings stand; git history has the
+geometry — measured the gap on one solution: the band whose job ended in a
+popper jittered 30/30, the band whose job ended in a bumper jittered 10/30, and
+the whole solution scored the bumper band's number. Up the Middle (7) is the
+constructive version of the same fact: its fragile band hands off to a POPPER
+on the leg that follows, and it scores 29/30 with a bumper wall in the loop. Consequence for design: a bumper is
 fine as an obstacle or a curtain (Piñata Alley) and fine as a *free* stage
 nothing is aimed at, but a band that must aim her at one is a precision tax you
 will pay at the gate. Aim bands at poppers; let bumpers be scenery.
 
-**An up-column of poppers is a trap, and that is the good part.** Three poppers
-firing straight up in a line make an elevator she cannot leave: the top one
-throws her ~35 units, she falls back into it 1.31 s later, and `POP_COOLDOWN`
-is 0.8 — so she re-fires forever and the run is called `loop`. That reads
+**An up-column of poppers is a trap, and that is the good part** (Up the
+Middle, level 7). Poppers firing straight up in a line make an elevator she
+cannot leave: the top one throws her ~35 units, she falls back into it 1.31 s
+later, and `POP_COOLDOWN` is 0.8 — so she re-fires forever and the run is
+called `loop`. That reads
 perfectly as a failure ("you missed the exit") and it makes the exit band
 honestly load-bearing. Just note the cost: the exit is at an apex, where she is
 slowest and most sensitive, so pair it with something that re-centres her.
+
+**A popper's aim needs ROOM DOWNRANGE, and that is invisible in the picture
+(Up the Middle, level 7).** A popper is a throw, so what decides whether it is
+a return or a run-killer is not its angle but whether the world extends far
+enough along that angle to land in. The same popper at 135° was: a working
+return at (55,30) — every one of 1030 sampled runs that fired it reached the
+far popper; a run-killer 20 units left at (35,30) — 0 of 5045 did, because an
+exactly-diagonal throw travels left as fast as it falls and crossed the world's
+left edge about 41 units into a 90-unit drop; and a working return again, still
+at (35,30) and still 135°, once the LANDING popper moved 8 units left to meet
+the throw. Nothing about the popper changed in that last step. When a thrown
+leg fails, measure where the arc actually exits before re-aiming: the fix may
+belong at the other end.
 
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — the goal plant in a pocket with a ceiling, so falling

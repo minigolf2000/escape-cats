@@ -36,13 +36,12 @@ findings — do not design from intuition, the sim disproves it reliably.
   broken no matter how clever the design felt.
 - **Seven levels ship, and TWO pass the gate — The Long Way Up (2) and Cat's
   Cradle (5).** The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The Popper
-  Grid and Pop Goes Goomba were cut, and the survivors renumbered — a level's
-  display number is its array index + 1, so removing or inserting one
-  renumbers everything after it (and the numbers live in the `name` strings, so
-  renumbering means editing them). Popper Pinball (7) was added as a physics
-  TESTBED, which means it is currently the finale: `nextLeadsToSplash` and the
-  selector's clear-every-level gate both key off the LAST index, so adding a
-  level moves the splash behind it.
+  Grid, Pop Goes Goomba and Popper Pinball were cut, and the survivors
+  renumbered — a level's display number is its array index + 1, so removing or
+  inserting one renumbers everything after it (and the numbers live in the
+  `name` strings, so renumbering means editing them). Up the Middle (7) is the
+  finale: `nextLeadsToSplash` and the selector's clear-every-level gate both
+  key off the LAST index, so adding a level moves the splash behind it.
 - **The Long Way Up (2) is the one to read first if you are building from a
   sketch**: one concave-up slope she RIDES, poppers shooting her along it, three
   long rough steps notched perpendicular into it for the players' bands to chord
@@ -61,10 +60,14 @@ findings — do not design from intuition, the sim disproves it reliably.
   purpose, rebuilt to a hand sketch whose silhouette has no room for a 4th gate
   (DESIGNING.md has the
   reachability sweep that proves no can placement fixes it).
-  Popper Pinball (7) is a hand-sketch transcription kept as a testbed, not a
-  balanced level: it needs 2 bands (1-band hunt empty, 0/7430 exhaustive), and
-  its finger slop is 10/30 traced entirely to the one band that has to bend her
-  off a bumper — see its comment in `levels.ts`.
+  Up the Middle (7) grew from a hand sketch over several rounds and is the
+  near-miss: bare fails, all three bands load-bearing with three different
+  deaths, and finger slop 29/30 — the best any board here has scored with a
+  bumper in the loop. It fails only the party rule, at 3 bands. Its ↙ return
+  popper is the piece that was wrong twice, and the lesson is in `levels.ts`:
+  what matters is whether a popper's aim has ROOM downrange, and the fix for a
+  135° throw that overshot the world's left edge was moving the LANDING popper
+  left, not re-aiming the thrower.
   Space Cadet (6) was rebuilt as a five-can machine: no ≤3-band win found
   (1-band exhaustive, 2–3 sampled), 4-band solution with every band
   load-bearing — but it fails the ±3u finger-slop check (0/30), so its debt

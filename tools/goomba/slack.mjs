@@ -60,13 +60,16 @@ const run = (set) => simulateLevel(L, set).result;
 const swap = (i, band) => sol.map((b, j) => (j === i ? band : b));
 const J = 3;
 
-/** One band jittered ±3u at both ends, the rest of the solution exact. */
-function jitterOne(i) {
+/** One band jittered ±3u at both ends, the rest of the solution exact. Takes
+ * the band explicitly so a candidate can be measured on the same stream as the
+ * shipped one — the comparison is only worth printing if it is apples to
+ * apples. */
+function jitterOne(i, band = sol[i]) {
   const rnd = mulberry(JITTER_SEED);
   let wins = 0;
   const modes = {};
   for (let t = 0; t < N; t++) {
-    const jb = jitterSolution([sol[i]], rnd)[0];
+    const jb = jitterSolution([band], rnd)[0];
     const r = run(swap(i, jb));
     modes[r] = (modes[r] || 0) + 1;
     if (r === "win") wins++;
@@ -75,18 +78,21 @@ function jitterOne(i) {
   return { wins, modes };
 }
 
-/** The band slid bodily along its own perpendicular — the window, and where in
- * it the band is parked. */
+/** The band slid bodily along its own perpendicular — the window, where in it
+ * the band is parked, and the band moved to the middle of it. */
 function slide(i) {
   const [[ax, ay], [bx, by]] = sol[i];
   const len = Math.hypot(bx - ax, by - ay) || 1;
   const nx = -(by - ay) / len, ny = (bx - ax) / len;
-  const ok = (d) => run(swap(i, [[ax + nx * d, ay + ny * d], [bx + nx * d, by + ny * d]])) === "win";
+  const shift = (d) => [[+(ax + nx * d).toFixed(1), +(ay + ny * d).toFixed(1)],
+                        [+(bx + nx * d).toFixed(1), +(by + ny * d).toFixed(1)]];
+  const ok = (d) => run(swap(i, shift(d))) === "win";
   if (!ok(0)) return null;
   let lo = 0, hi = 0;
   while (lo > -30 && ok(lo - 1)) lo--;
   while (hi < 30 && ok(hi + 1)) hi++;
-  return { lo, hi, len };
+  const mid = (lo + hi) / 2;
+  return { lo, hi, len, off: mid, centred: shift(mid) };
 }
 
 /** The band scaled about its centre — which lengths still win. */
@@ -124,6 +130,17 @@ for (let i = 0; i < sol.length; i++) {
     ? `    stretch wins at length ${st[0]}..${st[st.length - 1]}` +
       `${st.length !== (st[st.length - 1] - st[0]) / 2 + 1 ? " (with gaps)" : ""}`
     : "    stretch no length wins");
+  // A band parked off-centre in its own window is the cheapest fix there is, so
+  // don't leave it as advice: move it to the middle, measure it on the same
+  // jitter stream, and say whether that is actually a gain. Often it is not —
+  // the window's edges are not equally lethal — and a "no gain" line saves the
+  // next thread from re-deriving that.
+  if (sl && Math.abs(sl.off) >= 1) {
+    const alt = jitterOne(i, sl.centred);
+    console.log(`    centred ${sl.off > 0 ? "+" : ""}${sl.off} along that line → ${JSON.stringify(sl.centred)}` +
+                `  jitter ${alt.wins}/${N} (${alt.wins > wins ? `+${alt.wins - wins}, take it` :
+                  alt.wins === wins ? "same, keep the round numbers" : `${alt.wins - wins}, leave it`})`);
+  }
   scores.push({ i, wins });
 }
 const weak = scores.reduce((a, b) => (b.wins < a.wins ? b : a));

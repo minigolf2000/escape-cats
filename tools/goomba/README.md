@@ -33,7 +33,7 @@ node search.mjs 2      # same, one level, with the winning families listed
 node trace.mjs 4 '[[[10,20],[40,30]]]'   # dense trajectory dump, for placing geometry
 node route.mjs 3 drop  # the RIDE as a chain of poppers/cans/bands — and its four deaths
 node slack.mjs 3       # per-band forgiveness: which band a real finger loses the run on
-node scan.mjs 3 v 34 60 '[fixed bands]'  # sweep ONE band across the level → win windows
+node scan.mjs 3 v 34 60 '[fixed]' --step 1   # sweep ONE band → win windows (2u by default)
 node solve.mjs 3 3     # beam-search auto-solver: finds the shortcuts you didn't intend
 node arc.mjs 94 200 -115 118 164          # popper ballistics: where the arc lands
 node diag.mjs 3        # failure modes of jittered placements

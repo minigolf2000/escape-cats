@@ -68,15 +68,21 @@ every stage must actually be ridden.
 3. **Find where bands work**: `node scan.mjs <idx> v|h <spanLo> <spanHi>
    '[fixed]'` sweeps one band across the level and prints outcome windows —
    how you discover the win window for each intended band and its width
-   (forgiveness). Aim for windows ≥ ~8 units. `node solve.mjs <idx> [k]` (beam
+   (forgiveness). Aim for windows ≥ ~8 units, and once you have a window,
+   re-sweep it with `--step 1`: the default 2-unit sweep reports a 5-wide window
+   as 4 or 6 depending on phase, which is the difference between shipping a band
+   centred and shipping it on an edge. `node solve.mjs <idx> [k]` (beam
    search) finds the solutions you did NOT intend — run it at k = 1–3 to hunt
    shortcuts before a player does. Once a set wins, `node slack.mjs <idx>` is
    the forgiveness card for it: per band, the ±3u jitter rate with its failure
    modes, the win window along that band's own perpendicular (so it works for
    tilted bands, which `scan.mjs` cannot sweep) and how far off-centre the band
-   is parked in it, and the lengths that still win. It closes with the whole
-   solution jittered on the gate's seed AND three others, because 30 trials
-   cannot tell 60% from 85% and only one of those ships.
+   is parked in it, and the lengths that still win. A band parked off-centre
+   gets its centred version measured on the same jitter stream and a verdict —
+   *take it*, *same*, or *leave it*, because a window's two edges are not
+   equally lethal and centring is not automatically a gain. It closes with the
+   whole solution jittered on the gate's seed AND three others, because 30
+   trials cannot tell 60% from 85% and only one of those ships.
 4. **Bake the solution** into the level's `solution` field, then run THE GATE:
    `node verify.mjs <idx>` — one PASS/FAIL over the whole battery (bare fails,
    4-band solution wins, every band load-bearing, finger-slop, exhaustive

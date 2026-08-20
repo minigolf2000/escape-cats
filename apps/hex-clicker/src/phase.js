@@ -79,28 +79,58 @@ let splashOpen = false;
  * from JS, and Vite's base is the one string that is right in dev and in the
  * built bundle both. */
 export function initSplashArt() {
-  const url = import.meta.env.BASE_URL + "art/hex-splash.webp";
-  splashArtEl.style.backgroundImage = `url("${url}")`;
-  const img = new Image();
-  img.onload = () => {
-    splashEl.style.setProperty("--sky-top", edgeColor(img, 0));
-    splashEl.style.setProperty("--sky-bottom", edgeColor(img, img.height - 1));
+  splashArtEl.onload = () => {
+    const sky = skyStops(splashArtEl, SKY_STOPS);
+    // The ends double as the flat bands above and below the picture, so the two
+    // fills are the same colours where they meet the art (see the two-slacks
+    // note in index.html).
+    splashEl.style.setProperty("--sky-top", sky[0]);
+    splashEl.style.setProperty("--sky-bottom", sky[sky.length - 1]);
+    splashEl.style.setProperty(
+      "--sky-ramp",
+      `linear-gradient(${sky
+        .map((c, i) => `${c} ${((100 * i) / (sky.length - 1)).toFixed(1)}%`)
+        .join(",")})`,
+    );
   };
-  img.src = url; // same URL, so this is the cache hit the CSS already fetched
+  splashArtEl.src = import.meta.env.BASE_URL + "art/hex-splash.webp";
 }
 
-/** Average colour of one pixel ROW, as css — a full-width 1px slice squeezed
- * into a 1x1 canvas, so the browser does the averaging. (Goomba's main.js has
- * the twin of this for its canvas splash; six lines of pixel plumbing is not
- * worth a shared module that the WORKER would then be importing canvas code
- * through.) */
-function edgeColor(img, y) {
+/** The art's own SIDE EDGE, sampled down its height into n colours — the sky to
+ * continue the picture with in every direction, which is why no colour is
+ * picked by hand here and none survives the art being replaced.
+ *
+ * The EDGE strip rather than the full row, because these colours have to meet
+ * the picture at its left and right sides, where the sky is; a full-row average
+ * would be the artist's sky mixed with whatever is in the middle of the picture,
+ * which at these heights is a moon. And more than two stops, because a ramp
+ * down the side has to follow the sky's own turns (this one lightens into a
+ * horizon band low down) rather than just its ends.
+ *
+ * Each stop is one exact row squeezed to a pixel, so sky[0] and the last stop
+ * are the picture's true first and last rows and the flat bands can share them.
+ *
+ * (Goomba's main.js has the twin of this for its canvas splash; a dozen lines of
+ * pixel plumbing is not worth a shared module that the WORKER would then be
+ * importing canvas code through.) */
+const SKY_STOPS = 24;
+function skyStops(img, n) {
   const c = document.createElement("canvas");
-  c.width = c.height = 1;
+  c.width = 2; c.height = n;
   const g = c.getContext("2d");
-  g.drawImage(img, 0, y, img.width, 1, 0, 0, 1, 1);
-  const [r, gr, b] = g.getImageData(0, 0, 1, 1).data;
-  return `rgb(${r},${gr},${b})`;
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const edge = Math.max(1, Math.round(w * 0.02)); // wide enough to average the grain out
+  for (let i = 0; i < n; i++) {
+    const y = Math.round((i / (n - 1)) * (h - 1));
+    g.drawImage(img, 0, y, edge, 1, 0, i, 1, 1);
+    g.drawImage(img, w - edge, y, edge, 1, 1, i, 1, 1);
+  }
+  const d = g.getImageData(0, 0, 2, n).data;
+  const mid = (a, b) => (d[a] + d[b]) >> 1; // the two sides, averaged into one ramp
+  return Array.from({ length: n }, (_, i) => {
+    const l = i * 8, r = l + 4;
+    return `rgb(${mid(l, r)},${mid(l + 1, r + 1)},${mid(l + 2, r + 2)})`;
+  });
 }
 
 /** Show or hide the splash. Local, idempotent, and the pill's label follows it
@@ -108,7 +138,7 @@ function edgeColor(img, y) {
 export function setSplash(open) {
   splashOpen = open && game.wonAt !== null; // no splash without the win
   splashEl.classList.toggle("on", splashOpen);
-  wonPillEl.textContent = splashOpen ? "← back to Hex" : "🏆 win screen";
+  wonPillEl.textContent = splashOpen ? "← back to game" : "🏆 win screen";
 }
 
 /** The pill's whole job: whichever of the two views you are not looking at. */

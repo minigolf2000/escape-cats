@@ -64,7 +64,7 @@ Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is
 each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
 one player hoarding, but only geometry can make a level *need* four bands, so
 the level gate below still does the load-bearing work.
-Six levels ship. One passes the full gate — Cat's Cradle (4) — and the others
+Seven levels ship. One passes the full gate — Cat's Cradle (4) — and the others
 are the standing rebalance debt: they win with fewer than 4 bands, or lose a
 real finger. Freshly measured, not inherited: The Long Way Down (1) needs 3,
 Watering Can Slalom (2) needs 3 (0/10325 at one band, exhaustive), Piñata Alley
@@ -96,3 +96,13 @@ names the culprits instead of leaving them as prose: band2, the 6-unit C-bend,
 survives jitter 16% of the time inside a 2-unit window; bands 0 and 1 have
 2- and 4-unit windows; and band3 sits 9 units off-centre in an 18-unit window,
 which is free robustness nobody had measured.
+Popper Pinball (7) is a TESTBED, not a balanced level — a hand sketch
+transcribed to check the physics of "poppers move her, bands only steer".
+The physics hold: the intended loop rides end to end in 6.1s at 94% airborne,
+including the collect-the-far-can-then-come-back leg. What it is not is a
+4-band level — `minbands` puts it at 2 (0/7430 at one band, exhaustive), and
+its slop is 10/30, all of it in the single band that has to deflect her off a
+piñata bumper (BUMP_E 1.18 multiplies placement error where a popper would
+erase it) — `slack.mjs 6` is the one-command version of that attribution. Its
+comment in `levels.ts` names the two stages that are currently free and would
+have to carry geometry for it to require 4.

@@ -75,43 +75,13 @@ const LOOK_Y = 8;
 // small it barely registered. There is a pupil again, so the tell is legible
 // again.
 //
-// Rest is the same slit in both variants — narrow on X, drawn height on Y.
-// How far it OPENS is per-variant, because the two are not equally free to grow:
-//   ring  — the pupil is the same yellow as the ring it sits inside, with only
-//           coat between them, so a big one closes that gap and the eye reads as
-//           one yellow smear rather than a pupil in a socket. 1 is the size the
-//           artist drew, and it is also about as large as this variant can go
-//           before it stops reading. Left at the drawing.
-//   solid — dark on yellow has contrast to spare, and nothing to merge with, so
-//           it can open right out to a saucer. The socket clip is what makes
-//           that safe; see LOOK_X/LOOK_Y above.
+// Rest is a slit — narrow on X, drawn height on Y. It opens right out to a
+// saucer, which the shipped socket can afford: the pupil is inked in the
+// drawing's own dark line colour on a solid yellow disc, so it has contrast to
+// spare and nothing to merge with. The socket clip is what keeps a pupil that
+// wide inside the eye; see LOOK_X/LOOK_Y above.
 const PUPIL_SLIT = 0.34;
-const PUPIL_ROUND = { ring: 1, solid: 1.35 };
-
-// ---------------------------------------------------------------------------
-// EYE VARIANT. Two readings of the artist's socket, both shipped, because which
-// one is right is a taste call and taste calls want to be made against the
-// running game on a real phone rather than against a drawing on a desk:
-//   "ring"  — the socket as drawn, a hollow yellow ring with the coat showing
-//             through it and the pupil in the same yellow.
-//   "solid" — the same outline filled edge to edge, pupil inked in the drawing's
-//             own line colour. Bolder, and much more legible at the size Hex
-//             actually renders at on a phone.
-// Everything else about the rig is identical: same socket outline, same pupil
-// shape, same look and dilation. Only which shapes are painted, and in what
-// colour — see the eye-variant block in index.html.
-// ?eyes=solid rather than a debug-only control, so it can be tried in a REAL
-// room on a real phone (the debug panel joins the sim, which is the wrong place
-// to judge how the eyes read while a mouse is actually running past).
-export const EYE_VARIANTS = ["ring", "solid"];
-let eyeVariant = EYE_VARIANTS[0];
-export function setEyes(v) {
-  eyeVariant = EYE_VARIANTS.includes(v) ? v : EYE_VARIANTS[0];
-  hexCatEl.dataset.eyes = eyeVariant;
-}
-export function initEyes() {
-  setEyes(new URLSearchParams(location.search).get("eyes"));
-}
+const PUPIL_ROUND = 1.35;
 
 // The pet squash, as the artist drew it: four registered frames, held in order.
 // This is the one animation that came out of the art file as an ANIMATION rather
@@ -304,7 +274,7 @@ export function updateCat(t) {
   // grows BOTH axes, which is what makes a saucer read as a pupil opening rather
   // than as one being stretched sideways.
   const wide = !asleep && (goldState.active || zoomBuff() > 1);
-  const r = PUPIL_ROUND[eyeVariant];
+  const r = PUPIL_ROUND;
   const pupilT = wide ? `scale(${r}, ${r})` : `scale(${PUPIL_SLIT}, 1)`;
   if (pupilLeftEl.style.transform !== pupilT) {
     pupilLeftEl.style.transform = pupilT;

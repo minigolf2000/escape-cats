@@ -320,6 +320,28 @@ above. If a level must REQUIRE 4, the floor has to be broken, tilted away from
 the plant, or fenced, and the descent has to be interrupted by something that
 erases state. No amount of collectible placement substitutes.
 
+**A popper erases error; a bumper multiplies it (Popper Pinball, level 7).**
+The two toys look interchangeable — both hurl her somewhere — but they sit on
+opposite sides of the finger-slop check. A popper *grabs her to its centre*
+before firing, so every trajectory that triggers it leaves identically: it is a
+position AND direction reset, and slop upstream of one costs nothing. A bumper
+reflects off wherever she happened to touch it, at `BUMP_E` 1.18, so a 3-unit
+error in where she strikes becomes a larger error in where she goes next. Level
+7 measures the gap on one solution: the band whose job ends in a popper jitters
+30/30, the band whose job ends in a bumper jitters 10/30, and the whole
+solution scores the bumper band's number. Consequence for design: a bumper is
+fine as an obstacle or a curtain (Piñata Alley) and fine as a *free* stage
+nothing is aimed at, but a band that must aim her at one is a precision tax you
+will pay at the gate. Aim bands at poppers; let bumpers be scenery.
+
+**An up-column of poppers is a trap, and that is the good part.** Three poppers
+firing straight up in a line make an elevator she cannot leave: the top one
+throws her ~35 units, she falls back into it 1.31 s later, and `POP_COOLDOWN`
+is 0.8 — so she re-fires forever and the run is called `loop`. That reads
+perfectly as a failure ("you missed the exit") and it makes the exit band
+honestly load-bearing. Just note the cost: the exit is at an apex, where she is
+slowest and most sensitive, so pair it with something that re-centres her.
+
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — the goal plant in a pocket with a ceiling, so falling
   arrivals are blocked and the only entry is horizontally through the mouth.

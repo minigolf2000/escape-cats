@@ -330,13 +330,23 @@ const RAW_LEVELS: GoombaLevel[] = [
   // first drop shaft and the two lane exits, so the route has to be ridden in
   // order, and lane 4 delivers her to the plant on its own once she is in it.
   //
-  // The four jobs, each with its own death (drop-one, measured):
+  // DEBT, introduced on purpose: start was moved to (16,2.5) so she drops
+  // straight into pop0 (26,20), the top-left-most popper, on the bare fall —
+  // no band needed to enter the lattice any more. That was job 1 below;
+  // `minbands.mjs 3` now measures the true minimum at 3, and
+  // `verify.mjs 3` fails on "every band load-bearing" (drop-one on band 1 →
+  // still wins). Kept this way deliberately — restoring the 4-band
+  // requirement needs a new 4th job designed into the lattice, not a start-
+  // position tweak, and that redesign has not been done.
+  //
+  // The four jobs as they stood before the start moved, each with its own
+  // death (drop-one, measured against the OLD start [0,0]):
   //   1. SLIDE her in, top-left — the one band that is not a wall. Bare she
   //      falls clean between lane 1's poppers AND lane 2's, lane 3 grabs her
   //      and shoots her off the right edge with one can (flew, 1/3). Drop this
   //      band from the solution and she never enters the lattice at all: she
   //      clips the lane-2 wall on the way past and falls out of the world
-  //      (fall, 0/3).
+  //      (fall, 0/3). With the new start this job no longer exists.
   //   2. WALL lane 1's right end — drop it and lane 1 fires her off the right
   //      edge (flew, 0/3). Its shaft is the one with the hanging can.
   //   3. WALL lane 2's left end — drop it and lane 2 fires her out of the left
@@ -345,16 +355,13 @@ const RAW_LEVELS: GoombaLevel[] = [
   //      collected everything and flies past the plant off the right edge
   //      (flew, 3/3).
   //
-  // GATE: PASS (`node verify.mjs 3`) — bare fails, 4 legal bands win at ~3.7s,
-  // every band load-bearing (fall/flew/left/flew), finger slop 30/30, no 1-band
-  // win (exhaustive), none at 2 or 3 (30000/20000 sampled), none from the beam
-  // search. Jitter measured ~95% on three unrelated seeds too, not just the
-  // gate's — the walls are long (40-54) on purpose: ±3u on the ends of a
-  // 26-unit wall tilts it 13°, which turns a rebound by 26° and throws the
-  // landing off the popper below; the same slop on a 50-unit wall barely
-  // moves it. Ride: 3.7s at 99% airborne, every one of the twelve poppers fired.
-  { name: "4 · Cat's Cradle", budget: 4,
-    start: [0, 0],
+  // GATE: FAIL (`node verify.mjs 3`) — bare still fails (she now catches the
+  // first popper instead of falling through), the 4-band solution still wins
+  // at ~3.5s, but drop-one on band 1 also wins, so "every band load-bearing"
+  // fails and the party rule is not honored. budget dropped to 3 to match the
+  // measured truth until the lattice is redesigned around the new entry.
+  { name: "4 · Cat's Cradle", budget: 3,
+    start: [16, 2.5],
     terrain: [], // deliberate: the players' bands are the only surfaces here
     goal: [18, 112],
     // shaft can (hangs between lanes 1 and 2) / lane 2's left exit / lane 3's

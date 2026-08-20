@@ -34,9 +34,15 @@ findings — do not design from intuition, the sim disproves it reliably.
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
-- **Six levels ship.** The Skim, The Puzzle Box, Pillow Fort and Mind the Gap
+- **Seven levels ship.** The Skim, The Puzzle Box, Pillow Fort and Mind the Gap
   were cut, and the survivors renumbered 1–6 — a level's display number is
-  its array index + 1, so removing one renumbers everything after it.
+  its array index + 1, so removing one renumbers everything after it. Popper
+  Pinball (7) was added later as a physics TESTBED, which means it is currently
+  the finale: `nextLeadsToSplash` and the selector's clear-every-level gate both
+  key off the LAST index, so adding a level moves the splash behind it. If it is
+  ever pulled back out, `packages/shared/src/goomba/codec.ts` can carry it as an
+  editor link instead — but note that `decodeLevel` rejects a level with no
+  terrain at all, which is why Popper Pinball has a start shelf.
 - Levels 1–4 need fewer than 4 bands — the standing debt. Re-measured with
   `minbands`/`solve`, not inherited: The Long Way Down (1) needs 3, Watering
   Can Slalom (2) needs 3, Piñata Alley (3) needs 2, and only Pop Goes Goomba
@@ -46,6 +52,10 @@ findings — do not design from intuition, the sim disproves it reliably.
   the party rule; level 1 joined them on purpose, rebuilt to a hand sketch
   whose silhouette has no room for a 4th gate (DESIGNING.md has the
   reachability sweep that proves no can placement fixes it).
+  Popper Pinball (7) is a hand-sketch transcription kept as a testbed, not a
+  balanced level: it needs 2 bands (1-band hunt empty, 0/7430 exhaustive), and
+  its finger slop is 10/30 traced entirely to the one band that has to bend her
+  off a bumper — see its comment in `levels.ts`.
   Space Cadet (5) was rebuilt as a five-can machine: no ≤3-band win found
   (1-band exhaustive, 2–3 sampled), 4-band solution with every band
   load-bearing — but it fails the ±3u finger-slop check (0/30), so its debt

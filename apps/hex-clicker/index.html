@@ -557,41 +557,22 @@
   /* The artist's yellow. Briefly the shop's green, to tie the tray to the thing
      you tap — that tie is gone with the green shop, and a brutalist tray has no
      hue to match anyway, so the eyes go back to the drawing. */
-  #hexCat { --hex-eye: #D0D060; --hex-pupil: var(--hex-eye); }
+  /* The pupil is inked in the drawing's own line colour (#302B2A, sampled off
+     hex-day.png rather than guessed) on the solid yellow socket. */
+  #hexCat { --hex-eye: #D0D060; --hex-pupil: #302B2A; }
   #hexCat .eye path { fill: var(--hex-eye); }
   #hexCat .eye path.pupil { fill: var(--hex-pupil); }
   #catWrap.zoomies #hexCat { --hex-eye: #ffe98a; }
 
-  /* ---- EYE VARIANT (data-eyes on #hexCat; set from ?eyes= — see cat.js) ----
-     Two readings of the same sheet, switchable because they are a taste call and
-     not a correctness one:
-       "ring"  (default) — the socket as drawn: a hollow yellow ring with the
-                coat showing through it, and a yellow pupil inside. This is what
-                is on the artist's page.
-       "solid" — the same outline filled yellow edge to edge with the pupil
-                inked in the drawing's own line colour (#302B2A, sampled off
-                hex-day.png rather than guessed). Reads as a conventional cat
-                eye; bolder and much more legible at a phone's real size.
-     The disc is its own path rather than the ring with its hole patched: two
-     shapes meeting along the hole's edge leave an antialiasing seam, and the
-     seam lands in the middle of the eye where it is impossible not to see.
-     :not(.shut) so the sleeping lash arc still wins — the pair below hides
-     .eyeOpen wholesale, and this rule would otherwise tie with it and, being
-     later, put an open socket back under the closed lashes. */
-  #hexCat .eyeDisc { visibility: hidden; }
-  #hexCat[data-eyes="solid"] .eyeRing { visibility: hidden; }
-  #hexCat[data-eyes="solid"]:not(.shut) .eyeDisc { visibility: visible; }
-  #hexCat[data-eyes="solid"] { --hex-pupil: #302B2A; }
-
-  /* Open ring vs the drawn shut-lash arc. Swapped as a pair, never blended:
+  /* Open socket vs the drawn shut-lash arc. Swapped as a pair, never blended:
      the artist drew the closed eye as its own gesture (a lash curve with three
-     strokes under it), and cross-fading it with the ring would show two eyes at
-     once through the middle of every transition. */
+     strokes under it), and cross-fading it with the open socket would show two
+     eyes at once through the middle of every transition. */
   #hexCat .eyeShut { visibility: hidden; }
   #hexCat.shut .eyeOpen { visibility: hidden; }
   #hexCat.shut .eyeShut { visibility: visible; }
 
-  /* LIDS. scaleY on the ring, about its own centre. */
+  /* LIDS. scaleY on the socket, about its own centre. */
   #hexCat #eyeLeft, #hexCat #eyeRight {
     transform-box: fill-box; transform-origin: center; transition: transform .06s;
   }
@@ -1571,13 +1552,10 @@
            that keeps it there however wide it opens. -->
       <g id="eyeLeft" class="eye">
        <!-- THE SOCKET. Fixed to the head: it is the eye's outline, and an
-            outline does not slide around a face. Two drawings of the same
-            socket, one visible at a time (see the eye-variant block in the CSS):
-            .eyeRing is the artist's hollow ring, .eyeDisc is its outer contour
-            alone, filled. The disc is a SEPARATE path rather than the ring plus
-            a patch over its hole — two abutting shapes leave an antialiasing
-            seam right down the middle of the eye. -->
-       <path class="eyeOpen eyeRing" d="M290.0 569.5 285.0 569.5 284.0 568.5 253.0 568.5 252.0 567.5 249.0 567.5 246.0 565.5 244.0 565.5 240.0 563.5 236.0 563.5 230.0 558.5 228.0 558.5 225.0 556.5 223.0 556.5 220.0 553.5 219.0 553.5 218.5 552.0 217.0 551.5 213.5 548.0 212.5 545.0 207.5 539.0 206.5 535.0 201.5 527.0 201.5 524.0 199.5 521.0 199.5 519.0 198.5 518.0 198.5 514.0 197.5 513.0 199.5 507.0 201.0 505.5 204.0 505.5 206.5 503.0 203.5 499.0 204.5 498.0 204.0 497.5 199.0 497.5 197.5 496.0 197.5 491.0 199.5 487.0 199.5 481.0 203.5 473.0 204.5 466.0 208.5 461.0 213.5 449.0 219.0 443.5 221.0 443.5 224.0 440.5 228.0 439.5 229.0 438.5 231.0 438.5 232.0 437.5 253.0 437.5 254.0 438.5 257.0 438.5 258.0 439.5 265.0 439.5 269.0 441.5 270.0 440.5 273.0 440.5 279.0 437.5 282.0 437.5 286.0 439.5 296.0 440.5 299.0 443.5 301.0 443.5 308.0 449.5 309.0 449.5 312.5 453.0 314.5 457.0 323.5 467.0 326.5 473.0 326.5 477.0 328.5 479.0 330.5 483.0 330.5 487.0 331.5 488.0 331.5 491.0 333.5 495.0 333.5 512.0 332.5 513.0 333.5 515.0 332.5 516.0 332.5 523.0 331.5 524.0 331.5 528.0 330.5 529.0 330.5 531.0 327.5 536.0 327.5 542.0 325.5 546.0 322.5 549.0 320.5 554.0 317.5 557.0 317.0 558.5 303.0 565.5 298.0 565.5ZM293.5 552.0 296.0 551.5 300.0 548.5 301.0 548.5 310.5 539.0 310.5 537.0 313.5 533.0 313.5 530.0 314.5 529.0 314.5 526.0 315.5 525.0 315.5 520.0 316.5 519.0 315.5 517.0 315.5 514.0 316.5 513.0 316.5 498.0 317.5 497.0 316.5 492.0 314.5 489.0 314.5 484.0 310.5 480.0 308.5 476.0 304.5 472.0 303.5 469.0 302.0 467.5 301.0 467.5 300.5 466.0 294.0 460.5 288.0 457.5 285.0 457.5 284.0 456.5 283.0 457.5 269.0 457.5 268.0 456.5 262.0 456.5 260.0 454.5 254.0 454.5 253.0 455.5 248.0 455.5 247.0 454.5 234.0 454.5 223.5 466.0 222.5 469.0 220.5 471.0 220.5 473.0 216.5 481.0 216.5 487.0 214.5 491.0 214.5 495.0 212.0 498.5 208.5 499.0 209.5 503.0 212.5 505.0 213.5 511.0 215.5 514.0 215.5 517.0 218.5 521.0 218.5 524.0 220.5 528.0 223.5 531.0 225.5 535.0 236.0 544.5 240.0 546.5 243.0 546.5 246.0 548.5 254.0 550.5 255.0 551.5 265.0 551.5 266.0 552.5 270.0 552.5 271.0 551.5 274.0 551.5 275.0 552.5 284.0 552.5 285.0 551.5 291.0 551.5 292.0 552.5Z"/>
+            outline does not slide around a face. .eyeDisc is the artist's socket
+            contour filled edge to edge — the hollow-ring reading of the same
+            drawing was tried alongside it and cut, because filled is far more
+            legible at the size Hex actually renders at on a phone. -->
        <path class="eyeOpen eyeDisc" d="M290.0 569.5 285.0 569.5 284.0 568.5 253.0 568.5 252.0 567.5 249.0 567.5 246.0 565.5 244.0 565.5 240.0 563.5 236.0 563.5 230.0 558.5 228.0 558.5 225.0 556.5 223.0 556.5 220.0 553.5 219.0 553.5 218.5 552.0 217.0 551.5 213.5 548.0 212.5 545.0 207.5 539.0 206.5 535.0 201.5 527.0 201.5 524.0 199.5 521.0 199.5 519.0 198.5 518.0 198.5 514.0 197.5 513.0 199.5 507.0 201.0 505.5 204.0 505.5 206.5 503.0 203.5 499.0 204.5 498.0 204.0 497.5 199.0 497.5 197.5 496.0 197.5 491.0 199.5 487.0 199.5 481.0 203.5 473.0 204.5 466.0 208.5 461.0 213.5 449.0 219.0 443.5 221.0 443.5 224.0 440.5 228.0 439.5 229.0 438.5 231.0 438.5 232.0 437.5 253.0 437.5 254.0 438.5 257.0 438.5 258.0 439.5 265.0 439.5 269.0 441.5 270.0 440.5 273.0 440.5 279.0 437.5 282.0 437.5 286.0 439.5 296.0 440.5 299.0 443.5 301.0 443.5 308.0 449.5 309.0 449.5 312.5 453.0 314.5 457.0 323.5 467.0 326.5 473.0 326.5 477.0 328.5 479.0 330.5 483.0 330.5 487.0 331.5 488.0 331.5 491.0 333.5 495.0 333.5 512.0 332.5 513.0 333.5 515.0 332.5 516.0 332.5 523.0 331.5 524.0 331.5 528.0 330.5 529.0 330.5 531.0 327.5 536.0 327.5 542.0 325.5 546.0 322.5 549.0 320.5 554.0 317.5 557.0 317.0 558.5 303.0 565.5 298.0 565.5Z"/>
        <g clip-path="url(#socketClipL)">
         <g class="look" id="irisLeft">
@@ -1585,9 +1563,9 @@
               55% x 71% about its centre, so it carries the artist's wobble and is
               registered to the socket by construction rather than by eye; every
               2nd point kept, since at 55% the dropped detail is under a pixel at
-              Hex's real size. Drawn at the RING variant's dilated size — the
-              resting slit scales it down, and the solid variant's saucer scales
-              it up (see PUPIL_ROUND in cat.js). -->
+              Hex's real size. Drawn at the artist's own size — the resting slit
+              scales it down, the dilated saucer scales it up (see PUPIL_ROUND
+              in cat.js). -->
          <path class="eyeOpen pupil" id="pupilLeft" d="M279.8 537.9 283.4 535.5 289.1 528.7 290.8 524.4 291.3 521.6 291.9 518.8 292.4 514.5 291.9 511 292.4 499.6 292.4 495.3 291.3 489.7 288 484 285.3 479 283.9 477.9 280.1 473 275.1 470.8 274 470.8 265.8 470.1 261.4 468.7 257.5 469.4 254.2 468.7 241.3 476.9 239.6 480.4 237.4 487.5 236.3 494.6 235 500 233.6 503.1 235.8 508.8 236.9 513.1 238.5 518.1 241.3 523 248.2 532.6 252 534 258.1 536.9 264.1 537.6 266.9 538.3 269.1 537.6 274.6 538.3 278.4 537.6Z"/>
         </g>
        </g>
@@ -1601,13 +1579,10 @@
       </g>
       <g id="eyeRight" class="eye">
        <!-- THE SOCKET. Fixed to the head: it is the eye's outline, and an
-            outline does not slide around a face. Two drawings of the same
-            socket, one visible at a time (see the eye-variant block in the CSS):
-            .eyeRing is the artist's hollow ring, .eyeDisc is its outer contour
-            alone, filled. The disc is a SEPARATE path rather than the ring plus
-            a patch over its hole — two abutting shapes leave an antialiasing
-            seam right down the middle of the eye. -->
-       <path class="eyeOpen eyeRing" d="M537.0 543.5 535.0 542.5 534.0 543.5 532.0 543.5 531.0 542.5 525.0 541.5 524.0 540.5 521.0 540.5 520.0 539.5 514.0 539.5 511.0 537.5 506.0 537.5 505.0 536.5 502.0 536.5 501.0 535.5 499.0 535.5 498.0 534.5 496.0 534.5 492.0 532.5 489.0 532.5 485.0 530.5 482.0 527.5 479.0 526.5 474.5 522.0 474.5 521.0 464.5 512.0 464.5 510.0 462.5 507.0 462.5 503.0 460.5 500.0 460.5 491.0 459.5 490.0 460.5 488.0 460.5 481.0 459.5 480.0 459.5 470.0 460.5 469.0 460.5 464.0 462.5 461.0 462.5 458.0 463.5 457.0 463.5 453.0 467.5 445.0 467.5 443.0 469.5 439.0 472.5 436.0 475.5 428.0 479.5 425.0 483.5 418.0 488.0 414.5 492.0 413.5 495.0 410.5 499.0 409.5 504.0 406.5 509.0 406.5 510.0 405.5 519.0 405.5 520.0 406.5 528.0 406.5 529.0 407.5 533.0 407.5 535.0 406.5 536.0 407.5 540.0 408.5 544.0 411.5 548.0 411.5 554.0 414.5 556.0 414.5 557.0 413.5 558.0 414.5 562.0 414.5 566.0 416.5 568.0 418.5 571.0 419.5 582.5 431.0 583.5 434.0 590.5 442.0 592.5 446.0 592.5 448.0 593.5 449.0 594.5 455.0 595.5 456.0 596.5 486.0 595.5 487.0 595.5 493.0 594.5 494.0 594.5 499.0 592.5 503.0 592.5 509.0 591.5 511.0 588.5 514.0 588.5 515.0 585.5 518.0 585.5 519.0 574.0 529.5 570.0 530.5 565.0 534.5 562.0 535.5 560.0 537.5 558.0 537.5 556.0 539.5 549.0 540.5 545.0 542.5 541.0 541.5ZM539.5 526.0 542.0 525.5 545.0 523.5 550.0 522.5 553.0 520.5 555.0 520.5 557.0 518.5 561.0 517.5 563.0 515.5 564.0 515.5 566.0 513.5 567.0 513.5 569.0 511.5 572.0 510.5 573.5 509.0 575.5 500.0 578.5 497.0 578.5 493.0 579.5 492.0 579.5 486.0 578.5 485.0 578.5 480.0 579.5 479.0 579.5 471.0 580.5 470.0 580.5 463.0 579.5 462.0 579.5 459.0 578.5 458.0 578.5 456.0 575.5 452.0 574.5 446.0 563.0 435.5 561.0 434.5 557.0 434.5 549.0 430.5 544.0 429.5 540.0 426.5 534.0 423.5 528.0 423.5 527.0 422.5 523.0 422.5 522.0 423.5 509.0 423.5 501.0 427.5 499.0 427.5 491.5 435.0 491.5 437.0 486.5 442.0 486.5 444.0 484.5 447.0 484.5 449.0 479.5 458.0 479.5 462.0 478.5 463.0 478.5 465.0 476.5 469.0 476.5 482.0 475.5 483.0 475.5 487.0 476.5 488.0 476.5 496.0 483.0 508.5 484.0 508.5 487.0 511.5 494.0 514.5 497.0 517.5 500.0 518.5 502.0 520.5 517.0 520.5 518.0 521.5 520.0 521.5 524.0 523.5 530.0 524.5 533.0 526.5Z"/>
+            outline does not slide around a face. .eyeDisc is the artist's socket
+            contour filled edge to edge — the hollow-ring reading of the same
+            drawing was tried alongside it and cut, because filled is far more
+            legible at the size Hex actually renders at on a phone. -->
        <path class="eyeOpen eyeDisc" d="M537.0 543.5 535.0 542.5 534.0 543.5 532.0 543.5 531.0 542.5 525.0 541.5 524.0 540.5 521.0 540.5 520.0 539.5 514.0 539.5 511.0 537.5 506.0 537.5 505.0 536.5 502.0 536.5 501.0 535.5 499.0 535.5 498.0 534.5 496.0 534.5 492.0 532.5 489.0 532.5 485.0 530.5 482.0 527.5 479.0 526.5 474.5 522.0 474.5 521.0 464.5 512.0 464.5 510.0 462.5 507.0 462.5 503.0 460.5 500.0 460.5 491.0 459.5 490.0 460.5 488.0 460.5 481.0 459.5 480.0 459.5 470.0 460.5 469.0 460.5 464.0 462.5 461.0 462.5 458.0 463.5 457.0 463.5 453.0 467.5 445.0 467.5 443.0 469.5 439.0 472.5 436.0 475.5 428.0 479.5 425.0 483.5 418.0 488.0 414.5 492.0 413.5 495.0 410.5 499.0 409.5 504.0 406.5 509.0 406.5 510.0 405.5 519.0 405.5 520.0 406.5 528.0 406.5 529.0 407.5 533.0 407.5 535.0 406.5 536.0 407.5 540.0 408.5 544.0 411.5 548.0 411.5 554.0 414.5 556.0 414.5 557.0 413.5 558.0 414.5 562.0 414.5 566.0 416.5 568.0 418.5 571.0 419.5 582.5 431.0 583.5 434.0 590.5 442.0 592.5 446.0 592.5 448.0 593.5 449.0 594.5 455.0 595.5 456.0 596.5 486.0 595.5 487.0 595.5 493.0 594.5 494.0 594.5 499.0 592.5 503.0 592.5 509.0 591.5 511.0 588.5 514.0 588.5 515.0 585.5 518.0 585.5 519.0 574.0 529.5 570.0 530.5 565.0 534.5 562.0 535.5 560.0 537.5 558.0 537.5 556.0 539.5 549.0 540.5 545.0 542.5 541.0 541.5Z"/>
        <g clip-path="url(#socketClipR)">
         <g class="look" id="irisRight">
@@ -1615,9 +1590,9 @@
               55% x 71% about its centre, so it carries the artist's wobble and is
               registered to the socket by construction rather than by eye; every
               2nd point kept, since at 55% the dropped detail is under a pixel at
-              Hex's real size. Drawn at the RING variant's dilated size — the
-              resting slit scales it down, and the solid variant's saucer scales
-              it up (see PUPIL_ROUND in cat.js). -->
+              Hex's real size. Drawn at the artist's own size — the resting slit
+              scales it down, the dilated saucer scales it up (see PUPIL_ROUND
+              in cat.js). -->
          <path class="eyeOpen pupil" id="pupilRight" d="M534.3 511.1 537.4 509.3 541.8 507.2 544 505.7 547.3 503.6 548.9 502.2 550.6 500.8 553 499 555.8 490.5 556.3 486.9 555.8 482 556.3 477.7 556.9 471.3 556.3 465.6 555.8 462.8 554.1 458.5 547.3 446.8 544 446.1 536.8 442.6 531.3 438.3 527.5 437.6 524.7 438.3 513.2 441.1 507.9 446.5 505.2 451.4 504.1 455 501.3 462.8 500.8 466.3 499.7 470.6 499.1 480.5 499.7 484.1 503.3 498.6 505.5 500.8 511 505 513.7 507.2 522.5 507.9 525.8 509.3 530.8 511.4Z"/>
         </g>
        </g>

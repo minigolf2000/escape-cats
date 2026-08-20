@@ -43,8 +43,22 @@ export interface GoombaBand {
   pid: string;
 }
 
-const SNAP = 5; // endpoints near terrain snap onto it (slightly buried, so no tip-bonk)
+const SNAP = 5; // a dragged endpoint this close to terrain lands ON it
 
+// A snapped endpoint lands FLUSH — exactly on the vertex or the face, offset in
+// neither direction. It used to be buried 0.8 below ("slightly buried, so no
+// tip-bonk"), and that burial is what made a snapped band feel like it ends in a
+// kerb. Bury an endpoint by d and the ledge's own vertex sits d ABOVE the band's
+// riding surface; Goomba's centre rides R above that surface, so it passes d
+// INSIDE the vertex's collision circle and clips it — contact on a normal tilted
+// sqrt(1 - ((R-d)/R)²) off vertical, which the ground's near-dead restitution
+// (0.02) then eats out of her along-band speed. At d=0.8 against R=2.2 that is
+// ~77% of it, and it lands ~1.9 units BEFORE the lip she was aiming at: on level
+// 1's bridge she rode in at 39 u/s and came off the V's lip at 10.6 horizontal,
+// launched upward. Flush is measurably free at both ends (8 junction shapes,
+// arriving and departing, plus every shipped solution). Do not "fix" a bonk by
+// lifting the endpoint instead — that just moves the same kerb to the departure
+// end, where the band's own tip becomes the thing she trips over on her way on.
 function snapEnd(L: GoombaLevelInit, x: number, y: number): Pt {
   // lips and ledge corners are vertices — players aim for those, so vertices win
   let best: Pt | null = null,
@@ -54,7 +68,7 @@ function snapEnd(L: GoombaLevelInit, x: number, y: number): Pt {
       const d2 = (x - vx) * (x - vx) + (y - vy) * (y - vy);
       if (d2 < bestD2) {
         bestD2 = d2;
-        best = [vx, vy + 0.8];
+        best = [vx, vy];
       }
     }
   if (best) return best;
@@ -75,7 +89,7 @@ function snapEnd(L: GoombaLevelInit, x: number, y: number): Pt {
       const d2 = (x - qx) * (x - qx) + (y - qy) * (y - qy);
       if (d2 < bestD2) {
         bestD2 = d2;
-        best = [qx, qy + 0.8];
+        best = [qx, qy];
       }
     }
   return best || [x, y];

@@ -40,7 +40,7 @@ findings — do not design from intuition, the sim disproves it reliably.
 - Levels 1–4 need fewer than 4 bands — the standing debt. Re-measured with
   `minbands`/`solve`, not inherited: The Long Way Down (1) needs 3, Watering
   Can Slalom (2) needs 3, Piñata Alley (3) needs 2, and only Pop Goes Goomba
-  (4) actually collapses to 1 (195/8738 one-band wins, exhaustive). The old
+  (4) actually collapses to 1 (196/8738 one-band wins, exhaustive). The old
   blanket "these all collapse to 1 band" note was stale for 2 and 3 — if you
   are about to repeat a debt claim, re-run the tool first. Levels 2–4 predate
   the party rule; level 1 joined them on purpose, rebuilt to a hand sketch

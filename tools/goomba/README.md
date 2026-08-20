@@ -66,7 +66,7 @@ Six levels ship. One passes the full gate — The Popper Grid (6) — and levels
 1-4 are the standing rebalance debt: they win with fewer than 4 bands.
 Freshly measured, not inherited: The Long Way Down (1) needs 3, Watering Can
 Slalom (2) needs 3 (0/10325 at one band, exhaustive), Piñata Alley (3) needs
-2, and only Pop Goes Goomba (4) truly collapses to 1 (195/8738, exhaustive).
+2, and only Pop Goes Goomba (4) truly collapses to 1 (196/8738, exhaustive).
 Level 1 joined that list deliberately: it was rebuilt to a hand sketch whose
 silhouette cannot carry a 4th gate (see DESIGNING.md on why no can placement
 fixes it), replacing Four Ways to Help, which passed.

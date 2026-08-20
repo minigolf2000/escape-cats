@@ -97,7 +97,13 @@ every stage must actually be ridden.
 ## Physics cheat sheet (world units)
 
 - **One silly band stretches to 58 units max.** Ends within 5 units of terrain
-  snap onto it (ledge lips/corners win), slightly buried so no tip-bonk.
+  snap onto it (ledge lips/corners win), landing FLUSH — on the vertex, offset
+  neither down nor up. They used to land 0.8 buried, and that is what made a
+  snapped band end in a kerb: a vertex sitting d above the band's riding surface
+  is d inside Goomba's collision circle, so she clips it ~1.9u short of the lip
+  and the ground's dead restitution eats ~77% of her along-band speed (level 1's
+  bridge: in at 39 u/s, off the lip at 10.6 horizontal). Flush is free at both
+  ends; lifting the endpoint instead only moves the kerb to the departure end.
 - **Gravity pulls at 140 u/s²; speed caps at 120 u/s** (some levels raise it
   via `maxSpeed`). Max height anything can gain: ~51 units.
 - **Poppers grab her to their center before firing**, set DIRECTION and carry

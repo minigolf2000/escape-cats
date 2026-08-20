@@ -62,23 +62,34 @@ Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is
 each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
 one player hoarding, but only geometry can make a level *need* four bands, so
 the level gate below still does the load-bearing work.
-Six levels ship. One passes the full gate — The Popper Grid (6) — and levels
-1-4 are the standing rebalance debt: they win with fewer than 4 bands.
-Freshly measured, not inherited: The Long Way Down (1) needs 3, Watering Can
-Slalom (2) needs 3 (0/10325 at one band, exhaustive), Piñata Alley (3) needs
-2, and only Pop Goes Goomba (4) truly collapses to 1 (196/8738, exhaustive).
-Level 1 joined that list deliberately: it was rebuilt to a hand sketch whose
-silhouette cannot carry a 4th gate (see DESIGNING.md on why no can placement
-fixes it), replacing Four Ways to Help, which passed.
+Six levels ship. TWO pass the full gate — The Long Way Up (2) and The Popper
+Grid (6) — and levels 1, 3 and 4 are the standing rebalance debt: they win
+with fewer than 4 bands. Freshly measured, not inherited: The Long Way Down
+(1) needs 3, Watering Can Slalom (3) needs 3 (0/10325 at one band,
+exhaustive), and Piñata Alley (4) needs 2. Level 1 joined that list
+deliberately: it was rebuilt to a hand sketch whose silhouette cannot carry a
+4th gate (see DESIGNING.md on why no can placement fixes it), replacing Four
+Ways to Help, which passed.
 The blanket "levels 3-8 collapse to 1 band" this file used to carry was
-stale for two of its members. (The Skim, The Puzzle Box and Pillow Fort were
-cut, and Mind the Gap, which passed, was cut with them. Level numbers are
-array index + 1, so those removals renumbered everything after them.)
+stale for two of its members. (The Skim, The Puzzle Box, Pillow Fort and Pop
+Goes Goomba — the only level that truly collapsed to one band — were cut, and
+Mind the Gap, which passed, was cut with them. Level numbers are array index
++ 1, so removals and insertions renumber everything after them.)
+The Long Way Up (2) replaced Pop Goes Goomba's slot in the roster: three
+poppers handing her off ballistically up the right-hand side, the players'
+bands strung post-to-post as the only surfaces in the middle of the level, a
+bumper that mirrors her into a flat run home across three cans, and a wall at
+the end of that run to drop her in the pot. It also answers Space Cadet's
+open question — see below — because every one of its band ends sits on a
+post's top vertex, so snap eats the finger slop (jitter 30/30 at ±3u) even
+though the flight itself is a chain of exact ballistics.
 Space Cadet (5) has been rebuilt as a pinball
 machine with five cans: `minbands` finds no ≤3-band win (exhaustive at 1
 band, 0/50000 sampled at 2-3), its 4-band solution wins with every band
 load-bearing, and what keeps it out of the passing list is now the ±3u
 finger-slop check (0/30) — five chained ballistic hand-offs, each tolerating
 only a few units, with nothing re-centering her between stages. Its debt is
-precision, not collapse; the suspected fix is funnel geometry between stages
+precision, not collapse; the fix direction is now known — anchor every band
+end on a terrain vertex the way level 2 does, so snap absorbs the slop before
+the physics sees it — with funnel geometry between stages as the fallback
 (poppers erase speed, only V-basins erase position).

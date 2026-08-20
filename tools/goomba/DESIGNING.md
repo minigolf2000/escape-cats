@@ -235,6 +235,61 @@ above. If a level must REQUIRE 4, the floor has to be broken, tilted away from
 the plant, or fenced, and the descent has to be interrupted by something that
 erases state. No amount of collectible placement substitutes.
 
+**A phone is not a sketch: terrain detail and height pull in opposite
+directions (The Long Way Up).** Translating a nearly-square hand sketch into a
+portrait level, the first two drafts died on the same arithmetic. Terrain
+features only *exist* below about 45 u/s — at 140 she crosses a 16-unit notch
+in 0.11 s and drops one unit, so a whole stepped ground reads as one flat
+runway and she simply slams into the first raised lip. Height, meanwhile, only
+comes from speed: `v²/280` units of rise, so a level with 100 units of vertical
+action needs ~170 u/s somewhere. You cannot have both in one world. What you
+CAN have is horizontal travel while grounded (rolling is cheap and flat) and
+vertical travel while ballistic — which is why the shipped shape is a fast
+popper staircase with the players' bands as the only floors, not a rideable
+hillside. A corollary: bands are a poor way to buy height. A band's restitution
+is 0.32, so a 45° band ramp turns 100 u/s of flat run into 15 units of rise —
+poppers (exact, magnitude-preserving) and bumpers (1.18× on the normal) are
+the only real lifts in the game.
+
+**The bumper is a MIRROR, so she must arrive moving the way you don't want her
+to go (The Long Way Up).** `BUMP_E` reverses and amplifies the normal
+component, so a leftward exit needs a rightward arrival onto the bumper's left
+face — there is no placement that turns a leftward glide further left. Two
+consequences worth designing around. The launch that feeds it must therefore
+overshoot the bumper and come back down onto it: "one arrival speed lands on
+the bouncy" is a real, tunable knob, and the fence past it is what an overshoot
+dies on. And `BUMP_MIN` (58) is a state-eraser as useful as a popper's floor —
+a slow arrival leaves at exactly 58 along the contact normal, so a bumper
+positioned near the top of an arc *normalises* whatever reached it, while one
+positioned well below the apex passes the arrival's variance straight through
+at 1.18×. Pick which you want.
+
+**Snap IS the forgiveness — anchor every band end on a terrain vertex (The
+Long Way Up, and the fix Space Cadet was missing).** The ±3u jitter check is
+what kills chained-ballistics levels, because each hand-off tolerates only a
+few units and nothing re-centres her. But jitter perturbs the *bands*, not the
+physics: an endpoint within 5 units of a vertex lands exactly ON it, and ±3 per
+coordinate is at most 4.24 units of displacement, so an end placed on a vertex
+snaps back to the same vertex and the run is bit-identical. The device is a
+**post**: a 7-unit stub hanging DOWNWARD from the height you want the band at,
+one either side of where she comes down, with the band strung between their
+tops. Downward matters — her near-vertical rise passes to the left of the post
+and the stub never reaches into it. Keep rival vertices ~9 units apart so a
+jittered end cannot prefer the wrong one (two vertices of the *same* stub are
+harmless: the band just gets a few units longer). The Long Way Up is a chain of
+exact ballistics and scores 30/30 on jitter this way.
+
+**A band long enough to reach two stages will be used as a CEILING for both
+(The Long Way Up, caught by the beam search).** An early draft had two vertical
+popper hops whose apexes sat 42 units apart; the beam search slung ONE band
+above both of them and won with three. Hitting a sloped band from *below* near
+the apex is cheap — she keeps the tangential component and converts her spent
+climb into exactly the sideways skid that feeds the next popper. The fix is
+arithmetic, not cleverness: push the apexes further apart than one band's whole
+stretch (58), which for two hops means each hop climbing ~55 units rather than
+~30. Check every pair of jobs the same way before trusting a beam-search pass —
+"could one band stand in both places at once" is the whole question.
+
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — the goal plant in a pocket with a ceiling, so falling
   arrivals are blocked and the only entry is horizontally through the mouth.
@@ -243,6 +298,10 @@ erases state. No amount of collectible placement substitutes.
 - **Goal above the start** — falling can never reach it.
 - **Speed governor** — a short gentle shelf just below a wall-drop; at ~15
   speed even a 20-unit gap is uncrossable.
+- **Posts with nothing between them** — a pair of downward stubs where a floor
+  ought to be. There is no surface until the players make one, so the stage
+  cannot be skipped by arriving faster, and the stub tops are snap points that
+  make the band's placement forgiving (see the jitter note above).
 
 **A run-out floor has to outvote the pump, not just the stall threshold.** The
 snowboard pump (`sp < 12` while grounded) pushes her the way she FACES, so a

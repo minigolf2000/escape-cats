@@ -34,28 +34,37 @@ findings — do not design from intuition, the sim disproves it reliably.
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
-- **Six levels ship.** The Skim, The Puzzle Box, Pillow Fort and Mind the Gap
-  were cut, and the survivors renumbered 1–6 — a level's display number is
-  its array index + 1, so removing one renumbers everything after it.
-- Levels 1–4 need fewer than 4 bands — the standing debt. Re-measured with
-  `minbands`/`solve`, not inherited: The Long Way Down (1) needs 3, Watering
-  Can Slalom (2) needs 3, Piñata Alley (3) needs 2, and only Pop Goes Goomba
-  (4) actually collapses to 1 (196/8738 one-band wins, exhaustive). The old
-  blanket "these all collapse to 1 band" note was stale for 2 and 3 — if you
-  are about to repeat a debt claim, re-run the tool first. Levels 2–4 predate
+- **Six levels ship.** The Skim, The Puzzle Box, Pillow Fort, Mind the Gap and
+  Pop Goes Goomba were cut, and the survivors renumbered 1–6 — a level's
+  display number is its array index + 1, so removing or inserting one
+  renumbers everything after it.
+- **Two levels pass the full gate: The Long Way Up (2) and The Popper Grid
+  (6).** Copy those. The Long Way Up is the one to read first if you are
+  building from a sketch: three poppers handing her off ballistically, the
+  players' bands strung between little posts as the only surfaces in the
+  middle of the level, and a bumper that mirrors her into a flat run home
+  across three cans. It is also the level that shows how to keep a chain of
+  exact ballistics jitter-proof — every band end sits on a post's top vertex,
+  so snap absorbs the slop (30/30 at ±3u).
+- Levels 1, 3 and 4 need fewer than 4 bands — the standing debt. Re-measured
+  with `minbands`/`solve`, not inherited: The Long Way Down (1) needs 3,
+  Watering Can Slalom (3) needs 3, and Piñata Alley (4) needs 2. The old
+  blanket "these all collapse to 1 band" note was stale for two of them — if
+  you are about to repeat a debt claim, re-run the tool first. 3 and 4 predate
   the party rule; level 1 joined them on purpose, rebuilt to a hand sketch
   whose silhouette has no room for a 4th gate (DESIGNING.md has the
   reachability sweep that proves no can placement fixes it).
   Space Cadet (5) was rebuilt as a five-can machine: no ≤3-band win found
   (1-band exhaustive, 2–3 sampled), 4-band solution with every band
   load-bearing — but it fails the ±3u finger-slop check (0/30), so its debt
-  is precision, not collapse (see its comment in `levels.ts`). Don't copy the
-  1–4 structure; copy The Popper Grid (forced popper lanes), or the
-  four-different-deaths chain the removed Four Ways to Help demonstrated —
-  the level is gone, the pattern is written up in DESIGNING.md. The
-  shelf-gated switchback that Mind the Gap demonstrated is still a good
-  pattern and still written up there too — those levels are gone, their
-  findings are not.
+  is precision, not collapse (see its comment in `levels.ts`); The Long Way
+  Up's post-snapped band ends are the fix direction. Don't copy the 1/3/4
+  structure; copy The Popper Grid (forced popper lanes), The Long Way Up
+  (popper hand-offs over posts), or the four-different-deaths chain the
+  removed Four Ways to Help demonstrated — the level is gone, the pattern is
+  written up in DESIGNING.md. The shelf-gated switchback that Mind the Gap
+  demonstrated is still a good pattern and still written up there too — those
+  levels are gone, their findings are not.
 - Parallel level threads: work on your own branch — `levels.ts` is where
   every level thread edits, and sharing a branch collides.
 

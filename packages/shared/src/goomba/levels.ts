@@ -169,7 +169,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   //   4. the diagonal, lower-right, and the second can hanging under it
   //
   // DEBT, measured not inherited: this one is honestly a THREE-band level, and
-  // ships that way (budget 3, a 3-band solution) alongside levels 2 and 3 —
+  // ships that way (budget 3, a 3-band solution) alongside levels 3 and 4 —
   // `solve.mjs 0 1` and `0 2` both come back empty, `0 3` solves. It is not a
   // shortcut that wants patching: `node reach.mjs 0 3 --drop-can 1 --near
   // 72,82` reports ZERO cells a 4-band win reaches that a 3-band win does not,
@@ -201,6 +201,74 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[41, 13], [58, 11]], [[117, 32], [110, 73]],
                 [[112, 74], [64, 95]] ] },
 
+  // Rebuilt from a hand sketch that read left-to-right: a party popper on the
+  // floor bottom-left, a rising chain of two more, big airtime up the right-hand
+  // side onto a bouncy hanging high with a fence beyond it, three watering cans
+  // strung across the sky tracing the flight home, and the spider plant alone
+  // on the left. The sketch is nearly square; a phone is not, so the beats were
+  // re-proportioned rather than scaled: the run-up is a vertical popper
+  // staircase instead of a long diagonal (a launch shallow enough to draw as a
+  // 45° arrow drifts ~35 units sideways per hop at these speeds, which does not
+  // fit 110 units of world twice over), and the flight home reads as the
+  // sketch's arc because it IS one — flat off the bouncy, steepening as it
+  // falls left.
+  //
+  // MOMENTUM IS THE MECHANIC, and the geometry is what carries it: nothing here
+  // is a floor she can crawl along. Every popper hands her off ballistically to
+  // the next, and the only surfaces in the middle of the level are the ones the
+  // players string between the little posts. A band strung post-to-post is a
+  // trampoline she skims across and rides into the next popper; no band and she
+  // drops through the gap where the floor should have been. Snap does the
+  // forgiving: every post's top is a vertex, so a band aimed anywhere near one
+  // lands exactly on it, which is why ±3u of finger slop wins 30/30 on a level
+  // whose flight is otherwise a chain of exact ballistics.
+  //
+  // The four jobs:
+  //   1. BRIDGE the gap off the start slope into popper A's step
+  //   2. TRAMPOLINE across the first pair of posts — she comes down through the
+  //      gap between them, skims right, and rolls into popper B
+  //   3. TRAMPOLINE across the second pair, the same trick 50 units higher
+  //   4. STOP her at the end of the flight home. Popper C fires her almost
+  //      straight up; she clips the bouncy's top-left corner on the way down
+  //      (the one arrival speed that does) and is mirrored into a flat 90 u/s
+  //      run to the left, sweeping all three cans. Bare, that run sails over the
+  //      plant and off the left edge of the world; a wall in its path (x ≈ 1-12,
+  //      a 12-unit window) kills the leftward speed and drops her into the
+  //      basin. The cans ARE the hint — they are the flight path, drawn.
+  //
+  // The apexes of the two hops sit 63 units apart on purpose: the beam search
+  // beat an earlier draft with ONE long band slung above both of them as a
+  // ceiling, converting each vertical hop into a rightward skid into the next
+  // popper. Past 58 units — one band's whole stretch — that trick has nowhere
+  // to stand. Full gate PASS (bare fails, 4 legal bands win at 6.6s at 98%
+  // airborne, all four load-bearing — drop-one dies in four different PLACES:
+  // fall into the start gap, fall through either pair of posts, or sail off the
+  // left edge past the plant — jitter 30/30, no 1-band win over 9567 exhaustive
+  // placements, none in 30000/20000 sampled 2/3-band sets, and no ≤3-band win
+  // from the beam search, which also comes back with the intended climb and a
+  // `left` as its own best 3-band try).
+  { name: '2 · The Long Way Up', budget: 4, maxSpeed: 145,
+    start: [4, 172],
+    terrain: [
+      [[0, 170], [5, 176], [11, 181]],       // the stepped start slope
+      [[20, 178], [27, 179], [27, 186]],     // popper A's step, and its riser
+      [[36, 126], [36, 133]],                // hop 1's posts — band 2 spans them
+      [[56, 126], [56, 133]],
+      [[70, 73], [70, 80]],                  // hop 2's posts — band 3 spans them
+      [[90, 73], [90, 80]],
+      [[115, 28], [117, 50], [116, 72]],     // the fence: an overshoot dies here
+      [[2, 150], [12, 160], [22, 150]],      // the spider plant's basin
+    ],
+    goal: [12, 159],
+    // strung along the flight home, in the order she sweeps them
+    cans: [[80, 57], [50, 72], [24, 98]],
+    pops: [ { x: 24, y: 177, deg: -84, spd: 170 },
+            { x: 58, y: 124, deg: -84, spd: 170 },
+            { x: 92, y: 71, deg: -87, spd: 130 } ], // the launcher
+    bumpers: [{ x: 105, y: 60 }],              // the bouncy, hung high right
+    solution: [ [[11, 181], [20, 178]], [[36, 126], [56, 126]],
+                [[70, 73], [90, 73]], [[6, 96], [6, 130]] ] },
+
   // The floor is pitched 20 units over 98 (0.204), not the 6 it used to be.
   // The old 0.061 was under the ~0.12 stranding threshold, and worse, under
   // what it takes to beat the snowboard pump: the pump shoves her the way she
@@ -209,7 +277,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // reached the plant. At 0.204 gravity outvotes the pump and every one of
   // those 3312 slides down to the plant on the right. It cost nothing: the
   // 3-band solution still wins (1.3s faster) and the level still needs 3.
-  { name: '2 · Watering Can Slalom', budget: 3,
+  { name: '3 · Watering Can Slalom', budget: 3,
     start: [10, 22],
     terrain: [ [[-4, 20], [30, 30]],
                [[6, 34], [6, 190], [104, 210], [104, 34]] ],
@@ -218,7 +286,7 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],
                 [[87, 132.3], [45.9, 160.8]] ] },
 
-  { name: '3 · Piñata Alley', budget: 3,
+  { name: '4 · Piñata Alley', budget: 3,
     start: [8, 14],
     terrain: [ [[-6, 12], [38, 24]],
                [[4, 30], [4, 190], [106, 196], [106, 30]] ],
@@ -230,17 +298,6 @@ const RAW_LEVELS: GoombaLevel[] = [
                { x: 25, y: 122 }, { x: 43, y: 122 }, { x: 61, y: 122 },
                { x: 79, y: 122 }, { x: 97, y: 122 } ],
     solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
-
-  { name: '4 · Pop Goes Goomba',
-    start: [8, 54],
-    terrain: [ [[-5, 52], [46, 62]],
-               [[40, -14], [66, -8]] ],
-    goal: [48, -13],
-    cushions: [ { x: 36, y: 150, w: 36 } ],
-    pops: [ { x: 98, y: 126, deg: -96, spd: 142 },
-            { x: 94, y: 80, deg: -97, spd: 142 },
-            { x: 85, y: 34, deg: -102, spd: 142 } ],
-    solution: [ [[54, 80], [92, 118]] ] },
 
   // SPACE CADET: a pinball cabinet, rebuilt to the reference table's bumper
   // layout (one lone bumper high in the dome + a tight nest of three, from the

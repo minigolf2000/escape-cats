@@ -62,12 +62,31 @@
           box-shadow: 0 6px 18px rgba(87,230,201,.35), inset 0 -3px 0 rgba(0,0,0,.15); letter-spacing: .03em; }
   #play.stop { background: linear-gradient(180deg, #ff7ec1, #ff5db1); box-shadow: 0 6px 18px rgba(255,93,177,.35), inset 0 -3px 0 rgba(0,0,0,.15); }
   #play.next { background: linear-gradient(180deg, #ffe08a, #ffd166); box-shadow: 0 6px 18px rgba(255,209,102,.4), inset 0 -3px 0 rgba(0,0,0,.15); }
-  /* The bottom-left row — secondary buttons sitting on PLAY's line, centred
-     against its taller pill. */
-  #btm { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom));
-         height: 56px; display: flex; align-items: center; gap: 8px; }
-  #btm button { height: 44px; padding: 0 16px; border-radius: 22px; font-size: 14px; font-weight: 700;
-                color: #c9bdf0; background: rgba(255,255,255,.08); border: 1.5px solid rgba(201,189,240,.35); }
+  /* CLEAR lives beside the slots it empties, so the 🧹 needs no label — which
+     is just as well, because "clear bands" does not fit up here: the dot strip
+     plus the four slots already spend ~266 of a 360px row, and the strip grows
+     every time a level ships. Three rules keep it honest on a phone.
+     (1) Its 30px box is reserved in EVERY phase and only turns invisible —
+     #inv must never slide sideways when a band lands (same reason the quota is
+     presentation, never layout).
+     (2) 30px is what fits a row that #lvl sits 34px under, so the 48px touch
+     target comes from a ::before pad rather than from padding, which would
+     grow the row into the title.
+     (3) One tap wipes, with no confirm step, even though it takes the WHOLE
+     ROOM's bands and not just mine: the four players are sitting in the same
+     living room, so an unwanted clear is answered out loud in a second and the
+     bands go back down. A modal would tax every deliberate tap to insure
+     against that. The toast is the receipt. */
+  #bandbar { display: flex; align-items: center; gap: 8px; }
+  #clear { position: relative; box-sizing: border-box; flex: 0 0 auto;
+           width: 30px; height: 30px; padding: 0; border-radius: 15px;
+           display: grid; place-items: center; font-size: 15px; line-height: 1;
+           color: #c9bdf0; background: rgba(255,255,255,.08);
+           border: 1.5px solid rgba(201,189,240,.35);
+           transition: opacity .18s, transform .12s; }
+  #clear::before { content: ""; position: absolute; inset: -9px; border-radius: 24px; }
+  #clear:active { transform: scale(.9); }
+  #clear.hide { visibility: hidden; opacity: 0; pointer-events: none; }
   #hud.debug #team { display: none; }
   /* levels open: the grid is the whole screen; tap a card to leave */
   #hud.lab > * { visibility: hidden; }
@@ -138,15 +157,15 @@
 <div id="hud">
   <div id="top">
     <button id="lab"><div id="dots"></div></button>
-    <div id="inv"></div>
+    <div id="bandbar">
+      <div id="inv"></div>
+      <button id="clear" class="hide" aria-label="clear all bands">🧹</button>
+    </div>
   </div>
   <div id="lvl"></div>
   <div id="hint"></div>
   <div id="team"></div>
   <div id="conn">reconnecting…</div>
-  <div id="btm">
-    <button id="clear">clear bands</button>
-  </div>
   <button id="play">▶ PLAY</button>
   <div id="toast"></div>
   <div id="gate">

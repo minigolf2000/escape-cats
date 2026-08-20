@@ -276,7 +276,10 @@ function syncHud() {
     s.phase === "run" ? "■ STOP" :
     s.phase === "win" ? (nextLeadsToSplash(s) ? "FINISH ▸" : "NEXT ▸") : "▶ PLAY";
   playBtn.className = s.phase === "run" ? "stop" : s.phase === "win" ? "next" : "";
-  clearBtn.style.display = s.phase === "edit" && s.bands.length ? "" : "none";
+  // CLEAR only turns invisible, never `display:none`: it holds a fixed box in
+  // the band row now (index.html), and a control that came and went there would
+  // slide the slots sideways every time a band landed.
+  clearBtn.classList.toggle("hide", !(s.phase === "edit" && s.bands.length));
 }
 const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -286,6 +289,14 @@ playBtn.onclick = () => {
   else if (snap.phase === "run") transport.send({ type: "stop" });
   else if (snap.phase === "win") transport.send({ type: "next" });
 };
+// One tap wipes, no confirm — and it wipes the ROOM's bands, teammates'
+// included (`clear` in goomba/sim.ts), from the corner of the screen a thumb
+// has to stretch for. That is a deliberate trade: the four players are in one
+// living room, so a clear nobody wanted is answered out loud in a second and
+// the bands go back down, whereas a confirm step would tax every deliberate
+// tap to insure against the rare stray one. No toast either: four bands
+// vanishing off the board IS the feedback, and the only phone a local toast
+// could reach is the one that already knows.
 clearBtn.onclick = () => { resetInput(); transport.send({ type: "clear" }); };
 const labBtn = $("lab");
 labBtn.onclick = () => {

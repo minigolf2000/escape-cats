@@ -62,7 +62,7 @@ Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is
 each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
 one player hoarding, but only geometry can make a level *need* four bands, so
 the level gate below still does the load-bearing work.
-Six levels ship. One passes the full gate — The Popper Grid (6) — and levels
+Seven levels ship. One passes the full gate — The Popper Grid (6) — and levels
 1-4 are the standing rebalance debt: they win with fewer than 4 bands.
 Freshly measured, not inherited: The Long Way Down (1) needs 3, Watering Can
 Slalom (2) needs 3 (0/10325 at one band, exhaustive), Piñata Alley (3) needs
@@ -82,3 +82,12 @@ finger-slop check (0/30) — five chained ballistic hand-offs, each tolerating
 only a few units, with nothing re-centering her between stages. Its debt is
 precision, not collapse; the suspected fix is funnel geometry between stages
 (poppers erase speed, only V-basins erase position).
+Popper Pinball (7) is a TESTBED, not a balanced level — a hand sketch
+transcribed to check the physics of "poppers move her, bands only steer".
+The physics hold: the intended loop rides end to end in 6.1s at 94% airborne,
+including the collect-the-far-can-then-come-back leg. What it is not is a
+4-band level — `minbands` puts it at 2 (0/7430 at one band, exhaustive), and
+its slop is 10/30, all of it in the single band that has to deflect her off a
+piñata bumper (BUMP_E 1.18 multiplies placement error where a popper would
+erase it). Its comment in `levels.ts` names the two stages that are currently
+free and would have to carry geometry for it to require 4.

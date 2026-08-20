@@ -21,6 +21,7 @@ import {
   KIND_BAND,
   KIND_CUSH,
   E_KIND,
+  groundE,
   FR_KIND,
   POP_R2,
   POP_COOLDOWN,
@@ -262,8 +263,12 @@ export function stepRun(st: RunState, dt: number): void {
       st.p.y = qy + ny * R;
       const vn = st.v.x * nx + st.v.y * ny;
       if (vn < 0) {
-        st.v.x -= (1 + E_KIND[s.kind]) * vn * nx;
-        st.v.y -= (1 + E_KIND[s.kind]) * vn * ny;
+        // Terrain restitution depends on how steep the surface is — see
+        // groundE: walls give a little back, floors stay dead. Bands and
+        // cushions have one value each.
+        const e = s.kind === KIND_GROUND ? groundE(nx) : E_KIND[s.kind];
+        st.v.x -= (1 + e) * vn * nx;
+        st.v.y -= (1 + e) * vn * ny;
         if (s.band >= 0) st.bandHits[s.band] = 1;
         if (s.cush >= 0) st.cushHits[s.cush] = 1;
       }

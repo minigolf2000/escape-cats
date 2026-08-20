@@ -134,8 +134,16 @@ every stage must actually be ridden.
   on it bare.
 - **Steep catch bands** work when placed *below* the flight path; bands
   *starting at the lip* need slope ≲ 1 or she sails over.
-- **Walls are bumpers**: hitting one kills horizontal speed dead (good for
-  switchbacks — drop her onto a slope going back the other way).
+- **Walls are ALMOST bumpers**: terrain restitution depends on how steep the
+  surface is (`groundE` in `levels.ts`). A floor, and anything shallower than
+  45°, is 0.02 — near-dead, so she settles and slides instead of bouncing down
+  a run-out. From 45° it ramps to `E_WALL` = 0.15 at vertical, so a wall hands
+  back about 15%: head-on at 60 u/s she leaves at 9, not 1.2. That is still a
+  speed ERASER — switchbacks work exactly as before, and 15% of a slow arrival
+  is nothing — but she no longer stops like wet cement, which read as a bug.
+  Two consequences worth holding: a wall is not a way to gain anything (a band
+  is 0.32, a cushion 1.3), and a corner where a wall meets a floor is still a
+  stall trap, because the speed she arrives with there is already small.
 - **V-basins catch everything** that falls into them — great for goals, fatal
   for "she must not land here" zones. The stuck detector fails a run that
   stops making progress (~4 s).

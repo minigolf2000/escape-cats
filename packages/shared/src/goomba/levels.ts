@@ -26,6 +26,30 @@ export const KIND_GROUND = 0,
   KIND_BAND = 1,
   KIND_CUSH = 2;
 export const E_KIND = [0.02, 0.32, 1.3]; // restitution: ground, band, cushion
+/**
+ * Walls get a little of their own back, floors do not.
+ *
+ * `E_KIND[KIND_GROUND]` is one number for every piece of terrain, but a floor
+ * and a wall want opposite things from it. A floor has to be near-dead or she
+ * bounces down a run-out instead of settling and sliding to the plant (level
+ * 3's whole last stage is that slide). A wall at 0.02 stops her like wet
+ * cement, which reads as a bug rather than a rule — you expect a rubbery cat
+ * to come off it with *something*.
+ *
+ * So restitution against terrain is chosen by the CONTACT NORMAL rather than
+ * by a second terrain kind: `|nx|` is 1 for a vertical wall and 0 for a level
+ * floor, and `wallness()` below ramps between the two. Nothing shallower than
+ * 45° changes at all, which is what keeps floors and ridden slopes exactly as
+ * they were — level 2's slope and every run-out floor still behave identically.
+ */
+export const E_WALL = 0.15;
+/** cos of the steepest surface still treated as pure floor (45°). */
+export const WALL_N0 = 0.7071;
+/** Terrain restitution for a contact whose unit normal has x-component nx. */
+export function groundE(nx: number): number {
+  const w = (Math.abs(nx) - WALL_N0) / (1 - WALL_N0);
+  return E_KIND[0] + (E_WALL - E_KIND[0]) * (w < 0 ? 0 : w > 1 ? 1 : w);
+}
 export const FR_KIND = [0.18, 0.06, 0.02]; // friction
 export const POP_R = 6; // party-popper trigger radius
 export const POP_R2 = (POP_R + R) * (POP_R + R);

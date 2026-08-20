@@ -75,14 +75,15 @@ stale for two of its members. (The Skim, The Puzzle Box, Pillow Fort and Pop
 Goes Goomba — the only level that truly collapsed to one band — were cut, and
 Mind the Gap, which passed, was cut with them. Level numbers are array index
 + 1, so removals and insertions renumber everything after them.)
-The Long Way Up (2) replaced Pop Goes Goomba's slot in the roster: three
-poppers handing her off ballistically up the right-hand side, the players'
-bands strung post-to-post as the only surfaces in the middle of the level, a
-bumper that mirrors her into a flat run home across three cans, and a wall at
-the end of that run to drop her in the pot. It also answers Space Cadet's
-open question — see below — because every one of its band ends sits on a
-post's top vertex, so snap eats the finger slop (jitter 30/30 at ±3u) even
-though the flight itself is a chain of exact ballistics.
+The Long Way Up (2) replaced Pop Goes Goomba's slot in the roster: a
+concave-up slope she rides from the bottom-left to a launcher at the top right,
+poppers shooting her along it, three long rough steps notched PERPENDICULAR
+into it (the players chord across each one), then a bumper that mirrors her
+into a flat run home across three cans and a wall at the end of that run to
+drop her in the pot. It also answers Space Cadet's open question — see below —
+because every one of its band ends sits on a notch rim ~9 units clear of its
+neighbours, so snap eats the finger slop (jitter 29/30 at ±3u) even though the
+flight itself is a chain of exact ballistics.
 Space Cadet (5) has been rebuilt as a pinball
 machine with five cans: `minbands` finds no ≤3-band win (exhaustive at 1
 band, 0/50000 sampled at 2-3), its 4-band solution wins with every band

@@ -235,21 +235,39 @@ above. If a level must REQUIRE 4, the floor has to be broken, tilted away from
 the plant, or fenced, and the descent has to be interrupted by something that
 erases state. No amount of collectible placement substitutes.
 
-**A phone is not a sketch: terrain detail and height pull in opposite
-directions (The Long Way Up).** Translating a nearly-square hand sketch into a
-portrait level, the first two drafts died on the same arithmetic. Terrain
-features only *exist* below about 45 u/s — at 140 she crosses a 16-unit notch
-in 0.11 s and drops one unit, so a whole stepped ground reads as one flat
-runway and she simply slams into the first raised lip. Height, meanwhile, only
-comes from speed: `v²/280` units of rise, so a level with 100 units of vertical
-action needs ~170 u/s somewhere. You cannot have both in one world. What you
-CAN have is horizontal travel while grounded (rolling is cheap and flat) and
-vertical travel while ballistic — which is why the shipped shape is a fast
-popper staircase with the players' bands as the only floors, not a rideable
-hillside. A corollary: bands are a poor way to buy height. A band's restitution
-is 0.32, so a 45° band ramp turns 100 u/s of flat run into 15 units of rise —
-poppers (exact, magnitude-preserving) and bumpers (1.18× on the normal) are
-the only real lifts in the game.
+**Terrain detail and height pull in opposite directions — and the way out is
+to make the terrain PERPENDICULAR (The Long Way Up).** Height only comes from
+speed (`v²/280` of rise), so a level with 100 units of vertical action needs
+~150 u/s somewhere. But at 140 u/s her arc is nearly a straight line: she
+crosses a 16-unit notch in 0.11 s and drops one unit, so a stepped ground reads
+as one flat runway. Flat-floored obstacles therefore only bite below ~45 u/s,
+and a band laid over one is nearly the same path as her bare arc (a 30-unit
+band sags 1.5; her arc over the same span at 100 u/s droops about the same), so
+the band does nothing. Both problems have the same fix: **cut the obstacle
+perpendicular to the surface she is riding, not vertically.** A notch cut
+perpendicular into a rising slope presents its far wall square to her travel —
+she meets it head-on and the ground's dead 0.02 restitution takes everything,
+at 40 u/s or at 140. Combined with a slope that steepens (see below) that makes
+a speed-independent gate out of pure terrain. A corollary worth remembering:
+bands are a poor way to buy height. A band's restitution is 0.32, so a 45° band
+ramp turns 100 u/s of flat run into 15 units of rise — poppers (exact,
+magnitude-preserving) and bumpers (1.18× on the normal) are the only real
+lifts in the game.
+
+**A concave-up slope is a gate generator; a vertical wall is a rail (The Long
+Way Up).** Two facts do all the work on that level's run-up. First, on a slope
+that steepens, a Goomba who leaves a rim along the tangent can NEVER reach the
+next rim: the surface curves up away from her tangent while her arc curves
+down, so she is always below the far lip and lands on the wall under it. Notch
+width becomes a pure question of band length, exactly like the raised far lip
+does on flat ground, and it holds at any speed. Second — the draft that shipped
+nothing — a notch with VERTICAL walls does not gate anything on a steep slope.
+She arrives moving up-slope; a vertical wall kills only her horizontal
+component and preserves the vertical one, so it becomes a rail that carries her
+UP past the rim on her own speed and drops her neatly at the next popper. The
+walls have to face her: perpendicular to the surface, which on a 60° slope
+means they lean back over the notch like a ratchet tooth. Same reason her
+ratchet teeth work going up and let her slide out going down.
 
 **The bumper is a MIRROR, so she must arrive moving the way you don't want her
 to go (The Long Way Up).** `BUMP_E` reverses and amplifies the normal
@@ -270,25 +288,30 @@ what kills chained-ballistics levels, because each hand-off tolerates only a
 few units and nothing re-centres her. But jitter perturbs the *bands*, not the
 physics: an endpoint within 5 units of a vertex lands exactly ON it, and ±3 per
 coordinate is at most 4.24 units of displacement, so an end placed on a vertex
-snaps back to the same vertex and the run is bit-identical. The device is a
-**post**: a 7-unit stub hanging DOWNWARD from the height you want the band at,
-one either side of where she comes down, with the band strung between their
-tops. Downward matters — her near-vertical rise passes to the left of the post
-and the stub never reaches into it. Keep rival vertices ~9 units apart so a
-jittered end cannot prefer the wrong one (two vertices of the *same* stub are
-harmless: the band just gets a few units longer). The Long Way Up is a chain of
-exact ballistics and scores 30/30 on jitter this way.
+snaps back to the same vertex and the run is bit-identical. Two devices give you those
+vertices. A **notch rim** — the last smooth point before a perpendicular notch —
+is the natural one on a ridden slope, and a **post** (a 7-unit stub hanging
+DOWNWARD from the height you want the band at, one either side of where she
+comes down) is the one for open air; downward matters, so her near-vertical rise
+passes the post rather than clipping it. Either way the rule is the same: keep
+rival vertices ~9 units apart so a jittered end cannot prefer the wrong one
+(two vertices of the *same* stub are harmless — the band just gets a few units
+longer). The Long Way Up is a chain of exact ballistics and scores 29/30 on
+jitter this way; check the spacing whenever a jitter score comes back at 17.
 
-**A band long enough to reach two stages will be used as a CEILING for both
-(The Long Way Up, caught by the beam search).** An early draft had two vertical
-popper hops whose apexes sat 42 units apart; the beam search slung ONE band
-above both of them and won with three. Hitting a sloped band from *below* near
-the apex is cheap — she keeps the tangential component and converts her spent
-climb into exactly the sideways skid that feeds the next popper. The fix is
-arithmetic, not cleverness: push the apexes further apart than one band's whole
-stretch (58), which for two hops means each hop climbing ~55 units rather than
-~30. Check every pair of jobs the same way before trusting a beam-search pass —
-"could one band stand in both places at once" is the whole question.
+**One band will always try to do two jobs; the beam search finds how (The Long
+Way Up, three drafts running).** Every draft of that level died the same way and
+the fix was always spacing, never cleverness. On popper hops it was a single
+band slung above two apexes as a CEILING — hitting a sloped band from below near
+the apex is cheap, and it converts her spent climb into exactly the sideways
+skid that feeds the next popper; the fix was pushing the apexes further apart
+than one band's whole stretch (58). On the ridden slope it was a band laid
+STEEPER than the surface: because the slope is concave up, any chord sits above
+it, so one band bridges its notch and then launches her off its high end clean
+over the next one. The fix there was making the notches LONG (chords of 28-40)
+and letting them cover most of the slope, so every arc lands in a notch rather
+than on a pad. Before trusting a beam-search pass, ask it yourself for each pair
+of jobs: could one band stand in both of these places at once?
 
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — the goal plant in a pocket with a ceiling, so falling
@@ -298,10 +321,16 @@ stretch (58), which for two hops means each hop climbing ~55 units rather than
 - **Goal above the start** — falling can never reach it.
 - **Speed governor** — a short gentle shelf just below a wall-drop; at ~15
   speed even a 20-unit gap is uncrossable.
+- **A notch cut perpendicular into a rising slope** — its far wall and its
+  ratchet teeth face square back down-slope, so she meets them head-on at any
+  speed, and the slope's own concavity means no launch angle clears it. The
+  rims are snap points, which makes the chord across it forgiving (see the
+  jitter note above). Keep the notch long: a short one gets flown over from a
+  band laid steeper than the surface.
 - **Posts with nothing between them** — a pair of downward stubs where a floor
   ought to be. There is no surface until the players make one, so the stage
   cannot be skipped by arriving faster, and the stub tops are snap points that
-  make the band's placement forgiving (see the jitter note above).
+  make the band's placement forgiving.
 
 **A run-out floor has to outvote the pump, not just the stall threshold.** The
 snowboard pump (`sp < 12` while grounded) pushes her the way she FACES, so a

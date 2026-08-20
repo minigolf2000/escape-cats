@@ -201,73 +201,81 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[41, 13], [58, 11]], [[117, 32], [110, 73]],
                 [[112, 74], [64, 95]] ] },
 
-  // Rebuilt from a hand sketch that read left-to-right: a party popper on the
-  // floor bottom-left, a rising chain of two more, big airtime up the right-hand
-  // side onto a bouncy hanging high with a fence beyond it, three watering cans
-  // strung across the sky tracing the flight home, and the spider plant alone
-  // on the left. The sketch is nearly square; a phone is not, so the beats were
-  // re-proportioned rather than scaled: the run-up is a vertical popper
-  // staircase instead of a long diagonal (a launch shallow enough to draw as a
-  // 45° arrow drifts ~35 units sideways per hop at these speeds, which does not
-  // fit 110 units of world twice over), and the flight home reads as the
-  // sketch's arc because it IS one — flat off the bouncy, steepening as it
-  // falls left.
+  // Rebuilt from a pair of hand sketches. The second one redrew the run-up: not
+  // hops through empty air but a slope CURVING EVER UPWARD that Goomba rides,
+  // party poppers shooting her along it, and jagged terrain the players' bands
+  // smooth out. That is what this is. Above it the sketch's other beats stand
+  // unchanged — big airtime up the right-hand side onto a bouncy hung high with
+  // a fence beyond it, three watering cans strung across the sky tracing the
+  // flight home, and the spider plant alone on the left.
   //
-  // MOMENTUM IS THE MECHANIC, and the geometry is what carries it: nothing here
-  // is a floor she can crawl along. Every popper hands her off ballistically to
-  // the next, and the only surfaces in the middle of the level are the ones the
-  // players string between the little posts. A band strung post-to-post is a
-  // trampoline she skims across and rides into the next popper; no band and she
-  // drops through the gap where the floor should have been. Snap does the
-  // forgiving: every post's top is a vertex, so a band aimed anywhere near one
-  // lands exactly on it, which is why ±3u of finger slop wins 30/30 on a level
-  // whose flight is otherwise a chain of exact ballistics.
+  // THE SLOPE IS ONE POLYLINE, a concave-up curve from (0,180) to the launcher's
+  // perch at (92,71) — flat at the left, ~68° at the top — with three long rough
+  // steps notched into it and a popper on the smooth pad before each. Every notch
+  // is cut PERPENDICULAR to the slope, which is the whole trick: its far wall and
+  // its ratchet teeth then face squarely back down-slope, so a Goomba riding up
+  // meets them head-on and stops dead. (A notch with VERTICAL walls does not
+  // work — the far wall becomes a rail that carries her UP past the rim on her
+  // own tangential speed. That draft shipped nothing.) And because the slope
+  // steepens, a Goomba who leaves the near rim along the tangent can never reach
+  // the far rim at ANY speed: she is always below it and lands on the wall. So
+  // the notches bite whether she arrives at 40 u/s or 140, and the players' only
+  // verb is to string a chord rim-to-rim and let her skim across it.
   //
-  // The four jobs:
-  //   1. BRIDGE the gap off the start slope into popper A's step
-  //   2. TRAMPOLINE across the first pair of posts — she comes down through the
-  //      gap between them, skims right, and rolls into popper B
-  //   3. TRAMPOLINE across the second pair, the same trick 50 units higher
-  //   4. STOP her at the end of the flight home. Popper C fires her almost
+  // The four jobs — three chords up the slope, then the flight home:
+  //   1. CHORD the first notch, the long shallow one off the start
+  //   2. CHORD the second, mid-slope
+  //   3. CHORD the third, the steep one under the launcher's perch
+  //   4. STOP her at the end of the flight home. The launcher fires her almost
   //      straight up; she clips the bouncy's top-left corner on the way down
-  //      (the one arrival speed that does) and is mirrored into a flat 90 u/s
-  //      run to the left, sweeping all three cans. Bare, that run sails over the
-  //      plant and off the left edge of the world; a wall in its path (x ≈ 1-12,
-  //      a 12-unit window) kills the leftward speed and drops her into the
-  //      basin. The cans ARE the hint — they are the flight path, drawn.
+  //      (the one arrival speed that does) and is mirrored into a flat 90 u/s run
+  //      to the left, sweeping all three cans. Bare, that run sails over the
+  //      plant and off the left edge of the world; a wall in its path (x ≈ -2..9,
+  //      a 12-unit window) kills the leftward speed and drops her into the basin.
+  //      The cans ARE the hint — they are the flight path, drawn.
   //
-  // The apexes of the two hops sit 63 units apart on purpose: the beam search
-  // beat an earlier draft with ONE long band slung above both of them as a
-  // ceiling, converting each vertical hop into a rightward skid into the next
-  // popper. Past 58 units — one band's whole stretch — that trick has nowhere
-  // to stand. Full gate PASS (bare fails, 4 legal bands win at 6.6s at 98%
-  // airborne, all four load-bearing — drop-one dies in four different PLACES:
-  // fall into the start gap, fall through either pair of posts, or sail off the
-  // left edge past the plant — jitter 30/30, no 1-band win over 9567 exhaustive
-  // placements, none in 30000/20000 sampled 2/3-band sets, and no ≤3-band win
-  // from the beam search, which also comes back with the intended climb and a
-  // `left` as its own best 3-band try).
+  // Two numbers hold the level up. The notches are LONG (chords of 28-40) and
+  // cover most of the slope, because the beam search's favourite trick is a band
+  // laid steeper than the surface: it bridges one notch AND launches her off its
+  // upper end over the next. Wide notches mean every arc lands in one. And every
+  // rim vertex sits ~9 units clear of its neighbours, so a ±3u jittered band end
+  // snaps back to the rim it was aimed at rather than to a tooth — that is what
+  // makes a level of exact ballistics score 29/30 on finger slop.
+  //
+  // Full gate PASS: bare fails, four legal bands win at 3.9s, all four
+  // load-bearing (drop-one → stall in notch 1, stall in notch 2, stall in notch
+  // 3, off the left edge past the plant), jitter 29/30, no 1-band win over 9567
+  // exhaustive placements, none in 30000/20000 sampled 2/3-band sets, and no
+  // ≤3-band win from the beam search.
   { name: '2 · The Long Way Up', budget: 4, maxSpeed: 145,
-    start: [4, 172],
+    start: [4, 176],
     terrain: [
-      [[0, 170], [5, 176], [11, 181]],       // the stepped start slope
-      [[20, 178], [27, 179], [27, 186]],     // popper A's step, and its riser
-      [[36, 126], [36, 133]],                // hop 1's posts — band 2 spans them
-      [[56, 126], [56, 133]],
-      [[70, 73], [70, 80]],                  // hop 2's posts — band 3 spans them
-      [[90, 73], [90, 80]],
+      // the slope: smooth pad, notch, pad, notch, pad, notch, pad to the launcher
+      [[0, 180], [10, 178.5], [14.5, 187], [20, 185],
+       [19, 182.5], [27, 181], [26, 179], [34, 177],
+       [32.5, 175], [40, 172], [38.5, 170], [45, 167],
+       [40, 159.5], [48, 150.5], [56, 154.5], [59.5, 150.5],
+       [57.5, 149], [63.5, 144.5], [61.5, 143], [67.5, 138.5],
+       [65.5, 137], [71.5, 132], [69.5, 131], [75, 126],
+       [73, 124.5], [77, 123], [70, 117], [76, 105.5],
+       [85.5, 108.5], [87, 104.5], [84.5, 103.5], [90, 99],
+       [87, 98], [92.5, 93.5], [89.5, 92.5], [95, 88],
+       [92, 87], [96, 86], [88, 80.5], [92, 71]],
       [[115, 28], [117, 50], [116, 72]],     // the fence: an overshoot dies here
-      [[2, 150], [12, 160], [22, 150]],      // the spider plant's basin
+      [[5, 150], [15, 160], [24, 150]],      // the spider plant's basin
     ],
-    goal: [12, 159],
+    goal: [15, 159],
     // strung along the flight home, in the order she sweeps them
     cans: [[80, 57], [50, 72], [24, 98]],
-    pops: [ { x: 24, y: 177, deg: -84, spd: 170 },
-            { x: 58, y: 124, deg: -84, spd: 170 },
-            { x: 92, y: 71, deg: -87, spd: 130 } ], // the launcher
+    // each rides 2.2 off the surface (her own riding height) and aims 3° into the
+    // slope, so she stays pressed to it instead of sailing over the next notch
+    pops: [ { x: 5.7, y: 177.4, deg: -6, spd: 150 },
+            { x: 42.4, y: 153.6, deg: -46, spd: 150 },
+            { x: 71.1, y: 110.3, deg: -59, spd: 150 },
+            { x: 92, y: 71, deg: -87, spd: 130 } ],  // the launcher
     bumpers: [{ x: 105, y: 60 }],              // the bouncy, hung high right
-    solution: [ [[11, 181], [20, 178]], [[36, 126], [56, 126]],
-                [[70, 73], [90, 73]], [[6, 96], [6, 130]] ] },
+    solution: [ [[10, 178.5], [40, 159.5]], [[48, 150.5], [70, 117]],
+                [[76, 105.5], [88, 80.5]], [[4, 104], [4, 136]] ] },
 
   // The floor is pitched 20 units over 98 (0.204), not the 6 it used to be.
   // The old 0.061 was under the ~0.12 stranding threshold, and worse, under

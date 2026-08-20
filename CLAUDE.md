@@ -40,12 +40,14 @@ findings — do not design from intuition, the sim disproves it reliably.
   renumbers everything after it.
 - **Two levels pass the full gate: The Long Way Up (2) and The Popper Grid
   (6).** Copy those. The Long Way Up is the one to read first if you are
-  building from a sketch: three poppers handing her off ballistically, the
-  players' bands strung between little posts as the only surfaces in the
-  middle of the level, and a bumper that mirrors her into a flat run home
-  across three cans. It is also the level that shows how to keep a chain of
-  exact ballistics jitter-proof — every band end sits on a post's top vertex,
-  so snap absorbs the slop (30/30 at ±3u).
+  building from a sketch: one concave-up slope she RIDES, poppers shooting her
+  along it, three long rough steps notched perpendicular into it for the
+  players' bands to chord across, and a bumper at the top that mirrors her into
+  a flat run home across three cans. Two of its lessons generalise — cut
+  obstacles perpendicular to the surface she rides (a vertical wall becomes a
+  rail that carries her up past the rim), and put every band end on a terrain
+  vertex ~9 units clear of its neighbours so snap absorbs finger slop (29/30 at
+  ±3u on a level that is otherwise exact ballistics).
 - Levels 1, 3 and 4 need fewer than 4 bands — the standing debt. Re-measured
   with `minbands`/`solve`, not inherited: The Long Way Down (1) needs 3,
   Watering Can Slalom (3) needs 3, and Piñata Alley (4) needs 2. The old

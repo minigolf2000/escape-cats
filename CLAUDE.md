@@ -34,28 +34,37 @@ findings — do not design from intuition, the sim disproves it reliably.
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
-- **Six levels ship.** The Skim, The Puzzle Box, Pillow Fort and Mind the Gap
-  were cut, and the survivors renumbered 1–6 — a level's display number is
-  its array index + 1, so removing one renumbers everything after it.
-- Levels 1–4 need fewer than 4 bands — the standing debt. Re-measured with
-  `minbands`/`solve`, not inherited: The Long Way Down (1) needs 3, Watering
-  Can Slalom (2) needs 3, Piñata Alley (3) needs 2, and only Pop Goes Goomba
-  (4) actually collapses to 1 (196/8738 one-band wins, exhaustive). The old
-  blanket "these all collapse to 1 band" note was stale for 2 and 3 — if you
-  are about to repeat a debt claim, re-run the tool first. Levels 2–4 predate
-  the party rule; level 1 joined them on purpose, rebuilt to a hand sketch
-  whose silhouette has no room for a 4th gate (DESIGNING.md has the
+- **Six levels ship, and exactly one passes the gate — Cat's Cradle (4).**
+  The Skim, The Puzzle Box, Pillow Fort, Mind the Gap and The Popper Grid were
+  cut, and the survivors renumbered 1–6 — a level's display number is its array
+  index + 1, so removing or inserting one renumbers everything after it (and
+  the numbers live in the `name` strings, so renumbering means editing them).
+- Levels 1–3 and 5 need fewer than 4 bands — the standing debt. Re-measured
+  with `minbands`/`solve`, not inherited: The Long Way Down (1) needs 3,
+  Watering Can Slalom (2) needs 3, Piñata Alley (3) needs 2, and only Pop Goes
+  Goomba (5) actually collapses to 1 (196/8738 one-band wins, exhaustive). The
+  old blanket "these all collapse to 1 band" note was stale for 2 and 3 — if
+  you are about to repeat a debt claim, re-run the tool first. Levels 2, 3 and
+  5 predate the party rule; level 1 joined them on purpose, rebuilt to a hand
+  sketch whose silhouette has no room for a 4th gate (DESIGNING.md has the
   reachability sweep that proves no can placement fixes it).
-  Space Cadet (5) was rebuilt as a five-can machine: no ≤3-band win found
+  Space Cadet (6) was rebuilt as a five-can machine: no ≤3-band win found
   (1-band exhaustive, 2–3 sampled), 4-band solution with every band
   load-bearing — but it fails the ±3u finger-slop check (0/30), so its debt
-  is precision, not collapse (see its comment in `levels.ts`). Don't copy the
-  1–4 structure; copy The Popper Grid (forced popper lanes), or the
+  is precision, not collapse (see its comment in `levels.ts`, and
+  `node slack.mjs 5`, which names the fragile band). Don't copy the structure
+  of 1–3 or 5; copy **Cat's Cradle** (four one-way popper lanes, sparse and
+  staggered, where the players' bands are the only walls — it replaced The
+  Popper Grid's dense version of the same idea and is more robust), or the
   four-different-deaths chain the removed Four Ways to Help demonstrated —
-  the level is gone, the pattern is written up in DESIGNING.md. The
+  those levels are gone, the patterns are written up in DESIGNING.md. The
   shelf-gated switchback that Mind the Gap demonstrated is still a good
   pattern and still written up there too — those levels are gone, their
   findings are not.
+- **A sketch is a spec, and the toys in it carry the scale**: a popper's dashed
+  ring is 6 units, a can's 7.5, so one ring measured in pixels converts the
+  whole drawing (DESIGNING.md, "Transcribing a sketch"). Cat's Cradle came in
+  as a picture; the rings not touching was the design.
 - Parallel level threads: work on your own branch — `levels.ts` is where
   every level thread edits, and sharing a branch collides.
 
@@ -141,6 +150,8 @@ npm run typecheck      # all workspaces
 npm run build:vercel   # full build + assemble + routing & cursor checks
 npm run check:cursors  # the two-cursor rule, on its own
 cd tools/goomba && node verify.mjs <idx>   # the level-design gate
+cd tools/goomba && node route.mjs <idx> drop  # the ride + its four deaths
+cd tools/goomba && node slack.mjs <idx>    # per-band forgiveness (jitter/slide/stretch)
 cd tools/goomba && node verify.mjs --hash <editor link>   # same gate, no diff
 cd tools/goomba && node verify.mjs --file <file of links> # ...on a batch
 cd tools/goomba && node quota.mjs          # the participation gate (room rule)

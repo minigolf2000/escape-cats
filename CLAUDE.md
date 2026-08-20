@@ -111,10 +111,12 @@ findings — do not design from intuition, the sim disproves it reliably.
   the moon) as a deliberate stand-in until Goomba has its own; two copies
   because the apps are separately deployed bundles and are expected to diverge,
   not one asset shared. Replace a file and nothing in code changes: both games
-  fit the picture to the WIDTH (a phone is far narrower than these are tall, and
-  cropping sideways would cut the subject in half) and extend the sky past both
-  ends with colours SAMPLED from the picture's own top and bottom pixel rows.
-  Don't hardcode a sky.
+  show the WHOLE picture, fitted on whichever axis binds — width on a phone (far
+  narrower than these are tall), height on a laptop (wider than they are
+  proportionally tall, so a width fit would overflow and eat the cat off the
+  top) — and fill the slack with sky SAMPLED from the picture's own edges: the
+  flat top and bottom rows above and below it, a ramp between those two beside
+  it. Don't hardcode a sky, and don't go back to cropping either axis.
 - **Hex's win is the PROCTOR's press, and it unlocks a splash you can toggle
   away from**: hex cannot score its own win — the code word leaves the game on a
   phone and comes back as four people reading it out — so `wonAt`
@@ -124,7 +126,7 @@ findings — do not design from intuition, the sim disproves it reliably.
   does not. Room state like everything else: all four phones light up on one
   snapshot, it survives a reload, a reset clears it. `#wonPill` top-left is the
   only control the win adds, and it ping-pongs — `🏆 win screen` ⇄ `← back to
-  Hex` — because the night wall they just read is what they EARNED and a victory
+  game` — because the night wall they just read is what they EARNED and a victory
   screen that buried it for good would be taking it away. Which of the two a
   phone is looking at is LOCAL (Goomba's card taps move what the room PLAYS, so
   those are wire intents; these are one room state seen two ways). The splash

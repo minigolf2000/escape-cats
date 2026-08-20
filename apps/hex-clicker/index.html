@@ -1743,22 +1743,42 @@
   #splash {
     position: fixed; inset: 0; z-index: 35;
     opacity: 0; pointer-events: none; transition: opacity .28s ease;
-    /* The sky, continued past the ends of a picture that is nowhere near as tall
-       as a phone: a hard two-stop gradient, split at the vertical centre the
-       picture is centred on, so the top band gets the art's top row and the
-       bottom band its bottom row. The fallbacks are THIS art's own edge rows;
-       initSplashArt() re-samples whatever file is actually there and overwrites
-       them, so a new splash brings its own sky with it. */
-    background: linear-gradient(var(--sky-top, #81a2d2) 0 50%, var(--sky-bottom, #90c2cf) 50% 100%);
+    /* A COLUMN, so the leftover sky is laid out rather than guessed at: the two
+       .sky bands take whatever height the picture does not, and the picture sits
+       between them. See the two-slacks note below for why that is a flex box and
+       not a background-position. */
+    display: flex; flex-direction: column;
+    /* The SIDE sky, for the wide case: the art's own side edge, sampled down its
+       height (skyStops in phase.js sets --sky-ramp; the two-stop fallback here is
+       THIS art's, and is what shows for the moment before it loads). It is only
+       ever visible when the picture is height-fitted, and a height-fitted picture
+       spans the viewport exactly — so the ramp's ends land on the art's own ends
+       and every stop between lines up with the row it was taken from. */
+    background: var(--sky-ramp, linear-gradient(var(--sky-top, #81a2d2), var(--sky-bottom, #90c2cf)));
   }
   #splash.on { opacity: 1; pointer-events: auto; }
-  /* The picture itself, fitted to the WIDTH and never cropped sideways — a phone
-     is much narrower than this is tall, so cropping to fill would cut the subject
-     in half. Its own element so the gradient above is never fighting a
-     multi-layer background shorthand. */
+  /* TWO SLACKS, and the picture is never cropped into either of them. A portrait
+     picture (1390x2000) on a phone has slack ABOVE and BELOW; on a laptop, which
+     is wider than the picture is proportionally tall, fitting the width instead
+     overflows the screen and eats the top of the art — which is where the cat
+     is. So the fit is "whole picture, whichever axis binds": width on a phone,
+     height on a desktop.
+     The two fills can never collide, which is what makes them exact rather than
+     approximate. The bands below have height only when the WIDTH binds, and a
+     width-fitted picture covers the viewport side to side — so it hides the
+     ramp. The ramp shows only when the HEIGHT binds, and then the bands are zero
+     tall. Each slack is filled by the thing that matches the art's edge there:
+     flat rows above and below, the vertical ramp beside. */
+  #splash .sky { flex: 1 1 0; min-height: 0; }
+  #splash .sky.top { background: var(--sky-top, #81a2d2); }
+  #splash .sky.bottom { background: var(--sky-bottom, #90c2cf); }
+  /* flex-shrink is the height fit: the img asks for its full-width height and
+     gets cut down to what is left when that overflows, and object-fit keeps the
+     picture itself un-squashed inside the box that shrinking leaves. min-height
+     because a flex item will not shrink past its content otherwise. */
   #splashArt {
-    position: absolute; inset: 0;
-    background-repeat: no-repeat; background-position: center; background-size: 100% auto;
+    flex: 0 1 auto; min-height: 0;
+    width: 100%; height: auto; object-fit: contain;
   }
   /* THE TOGGLE — the only control the win adds, and the only one on the splash.
      Hidden until the proctor marks the team won, then it ping-pongs: over the
@@ -1783,7 +1803,9 @@
 <!-- The win splash and its toggle. Ordered after the shell so they paint over
      the game without a stacking fight, and before the gate/rotate covers, which
      outrank them (see the z-index note in the CSS above). -->
-<div id="splash" aria-hidden="true"><div id="splashArt"></div></div>
+<div id="splash" aria-hidden="true">
+  <div class="sky top"></div><img id="splashArt" alt=""><div class="sky bottom"></div>
+</div>
 <button id="wonPill" type="button">🏆 win screen</button>
 
 <div id="gate">

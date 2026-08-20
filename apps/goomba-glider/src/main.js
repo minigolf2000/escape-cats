@@ -1065,46 +1065,71 @@ function drawLab() {
 // today, two pictures the moment either game wants its own).
 const splashImg = new Image();
 let splashReady = false;
-let splashBands = null; // { top, bottom } — the art's own edge rows, see below
+let splashSky = null; // the art's own edge colours, top to bottom — see below
 splashImg.onload = () => {
   splashReady = true;
-  splashBands = { top: edgeColor(splashImg, 0), bottom: edgeColor(splashImg, splashImg.height - 1) };
+  splashSky = skyStops(splashImg, SKY_STOPS);
 };
 // BASE_URL, not a bare path: this app is served from /g00mBa/ and dev serves it
 // from /, so the one absolute path that works in both is Vite's own.
 splashImg.src = import.meta.env.BASE_URL + "art/splash.webp";
 
-/** The average colour of one PIXEL ROW of an image, as a css string. Squeezing
- * a full-width, 1px-tall slice into a 1x1 canvas makes the browser do the
- * averaging. Used to extend the art's top and bottom edges over a screen taller
- * than the picture — the art is a sky, so its own end rows continue it far
- * better than any colour picked here could, and they keep doing that when the
- * art is replaced. */
-function edgeColor(img, y) {
+/** The art's own SIDE EDGE, sampled down its height into n colours — the sky to
+ * continue past the picture with, in every direction, and the reason no colour
+ * is picked by hand here or survives the art being replaced.
+ *
+ * The EDGE strip rather than the full row, because the sampled colour has to
+ * meet the picture at its left and right sides, where the sky is; a full-row
+ * average is the artist's sky mixed with whatever the picture has in the middle
+ * of it, which at these heights is a moon. Two stops used to be enough when the
+ * only slack was above and below, where the end rows ARE sky all the way
+ * across. A ramp down the side has to follow the sky's own turns (this one
+ * lightens into a horizon band low down), so it gets more than its endpoints.
+ *
+ * Each stop is one exact row squeezed to a pixel, so the ends of the ramp are
+ * the picture's true first and last rows and the flat bands can share them. */
+const SKY_STOPS = 24;
+function skyStops(img, n) {
   const c = document.createElement("canvas");
-  c.width = c.height = 1;
+  c.width = 2; c.height = n;
   const g = c.getContext("2d");
-  g.drawImage(img, 0, y, img.width, 1, 0, 0, 1, 1);
-  const [r, gr, b] = g.getImageData(0, 0, 1, 1).data;
-  return `rgb(${r},${gr},${b})`;
+  const edge = Math.max(1, Math.round(img.width * 0.02)); // wide enough to average the grain out
+  for (let i = 0; i < n; i++) {
+    const y = Math.round((i / (n - 1)) * (img.height - 1));
+    g.drawImage(img, 0, y, edge, 1, 0, i, 1, 1);
+    g.drawImage(img, img.width - edge, y, edge, 1, 1, i, 1, 1);
+  }
+  const d = g.getImageData(0, 0, 2, n).data;
+  const mid = (a, b) => (d[a] + d[b]) >> 1; // the two sides, averaged into one ramp
+  return Array.from({ length: n }, (_, i) => {
+    const l = i * 8, r = l + 4;
+    return `rgb(${mid(l, r)},${mid(l + 1, r + 1)},${mid(l + 2, r + 2)})`;
+  });
 }
 
 function drawSplash() {
   ctx.fillStyle = "#150a2a"; // until the art lands: the page's own background
   ctx.fillRect(0, 0, W, H);
   if (!splashReady) return;
-  // Fit the WIDTH, never crop it: a phone is much narrower than this picture is
-  // tall, and cropping sideways is what would cut the subject in half.
-  const h = (splashImg.height * W) / splashImg.width;
-  const y = (H - h) / 2;
-  if (y > 0) {
-    // Screen taller than the picture — extend its own sky past both ends.
-    ctx.fillStyle = splashBands.top;
-    ctx.fillRect(0, 0, W, Math.ceil(y) + 1);
-    ctx.fillStyle = splashBands.bottom;
-    ctx.fillRect(0, Math.floor(y + h) - 1, W, H - h - y + 2);
-  }
-  ctx.drawImage(splashImg, 0, y, W, h);
+  // The WHOLE picture, never cropped on either axis — whichever one binds. A
+  // phone is much narrower than this picture is tall, so the width binds there
+  // and the slack is above and below; a laptop is wider than the picture is
+  // proportionally tall, so fitting the width would overflow the screen and eat
+  // the top of the art, which is where the cat is. Height binds there instead.
+  const s = Math.min(W / splashImg.width, H / splashImg.height);
+  const w = splashImg.width * s, h = splashImg.height * s;
+  const x = (W - w) / 2, y = (H - h) / 2;
+  // The sky, continued into whichever slack there is, in ONE fill: the art's own
+  // side edge as a ramp, pinned to the picture's top and bottom. Canvas clamps a
+  // gradient past its ends, so the area above y comes out flat in the picture's
+  // first row and below y + h flat in its last (the phone case), while the area
+  // beside the art gets the ramp itself (the laptop case) — no branch, and the
+  // two cases cannot disagree at the corners where they meet.
+  const sky = ctx.createLinearGradient(0, y, 0, y + h);
+  splashSky.forEach((c, i) => sky.addColorStop(i / (splashSky.length - 1), c));
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(splashImg, x, y, w, h);
 }
 
 // ---------- main loop ----------

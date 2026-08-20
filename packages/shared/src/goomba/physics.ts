@@ -49,12 +49,12 @@ const SNAP = 5; // a dragged endpoint this close to terrain lands ON it
 // neither direction. It used to be buried 0.8 below ("slightly buried, so no
 // tip-bonk"), and that burial is what made a snapped band feel like it ends in a
 // kerb. Bury an endpoint by d and the ledge's own vertex sits d ABOVE the band's
-// riding surface; Goomba's centre rides R above that surface, so it passes d
-// INSIDE the vertex's collision circle and clips it — contact on a normal tilted
-// sqrt(1 - ((R-d)/R)²) off vertical, which the ground's near-dead restitution
-// (0.02) then eats out of her along-band speed. At d=0.8 against R=2.2 that is
-// ~77% of it, and it lands ~1.9 units BEFORE the lip she was aiming at: on level
-// 1's bridge she rode in at 39 u/s and came off the V's lip at 10.6 horizontal,
+// riding surface; Goomba's centre rides R above that surface, so it runs into the
+// vertex's collision circle sqrt(R² - (R-d)²) EARLY, on a normal whose sine off
+// vertical is sqrt(1 - ((R-d)/R)²) — that fraction of her along-band speed drives
+// straight into the ground's near-dead restitution (0.02) and dies there. At
+// d=0.8 against R=2.2 it is 1.70 units early and 77% of her speed: on level 1's
+// bridge she rode in at 39 u/s and came off the V's lip at 10.6 horizontal,
 // launched upward. Flush is measurably free at both ends (8 junction shapes,
 // arriving and departing, plus every shipped solution). Do not "fix" a bonk by
 // lifting the endpoint instead — that just moves the same kerb to the departure

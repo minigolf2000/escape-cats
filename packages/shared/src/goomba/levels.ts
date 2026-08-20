@@ -179,7 +179,8 @@ const RAW_LEVELS: GoombaLevel[] = [
   //   4. the diagonal, lower-right, and the second can hanging under it
   //
   // DEBT, measured not inherited: this one is honestly a THREE-band level, and
-  // ships that way (budget 3, a 3-band solution) alongside levels 3 and 4 —
+  // ships that way (budget 3, a 3-band solution) alongside Watering Can
+  // Slalom (3) —
   // `solve.mjs 0 1` and `0 2` both come back empty, `0 3` solves. It is not a
   // shortcut that wants patching: `node reach.mjs 0 3 --drop-can 1 --near
   // 72,82` reports ZERO cells a 4-band win reaches that a 3-band win does not,
@@ -304,19 +305,6 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],
                 [[87, 132.3], [45.9, 160.8]] ] },
 
-  { name: '4 · Piñata Alley', budget: 3,
-    start: [8, 14],
-    terrain: [ [[-6, 12], [38, 24]],
-               [[4, 30], [4, 190], [106, 196], [106, 30]] ],
-    goal: [96, 191],
-    cans: [[24, 92], [86, 150]],
-    // curtains, not obstacles: the gaps are narrower than she is, so she MUST bounce
-    bumpers: [ { x: 16, y: 62 }, { x: 34, y: 62 }, { x: 52, y: 62 },
-               { x: 70, y: 62 }, { x: 88, y: 62 },
-               { x: 25, y: 122 }, { x: 43, y: 122 }, { x: 61, y: 122 },
-               { x: 79, y: 122 }, { x: 97, y: 122 } ],
-    solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
-
   // CAT'S CRADLE — the sparse staggered lattice, drawn from a sketch, that
   // replaced The Popper Grid (four DENSE lanes of six poppers 16 apart, plus an
   // entry chute and a V-basin; git history has the geometry). The finding it
@@ -357,7 +345,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   //      collected everything and flies past the plant off the right edge
   //      (flew, 3/3).
   //
-  // GATE: PASS (`node verify.mjs 4`) — bare fails, 4 legal bands win at ~3.7s,
+  // GATE: PASS (`node verify.mjs 3`) — bare fails, 4 legal bands win at ~3.7s,
   // every band load-bearing (fall/flew/left/flew), finger slop 30/30, no 1-band
   // win (exhaustive), none at 2 or 3 (30000/20000 sampled), none from the beam
   // search. Jitter measured ~95% on three unrelated seeds too, not just the
@@ -365,7 +353,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // 26-unit wall tilts it 13°, which turns a rebound by 26° and throws the
   // landing off the popper below; the same slop on a 50-unit wall barely
   // moves it. Ride: 3.7s at 99% airborne, every one of the twelve poppers fired.
-  { name: "5 · Cat's Cradle", budget: 4,
+  { name: "4 · Cat's Cradle", budget: 4,
     start: [0, 0],
     terrain: [], // deliberate: the players' bands are the only surfaces here
     goal: [18, 112],
@@ -377,98 +365,21 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[-6, 4], [22, 20]], [[83, -6], [83, 48]],
                 [[15, 40], [15, 80]], [[98, 66], [98, 116]] ] },
 
-  // SPACE CADET: a pinball cabinet, rebuilt to the reference table's bumper
-  // layout (one lone bumper high in the dome + a tight nest of three, from the
-  // design sketch) with pinball furniture mapped onto our toys: bouncy floors
-  // are the flippers and slingshots, party poppers are the plunger kickers and
-  // the outlane kickback. Three kickers walk her up the shooter lane, the dome
-  // slings her across the playfield, the raised lane divider is the one-way
-  // gate (playfield balls can't fall back in), and everything drains into the
-  // basin between the flippers where the spider plant sits, gated by FIVE cans:
-  //   loop  (40,38)  — under the dome, on the band-A shelf ride
-  //   bank  (25,45)  — upper-left, swept only by band A's exit arc
-  //   mid   (52,86)  — on the band-B ride line across midfield
-  //   pocket(20,84)  — roofed by the awning; only a kickback lob bent by
-  //                    band C and popped off the left slingshot gets up there
-  //   save  (32,182) — under the left flipper; band D roofs the drain gap and
-  //                    rolls her through it onto the basin's left arm
-  // The intended ride is one 12-second tour: orbit → dome shelf (loop) → exit
-  // arc (bank) → awning roll → midfield shelf (mid) → lane → kickback lob →
-  // C-bend → slingshot pop (pocket) → wall ledge kicks her back right → drain
-  // roof (save) → basin arm → plant. The wall ledge and the sealed awning are
-  // anti-cycle geometry: poppers re-fire deterministically, so every pocket
-  // exit is routed AWAY from the kickback or the table loops forever.
-  //
-  // GATE STATUS, eyes open (replaces the old 1-band-collapse debt): bare run
-  // fails legibly, the solution is 4 legal bands, it wins at ~11.9s, every
-  // band is load-bearing (drop-one fails four different ways), and minbands
-  // found NO smaller win — 1 band exhaustive (0/9796), 2–3 bands sampled
-  // (0/50000). What still fails is finger slop: ±3u jitter wins 0/30 — five
-  // chained ballistic hand-offs each tolerate ~2-4u, and nothing re-centers
-  // her between stages (the beam-search check never runs; the gate stops at
-  // jitter). The fix direction (not attempted yet): funnel geometry between
-  // stages — poppers erase her SPEED, but only V-basins erase her POSITION,
-  // and the jitter check effectively demands both between every job.
-  { name: '6 · Space Cadet', budget: 4, maxSpeed: 140,
-    start: [103, 178],
-    terrain: [
-      // table shell: left wall, rounded top, the orbit shoulder, shooter-lane wall
-      [[6, 152], [6, 66], [9, 50], [16, 36], [28, 25], [44, 18], [62, 17],
-       [78, 22], [92, 31], [102, 43], [108, 58], [110, 80], [110, 184], [96, 186]],
-      // shooter-lane divider — the mouth up top is where she leaves the lane;
-      // its top reaches close enough to the dome shoulder that the launch still
-      // exits along the shell but playfield balls can't fall back into the lane
-      [[96, 50], [96, 186]],
-      // outlane guides funnel toward the flipper pit; the flippers themselves
-      // are the cushions below (bouncy floors, not walls)
-      [[6, 152], [26, 172]],
-      [[96, 152], [68, 172]],
-      // drain basin under the gap between the flipper cushions — its left arm
-      // reaches under the left flipper (the save excursion's floor) and turns
-      // up into a corner wall that kills leftward skips dead
-      [[14, 170], [18, 183], [51, 197], [66, 188]],
-      // awning: runs wall-to-edge, roofing the pocket can (no fall collects
-      // it) and turning left-side descents into a roll toward midfield
-      [[6, 70], [32, 76]],
-      // wall ledge: kicks pocket-exit falls back toward the flippers, so they
-      // can't dribble down the wall into the kickback and orbit it forever
-      [[6, 94], [16, 102]],
-    ],
-    goal: [51, 194],
-    // loop (under the dome) / bank (upper-left, relay-arc only) / mid (band-B
-    // ride line) / roofed pocket (up-only, under the awning) / drain save
-    // (under the left flipper) — nothing on the bare tour
-    cans: [[40, 38], [25, 45], [52, 86], [20, 84], [32, 182]],
-    // (bumpers/cushions tuned so no free path reaches any of the five)
-    // the drawing's four: a lone bumper high in the dome + a tight nest of three
-    bumpers: [ { x: 28, y: 36 },
-               { x: 48, y: 53 }, { x: 62, y: 49 }, { x: 54, y: 65 } ],
-    // bouncy floors: two slingshots (their gaps are the splitter — centre
-    // drains, edges are lanes) and two flippers flanking the drain gap
-    cushions: [ { x: 22, y: 128, w: 5 }, { x: 68, y: 128, w: 10 },
-                { x: 26, y: 172, w: 12 }, { x: 54, y: 172, w: 14 } ],
-    pops: [ { x: 103, y: 178, deg: -90, spd: 170 },
-            { x: 103, y: 130, deg: -90, spd: 170 },
-            { x: 103, y: 82,  deg: -90, spd: 170 },
-            { x: 8, y: 146, deg: -80, spd: 150 } ], // kickback → pocket lob
-    solution: [ [[34, 46], [56, 46]], [[36, 90], [68, 90]],
-                [[30, 90], [30, 96]], [[54, 168], [38, 179]] ] },
-
   // ── UP THE MIDDLE ───────────────────────────────────────────────────────
   // Grown over several rounds from a hand sketch, then finished by hand in the
   // editor. A narrow board on a 20×18 lattice: one wall of piñata bumpers at
   // x=55, one four-popper up-column at x=75 with the spider plant buried INSIDE
-  // it at (75,48), and three cans thrown wide — far right (95,120), in the
-  // column (75,84), and top (45,12).
+  // it at (75,48), and four cans thrown wide — far right (95,120), in the
+  // column (75,84), top (45,12), and the toll booth at (13,54).
   //
   // Every popper is load-bearing in the intended ride, and the ride is a lap
   // and a half:
   //   pop(6.5,120)↗ → pop(55,120)→ → can(95,120) far right → band A turns her
   //   back → pop(75,138) into the column → pop(75,102) → can(75,84) →
   //   pop(75,66) past the LOCKED plant → pop(75,30) out the top → band B tips
-  //   her onto can(45,12) → pop(35,30)↙ throws her the full width of the board
-  //   back into pop(6.5,120) → up the column a second time → pop(75,66) → the
-  //   plant, now unlocked. 5.9s, three bands.
+  //   her onto can(45,12) → pop(35,30)↙ throws her the full width of the
+  //   board, collecting can(13,54) in flight → pop(6.5,120) → up the column a
+  //   second time → pop(75,66) → the plant, now unlocked. 5.9s, three bands.
   //
   // WHY THE ↙ RETURN POPPER SITS WHERE IT DOES, because it is the one piece
   // that has been wrong twice and the reason is not obvious from the picture.
@@ -495,8 +406,10 @@ const RAW_LEVELS: GoombaLevel[] = [
   // GATE STATUS, measured: bare fails (flew@2.12s), all three bands are
   // load-bearing with three different deaths (drop-one → flew / loop / left),
   // every band is in-bounds and under BAND_MAX (33.1 / 35.6 / 51.1), and finger
-  // slop is 29/30 against a threshold of 18 — comfortably CLEAR, and the best
-  // any board here has scored with a bumper in the loop. The one thing it
+  // slop is 22/30 against a threshold of 18 — CLEAR, and the best any board
+  // here has scored with a bumper in the loop. (It was 29/30 on three cans;
+  // the (13,54) toll-booth can costs seven trials' worth of tolerance, which
+  // is the price of making the ↙ popper compulsory.) The one thing it
   // fails is the party rule: the true minimum is 3 bands, not 4. Two stages
   // still carry themselves — the bare feed chain hands her the far-right can
   // for free, and the up-column self-chains once she is in it — so those are
@@ -506,11 +419,16 @@ const RAW_LEVELS: GoombaLevel[] = [
   // dot leaves with START_VX=20 and sails past the popper beneath it, and
   // `decodeLevel` rejects a level with no terrain at all, so the shelf is also
   // what lets this board travel as an editor link.
-  { name: '7 · Up the Middle (testbed)', budget: 4,
+  { name: '5 · Up the Middle (testbed)', budget: 4,
     start: [3, 100],
     terrain: [ [[-1.5, 103], [3, 107]] ],  // the start shelf — the only terrain
     goal: [75, 48],
-    cans: [[45, 12], [75, 84], [95, 120]],
+    // The (13,54) can is the ↙ popper's toll booth: it sits ON that popper's
+    // 135° throw arc (from (35,30) she is at y≈60 when she crosses x=13, and
+    // the pickup radius is 9.7), so the only way to collect it is to actually
+    // be thrown by the popper. Before it, the popper was optional — winning
+    // lines existed that threaded past and free-fell to the feed popper.
+    cans: [[45, 12], [75, 84], [95, 120], [13, 54]],
     // Four, not five: the (55,102) bumper was deleted along the way — it is the
     // one the feed hop used to hit flat, and its absence is what opens the lane
     // from the bottom-left popper across the wall and into the column.

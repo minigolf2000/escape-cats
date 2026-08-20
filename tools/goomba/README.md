@@ -107,13 +107,18 @@ names the culprits instead of leaving them as prose: band2, the 6-unit C-bend,
 survives jitter 16% of the time inside a 2-unit window; bands 0 and 1 have
 2- and 4-unit windows; and band3 sits 9 units off-centre in an 18-unit window,
 which is free robustness nobody had measured.
-Popper Pinball (7) is a TESTBED, not a balanced level — a hand sketch
-transcribed to check the physics of "poppers move her, bands only steer".
-The physics hold: the intended loop rides end to end in 6.1s at 94% airborne,
-including the collect-the-far-can-then-come-back leg. What it is not is a
-4-band level — `minbands` puts it at 2 (0/7430 at one band, exhaustive), and
-its slop is 10/30, all of it in the single band that has to deflect her off a
-piñata bumper (BUMP_E 1.18 multiplies placement error where a popper would
-erase it) — `slack.mjs 6` is the one-command version of that attribution. Its
-comment in `levels.ts` names the two stages that are currently free and would
-have to carry geometry for it to require 4.
+Up the Middle (7) grew from a hand sketch over several rounds, finished by
+hand in the editor. It is the closest thing here to a third passing level:
+bare fails, all three bands load-bearing with three different deaths, every
+band in-bounds and under BAND_MAX, and finger slop 29/30 against a threshold
+of 18 — the best score any board here has managed with a bumper in the loop.
+The only gate it fails is the party rule, at 3 bands rather than 4; the two
+stages that still carry themselves (the bare feed chain hands her the
+far-right can, and the up-column self-chains) are where geometry would have to
+go to force a fourth.
+
+Its ↙ return popper is worth reading about in `levels.ts` before moving
+anything: the same popper, at the same 135° aim, was a working return at one
+position, a run-killer 20 units left of it, and a working return again once
+the LANDING popper moved to meet the throw. What matters is whether an aim has
+room downrange, which is not visible in the picture.

@@ -368,7 +368,7 @@ positioned well below the apex passes the arrival's variance straight through
 at 1.18×. Pick which you want.
 
 **Snap IS the forgiveness — anchor every band end on a terrain vertex (The
-Long Way Up, and the fix Space Cadet was missing).** The ±3u jitter check is
+Long Way Up).** The ±3u jitter check is
 what kills chained-ballistics levels, because each hand-off tolerates only a
 few units and nothing re-centres her. But jitter perturbs the *bands*, not the
 physics: an endpoint within 5 units of a vertex lands exactly ON it, and ±3 per
@@ -408,15 +408,17 @@ error in where she strikes becomes a larger error in where she goes next.
 Popper Pinball — a testbed since removed, findings stand; git history has the
 geometry — measured the gap on one solution: the band whose job ended in a
 popper jittered 30/30, the band whose job ended in a bumper jittered 10/30, and
-the whole solution scored the bumper band's number. Up the Middle (7) is the
+the whole solution scored the bumper band's number. Up the Middle (5) is the
 constructive version of the same fact: its fragile band hands off to a POPPER
-on the leg that follows, and it scores 29/30 with a bumper wall in the loop. Consequence for design: a bumper is
-fine as an obstacle or a curtain (Piñata Alley) and fine as a *free* stage
-nothing is aimed at, but a band that must aim her at one is a precision tax you
-will pay at the gate. Aim bands at poppers; let bumpers be scenery.
+on the leg that follows, and it scores 29/30 with a bumper wall in the loop.
+Consequence for design: a bumper is fine as an obstacle or a curtain (Piñata
+Alley — level cut, the pattern stands: bumpers packed tighter than she is wide
+make a curtain she MUST bounce through) and fine as a *free* stage nothing is
+aimed at, but a band that must aim her at one is a precision tax you will pay
+at the gate. Aim bands at poppers; let bumpers be scenery.
 
 **An up-column of poppers is a trap, and that is the good part** (Up the
-Middle, level 7). Poppers firing straight up in a line make an elevator she
+Middle, level 5). Poppers firing straight up in a line make an elevator she
 cannot leave: the top one throws her ~35 units, she falls back into it 1.31 s
 later, and `POP_COOLDOWN` is 0.8 — so she re-fires forever and the run is
 called `loop`. That reads
@@ -436,6 +438,17 @@ at (35,30) and still 135°, once the LANDING popper moved 8 units left to meet
 the throw. Nothing about the popper changed in that last step. When a thrown
 leg fails, measure where the arc actually exits before re-aiming: the fix may
 belong at the other end.
+
+**A can ON a popper's throw arc is a toll booth — the cheapest way to make a
+popper compulsory (Up the Middle, level 5).** A popper that merely *can* be hit
+will be skipped: the winning lines that thread past it are usually the ones
+with the most slack, so the solver finds them and the popper becomes scenery.
+Putting a collectible where the popper's own arc passes fixes that with no
+geometry at all — the popper delivers her to it and nothing else does. Compute
+the arc, don't eyeball it: here the throw leaves (35,30) at 135° and ~90 u/s,
+so she crosses x=13 at y≈60, and a can at (13,54) is inside the 9.7 pickup
+radius. Expect to pay slop for it (29/30 → 22/30 on this board): the can turns
+a leg the solution could route around into one it must hit exactly.
 
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — the goal plant in a pocket with a ceiling, so falling

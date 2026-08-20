@@ -64,11 +64,10 @@ Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is
 each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
 one player hoarding, but only geometry can make a level *need* four bands, so
 the level gate below still does the load-bearing work.
-Seven levels ship. TWO pass the full gate — The Long Way Up (2) and Cat's
-Cradle (5) — and the others are the standing rebalance debt: they win with
-fewer than 4 bands, or lose a real finger. Freshly measured, not inherited: The
-Long Way Down (1) needs 3, Watering Can Slalom (3) needs 3 (0/10325 at one
-band, exhaustive), and Piñata Alley (4) needs 2.
+Five levels ship. TWO pass the full gate — The Long Way Up (2) and Cat's
+Cradle (4) — and the others are the standing rebalance debt: they win with
+fewer than 4 bands. Freshly measured, not inherited: The Long Way Down (1)
+needs 3 and Watering Can Slalom (3) needs 3 (0/10325 at one band, exhaustive).
 Level 1 joined that list deliberately: it was rebuilt to a hand sketch whose
 silhouette cannot carry a 4th gate (see DESIGNING.md on why no can placement
 fixes it), replacing Four Ways to Help, which passed.
@@ -78,11 +77,12 @@ concave-up slope she rides from the bottom-left to a launcher at the top right,
 poppers shooting her along it, three long rough steps notched PERPENDICULAR
 into it (the players chord across each one), then a bumper that mirrors her
 into a flat run home across three cans and a wall at the end of that run to
-drop her in the pot. It also answers Space Cadet's open question — see below —
-because every one of its band ends sits on a notch rim ~9 units clear of its
-neighbours, so snap eats the finger slop (jitter 29/30 at ±3u) even though the
-flight itself is a chain of exact ballistics.
-Cat's Cradle took position 5 from The Popper Grid, which it replaced: four
+drop her in the pot. Its band ends are the reason it survives fingers: every
+one sits on a notch rim ~9 units clear of its neighbours, so snap eats the slop
+(jitter 29/30 at ±3u) even though the flight itself is a chain of exact
+ballistics. That is the general fix for a precision-fragile board, and it
+outlived Space Cadet, which was cut before anyone applied it.
+Cat's Cradle replaced The Popper Grid: four
 DENSE lanes of six poppers 16 apart, an entry chute and a V-basin (git history
 has the geometry). It keeps that level's structure and the finding behind it,
 sparser and sketched from scratch — three poppers a lane, 24 apart so their
@@ -93,25 +93,15 @@ The blanket "levels 3-8 collapse to 1 band" this file used to carry was
 stale for two of its members. (The Skim, The Puzzle Box and Pillow Fort were
 cut, and Mind the Gap, which passed, was cut with them. Level numbers are
 array index + 1, so removals and insertions renumber everything after them.)
-Space Cadet (6) has been rebuilt as a pinball
-machine with five cans: `minbands` finds no ≤3-band win (exhaustive at 1
-band, 0/50000 sampled at 2-3), its 4-band solution wins with every band
-load-bearing, and what keeps it out of the passing list is now the ±3u
-finger-slop check (0/30) — five chained ballistic hand-offs, each tolerating
-only a few units, with nothing re-centering her between stages. Its debt is
-precision, not collapse; the fix direction is now known — anchor every band
-end on a terrain vertex the way level 2 does, so snap absorbs the slop before
-the physics sees it — with funnel geometry between stages as the fallback
-(poppers erase speed, only V-basins erase position). `node slack.mjs 5` now
-names the culprits instead of leaving them as prose: band2, the 6-unit C-bend,
-survives jitter 16% of the time inside a 2-unit window; bands 0 and 1 have
-2- and 4-unit windows; and band3 sits 9 units off-centre in an 18-unit window,
-which is free robustness nobody had measured.
-Up the Middle (7) grew from a hand sketch over several rounds, finished by
+Up the Middle (5) grew from a hand sketch over several rounds, finished by
 hand in the editor. It is the closest thing here to a third passing level:
 bare fails, all three bands load-bearing with three different deaths, every
-band in-bounds and under BAND_MAX, and finger slop 29/30 against a threshold
+band in-bounds and under BAND_MAX, and finger slop 22/30 against a threshold
 of 18 — the best score any board here has managed with a bumper in the loop.
+Its fourth can, at (13,54), is a toll booth on the ↙ popper's throw arc: the
+only way to collect it is to be thrown by that popper, which is what stops a
+winning line threading past it. It cost seven trials of slop (29/30 → 22/30)
+to make that popper compulsory.
 The only gate it fails is the party rule, at 3 bands rather than 4; the two
 stages that still carry themselves (the bare feed chain hands her the
 far-right can, and the up-column self-chains) are where geometry would have to

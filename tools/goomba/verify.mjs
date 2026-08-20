@@ -30,6 +30,12 @@
 //   7. no ≤3-band win found by beam search — the hunter that has caught
 //      every exploit random sampling missed (launcher bands, under-floor
 //      falls), so do not skip it because 5 and 6 came back clean
+//
+// When check 4 (finger slop) is what fails — the usual verdict on a level whose
+// geometry is otherwise honest — `slack.mjs` is the follow-up: it says WHICH
+// band is fragile, how far off-centre it is parked, and what lengths still win.
+// It is also worth running when check 4 barely passes; 30 trials on one seed is
+// a noisy verdict, and this gate says so when a level scrapes through.
 import {
   LEVELS, BAND_MAX, BAND_MIN, MAX_BANDS, simulateLevel, decodeLevel, initLevel,
   legalBands, mulberry, jitterSolution, JITTER_TRIALS, JITTER_MIN_WINS, JITTER_SEED,
@@ -139,8 +145,10 @@ function beamHunt(L, budget, K) {
 }
 
 /** Run the gate on one level. Returns a list of check results; stops at the
- * first failure (the summary table wants the first failure per level anyway). */
-function verify(L) {
+ * first failure (the summary table wants the first failure per level anyway).
+ * `hint` is how this level is addressed on the command line, so the advice a
+ * failure prints can be pasted straight back into a shell. */
+function verify(L, hint) {
   const checks = [];
   const check = (name, ok, detail) => {
     checks.push({ name, ok, detail });
@@ -173,8 +181,14 @@ function verify(L) {
   for (let t = 0; t < JITTER_TRIALS; t++)
     if (simulateLevel(L, jitterSolution(sol, rnd)).result === "win") jwins++;
   if (!check(`jitter ±3u wins ≥ ${JITTER_MIN_WINS}/${JITTER_TRIALS}`,
-             jwins >= JITTER_MIN_WINS, `${jwins}/${JITTER_TRIALS}`))
+             jwins >= JITTER_MIN_WINS, `${jwins}/${JITTER_TRIALS}`)) {
+    console.log(`        which band, and how much room has it got? → node slack.mjs ${hint}`);
     return checks;
+  }
+  // A pass this close to the line is one seed's luck as much as the level's
+  // doing: 30 trials cannot tell 60% from 85%, and only one of those ships.
+  if (jwins < JITTER_MIN_WINS + 4)
+    console.log(`        (that scraped past — confirm the true rate: node slack.mjs ${hint})`);
 
   // 5. exhaustive 0/1-band
   const legal = legalBands(L);
@@ -209,7 +223,8 @@ function verify(L) {
 /** [{ L, label }] — link-borne levels get a "link" label; only shipped ones
  * have an L-number a player would ever see. */
 let targets;
-if (hashArg !== undefined) targets = [{ L: adoptLink(hashArg, "--hash"), label: "link" }];
+if (hashArg !== undefined)
+  targets = [{ L: adoptLink(hashArg, "--hash"), label: "link", hint: `--hash ${hashArg}` }];
 else if (fileArg !== undefined) {
   // One link per line, blank lines and `//` comments skipped — so a team can
   // keep their day's levels in one file with a note beside each.
@@ -219,7 +234,8 @@ else if (fileArg !== undefined) {
     console.error(`${fileArg}: no links in it`);
     process.exit(2);
   }
-  targets = lines.map((l, i) => ({ L: adoptLink(l, `${fileArg}:${i + 1}`), label: "link" }));
+  targets = lines.map((l, i) => ({ L: adoptLink(l, `${fileArg}:${i + 1}`), label: "link",
+                                   hint: `--hash ${l}` }));
 } else {
   const idxs = arg === "all" ? LEVELS.map((_, i) => i) : [Number(arg)];
   for (const li of idxs)
@@ -227,13 +243,13 @@ else if (fileArg !== undefined) {
       console.error(`no level at index ${arg} (0..${LEVELS.length - 1})`);
       process.exit(2);
     }
-  targets = idxs.map((li) => ({ L: LEVELS[li], label: `L${li + 1}` }));
+  targets = idxs.map((li) => ({ L: LEVELS[li], label: `L${li + 1}`, hint: String(li) }));
 }
 
 let allOk = true;
-for (const { L, label } of targets) {
+for (const { L, label, hint } of targets) {
   console.log(`${label} ${L.name}${quick ? "  (--quick: smaller samples)" : ""}`);
-  const checks = verify(L);
+  const checks = verify(L, hint);
   const ok = checks.every((c) => c.ok);
   allOk &&= ok;
   console.log(`  → ${ok ? "PASS ✓" : `FAIL ✗ (${checks.find((c) => !c.ok).name})`}\n`);

@@ -31,8 +31,10 @@ node reach.mjs 0 3     # could ANY can placement force a 4th band? (often: no)
 node searchall.mjs     # solution-space tightness: how many placements win, how many families
 node search.mjs 2      # same, one level, with the winning families listed
 node trace.mjs 4 '[[[10,20],[40,30]]]'   # dense trajectory dump, for placing geometry
-node scan.mjs 7 v 34 60 '[fixed bands]'  # sweep ONE band across the level → win windows
-node solve.mjs 7 3     # beam-search auto-solver: finds the shortcuts you didn't intend
+node route.mjs 3 drop  # the RIDE as a chain of poppers/cans/bands — and its four deaths
+node slack.mjs 3       # per-band forgiveness: which band a real finger loses the run on
+node scan.mjs 3 v 34 60 '[fixed]' --step 1   # sweep ONE band → win windows (2u by default)
+node solve.mjs 3 3     # beam-search auto-solver: finds the shortcuts you didn't intend
 node arc.mjs 94 200 -115 118 164          # popper ballistics: where the arc lands
 node diag.mjs 3        # failure modes of jittered placements
 node ridecards.mjs out/ [i...]            # PNG of a level with her traced ride
@@ -62,26 +64,38 @@ Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is
 each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
 one player hoarding, but only geometry can make a level *need* four bands, so
 the level gate below still does the load-bearing work.
-Seven levels ship. One passes the full gate — The Popper Grid (6) — and levels
-1-4 are the standing rebalance debt: they win with fewer than 4 bands.
-Freshly measured, not inherited: The Long Way Down (1) needs 3, Watering Can
-Slalom (2) needs 3 (0/10325 at one band, exhaustive), Piñata Alley (3) needs
-2, and only Pop Goes Goomba (4) truly collapses to 1 (196/8738, exhaustive).
+Seven levels ship. One passes the full gate — Cat's Cradle (4) — and the others
+are the standing rebalance debt: they win with fewer than 4 bands, or lose a
+real finger. Freshly measured, not inherited: The Long Way Down (1) needs 3,
+Watering Can Slalom (2) needs 3 (0/10325 at one band, exhaustive), Piñata Alley
+(3) needs 2, and only Pop Goes Goomba — now level 5 — truly collapses to 1
+(196/8738, exhaustive).
 Level 1 joined that list deliberately: it was rebuilt to a hand sketch whose
 silhouette cannot carry a 4th gate (see DESIGNING.md on why no can placement
 fixes it), replacing Four Ways to Help, which passed.
+Cat's Cradle took position 4 from The Popper Grid, which it replaced: four
+DENSE lanes of six poppers 16 apart, an entry chute and a V-basin (git history
+has the geometry). It keeps that level's structure and the finding behind it,
+sparser and sketched from scratch — three poppers a lane, 24 apart so their
+reaches never touch, lanes interlocked half a step, and no terrain at all. It
+is the more robust of the two: finger slop 30/30 where the dense original
+managed 21/30, and ~95% on three unrelated seeds.
 The blanket "levels 3-8 collapse to 1 band" this file used to carry was
 stale for two of its members. (The Skim, The Puzzle Box and Pillow Fort were
 cut, and Mind the Gap, which passed, was cut with them. Level numbers are
 array index + 1, so those removals renumbered everything after them.)
-Space Cadet (5) has been rebuilt as a pinball
+Space Cadet (6) has been rebuilt as a pinball
 machine with five cans: `minbands` finds no ≤3-band win (exhaustive at 1
 band, 0/50000 sampled at 2-3), its 4-band solution wins with every band
 load-bearing, and what keeps it out of the passing list is now the ±3u
 finger-slop check (0/30) — five chained ballistic hand-offs, each tolerating
 only a few units, with nothing re-centering her between stages. Its debt is
 precision, not collapse; the suspected fix is funnel geometry between stages
-(poppers erase speed, only V-basins erase position).
+(poppers erase speed, only V-basins erase position). `node slack.mjs 5` now
+names the culprits instead of leaving them as prose: band2, the 6-unit C-bend,
+survives jitter 16% of the time inside a 2-unit window; bands 0 and 1 have
+2- and 4-unit windows; and band3 sits 9 units off-centre in an 18-unit window,
+which is free robustness nobody had measured.
 Popper Pinball (7) is a TESTBED, not a balanced level — a hand sketch
 transcribed to check the physics of "poppers move her, bands only steer".
 The physics hold: the intended loop rides end to end in 6.1s at 94% airborne,
@@ -89,5 +103,6 @@ including the collect-the-far-can-then-come-back leg. What it is not is a
 4-band level — `minbands` puts it at 2 (0/7430 at one band, exhaustive), and
 its slop is 10/30, all of it in the single band that has to deflect her off a
 piñata bumper (BUMP_E 1.18 multiplies placement error where a popper would
-erase it). Its comment in `levels.ts` names the two stages that are currently
-free and would have to carry geometry for it to require 4.
+erase it) — `slack.mjs 6` is the one-command version of that attribution. Its
+comment in `levels.ts` names the two stages that are currently free and would
+have to carry geometry for it to require 4.

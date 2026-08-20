@@ -149,12 +149,22 @@ export function initLevel(L: GoombaLevel): GoombaLevelInit {
   return L as GoombaLevelInit;
 }
 
-// One row of the popper grid in the finale: every popper in a lane aims the
-// same way, which makes the lane a one-way street she cannot leave under her
-// own power.
-const GRID_X = [16, 32, 48, 64, 80, 96];
-const popLane = (y: number, dir: number): GoombaPopper[] =>
-  GRID_X.map((x) => ({ x, y, deg: dir > 0 ? 0 : 180, spd: 76 }));
+// One lane of Cat's Cradle: every popper in a lane aims the same way, which
+// makes the lane a one-way street she cannot leave under her own power. The
+// two column sets are offset half a step from each other, so the lanes
+// interlock and no vertical corridor runs clean through the lattice.
+//
+// The fire speed is what keeps a SPARSE lane alive. Columns are 24 apart while
+// a popper's reach is only ~8 (POP_R + R), so the trigger circles never touch
+// and a lane can only grab her while she is flying ALONG it: leaving at
+// LANE_SPD × 0.82 ≈ 86 she crosses the 24 units to the next popper having
+// dropped ~6, comfortably inside the grab. Slow the lane down and the chain
+// breaks in the middle; that is the number to re-check before moving a column.
+const LANE_SPD = 105;
+const LANE_ODD = [26, 50, 74]; // lanes 1 and 3
+const LANE_EVEN = [38, 62, 86]; // lanes 2 and 4, half a step over
+const lane = (y: number, xs: number[], dir: number): GoombaPopper[] =>
+  xs.map((x) => ({ x, y, deg: dir > 0 ? 0 : 180, spd: LANE_SPD }));
 
 const RAW_LEVELS: GoombaLevel[] = [
   // Rebuilt from a hand sketch: a staircase of four ledges the eye reads
@@ -231,7 +241,67 @@ const RAW_LEVELS: GoombaLevel[] = [
                { x: 79, y: 122 }, { x: 97, y: 122 } ],
     solution: [ [[97.5, 121.4], [114.6, 94.6]], [[20.8, 59.6], [22.7, 93.4]] ] },
 
-  { name: '4 · Pop Goes Goomba',
+  // CAT'S CRADLE — the sparse staggered lattice, drawn from a sketch, that
+  // replaced The Popper Grid (four DENSE lanes of six poppers 16 apart, plus an
+  // entry chute and a V-basin; git history has the geometry). The finding it
+  // proved survives it: alternating lanes of forced poppers make a 2D line maze
+  // whose only verb is WALL A LANE, and that is the one structure whose true
+  // minimum is 4 bands. What changed is the density. Three poppers a lane, 24
+  // apart, so their trigger circles never touch, and the lanes interlock half a
+  // step so no vertical corridor runs clean through. And there is NO TERRAIN AT
+  // ALL: twelve poppers, three cans and the plant hang in the void, and the
+  // players' four bands are the only surfaces in the world.
+  //
+  // ONE verb, four times: wall the END of a lane. She rebounds off the band
+  // (band restitution ≈ .32 kills most of her speed) and keeps that backwards
+  // drift for the whole 30-unit fall to the next lane — 10 to 20 units of it,
+  // measured — which is exactly what the half-step stagger is for: with the
+  // wall PAST a lane's last popper, that drift lands her on one of the
+  // interlocked columns below instead of in a gap. Which column varies with how
+  // far past the popper the wall sits — measured, lane 1 hands off half a step
+  // BACK (74 → 62) while lanes 2 and 3 hand off half a step ON (38 → 26,
+  // 74 → 86) — so sweep the position rather than computing it. Park a wall BEFORE a lane's last popper and the same drift drops her
+  // through a gap and out of the level, short of that lane's can — which is
+  // what makes this a maze rather than four free choices. The cans mark the
+  // first drop shaft and the two lane exits, so the route has to be ridden in
+  // order, and lane 4 delivers her to the plant on its own once she is in it.
+  //
+  // The four jobs, each with its own death (drop-one, measured):
+  //   1. SLIDE her in, top-left — the one band that is not a wall. Bare she
+  //      falls clean between lane 1's poppers AND lane 2's, lane 3 grabs her
+  //      and shoots her off the right edge with one can (flew, 1/3). Drop this
+  //      band from the solution and she never enters the lattice at all: she
+  //      clips the lane-2 wall on the way past and falls out of the world
+  //      (fall, 0/3).
+  //   2. WALL lane 1's right end — drop it and lane 1 fires her off the right
+  //      edge (flew, 0/3). Its shaft is the one with the hanging can.
+  //   3. WALL lane 2's left end — drop it and lane 2 fires her out of the left
+  //      edge holding two cans (left, 2/3).
+  //   4. WALL lane 3's right end — the cruellest miss: drop it and she has
+  //      collected everything and flies past the plant off the right edge
+  //      (flew, 3/3).
+  //
+  // GATE: PASS (`node verify.mjs 3`) — bare fails, 4 legal bands win at ~3.7s,
+  // every band load-bearing (fall/flew/left/flew), finger slop 30/30, no 1-band
+  // win (exhaustive), none at 2 or 3 (30000/20000 sampled), none from the beam
+  // search. Jitter measured ~95% on three unrelated seeds too, not just the
+  // gate's — the walls are long (40-54) on purpose: ±3u on the ends of a
+  // 26-unit wall tilts it 13°, which turns a rebound by 26° and throws the
+  // landing off the popper below; the same slop on a 50-unit wall barely
+  // moves it. Ride: 3.7s at 99% airborne, every one of the twelve poppers fired.
+  { name: "4 · Cat's Cradle", budget: 4,
+    start: [0, 0],
+    terrain: [], // deliberate: the players' bands are the only surfaces here
+    goal: [18, 112],
+    // shaft can (hangs between lanes 1 and 2) / lane 2's left exit / lane 3's
+    // right exit, out past the last popper — none of them on the bare fall
+    cans: [[69, 35], [28, 50], [92, 83]],
+    pops: [ ...lane(20, LANE_ODD, +1), ...lane(50, LANE_EVEN, -1),
+            ...lane(80, LANE_ODD, +1), ...lane(110, LANE_EVEN, -1) ],
+    solution: [ [[-6, 4], [22, 20]], [[83, -6], [83, 48]],
+                [[15, 40], [15, 80]], [[98, 66], [98, 116]] ] },
+
+  { name: '5 · Pop Goes Goomba',
     start: [8, 54],
     terrain: [ [[-5, 52], [46, 62]],
                [[40, -14], [66, -8]] ],
@@ -274,7 +344,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // jitter). The fix direction (not attempted yet): funnel geometry between
   // stages — poppers erase her SPEED, but only V-basins erase her POSITION,
   // and the jitter check effectively demands both between every job.
-  { name: '5 · Space Cadet', budget: 4, maxSpeed: 140,
+  { name: '6 · Space Cadet', budget: 4, maxSpeed: 140,
     start: [103, 178],
     terrain: [
       // table shell: left wall, rounded top, the orbit shoulder, shooter-lane wall
@@ -319,22 +389,6 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[34, 46], [56, 46]], [[36, 90], [68, 90]],
                 [[30, 90], [30, 96]], [[54, 168], [38, 179]] ] },
 
-  // The 2D line maze finale: four lanes of forced poppers aimed in alternation.
-  // Bands can't help her travel — the only verb is to WALL a lane so she
-  // rebounds and drops into the lane below. The first level whose true minimum
-  // is 4 bands, so a 4-player team all genuinely participate.
-  { name: '6 · The Popper Grid', budget: 4,
-    start: [-6, 8],
-    terrain: [ [[-8, 7], [12, 18]],
-               [[21, 6], [21, 34]],
-               [[28, 174], [48, 192], [68, 174]] ],
-    goal: [48, 190],
-    cans: [[53, 63], [28, 97], [68, 131]],
-    pops: [ ...popLane(46, +1), ...popLane(80, -1),
-            ...popLane(114, +1), ...popLane(148, -1) ],
-    solution: [ [[70, 34], [70, 60]], [[10, 68], [10, 94]],
-                [[86, 102], [86, 128]], [[26, 136], [26, 162]] ] },
-
   // ── PHYSICS TESTBED (sketch transcription) ──────────────────────────────
   // A popper pinball board, transcribed from a hand sketch: a 5×9 lattice (20
   // apart in x, 18 in y) whose piñata bumpers are the walls and whose seven
@@ -355,8 +409,11 @@ const RAW_LEVELS: GoombaLevel[] = [
   //     below her — the trigger is 8.2, so she sailed straight past it and the
   //     board never started. The shelf leaves her off its lip at x=10, which
   //     arcs into (15,138) with room to spare. It is also the only terrain in
-  //     the level, and `decodeLevel` rejects a level with none, so a
-  //     terrain-less board could not have travelled as an editor link either.
+  //     the level, which used to be load-bearing twice over — `decodeLevel`
+  //     rejected a level with no polylines, so a terrain-less board could not
+  //     travel as an editor link. That is no longer true (the codec asks for
+  //     furniture of any kind now, because Cat's Cradle has no terrain at all),
+  //     so the shelf earns its place on the physics alone.
   //   · the launch lane SAGS. 40 units at ~74 u/s costs her 20 units of
   //     height, so the relay popper at (55,138) is under her arc, not on it —
   //     patching that sag is band A's whole job.

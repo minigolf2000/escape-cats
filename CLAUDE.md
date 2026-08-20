@@ -34,39 +34,56 @@ findings — do not design from intuition, the sim disproves it reliably.
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
-- **Six levels ship.** The Skim, The Puzzle Box, Pillow Fort, Mind the Gap and
-  Pop Goes Goomba were cut, and the survivors renumbered 1–6 — a level's
+- **Seven levels ship, and TWO pass the gate — The Long Way Up (2) and Cat's
+  Cradle (5).** The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The Popper
+  Grid and Pop Goes Goomba were cut, and the survivors renumbered — a level's
   display number is its array index + 1, so removing or inserting one
-  renumbers everything after it.
-- **Two levels pass the full gate: The Long Way Up (2) and The Popper Grid
-  (6).** Copy those. The Long Way Up is the one to read first if you are
-  building from a sketch: one concave-up slope she RIDES, poppers shooting her
-  along it, three long rough steps notched perpendicular into it for the
-  players' bands to chord across, and a bumper at the top that mirrors her into
-  a flat run home across three cans. Two of its lessons generalise — cut
-  obstacles perpendicular to the surface she rides (a vertical wall becomes a
-  rail that carries her up past the rim), and put every band end on a terrain
-  vertex ~9 units clear of its neighbours so snap absorbs finger slop (29/30 at
-  ±3u on a level that is otherwise exact ballistics).
-- Levels 1, 3 and 4 need fewer than 4 bands — the standing debt. Re-measured
+  renumbers everything after it (and the numbers live in the `name` strings, so
+  renumbering means editing them). Popper Pinball (7) was added as a physics
+  TESTBED, which means it is currently the finale: `nextLeadsToSplash` and the
+  selector's clear-every-level gate both key off the LAST index, so adding a
+  level moves the splash behind it.
+- **The Long Way Up (2) is the one to read first if you are building from a
+  sketch**: one concave-up slope she RIDES, poppers shooting her along it, three
+  long rough steps notched perpendicular into it for the players' bands to chord
+  across, and a bumper at the top that mirrors her into a flat run home across
+  three cans. Two of its lessons generalise — cut obstacles perpendicular to the
+  surface she rides (a vertical wall becomes a rail that carries her up past the
+  rim), and put every band end on a terrain vertex ~9 units clear of its
+  neighbours so snap absorbs finger slop (29/30 at ±3u on a level that is
+  otherwise exact ballistics).
+- Levels 1, 3, 4 and 7 need fewer than 4 bands — the standing debt. Re-measured
   with `minbands`/`solve`, not inherited: The Long Way Down (1) needs 3,
-  Watering Can Slalom (3) needs 3, and Piñata Alley (4) needs 2. The old
-  blanket "these all collapse to 1 band" note was stale for two of them — if
-  you are about to repeat a debt claim, re-run the tool first. 3 and 4 predate
-  the party rule; level 1 joined them on purpose, rebuilt to a hand sketch
-  whose silhouette has no room for a 4th gate (DESIGNING.md has the
+  Watering Can Slalom (3) needs 3, and Piñata Alley (4) needs 2; 7 is a testbed,
+  not a shipped puzzle. The old blanket "these all collapse to 1 band" note was
+  stale for two of them — if you are about to repeat a debt claim, re-run the
+  tool first. Levels 3 and 4 predate the party rule; level 1 joined them on
+  purpose, rebuilt to a hand sketch whose silhouette has no room for a 4th gate
+  (DESIGNING.md has the
   reachability sweep that proves no can placement fixes it).
-  Space Cadet (5) was rebuilt as a five-can machine: no ≤3-band win found
+  Popper Pinball (7) is a hand-sketch transcription kept as a testbed, not a
+  balanced level: it needs 2 bands (1-band hunt empty, 0/7430 exhaustive), and
+  its finger slop is 10/30 traced entirely to the one band that has to bend her
+  off a bumper — see its comment in `levels.ts`.
+  Space Cadet (6) was rebuilt as a five-can machine: no ≤3-band win found
   (1-band exhaustive, 2–3 sampled), 4-band solution with every band
   load-bearing — but it fails the ±3u finger-slop check (0/30), so its debt
-  is precision, not collapse (see its comment in `levels.ts`); The Long Way
-  Up's post-snapped band ends are the fix direction. Don't copy the 1/3/4
-  structure; copy The Popper Grid (forced popper lanes), The Long Way Up
-  (popper hand-offs over posts), or the four-different-deaths chain the
-  removed Four Ways to Help demonstrated — the level is gone, the pattern is
-  written up in DESIGNING.md. The shelf-gated switchback that Mind the Gap
-  demonstrated is still a good pattern and still written up there too — those
-  levels are gone, their findings are not.
+  is precision, not collapse (see its comment in `levels.ts`, and
+  `node slack.mjs 5`, which names the fragile band) — and The Long Way Up's
+  vertex-snapped band ends are the fix direction. Don't copy the structure of
+  1, 3 or 4; copy **The Long Way Up** (a ridden slope with perpendicular
+  notches), **Cat's Cradle** (four one-way popper lanes, sparse and staggered,
+  where the players' bands are the only walls — it replaced The Popper Grid's
+  dense version of the same idea and is more robust), or the
+  four-different-deaths chain the removed Four Ways to Help demonstrated —
+  those levels are gone, the patterns are written up in DESIGNING.md. The
+  shelf-gated switchback that Mind the Gap demonstrated is still a good
+  pattern and still written up there too — those levels are gone, their
+  findings are not.
+- **A sketch is a spec, and the toys in it carry the scale**: a popper's dashed
+  ring is 6 units, a can's 7.5, so one ring measured in pixels converts the
+  whole drawing (DESIGNING.md, "Transcribing a sketch"). Cat's Cradle came in
+  as a picture; the rings not touching was the design.
 - Parallel level threads: work on your own branch — `levels.ts` is where
   every level thread edits, and sharing a branch collides.
 
@@ -122,10 +139,12 @@ findings — do not design from intuition, the sim disproves it reliably.
   the moon) as a deliberate stand-in until Goomba has its own; two copies
   because the apps are separately deployed bundles and are expected to diverge,
   not one asset shared. Replace a file and nothing in code changes: both games
-  fit the picture to the WIDTH (a phone is far narrower than these are tall, and
-  cropping sideways would cut the subject in half) and extend the sky past both
-  ends with colours SAMPLED from the picture's own top and bottom pixel rows.
-  Don't hardcode a sky.
+  show the WHOLE picture, fitted on whichever axis binds — width on a phone (far
+  narrower than these are tall), height on a laptop (wider than they are
+  proportionally tall, so a width fit would overflow and eat the cat off the
+  top) — and fill the slack with sky SAMPLED from the picture's own edges: the
+  flat top and bottom rows above and below it, a ramp between those two beside
+  it. Don't hardcode a sky, and don't go back to cropping either axis.
 - **Hex's win is the PROCTOR's press, and it unlocks a splash you can toggle
   away from**: hex cannot score its own win — the code word leaves the game on a
   phone and comes back as four people reading it out — so `wonAt`
@@ -135,7 +154,7 @@ findings — do not design from intuition, the sim disproves it reliably.
   does not. Room state like everything else: all four phones light up on one
   snapshot, it survives a reload, a reset clears it. `#wonPill` top-left is the
   only control the win adds, and it ping-pongs — `🏆 win screen` ⇄ `← back to
-  Hex` — because the night wall they just read is what they EARNED and a victory
+  game` — because the night wall they just read is what they EARNED and a victory
   screen that buried it for good would be taking it away. Which of the two a
   phone is looking at is LOCAL (Goomba's card taps move what the room PLAYS, so
   those are wire intents; these are one room state seen two ways). The splash
@@ -152,6 +171,8 @@ npm run typecheck      # all workspaces
 npm run build:vercel   # full build + assemble + routing & cursor checks
 npm run check:cursors  # the two-cursor rule, on its own
 cd tools/goomba && node verify.mjs <idx>   # the level-design gate
+cd tools/goomba && node route.mjs <idx> drop  # the ride + its four deaths
+cd tools/goomba && node slack.mjs <idx>    # per-band forgiveness (jitter/slide/stretch)
 cd tools/goomba && node verify.mjs --hash <editor link>   # same gate, no diff
 cd tools/goomba && node verify.mjs --file <file of links> # ...on a batch
 cd tools/goomba && node quota.mjs          # the participation gate (room rule)

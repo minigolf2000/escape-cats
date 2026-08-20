@@ -236,9 +236,19 @@ export function decodeLevel(input: string): GoombaLevel | null {
   const nSol = r.u8();
   for (let i = 0; i < nSol; i++) solution.push([r.pt(), r.pt()]);
 
-  // Only now: any short read anywhere above tripped `ok`, and a level needs at
-  // least one polyline to be simulable at all.
-  if (!r.ok || !terrain.length) return null;
+  // Only now: any short read anywhere above tripped `ok`, and a level needs
+  // SOMETHING to interact with — terrain, poppers, cushions or bumpers. That
+  // second test is the cheapest filter there is against a stray fragment that
+  // happened to decode without erroring, which is the whole reason it exists.
+  //
+  // It used to demand a polyline ("a level needs at least one to be simulable
+  // at all"), which was true right up until Cat's Cradle: no terrain at all,
+  // twelve poppers and the players' four bands as the only surfaces in the
+  // world. A level like that is perfectly simulable, and refusing to decode it
+  // meant the one shipped level that a share link could not carry — so the
+  // rule is furniture of any kind, not terrain specifically.
+  if (!r.ok || !(terrain.length || pops.length || cushions.length || bumpers.length))
+    return null;
 
   const L: GoombaLevel = { name, start, goal, terrain, cans, cushions, pops, bumpers, solution };
   if (maxSpeed !== undefined) L.maxSpeed = maxSpeed;

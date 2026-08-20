@@ -671,7 +671,7 @@ comes back as four people reading it out to the proctor, so no amount of state
 in the room proves it happened. The proctor presses **🏆 Mark won** instead
 (`wonAt`, a proctor-only `won` intent, `hexWon`), and that unlocks a **gold pill
 top-left** which the team can flip back and forth with: `🏆 win screen` shows
-the picture, `← back to Hex` returns to the night scene. The wall stays live
+the picture, `← back to game` returns to the night scene. The wall stays live
 behind the artwork the whole time — it is the thing they earned, and a victory
 screen that buried it for good would be taking it away. Which view a phone is on
 is that phone's business (Goomba's card taps move what the room PLAYS, so those
@@ -682,10 +682,18 @@ a rejoining phone.
 Both pictures are ordinary files —
 `apps/{goomba-glider,hex-clicker}/public/art/*splash.webp`, the same image for
 now as a stand-in until Goomba has its own — and both are drawn the same way:
-fitted to the WIDTH (a phone is far narrower than these are tall; cropping to
-fill would cut the subject in half) with the sky extended past both ends in
-colours sampled from the picture's own top and bottom pixel rows. Replace a file
-and it brings its own sky; there is no palette to update.
+the WHOLE picture, never cropped, fitted on whichever axis binds. A phone is far
+narrower than these are tall, so the width binds and the slack is above and
+below; a laptop is wider than the picture is proportionally tall, so the height
+binds instead and the slack is to the sides (fitting the width there would
+overflow the screen and eat the top of the art, which is where the cat is). The
+sky is continued into whichever slack there is, in colours sampled from the
+picture's own edges: flat top and bottom rows above and below it, and a ramp
+between those two beside it, pinned to the art's own ends so it tracks the sky
+painted down the picture's edge. The two fills never collide — a width-fitted
+picture covers the screen side to side, a height-fitted one covers it top to
+bottom — so each is exact rather than approximate. Replace a file and it brings
+its own sky; there is no palette to update.
 
 Either win is taken back by that game's **reset**, along with everything else.
 

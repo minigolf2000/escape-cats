@@ -56,14 +56,33 @@ every stage must actually be ridden.
    `solution: []` until you find one. The editor's *copy levels.ts entry*
    button emits the array entry when the shape is settled — every shipped level
    round-trips through it byte-identical, so the paste is safe.
-2. **Trace the bare run**: `node trace.mjs <idx>` — the level must NOT win with
-   no bands, and the failure should be legible (a smirk, not a shrug).
+2. **Trace the bare run**: `node route.mjs <idx>` narrates it as a chain —
+   which poppers fired, which cans she took, which bands she touched, with
+   times — which is the readable form of "did she ride lane 3, or fall past it
+   into lane 4"; `node trace.mjs <idx>` dumps the raw 30fps coordinates, which
+   is what you want when placing a ledge against her arc. Either way the level
+   must NOT win with no bands, and the failure should be legible (a smirk, not a
+   shrug). Later, `node route.mjs <idx> drop` runs the solution and then the
+   solution minus each band in turn — that output IS the "four deaths" line a
+   level comment carries, so write the comment from it, not from memory.
 3. **Find where bands work**: `node scan.mjs <idx> v|h <spanLo> <spanHi>
    '[fixed]'` sweeps one band across the level and prints outcome windows —
    how you discover the win window for each intended band and its width
-   (forgiveness). Aim for windows ≥ ~8 units. `node solve.mjs <idx> [k]` (beam
+   (forgiveness). Aim for windows ≥ ~8 units, and once you have a window,
+   re-sweep it with `--step 1`: the default 2-unit sweep reports a 5-wide window
+   as 4 or 6 depending on phase, which is the difference between shipping a band
+   centred and shipping it on an edge. `node solve.mjs <idx> [k]` (beam
    search) finds the solutions you did NOT intend — run it at k = 1–3 to hunt
-   shortcuts before a player does.
+   shortcuts before a player does. Once a set wins, `node slack.mjs <idx>` is
+   the forgiveness card for it: per band, the ±3u jitter rate with its failure
+   modes, the win window along that band's own perpendicular (so it works for
+   tilted bands, which `scan.mjs` cannot sweep) and how far off-centre the band
+   is parked in it, and the lengths that still win. A band parked off-centre
+   gets its centred version measured on the same jitter stream and a verdict —
+   *take it*, *same*, or *leave it*, because a window's two edges are not
+   equally lethal and centring is not automatically a gain. It closes with the
+   whole solution jittered on the gate's seed AND three others, because 30
+   trials cannot tell 60% from 85% and only one of those ships.
 4. **Bake the solution** into the level's `solution` field, then run THE GATE:
    `node verify.mjs <idx>` — one PASS/FAIL over the whole battery (bare fails,
    4-band solution wins, every band load-bearing, finger-slop, exhaustive
@@ -146,19 +165,85 @@ across the band she just rode and she immediately re-collides with it. Give the
 popper ~12 units of drop below the feeding band's end, or aim it to continue
 her direction.
 
-**The zigzag problem, solved by making the players build the walls.** A one-way
-popper staircase drifts too wide to stay portrait; a zigzag needs a reverser,
-and the only robust reverser is a wall. The Popper Grid (the finale) lays four
-horizontal lanes of forced poppers, aimed in alternation like a 2D line maze,
-dense enough (16 units apart vs the ~8-unit trigger radius) that crossing a
-lane always gets her grabbed and re-flung. Bands can't help her travel — the
-players' only verb is to *wall* a lane: she rebounds off the band (band
-restitution ≈ .32 kills most of her speed), drops one popper back, falls
-through the gap into the lane below, which runs the other way. Each lane needs
-its own wall — `minbands.mjs` confirms no 1/2/3-band set wins. Two tuning
-facts that made it work: the entry chute needs a wall to kill her ramp speed or
-she flies over the first lane, and a wall placed *before* a lane's can
-strands the run — that's what makes it a maze instead of four free choices.
+**The zigzag problem, solved by making the players build the walls (Cat's
+Cradle, level 4).** A one-way popper staircase drifts too wide to stay
+portrait; a zigzag needs a reverser, and the only robust reverser is a wall. So
+lay four horizontal lanes of forced poppers aimed in alternation, like a 2D line
+maze. Bands can't help her travel — the players' only verb is to *wall* a lane:
+she rebounds off the band (band restitution ≈ .32 kills most of her speed),
+drifts backwards while she falls, and lands in the lane below, which runs the
+other way. Each lane needs its own wall, and `minbands.mjs` confirms no 1/2/3
+-band set wins. This is the one structure whose true minimum is honestly 4, and
+it has now been built twice.
+
+The Popper Grid built it DENSE — six poppers a lane, 16 units apart against the
+~8-unit trigger reach, so crossing a lane anywhere got her grabbed — plus a
+terrain entry chute (whose wall was needed to kill her ramp speed, or she flew
+over the first lane) and a V-basin holding the plant. Cat's Cradle replaced it
+with the sparse form: three poppers a lane, 24 apart so the reaches never touch,
+lanes interlocked half a step, and **no terrain at all** — twelve poppers, three
+cans and the plant hang in the void, and the players' four bands are the only
+surfaces in the world. Sparse changes the puzzle twice over. The lattice is
+porous, so the bare run *falls through* it (past lanes 1 and 2, into lane 3, out
+the side) instead of being carried, which makes the entry a real job; and the
+stagger is what aims a wall-drop, because each lane's gaps sit directly above
+the next lane's poppers. Both forms keep the tuning fact that makes this a maze
+rather than four free choices: a wall placed *before* a lane's can strands the
+run.
+
+**A sparse popper lane lives or dies on its fire speed.** Trigger circles that
+do not touch are a feature — they make the lattice porous, which is what lets a
+bare run fall through it — but they also mean a lane can only grab her while she
+is flying ALONG it, and that is a ballistics condition, not a layout one. She
+leaves a popper at `spd × 0.82` and drops `70 × (gap/speed)²` on the way to the
+next one, which has to come out under the ~8-unit reach: **fire speed ≳ 3 × the
+column gap**. Cat's Cradle's 24-unit columns need ≳ 72 and fire at 105 → 86,
+dropping ~6. Slow that lane down and the chain breaks in the middle of the
+level, which reads as a mystery rather than a miss. Re-check this number before
+moving a column or retuning `spd`.
+
+**Wall the END of a lane, never the middle — and let the stagger aim it.** A
+wall does not drop her straight down: she rebounds at ≈ .32 of her speed and
+keeps that backwards drift for the whole fall, which at Cat's Cradle's speeds is
+10–20 units by the time she reaches the lane below. That is what the half-step
+stagger is FOR — with the wall PAST a lane's last popper, a drift of anything in
+that range still lands on one of the interlocked columns rather than in a gap.
+Which one varies (its three walls land half a step back, level, and half a step
+on), so sweep the position instead of computing it. Park the wall BEFORE the
+lane's last popper and the same drift drops her through a gap and out of the
+level. (`route.mjs` prints the hand-off as `band1(81,20) … pop4(62,50)`: wall
+face at 81, caught 19 units back.)
+
+**A long wall survives fingers; a short one does not.** The biggest robustness
+lever found while tuning Cat's Cradle, and it is pure geometry: ±3u of slop on
+each end of a **26**-unit wall tilts it up to 13°, and a tilt turns the rebound
+by *twice* that — 26° off, easily enough to throw the landing clear of the
+popper below. The same slop on a **50**-unit wall tilts it 7°. Measured, same
+walls, same positions: at 26 units they jittered 68–90% and the gate read 19/30;
+stretched to 40–54 they read 96–99% and 30/30. So when the job is "wall this
+lane", ship the wall LONG — a band stretches to 58 and nothing charges you for
+using it. Corollary for a level with no terrain: endpoints snap only to terrain,
+so a terrain-free level gets no snap assistance at all, and band length is the
+only forgiveness you get. Spend it. (A terrain-free level is legal everywhere
+else too: the renderer and the editor already iterate an empty `terrain`, and
+the codec used to reject a level without a polyline — it now asks for furniture
+of any kind, so a level like this still travels as a link.)
+
+**Don't ship on a lucky 30 trials.** The gate's finger-slop check is 30 jittered
+runs on one fixed seed — the right contract (a stable verdict both graders
+agree on) and a noisy measurement. A solution whose true rate was 48% passed at
+19/30 during this level's tuning. `slack.mjs` prints the gate's verdict beside
+the rate on three unrelated seeds and says SCRAPED PAST when they disagree. Aim
+for ≳ 90% true, not for 18.
+
+**Transcribing a sketch: the toys carry the scale.** A level handed over as a
+picture is already dimensioned, because the furniture has fixed sizes — a
+popper's dashed trigger ring is `POP_R` = 6 units, a can's ring is `CAN_R` =
+7.5, Goomba herself is `R` = 2.2. Measure one ring in pixels and every gap in
+the drawing converts. Doing that first is what turns "lanes roughly this far
+apart" into numbers the physics can vote on — and in Cat's Cradle's case the
+rings in the sketch clearly did NOT touch, which turned out to be the whole
+design.
 
 **Judge the ride in airborne seconds, not duration.** Across two review rounds,
 `duration × %airborne` predicted the fun ranking almost perfectly; raw duration
@@ -312,6 +397,28 @@ over the next one. The fix there was making the notches LONG (chords of 28-40)
 and letting them cover most of the slope, so every arc lands in a notch rather
 than on a pad. Before trusting a beam-search pass, ask it yourself for each pair
 of jobs: could one band stand in both of these places at once?
+
+**A popper erases error; a bumper multiplies it (Popper Pinball, level 7).**
+The two toys look interchangeable — both hurl her somewhere — but they sit on
+opposite sides of the finger-slop check. A popper *grabs her to its centre*
+before firing, so every trajectory that triggers it leaves identically: it is a
+position AND direction reset, and slop upstream of one costs nothing. A bumper
+reflects off wherever she happened to touch it, at `BUMP_E` 1.18, so a 3-unit
+error in where she strikes becomes a larger error in where she goes next. Level
+7 measures the gap on one solution: the band whose job ends in a popper jitters
+30/30, the band whose job ends in a bumper jitters 10/30, and the whole
+solution scores the bumper band's number. Consequence for design: a bumper is
+fine as an obstacle or a curtain (Piñata Alley) and fine as a *free* stage
+nothing is aimed at, but a band that must aim her at one is a precision tax you
+will pay at the gate. Aim bands at poppers; let bumpers be scenery.
+
+**An up-column of poppers is a trap, and that is the good part.** Three poppers
+firing straight up in a line make an elevator she cannot leave: the top one
+throws her ~35 units, she falls back into it 1.31 s later, and `POP_COOLDOWN`
+is 0.8 — so she re-fires forever and the run is called `loop`. That reads
+perfectly as a failure ("you missed the exit") and it makes the exit band
+honestly load-bearing. Just note the cost: the exit is at an apex, where she is
+slowest and most sensitive, so pair it with something that re-centres her.
 
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — the goal plant in a pocket with a ceiling, so falling

@@ -14,7 +14,17 @@ findings — do not design from intuition, the sim disproves it reliably.
   :5179 in dev) **authors nothing.** All level design happens in Figma now (see
   [`tools/goomba/figma/README.md`](./tools/goomba/figma/README.md) for the kit
   and the naming contract); this page takes a copied frame, reads it with
-  `src/figma-svg.js`, and plays it on the shipped sim. There is no tool palette,
+  `src/figma-svg.js`, and previews it. **PLAY FOR REAL hands it to the actual
+  game** — `/g00mBa/?solo#<hash>`, where `adoptHashLevel` appends it to
+  `GOOMBA_LEVELS` and the shipped client plays it with real band placement, the
+  real quota and real scoring. Appending to that array rather than teaching the
+  sim a second kind of level is what makes it indistinguishable; the one thing
+  that must not disagree is the array's LENGTH, so the push happens before
+  `new GoombaSim`, which sizes `completed` from it. A pasted level differs from
+  a shipped one in exactly two places: it is marked `PASTED — not in levels.ts`
+  on a dashed card in the selector, and only the editor offers copy-link.
+  Solo only — a real room scores on the server, and the server has never heard
+  of it. There is no tool palette,
   no selection, no undo — wrong level, fix it in Figma and paste again. It kept
   the URL codec because that is how a pasted level reaches the gate.
   A level **saves by being a URL** — `encodeLevel`

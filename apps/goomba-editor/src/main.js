@@ -121,7 +121,7 @@ function play(bare) {
     air: 0,
     label: bare ? "bare" : `${pairs.length}-band`,
   };
-  $("runstat").textContent = `${runner.label} run…`;
+  $("runstat").textContent = `${runner.label} preview…`;
   $("runstat").style.color = "var(--dim)";
   syncButtons();
 }
@@ -133,6 +133,29 @@ function report({ st, air, label }) {
     `${label}: ${result} @ ${st.t.toFixed(2)}s · ${airPct}% airborne · cans ${st.gotN}/${init.cans.length}`;
   $("runstat").style.color = result === "win" ? "var(--ok)" : "var(--bad)";
 }
+/**
+ * Hand the level to the REAL game and let a human play it.
+ *
+ * This is the point of the page. What runs below — `play()` — is a playback of
+ * the solution the designer drew in Figma, which tells you whether the intended
+ * line works; it cannot tell you whether the level is any FUN, and it never
+ * places a band under a finger. `?solo` in the game is the shipped sim with the
+ * real placement rules and the real band quota, so sending the level there is
+ * the only honest way to answer that.
+ *
+ * Dev serves the two apps on different ports; production shares an origin.
+ */
+function gameUrl(hash) {
+  const base = import.meta.env.DEV ? "http://localhost:5178/g00mBa/" : "/g00mBa/";
+  return `${new URL(base, location.origin).href}?solo#${hash}`;
+}
+$("real").onclick = () => {
+  try {
+    window.open(gameUrl(encodeLevel(level)), "_blank", "noopener");
+  } catch (err) {
+    banner(String(err.message || err), true);
+  }
+};
 $("play").onclick = () => (runner ? stop() : play(false));
 $("bare").onclick = () => play(true);
 function stop() {
@@ -145,8 +168,9 @@ function syncButtons() {
   const has = !!level;
   $("bare").disabled = !has;
   $("link").disabled = !has;
+  $("real").disabled = !has;
   $("play").disabled = !has;
-  $("play").textContent = runner ? "■ stop" : "▶ play";
+  $("play").textContent = runner ? "■ stop" : "▶ preview";
 }
 
 $("link").onclick = async () => {

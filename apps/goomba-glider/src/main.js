@@ -28,7 +28,7 @@ import {
   nextLeadsToSplash,
 } from "@escape-cats/shared";
 import { connectRoom, watchTeam, transport, playerId } from "./net";
-import { debugFromUrl, soloFromUrl, startDebug } from "./debug";
+import { adoptHashLevel, debugFromUrl, soloFromUrl, startDebug } from "./debug";
 
 const cv = document.getElementById("c");
 const ctx = cv.getContext("2d");
@@ -1039,7 +1039,9 @@ function drawLab() {
     const current = snap !== null && i === snap.level;
     ctx.strokeStyle = jumping ? "#57e6c9" : current ? "#ffd166" : "rgba(201,189,240,0.22)";
     ctx.lineWidth = jumping || current ? 2.5 : 1.5;
+    if (lv.pasted) ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
+    ctx.setLineDash([]);
     ctx.font = "700 12px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = "#f2ecff";
     // The title is all a card says, so trim to the card's real width rather
@@ -1048,6 +1050,14 @@ function drawLab() {
     ctx.font = "10px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = v.ok ? "#57e6c9" : "#ff8f8f";
     ctx.fillText(`${v.ok ? "✓" : "✗"} bare:${v.bare} · sol:${v.sol ?? "none"}`, x + 9, y + 16);
+    // A pasted level plays exactly like a shipped one — same sim, same bands,
+    // same scoring — so the ONLY thing that marks it is this card. It is not in
+    // levels.ts, so it is not part of the set a room has to clear.
+    if (lv.pasted) {
+      ctx.font = "700 9px ui-rounded, system-ui, sans-serif";
+      ctx.fillStyle = "#ffd166";
+      ctx.fillText("PASTED — not in levels.ts", x + 9, y + 28);
+    }
     // The round trip, made visible: the tap landed, the room is coming with us.
     if (jumping) {
       ctx.save();
@@ -1266,9 +1276,11 @@ function boot() {
     hudEl.classList.add("debug");
   }
   if (SOLO) {
-    // Serverless: the shared sim in-page, opening on the lab grid.
-    setLab(true);
-    startDebug({ onSnapshot });
+    // Serverless: the shared sim in-page. A level pasted in via the hash opens
+    // ON that level; otherwise we land on the grid as before.
+    const pasted = adoptHashLevel();
+    setLab(pasted === null);
+    startDebug({ onSnapshot, level: pasted ?? undefined });
     return;
   }
   // Everything else joins the real room like any player, ?debug or not — the

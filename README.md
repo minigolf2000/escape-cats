@@ -21,9 +21,9 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
                      into modules (see its src/README.md for the map)
 apps/goomba-glider/  Player client for Goomba Glider: the prototype's canvas
                      rendering on the shared sim, driven by room snapshots
-apps/goomba-editor/  Goomba level editor (/editor/): drag geometry against
-                     the shipped physics, live verdicts, background shortcut
-                     hunt, and a level saves by BEING a URL
+apps/goomba-editor/  Figma paste target (/editor/): reads a level copied out
+                     of Figma, plays it on the shipped physics, and hands it
+                     to the gate as a URL. Authors nothing itself
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on (and its chat) — no links into the games
 apps/chat/           Per-team chat: one channel per team, roomed by team id
@@ -76,15 +76,17 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   Teammates watch it happen: a drag streams as a ghost band, and a tap-tap
   waiting on its second tap streams as a named marker (a preview shorter than
   `BAND_MIN` — it can't become a band, so it reads as "choosing here").
-- **The level editor** — `apps/goomba-editor`, shipped at `/editor/`.
-  Drag terrain, cans, poppers, cushions, bumpers and the four solution bands;
-  every edit re-runs the cheap half of the gate (bare run fails, the four-band
-  solution wins, every band load-bearing, ±3u finger slop) on the same shipped
-  sim the server scores with, and a pool of web workers hunts the expensive
-  half in the background — exhaustive at one band, sampled at two and three —
-  drawing the cheat it finds on the canvas in red. `node verify.mjs` is still
-  the gate; the editor is the fast loop. See "The editor saves into its URL"
-  below for the storage story.
+- **The Figma paste target** — `apps/goomba-editor`, shipped at `/editor/`.
+  It authors nothing: level design lives in Figma, and this page is where a
+  copied frame becomes a playable level. `src/figma-svg.js` reads the pasted
+  SVG through the browser's own SVG engine (`getBBox`/`getCTM`, so nesting and
+  rotation come out right), maps layer NAMES onto level fields, and plays the
+  result on the same shipped sim the server scores with. What is left after the
+  editing came out is a canvas, a play button and a copy-link button — because
+  `node verify.mjs --hash <link>` is what actually gates a level, and this page
+  deliberately does not pretend to. The kit and the naming contract are in
+  [`tools/goomba/figma/README.md`](./tools/goomba/figma/README.md); see "The
+  editor saves into its URL" below for why the codec stayed.
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported
   canvas module, `apps/goomba-glider/src/main.js`.

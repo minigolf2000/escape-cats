@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-90 -90 180 180" width="180" height="180">
+  <title>Pinata bumper — Goomba Glider</title>
+  <defs>
+    <radialGradient id="bump-shell" cx="0" cy="0" r="55"
+                    fx="-16.5" fy="-16.5"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd166"/>
+      <stop offset="0.55" stop-color="#ff5db1"/>
+      <stop offset="1" stop-color="#c23a85"/>
+    </radialGradient>
+  </defs>
+  <g id="bumper">
+    <circle id="halo" cx="0" cy="0" r="80" fill="#ff5db1" fill-opacity="0.15"/>
+    <circle id="shell" cx="0" cy="0" r="55" fill="url(#bump-shell)"
+            stroke="#ffffff" stroke-opacity="0.55" stroke-width="5"/>
+    <g id="spokes">
+      <path d="M 24.75,0 L 46.75,0" stroke="#ffffff" stroke-opacity="0.5" stroke-width="3.5" fill="none"/>
+      <path d="M 12.38,21.43 L 23.38,40.48" stroke="#ffffff" stroke-opacity="0.5" stroke-width="3.5" fill="none"/>
+      <path d="M -12.37,21.44 L -23.36,40.5" stroke="#ffffff" stroke-opacity="0.5" stroke-width="3.5" fill="none"/>
+      <path d="M -24.75,0.01 L -46.75,0.03" stroke="#ffffff" stroke-opacity="0.5" stroke-width="3.5" fill="none"/>
+      <path d="M -12.39,-21.42 L -23.41,-40.47" stroke="#ffffff" stroke-opacity="0.5" stroke-width="3.5" fill="none"/>
+      <path d="M 12.35,-21.45 L 23.33,-40.51" stroke="#ffffff" stroke-opacity="0.5" stroke-width="3.5" fill="none"/>
+    </g>
+  </g>
+</svg>

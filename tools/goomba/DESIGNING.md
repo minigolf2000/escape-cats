@@ -1,13 +1,12 @@
 # Designing a Goomba Glider level (read this first)
 
-**Fastest way in: open the level editor at `/editor/`** (`npm run dev`
-serves it on :5179). Drag geometry, watch the bare run and the four-band
-solution be re-scored on the shipped physics as you drag, and let a pool of
-web workers hunt in the background for the one-band win that would break the
-level. It saves by putting the whole level in its own URL, so a design travels
-as a link — including to this bench: `node verify.mjs --hash <link>` runs the
-full gate on a level that was never committed. The editor is the fast loop; the
-gate below is still the authority.
+**Fastest way in: draw it in Figma, then paste it at `/editor/`** (`npm run
+dev` serves that page on :5179). The design kit, the naming contract and the
+scale live in [`../goomba/figma/README.md`](./figma/README.md); the page itself
+authors nothing — it reads the pasted frame, plays it on the shipped physics,
+and copies a link. A level travelling as a link is how it reaches this bench:
+`node verify.mjs --hash <link>` runs the full gate on a level that was never
+committed. Figma is the fast loop; the gate below is still the authority.
 
 This folder is the rest of the level-design bench. The game itself is the coop app in
 `apps/goomba-glider/` on the shared sim in `packages/shared/src/goomba/`; the

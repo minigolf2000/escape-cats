@@ -57,8 +57,12 @@ findings — do not design from intuition, the sim disproves it reliably.
   neighbours so snap absorbs finger slop (29/30 at ±3u on a level that is
   otherwise exact ballistics).
 - Levels 1, 3 and 5 need fewer than 4 bands — the standing debt. Re-measured
-  with `minbands`/`solve`, not inherited: The Long Way Down (1) needs 3 and
-  Slalom (3) needs 3; 5 is a testbed, not a shipped puzzle. The
+  with `minbands`/`solve`, not inherited: The Long Way Down (1) needs **2** and
+  Slalom (3) needs 3; 5 is a testbed, not a shipped puzzle. Level 1 went from 3
+  to 2 when it was redrawn in Figma with full-height fences: two of its three
+  jobs were only jobs because failing them threw her OUT of the world, and a
+  fence does that work for free. **Closing a world makes it more forgiving** —
+  worth remembering before fencing anything else. The
   old blanket "these all collapse to 1 band" note was stale for both — if you
   are about to repeat a debt claim, re-run the tool first. Level 3 predates the
   party rule; level 1 joined it on purpose, rebuilt to a hand sketch whose

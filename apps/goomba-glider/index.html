@@ -62,31 +62,51 @@
           box-shadow: 0 6px 18px rgba(87,230,201,.35), inset 0 -3px 0 rgba(0,0,0,.15); letter-spacing: .03em; }
   #play.stop { background: linear-gradient(180deg, #ff7ec1, #ff5db1); box-shadow: 0 6px 18px rgba(255,93,177,.35), inset 0 -3px 0 rgba(0,0,0,.15); }
   #play.next { background: linear-gradient(180deg, #ffe08a, #ffd166); box-shadow: 0 6px 18px rgba(255,209,102,.4), inset 0 -3px 0 rgba(0,0,0,.15); }
-  /* CLEAR lives beside the slots it empties, so the 🧹 needs no label — which
-     is just as well, because "clear bands" does not fit up here: the dot strip
-     plus the four slots already spend ~266 of a 360px row, and the strip grows
-     every time a level ships. Three rules keep it honest on a phone.
-     (1) Its 30px box is reserved in EVERY phase and only turns invisible —
-     #inv must never slide sideways when a band lands (same reason the quota is
-     presentation, never layout).
-     (2) 30px is what fits a row that #lvl sits 34px under, so the 48px touch
-     target comes from a ::before pad rather than from padding, which would
-     grow the row into the title.
-     (3) One tap wipes, with no confirm step, even though it takes the WHOLE
-     ROOM's bands and not just mine: the four players are sitting in the same
-     living room, so an unwanted clear is answered out loud in a second and the
-     bands go back down. A modal would tax every deliberate tap to insure
-     against that. The toast is the receipt. */
+  /* CLEAR lives beside the slots it empties, and says so. Whether the words
+     FIT is not a constant: the row also carries the dot strip, which grows
+     every time a level ships and grows again by ~40px when the team earns the
+     selector's plate, so "clear bands" clears a 390px phone but runs off a
+     360px one in a cleared room. Rather than pick a phone to break, fitClear()
+     in main.js measures the row and drops the pill to .compact — the 🧹 alone,
+     which fits at every width and level count — when the words would push past
+     the edge. Two other rules hold in both shapes:
+     (1) The box is reserved in EVERY phase and only turns invisible. #inv must
+     never slide sideways when a band lands, the same reason the quota is
+     presentation and never layout. (It is also why fitClear can measure while
+     the button is hidden: visibility keeps the box, display would not.)
+     (2) 30px tall is what fits a row that #lvl sits 34px under, so the 44px+
+     touch target comes from a ::before pad instead of padding, which would
+     grow the row into the level title.
+     One tap wipes, with no confirm, even though it takes the WHOLE ROOM's
+     bands: the four players are in one living room, so a clear nobody wanted is
+     answered out loud in a second and the bands go back down. */
   #bandbar { display: flex; align-items: center; gap: 8px; }
   #clear { position: relative; box-sizing: border-box; flex: 0 0 auto;
-           width: 30px; height: 30px; padding: 0; border-radius: 15px;
-           display: grid; place-items: center; font-size: 15px; line-height: 1;
-           color: #c9bdf0; background: rgba(255,255,255,.08);
+           height: 30px; padding: 0 11px; border-radius: 15px;
+           display: flex; align-items: center; justify-content: center;
+           font-size: 11px; font-weight: 700; letter-spacing: .02em;
+           white-space: nowrap; line-height: 1; color: #c9bdf0;
+           background: rgba(255,255,255,.08);
            border: 1.5px solid rgba(201,189,240,.35);
            transition: opacity .18s, transform .12s; }
   #clear::before { content: ""; position: absolute; inset: -9px; border-radius: 24px; }
-  #clear:active { transform: scale(.9); }
+  #clear:active { transform: scale(.94); }
   #clear.hide { visibility: hidden; opacity: 0; pointer-events: none; }
+  /* The narrow fallback: a round chip carrying the glyph instead of the words. */
+  #clear .broom { display: none; }
+  #clear.compact { width: 30px; padding: 0; font-size: 15px; }
+  #clear.compact .label { display: none; }
+  #clear.compact .broom { display: block; }
+  /* The tightest the row ever gets: a 320px screen wearing the selector's
+     plate with every level's dot in the strip. Even the 🧹 chip runs off the
+     edge there, so at that width the row buys the pixels back from its own
+     padding and gaps — never from the slots or the dots, which are the two
+     things it exists to show. Measured to clear 7 dots with 4px to spare. */
+  @media (max-width: 344px) {
+    #top { padding: 0 8px; gap: 6px; }
+    #bandbar { gap: 6px; }
+    #clear.compact { width: 28px; height: 28px; border-radius: 14px; }
+  }
   #hud.debug #team { display: none; }
   /* levels open: the grid is the whole screen; tap a card to leave */
   #hud.lab > * { visibility: hidden; }
@@ -159,7 +179,7 @@
     <button id="lab"><div id="dots"></div></button>
     <div id="bandbar">
       <div id="inv"></div>
-      <button id="clear" class="hide" aria-label="clear all bands">🧹</button>
+      <button id="clear" class="hide" aria-label="clear all bands"><span class="label">clear bands</span><span class="broom">🧹</span></button>
     </div>
   </div>
   <div id="lvl"></div>

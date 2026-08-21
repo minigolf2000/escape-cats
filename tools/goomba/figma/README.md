@@ -139,9 +139,29 @@ carries the real layer names and each node's *stored* geometry, so it needs
 none of the SVG path's corrections, and the `anchor` dots are not even used.
 The travelling Kiwi schema means `kiwi-schema` decodes the wire format
 generically; the only Figma-specific knowledge is which fields to read
-(`name`, `type`, `transform`, `size`, `parentIndex`) and to drop the copy
-root's own transform, since a frame's position on the canvas is not part of
-the level. `node test-clipboard.mjs` proves that end to end.
+(`name`, `type`, `transform`, `size`, `parentIndex`).
+
+Four things about that payload were only learnable from a real copy, and all
+four are things a synthetic fixture happily got wrong:
+
+- the buffer closes with **`(/figma)`**, not a second `(figma)`;
+- the two blocks are compressed DIFFERENTLY — the schema is raw deflate, the
+  message is **zstd** (`28 b5 2f fd`). Chrome has no
+  `DecompressionStream("zstd")` as of 151, hence `fzstd`;
+- a copy also ships the **Document, Page and component-definition** nodes, so
+  scanning every node found four watering cans instead of two — one of them the
+  component itself, sitting over on the kit page. Walk DOWN from the level frame
+  instead, and stop descending at anything that matches, because a component's
+  inner art repeats the component's own name;
+- the frame's own transform must be dropped: its canvas position is not part of
+  the level.
+
+`node test-clipboard.mjs` covers the wrapper and field handling on synthetic
+payloads. `node test-real-copy.mjs` runs the real thing —
+`fixtures/real-figma-copy.b64`, an actual Ctrl+C of the level 1 frame — and
+asserts it reproduces `levels.ts[0]` exactly, segment for segment, up to that
+uniform translation. That fixture is the only test here made of real data, and
+it is the one that caught all four.
 
 Also accepted: drop an exported `.svg` file, paste that file's text, or paste
 one of our own level links.

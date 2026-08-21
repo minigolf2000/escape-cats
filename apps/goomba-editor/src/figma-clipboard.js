@@ -85,70 +85,71 @@ function extractBuffer(html) {
   }
 }
 
+/**
+ * The two blocks are not compressed the same way, which is the thing that took
+ * longest to find. Measured on a real copy (container version 106): the SCHEMA
+ * block is raw deflate, and the MESSAGE block is ZSTANDARD — it begins with
+ * zstd's `28 b5 2f fd` magic, which is why inflating it produced "invalid
+ * stored block lengths" while the schema beside it inflated perfectly.
+ *
+ * So pick by magic rather than by position, and never assume both are alike.
+ * Chrome has no `DecompressionStream("zstd")` (checked on 151), hence fzstd.
+ */
+const ZSTD_MAGIC = [0x28, 0xb5, 0x2f, 0xfd];
+const isZstd = (b) => ZSTD_MAGIC.every((v, i) => b[i] === v);
+
 async function inflateRaw(bytes) {
   const ds = new DecompressionStream("deflate-raw");
   const stream = new Blob([bytes]).stream().pipeThrough(ds);
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-/** Split the fig-kiwi container into its deflate blocks. */
+async function decompress(bytes, which) {
+  if (isZstd(bytes)) {
+    const { decompress: unzstd } = await import("fzstd");
+    return unzstd(bytes);
+  }
+  try {
+    return await inflateRaw(bytes);
+  } catch (err) {
+    throw new Error(
+      `could not decompress the ${which} block — it is neither zstd nor raw deflate ` +
+      `(begins ${[...bytes.slice(0, 4)].map((v) => v.toString(16).padStart(2, "0")).join(" ")}): ${err.message}`,
+    );
+  }
+}
+
+/** Split the fig-kiwi container into its blocks, each decompressed by magic. */
 async function blocks(buf) {
   const magic = String.fromCharCode(...buf.slice(0, 8));
   if (magic !== "fig-kiwi") throw new Error(`not a fig-kiwi payload (magic "${magic}")`);
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   let at = 12; // 8 magic + uint32 version
-  const out = [];
+  const raw = [];
   while (at + 4 <= buf.byteLength) {
     const len = dv.getUint32(at, true);
     at += 4;
     if (!len || at + len > buf.byteLength) break;
-    out.push(await inflateRaw(buf.subarray(at, at + len)));
+    raw.push(buf.subarray(at, at + len));
     at += len;
   }
-  if (out.length < 2) throw new Error("the Figma payload had no schema+message pair");
-  return out;
+  if (raw.length < 2) throw new Error("the Figma payload had no schema+message pair");
+  return [
+    await decompress(raw[0], "schema"),
+    await decompress(raw[1], "message"),
+  ];
 }
 
 const gid = (g) => (g ? `${g.sessionID}:${g.localID}` : null);
 
-/**
- * Compose a node's parent-relative matrix chain into LEVEL coordinates.
- *
- * The copy root's own transform is deliberately dropped. When you copy a level
- * frame, that frame is in the payload carrying its position on the Figma canvas
- * — 20000, 400 for the frames this repo generated — and that is where the frame
- * sits in the file, not where anything sits in the level. Composing it made
- * every coordinate come out ~2000 units adrift.
- *
- * "Copy root" is the outermost ancestor whose own parent is not in the payload.
- * A loose selection with no frame around it has each node as its own root, so
- * the chain is length 1 and nothing is dropped.
- */
-function absoluteMatrix(node, byGuid) {
-  let m = [1, 0, 0, 0, 1, 0]; // a b tx / c d ty
-  const chain = [];
-  for (let n = node, guard = 0; n && guard < 64; guard++) {
-    chain.push(n);
-    const p = n.parentIndex && gid(n.parentIndex.guid);
-    n = p ? byGuid.get(p) : null;
-    if (n && /^(CANVAS|DOCUMENT)$/.test(n.type || "")) break;
-  }
-  if (chain.length > 1) {
-    const outer = chain[chain.length - 1];
-    const outerParent = outer.parentIndex && gid(outer.parentIndex.guid);
-    if (!outerParent || !byGuid.has(outerParent)) chain.pop();
-  }
-  // Root-most first, so each step multiplies on the right.
-  for (const n of chain.reverse()) {
-    const t = n.transform;
-    if (!t) continue;
-    const b = [t.m00 ?? 1, t.m01 ?? 0, t.m02 ?? 0, t.m10 ?? 0, t.m11 ?? 1, t.m12 ?? 0];
-    m = [
-      m[0] * b[0] + m[1] * b[3], m[0] * b[1] + m[1] * b[4], m[0] * b[2] + m[1] * b[5] + m[2],
-      m[3] * b[0] + m[4] * b[3], m[3] * b[1] + m[4] * b[4], m[3] * b[2] + m[4] * b[5] + m[5],
-    ];
-  }
-  return m;
+/** 2x3 affine, laid out [a b tx / c d ty] — Figma's Matrix is m00…m12. */
+const IDENT = [1, 0, 0, 0, 1, 0];
+function mul(m, t) {
+  const b = [t.m00 ?? 1, t.m01 ?? 0, t.m02 ?? 0, t.m10 ?? 0, t.m11 ?? 1, t.m12 ?? 0];
+  return [
+    m[0] * b[0] + m[1] * b[3], m[0] * b[1] + m[1] * b[4], m[0] * b[2] + m[1] * b[5] + m[2],
+    m[3] * b[0] + m[4] * b[3], m[3] * b[1] + m[4] * b[4], m[3] * b[2] + m[4] * b[5] + m[5],
+  ];
 }
 const apply = (m, x, y) => ({ x: m[0] * x + m[1] * y + m[2], y: m[3] * x + m[4] * y + m[5] });
 const degOf = (m) => (Math.atan2(m[3], m[0]) * 180) / Math.PI;
@@ -221,37 +222,60 @@ export async function levelFromFigmaClipboard(html) {
   const terrain = [], bands = [], cans = [], bumpers = [], cushions = [], pops = [];
   let start = null, goal = null, name = null, maxSpeed = null;
 
+  // Children by parent, in sibling order, so `band` order matches the four
+  // player colours the way it does on the canvas.
+  const kids = new Map();
   for (const n of changes) {
-    const asLevel = levelName(n.name);
-    if (asLevel && !name) {
-      // "L: My Level @145" raises the speed cap, the one level field Figma has
-      // nowhere else to put.
-      const at = /\s*@\s*(\d+)\s*$/.exec(asLevel);
-      name = at ? asLevel.slice(0, at.index).trim() : asLevel;
-      if (at) maxSpeed = Number(at[1]);
-    }
+    const p = n.parentIndex && gid(n.parentIndex.guid);
+    if (!p) continue;
+    if (!kids.has(p)) kids.set(p, []);
+    kids.get(p).push(n);
+  }
+  for (const list of kids.values()) {
+    list.sort((a, b) => {
+      const pa = a.parentIndex?.position ?? "", pb = b.parentIndex?.position ?? "";
+      return pa < pb ? -1 : pa > pb ? 1 : 0;
+    });
   }
 
-  // Sort by sibling position so `band` order matches the four player colours.
-  const ordered = [...changes].sort((a, b) => {
-    const pa = a.parentIndex?.position ?? "", pb = b.parentIndex?.position ?? "";
-    return pa < pb ? -1 : pa > pb ? 1 : 0;
-  });
+  // A copy carries far more than the frame you selected: the Document and Page
+  // nodes, and the COMPONENT DEFINITIONS behind every instance. Those
+  // definitions are named exactly like the instances — a real copy of level 1
+  // yielded four cans instead of two, one of them at x 1076, which is the
+  // watering-can component sitting at x 10240 over on the kit page. So walk DOWN
+  // from the level frame instead of scanning every node, and stop descending at
+  // anything that matches, since a component's inner art repeats its own name.
+  const frameNode = changes.find((n) => levelName(n.name));
+  if (frameNode) {
+    const asLevel = levelName(frameNode.name);
+    // "L: My Level @145" raises the speed cap, the one level field Figma has
+    // nowhere else to put.
+    const at = /\s*@\s*(\d+)\s*$/.exec(asLevel);
+    name = at ? asLevel.slice(0, at.index).trim() : asLevel;
+    if (at) maxSpeed = Number(at[1]);
+  }
+  const roots = frameNode
+    ? [frameNode]
+    // No frame in the selection: take everything sitting directly on the page.
+    : changes.filter((n) => {
+        const p = n.parentIndex && gid(n.parentIndex.guid);
+        const parent = p && byGuid.get(p);
+        return parent && /^(CANVAS|DOCUMENT)$/.test(parent.type || "");
+      });
+  if (!roots.length) throw new Error("could not find a level frame or any pasted nodes");
 
-  for (const n of ordered) {
+  const W = (v) => ROUND(v / S);
+  const emit = (n, m) => {
     const hit = classify(n.name);
-    if (!hit) continue;
+    if (!hit) return false;
     const { kind, num } = hit;
-    const m = absoluteMatrix(n, byGuid);
     const w = n.size?.x ?? 0, h = n.size?.y ?? 0;
-    const W = (v) => ROUND(v / S);
-
     if (kind === "t" || kind === "band") {
       // A Figma line is a zero-height node: local (0,0)-(width,0) IS the
       // segment, so its stored geometry needs no correction of any kind.
       const a = apply(m, 0, 0), b = apply(m, w, 0);
       (kind === "t" ? terrain : bands).push([[W(a.x), W(a.y)], [W(b.x), W(b.y)]]);
-      continue;
+      return true;
     }
     const c = apply(m, w / 2, h / 2); // instance centre
     if (kind === "start") start = [W(c.x), W(c.y)];
@@ -262,6 +286,27 @@ export async function levelFromFigmaClipboard(html) {
     else if (kind === "cushion") {
       const left = apply(m, 0, h / 2);
       cushions.push({ x: W(left.x), y: W(left.y), w: ROUND(w / S) });
+    }
+    return true;
+  };
+
+  const walk = (node, m, depth) => {
+    if (depth > 32) return;
+    for (const child of kids.get(gid(node.guid)) || []) {
+      const cm = child.transform ? mul(m, child.transform) : m;
+      // Stop at anything that matched: a component's inner art repeats the
+      // component's own name, so descending would count every toy twice.
+      if (!emit(child, cm)) walk(child, cm, depth + 1);
+    }
+  };
+  for (const r of roots) {
+    if (frameNode) {
+      // The frame IS the coordinate space, so its own placement on the Figma
+      // canvas is ignored and the walk starts from identity inside it.
+      walk(r, IDENT, 0);
+    } else {
+      const rm = r.transform ? mul(IDENT, r.transform) : IDENT;
+      if (!emit(r, rm)) walk(r, rm, 0);
     }
   }
 

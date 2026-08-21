@@ -12,7 +12,7 @@
 // nothing security-wise — the override is a client-side gate, and the `goto`
 // behind it was always open to any player in the room.
 
-import { GoombaSim } from "@escape-cats/shared";
+import { GOOMBA_LEVELS, GoombaSim, decodeLevel, initLevel } from "@escape-cats/shared";
 import { transport, playerId } from "./net";
 
 export function debugFromUrl() {
@@ -22,6 +22,30 @@ export function debugFromUrl() {
 
 export function soloFromUrl() {
   return new URLSearchParams(location.search).has("solo");
+}
+
+/**
+ * A level handed over in the URL hash — the Figma paste target's "play for
+ * real" lands here — appended to the level list and returned as its index.
+ *
+ * Appending to `GOOMBA_LEVELS` rather than teaching the sim about a second kind
+ * of level is what makes this play for REAL: the placement rules, the band
+ * quota, the phases, the scoring and the animation all read that array and
+ * cannot tell the difference. The one thing they must not do is disagree about
+ * its LENGTH, so this has to run before `new GoombaSim`, which sizes
+ * `completed` from it.
+ *
+ * Solo only. A real room scores runs on the server, and the server has never
+ * heard of this level — that is the next slice, not this one.
+ */
+export function adoptHashLevel() {
+  if (location.hash.length <= 1) return null;
+  const decoded = decodeLevel(location.hash.slice(1));
+  if (!decoded) return null;
+  const L = initLevel(decoded);
+  L.pasted = true; // the selector's one visible difference
+  GOOMBA_LEVELS.push(L);
+  return GOOMBA_LEVELS.length - 1;
 }
 
 export function startDebug(opts) {
@@ -85,5 +109,8 @@ export function startDebug(opts) {
     emit();
   };
 
+  // Open on the pasted level rather than level 1, so "play for real" lands on
+  // the thing you just drew instead of making you find it in the grid.
+  if (typeof opts.level === "number") sim.goto(opts.level, Date.now());
   emit(); // synchronous first snapshot, so the page is wired before boot returns
 }

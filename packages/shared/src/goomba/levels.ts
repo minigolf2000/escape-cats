@@ -202,44 +202,41 @@ const RAW_LEVELS: GoombaLevel[] = [
   //      bridge: she rocks in it and never climbs out
   //   4. the diagonal, lower-right, and the second can hanging under it
   //
-  // FENCED, and it cost a band. Redrawn in Figma and pasted in: the slopes were
-  // retuned, a kicker added under the diagonal, and — the change that matters —
-  // the world was closed with full-height fences at x 13.3 and x 122.
+  // Redrawn in Figma and pasted in, twice. The first fenced pass closed the
+  // world at both edges and LOST a band for it — two of the old three jobs were
+  // only jobs because failing them threw her out of the world, and a fence does
+  // that for free. This pass reopens the right edge, cuts the west wall back to
+  // its upper half, and trades the chevron for a long flat shelf at y 43.
   //
-  // DEBT, re-measured against THIS geometry, not inherited: it is now a TWO-band
-  // level, down from three. `minbands.mjs 0` is exhaustive at one band (0 of
-  // 7151 win) and the 2-band solution wins at 11.87s with both cans, so two is
-  // honest and minimal — but it is a step further from the party rule, not
-  // closer.
+  // Measured against THIS geometry: a THREE-band level, and a better-shaped one
+  // than the version it replaces. `minbands.mjs 0` is exhaustive at one band
+  // (0 of 7151) and finds nothing at two (0 of 30000 sampled); `solve.mjs 0 2`
+  // comes back empty and `0 3` solves. The 3-band solution wins at 7.27s with
+  // both cans.
   //
-  // The fences are why, and the mechanism is worth keeping written down: TWO of
-  // the old three jobs were only jobs because their failure threw her OUT OF
-  // THE WORLD. Walling the right shaft mattered because the V's short right arm
-  // used to throw her off the right edge; catching her under the diagonal
-  // mattered because she otherwise slid off the left end of the ground. A fence
-  // does both of those for free, so one band stopped being load-bearing and the
-  // other two deaths turned from `fall` into `loop`. Closing a world makes it
-  // more forgiving, which is the opposite of what a band budget wants.
-  //
-  // The two jobs that remain, each still load-bearing (`route.mjs 0 drop`):
-  //   1. BRIDGE the V's throat — drop it and she never gets a can at all:
-  //      loop@3.5s, 0/2, rocking in the chevron
-  //   2. CATCH her at the east fence — drop it and she takes the first can and
-  //      then loops out the clock at 1/2 with the plant still locked
-  { name: '1 · The Long Way Down', budget: 2,
+  // Still short of the party rule at 3, and that is the standing debt — but the
+  // three jobs now fail in three DIFFERENT ways, which is what makes a level
+  // teach (`route.mjs 0 drop`):
+  //   1. BRIDGE the shelf — drop it and she never reaches a can at all:
+  //      stall@3.92s, 0/2, parked on the shelf
+  //   2. CATCH her off the shelf's right end — drop it and she takes can 1 and
+  //      then runs off the LEFT edge of the world at 1/2
+  //   3. WALL the run-out — drop it and she has both cans and FLIES off the
+  //      right edge, plant still locked, which is the most legible death of all
+  { name: '1 · The Long Way Down', budget: 3,
     start: [20, 20],
     terrain: [
-      [[18, 22], [50.9, 24.3]],                 // the start pad
-      [[75, 31], [89, 43], [99.4, 43]],         // the V — can 1 in its throat
-      [[12, 62], [44, 72], [89.3, 43]],         // the chevron: the bowl that eats a miss
+      [[12.4, 21.5], [50, 24.3]],               // the start pad
+      [[75, 31], [89, 43]],                     // the V's left arm, down onto the shelf
+      [[12.6, 43], [98.7, 43]],                 // the long flat shelf — can 1 above its right end
       [[73, 84], [110.6, 57.5]],                // the diagonal
       [[70.4, 103.3], [93.2, 114.3]],           // the kicker under the diagonal
       [[12, 137], [122, 137]],                  // the ground, the plant near its left end
-      [[13.3, 137], [13.3, 8.9]],               // west fence
-      [[122, 137], [122, 8.9]] ],               // east fence
+      [[13.3, 85.7], [13.3, 8.9]] ],            // the upper west wall
     goal: [39, 136],
     cans: [[92.3, 36], [84, 98]],
-    solution: [ [[70.5, 32.6], [56.3, 31.9]], [[121.6, 58.3], [112.2, 68.3]] ] },
+    solution: [ [[91.5, 29.2], [44, 30.2]], [[67.2, 103], [64.1, 68.1]],
+                [[119.1, 96.9], [103.9, 128]] ] },
 
   // Rebuilt from a pair of hand sketches. The second one redrew the run-up: not
   // hops through empty air but a slope CURVING EVER UPWARD that Goomba rides,

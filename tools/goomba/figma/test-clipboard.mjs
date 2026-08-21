@@ -147,5 +147,36 @@ console.log("native Figma clipboard -> GoombaLevel");
 for (const k of Object.keys(TRUTH)) check(k, level[k], TRUTH[k]);
 check("no stray props (_gauge ignored)", level.cans.length + level.bumpers.length + level.pops.length, 3);
 if (warnings.length) console.log("  warnings:", warnings.join(" · "));
-console.log(bad ? `\n→ FAIL ✗ (${bad} field(s))` : "\n→ PASS ✓");
+// --- the wrapper, every way it might survive ------------------------------
+// A real Figma copy reached the page with the (figma) marker present but the
+// buffer unreadable, so how that attribute is escaped is not something to
+// assume. Each of these must produce exactly the level the plain form did.
+const b64 = container.toString("base64");
+const wrap = (inner, quote = '"') => `<span data-buffer=${quote}${inner}${quote}></span>`;
+const VARIANTS = {
+  "plain <!--": wrap(`<!--(figma)${b64}(figma)-->`),
+  "entity-escaped &lt;!--": wrap(`&lt;!--(figma)${b64}(figma)--&gt;`),
+  "single-quoted attribute": wrap(`<!--(figma)${b64}(figma)-->`, "'"),
+  "newlines inside the base64": wrap(
+    `<!--(figma)\n${b64.replace(/(.{60})/g, "$1\n")}\n(figma)-->`),
+  "base64url (- and _)": wrap(
+    `<!--(figma)${b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}(figma)-->`),
+  "Windows HTML Format wrapper":
+    "Version:0.9\r\nStartHTML:00000097\r\n<html><body><!--StartFragment-->" +
+    wrap(`<!--(figma)${b64}(figma)-->`) + "<!--EndFragment--></body></html>",
+};
+console.log("\nclipboard wrapper variants");
+for (const [label, markup] of Object.entries(VARIANTS)) {
+  try {
+    const r = await levelFromFigmaClipboard(markup);
+    const same = JSON.stringify(r.level) === JSON.stringify(level);
+    if (!same) bad++;
+    console.log(`  ${same ? "ok  " : "FAIL"} ${label}${same ? "" : " — decoded to a DIFFERENT level"}`);
+  } catch (err) {
+    bad++;
+    console.log(`  FAIL ${label} — ${err.message}`);
+  }
+}
+
+console.log(bad ? `\n→ FAIL ✗ (${bad} check(s))` : "\n→ PASS ✓");
 process.exit(bad ? 1 : 0);

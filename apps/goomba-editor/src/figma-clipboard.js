@@ -32,14 +32,51 @@ const ROUND = (v) => Math.round(v * 10) / 10; // tenths: the codec's precision
 
 /** Does this clipboard HTML hold a Figma payload at all? */
 export const hasFigmaBuffer = (html) =>
-  typeof html === "string" && /data-buffer="&lt;!--\(figma\)|data-buffer="<!--\(figma\)/.test(html);
+  typeof html === "string" && html.includes("data-buffer") && html.includes("(figma)");
 
+/**
+ * Pull the base64 payload out of the clipboard HTML.
+ *
+ * Do NOT regex this out of the raw markup. The attribute is HTML, so how its
+ * `<!--` and `-->` survive depends on who serialised it, and a real Figma copy
+ * showed up with a buffer this could not read even though the marker was right
+ * there. So: let a parser decode the attribute, then slice between the two
+ * `(figma)` sentinels rather than trying to match the wrapper, and accept
+ * base64url as well as standard base64 — `-` and `_` never appear in standard
+ * base64, so translating them is safe once the `--` of the comment wrapper is
+ * already gone.
+ */
 function extractBuffer(html) {
-  // The attribute survives as either raw `<!--` or entity-escaped `&lt;!--`
-  // depending on how the browser handed us the string.
-  const m = /data-buffer="(?:<|&lt;)!--\(figma\)([A-Za-z0-9+/=\s]+)\(figma\)--(?:>|&gt;)"/.exec(html);
-  if (!m) throw new Error("found a Figma clipboard payload but could not read its buffer");
-  return Uint8Array.from(atob(m[1].replace(/\s+/g, "")), (c) => c.charCodeAt(0));
+  let raw = null;
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const el = doc.querySelector("[data-buffer]");
+    if (el) raw = el.getAttribute("data-buffer");
+  } catch {
+    /* fall through to the text scan */
+  }
+  if (!raw) {
+    const m = /data-buffer\s*=\s*"([^"]*)"/.exec(html) || /data-buffer\s*=\s*'([^']*)'/.exec(html);
+    if (m) raw = m[1];
+  }
+  if (!raw) throw new Error("this clipboard mentions a Figma buffer but carries no data-buffer attribute");
+
+  const a = raw.indexOf("(figma)");
+  const b = raw.lastIndexOf("(figma)");
+  if (a < 0 || b <= a)
+    throw new Error(
+      `found the Figma buffer but not its (figma) markers — it began "${raw.slice(0, 40)}"`,
+    );
+  const inner = raw.slice(a + "(figma)".length, b);
+  const b64 = inner.replace(/-/g, "+").replace(/_/g, "/").replace(/[^A-Za-z0-9+/=]/g, "");
+  if (b64.length < 32)
+    throw new Error(`the Figma buffer decoded to only ${b64.length} base64 chars`);
+  const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+  try {
+    return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+  } catch (err) {
+    throw new Error(`the Figma buffer is not valid base64 (${b64.length} chars): ${err.message}`);
+  }
 }
 
 async function inflateRaw(bytes) {
@@ -156,6 +193,15 @@ export async function levelFromFigmaClipboard(html) {
     throw new Error(
       `decoded ${changes.length} node(s), but none carry both \`transform\` and \`size\`. ` +
       `The first node's fields were: ${Object.keys(changes[0] || {}).join(", ") || "(none)"}.`,
+    );
+  }
+  // A matrix whose components are not called m00… would compose as identity and
+  // pile every prop onto the origin — a wrong level rather than an error. Refuse
+  // instead, and name what the matrix actually holds.
+  if (typeof shaped.transform.m00 !== "number") {
+    throw new Error(
+      "Figma's transform is not shaped the way this reader expects: it holds " +
+      `${Object.keys(shaped.transform).join(", ") || "(nothing)"} instead of m00…m12.`,
     );
   }
 

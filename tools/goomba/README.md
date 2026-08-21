@@ -67,7 +67,7 @@ the level gate below still does the load-bearing work.
 Five levels ship. TWO pass the full gate — The Long Way Up (2) and Cat's
 Cradle (4) — and the others are the standing rebalance debt: they win with
 fewer than 4 bands. Freshly measured, not inherited: The Long Way Down (1)
-needs 3 and Watering Can Slalom (3) needs 3 (0/10325 at one band, exhaustive).
+needs 3 and Slalom (3) needs 3 (0/10325 at one band, exhaustive).
 Level 1 joined that list deliberately: it was rebuilt to a hand sketch whose
 silhouette cannot carry a 4th gate (see DESIGNING.md on why no can placement
 fixes it), replacing Four Ways to Help, which passed.
@@ -93,7 +93,7 @@ The blanket "levels 3-8 collapse to 1 band" this file used to carry was
 stale for two of its members. (The Skim, The Puzzle Box and Pillow Fort were
 cut, and Mind the Gap, which passed, was cut with them. Level numbers are
 array index + 1, so removals and insertions renumber everything after them.)
-Up the Middle (5) grew from a hand sketch over several rounds, finished by
+There and Back Again (5) grew from a hand sketch over several rounds, finished by
 hand in the editor. It is the closest thing here to a third passing level:
 bare fails, all three bands load-bearing with three different deaths, every
 band in-bounds and under BAND_MAX, and finger slop 22/30 against a threshold

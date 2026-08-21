@@ -320,7 +320,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // reached the plant. At 0.204 gravity outvotes the pump and every one of
   // those 3312 slides down to the plant on the right. It cost nothing: the
   // 3-band solution still wins (1.3s faster) and the level still needs 3.
-  { name: '3 · Watering Can Slalom', budget: 3,
+  { name: '3 · Slalom', budget: 3,
     start: [10, 22],
     terrain: [ [[-4, 20], [30, 30]],
                [[6, 34], [6, 190], [104, 210], [104, 34]] ],
@@ -450,7 +450,7 @@ const RAW_LEVELS: GoombaLevel[] = [
   // dot leaves with START_VX=20 and sails past the popper beneath it, and
   // `decodeLevel` rejects a level with no terrain at all, so the shelf is also
   // what lets this board travel as an editor link.
-  { name: '5 · Up the Middle (testbed)', budget: 4,
+  { name: '5 · There and Back Again', budget: 4,
     start: [3, 100],
     terrain: [ [[-1.5, 103], [3, 107]] ],  // the start shelf — the only terrain
     goal: [75, 48],

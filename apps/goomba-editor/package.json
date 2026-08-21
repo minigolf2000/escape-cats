@@ -10,7 +10,8 @@
     "preview": "vite preview --port 5179"
   },
   "dependencies": {
-    "@escape-cats/shared": "*"
+    "@escape-cats/shared": "*",
+    "kiwi-schema": "^0.5.0"
   },
   "devDependencies": {
     "vite": "^7.3.6"

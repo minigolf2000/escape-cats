@@ -88,6 +88,7 @@ Layer **names** carry all the meaning. Position comes from the node.
 | Layer name | Node type | Becomes |
 | --- | --- | --- |
 | `L: <title>` or `L--<title>` | Frame | one level; the frame's origin is world (0,0) |
+| `L: <title> @145` | Frame | …and raises the level's `maxSpeed` to 145 |
 | `t` | Line | one `terrain` segment |
 | `start` | anything | `start` — bbox centre |
 | `goal` | anything | `goal` — bbox centre |
@@ -132,8 +133,18 @@ play button and a copy-link button.
 copy a frame in Figma  →  ⌘V on the page  →  src/figma-svg.js  →  the shipped sim
 ```
 
-It takes a level three ways: drop an exported `.svg` file, paste that file's
-text, or paste one of our own level links.
+**Just copy in Figma and paste here.** A plain `Ctrl+C` puts a `fig-kiwi`
+payload on the clipboard and `src/figma-clipboard.js` decodes it — that path
+carries the real layer names and each node's *stored* geometry, so it needs
+none of the SVG path's corrections, and the `anchor` dots are not even used.
+The travelling Kiwi schema means `kiwi-schema` decodes the wire format
+generically; the only Figma-specific knowledge is which fields to read
+(`name`, `type`, `transform`, `size`, `parentIndex`) and to drop the copy
+root's own transform, since a frame's position on the canvas is not part of
+the level. `node test-clipboard.mjs` proves that end to end.
+
+Also accepted: drop an exported `.svg` file, paste that file's text, or paste
+one of our own level links.
 `public/sample-figma-export.svg` is a real export you can drop to see it work.
 
 **Export, do not "Copy as SVG".** Figma only writes layer names into SVG when the
@@ -181,7 +192,7 @@ half a stroke. That is exactly why the copy-link button stayed —
 Nothing here touches `levels.ts` until a level has earned it:
 
 ```
-Figma frame  →  Export SVG (ids on)  →  drop at /editor/  →  ▶ play
+Figma frame  →  Ctrl+C  →  Ctrl+V at /editor/  →  ▶ play
                                       ↓
                                  copy link  →  node verify.mjs --hash <link>
 ```

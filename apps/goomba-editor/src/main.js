@@ -14,6 +14,7 @@ import { RUN_MAX, SUB, encodeLevel, decodeLevel, makeRun, stepRun } from "@escap
 import { prepare, toBands } from "./sim.js";
 import { draw, fitCam, makeCam, toWorld } from "./view.js";
 import { levelFromFigmaSvg } from "./figma-svg.js";
+import { hasFigmaBuffer, levelFromFigmaClipboard } from "./figma-clipboard.js";
 
 const $ = (id) => document.getElementById(id);
 const cv = $("c");
@@ -211,13 +212,25 @@ addEventListener("paste", (e) => {
   const dt = e.clipboardData;
   if (!dt) return;
   e.preventDefault();
-  // Figma's "Copy as SVG" lands on text/plain; a file copy lands in files.
   const file = [...(dt.files || [])].find((f) => /svg/i.test(f.type) || /\.svg$/i.test(f.name));
   if (file) return void readFile(file);
-  const text = dt.getData("text/plain") || dt.getData("text/html") || "";
+
+  // A plain Ctrl+C in Figma is the best input there is: real layer names and
+  // stored geometry, so it needs none of the SVG path's corrections. Try it
+  // first and only fall back if the clipboard is not Figma's.
+  const html = dt.getData("text/html") || "";
+  if (hasFigmaBuffer(html)) {
+    levelFromFigmaClipboard(html)
+      .then(({ level: next, warnings }) =>
+        loadLevel(next, warnings.length ? warnings.join(" · ") : `read “${next.name}” from Figma`))
+      .catch((err) => banner(String(err.message || err), true));
+    return;
+  }
+
+  const text = dt.getData("text/plain") || html;
   try {
     if (!takeText(text)) {
-      banner("that clipboard did not look like SVG or a level link. In Figma use Copy/Paste as → Copy as SVG.", true);
+      banner("that clipboard is not a Figma copy, an SVG, or a level link. In Figma just select the frame and press Ctrl+C.", true);
     }
   } catch (err) {
     banner(String(err.message || err), true);
@@ -256,6 +269,11 @@ addEventListener("hashchange", fromHash);
 // Testing hook: the browser-driven checks paste through this rather than
 // synthesising clipboard events, which no automation can do reliably.
 window.__paste = (text) => takeText(text);
+window.__pasteHtml = (html) =>
+  levelFromFigmaClipboard(html).then(({ level: next, warnings }) => {
+    loadLevel(next, warnings.join(" · "));
+    return { name: next.name, warnings };
+  });
 window.__level = () => level;
 
 // ---------- boot ----------

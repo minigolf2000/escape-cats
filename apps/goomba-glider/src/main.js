@@ -118,7 +118,7 @@ let parts = [], confetti = [], cushAnim = [], popPrev = null;
 
 const $ = (id) => document.getElementById(id);
 const hudEl = $("hud");
-const lvlEl = $("lvl"), hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
+const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   teamEl = $("team"), playBtn = $("play"), clearBtn = $("clear"), toastEl = $("toast"),
   labEl = $("lab"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
@@ -214,11 +214,9 @@ function onSnapshot(s) {
 
 function syncHud() {
   const s = snap; if (!s) return;
-  const lv = L();
-  lvlEl.textContent = lv.name;
   const done = s.completed.filter(Boolean).length;
-  // Levels carry a title and nothing else — the only line here is the win
-  // banner; editing and running say nothing.
+  // The level's own name is deliberately off the HUD now — only the win
+  // banner ever occupies this line; editing and running say nothing.
   hintEl.textContent =
     s.phase === "win"
       ? (done === s.levelCount ? "ALL LEVELS CLEAR! 🎉🪴" : "LEVEL CLEAR! 🎉")

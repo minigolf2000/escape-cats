@@ -11,13 +11,6 @@
          color: #f2ecff; }
   #top { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
          display: flex; align-items: center; justify-content: space-between; padding: 0 14px; gap: 8px; }
-  /* The title is the ONLY prose a level carries (no hints, no descriptions),
-     so it gets its own full-width line instead of fighting the dots and the
-     band slots for room in #top. */
-  #lvl { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 70px); left: 0; right: 0;
-         text-align: center; font-weight: 700; font-size: 16px; letter-spacing: .02em;
-         text-shadow: 0 2px 8px rgba(0,0,0,.6); padding: 0 20px;
-         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* The level dots — and, once the team has CLEARED the game (or on a ?debug
      phone, which overrides that gate), the level grid's button: the strip the
      dots already sit on IS the selector, so the grid opens from the thing it
@@ -48,9 +41,15 @@
      "mine" vs "a teammate's" reads at a glance and the row never changes size:
      the quota is presentation here, never layout. */
   #inv .band.mine { box-shadow: 0 0 10px rgba(255,255,255,.18); }
-  #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 94px); left: 0; right: 0;
+  /* #lvl (the level's name) is gone, so #hint is the first prose line under
+     the dots/slots row. It sits below the clear-bands chip's line (30px row +
+     6px gap + 30px chip = 66px) with the same ~14px clearance every other gap
+     here keeps, even though the two never show text at once today (#clear is
+     edit-phase only, #hint's only text is the win banner) — a phase that isn't
+     mutually exclusive later shouldn't have to rediscover this collision. */
+  #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 80px); left: 0; right: 0;
           text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
-  #team { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 116px); left: 0; right: 0;
+  #team { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 102px); left: 0; right: 0;
           text-align: center; font-size: 11px; color: #8a80b0; text-shadow: 0 2px 6px rgba(0,0,0,.7);
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 20px; }
   #team b { font-weight: 700; }
@@ -164,7 +163,6 @@
       <button id="clear" class="hide" aria-label="clear all bands">clear bands</button>
     </div>
   </div>
-  <div id="lvl"></div>
   <div id="hint"></div>
   <div id="team"></div>
   <div id="conn">reconnecting…</div>

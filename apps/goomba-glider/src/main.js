@@ -120,6 +120,7 @@ const $ = (id) => document.getElementById(id);
 const hudEl = $("hud");
 const lvlEl = $("lvl"), hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   teamEl = $("team"), playBtn = $("play"), clearBtn = $("clear"), toastEl = $("toast"),
+  labEl = $("lab"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
   connEl = $("conn");
 
@@ -276,7 +277,11 @@ function syncHud() {
     s.phase === "run" ? "■ STOP" :
     s.phase === "win" ? (nextLeadsToSplash(s) ? "FINISH ▸" : "NEXT ▸") : "▶ PLAY";
   playBtn.className = s.phase === "run" ? "stop" : s.phase === "win" ? "next" : "";
-  clearBtn.style.display = s.phase === "edit" && s.bands.length ? "" : "none";
+  // CLEAR only turns invisible, never `display:none`: it holds a fixed box in
+  // the band row now (index.html), and a control that came and went there would
+  // slide the slots sideways every time a band landed.
+  clearBtn.classList.toggle("hide", !(s.phase === "edit" && s.bands.length));
+  fitClear();
 }
 const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -286,9 +291,45 @@ playBtn.onclick = () => {
   else if (snap.phase === "run") transport.send({ type: "stop" });
   else if (snap.phase === "win") transport.send({ type: "next" });
 };
+// Does "clear bands" still fit? Not a question CSS can answer, because the two
+// things eating the row are invisible to a media query: how many level dots
+// there are (one more every time a level ships) and whether the room has earned
+// the selector, which wraps the strip in a plate ~40px wider. So measure the
+// laid-out row against the right edge and fall back to the 🧹 chip, which fits
+// at every width. Measuring works while the button is hidden precisely because
+// hiding it is `visibility`, not `display` — the box is still there.
+//
+// Keyed and cached: the answer only changes when the viewport, the dot count or
+// the plate does, and syncHud runs on every snapshot — including 20/s of them
+// during a run, which is no time to be forcing two layouts.
+let fitKey = "";
+function fitClear() {
+  const key = `${innerWidth}:${dotsEl.children.length}:${hudEl.classList.contains("cleared")}`;
+  if (key === fitKey) return;
+  fitKey = key;
+  clearBtn.classList.remove("compact"); // measure the roomy shape, then decide
+  const row = clearBtn.closest("#top");
+  const bar = clearBtn.parentElement.getBoundingClientRect();
+  // Against the row's own content edge, not a remembered number: the narrow
+  // media query in index.html trims #top's padding, and a hardcoded margin
+  // here would spend those pixels twice.
+  const pad = parseFloat(getComputedStyle(row).paddingRight);
+  const room = bar.right <= row.getBoundingClientRect().right - pad + 0.5 &&
+    bar.left - labEl.getBoundingClientRect().right >= 6;
+  clearBtn.classList.toggle("compact", !room);
+}
+window.addEventListener("resize", () => { fitKey = ""; fitClear(); });
+
+// One tap wipes, no confirm — and it wipes the ROOM's bands, teammates'
+// included (`clear` in goomba/sim.ts), from the corner of the screen a thumb
+// has to stretch for. That is a deliberate trade: the four players are in one
+// living room, so a clear nobody wanted is answered out loud in a second and
+// the bands go back down, whereas a confirm step would tax every deliberate
+// tap to insure against the rare stray one. No toast either: four bands
+// vanishing off the board IS the feedback, and the only phone a local toast
+// could reach is the one that already knows.
 clearBtn.onclick = () => { resetInput(); transport.send({ type: "clear" }); };
-const labBtn = $("lab");
-labBtn.onclick = () => {
+labEl.onclick = () => {
   if (!levelSelect()) return; // an indicator until the team clears the game
   if (snap && snap.phase === "run") transport.send({ type: "stop" });
   setLab(true);

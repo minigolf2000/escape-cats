@@ -416,7 +416,7 @@ error in where she strikes becomes a larger error in where she goes next.
 Popper Pinball — a testbed since removed, findings stand; git history has the
 geometry — measured the gap on one solution: the band whose job ended in a
 popper jittered 30/30, the band whose job ended in a bumper jittered 10/30, and
-the whole solution scored the bumper band's number. Up the Middle (5) is the
+the whole solution scored the bumper band's number. There and Back Again (5) is the
 constructive version of the same fact: its fragile band hands off to a POPPER
 on the leg that follows, and it scores 29/30 with a bumper wall in the loop.
 Consequence for design: a bumper is fine as an obstacle or a curtain (Piñata
@@ -435,7 +435,7 @@ honestly load-bearing. Just note the cost: the exit is at an apex, where she is
 slowest and most sensitive, so pair it with something that re-centres her.
 
 **A popper's aim needs ROOM DOWNRANGE, and that is invisible in the picture
-(Up the Middle, level 7).** A popper is a throw, so what decides whether it is
+(There and Back Again, level 7).** A popper is a throw, so what decides whether it is
 a return or a run-killer is not its angle but whether the world extends far
 enough along that angle to land in. The same popper at 135° was: a working
 return at (55,30) — every one of 1030 sampled runs that fired it reached the
@@ -448,7 +448,7 @@ leg fails, measure where the arc actually exits before re-aiming: the fix may
 belong at the other end.
 
 **A can ON a popper's throw arc is a toll booth — the cheapest way to make a
-popper compulsory (Up the Middle, level 5).** A popper that merely *can* be hit
+popper compulsory (There and Back Again, level 5).** A popper that merely *can* be hit
 will be skipped: the winning lines that thread past it are usually the ones
 with the most slack, so the solver finds them and the popper becomes scenery.
 Putting a collectible where the popper's own arc passes fixes that with no
@@ -481,7 +481,7 @@ a leg the solution could route around into one it must hit exactly.
 snowboard pump (`sp < 12` while grounded) pushes her the way she FACES, so a
 floor that only just clears the ~0.12 stranding pitch still traps anything that
 lands on it moving the WRONG way: she pumps into the far corner and stalls
-facing it. Watering Can Slalom's floor was 0.061 and stranded 741 of 3312
+facing it. Slalom's floor was 0.061 and stranded 741 of 3312
 sampled left-side arrivals; at 0.204 all 3312 slide to the goal. If a floor's
 job is "wherever she lands, she ends up at the plant", pitch it ~0.2, and test
 it with arrivals that carry velocity AWAY from the goal — a straight drop keeps

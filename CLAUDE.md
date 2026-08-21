@@ -54,13 +54,13 @@ findings — do not design from intuition, the sim disproves it reliably.
   otherwise exact ballistics).
 - Levels 1, 3 and 5 need fewer than 4 bands — the standing debt. Re-measured
   with `minbands`/`solve`, not inherited: The Long Way Down (1) needs 3 and
-  Watering Can Slalom (3) needs 3; 5 is a testbed, not a shipped puzzle. The
+  Slalom (3) needs 3; 5 is a testbed, not a shipped puzzle. The
   old blanket "these all collapse to 1 band" note was stale for both — if you
   are about to repeat a debt claim, re-run the tool first. Level 3 predates the
   party rule; level 1 joined it on purpose, rebuilt to a hand sketch whose
   silhouette has no room for a 4th gate (DESIGNING.md has the
   reachability sweep that proves no can placement fixes it).
-  Up the Middle (5) grew from a hand sketch over several rounds and is the
+  There and Back Again (5) grew from a hand sketch over several rounds and is the
   near-miss: bare fails, all three bands load-bearing with three different
   deaths, and finger slop 22/30 — the best any board here has scored with a
   bumper in the loop. It fails only the party rule, at 3 bands. Its fourth can

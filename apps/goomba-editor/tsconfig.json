@@ -1,11 +1,15 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // Like goomba-glider: the editor body is plain JS and only the typed seam
-    // (store.ts — the save format's one consumer) is checked. allowJs lets the
-    // checker read the JS it imports without implicit-any errors.
+    // This app is plain JS end to end. It used to have one typed seam (store.ts,
+    // the save format's consumer) but the editing side is gone: the page is a
+    // paste target now, so there is no TypeScript left to check. allowJs keeps
+    // `tsc --noEmit` in the build as a syntax gate over the JS instead of
+    // failing with "no inputs were found".
     "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.js"]
 }

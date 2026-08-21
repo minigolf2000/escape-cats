@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -70 140 140" width="140" height="140">
+  <title>Party popper — Goomba Glider</title>
+  <defs>
+    <linearGradient id="pop-barrel" x1="-30" y1="0" x2="15" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd166"/>
+      <stop offset="0.5" stop-color="#ff5db1"/>
+      <stop offset="1" stop-color="#b18bff"/>
+    </linearGradient>
+  </defs>
+  <g id="party-popper">
+    <circle id="trigger" cx="0" cy="0" r="60" fill="none" stroke="#ffd166"
+            stroke-opacity="0.55" stroke-width="3.5"
+            stroke-dasharray="12 14"/>
+    <path id="barrel" d="M -32,-5 L 16,-17 L 16,17 L -32,5 Z"
+          fill="url(#pop-barrel)"/>
+    <ellipse id="mouth" cx="16" cy="0" rx="5" ry="17" fill="#ffffff"/>
+    <path id="aim" d="M 26,0 L 52,0 M 44,-8 L 52,0 L 44,8"
+          fill="none" stroke="#ffffff" stroke-opacity="0.6" stroke-width="3.5"
+          stroke-linecap="round"/>
+  </g>
+</svg>

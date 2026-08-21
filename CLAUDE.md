@@ -10,10 +10,14 @@ are the invariants that bite.
 the whole loop, the physics cheat sheet, and the accumulated anti-shortcut
 findings — do not design from intuition, the sim disproves it reliably.
 
-- **The level editor** (`apps/goomba-editor`, served at `/editor/`,
-  :5179 in dev) is the fast loop: drag geometry against the shipped sim, live
-  verdicts on every edit, a background worker pool hunting for the ≤3-band win
-  that would break the level. A level **saves by being a URL** — `encodeLevel`
+- **The Figma paste target** (`apps/goomba-editor`, served at `/editor/`,
+  :5179 in dev) **authors nothing.** All level design happens in Figma now (see
+  [`tools/goomba/figma/README.md`](./tools/goomba/figma/README.md) for the kit
+  and the naming contract); this page takes a copied frame, reads it with
+  `src/figma-svg.js`, and plays it on the shipped sim. There is no tool palette,
+  no selection, no undo — wrong level, fix it in Figma and paste again. It kept
+  the URL codec because that is how a pasted level reaches the gate.
+  A level **saves by being a URL** — `encodeLevel`
   in `packages/shared/src/goomba/codec.ts` packs one into ~100–450 base64url
   chars, so designs travel as links and `node verify.mjs --hash <link>` gates
   one that was never committed. The codec lives in shared/ because the browser

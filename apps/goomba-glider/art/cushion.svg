@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-125 -12 250 48" width="250" height="48">
+  <title>Cushion, 24-unit span — Goomba Glider</title>
+  <g id="cushion">
+    <rect id="pad" x="-120" y="-6" width="240" height="34" rx="17" fill="#ff9dce"/>
+    <rect id="shine" x="-112" y="-1" width="224"
+          height="7" rx="3.5" fill="#ffffff" fill-opacity="0.35"/>
+    <g id="dimples">
+      <circle cx="-40" cy="15" r="3.5" fill="#e074ae"/>
+      <circle cx="40" cy="15" r="3.5" fill="#e074ae"/>
+    </g>
+  </g>
+</svg>

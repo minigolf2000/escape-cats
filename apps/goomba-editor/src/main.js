@@ -208,34 +208,74 @@ function takeText(text) {
   return false;
 }
 
-addEventListener("paste", (e) => {
+// Nothing about a paste is allowed to be silent. "I pressed Ctrl+V and nothing
+// happened" is the one report this page cannot act on, so every paste says what
+// it received before it tries to do anything with it, and both failure modes
+// that used to be able to swallow themselves — a rejected promise and a paste
+// that never reaches the document — are closed off below.
+function describeClipboard(dt) {
+  const types = [...(dt.types || [])];
+  const sizes = types.map((t) => {
+    if (t === "Files") return `Files(${(dt.files || []).length})`;
+    const v = dt.getData(t) || "";
+    return `${t} ${v.length}b`;
+  });
+  return sizes.join(" · ") || "(empty clipboard)";
+}
+
+const handled = new WeakSet(); // the listener sits on two targets; run once
+function onPaste(e) {
+  if (handled.has(e)) return;
+  handled.add(e);
   const dt = e.clipboardData;
-  if (!dt) return;
+  if (!dt) return void banner("that paste carried no clipboard data at all", true);
   e.preventDefault();
+
   const file = [...(dt.files || [])].find((f) => /svg/i.test(f.type) || /\.svg$/i.test(f.name));
   if (file) return void readFile(file);
+
+  const html = dt.getData("text/html") || "";
+  const text = dt.getData("text/plain") || "";
 
   // A plain Ctrl+C in Figma is the best input there is: real layer names and
   // stored geometry, so it needs none of the SVG path's corrections. Try it
   // first and only fall back if the clipboard is not Figma's.
-  const html = dt.getData("text/html") || "";
   if (hasFigmaBuffer(html)) {
-    levelFromFigmaClipboard(html)
-      .then(({ level: next, warnings }) =>
-        loadLevel(next, warnings.length ? warnings.join(" · ") : `read “${next.name}” from Figma`))
-      .catch((err) => banner(String(err.message || err), true));
+    banner("Figma copy detected, decoding…");
+    levelFromFigmaClipboard(html).then(
+      ({ level: next, warnings }) =>
+        loadLevel(next, warnings.length ? warnings.join(" · ") : `read “${next.name}” from Figma`),
+      (err) => banner(String(err.message || err), true),
+    );
     return;
   }
 
-  const text = dt.getData("text/plain") || html;
   try {
-    if (!takeText(text)) {
-      banner("that clipboard is not a Figma copy, an SVG, or a level link. In Figma just select the frame and press Ctrl+C.", true);
-    }
+    if (takeText(text || html)) return;
   } catch (err) {
-    banner(String(err.message || err), true);
+    return void banner(String(err.message || err), true);
   }
-});
+  // Nothing matched: report exactly what turned up, because that is the whole
+  // difference between "my level is broken" and "my copy was the wrong kind".
+  banner(
+    `that clipboard is not a Figma copy, an SVG, or a level link — it held: ${describeClipboard(dt)}. ` +
+    `In Figma select the frame and press Ctrl+C (not Copy as SVG).`,
+    true,
+  );
+}
+addEventListener("paste", onPaste);
+// Belt and braces: a paste only reaches a listener if the document has focus,
+// and this page has nothing focusable in it, so take focus on load and on any
+// click. Without this, Ctrl+V can genuinely go nowhere.
+document.addEventListener("paste", onPaste);
+// body is not focusable by default, and an unfocused document gets no paste.
+document.body.tabIndex = -1;
+const grab = () => document.body.focus({ preventScroll: true });
+grab();
+addEventListener("pointerdown", grab);
+addEventListener("unhandledrejection", (e) =>
+  banner(`something failed after the paste: ${e.reason?.message || e.reason}`, true));
+addEventListener("error", (e) => banner(`script error: ${e.message}`, true));
 
 function readFile(file) {
   const fr = new FileReader();

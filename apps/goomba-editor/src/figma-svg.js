@@ -182,6 +182,23 @@ export function levelFromFigmaSvg(svgText) {
       }
     })(live);
 
+    // The failure that actually happens in practice, and it looks nothing like
+    // a broken level: Figma's SVG output only carries layer names when the
+    // `id` attribute is switched on, and it is OFF by default. "Copy as SVG"
+    // gives you no way to switch it on, so that route arrives with every name
+    // stripped — same frame, 111 ids with the option, 3 without. Say so
+    // instead of reporting a missing `start`, which sends people to look at
+    // their level.
+    const named = terrain.length + bands.length + cans.length + bumpers.length +
+      cushions.length + pops.length + (start ? 1 : 0) + (goal ? 1 : 0);
+    if (!named) {
+      throw new Error(
+        "this SVG has no layer names, so there is nothing to read. Figma only " +
+        "writes them when the `id` attribute is on, and Copy as SVG cannot turn " +
+        "it on — use the frame's Export → SVG with “Include id attribute” " +
+        "ticked, then drop that file here.",
+      );
+    }
     if (!start) throw new Error("no layer named `start` — the level has no spawn");
     if (!goal) throw new Error("no layer named `goal` — the level has no cake");
     if (!terrain.length) warnings.push("no terrain: nothing named `t`. She will just fall.");

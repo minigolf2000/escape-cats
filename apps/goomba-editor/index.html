@@ -60,13 +60,17 @@
 <div id="meta"></div>
 
 <div id="hint">
-  <h1>Paste a level from Figma</h1>
-  <p>Select a level frame in Figma, copy it as SVG, then press <kbd>⌘V</kbd> here.
-     You can also drop an exported <b>.svg</b> file, or paste a level link.</p>
+  <h1>Drop a level from Figma</h1>
+  <p>Export the level frame as SVG with <b>Include “id” attribute</b> ticked, then
+     drop the file here — or paste its text with <kbd>Ctrl</kbd>+<kbd>V</kbd>.</p>
   <div class="steps">
-    In Figma: right-click the frame → <b>Copy/Paste as</b> → <b>Copy as SVG</b><br>
+    In Figma: select the frame → <b>Export</b> → <b>SVG</b> → the <b>…</b> beside it<br>
+    → tick <b>Include “id” attribute</b> → Export, then drop the file here<br>
+    <br>
+    <b>Copy as SVG will not work:</b> it strips every layer name, and the names are
+    what carry the meaning<br>
     Terrain must be <b>Lines</b> named <b>t</b> · toys are instances of the kit<br>
-    Nothing here edits anything — change it in Figma and paste again
+    Nothing here edits anything — change it in Figma and export again
   </div>
 </div>
 

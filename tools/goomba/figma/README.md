@@ -132,9 +132,21 @@ play button and a copy-link button.
 copy a frame in Figma  →  ⌘V on the page  →  src/figma-svg.js  →  the shipped sim
 ```
 
-It takes a level three ways: paste the SVG text (Figma's **Copy/Paste as → Copy
-as SVG**), drop an exported `.svg` file, or paste one of our own level links.
+It takes a level three ways: drop an exported `.svg` file, paste that file's
+text, or paste one of our own level links.
 `public/sample-figma-export.svg` is a real export you can drop to see it work.
+
+**Export, do not "Copy as SVG".** Figma only writes layer names into SVG when the
+`id` attribute is switched on, and it is **off by default** — measured on the
+same frame, the exporter emits 111 ids with the flag and 3 without (just the
+gradient defs). "Copy as SVG" gives you no way to switch it on, so that route
+arrives with every name stripped, including the `L:` frame wrapper. Since names
+are the entire contract, the reader has nothing to read and says so.
+
+Every level frame in the Figma file now carries an SVG export preset with the
+flag baked in, so **select the frame → Export → drop the file** is enough. If
+you are setting up a new frame by hand, the checkbox is under Export → the `…`
+beside the format → `Include "id" attribute`.
 
 The reader hands the SVG to the **browser's own SVG engine** rather than parsing
 geometry by hand — it parks the document off-screen and asks `getBBox()` and
@@ -169,7 +181,7 @@ half a stroke. That is exactly why the copy-link button stayed —
 Nothing here touches `levels.ts` until a level has earned it:
 
 ```
-Figma frame  →  Copy as SVG  →  ⌘V at /editor/  →  ▶ play
+Figma frame  →  Export SVG (ids on)  →  drop at /editor/  →  ▶ play
                                       ↓
                                  copy link  →  node verify.mjs --hash <link>
 ```

@@ -14,7 +14,7 @@
   /* The title is the ONLY prose a level carries (no hints, no descriptions),
      so it gets its own full-width line instead of fighting the dots and the
      band slots for room in #top. */
-  #lvl { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 34px); left: 0; right: 0;
+  #lvl { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 70px); left: 0; right: 0;
          text-align: center; font-weight: 700; font-size: 16px; letter-spacing: .02em;
          text-shadow: 0 2px 8px rgba(0,0,0,.6); padding: 0 20px;
          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -48,9 +48,9 @@
      "mine" vs "a teammate's" reads at a glance and the row never changes size:
      the quota is presentation here, never layout. */
   #inv .band.mine { box-shadow: 0 0 10px rgba(255,255,255,.18); }
-  #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 58px); left: 0; right: 0;
+  #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 94px); left: 0; right: 0;
           text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
-  #team { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 80px); left: 0; right: 0;
+  #team { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 116px); left: 0; right: 0;
           text-align: center; font-size: 11px; color: #8a80b0; text-shadow: 0 2px 6px rgba(0,0,0,.7);
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 20px; }
   #team b { font-weight: 700; }
@@ -62,51 +62,33 @@
           box-shadow: 0 6px 18px rgba(87,230,201,.35), inset 0 -3px 0 rgba(0,0,0,.15); letter-spacing: .03em; }
   #play.stop { background: linear-gradient(180deg, #ff7ec1, #ff5db1); box-shadow: 0 6px 18px rgba(255,93,177,.35), inset 0 -3px 0 rgba(0,0,0,.15); }
   #play.next { background: linear-gradient(180deg, #ffe08a, #ffd166); box-shadow: 0 6px 18px rgba(255,209,102,.4), inset 0 -3px 0 rgba(0,0,0,.15); }
-  /* CLEAR lives beside the slots it empties, and says so. Whether the words
-     FIT is not a constant: the row also carries the dot strip, which grows
-     every time a level ships and grows again by ~40px when the team earns the
-     selector's plate, so "clear bands" clears a 390px phone but runs off a
-     360px one in a cleared room. Rather than pick a phone to break, fitClear()
-     in main.js measures the row and drops the pill to .compact — the 🧹 alone,
-     which fits at every width and level count — when the words would push past
-     the edge. Two other rules hold in both shapes:
-     (1) The box is reserved in EVERY phase and only turns invisible. #inv must
-     never slide sideways when a band lands, the same reason the quota is
-     presentation and never layout. (It is also why fitClear can measure while
-     the button is hidden: visibility keeps the box, display would not.)
-     (2) 30px tall is what fits a row that #lvl sits 34px under, so the 44px+
-     touch target comes from a ::before pad instead of padding, which would
-     grow the row into the level title.
+  /* CLEAR sits on its own line, centred under the slots it empties. Being out
+     of #top's row is what lets it say "clear bands" at every width: in the row
+     it competed with the dot strip, which grows by a dot every time a level
+     ships and by ~40px again when the team earns the selector's plate, and the
+     words lost that fight below 390px.
+     It is ABSOLUTE inside #bandbar, so the row's right-hand group is exactly
+     the four slots wide no matter what the label says — the slots stay flush
+     to the edge, and a longer word can never push them off centre. The title
+     stack below is parked 36px lower to leave this line clear whether the chip
+     is showing or not; nothing here is in flow, so nothing moves when it
+     hides. 30px tall keeps the 44px touch target in a ::before pad rather than
+     in padding.
      One tap wipes, with no confirm, even though it takes the WHOLE ROOM's
      bands: the four players are in one living room, so a clear nobody wanted is
      answered out loud in a second and the bands go back down. */
-  #bandbar { display: flex; align-items: center; gap: 8px; }
-  #clear { position: relative; box-sizing: border-box; flex: 0 0 auto;
-           height: 30px; padding: 0 11px; border-radius: 15px;
-           display: flex; align-items: center; justify-content: center;
-           font-size: 11px; font-weight: 700; letter-spacing: .02em;
-           white-space: nowrap; line-height: 1; color: #c9bdf0;
-           background: rgba(255,255,255,.08);
+  #bandbar { position: relative; }
+  #clear { position: absolute; top: calc(100% + 6px); left: 50%;
+           transform: translateX(-50%); box-sizing: border-box;
+           height: 30px; padding: 0 12px; border-radius: 15px;
+           display: flex; align-items: center; font-size: 11px; font-weight: 700;
+           letter-spacing: .02em; white-space: nowrap; line-height: 1;
+           color: #c9bdf0; background: rgba(255,255,255,.08);
            border: 1.5px solid rgba(201,189,240,.35);
            transition: opacity .18s, transform .12s; }
   #clear::before { content: ""; position: absolute; inset: -9px; border-radius: 24px; }
-  #clear:active { transform: scale(.94); }
+  #clear:active { transform: translateX(-50%) scale(.94); }
   #clear.hide { visibility: hidden; opacity: 0; pointer-events: none; }
-  /* The narrow fallback: a round chip carrying the glyph instead of the words. */
-  #clear .broom { display: none; }
-  #clear.compact { width: 30px; padding: 0; font-size: 15px; }
-  #clear.compact .label { display: none; }
-  #clear.compact .broom { display: block; }
-  /* The tightest the row ever gets: a 320px screen wearing the selector's
-     plate with every level's dot in the strip. Even the 🧹 chip runs off the
-     edge there, so at that width the row buys the pixels back from its own
-     padding and gaps — never from the slots or the dots, which are the two
-     things it exists to show. Measured to clear 7 dots with 4px to spare. */
-  @media (max-width: 344px) {
-    #top { padding: 0 8px; gap: 6px; }
-    #bandbar { gap: 6px; }
-    #clear.compact { width: 28px; height: 28px; border-radius: 14px; }
-  }
   #hud.debug #team { display: none; }
   /* levels open: the grid is the whole screen; tap a card to leave */
   #hud.lab > * { visibility: hidden; }
@@ -179,7 +161,7 @@
     <button id="lab"><div id="dots"></div></button>
     <div id="bandbar">
       <div id="inv"></div>
-      <button id="clear" class="hide" aria-label="clear all bands"><span class="label">clear bands</span><span class="broom">🧹</span></button>
+      <button id="clear" class="hide" aria-label="clear all bands">clear bands</button>
     </div>
   </div>
   <div id="lvl"></div>

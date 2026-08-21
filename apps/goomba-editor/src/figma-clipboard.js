@@ -61,13 +61,19 @@ function extractBuffer(html) {
   }
   if (!raw) throw new Error("this clipboard mentions a Figma buffer but carries no data-buffer attribute");
 
-  const a = raw.indexOf("(figma)");
-  const b = raw.lastIndexOf("(figma)");
-  if (a < 0 || b <= a)
+  const open = raw.indexOf("(figma)");
+  if (open < 0)
     throw new Error(
-      `found the Figma buffer but not its (figma) markers — it began "${raw.slice(0, 40)}"`,
+      `found the Figma buffer but not its opening (figma) marker — it began "${raw.slice(0, 40)}"`,
     );
-  const inner = raw.slice(a + "(figma)".length, b);
+  // The payload closes with `(/figma)`, not a second `(figma)` — measured on a
+  // real copy, whose buffer began `<!--(figma)ZmlnLWtpd2l…` ("fig-kiwi") and
+  // had no second opening sentinel at all. Accept either form, and tolerate a
+  // missing one by just trimming the comment tail, since the sanitiser below
+  // would otherwise fold the letters of "figma" into the base64.
+  const rest = raw.slice(open + "(figma)".length);
+  const close = rest.search(/\(\/?figma\)/);
+  const inner = close >= 0 ? rest.slice(0, close) : rest.replace(/--\s*(?:>|&gt;)\s*$/, "");
   const b64 = inner.replace(/-/g, "+").replace(/_/g, "/").replace(/[^A-Za-z0-9+/=]/g, "");
   if (b64.length < 32)
     throw new Error(`the Figma buffer decoded to only ${b64.length} base64 chars`);

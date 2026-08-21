@@ -108,9 +108,11 @@ version.writeUInt32LE(1, 0);
 const container = Buffer.concat([
   Buffer.from("fig-kiwi", "ascii"), version, block(schemaBin), block(message),
 ]);
+// Shaped like a real copy: the metadata and buffer comments CLOSE with
+// `(/figmeta)` / `(/figma)`, which is what a live paste turned out to carry.
 const html =
-  `<meta charset="utf-8"><span data-metadata="<!--(figmeta)eyJmaWxlS2V5IjoidGVzdCJ9(figmeta)-->"></span>` +
-  `<span data-buffer="<!--(figma)${container.toString("base64")}(figma)-->"></span>`;
+  `<meta charset="utf-8"><span data-metadata="<!--(figmeta)eyJmaWxlS2V5IjoidGVzdCJ9(/figmeta)-->"></span>` +
+  `<span data-buffer="<!--(figma)${container.toString("base64")}(/figma)-->"></span>`;
 
 // Also drop the payload where the browser can fetch it, so the same bytes can
 // be run through the shipped bundle (DecompressionStream, atob, kiwi) rather
@@ -154,16 +156,18 @@ if (warnings.length) console.log("  warnings:", warnings.join(" · "));
 const b64 = container.toString("base64");
 const wrap = (inner, quote = '"') => `<span data-buffer=${quote}${inner}${quote}></span>`;
 const VARIANTS = {
-  "plain <!--": wrap(`<!--(figma)${b64}(figma)-->`),
-  "entity-escaped &lt;!--": wrap(`&lt;!--(figma)${b64}(figma)--&gt;`),
-  "single-quoted attribute": wrap(`<!--(figma)${b64}(figma)-->`, "'"),
+  "real shape, (/figma) close": wrap(`<!--(figma)${b64}(/figma)-->`),
+  "legacy (figma) close": wrap(`<!--(figma)${b64}(figma)-->`),
+  "no closing sentinel at all": wrap(`<!--(figma)${b64}-->`),
+  "entity-escaped &lt;!--": wrap(`&lt;!--(figma)${b64}(/figma)--&gt;`),
+  "single-quoted attribute": wrap(`<!--(figma)${b64}(/figma)-->`, "'"),
   "newlines inside the base64": wrap(
     `<!--(figma)\n${b64.replace(/(.{60})/g, "$1\n")}\n(figma)-->`),
   "base64url (- and _)": wrap(
-    `<!--(figma)${b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}(figma)-->`),
+    `<!--(figma)${b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}(/figma)-->`),
   "Windows HTML Format wrapper":
     "Version:0.9\r\nStartHTML:00000097\r\n<html><body><!--StartFragment-->" +
-    wrap(`<!--(figma)${b64}(figma)-->`) + "<!--EndFragment--></body></html>",
+    wrap(`<!--(figma)${b64}(/figma)-->`) + "<!--EndFragment--></body></html>",
 };
 console.log("\nclipboard wrapper variants");
 for (const [label, markup] of Object.entries(VARIANTS)) {

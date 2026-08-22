@@ -25,9 +25,16 @@ findings — do not design from intuition, the sim disproves it reliably.
   `src/figma/stitch.js` is the one non-obvious step: Figma stores terrain as one
   Line per segment, and the game strokes each polyline with round caps, so
   unstitched chains grow half-stroke stubs at every shared vertex (2.2 u of
-  collision halo, 0.75 of core) instead of one clean `lineJoin`. Segments whose
-  endpoints match EXACTLY are chained back into polylines; near-misses are left
-  alone, because a gap is usually the design.
+  collision halo, 0.75 of core) instead of one clean `lineJoin`. It chains from
+  BOTH ends, in either direction, and **welds**: hand-drawn joints are never
+  exact — measured on *The Long Way Up* as drawn, seven joints, ONE exact, the
+  rest 0.3-1.8 u apart, so an exact-match rule chains nothing real. `WELD` is
+  2.0 u, and the ceiling is the game's own wedge rule (no two segments closer
+  than 4.4 u = 2 × her radius), so anything under it was never a deliberate
+  separation. A 45-58 u "one band goes here" gap is never touched. Terrain must
+  be a **Line**; a `t` that is a pen path or rect is skipped with a warning,
+  because reading its bbox edge would be a plausible straight segment that
+  silently changes whether the level is winnable.
   A level still **saves by being a URL** — `encodeLevel` in
   `packages/shared/src/goomba/codec.ts` packs one into ~100–450 base64url chars,
   which is both how `node verify.mjs --hash <link>` grades an uncommitted level

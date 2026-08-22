@@ -274,6 +274,21 @@ export async function levelFromFigmaClipboard(html) {
     if (kind === "t" || kind === "band") {
       // A Figma line is a zero-height node: local (0,0)-(width,0) IS the
       // segment, so its stored geometry needs no correction of any kind.
+      //
+      // Which is exactly why anything ELSE named `t` has to be refused rather
+      // than read. For a pen path or a rect, (0,0)-(width,0) is the top edge of
+      // its bounding box, which can be nowhere near the shape the designer
+      // drew — and it would arrive as a perfectly plausible straight segment
+      // that silently changes whether the level is winnable. A named layer that
+      // goes missing is a bug someone can SEE; a wrong one is not. (Same rule
+      // as the SVG reader, which skips a `t` that is not a <line>.)
+      if (n.type !== "LINE" || Math.abs(h) > 0.01) {
+        warnings.push(
+          `"${n.name}" is a ${n.type || "shape"}, not a Line — skipped. ` +
+          `Draw terrain with the Line tool (L), never the pen.`,
+        );
+        return true;
+      }
       const a = apply(m, 0, 0), b = apply(m, w, 0);
       (kind === "t" ? terrain : bands).push([[W(a.x), W(a.y)], [W(b.x), W(b.y)]]);
       return true;

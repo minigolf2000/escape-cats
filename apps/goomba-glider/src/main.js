@@ -79,6 +79,21 @@ const RZ = 1.9;
 
 const DEBUG = debugFromUrl(); // selector override (?debug = your room, ?solo = local)
 const SOLO = soloFromUrl();   // serverless backend for the same menu
+// LAPTOP OR PHONE — one switch, two different level grids.
+//
+// The grid is two surfaces wearing one screen, and they want opposite things
+// from a tap. On a phone it is the free-play menu a cleared team earned: one
+// tap, the whole room goes there, and nothing else is on it — four people at a
+// party are not reordering a pack with their thumbs, and the controls that
+// would let them are the size of the cards they sit on. On a laptop it is a
+// file browser, because that is the machine a pack is actually edited from
+// (Ctrl+V needs a keyboard): click selects, double-click plays, drag reorders.
+//
+// `(hover: hover) and (pointer: fine)` is the standard reading of "there is a
+// real cursor here", and it is read LIVE rather than latched at boot, so a
+// tablet that gains a trackpad mid-party gets the editor without a reload.
+const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+const DESKTOP = () => finePointer.matches;
 // WHO GETS THE LEVEL SELECTOR: a team that has CLEARED the game. That is room
 // state off the snapshot (goombaCleared = every level done), so all four phones
 // unlock on the same message and a proctor reset takes it back with everything
@@ -100,7 +115,11 @@ const LAB_JUMP_MS = 1500;
 function setLab(open) {
   labOpen = open;
   hudEl.classList.toggle("lab", open);
-  if (!open) clearLabJump();
+  // Everything the grid was in the middle of goes with it. The confirm matters
+  // most: it owns the keyboard while it is up, and a latched card tap can pull
+  // the grid out from under one (tap a card, press ⌫ inside the round trip),
+  // which would leave an invisible dialog swallowing Space back in the game.
+  if (!open) { clearLabJump(); confirmBox = null; labDrag = null; }
 }
 function clearLabJump() {
   if (labJump) clearTimeout(labJump.timer);
@@ -120,7 +139,7 @@ const labVerdicts = new Map(); // level idx -> {bare, sol, ok} from the real sim
 //
 // The EDITING controls are the only part that is laptop-only: pasting needs a
 // keyboard, and reordering a pack is nobody's phone job during a party. Phones
-// see exactly the grid they saw before.
+// see exactly the grid they saw before — see DESKTOP above.
 let editing = false;
 /**
  * Are the editing controls showing? (Not to be confused with `canEdit` further
@@ -129,12 +148,41 @@ let editing = false;
  * `\` turns them on — but an EMPTY pack turns them on too, because a grid with
  * no levels and no way to add one is a dead end, and "there are no levels" is
  * exactly the moment someone needs to paste one. It is also the only way back
- * from a pack that was emptied by accident, without a laptop or a redeploy.
+ * from a pack that was emptied by accident, without a redeploy.
+ *
+ * Both clauses are under DESKTOP, the empty one included: the dead end it
+ * rescues is a dead end for the machine that can actually paste, and a phone
+ * handed a `⧉ ◀ ▶ ⌫` row it has no keyboard to follow up on is not rescued
+ * from anything — it is just a menu with buttons that lead nowhere.
  */
-const editorOn = () => editing || GOOMBA_LEVELS.length === 0;
-/** Which slot the next paste lands in — an index REPLACES that level, null
- * appends a new one. The trailing dashed card is what "null" looks like. */
-let pasteTarget = null;
+const editorOn = () => DESKTOP() && (editing || GOOMBA_LEVELS.length === 0);
+
+// ---------- selection: the laptop's half of the grid ----------
+// One card is selected at a time, the way a file browser does it, and that
+// selection is what a paste lands on: an index REPLACES that level, `null`
+// means the trailing dashed slot and APPENDS. It used to take a button (`⧉`)
+// to aim a paste; a selection is the same aim with no button and no second
+// idea of "current" on the screen — which is why `⧉` is now a real copy.
+let selected = null;
+/** A card being dragged to a new slot. `gap` is an insertion point (0..n), not
+ * a card index — "between these two" is what a drop actually means. */
+let labDrag = null;
+/** The press was consumed by a dialog or a button, so its release must not
+ * also count as a click on the card underneath. */
+let labDownHandled = false;
+/** Hand-rolled double-click, because a tap-to-play on a touchscreen laptop
+ * never gets a synthesised `dblclick` — touchstart is preventDefault'd here. */
+let lastLabClick = { i: -1, t: 0 };
+const DBL_MS = 420;
+/**
+ * The one modal on the grid: `{ title, body, yes, onYes, btns }`, drawn on the
+ * canvas like everything else here. It guards the two edits that cannot be
+ * taken back — a delete, and a paste over a level it does not look like.
+ */
+let confirmBox = null;
+function askConfirm(title, body, yes, onYes) {
+  confirmBox = { title, body, yes, onYes, btns: [] };
+}
 let editMsg = "", editMsgT = 0;
 function editSay(msg) { editMsg = msg; editMsgT = 4; }
 
@@ -157,7 +205,12 @@ function refit() {
 function onPack(pack) {
   applyPack(pack);
   labVerdicts.clear();
-  if (pasteTarget !== null && pasteTarget >= GOOMBA_LEVELS.length) pasteTarget = null;
+  if (selected !== null && selected >= GOOMBA_LEVELS.length) selected = null;
+  // A confirm and a drag both name a SLOT, and the pack just renumbered its
+  // slots — including, quite possibly, by the very edit they were about to
+  // make. Neither can be re-aimed honestly, so both are dropped.
+  confirmBox = null;
+  labDrag = null;
   anim = null; // a replay of geometry that may no longer exist
   if (snap) { refit(); syncHud(); }
 }
@@ -388,6 +441,17 @@ labEl.onclick = () => {
   setLab(true);
 };
 window.addEventListener("keydown", (e) => {
+  // A confirm is modal, so it takes the whole keyboard until it is answered —
+  // otherwise `\` would close the editor out from under a question about a
+  // level, and Space would launch a run behind it.
+  if (confirmBox) {
+    if (e.key === "Escape") { e.preventDefault(); confirmBox = null; }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      const c = confirmBox; confirmBox = null; c.onYes();
+    }
+    return;
+  }
   if (e.key === " ") { e.preventDefault(); playBtn.onclick(); }
   // `\` — the whole editor, on one key. Swapping between the game and the
   // level pack has to be instant or nobody uses it mid-party: this is the same
@@ -409,7 +473,16 @@ window.addEventListener("keydown", (e) => {
 // Ctrl+V anywhere on the page. It opens the editor if it was shut, because a
 // paste is unambiguous about what you meant and making someone press `\` first
 // would be a rule with no purpose.
+//
+// It lands on the SELECTION: a card replaces that level, the trailing dashed
+// slot appends. That is the whole reason the laptop grid grew a selection —
+// "which level does this overwrite" is a question about a place on the screen,
+// and now the answer is the place that is lit.
 window.addEventListener("paste", (e) => {
+  // Laptop only, like every other editing gesture. A phone reaching here would
+  // have had to grow a Ctrl+V first, and if one ever does, it gets the grid the
+  // rest of this file gives it — not a hidden second way to rewrite the pack.
+  if (!DESKTOP()) return;
   e.preventDefault();
   // Always `editing`, not just when the grid was shut: pasting IS editing, and
   // the first paste into an EMPTY pack used to hand the controls back the
@@ -421,17 +494,38 @@ window.addEventListener("paste", (e) => {
   editSay("reading the clipboard…");
   levelFromPaste(e.clipboardData).then(
     ({ level: lv, warnings }) => {
-      if (pasteTarget === null && GOOMBA_LEVELS.length >= PACK_MAX) {
+      const target = selected;
+      if (target === null && GOOMBA_LEVELS.length >= PACK_MAX) {
         return editSay(`the pack is full at ${PACK_MAX} levels`);
       }
-      // The pack is a list of level LINKS, so a paste becomes one here and the
-      // authority stores exactly what it validated.
-      transport.send({ type: "packSet", index: pasteTarget, hash: encodeLevel(lv) });
-      const where = pasteTarget === null ? "as a new level" : `over level ${pasteTarget + 1}`;
-      pasteTarget = null;
-      editSay(warnings.length
-        ? `${lv.name} ${where} · ${warnings.join(" · ")}`
-        : `${lv.name} — in, ${where}`);
+      const land = () => {
+        // Re-read the pack on the way in: a confirm is answered by a person,
+        // and a teammate's edit can land on this socket while they think.
+        if (target !== null && target >= GOOMBA_LEVELS.length)
+          return editSay("that slot is gone — select another card and paste again");
+        // The pack is a list of level LINKS, so a paste becomes one here and
+        // the authority stores exactly what it validated.
+        transport.send({ type: "packSet", index: target, hash: encodeLevel(lv) });
+        const where = target === null ? "as a new level" : `over level ${target + 1}`;
+        editSay(warnings.length
+          ? `${lv.name} ${where} · ${warnings.join(" · ")}`
+          : `${lv.name} — in, ${where}`);
+      };
+      const over = target === null ? null : GOOMBA_LEVELS[target];
+      // A paste whose NAME matches the card it lands on is a redraw: the Figma
+      // frame it came from is the frame that card was made from, and stopping
+      // to ask would tax the loop the editor exists for (tweak in Figma, copy,
+      // paste, re-read the verdict) on every single lap. A DIFFERENT name is a
+      // different level, and "I meant to add this, not to overwrite level 3"
+      // is worth one click to catch — nothing on this grid is undoable.
+      if (over && over.name !== lv.name)
+        askConfirm(
+          `Replace level ${target + 1}?`,
+          `“${over.name}” → “${lv.name}”`,
+          "Replace",
+          land,
+        );
+      else land();
     },
     (err) => editSay(String(err.message || err)),
   );
@@ -592,7 +686,7 @@ function tryDelete(w) {
 
 cv.addEventListener("touchstart", (e) => {
   e.preventDefault();
-  if (labOpen) { const t = e.changedTouches[0]; labTap(t.clientX, t.clientY); return; }
+  if (labOpen) { const t = e.changedTouches[0]; labPointerDown(t.clientX, t.clientY); return; }
   if (!canEdit()) return;
   for (const t of e.changedTouches) touches.set(t.identifier, { cx: t.clientX, cy: t.clientY });
   if (touches.size === 1 && mode === null) {
@@ -609,6 +703,7 @@ cv.addEventListener("touchstart", (e) => {
 }, { passive: false });
 cv.addEventListener("touchmove", (e) => {
   e.preventDefault();
+  if (labOpen) { const t = e.changedTouches[0]; labPointerMove(t.clientX, t.clientY); return; }
   if (!canEdit()) return;
   for (const t of e.changedTouches) {
     const rec = touches.get(t.identifier);
@@ -627,6 +722,7 @@ cv.addEventListener("touchmove", (e) => {
 }, { passive: false });
 cv.addEventListener("touchend", (e) => {
   e.preventDefault();
+  if (labOpen) { const t = e.changedTouches[0]; labPointerUp(t.clientX, t.clientY); return; }
   for (const t of e.changedTouches) touches.delete(t.identifier);
   if (!canEdit()) { resetInput(); return; }
   // A stretch places on the FIRST finger up; a drag places on its only one.
@@ -639,11 +735,12 @@ cv.addEventListener("touchcancel", resetInput);
 // Mouse (desktop + the design bench): click-drag stretches, click-click does
 // the same tap-tap as a finger, with a live rubber line in between.
 cv.addEventListener("mousedown", (e) => {
-  if (labOpen) { labTap(e.clientX, e.clientY); return; }
+  if (labOpen) { labPointerDown(e.clientX, e.clientY); return; }
   if (!canEdit()) return;
   mouseDrag = { a: toWorld(e.clientX, e.clientY), px: e.clientX, py: e.clientY, dragging: false };
 });
 window.addEventListener("mousemove", (e) => {
+  if (labOpen) { labPointerMove(e.clientX, e.clientY); return; }
   if (!canEdit()) return;
   if (mouseDrag) {
     if (Math.hypot(e.clientX - mouseDrag.px, e.clientY - mouseDrag.py) > DRAG_SLOP) {
@@ -657,6 +754,7 @@ window.addEventListener("mousemove", (e) => {
   else if (preview) { preview = null; transport.preview(null); } // anchor expired
 });
 window.addEventListener("mouseup", (e) => {
+  if (labOpen) { labPointerUp(e.clientX, e.clientY); return; }
   if (!mouseDrag) return;
   const drag = mouseDrag;
   mouseDrag = null;
@@ -1108,74 +1206,189 @@ function fitText(s, maxW) {
   while (n > 1 && ctx.measureText(s.slice(0, n) + "…").width > maxW) n--;
   return s.slice(0, n) + "…";
 }
-function labTap(px, py) {
-  // Editor buttons first. They sit ON the cards, so hit-testing them after the
-  // card would make ⌫ delete a level AND jump the room into the gap it left.
-  for (const b of labBtns) {
-    if (px < b.x || px > b.x + b.w || py < b.y || py > b.y + b.h) continue;
-    switch (b.kind) {
-      case "left":
-      case "right": {
-        const to = b.i + (b.kind === "left" ? -1 : 1);
-        if (to < 0 || to >= GOOMBA_LEVELS.length) return;
-        // Keep the paste target on the level it was pointing at, not on the
-        // slot number, or a reorder silently re-aims the next paste.
-        if (pasteTarget === b.i) pasteTarget = to;
-        else if (pasteTarget === to) pasteTarget = b.i;
-        transport.send({ type: "packMove", from: b.i, to });
-        return;
-      }
-      case "del":
-        transport.send({ type: "packDelete", index: b.i });
-        if (pasteTarget === b.i) pasteTarget = null;
-        editSay(`deleted level ${b.i + 1}`);
-        return;
-      case "over":
-        pasteTarget = pasteTarget === b.i ? null : b.i;
-        editSay(pasteTarget === null
-          ? "next paste adds a new level"
-          : `next paste REPLACES level ${b.i + 1}`);
-        return;
-      case "new":
-        pasteTarget = null;
-        editSay("next paste adds a new level — Ctrl+V a Figma frame");
-        return;
-    }
-  }
+/** The card under a point, or -1. */
+function labCardAt(px, py) {
+  for (const c of labCells)
+    if (px >= c.x && px <= c.x + c.w && py >= c.y && py <= c.y + c.h) return c.i;
+  return -1;
+}
+/** The editor button under a point, or null. */
+function labButtonAt(px, py) {
+  for (const b of labBtns)
+    if (px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) return b;
+  return null;
+}
+/**
+ * Where a dragged card would land: an insertion GAP (0..n), read off the
+ * nearest card as "left of its middle = before it, right = after it".
+ *
+ * Nearest CARD rather than a rect hit, because the pointer spends a drag in
+ * the gutters between cards and at the ragged end of the last row, and a drop
+ * there still has an obvious answer — the alternative is a drag that goes
+ * dead in the space it is aiming at.
+ */
+function labGapAt(px, py) {
+  let best = null, bestD = Infinity;
   for (const c of labCells) {
-    if (px < c.x || px > c.x + c.w || py < c.y || py > c.y + c.h) continue;
-    // Latch BEFORE sending: the ?solo backend answers inside send(), and that
-    // synchronous snapshot is what closes the lab. Tapping again retargets.
-    clearLabJump();
-    labJump = {
-      level: c.i,
-      timer: setTimeout(() => { labJump = null; setLab(false); }, LAB_JUMP_MS),
-    };
-    transport.send({ type: "goto", level: c.i });
+    const dx = px - (c.x + c.w / 2), dy = py - (c.y + c.h / 2);
+    const d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; best = c; }
+  }
+  if (!best) return 0;
+  return px > best.x + best.w / 2 ? best.i + 1 : best.i;
+}
+/** Send the whole room to a level — the one thing a card tap has always done.
+ * Latches BEFORE sending: the ?solo backend answers inside send(), and that
+ * synchronous snapshot is what closes the lab. */
+function labJumpTo(i) {
+  if (i < 0 || i >= GOOMBA_LEVELS.length) return;
+  clearLabJump();
+  labJump = {
+    level: i,
+    timer: setTimeout(() => { labJump = null; setLab(false); }, LAB_JUMP_MS),
+  };
+  transport.send({ type: "goto", level: i });
+}
+/** A per-card editor button, pressed. */
+function labButtonHit(b) {
+  const lv = GOOMBA_LEVELS[b.i];
+  switch (b.kind) {
+    // COPY — the level, onto the clipboard, as the link it already knows how
+    // to be. That is the same string `verify.mjs --hash` grades and the same
+    // string this grid's own Ctrl+V reads, so one button covers "grade this",
+    // "send this to someone" and "duplicate this" (copy, select the dashed
+    // slot, paste) without inventing a second format for any of them.
+    case "copy": {
+      if (!lv) return;
+      const write = navigator.clipboard && navigator.clipboard.writeText(encodeLevel(lv));
+      if (!write) return editSay("this browser won't hand over the clipboard here (needs https)");
+      write.then(
+        () => editSay(`copied level ${b.i + 1} — Ctrl+V it onto a card, or grade it with verify.mjs --hash`),
+        () => editSay("the browser refused the clipboard — click the page once, then try again"),
+      );
+      return;
+    }
+    // DELETE — behind a confirm, because it is the one control here that
+    // destroys a level rather than moving it, and the pack is the only copy.
+    case "del":
+      askConfirm(`Delete level ${b.i + 1}?`, lv ? lv.name : "", "Delete", () => {
+        // Follow the selection across the hole this leaves, or it silently
+        // re-aims at whatever slides up into the slot.
+        if (selected === b.i) selected = null;
+        else if (selected !== null && selected > b.i) selected -= 1;
+        transport.send({ type: "packDelete", index: b.i });
+        editSay(`deleted level ${b.i + 1}`);
+      });
+      return;
+    case "new":
+      selected = null;
+      editSay("next paste adds a new level — Ctrl+V a Figma frame");
+      return;
+  }
+}
+/**
+ * A press on the grid. This is where the two surfaces part company: a phone
+ * plays the card it touched, a laptop selects it and holds the press open in
+ * case it becomes a drag.
+ */
+function labPointerDown(px, py) {
+  labDownHandled = false;
+  labDrag = null;
+  // A confirm is modal: while one is up it is the only thing on the grid that
+  // can be clicked, and a press anywhere else is swallowed rather than acted
+  // on — a question about deleting a level must not be answered by accident.
+  if (confirmBox) {
+    labDownHandled = true;
+    for (const b of confirmBox.btns) {
+      if (px < b.x || px > b.x + b.w || py < b.y || py > b.y + b.h) continue;
+      const c = confirmBox;
+      confirmBox = null;
+      if (b.yes) c.onYes();
+      return;
+    }
     return;
   }
+  // Editor buttons next. They sit ON the cards, so hit-testing them after the
+  // card would make ⌫ ask about a level AND select it under the question.
+  const btn = labButtonAt(px, py);
+  if (btn) { labDownHandled = true; labButtonHit(btn); return; }
+  const i = labCardAt(px, py);
+  // THE PHONE: a tap plays. There is nothing to select on a phone — no paste
+  // to aim, no drag to make — so a select-then-play would be a toll on the one
+  // gesture that means anything.
+  if (!DESKTOP()) { labDownHandled = true; labJumpTo(i); return; }
+  // THE LAPTOP: select on the press, like every file browser. Clicking off the
+  // cards clears the selection back to the trailing slot, which is what "the
+  // next paste adds a level" looks like.
+  selected = i < 0 ? null : i;
+  if (editorOn() && i >= 0)
+    labDrag = { i, sx: px, sy: py, x: px, y: py, moved: false, gap: i };
+}
+function labPointerMove(px, py) {
+  if (!labDrag) return;
+  labDrag.x = px; labDrag.y = py;
+  if (!labDrag.moved && Math.hypot(px - labDrag.sx, py - labDrag.sy) > DRAG_SLOP)
+    labDrag.moved = true;
+  if (labDrag.moved) labDrag.gap = labGapAt(px, py);
+}
+function labPointerUp(px, py) {
+  const d = labDrag;
+  labDrag = null;
+  if (labDownHandled) { labDownHandled = false; return; }
+  if (d && d.moved) {
+    // packMove's `to` is an index in the list with the dragged level already
+    // pulled OUT, so a gap to its right has shifted back by one.
+    const to = d.gap > d.i ? d.gap - 1 : d.gap;
+    if (to !== d.i && to >= 0 && to < GOOMBA_LEVELS.length) {
+      selected = to; // the selection is the level, not the slot it was in
+      transport.send({ type: "packMove", from: d.i, to });
+      editSay(`moved level ${d.i + 1} to slot ${to + 1}`);
+    }
+    return;
+  }
+  // Not a drag, so the press already selected — and a SECOND press on the same
+  // card inside the double-click window is what plays it. Hand-rolled rather
+  // than left to the `dblclick` event because touchstart is preventDefault'd
+  // here (the kiosk lockdown), which is exactly what stops a browser
+  // synthesising that event on a laptop with a touchscreen.
+  const i = labCardAt(px, py);
+  if (i < 0) { lastLabClick = { i: -1, t: 0 }; return; }
+  const t = performance.now();
+  if (lastLabClick.i === i && t - lastLabClick.t < DBL_MS) {
+    lastLabClick = { i: -1, t: 0 };
+    labJumpTo(i);
+    return;
+  }
+  lastLabClick = { i, t };
+}
+/**
+ * The one line under the title. It has to describe a DIFFERENT screen on each
+ * surface, because the gestures are different: on a phone a tap plays, on a
+ * laptop a tap selects and the second one plays.
+ */
+function labHelp() {
+  if (editorOn() && editMsgT > 0 && editMsg) return editMsg;
+  if (GOOMBA_LEVELS.length === 0)
+    return DESKTOP()
+      ? "no levels yet — copy a frame in Figma and press Ctrl+V"
+      : "no levels yet — a laptop pastes them in from Figma";
+  const play = SOLO ? "plays it locally — no server, no room" : "jumps the whole room there";
+  if (!DESKTOP()) return `tap a card — it ${play}`;
+  if (!editorOn()) return `click selects · double-click ${play}`;
+  return "click selects · double-click plays · drag reorders · Ctrl+V lands on the selection";
 }
 function drawLab() {
   ctx.fillStyle = "#100722"; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   ctx.font = "700 15px ui-rounded, system-ui, sans-serif";
   ctx.fillStyle = "#f2ecff";
-  ctx.fillText(editing ? "Levels — editing" : "Levels", 16, 30);
+  ctx.fillText(editorOn() ? "Levels — editing" : "Levels", 16, 30);
   ctx.font = "12px ui-rounded, system-ui, sans-serif";
   ctx.fillStyle = editorOn() && editMsgT > 0 ? "#ffd166" : "#8a80b0";
-  ctx.fillText(
-    editorOn() && editMsgT > 0 && editMsg
-      ? editMsg
-      : GOOMBA_LEVELS.length === 0
-        ? "no levels yet — copy a frame in Figma and press Ctrl+V"
-        : SOLO
-          ? "tap a card to play it locally — no server, no room"
-          : "tap a card to jump the whole room there",
-    16, 48,
-  );
+  ctx.fillText(fitText(labHelp(), W - 32), 16, 48);
 
   // One extra slot while editing: the dashed "paste a new level here" card,
-  // which is what `pasteTarget === null` looks like on screen.
+  // which is what `selected === null` looks like on screen.
   const slots = GOOMBA_LEVELS.length + (editorOn() ? 1 : 0);
   const cols = W > H ? 3 : 2;
   const rows = Math.max(1, Math.ceil(slots / cols));
@@ -1187,28 +1400,28 @@ function drawLab() {
   const savedCam = { ...cam };
 
   /** The per-card editor controls. Drawn last so they sit over the level, and
-   * hit-tested BEFORE the card, so pressing ⌫ never also jumps the room. */
+   * hit-tested BEFORE the card, so pressing ⌫ never also selects it.
+   *
+   * Two buttons, not four: ◀ ▶ went to the drag, and `⧉` stopped meaning "aim
+   * the next paste here" (the selection says that now) and became a real copy.
+   * Both of the survivors act on the card they sit on whatever is selected —
+   * a button on a card is a sentence about that card. */
   const cardButtons = (i, x, y) => {
     if (!editorOn()) return;
     const B = 22, G = 4;
-    const kinds = [
-      ["over", "⧉", pasteTarget === i],
-      ["left", "◀", i > 0],
-      ["right", "▶", i < GOOMBA_LEVELS.length - 1],
-      ["del", "⌫", true],
-    ];
+    const kinds = [["copy", "⧉"], ["del", "⌫"]];
     let bx = x + cw - 8 - (B * kinds.length + G * (kinds.length - 1));
-    for (const [kind, glyph, live] of kinds) {
+    for (const [kind, glyph] of kinds) {
       const by = y + 8;
       labBtns.push({ i, kind, x: bx, y: by, w: B, h: B });
       ctx.beginPath();
       ctx.roundRect(bx, by, B, B, 6);
-      ctx.fillStyle = kind === "over" && live ? "rgba(255,209,102,0.9)" : "rgba(16,7,34,0.8)";
+      ctx.fillStyle = "rgba(16,7,34,0.8)";
       ctx.fill();
-      ctx.strokeStyle = live ? "rgba(201,189,240,0.55)" : "rgba(201,189,240,0.16)";
+      ctx.strokeStyle = "rgba(201,189,240,0.55)";
       ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.fillStyle = kind === "over" && live ? "#241245" : live ? "#f2ecff" : "#5b5280";
+      ctx.fillStyle = "#f2ecff";
       ctx.font = "600 11px ui-rounded, system-ui, sans-serif";
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(glyph, bx + B / 2, by + B / 2 + 0.5);
@@ -1221,6 +1434,9 @@ function drawLab() {
     const x = padX + c * (cw + padX), y = top + r * (ch + 12);
     labCells.push({ i, x, y, w: cw, h: ch });
     const v = labVerdict(i);
+    // The card being dragged fades where it came from, so the gap it is about
+    // to leave reads as a gap rather than as a duplicate.
+    if (labDrag && labDrag.moved && labDrag.i === i) ctx.globalAlpha = 0.35;
     ctx.save();
     ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.clip();
     ctx.fillStyle = "#180d31"; ctx.fillRect(x, y, cw, ch);
@@ -1276,8 +1492,26 @@ function drawLab() {
       ctx.fillText("jumping…", x + cw / 2, y + ch / 2);
       ctx.restore();
     }
+    // SELECTION, drawn outside the card's own frame so it can coexist with
+    // the amber "this is the level the room is on" — they are different facts
+    // and a card is often both.
+    if (DESKTOP() && selected === i) {
+      ctx.strokeStyle = "#f2ecff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(x - 4, y - 4, cw + 8, ch + 8, 15); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     cardButtons(i, x, y);
   });
+
+  // Where a drop would land: a bar in the GAP, not a highlight on a card,
+  // because "between 2 and 3" is what a reorder actually chooses.
+  if (labDrag && labDrag.moved) {
+    const g = labDrag.gap;
+    const gx = padX + (g % cols) * (cw + padX) - 6;
+    const gy = top + ((g / cols) | 0) * (ch + 12);
+    ctx.fillStyle = "#57e6c9";
+    ctx.beginPath(); ctx.roundRect(gx - 1.5, gy, 3, ch, 2); ctx.fill();
+  }
 
   // The trailing slot: where a paste lands when it is not replacing anything.
   // Drawn as a card rather than explained in a line of help, because "the next
@@ -1289,11 +1523,17 @@ function drawLab() {
     labBtns.push({ i, kind: "new", x, y, w: cw, h: ch });
     ctx.save();
     ctx.setLineDash([6, 5]);
-    ctx.strokeStyle = pasteTarget === null ? "#ffd166" : "rgba(201,189,240,0.3)";
-    ctx.lineWidth = pasteTarget === null ? 2.5 : 1.5;
+    ctx.strokeStyle = selected === null ? "#ffd166" : "rgba(201,189,240,0.3)";
+    ctx.lineWidth = selected === null ? 2.5 : 1.5;
     ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
     ctx.restore();
-    ctx.fillStyle = pasteTarget === null ? "#ffd166" : "#8a80b0";
+    // The empty slot is selectable like any card — "nothing is selected" and
+    // "the new-level slot is selected" are one state, and this is its face.
+    if (selected === null) {
+      ctx.strokeStyle = "#f2ecff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(x - 4, y - 4, cw + 8, ch + 8, 15); ctx.stroke();
+    }
+    ctx.fillStyle = selected === null ? "#ffd166" : "#8a80b0";
     ctx.font = "700 12px ui-rounded, system-ui, sans-serif";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText("+ Ctrl+V", x + cw / 2, y + ch / 2 - 8);
@@ -1302,6 +1542,51 @@ function drawLab() {
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   }
   Object.assign(cam, savedCam);
+  drawConfirm();
+}
+
+/**
+ * The confirm dialog. Canvas, like the rest of this screen — a native
+ * `confirm()` would freeze the frame loop behind it and look nothing like the
+ * grid it is asking about. Its buttons are laid out here, at draw time, and
+ * `labPointerDown` reads the rects back; Enter and Esc answer it too, so it is
+ * never the one thing on this screen that needs the mouse.
+ */
+function drawConfirm() {
+  const c = confirmBox;
+  if (!c) return;
+  ctx.fillStyle = "rgba(8,3,20,0.72)"; ctx.fillRect(0, 0, W, H);
+  const bw = Math.min(380, W - 48), bh = 172;
+  const x = (W - bw) / 2, y = (H - bh) / 2;
+  ctx.beginPath(); ctx.roundRect(x, y, bw, bh, 16);
+  ctx.fillStyle = "#1b0f38"; ctx.fill();
+  ctx.strokeStyle = "rgba(201,189,240,0.45)"; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+  ctx.font = "700 16px ui-rounded, system-ui, sans-serif";
+  ctx.fillStyle = "#f2ecff";
+  ctx.fillText(fitText(c.title, bw - 32), x + bw / 2, y + 38);
+  ctx.font = "12px ui-rounded, system-ui, sans-serif";
+  ctx.fillStyle = "#c9bdf0";
+  ctx.fillText(fitText(c.body, bw - 32), x + bw / 2, y + 62);
+  ctx.font = "10px ui-rounded, system-ui, sans-serif";
+  ctx.fillStyle = "#8a80b0";
+  ctx.fillText("Enter confirms · Esc cancels", x + bw / 2, y + 84);
+  const btnW = (bw - 48) / 2, btnH = 38, by = y + bh - 22 - btnH;
+  c.btns = [
+    { yes: false, label: "Cancel", x: x + 16, y: by, w: btnW, h: btnH },
+    { yes: true, label: c.yes, x: x + bw - 16 - btnW, y: by, w: btnW, h: btnH },
+  ];
+  ctx.textBaseline = "middle";
+  for (const b of c.btns) {
+    ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 10);
+    ctx.fillStyle = b.yes ? "#ff5db1" : "rgba(255,255,255,0.08)"; ctx.fill();
+    ctx.strokeStyle = b.yes ? "#ff5db1" : "rgba(201,189,240,0.35)";
+    ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = b.yes ? "#1b0f38" : "#f2ecff";
+    ctx.font = "700 14px ui-rounded, system-ui, sans-serif";
+    ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2);
+  }
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 }
 
 // ---------- the splash (phase "splash") ----------

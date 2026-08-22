@@ -16,12 +16,27 @@ findings — do not design from intuition, the sim disproves it reliably.
   moved into `apps/goomba-glider` (`src/figma/`). Pressing `\` in the game opens
   the levels grid with editing on and forces the selector's gate (that IS what
   "\ turns on debug" means — `?debug` only ever overrode that one gate); `\`
-  again goes straight back to playing. Four actions, all on the grid: **Ctrl+V**
-  a Figma frame (into the trailing dashed slot, or over a card via its `⧉`),
-  `◀ ▶` to reorder, `⌫` to delete, and a card tap still jumps the whole room.
-  The controls appear for a laptop; phones see the grid they always saw — except
-  when the pack is EMPTY, where everyone gets them, because a grid with no
-  levels and no way to add one is a dead end.
+  again goes straight back to playing. **The grid diverges by surface**, because
+  a phone and a laptop want opposite things from a tap (`DESKTOP` in `main.js` —
+  `(hover: hover) and (pointer: fine)`, read live, not latched at boot). A
+  PHONE taps a card and the whole room jumps there, and that is the whole
+  screen: no editing controls at all, the EMPTY pack included, since a phone
+  has no Ctrl+V to follow them up with — the dead-end argument for showing
+  them on an empty pack was only ever about the machine that can paste. A
+  LAPTOP gets a file browser: a click SELECTS a card, a double-click plays it
+  (hand-rolled off two presses, because touchstart is preventDefault'd here and
+  a touchscreen laptop never gets a synthesised `dblclick`), **drag** reorders
+  with a bar in the gap the drop lands in, and each card carries `⧉` copy — the
+  level onto the clipboard as the same link `verify.mjs --hash` grades, which
+  is also how you duplicate one — and `⌫` delete. `◀ ▶` are gone with the drag.
+  The SELECTION is where a **Ctrl+V** lands: a card replaces that level, the
+  trailing dashed slot appends, and there is no separate "aim the paste"
+  button any more because a selection already says it. Two edits ask first, on
+  a canvas-drawn confirm (Enter/Esc answer it, and it dies with the grid):
+  a delete, and a paste whose level NAME differs from the card it lands on —
+  a MATCHING name is a redraw of that card from the frame it came from, which
+  is the tweak-copy-paste-verdict loop the editor exists for, so it goes
+  straight through.
   `src/figma/stitch.js` is the one non-obvious step: Figma stores terrain as one
   Line per segment, and the game strokes each polyline with round caps, so
   unstitched chains grow half-stroke stubs at every shared vertex (2.2 u of

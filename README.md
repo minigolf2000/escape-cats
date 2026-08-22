@@ -56,7 +56,8 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   for all four phones and a proctor reset takes it back): the **levels** grid,
   opened from the top-left level dots (once unlocked the strip wears a plate
   and a ▦), every level a card with live bare/solution verdicts, and tapping
-  a card jumps the whole room to that level (teammates follow). Taking NEXT off
+  a card jumps the whole room to that level (teammates follow) — on a laptop
+  that is a DOUBLE-click, since a single one selects (see the editor below). Taking NEXT off
   the finale of a cleared room lands on the blank **splash** phase, whose only
   control is that selector. `?debug` is nothing but a local override of the
   unlock — one phone in the state a cleared room is in — and `?solo` runs the
@@ -83,7 +84,12 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   so nesting and rotation come out right); `stitch.js` chains the one-Line-per-
   segment terrain back into polylines so it DRAWS like a hand-authored level.
   What a paste produces is a level link, and the pack is a list of those — see
-  "Levels live in the lobby" below. The kit and the naming contract are in
+  "Levels live in the lobby" below. The grid it edits is two surfaces on one
+  screen: a phone gets the free-play menu and nothing else (tap plays), a
+  laptop gets a file browser — click selects, double-click plays, drag
+  reorders, `⧉` copies the level's link, `⌫` deletes, and Ctrl+V lands on the
+  selection. Deleting, and pasting over a card whose level NAME does not match
+  what is coming in, both ask first. The kit and the naming contract are in
   [`tools/goomba/figma/README.md`](./tools/goomba/figma/README.md).
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported

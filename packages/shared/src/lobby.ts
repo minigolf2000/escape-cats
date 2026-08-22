@@ -1,3 +1,5 @@
+import type { LevelPack } from "./goomba/pack";
+
 // The team lobby — the one piece of state that outlives a single game room.
 //
 // A team id doubles as the PartyKit room id the game runs in, so once the
@@ -83,12 +85,42 @@ export interface LobbyPlayer {
 export interface LobbySnapshot {
   players: LobbyPlayer[];
   teams: Team[];
+  /**
+   * **The game's levels.** One global pack for the whole event, as a list of
+   * level links (see `goomba/pack.ts`).
+   *
+   * It rides the LOBBY rather than a Durable Object of its own because the
+   * lobby is already the one thing that outlives a game room, already the one
+   * object every phone holds a socket to, and already the surface the proctor
+   * drives. A pack DO would have been a second global singleton with the same
+   * lifetime and an extra hop to reach it.
+   *
+   * The room server reads the same pack over an internal fetch, because it is
+   * the authority that scores runs and cannot take a phone's word for what the
+   * geometry was.
+   */
+  pack: LevelPack;
+  /** Bumped on every pack write. A room compares this to what it last applied
+   * rather than diffing the levels, so an unchanged pack costs nothing. */
+  packV: number;
 }
 
 export type LobbyClientMsg =
   | { type: "rename"; name: string }
   | { type: "assign"; pid: string; team: string | null } // proctor only
   | { type: "clearTeams" } // proctor only
-  | { type: "forget"; pid: string }; // proctor only — drop one player
+  | { type: "forget"; pid: string } // proctor only — drop one player
+  // ---- the level pack. Open to any phone, on purpose: the editor IS the
+  // game's level selector, the party's own phones are the tool, and this runs
+  // for one weekend in one room. Nothing here can corrupt a run — the room
+  // server re-reads the pack from the authority and re-scores against it.
+  /** Paste a level in. `index` null appends a new slot; otherwise it REPLACES
+   * that slot, which is how you fix a level in Figma and paste over it. */
+  | { type: "packSet"; index: number | null; hash: string }
+  /** Drag a card to a new position. */
+  | { type: "packMove"; from: number; to: number }
+  | { type: "packDelete"; index: number }
+  /** Replace the whole pack — how an operator seeds an empty event. */
+  | { type: "packAll"; pack: LevelPack };
 
 export type LobbyServerMsg = { type: "lobby"; snapshot: LobbySnapshot };

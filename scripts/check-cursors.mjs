@@ -14,7 +14,7 @@
  * adjudicate: `pointer` if a tap does something, `default` if it does not.
  * Anything else is a build failure with a file:line.
  *
- * NOT applied to apps/proctor, apps/goomba-editor or tools/. Those run on a
+ * NOT applied to apps/proctor or tools/. Those run on a
  * laptop, in front of one operator who does have a cursor: the proctor drags
  * teams between boxes (`grab`/`grabbing` is the affordance doing real work
  * there), qr-studio is a canvas editor (`crosshair`, `text`), and the level

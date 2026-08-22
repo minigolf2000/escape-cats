@@ -125,13 +125,16 @@ Rules that keep it forgiving:
 
 ## The paste target
 
-`apps/goomba-editor` (`/editor/`, :5179 in dev) is the other half. It used to be
-a level editor; it authors nothing now — Figma does. What is left is a canvas, a
-play button and a copy-link button.
+**The game itself**, behind `\`. There is no separate editor page any more —
+the level SELECTOR is the paste target, so a frame goes from Figma into the
+event's level pack without ever leaving the game.
 
 ```
-copy a frame in Figma  →  ⌘V on the page  →  src/figma-svg.js  →  the shipped sim
+copy a frame in Figma  →  \  →  Ctrl+V on the grid  →  src/figma/  →  the pack
 ```
+
+The readers live in `apps/goomba-glider/src/figma/`: `clipboard.js`, `svg.js`,
+`stitch.js`, and `paste.js` (which decides which of the three shapes arrived).
 
 **Just copy in Figma and paste here.** A plain `Ctrl+C` puts a `fig-kiwi`
 payload on the clipboard and `src/figma-clipboard.js` decodes it — that path
@@ -165,7 +168,8 @@ it is the one that caught all four.
 
 Also accepted: drop an exported `.svg` file, paste that file's text, or paste
 one of our own level links.
-`public/sample-figma-export.svg` is a real export you can drop to see it work.
+`fixtures/sample-figma-clipboard.html` is a synthetic-but-valid copy you can
+feed the decoder without Figma open.
 
 **Export, do not "Copy as SVG".** Figma only writes layer names into SVG when the
 `id` attribute is switched on, and it is **off by default** — measured on the
@@ -206,6 +210,33 @@ Because both of those lean on undocumented exporter behaviour, a pasted level is
 only ever *proposed*: nothing throws if Figma changes, the geometry just drifts
 half a stroke. That is exactly why the copy-link button stayed —
 `node verify.mjs --hash <link>` is the thing that actually proves a level.
+
+## One Line per segment, one polyline per surface
+
+Figma holds terrain as one Line each, so a surface drawn as a run of connected
+Lines arrives as N separate two-point polylines. That is already the right
+SURFACE — `segsFor` flattens every polyline into independent segments before
+collision, so she cannot tell the difference — but it is not the right PICTURE.
+The game strokes each polyline as its own path with `lineCap: "round"`, three
+times over (a 4.4 u collision halo, the 1.5 u cream core, the pink centreline),
+and a round cap overhangs its endpoint by half the stroke. So every shared
+vertex in a pasted level grew two stubs — 2.2 u of halo and 0.75 of core poking
+past the joint — where a hand-authored polyline has one clean `lineJoin`. On a
+shallow chevron that reads as a slightly swollen corner; on the ~90° elbow in
+level 1 it reads as a blunt knee.
+
+`stitchTerrain` (`apps/goomba-glider/src/figma/stitch.js`, used by BOTH readers)
+chains segments whose endpoints match **exactly**, in the order Figma listed
+them. Exactly, not nearly: welding ends a designer left apart would silently
+redraw their level, and the gap between two segments is usually the point — a
+45-58 u gap is how a level says "one band goes here". A Line drawn right-to-left
+still chains, because which way a Line points is which way the designer dragged
+it, not a fact about the surface. Bands are deliberately NOT stitched: two bands
+meeting at a point are still two players' bands.
+
+`node test-stitch.mjs` covers the chain, the gap that must survive, the
+backwards-drawn segment and the closed loop. The real-copy fixture now decodes
+its seven Lines into five polylines.
 
 ## The loop, end to end
 

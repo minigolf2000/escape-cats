@@ -390,6 +390,10 @@ export function scoreRun(
   bands: readonly { ax: number; ay: number; bx: number; by: number }[],
 ): { result: RunResult; t: number } {
   const L = GOOMBA_LEVELS[levelIdx];
+  // The pack is live data now — it can be emptied or shortened by an editor
+  // mid-session — so "there is no such level" is a state this has to have an
+  // answer for rather than a crash. Nothing to run is not a win.
+  if (!L) return { result: "timeout", t: 0 };
   const st = makeRun(L, bands);
   while (!st.result && st.t < RUN_MAX + 1) stepRun(st, SUB);
   return { result: st.result ?? "timeout", t: +st.t.toFixed(3) };

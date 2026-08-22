@@ -12,6 +12,7 @@ import type {
   GoombaClientMsg,
   GoombaServerMsg,
   GoombaSnapshot,
+  LevelPack,
   LobbyServerMsg,
 } from "@escape-cats/shared";
 
@@ -55,6 +56,11 @@ export function connectRoom(opts: {
   room: string;
   name: string;
   onSnapshot: (snap: GoombaSnapshot) => void;
+  /** The event's level pack, sent by the room on connect and on every edit.
+   * The room is the authority that SCORES against these levels, so taking them
+   * from the same socket is what stops a phone drawing one level while the
+   * server grades another. */
+  onPack: (pack: LevelPack) => void;
   onConnection: (up: boolean) => void;
 }): void {
   let socket: PartySocket | null = null;
@@ -109,7 +115,10 @@ export function connectRoom(opts: {
     socket.addEventListener("close", () => opts.onConnection(false));
     socket.addEventListener("message", (e) => {
       const msg: GoombaServerMsg = JSON.parse(e.data as string);
-      if (msg.type === "state") opts.onSnapshot(msg.state);
+      // The pack always lands before the first state, so the level a snapshot
+      // points at exists by the time anything tries to draw it.
+      if (msg.type === "pack") opts.onPack(msg.pack);
+      else if (msg.type === "state") opts.onSnapshot(msg.state);
     });
   })();
 }

@@ -21,9 +21,6 @@ apps/hex-clicker/    Player client: vanilla JS/TS, the prototype's rendering spl
                      into modules (see its src/README.md for the map)
 apps/goomba-glider/  Player client for Goomba Glider: the prototype's canvas
                      rendering on the shared sim, driven by room snapshots
-apps/goomba-editor/  Figma paste target (/editor/): reads a level copied out
-                     of Figma, plays it on the shipped physics, and hands it
-                     to the gate as a URL. Authors nothing itself
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on (and its chat) — no links into the games
 apps/chat/           Per-team chat: one channel per team, roomed by team id
@@ -76,17 +73,18 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   Teammates watch it happen: a drag streams as a ghost band, and a tap-tap
   waiting on its second tap streams as a named marker (a preview shorter than
   `BAND_MIN` — it can't become a band, so it reads as "choosing here").
-- **The Figma paste target** — `apps/goomba-editor`, shipped at `/editor/`.
-  It authors nothing: level design lives in Figma, and this page is where a
-  copied frame becomes a playable level. `src/figma-svg.js` reads the pasted
-  SVG through the browser's own SVG engine (`getBBox`/`getCTM`, so nesting and
-  rotation come out right), maps layer NAMES onto level fields, and plays the
-  result on the same shipped sim the server scores with. What is left after the
-  editing came out is a canvas, a play button and a copy-link button — because
-  `node verify.mjs --hash <link>` is what actually gates a level, and this page
-  deliberately does not pretend to. The kit and the naming contract are in
-  [`tools/goomba/figma/README.md`](./tools/goomba/figma/README.md); see "The
-  editor saves into its URL" below for why the codec stayed.
+- **The level editor is the level SELECTOR** — `apps/goomba-glider/src/figma/`,
+  reached with `\` from inside the game. There is no separate editor page; the
+  grid a cleared team earns is the same screen that edits the event's level
+  pack, because both only ever wanted to show the same thing: every level as a
+  card. `clipboard.js` decodes a plain Ctrl+C from Figma (a `fig-kiwi` payload,
+  real layer names and stored geometry); `svg.js` is the fallback for an
+  exported SVG, read through the browser's own SVG engine (`getBBox`/`getCTM`,
+  so nesting and rotation come out right); `stitch.js` chains the one-Line-per-
+  segment terrain back into polylines so it DRAWS like a hand-authored level.
+  What a paste produces is a level link, and the pack is a list of those — see
+  "Levels live in the lobby" below. The kit and the naming contract are in
+  [`tools/goomba/figma/README.md`](./tools/goomba/figma/README.md).
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported
   canvas module, `apps/goomba-glider/src/main.js`.
@@ -139,7 +137,6 @@ This starts everything:
 | Proctor       | http://localhost:5175                      |
 | Team lobby    | http://localhost:5176                      |
 | Team chat     | http://localhost:5177                      |
-| Level editor  | http://localhost:5179/editor/              |
 
 Open the lobby on phones on the same wifi (one address for the whole room),
 then drag each phone onto a team from the proctor page. The vite servers listen

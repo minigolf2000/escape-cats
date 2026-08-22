@@ -13,6 +13,8 @@
 // NAMES carry the meaning, positions come from the nodes, and anything named
 // with a leading `_` is ignored.
 
+import { stitchTerrain } from "./stitch.js";
+
 const S = 10; // px per world unit — the scale the whole kit is built at
 const ROUND = (v) => Math.round(v * 10) / 10; // tenths: the codec's precision
 
@@ -208,7 +210,8 @@ export function levelFromFigmaSvg(svgText) {
         name: name || "pasted from Figma",
         budget: 4,
         start, goal,
-        terrain,
+        // Chains of Lines back into polylines; see stitch.js. Bands stay apart.
+        terrain: stitchTerrain(terrain),
         cans,
         cushions,
         pops,

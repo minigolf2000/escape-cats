@@ -10,10 +10,12 @@
 //   node verify.mjs --hash <link>       gate a level that is still just a
 //                                       share link from the editor (paste the
 //                                       whole URL or only the part after #)
+//   node verify.mjs all --pack <path>   gate the levels an EVENT is running,
+//                                       from `seed.mjs --pull > pack.json`
 //   node verify.mjs --file <path>       same, for a file of links, one per
 //                                       line — the batch a jam produces
 //
-// The two link forms exist because the editor (apps/goomba-editor) saves a
+// The two link forms exist because a level saves as a URL — that is also what a
 // design INTO its URL, so a level can be finished and shared long before
 // anyone opens levels.ts. The editor hunts shortcuts in the background, but it
 // samples; this is still the gate, and a level ships only when this prints
@@ -39,23 +41,36 @@
 import {
   LEVELS, BAND_MAX, BAND_MIN, MAX_BANDS, simulateLevel, decodeLevel, initLevel,
   legalBands, mulberry, jitterSolution, JITTER_TRIALS, JITTER_MIN_WINS, JITTER_SEED,
+  usePack,
 } from "./lib.mjs";
 import { readFileSync } from "node:fs";
 
 
 const argv = process.argv.slice(2);
-let quick = false, hashArg, fileArg, arg;
+let quick = false, hashArg, fileArg, packArg, arg;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === "--quick") quick = true;
   else if (a === "--hash") hashArg = argv[++i];
   else if (a === "--file") fileArg = argv[++i];
+  else if (a === "--pack") packArg = argv[++i];
   else if (arg === undefined) arg = a;
+}
+// `<levelIdx>` indexes the SEED levels the bench loads on import (the five this
+// repo designed). An event runs whatever pack its lobby holds, which is not
+// those — so `--pack` re-points the indexes at a pack file:
+//   node ../../tools/goomba/seed.mjs --pull --host g00.mba > pack.json
+//   node verify.mjs all --pack pack.json
+if (packArg) {
+  const n = usePack(JSON.parse(readFileSync(packArg, "utf8")));
+  console.log(`pack ${packArg}: ${n} level(s)
+`);
 }
 if (arg === undefined && hashArg === undefined && fileArg === undefined) {
   console.error("usage: node verify.mjs <levelIdx>|all [--quick]");
   console.error("       node verify.mjs --hash <share link> [--quick]");
   console.error("       node verify.mjs --file <file of links> [--quick]");
+  console.error("       node verify.mjs all --pack <pack.json>   (an event's real levels)");
   process.exit(2);
 }
 

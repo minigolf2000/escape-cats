@@ -2,6 +2,8 @@ import { Server, type Connection, type ConnectionContext, type WSMessage } from 
 import {
   GoombaSim,
   activePlayerCount,
+  applyPack,
+  type LevelPack,
   type GoombaBandPreview,
   type GoombaPersistedV1,
   type GoombaClientMsg,
@@ -34,15 +36,76 @@ export class GoombaServer extends Server<Env> {
    * presentation state (hex's teammate-taps deal): never persisted, resets
    * with an eviction, pruned by TTL. */
   private previews = new Map<string, GoombaBandPreview>();
+  /** Version of the pack this room has applied, and the pack itself — kept so
+   * the room can hand it to a phone without re-encoding the levels. -1 = never. */
+  private packV = -1;
+  private pack: LevelPack = [];
 
   async onStart() {
+    // The pack FIRST: `restore` fits the room to the level list it finds, so
+    // reading storage before the levels exist would clamp the team back to
+    // level 0 and drop every completed flag.
+    await this.syncPack();
     const saved = await this.ctx.storage.get<GoombaPersistedV1>("goomba");
     if (saved?.v === 1) this.sim.restore(saved, Date.now());
+  }
+
+  /**
+   * The lobby pokes this when someone edits the pack (see `writePack` there).
+   *
+   * Waking for it is the point: a team mid-session must see a pasted level
+   * appear without reconnecting, and this room is the authority that scores
+   * against it. A hibernating room is woken by the fetch itself, which runs
+   * `onStart` and picks the pack up on the way in.
+   */
+  async onRequest(request: Request): Promise<Response> {
+    if (new URL(request.url).pathname.endsWith("/pack-changed")) {
+      if (await this.syncPack()) {
+        this.sim.reconcile(Date.now());
+        await this.persist();
+        this.broadcastPack();
+        this.broadcastState();
+      }
+      return new Response("ok");
+    }
+    return new Response("not found", { status: 404 });
+  }
+
+  /**
+   * Read the event's pack off the lobby and install it. Returns whether
+   * anything changed.
+   *
+   * Object-to-object rather than trusting a client: this is the code that
+   * decides whether a run won, so the geometry it scores against has to come
+   * from the authority that owns it. `applyPack` writes into the same
+   * `GOOMBA_LEVELS` array every rule in the shared sim already reads.
+   */
+  private async syncPack(): Promise<boolean> {
+    try {
+      const res = await this.env.Lobby.get(this.env.Lobby.idFromName("main")).fetch(
+        "http://lobby/pack",
+      );
+      const body = (await res.json()) as { v: number; pack: LevelPack };
+      if (typeof body?.v !== "number" || !Array.isArray(body.pack)) return false;
+      if (body.v === this.packV) return false;
+      this.packV = body.v;
+      this.pack = body.pack;
+      applyPack(body.pack);
+      return true;
+    } catch {
+      // An unreachable lobby leaves the levels as they are. A room with no
+      // pack yet simply has no levels, which the phones render as "nothing
+      // here — paste one in", not as an error.
+      return false;
+    }
   }
 
   onConnect(conn: Connection, ctx: ConnectionContext) {
     this.roster.register(conn, ctx);
     this.armRunTimer();
+    // The pack first: a phone cannot draw a level, or even know how many there
+    // are, until it has one.
+    conn.send(JSON.stringify(this.packMsg()));
     this.broadcastState();
   }
 
@@ -125,6 +188,18 @@ export class GoombaServer extends Server<Env> {
         // room, and a jump can never earn a completed flag (see sim.goto).
         if (!proctor) { this.sim.goto(msg.level, now); this.previews.clear(); }
         break;
+      // Editing the pack from inside the game. The room does not own it — it
+      // hands the intent to the lobby, which validates, writes, and pokes every
+      // room (including this one) back through `pack-changed`. Going the long
+      // way round is what keeps one authority for the levels instead of four
+      // rooms racing to write their own.
+      case "packSet":
+      case "packMove":
+      case "packDelete":
+      case "packAll":
+        if (proctor) return;
+        void this.forwardPackIntent(msg);
+        return;
       case "reset":
         if (!proctor) return;
         this.sim.reset(now);
@@ -160,6 +235,34 @@ export class GoombaServer extends Server<Env> {
    * does not hold a share it cannot spend. */
   private players() {
     return activePlayerCount(this.roster.list());
+  }
+
+  /** Hand a pack edit to the lobby and take its answer straight back, so the
+   * phone that made the edit sees it land without waiting for the broadcast
+   * fan-out to come back around. */
+  private async forwardPackIntent(msg: GoombaClientMsg) {
+    try {
+      await this.env.Lobby.get(this.env.Lobby.idFromName("main")).fetch(
+        "http://lobby/pack",
+        { method: "POST", body: JSON.stringify(msg) },
+      );
+    } catch {
+      return; // the lobby will still be there on the next try
+    }
+    if (await this.syncPack()) {
+      this.sim.reconcile(Date.now());
+      await this.persist();
+      this.broadcastPack();
+      this.broadcastState();
+    }
+  }
+
+  private packMsg(): GoombaServerMsg {
+    return { type: "pack", v: this.packV, pack: this.pack };
+  }
+
+  private broadcastPack() {
+    this.broadcast(JSON.stringify(this.packMsg()));
   }
 
   private persist() {

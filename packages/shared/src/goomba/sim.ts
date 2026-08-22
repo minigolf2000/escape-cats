@@ -13,6 +13,7 @@
 
 import type { PlayerInfo } from "../protocol";
 import { GOOMBA_LEVELS, MAX_BANDS, BAND_MIN, BAND_MAX } from "./levels";
+import type { LevelPack } from "./pack";
 import { snapBand, scoreRun, type GoombaBand, type RunResult } from "./physics";
 
 /**
@@ -126,9 +127,30 @@ export type GoombaClientMsg =
    * open to any player — the party's own phones are the trusted tool here,
    * exactly as `play`/`next` already assume. */
   | { type: "goto"; level: number }
+  // ---- editing the level pack, from inside the game.
+  //
+  // These ride the ROOM socket rather than the lobby's, because the lobby
+  // socket is closed the moment a phone learns its team — and because the room
+  // is the authority a player is actually talking to. The room forwards them to
+  // the lobby, which owns the pack and tells every room about the write.
+  /** Paste a level in: `index` null appends a slot, otherwise replaces one. */
+  | { type: "packSet"; index: number | null; hash: string }
+  | { type: "packMove"; from: number; to: number }
+  | { type: "packDelete"; index: number }
+  | { type: "packAll"; pack: LevelPack }
   | { type: "reset" }; // proctor only
 
-export type GoombaServerMsg = { type: "state"; state: GoombaSnapshot };
+export type GoombaServerMsg =
+  | { type: "state"; state: GoombaSnapshot }
+  /**
+   * **The level pack**, sent on connect and again whenever it changes.
+   *
+   * A separate message rather than a field on the snapshot, because snapshots
+   * go out on every intent — including band previews at 10Hz while someone is
+   * dragging. Riding along there would put the whole pack (a couple of KB) on
+   * the wire ten times a second, per phone, to say nothing new.
+   */
+  | { type: "pack"; v: number; pack: LevelPack };
 
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
@@ -262,7 +284,9 @@ export class GoombaSim {
     if (s.runResult === "win") {
       s.phase = "win";
       s.completed[s.level] = true;
-      if (s.completed.every(Boolean) && s.finishedAt === null) s.finishedAt = now;
+      // `[].every` is true, so an empty pack would otherwise clear the game.
+      if (s.completed.length > 0 && s.completed.every(Boolean) && s.finishedAt === null)
+        s.finishedAt = now;
     } else {
       s.phase = "edit";
       s.fails++;
@@ -305,6 +329,7 @@ export class GoombaSim {
     const len = Math.hypot(bx - ax, by - ay);
     if (len < BAND_MIN || len > BAND_MAX) return;
     const L = GOOMBA_LEVELS[s.level];
+    if (!L) return; // pack emptied under us
     // Snapping happens HERE, once, on the authority — so the run every phone
     // animates uses exactly the endpoints the server scored with.
     s.bands.push(snapBand(L, { ax, ay, bx, by, slot, pid }));
@@ -402,7 +427,7 @@ export class GoombaSim {
       players,
       previews,
       serverTime: now,
-      progress: done / GOOMBA_LEVELS.length,
+      progress: GOOMBA_LEVELS.length ? done / GOOMBA_LEVELS.length : 0,
       levelCount: GOOMBA_LEVELS.length,
       quota: bandQuota(activePlayerCount(players)),
     };
@@ -415,11 +440,50 @@ export class GoombaSim {
 
   restore(saved: GoombaPersistedV1, now: number): void {
     this.st = saved.state;
-    // A level list that shrank in a deploy must not strand the room past the
-    // end, and one that grew must not read undefined as "done".
+    this.reconcile(now);
+  }
+
+  /**
+   * Fit the room to the level pack it is now looking at.
+   *
+   * This used to be a once-per-boot correction for a list that changed in a
+   * DEPLOY. The pack is live data now — someone can paste, reorder or delete a
+   * level while a team is mid-session — so it is a transition the room takes
+   * whenever the pack lands, and it is the whole of "apply immediately, keep
+   * progress":
+   *
+   *  - `completed` is re-fitted to the new length: flags past the end fall off,
+   *    new slots read as not-done rather than as undefined.
+   *  - `level` is clamped back inside the pack, so a team standing on a level
+   *    that was just deleted lands on the last one rather than on nothing.
+   *  - a run in flight is abandoned, because it was scored against geometry
+   *    that may no longer be there — finishing it would credit a level nobody
+   *    played.
+   *
+   * What it deliberately does NOT do is remap flags by identity. A delete
+   * shifts every level after it, so a cleared flag can end up describing its
+   * neighbour. That is the known cost of editing live, and it is cheap next to
+   * the alternative of wiping a team's progress every time someone fixes a
+   * typo in Figma.
+   */
+  reconcile(now: number): void {
+    const s = this.st;
     const n = GOOMBA_LEVELS.length;
-    this.st.level = Math.min(this.st.level, n - 1);
-    this.st.completed = GOOMBA_LEVELS.map((_, i) => this.st.completed[i] === true);
+    s.completed = GOOMBA_LEVELS.map((_, i) => s.completed[i] === true);
+    s.level = Math.max(0, Math.min(s.level, n - 1));
+    if (s.phase === "run") {
+      s.phase = "edit";
+      s.runAt = null;
+      s.runResult = null;
+      s.runT = null;
+    }
+    // The finish line is "every level done", and that answer just changed in
+    // both directions: a new level un-clears a cleared room, and deleting the
+    // last unfinished one clears it.
+    const all = n > 0 && s.completed.every(Boolean);
+    if (!all) s.finishedAt = null;
+    else if (s.finishedAt === null) s.finishedAt = now;
+    if (n === 0) s.phase = s.phase === "splash" ? "splash" : "edit";
     this.resolve(now);
   }
 }

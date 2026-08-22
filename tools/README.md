@@ -5,11 +5,11 @@ harnesses over the shared sim, plus the design guide (`DESIGNING.md`). It is
 its own world with its own README; everything below is about the two browser
 tools in this folder.
 
-The bench's browser half, the **level editor**, is not here: it lives in
-`apps/goomba-editor` and ships at `/editor/`. It imports the shared sim,
-so it needs a build step and cannot be one dependency-free HTML file the way
-these two are — the folder a thing lives in follows from whether it builds, not
-from whether it is a tool.
+The bench's browser half, the **level editor**, is not here either — and it is
+not its own page any more. It is the game's level selector, reached with `\`
+from inside Goomba Glider (`apps/goomba-glider/src/figma/`). Folding it in is
+what made "there is only one play mode" true: the editor never had a second
+renderer or a second sim worth keeping, only a second copy of the same grid.
 
 Standalone browser tools — not games, not part of the multiplayer
 architecture. Each is a single self-contained HTML file with zero

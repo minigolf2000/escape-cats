@@ -9,6 +9,7 @@ export * from "./hex/sim";
 export * from "./hex/presets";
 export * from "./goomba/levels";
 export * from "./goomba/codec";
+export * from "./goomba/pack";
 export * from "./goomba/gate";
 export * from "./goomba/physics";
 export * from "./goomba/sim";

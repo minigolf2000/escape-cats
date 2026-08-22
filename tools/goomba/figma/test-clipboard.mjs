@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Proof for the native-clipboard reader: build a fig-kiwi payload the same way
-// Figma builds one, hand it to apps/goomba-editor/src/figma-clipboard.js, and
+// Figma builds one, hand it to apps/goomba-glider/src/figma/clipboard.js, and
 // check the level that comes out against the numbers that went in.
 //
 //   node test-clipboard.mjs
@@ -16,7 +16,7 @@
 // written to fail loudly rather than silently mis-read if they ever differ.
 import { deflateRawSync } from "node:zlib";
 import { parseSchema, encodeBinarySchema, compileSchema } from "kiwi-schema";
-import { levelFromFigmaClipboard } from "../../../apps/goomba-editor/src/figma-clipboard.js";
+import { levelFromFigmaClipboard } from "../../../apps/goomba-glider/src/figma/clipboard.js";
 
 // Figma's schema is far larger than this; these are exactly the fields the game
 // needs, in the shapes Figma uses for them.
@@ -119,15 +119,23 @@ const html =
 // than only through node.
 const { writeFileSync } = await import("node:fs");
 const { fileURLToPath } = await import("node:url");
-const pubDir = fileURLToPath(new URL("../../../apps/goomba-editor/public/", import.meta.url));
-writeFileSync(pubDir + "sample-figma-clipboard.html", html);
+// A synthetic-but-valid Figma copy, kept beside the fixtures so the paste path
+// can be exercised without Figma open. (It used to be written into the editor
+// app's public/ dir; that app is gone — the game's level selector is the paste
+// target now.)
+const outDir = fileURLToPath(new URL("./fixtures/", import.meta.url));
+writeFileSync(outDir + "sample-figma-clipboard.html", html);
 
 const { level, warnings } = await levelFromFigmaClipboard(html);
 
 const TRUTH = {
   name: "L: Clipboard Test",
   maxSpeed: 145,
-  terrain: [[[10, 10], [40, 16]], [[40, 16], [70, 14]]],
+  // Two Figma Lines sharing (40,16): `stitchTerrain` chains them into one
+  // polyline, so the game strokes a lineJoin there rather than two round caps
+  // overhanging the shared vertex. Same surface either way — `segsFor` splits
+  // polylines back into segments before collision.
+  terrain: [[[10, 10], [40, 16], [70, 14]]],
   solution: [[[15, 30], [50, 32]]],
   start: [12, 8],
   goal: [65, 50],

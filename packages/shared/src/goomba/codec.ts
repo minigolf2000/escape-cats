@@ -1,6 +1,6 @@
 // A level, packed small enough to live in a URL.
 //
-// The level editor (apps/goomba-editor) has no server and no database: a
+// The level editor (the game's own level selector, behind `\`) has no database: a
 // design is saved by BEING a link, exactly the trade qr-studio makes for its
 // drawings. So this file is the save format — encode a `GoombaLevel` to a
 // base64url string that rides in `location.hash`, decode it back.

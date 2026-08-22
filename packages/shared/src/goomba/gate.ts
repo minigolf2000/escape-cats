@@ -2,7 +2,7 @@
 // DEFINE what "passes" means, in one copy.
 //
 // Two programs grade levels against the gate — `tools/goomba/verify.mjs` (the
-// authority) and the editor (`apps/goomba-editor`, the fast loop) — and a
+// authority) and the editor (the game's level selector, the fast loop) — and a
 // verdict in the editor is only worth showing if it means the same thing the
 // bench will say. These numbers used to live in both places "kept in step" by
 // a comment, and the predicted drift showed up before the feature even merged

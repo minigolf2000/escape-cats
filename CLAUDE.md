@@ -10,33 +10,53 @@ are the invariants that bite.
 the whole loop, the physics cheat sheet, and the accumulated anti-shortcut
 findings — do not design from intuition, the sim disproves it reliably.
 
-- **The Figma paste target** (`apps/goomba-editor`, served at `/editor/`,
-  :5179 in dev) **authors nothing.** All level design happens in Figma now (see
-  [`tools/goomba/figma/README.md`](./tools/goomba/figma/README.md) for the kit
-  and the naming contract); this page takes a copied frame, reads it with
-  `src/figma-svg.js`, and previews it. **PLAY FOR REAL hands it to the actual
-  game** — `/g00mBa/?solo#<hash>`, where `adoptHashLevel` appends it to
-  `GOOMBA_LEVELS` and the shipped client plays it with real band placement, the
-  real quota and real scoring. Appending to that array rather than teaching the
-  sim a second kind of level is what makes it indistinguishable; the one thing
-  that must not disagree is the array's LENGTH, so the push happens before
-  `new GoombaSim`, which sizes `completed` from it. A pasted level differs from
-  a shipped one in exactly two places: it is marked `PASTED — not in levels.ts`
-  on a dashed card in the selector, and only the editor offers copy-link.
-  Solo only — a real room scores on the server, and the server has never heard
-  of it. There is no tool palette,
-  no selection, no undo — wrong level, fix it in Figma and paste again. It kept
-  the URL codec because that is how a pasted level reaches the gate.
-  A level **saves by being a URL** — `encodeLevel`
-  in `packages/shared/src/goomba/codec.ts` packs one into ~100–450 base64url
-  chars, so designs travel as links and `node verify.mjs --hash <link>` gates
-  one that was never committed. The codec lives in shared/ because the browser
-  and the node bench must agree on it byte for byte; never fork it. Same for
-  `goomba/gate.ts` — the thresholds that DEFINE a pass (jitter, hunt grid,
-  legal-band lattice) are one copy that both graders import.
-- Levels live in **`packages/shared/src/goomba/levels.ts`** — the ONLY copy
-  (the prototype is deleted). Server scoring, phone animation, and the design
-  tools all run this exact code.
+- **The level SELECTOR is the editor, and `\` is the door.** There is no
+  `/editor/` page any more (`apps/goomba-editor` is deleted); its two useful
+  halves — reading a Figma clipboard, and handing a level to the real game —
+  moved into `apps/goomba-glider` (`src/figma/`). Pressing `\` in the game opens
+  the levels grid with editing on and forces the selector's gate (that IS what
+  "\ turns on debug" means — `?debug` only ever overrode that one gate); `\`
+  again goes straight back to playing. Four actions, all on the grid: **Ctrl+V**
+  a Figma frame (into the trailing dashed slot, or over a card via its `⧉`),
+  `◀ ▶` to reorder, `⌫` to delete, and a card tap still jumps the whole room.
+  The controls appear for a laptop; phones see the grid they always saw — except
+  when the pack is EMPTY, where everyone gets them, because a grid with no
+  levels and no way to add one is a dead end.
+  `src/figma/stitch.js` is the one non-obvious step: Figma stores terrain as one
+  Line per segment, and the game strokes each polyline with round caps, so
+  unstitched chains grow half-stroke stubs at every shared vertex (2.2 u of
+  collision halo, 0.75 of core) instead of one clean `lineJoin`. Segments whose
+  endpoints match EXACTLY are chained back into polylines; near-misses are left
+  alone, because a gap is usually the design.
+  A level still **saves by being a URL** — `encodeLevel` in
+  `packages/shared/src/goomba/codec.ts` packs one into ~100–450 base64url chars,
+  which is both how `node verify.mjs --hash <link>` grades an uncommitted level
+  and what a PACK is a list of. The codec lives in shared/ because the browser,
+  the Worker and the node bench must agree on it byte for byte; never fork it.
+  Same for `goomba/gate.ts`.
+- **Levels live in the LOBBY Durable Object, as a pack of links.** That is the
+  only copy: `GOOMBA_LEVELS` ships EMPTY and is filled by `setGoombaLevels` from
+  whatever arrives. `packages/shared/src/goomba/pack.ts` is the shape (an
+  ordered `string[]` of `encodeLevel` output); the lobby owns it, the goomba
+  room reads it object-to-object (it scores runs, so it cannot take a phone's
+  word for the geometry) and re-broadcasts it to phones as a separate `pack`
+  message — separate because snapshots go out at 10Hz during a band drag and
+  the pack has nothing new to say on any of them. Edits ride the ROOM socket
+  (the lobby's is closed the moment a phone learns its team) and are forwarded
+  to the lobby, which validates by DECODING, writes, and pokes all four
+  `TEAM_IDS` rooms so a change lands mid-session.
+  `packages/shared/src/goomba/levels.ts` still holds the five designed levels as
+  **`SEED_LEVELS`** — nothing reads them at play time; they are the day-one
+  seed and the worked examples DESIGNING.md is written about. `node seed.mjs
+  --push` loads them into an event; `--pull` prints what an event is running.
+  **A new event starts with no levels.**
+- **The pack can change under a live room**, and `GoombaSim.reconcile` is the
+  whole of "apply immediately, keep progress": `completed` is re-fitted to the
+  new length, `level` is clamped back inside the pack, a run in flight is
+  abandoned (it was scored against geometry that may be gone), and the finish
+  line is recomputed in both directions. It deliberately does NOT remap flags by
+  identity — deleting a level shifts every flag after it. That is the accepted
+  cost of editing live.
 - **The party rule is locked: every level must genuinely REQUIRE 4 bands**
   (4 players × 1). Not "allow" — require. Its other half is enforced in code:
   a player may hold at most **⌈4 / connected players⌉** bands at once
@@ -130,13 +150,15 @@ findings — do not design from intuition, the sim disproves it reliably.
   inconsistent (the shop shipped `not-allowed` for "too expensive" and `default`
   for "still locked", two disabled states telling two stories). `npm run
   build:vercel` runs `check-cursors.mjs`, which fails on anything else in
-  apps/{hex-clicker,goomba-glider,lobby,chat}. `apps/proctor`,
-  `apps/goomba-editor` and `tools/` are deliberately exempt: one operator, one
-  laptop, and `grab`/`crosshair` are doing real work there.
+  apps/{hex-clicker,goomba-glider,lobby,chat}. `apps/proctor` and `tools/` are
+  deliberately exempt: one operator, one laptop, and `grab`/`crosshair` are
+  doing real work there. Note the level editor is now INSIDE goomba-glider, so
+  it lives under the rule — its grid controls are taps, not drags, and that is
+  part of why.
 - **Proctor box heights are fixed**: every stat line renders in every state
   (placeholders, never fewer lines) so boxes don't shift under a drag.
-- **Goomba Glider's level selector is EARNED, and `?debug` only overrides that
-  gate**: a room that has cleared every level (`goombaCleared` = `finishedAt`
+- **Goomba Glider's level selector is EARNED; `?debug` and `\` only override
+  that gate**: a room that has cleared every level (`goombaCleared` = `finishedAt`
   set, in `goomba/sim.ts`) unlocks the **levels** grid for all four phones on
   the same snapshot, and a proctor **reset** takes it back with the rest of the
   room state. The level dots top-left ARE its button: once unlocked the dot
@@ -197,4 +219,12 @@ cd tools/goomba && node slack.mjs <idx>    # per-band forgiveness (jitter/slide/
 cd tools/goomba && node verify.mjs --hash <editor link>   # same gate, no diff
 cd tools/goomba && node verify.mjs --file <file of links> # ...on a batch
 cd tools/goomba && node quota.mjs          # the participation gate (room rule)
+cd tools/goomba && node seed.mjs           # print the seed pack
+cd tools/goomba && node seed.mjs --push    # …load it into a running event
+cd tools/goomba && node seed.mjs --pull    # what is the event running right now?
 ```
+
+`npm run dev` no longer starts an editor on :5179 — press `\` in the game
+instead. The bench (`lib.mjs`) loads `SEED_LEVELS` on import so `verify.mjs
+<idx>` still indexes the five designed levels exactly as before; `usePack`
+points it at an event's real pack.

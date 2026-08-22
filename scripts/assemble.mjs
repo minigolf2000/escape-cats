@@ -34,13 +34,9 @@ const SURFACES = [
   // Chat must live on THIS origin, not behind a vanity domain: it reads the
   // same localStorage pid the lobby wrote, and localStorage is per-origin.
   ["apps/chat/dist", "chat", "Per-team chat"],
-  // The Figma paste target. A design tool, not a game — it is here rather than
-  // in tools/ only because it is a Vite app (it imports the shared sim, so it
-  // cannot be one dependency-free HTML file the way qr-studio is). Lowercase
-  // path on purpose: it is typed off a whiteboard by people who did not write
-  // /g00mBa's casing rule. It no longer edits anything: levels are drawn in
-  // Figma and pasted here, so the directory name outlives the editor it held.
-  ["apps/goomba-editor/dist", "editor", "Goomba Glider Figma paste target"],
+  // (There is no /editor surface any more. The Figma paste target was folded
+  // into the game itself: the level SELECTOR is the editor now, so pasting a
+  // frame, reordering the pack and playing it are all one screen behind `\`.)
   // The two standalone tools. Each is one self-contained file with no relative
   // references, so landing it as <name>/index.html puts it at its own pretty
   // URL with no rewrite involved -- the path IS the file.

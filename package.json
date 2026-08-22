@@ -9,14 +9,13 @@
     "server"
   ],
   "scripts": {
-    "dev": "concurrently -k -n server,hex,goomba,proctor,lobby,chat,editor -c blue,magenta,red,green,cyan,yellow,white \"npm:dev:server\" \"npm:dev:hex\" \"npm:dev:goomba\" \"npm:dev:proctor\" \"npm:dev:lobby\" \"npm:dev:chat\" \"npm:dev:editor\"",
+    "dev": "concurrently -k -n server,hex,goomba,proctor,lobby,chat -c blue,magenta,red,green,cyan,yellow \"npm:dev:server\" \"npm:dev:hex\" \"npm:dev:goomba\" \"npm:dev:proctor\" \"npm:dev:lobby\" \"npm:dev:chat\"",
     "dev:server": "npm run dev -w server",
     "dev:hex": "npm run dev -w apps/hex-clicker",
     "dev:goomba": "npm run dev -w apps/goomba-glider",
     "dev:proctor": "npm run dev -w apps/proctor",
     "dev:lobby": "npm run dev -w apps/lobby",
     "dev:chat": "npm run dev -w apps/chat",
-    "dev:editor": "npm run dev -w apps/goomba-editor",
     "build": "npm run build --workspaces --if-present",
     "build:vercel": "npm run build --workspaces --if-present && node scripts/assemble.mjs && node scripts/check-routing.mjs && node scripts/check-cursors.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",

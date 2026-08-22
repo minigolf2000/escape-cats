@@ -12,7 +12,14 @@
 // nothing security-wise — the override is a client-side gate, and the `goto`
 // behind it was always open to any player in the room.
 
-import { GOOMBA_LEVELS, GoombaSim, decodeLevel, initLevel } from "@escape-cats/shared";
+import {
+  GOOMBA_LEVELS,
+  GoombaSim,
+  applyPack,
+  currentPack,
+  decodeLevel,
+  initLevel,
+} from "@escape-cats/shared";
 import { transport, playerId } from "./net";
 
 export function debugFromUrl() {
@@ -35,8 +42,10 @@ export function soloFromUrl() {
  * its LENGTH, so this has to run before `new GoombaSim`, which sizes
  * `completed` from it.
  *
- * Solo only. A real room scores runs on the server, and the server has never
- * heard of this level — that is the next slice, not this one.
+ * Solo only, and now the ONE kind of level that is not in the event's pack:
+ * everything else a phone plays arrives from the lobby over the room socket.
+ * A link is how a level travels before anyone has committed it to the pack —
+ * out of `verify.mjs`, off someone else's phone — so it stays.
  */
 export function adoptHashLevel() {
   if (location.hash.length <= 1) return null;
@@ -104,6 +113,36 @@ export function startDebug(opts) {
         break;
       case "goto":
         sim.goto(msg.level, now);
+        break;
+      // The pack, edited with no server behind it. `?solo` is a laptop with no
+      // room — but it is still the editor, so the same four intents have to
+      // mean something here or the grid's buttons would be dead. They act on
+      // the in-page level list directly; `reconcile` then fits the solo room to
+      // it exactly as the real room does.
+      case "packSet": {
+        const pack = currentPack();
+        if (msg.index === null || msg.index === undefined) pack.push(msg.hash);
+        else pack[msg.index] = msg.hash;
+        applyPack(pack);
+        sim.reconcile(now);
+        break;
+      }
+      case "packMove": {
+        const pack = currentPack();
+        pack.splice(msg.to, 0, ...pack.splice(msg.from, 1));
+        applyPack(pack);
+        sim.reconcile(now);
+        break;
+      }
+      case "packDelete": {
+        const pack = currentPack().filter((_, i) => i !== msg.index);
+        applyPack(pack);
+        sim.reconcile(now);
+        break;
+      }
+      case "packAll":
+        applyPack(msg.pack);
+        sim.reconcile(now);
         break;
     }
     emit();

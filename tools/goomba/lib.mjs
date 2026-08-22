@@ -22,6 +22,11 @@ await writeFile(
   // codec.ts, so the bench can open a level that arrived as a share link from
   // the editor instead of as a diff to levels.ts.
   `export * from ${JSON.stringify(join(srcDir, "codec.ts"))};\n` +
+  // pack.ts: the level PACK — the shape the game's levels live in now (a list
+  // of links in the lobby DO). The bench needs it to seed itself, and to grade
+  // a pack that was never committed.
+  `export * from ${JSON.stringify(join(srcDir, "pack.ts"))};
+` +
   // gate.ts: the thresholds that define "passes", shared with the editor.
   `export * from ${JSON.stringify(join(srcDir, "gate.ts"))};\n` +
   // sim.ts too, so the ROOM rules (the band quota) are testable off the same
@@ -57,7 +62,40 @@ export const {
   JITTER_TRIALS,
   JITTER_MIN_WINS,
   JITTER_SEED,
+  applyPack,
+  seedPack,
+  packToLevels,
+  levelsToPack,
+  SEED_LEVELS,
 } = sim;
+
+/**
+ * Fill the level array before any tool indexes it.
+ *
+ * `GOOMBA_LEVELS` ships EMPTY now — the game's levels live in the lobby DO and
+ * arrive over the wire — so `verify.mjs 2` would otherwise grade nothing. The
+ * bench loads the repo's own SEED_LEVELS, which are the levels every note in
+ * DESIGNING.md is written about, so `verify.mjs <idx>` means exactly what it
+ * always meant.
+ *
+ * To grade the levels an EVENT is actually running, hand the tool a pack:
+ * `verify.mjs --pack pack.json` (or `--hash <link>` for a single one), which
+ * calls `usePack` below and re-indexes everything against that instead.
+ */
+applyPack(seedPack());
+
+/**
+ * Point the bench at a different pack — a file of links, or one pulled off a
+ * running lobby. Returns how many levels are now loaded.
+ *
+ * `LEVELS` IS `sim.GOOMBA_LEVELS` (the destructure above binds the same array
+ * object, not a copy), and `applyPack` fills that array in place. So there is
+ * nothing to copy here — and copying was actively wrong: clearing `LEVELS`
+ * first emptied the very array the copy then read from.
+ */
+export function usePack(pack) {
+  return applyPack(pack);
+}
 
 /** The prototype's `__gr.simulate`, verbatim: run a level with a band set,
  * return the outcome plus a 30fps trajectory. */

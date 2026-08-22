@@ -26,6 +26,7 @@
 // guessing, and a pasted level is still only proposed until `verify.mjs --hash`
 // has had it.
 import { decodeBinarySchema, compileSchema } from "kiwi-schema";
+import { stitchTerrain } from "./stitch.js";
 
 const S = 10; // px per world unit
 const ROUND = (v) => Math.round(v * 10) / 10; // tenths: the codec's precision
@@ -324,7 +325,12 @@ export async function levelFromFigmaClipboard(html) {
   const level = {
     name: name || "pasted from Figma",
     budget: 4,
-    start, goal, terrain, cans, cushions, pops, bumpers,
+    start, goal,
+    // One Figma Line per segment; chains of them are one surface. See stitch.js
+    // — bands are deliberately NOT stitched, since two bands meeting at a point
+    // are still two players' bands.
+    terrain: stitchTerrain(terrain),
+    cans, cushions, pops, bumpers,
     solution: bands,
   };
   if (maxSpeed) level.maxSpeed = maxSpeed;

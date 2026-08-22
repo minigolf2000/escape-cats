@@ -298,6 +298,31 @@ function enterRoom(room, name) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// `\` — the same key Goomba uses to swap between playing and its level editor.
+//
+// Hex has no levels to edit; what it has behind ?debug is the 🛠 panel. But
+// ?debug in hex is a different BACKEND — the shared sim running in-page, with
+// no room and no server — so switching into it mid-session is a reload by
+// construction, not a toggle. That is the honest behaviour and it is why this
+// does not pretend to flip a switch: it puts you in debug, and once you are
+// there the same key opens and closes the panel.
+// ---------------------------------------------------------------------------
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "\\") return;
+  e.preventDefault();
+  if (!debugFromUrl()) {
+    const u = new URL(location.href);
+    // `?debug`, not `?debug=` — it is read with `has()`, but the bare form is
+    // what every note and whiteboard in this repo writes.
+    u.search = u.search ? `${u.search}&debug` : "?debug";
+    location.replace(u.toString());
+    return;
+  }
+  const panel = document.querySelector("#devbar details");
+  if (panel) panel.open = !panel.open;
+});
+
 boot();
 
 // Debug handle — the multiplayer stand-in for the prototype's ?debug panel.

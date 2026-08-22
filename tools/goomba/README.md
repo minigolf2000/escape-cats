@@ -10,12 +10,14 @@ and only to rasterise an SVG.
 Designing a level end-to-end is walked through in
 [`DESIGNING.md`](./DESIGNING.md) — start there.
 
-There is also a browser bench: the **level editor** at `/editor/`
-(`apps/goomba-editor`, :5179 in dev). It drags geometry against this same
-shipped sim, grades the cheap half of the gate on every edit, hunts shortcuts in
-background workers, and saves a level into its own URL. That last part is why
-`verify.mjs` grew `--hash`: a level can be finished, shared and gated before it
-is ever a diff.
+There is also a browser half: the game's own **level selector**, reached with
+`\` from inside Goomba Glider. It is where a Figma frame is pasted in, where the
+event's pack is reordered and pruned, and where every level shows its cheap
+verdict (bare must NOT win, the solution must) on a card. A level saves as a
+URL, which is why `verify.mjs` grew `--hash`: a level can be finished, shared
+and gated before it is ever a diff — and a PACK is just an ordered list of
+those links, living in the lobby Durable Object rather than in this repo. Use
+`node seed.mjs --pull` to fetch what an event is actually running.
 
 ```sh
 cd tools/goomba

@@ -190,7 +190,16 @@ const LANE_EVEN = [38, 62, 86]; // lanes 2 and 4, half a step over
 const lane = (y: number, xs: number[], dir: number): GoombaPopper[] =>
   xs.map((x) => ({ x, y, deg: dir > 0 ? 0 : 180, spd: LANE_SPD }));
 
-const RAW_LEVELS: GoombaLevel[] = [
+/**
+ * The levels this repo was built around. NOT what the game plays any more —
+ * the room's level pack lives in the lobby Durable Object and arrives over the
+ * wire (see `pack.ts`). These are kept as the SEED an operator loads on day
+ * one, and as the worked examples every note in DESIGNING.md refers to.
+ *
+ * Nothing reads this at play time. `GOOMBA_LEVELS` starts EMPTY and is filled
+ * by `setGoombaLevels` from whatever the pack says.
+ */
+export const SEED_LEVELS: GoombaLevel[] = [
   // Rebuilt from a hand sketch: a staircase of four ledges the eye reads
   // top-left → top-right → across → down-right, with the spider plant alone on
   // the ground far below. The shapes are the sketch's, transcribed 1:1.
@@ -483,4 +492,31 @@ const RAW_LEVELS: GoombaLevel[] = [
     solution: [ [[90, 108], [88, 141]], [[70, 0], [92, 28]], [[12, 65], [32, 18]] ] },
 ];
 
-export const GOOMBA_LEVELS: GoombaLevelInit[] = RAW_LEVELS.map(initLevel);
+/**
+ * **The levels the game is playing right now**, and the ONE array every rule
+ * reads: `scoreRun`, the band quota, the phases, the selector and the phone
+ * animation all index this and cannot tell where a level came from.
+ *
+ * It starts EMPTY. The pack lives in the lobby DO and arrives over the wire, so
+ * a client that has not heard from the lobby yet has no levels — which is the
+ * honest state, and every caller below is guarded for it.
+ *
+ * It is a MUTABLE array rather than a fresh binding on every change because
+ * that is already the contract here: `adoptHashLevel` pushes a pasted level
+ * onto it so the shipped sim plays it for real. Replacing the binding would
+ * strand every module that imported the old one.
+ */
+export const GOOMBA_LEVELS: GoombaLevelInit[] = [];
+
+/**
+ * Swap the whole pack in place, preparing each level exactly as a shipped one.
+ *
+ * In PLACE — same array object — for the reason above. Returns the new length,
+ * which is the number every `completed` array has to agree with; a caller that
+ * changes the pack mid-room must reconcile that (see `GoombaSim.reconcile`).
+ */
+export function setGoombaLevels(list: GoombaLevel[]): number {
+  GOOMBA_LEVELS.length = 0;
+  for (const L of list) GOOMBA_LEVELS.push(initLevel(L));
+  return GOOMBA_LEVELS.length;
+}

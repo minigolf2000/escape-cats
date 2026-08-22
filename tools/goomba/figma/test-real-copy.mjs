@@ -24,25 +24,31 @@
 // being tested is the decode, so the expectation is a snapshot of what these
 // exact bytes mean.
 import { readFileSync } from "node:fs";
-import { levelFromFigmaClipboard } from "../../../apps/goomba-editor/src/figma-clipboard.js";
+import { levelFromFigmaClipboard } from "../../../apps/goomba-glider/src/figma/clipboard.js";
 
 const b64 = readFileSync(new URL("./fixtures/real-figma-copy.b64", import.meta.url), "utf8").trim();
 const { level, warnings } = await levelFromFigmaClipboard(
   `<span data-buffer="<!--(figma)${b64}(/figma)-->"></span>`);
 
-// What these bytes mean, in frame-local world units. Terrain arrives as
-// segments (a Figma line each) rather than the polylines levels.ts stores, and
-// the coordinates carry the frame's own padding offset — both expected.
+// What these bytes mean, in frame-local world units. The coordinates carry the
+// frame's own padding offset, which is expected.
+//
+// Terrain comes back as POLYLINES even though Figma holds one Line per segment:
+// `stitchTerrain` chains segments that share an endpoint exactly, so the two
+// chains in this frame — (70,27)-(89,43)-(103,41) and (12,62)-(44,72)-(101,51)
+// — arrive joined, and the seven Lines land as five polylines. That is a
+// drawing fix, not a physics one (`segsFor` flattens polylines back into
+// segments before collision, so the SURFACE is unchanged either way); what it
+// buys is that the game strokes each polyline once, with a `lineJoin` at the
+// shared vertex instead of two round caps overhanging it.
 const EXPECT = {
   name: "1 · The Long Way Down",
   start: [20, 20],
   goal: [39, 136],
   terrain: [
     [[18, 22], [53, 29]],
-    [[70, 27], [89, 43]],
-    [[89, 43], [103, 41]],
-    [[12, 62], [44, 72]],
-    [[44, 72], [101, 51]],
+    [[70, 27], [89, 43], [103, 41]],
+    [[12, 62], [44, 72], [101, 51]],
     [[73, 84], [118, 67]],
     [[12, 137], [122, 137]],
   ],
@@ -68,7 +74,7 @@ console.log("a real Figma Ctrl+C -> GoombaLevel");
 check("name", level.name, EXPECT.name);
 check("start", level.start, EXPECT.start);
 check("goal", level.goal, EXPECT.goal);
-check("terrain segments", level.terrain, EXPECT.terrain);
+check("terrain polylines", level.terrain, EXPECT.terrain);
 check("cans", level.cans, EXPECT.cans);
 check("solution bands", level.solution, EXPECT.solution);
 check("pops/bumpers/cushions", [level.pops.length, level.bumpers.length, level.cushions.length], EXPECT.counts);

@@ -26,9 +26,14 @@ import {
   bandsHeldBy,
   goombaCleared,
   nextLeadsToSplash,
+  applyPack,
+  encodeLevel,
+  initLevel,
+  PACK_MAX,
 } from "@escape-cats/shared";
 import { connectRoom, watchTeam, transport, playerId } from "./net";
 import { adoptHashLevel, debugFromUrl, soloFromUrl, startDebug } from "./debug";
+import { levelFromPaste } from "./figma/paste.js";
 
 const cv = document.getElementById("c");
 const ctx = cv.getContext("2d");
@@ -80,7 +85,10 @@ const SOLO = soloFromUrl();   // serverless backend for the same menu
 // else. `?debug` is nothing more than a local override of this one gate — it
 // puts a tester in the state a cleared room is already in, instead of being a
 // second way in with its own rules.
-const levelSelect = () => DEBUG || (snap !== null && goombaCleared(snap));
+// `editing` is in here because that is what "\ turns on debug mode" MEANS:
+// the one thing ?debug does is override this gate, so the key that opens the
+// editor gets the same override rather than a second switch beside it.
+const levelSelect = () => DEBUG || editing || (snap !== null && goombaCleared(snap));
 let labOpen = false;        // levels grid showing?
 // A card tap is a wire intent, so the room answers a round trip later. Closing
 // the lab on the tap would uncover the OLD level for that gap and then swap it
@@ -99,7 +107,60 @@ function clearLabJump() {
   labJump = null;
 }
 let labCells = [];          // hit targets for the lab's cards
+let labBtns = [];           // hit targets for the per-card editor buttons
 const labVerdicts = new Map(); // level idx -> {bare, sol, ok} from the real sim
+
+// ---------- the selector IS the editor ----------
+// There is no separate editor page any more. The levels grid a cleared team
+// earns is the same screen that edits the event's pack — because everything
+// either surface ever wanted to show is the same thing: every level as a card.
+// `\` is the way in and the way back out, and it turns the selector on the way
+// a cleared room already has it (see `levelSelect`), so one key gets a laptop
+// from playing to editing and back.
+//
+// The EDITING controls are the only part that is laptop-only: pasting needs a
+// keyboard, and reordering a pack is nobody's phone job during a party. Phones
+// see exactly the grid they saw before.
+let editing = false;
+/**
+ * Are the editing controls showing? (Not to be confused with `canEdit` further
+ * down, which is about the run PHASE — whether a band may be placed right now.)
+ *
+ * `\` turns them on — but an EMPTY pack turns them on too, because a grid with
+ * no levels and no way to add one is a dead end, and "there are no levels" is
+ * exactly the moment someone needs to paste one. It is also the only way back
+ * from a pack that was emptied by accident, without a laptop or a redeploy.
+ */
+const editorOn = () => editing || GOOMBA_LEVELS.length === 0;
+/** Which slot the next paste lands in — an index REPLACES that level, null
+ * appends a new one. The trailing dashed card is what "null" looks like. */
+let pasteTarget = null;
+let editMsg = "", editMsgT = 0;
+function editSay(msg) { editMsg = msg; editMsgT = 4; }
+
+/** Re-frame the camera on the current level. Called when the level changes and
+ * whenever the PACK changes under us, since a new level has new bounds. */
+function refit() {
+  const b = L().bounds;
+  Object.assign(cam, clampCam((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, fitScale(L()), b));
+}
+
+/**
+ * The event's levels arrived (on connect, and again after any edit).
+ *
+ * `applyPack` writes into the same `GOOMBA_LEVELS` array every rule already
+ * reads, so nothing downstream has to know the levels can change. What DOES
+ * have to know is this file's two caches: the per-level verdicts, and the
+ * camera, which is framed on a level whose geometry may have just been
+ * replaced under it.
+ */
+function onPack(pack) {
+  applyPack(pack);
+  labVerdicts.clear();
+  if (pasteTarget !== null && pasteTarget >= GOOMBA_LEVELS.length) pasteTarget = null;
+  anim = null; // a replay of geometry that may no longer exist
+  if (snap) { refit(); syncHud(); }
+}
 
 let snap = null;            // latest GoombaSnapshot — the authority's word
 let serverOffset = 0;       // serverTime - Date.now(), from the last snapshot
@@ -125,7 +186,25 @@ const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   connEl = $("conn");
 
 const level = () => (snap ? snap.level : 0);
-const L = () => GOOMBA_LEVELS[level()];
+/**
+ * A level to draw when the pack is EMPTY.
+ *
+ * There are no built-in levels any more — the pack lives in the lobby and
+ * arrives over the room socket — so "we have not been told any levels yet" and
+ * "someone deleted the last one" are both real states this screen has to be
+ * able to paint. A flat floor with the start on it keeps every measurement in
+ * here finite (bounds, fitScale, the camera clamp) instead of scattering
+ * null checks through the renderer.
+ */
+const NO_LEVELS = initLevel({
+  name: "no levels yet — press \ and paste one from Figma",
+  budget: 4,
+  start: [20, 20],
+  goal: [80, 20],
+  terrain: [[[0, 30], [100, 30]]],
+  cans: [], cushions: [], pops: [], bumpers: [], solution: [],
+});
+const L = () => GOOMBA_LEVELS[level()] ?? NO_LEVELS;
 const bands = () => (snap ? snap.bands : []);
 const now = () => Date.now() + serverOffset; // the room's shared clock
 
@@ -305,6 +384,49 @@ labEl.onclick = () => {
 };
 window.addEventListener("keydown", (e) => {
   if (e.key === " ") { e.preventDefault(); playBtn.onclick(); }
+  // `\` — the whole editor, on one key. Swapping between the game and the
+  // level pack has to be instant or nobody uses it mid-party: this is the same
+  // screen either way, so there is nothing to load and nothing to leave.
+  if (e.key === "\\") {
+    e.preventDefault();
+    if (labOpen && editing) { editing = false; setLab(false); syncHud(); return; }
+    editing = true;
+    if (snap && snap.phase === "run") transport.send({ type: "stop" });
+    setLab(true);
+    syncHud();
+    editSay(GOOMBA_LEVELS.length
+      ? "Ctrl+V a Figma frame · ◀ ▶ reorder · ⌫ delete · \\ back to the game"
+      : "no levels yet — copy a frame in Figma and press Ctrl+V");
+  }
+  if (e.key === "Escape" && labOpen && editing) {
+    editing = false; setLab(false); syncHud();
+  }
+});
+
+// ---------- pasting a level in ----------
+// Ctrl+V anywhere on the page. It opens the editor if it was shut, because a
+// paste is unambiguous about what you meant and making someone press `\` first
+// would be a rule with no purpose.
+window.addEventListener("paste", (e) => {
+  e.preventDefault();
+  if (!labOpen) { editing = true; setLab(true); syncHud(); }
+  editSay("reading the clipboard…");
+  levelFromPaste(e.clipboardData).then(
+    ({ level: lv, warnings }) => {
+      if (pasteTarget === null && GOOMBA_LEVELS.length >= PACK_MAX) {
+        return editSay(`the pack is full at ${PACK_MAX} levels`);
+      }
+      // The pack is a list of level LINKS, so a paste becomes one here and the
+      // authority stores exactly what it validated.
+      transport.send({ type: "packSet", index: pasteTarget, hash: encodeLevel(lv) });
+      const where = pasteTarget === null ? "as a new level" : `over level ${pasteTarget + 1}`;
+      pasteTarget = null;
+      editSay(warnings.length
+        ? `${lv.name} ${where} · ${warnings.join(" · ")}`
+        : `${lv.name} — in, ${where}`);
+    },
+    (err) => editSay(String(err.message || err)),
+  );
 });
 
 // ---------- the run replay ----------
@@ -979,6 +1101,39 @@ function fitText(s, maxW) {
   return s.slice(0, n) + "…";
 }
 function labTap(px, py) {
+  // Editor buttons first. They sit ON the cards, so hit-testing them after the
+  // card would make ⌫ delete a level AND jump the room into the gap it left.
+  for (const b of labBtns) {
+    if (px < b.x || px > b.x + b.w || py < b.y || py > b.y + b.h) continue;
+    switch (b.kind) {
+      case "left":
+      case "right": {
+        const to = b.i + (b.kind === "left" ? -1 : 1);
+        if (to < 0 || to >= GOOMBA_LEVELS.length) return;
+        // Keep the paste target on the level it was pointing at, not on the
+        // slot number, or a reorder silently re-aims the next paste.
+        if (pasteTarget === b.i) pasteTarget = to;
+        else if (pasteTarget === to) pasteTarget = b.i;
+        transport.send({ type: "packMove", from: b.i, to });
+        return;
+      }
+      case "del":
+        transport.send({ type: "packDelete", index: b.i });
+        if (pasteTarget === b.i) pasteTarget = null;
+        editSay(`deleted level ${b.i + 1}`);
+        return;
+      case "over":
+        pasteTarget = pasteTarget === b.i ? null : b.i;
+        editSay(pasteTarget === null
+          ? "next paste adds a new level"
+          : `next paste REPLACES level ${b.i + 1}`);
+        return;
+      case "new":
+        pasteTarget = null;
+        editSay("next paste adds a new level — Ctrl+V a Figma frame");
+        return;
+    }
+  }
   for (const c of labCells) {
     if (px < c.x || px > c.x + c.w || py < c.y || py > c.y + c.h) continue;
     // Latch BEFORE sending: the ?solo backend answers inside send(), and that
@@ -997,19 +1152,64 @@ function drawLab() {
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   ctx.font = "700 15px ui-rounded, system-ui, sans-serif";
   ctx.fillStyle = "#f2ecff";
-  ctx.fillText("Levels", 16, 30);
+  ctx.fillText(editing ? "Levels — editing" : "Levels", 16, 30);
   ctx.font = "12px ui-rounded, system-ui, sans-serif";
-  ctx.fillStyle = "#8a80b0";
-  ctx.fillText(SOLO ? "tap a card to play it locally — no server, no room"
-                    : "tap a card to jump the whole room there", 16, 48);
+  ctx.fillStyle = editorOn() && editMsgT > 0 ? "#ffd166" : "#8a80b0";
+  ctx.fillText(
+    editorOn() && editMsgT > 0 && editMsg
+      ? editMsg
+      : GOOMBA_LEVELS.length === 0
+        ? "no levels yet — copy a frame in Figma and press Ctrl+V"
+        : editorOn()
+          ? "Ctrl+V a Figma frame · ◀ ▶ reorder · ⌫ delete · \ back to the game"
+          : SOLO
+          ? "tap a card to play it locally — no server, no room"
+          : "tap a card to jump the whole room there",
+    16, 48,
+  );
 
+  // One extra slot while editing: the dashed "paste a new level here" card,
+  // which is what `pasteTarget === null` looks like on screen.
+  const slots = GOOMBA_LEVELS.length + (editorOn() ? 1 : 0);
   const cols = W > H ? 3 : 2;
-  const rows = Math.ceil(GOOMBA_LEVELS.length / cols);
+  const rows = Math.max(1, Math.ceil(slots / cols));
   const padX = 12, top = 62, bottom = 24;
   const cw = (W - padX * (cols + 1)) / cols;
   const ch = Math.min((H - top - bottom - 12 * (rows - 1)) / rows, cw * 1.5);
   labCells = [];
+  labBtns = [];
   const savedCam = { ...cam };
+
+  /** The per-card editor controls. Drawn last so they sit over the level, and
+   * hit-tested BEFORE the card, so pressing ⌫ never also jumps the room. */
+  const cardButtons = (i, x, y) => {
+    if (!editorOn()) return;
+    const B = 22, G = 4;
+    const kinds = [
+      ["over", "⧉", pasteTarget === i],
+      ["left", "◀", i > 0],
+      ["right", "▶", i < GOOMBA_LEVELS.length - 1],
+      ["del", "⌫", true],
+    ];
+    let bx = x + cw - 8 - (B * kinds.length + G * (kinds.length - 1));
+    for (const [kind, glyph, live] of kinds) {
+      const by = y + 8;
+      labBtns.push({ i, kind, x: bx, y: by, w: B, h: B });
+      ctx.beginPath();
+      ctx.roundRect(bx, by, B, B, 6);
+      ctx.fillStyle = kind === "over" && live ? "rgba(255,209,102,0.9)" : "rgba(16,7,34,0.8)";
+      ctx.fill();
+      ctx.strokeStyle = live ? "rgba(201,189,240,0.55)" : "rgba(201,189,240,0.16)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = kind === "over" && live ? "#241245" : live ? "#f2ecff" : "#5b5280";
+      ctx.font = "600 11px ui-rounded, system-ui, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(glyph, bx + B / 2, by + B / 2 + 0.5);
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      bx += B + G;
+    }
+  };
   GOOMBA_LEVELS.forEach((lv, i) => {
     const c = i % cols, r = (i / cols) | 0;
     const x = padX + c * (cw + padX), y = top + r * (ch + 12);
@@ -1050,13 +1250,13 @@ function drawLab() {
     ctx.font = "10px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = v.ok ? "#57e6c9" : "#ff8f8f";
     ctx.fillText(`${v.ok ? "✓" : "✗"} bare:${v.bare} · sol:${v.sol ?? "none"}`, x + 9, y + 16);
-    // A pasted level plays exactly like a shipped one — same sim, same bands,
-    // same scoring — so the ONLY thing that marks it is this card. It is not in
-    // levels.ts, so it is not part of the set a room has to clear.
+    // A level adopted from the URL hash (?solo#…) is the one kind that is NOT
+    // in the event's pack: it plays identically — same sim, same bands, same
+    // scoring — but nobody else can see it and no room has to clear it.
     if (lv.pasted) {
       ctx.font = "700 9px ui-rounded, system-ui, sans-serif";
       ctx.fillStyle = "#ffd166";
-      ctx.fillText("PASTED — not in levels.ts", x + 9, y + 28);
+      ctx.fillText("FROM A LINK — not in the pack", x + 9, y + 28);
     }
     // The round trip, made visible: the tap landed, the room is coming with us.
     if (jumping) {
@@ -1070,7 +1270,31 @@ function drawLab() {
       ctx.fillText("jumping…", x + cw / 2, y + ch / 2);
       ctx.restore();
     }
+    cardButtons(i, x, y);
   });
+
+  // The trailing slot: where a paste lands when it is not replacing anything.
+  // Drawn as a card rather than explained in a line of help, because "the next
+  // paste goes HERE" is a place, and a place is easier to point at than a rule.
+  if (editorOn()) {
+    const i = GOOMBA_LEVELS.length;
+    const c = i % cols, r = (i / cols) | 0;
+    const x = padX + c * (cw + padX), y = top + r * (ch + 12);
+    labBtns.push({ i, kind: "new", x, y, w: cw, h: ch });
+    ctx.save();
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = pasteTarget === null ? "#ffd166" : "rgba(201,189,240,0.3)";
+    ctx.lineWidth = pasteTarget === null ? 2.5 : 1.5;
+    ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = pasteTarget === null ? "#ffd166" : "#8a80b0";
+    ctx.font = "700 12px ui-rounded, system-ui, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("+ Ctrl+V", x + cw / 2, y + ch / 2 - 8);
+    ctx.font = "10px ui-rounded, system-ui, sans-serif";
+    ctx.fillText("a Figma frame", x + cw / 2, y + ch / 2 + 10);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  }
   Object.assign(cam, savedCam);
 }
 
@@ -1159,6 +1383,7 @@ function frame(nowMs) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (nowMs - (frame.last || nowMs)) / 1000); frame.last = nowMs;
   tGlobal += dt;
+  if (editMsgT > 0) editMsgT = Math.max(0, editMsgT - dt);
   if (!snap) return;
   if (labOpen) { drawLab(); return; }
   if (snap.phase === "splash") { drawSplash(); return; }
@@ -1299,6 +1524,7 @@ function boot() {
         room: team,
         name: lobbyName,
         onSnapshot,
+        onPack,
         onConnection: (up) => {
           connEl.classList.toggle("on", !up && inited);
           if (!inited) {

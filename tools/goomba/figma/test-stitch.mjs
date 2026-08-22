@@ -84,5 +84,39 @@ check("The Long Way Up's floor is one surface",
   [[[8.1, 168.3], [35.6, 172.3], [63.8, 174.1], [63.8, 181.1], [79.6, 181.1],
     [80.6, 172.3], [96.3, 173.2], [114.6, 165.5], [128.1, 151.1]]]);
 
-console.log(bad ? `\n→ FAIL ✗ (${bad})` : "\n→ PASS ✓  joints weld, real gaps survive");
+// ---- T-junctions: a platform butting into a wall ----------------------------
+// Chaining is end-to-end, which is the wrong shape for the commonest thing
+// anyone draws. Level 1 stores its start platform at x 124 and its wall at
+// x 133, so the platform ends 0.9 units past the wall's centreline — a sliver
+// under Figma's 15 px stroke, a visible stub hanging off the game's 4.4-unit
+// collision halo.
+
+check("a loose end snaps onto the wall it was drawn against",
+  stitchTerrain([[[12.4, 21.5], [50, 24.3]], [[13.3, 85.7], [13.3, 8.9]]]),
+  [[[13.3, 21.5], [50, 24.3]], [[13.3, 85.7], [13.3, 8.9]]]);
+
+// ...but only where the wall actually IS. Level 1's ground is at y 137 and the
+// wall stops at y 85.7, so that end hangs off the world on purpose.
+check("an end past the wall's extent is left hanging",
+  stitchTerrain([[[12, 137], [122, 137]], [[13.3, 85.7], [13.3, 8.9]]]),
+  [[[12, 137], [122, 137]], [[13.3, 85.7], [13.3, 8.9]]]);
+
+check("an end already ON the surface is not moved",
+  stitchTerrain([[[75, 31], [89, 43]], [[13.3, 43], [98.7, 43]]]),
+  [[[75, 31], [89, 43]], [[13.3, 43], [98.7, 43]]]);
+
+// A T is not a chain: the two stay separate polylines, each with its own ends.
+check("a T-junction does not merge the two surfaces",
+  stitchTerrain([[[0, 10], [20, 10]], [[21, 0], [21, 30]]]).length, 2);
+
+// The whole of level 1, exactly as it decodes out of Figma today.
+check("level 1's platform and shelf both land on the wall",
+  stitchTerrain([
+    [[12.4, 21.5], [50, 24.3]], [[75, 31], [89, 43]], [[12.6, 43], [98.7, 43]],
+    [[73, 84], [110.6, 57.5]], [[70.4, 103.3], [93.2, 114.3]],
+    [[12, 137], [122, 137]], [[13.3, 85.7], [13.3, 8.9]],
+  ]).map((p) => p[0]),
+  [[13.3, 21.5], [75, 31], [13.3, 43], [73, 84], [70.4, 103.3], [12, 137], [13.3, 85.7]]);
+
+console.log(bad ? `\n→ FAIL ✗ (${bad})` : "\n→ PASS ✓  joints weld, tees land, real gaps survive");
 process.exit(bad ? 1 : 0);

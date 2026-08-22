@@ -31,10 +31,22 @@ findings — do not design from intuition, the sim disproves it reliably.
   rest 0.3-1.8 u apart, so an exact-match rule chains nothing real. `WELD` is
   2.0 u, and the ceiling is the game's own wedge rule (no two segments closer
   than 4.4 u = 2 × her radius), so anything under it was never a deliberate
-  separation. A 45-58 u "one band goes here" gap is never touched. Terrain must
+  separation. A 45-58 u "one band goes here" gap is never touched. It also snaps a loose
+  END onto a surface it was drawn against (a **T-junction** — a platform butting
+  into a wall lands near the wall's MIDDLE, nowhere near either of its endpoints,
+  so end-to-end welding never sees it). Level 1 stores its platform at x 124 and
+  its wall at x 133: 0.9 u of overhang, a sliver under Figma's 15 px stroke and a
+  visible stub on the game's 4.4 u halo. Terrain must
   be a **Line**; a `t` that is a pen path or rect is skipped with a warning,
   because reading its bbox edge would be a plausible straight segment that
   silently changes whether the level is winnable.
+  **Before debugging "the geometry looks off", read "Testing this bridge" in
+  `tools/goomba/figma/README.md`.** Two rounds of it were closed by reasoning
+  about the code and shipping a fix that passed its own tests; both were wrong.
+  The committed fixture is a GENERATED frame, so it proves nothing about
+  hand-drawn geometry — read the real numbers off Figma's Design panel, A/B with
+  encoded level links rather than by re-pasting, and remember `#hash` is read
+  only at boot (a fragment-only navigation silently shows you the OLD level).
   A level still **saves by being a URL** — `encodeLevel` in
   `packages/shared/src/goomba/codec.ts` packs one into ~100–450 base64url chars,
   which is both how `node verify.mjs --hash <link>` grades an uncommitted level

@@ -226,13 +226,39 @@ shallow chevron that reads as a slightly swollen corner; on the ~90° elbow in
 level 1 it reads as a blunt knee.
 
 `stitchTerrain` (`apps/goomba-glider/src/figma/stitch.js`, used by BOTH readers)
-chains segments whose endpoints match **exactly**, in the order Figma listed
-them. Exactly, not nearly: welding ends a designer left apart would silently
-redraw their level, and the gap between two segments is usually the point — a
-45-58 u gap is how a level says "one band goes here". A Line drawn right-to-left
-still chains, because which way a Line points is which way the designer dragged
-it, not a fact about the surface. Bands are deliberately NOT stitched: two bands
-meeting at a point are still two players' bands.
+chains segments back into polylines. It grows a chain from BOTH ends and accepts
+a segment drawn in either direction, because neither is information about the
+surface: which way a Line points is which way the designer dragged it.
+
+**It welds, and the tolerance is measured rather than guessed.** The first
+version required endpoints to be EXACTLY equal, which was measured against the
+GENERATED frames — whose coordinates come out of `levels-to-svg.mjs` and agree
+to the last decimal — and is useless on a hand-drawn one. On *2 · The Long Way
+Up* as actually drawn in Figma: **seven joints, one exact, the rest 0.3 to 1.8
+units apart**. A person dragging a line end lands near the last one, not on it,
+and the 15 px stroke hides the difference. Exact matching chained almost
+nothing, so its eight floor Lines stayed eight polylines and the round-cap stubs
+came straight back.
+
+`WELD` is 2.0 units. The ceiling comes from this game's own rule — no two
+terrain segments may come closer than **4.4 u** (2 × her radius) or she wedges
+in the corner and the run stalls — so a pair of endpoints closer than that is
+never a deliberate separation, it is one joint drawn by hand. 2.0 sits above
+every real joint measured (worst 1.84) and well below where deliberate geometry
+starts; the band between is a no-man's-land it stays out of. A 45-58 u "one band
+goes here" gap is never touched. Welding keeps the point already in the chain
+and drops the incoming near-duplicate, so nothing moves by more than 2 units.
+
+With it, that level's eight floor Lines become one nine-point polyline that
+traces exactly what was drawn: floor, down into the notch, across, up the far
+wall, along, then the ramp. Ten polylines became four; all 24 segments survive.
+
+Terrain must still be a **Line**. A `t` that is a pen path or a rect is skipped
+with a warning by both readers, because `(0,0)-(width,0)` on one of those is the
+top edge of its bounding box — which can be nowhere near the shape drawn, and
+would arrive as a plausible straight segment that silently changes whether the
+level is winnable. A named layer that goes missing is a bug someone can see; a
+wrong one is not.
 
 `node test-stitch.mjs` covers the chain, the gap that must survive, the
 backwards-drawn segment and the closed loop. The real-copy fixture now decodes

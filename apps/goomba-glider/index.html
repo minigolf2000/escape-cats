@@ -91,6 +91,18 @@
   #hud.debug #team { display: none; }
   /* levels open: the grid is the whole screen; tap a card to leave */
   #hud.lab > * { visibility: hidden; }
+  /* ...except the way back to where levels come from. The grid is drawn on the
+     canvas, but this is a real <a>: middle-click, open-in-new-tab and the
+     browser's own popup rules all work, which a canvas hit-target would have to
+     reimplement badly. Only while EDITING — a team using the grid as its
+     free-play menu has no use for the design file. */
+  #figma { position: absolute; top: max(10px, env(safe-area-inset-top)); right: 14px;
+           display: none; padding: 5px 10px; border-radius: 13px;
+           font-size: 12px; font-weight: 700; letter-spacing: .02em;
+           color: #c9bdf0; text-decoration: none; pointer-events: auto;
+           background: rgba(255,255,255,.08);
+           border: 1.5px solid rgba(201,189,240,.35); }
+  #hud.lab.editing #figma { display: block; visibility: visible; }
   /* The splash a cleared room lands on (phase "splash", see goomba/sim.ts):
      a blank screen whose ONLY control is the level selector the clear just
      unlocked — so the strip stays up and the rest of the HUD goes. Same
@@ -166,6 +178,8 @@
   <div id="hint"></div>
   <div id="team"></div>
   <div id="conn">reconnecting…</div>
+  <a id="figma" href="https://www.figma.com/design/vRN6Q44ReIaESP5wv8M2dI/"
+     target="_blank" rel="noopener">Figma ↗</a>
   <button id="play">▶ PLAY</button>
   <div id="toast"></div>
   <div id="gate">

@@ -306,6 +306,11 @@ function syncHud() {
   // the splash is a phase like any other.
   hudEl.classList.toggle("cleared", levelSelect());
   hudEl.classList.toggle("splash", s.phase === "splash");
+  // `editing` is JS-only state (set by the `\` key, the paste handler, and an
+  // empty pack via editorOn) with no snapshot behind it, so it needs its own
+  // sync point rather than riding this function's `s`-driven toggles above —
+  // this is just the one place already re-run on every UI-relevant change.
+  hudEl.classList.toggle("editing", editorOn());
 
   dotsEl.innerHTML = "";
   s.completed.forEach((c, i) => {
@@ -394,9 +399,6 @@ window.addEventListener("keydown", (e) => {
     if (snap && snap.phase === "run") transport.send({ type: "stop" });
     setLab(true);
     syncHud();
-    editSay(GOOMBA_LEVELS.length
-      ? "Ctrl+V a Figma frame · ◀ ▶ reorder · ⌫ delete · \\ back to the game"
-      : "no levels yet — copy a frame in Figma and press Ctrl+V");
   }
   if (e.key === "Escape" && labOpen && editing) {
     editing = false; setLab(false); syncHud();
@@ -409,7 +411,13 @@ window.addEventListener("keydown", (e) => {
 // would be a rule with no purpose.
 window.addEventListener("paste", (e) => {
   e.preventDefault();
-  if (!labOpen) { editing = true; setLab(true); syncHud(); }
+  // Always `editing`, not just when the grid was shut: pasting IS editing, and
+  // the first paste into an EMPTY pack used to hand the controls back the
+  // moment it succeeded — editorOn() had been true only because there were no
+  // levels, so landing one turned the buttons off under the person using them.
+  editing = true;
+  if (!labOpen) setLab(true);
+  syncHud();
   editSay("reading the clipboard…");
   levelFromPaste(e.clipboardData).then(
     ({ level: lv, warnings }) => {
@@ -1160,9 +1168,7 @@ function drawLab() {
       ? editMsg
       : GOOMBA_LEVELS.length === 0
         ? "no levels yet — copy a frame in Figma and press Ctrl+V"
-        : editorOn()
-          ? "Ctrl+V a Figma frame · ◀ ▶ reorder · ⌫ delete · \ back to the game"
-          : SOLO
+        : SOLO
           ? "tap a card to play it locally — no server, no room"
           : "tap a card to jump the whole room there",
     16, 48,

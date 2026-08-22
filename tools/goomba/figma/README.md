@@ -253,6 +253,18 @@ With it, that level's eight floor Lines become one nine-point polyline that
 traces exactly what was drawn: floor, down into the notch, across, up the far
 wall, along, then the ramp. Ten polylines became four; all 24 segments survive.
 
+**T-junctions get snapped too.** Chaining is end-to-end, which is the wrong
+shape for the commonest thing anyone draws: a platform butting into a wall ends
+near the wall's MIDDLE, nowhere near either of the wall's own endpoints, so no
+amount of end-to-end welding touches it. Read off the file, level 1 stores its
+start platform at `x 124` and its wall at `x 133` — the platform ends 0.9 units
+past the wall's centreline. In Figma that is a sliver hidden under a 15 px
+stroke. In game the same 0.9 units hangs off a **4.4-unit collision halo**, and
+reads as a stub sticking out of the wall. The geometry is faithful; the drawing
+is just three times wider, and what was invisible at design time is not
+invisible at play time. So a loose end within `WELD` of another polyline's body
+is pulled onto it. This does NOT chain the two — a T is not a chain.
+
 Terrain must still be a **Line**. A `t` that is a pen path or a rect is skipped
 with a warning by both readers, because `(0,0)-(width,0)` on one of those is the
 top edge of its bounding box — which can be nowhere near the shape drawn, and
@@ -263,6 +275,51 @@ wrong one is not.
 `node test-stitch.mjs` covers the chain, the gap that must survive, the
 backwards-drawn segment and the closed loop. The real-copy fixture now decodes
 its seven Lines into five polylines.
+
+## Testing this bridge (read this before debugging it)
+
+Two rounds of "geometry looks slightly off" were closed by reasoning about the
+code and shipping a fix that passed its own tests. Both were wrong, for the same
+reason, and the fix that worked came from a different method. Do it this way:
+
+**1. Ground truth is Figma's Design panel, not the fixture.**
+`fixtures/real-figma-copy.b64` is a real Ctrl+C, but of a frame that
+`levels-to-svg.mjs` GENERATED — so its coordinates agree to the last decimal.
+Every conclusion drawn from it about "what a Figma frame looks like" is a
+conclusion about machine output. Hand-drawn frames are the only kind that
+matters now and they behave nothing like it: joints land 0.3-1.8 u apart, and
+platforms meet walls in the middle rather than at an endpoint. Open the real
+file, select the Line, and read `X / Y / W / Rotation` off the panel.
+
+**2. Prove where the bug ISN'T, first.**
+The decisive step both times was comparing ONE line's panel numbers against the
+decoder's output for that same line. The platform reads `X 124, Y 215, W 377.04,
+rot -4.26°` and decodes to `[12.4,21.5]-[50,24.3]` — exact. That one check moves
+the question from "the reader is buggy" (it is not, it never was) to "the
+drawing does that, and the game makes it visible", which is a different fix.
+
+**3. The game's stroke is 3x Figma's.** Terrain draws a **4.4 u collision halo**
+under a 1.5 u core; Figma draws the 1.5 u core alone. Sub-unit slop that is
+invisible while drawing is glaring while playing. Most of "it looks off" lives
+in that asymmetry rather than in the numbers.
+
+**4. A/B with level LINKS, never by re-pasting.**
+Encode both geometries and load each one — the camera, the crop and every other
+variable are then identical and the diff is the two numbers you changed. Pasting
+twice is not a controlled comparison: the clipboard needs focus, silently does
+nothing when it does not have it, and you cannot tell a failed paste from a
+no-op fix.
+
+**5. `#hash` is read ONCE, at boot.** Navigating from `?solo#A` to `?solo#B`
+changes only the fragment, so the page does not reload and the level does not
+change — you get two identical screenshots of the same state and no error.
+Change a query param too (`?solo&v=2#B`), and assert the geometry from the page
+(`window.__goomba.LEVELS[0].terrain`) before believing any screenshot.
+
+**6. Run the counterfactual.** "Did my change cause this?" is one edit away:
+set `WELD` to 0 and re-decode. That killed a whole false lead — the ratchet
+teeth READ as separate bars in Figma, and turned out to have been one chain all
+along, so the weld was not what joined them.
 
 ## The loop, end to end
 

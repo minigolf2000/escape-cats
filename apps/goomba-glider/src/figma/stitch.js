@@ -39,6 +39,57 @@
 const WELD = 2.0;
 
 const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= WELD;
+/** Tenths — the codec's precision, so a snapped point survives the round trip. */
+const round = (v) => Math.round(v * 10) / 10;
+
+/** Closest point on segment a-b to p, and how far away it is. */
+function toSegment(p, a, b) {
+  const abx = b[0] - a[0], aby = b[1] - a[1];
+  const l2 = abx * abx + aby * aby;
+  let t = l2 ? ((p[0] - a[0]) * abx + (p[1] - a[1]) * aby) / l2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const q = [a[0] + abx * t, a[1] + aby * t];
+  return { d: Math.hypot(p[0] - q[0], p[1] - q[1]), q };
+}
+
+/**
+ * T-junctions: pull a loose END onto the surface it was drawn against.
+ *
+ * Chaining only ever joins end TO end, which is the wrong shape for the most
+ * common thing anyone draws — a platform butting into a wall. That platform's
+ * end lands near the middle of the wall, nowhere near either of the wall's own
+ * endpoints, so no amount of end-to-end welding touches it.
+ *
+ * Measured in the file: level 1's start platform is stored at x 124 and its
+ * wall at x 133, so the platform ends 0.9 units PAST the wall's centreline. In
+ * Figma that is a sliver hidden under a 15 px stroke. In game the same 0.9
+ * units hangs off a 4.4-unit collision halo, which is the stub sticking out of
+ * the left wall — the geometry is faithful, the drawing is just three times
+ * wider, and what was invisible at design time is not invisible at play time.
+ *
+ * So the end is snapped onto the wall's line. Same WELD, same reasoning: the
+ * game's own rule puts deliberate geometry at 4.4 units apart or more, so
+ * anything under 2 was meant to touch. This does NOT chain the two — a T is not
+ * a chain, and they stay separate polylines with separate ends. It only removes
+ * the overhang.
+ */
+function snapTees(polys) {
+  for (let i = 0; i < polys.length; i++) {
+    const chain = polys[i];
+    for (const e of [0, chain.length - 1]) {
+      let best = null;
+      for (let j = 0; j < polys.length; j++) {
+        if (j === i) continue;
+        for (let k = 0; k + 1 < polys[j].length; k++) {
+          const hit = toSegment(chain[e], polys[j][k], polys[j][k + 1]);
+          if (hit.d > 0 && hit.d <= WELD && (!best || hit.d < best.d)) best = hit;
+        }
+      }
+      if (best) chain[e] = [round(best.q[0]), round(best.q[1])];
+    }
+  }
+  return polys;
+}
 
 /**
  * Two-point segments, in the order Figma listed them -> polylines.
@@ -87,5 +138,7 @@ export function stitchTerrain(segs) {
     }
     out.push(chain);
   }
-  return out;
+  // Ends last: chaining gets first refusal on every endpoint, so two segments
+  // that should be one surface are never turned into a T instead.
+  return snapTees(out);
 }

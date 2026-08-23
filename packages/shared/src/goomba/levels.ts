@@ -197,7 +197,15 @@ export function initLevel(L: GoombaLevel): GoombaLevelInit {
         L.start[0] <= Math.max(ax, bx) &&
         Math.abs(bx - ax) > 1
       ) {
-        L.startAngle = Math.atan2(by - ay, bx - ax);
+        // Normalised to point RIGHT, because the idle cat is always drawn
+        // with face = 1: a floor drawn right-to-left in Figma stores its
+        // points that way, and the raw atan2 would hand a flat floor π and
+        // draw her upside down on it. The running physics already does this,
+        // against her actual face (`tanX * st.face < 0` in physics.ts); this
+        // is the same rule for the one frame before she has a face.
+        const dx = bx - ax,
+          dy = by - ay;
+        L.startAngle = dx < 0 ? Math.atan2(-dy, -dx) : Math.atan2(dy, dx);
         break;
       }
     }

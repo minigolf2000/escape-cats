@@ -1646,112 +1646,37 @@ function drawLab() {
 
 // ---------- the splash (phase "splash") ----------
 // Where a cleared room lands when it takes NEXT off the finale, instead of the
-// old victory lap: the congratulations screen. One full-screen picture, the
-// words over it (`drawSplashWords`), and the level selector's strip up top.
-// Nothing else — no HUD, no PLAY (index.html hides them on #hud.splash) — and
-// the one way on is the selector: the strip, or a tap anywhere on the picture
-// (`splashTap`), which is the same `openSelector` either way.
+// old victory lap: the congratulations screen. BLACK, the words on it
+// (`drawSplashWords`), and the level selector's strip up top. Nothing else — no
+// HUD, no PLAY (index.html hides them on #hud.splash) — and the one way on is
+// the selector: the strip, or a tap anywhere on the screen (`splashTap`), which
+// is the same `openSelector` either way.
 //
-// DROP-IN ART: replace public/art/splash.webp and nothing here changes. The
-// file is a stand-in shared with hex-clicker's win screen until Goomba's own
-// splash is drawn (hex has its own copy, at art/hex-splash.webp — one picture
-// today, two pictures the moment either game wants its own).
-const splashImg = new Image();
-let splashReady = false;
-let splashSky = null; // the art's own edge colours, top to bottom — see below
-splashImg.onload = () => {
-  splashReady = true;
-  splashSky = skyStops(splashImg, SKY_STOPS);
-};
-// BASE_URL, not a bare path: this app is served from /g00mBa/ and dev serves it
-// from /, so the one absolute path that works in both is Vite's own.
-splashImg.src = import.meta.env.BASE_URL + "art/splash.webp";
-
-/** The art's own SIDE EDGE, sampled down its height into n colours — the sky to
- * continue past the picture with, in every direction, and the reason no colour
- * is picked by hand here or survives the art being replaced.
- *
- * The EDGE strip rather than the full row, because the sampled colour has to
- * meet the picture at its left and right sides, where the sky is; a full-row
- * average is the artist's sky mixed with whatever the picture has in the middle
- * of it, which at these heights is a moon. Two stops used to be enough when the
- * only slack was above and below, where the end rows ARE sky all the way
- * across. A ramp down the side has to follow the sky's own turns (this one
- * lightens into a horizon band low down), so it gets more than its endpoints.
- *
- * Each stop is one exact row squeezed to a pixel, so the ends of the ramp are
- * the picture's true first and last rows and the flat bands can share them. */
-const SKY_STOPS = 24;
-function skyStops(img, n) {
-  const c = document.createElement("canvas");
-  c.width = 2; c.height = n;
-  const g = c.getContext("2d");
-  const edge = Math.max(1, Math.round(img.width * 0.02)); // wide enough to average the grain out
-  for (let i = 0; i < n; i++) {
-    const y = Math.round((i / (n - 1)) * (img.height - 1));
-    g.drawImage(img, 0, y, edge, 1, 0, i, 1, 1);
-    g.drawImage(img, img.width - edge, y, edge, 1, 1, i, 1, 1);
-  }
-  const d = g.getImageData(0, 0, 2, n).data;
-  const mid = (a, b) => (d[a] + d[b]) >> 1; // the two sides, averaged into one ramp
-  return Array.from({ length: n }, (_, i) => {
-    const l = i * 8, r = l + 4;
-    return `rgb(${mid(l, r)},${mid(l + 1, r + 1)},${mid(l + 2, r + 2)})`;
-  });
-}
-
+// There is no PICTURE here any more, and with it went the only loaded asset
+// this app had (public/art/splash.webp) and the sampler that continued its sky
+// past the ends of a tall phone. Black needs neither: it fits every screen, it
+// cannot load late, and it is the same on a phone and a laptop. hex-clicker's
+// win screen still has its own picture at art/hex-splash.webp — the two were
+// separate files precisely so either game could change without the other.
 function drawSplash() {
-  ctx.fillStyle = "#150a2a"; // until the art lands: the page's own background
+  ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, W, H);
-  if (!splashReady) return;
-  // The WHOLE picture, never cropped on either axis — whichever one binds. A
-  // phone is much narrower than this picture is tall, so the width binds there
-  // and the slack is above and below; a laptop is wider than the picture is
-  // proportionally tall, so fitting the width would overflow the screen and eat
-  // the top of the art, which is where the cat is. Height binds there instead.
-  const s = Math.min(W / splashImg.width, H / splashImg.height);
-  const w = splashImg.width * s, h = splashImg.height * s;
-  const x = (W - w) / 2, y = (H - h) / 2;
-  // The sky, continued into whichever slack there is, in ONE fill: the art's own
-  // side edge as a ramp, pinned to the picture's top and bottom. Canvas clamps a
-  // gradient past its ends, so the area above y comes out flat in the picture's
-  // first row and below y + h flat in its last (the phone case), while the area
-  // beside the art gets the ramp itself (the laptop case) — no branch, and the
-  // two cases cannot disagree at the corners where they meet.
-  const sky = ctx.createLinearGradient(0, y, 0, y + h);
-  splashSky.forEach((c, i) => sky.addColorStop(i / (splashSky.length - 1), c));
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, H);
-  ctx.drawImage(splashImg, x, y, w, h);
   drawSplashWords();
 }
 
-/** The congratulations, over the picture — and the one instruction the screen
- * carries, which is that touching it anywhere opens the levels grid
- * (`splashTap`).
+/** The congratulations, and the one instruction the screen carries: touching it
+ * anywhere opens the levels grid (`splashTap`).
  *
- * BOILERPLATE on purpose. The art here is a stand-in and will be replaced (see
- * the DROP-IN note above), so the words deliberately lean on nothing in the
- * picture: a scrim, a title, one line about what the room just did, and the way
- * on. Everything is measured off W/H — a phone is ~390 CSS px across and a
- * laptop ~1400 — so it fits whatever lands in art/splash.webp without a second
- * set of numbers per surface.
+ * BOILERPLATE on purpose, and now the whole screen — the picture it used to sit
+ * over is gone, so the block CENTRES rather than hugging the bottom, which was
+ * only ever a way of staying clear of the art's subject.
  *
- * The scrim covers the BOTTOM of the screen only. The subject of a splash sits
- * high (today, a cat on the moon) and the sky is where text stays readable, so
- * the words go under the picture's centre of interest rather than across it. */
+ * Everything is measured off W/H — a phone is ~390 CSS px across and a laptop
+ * ~1400 — so one set of numbers serves both surfaces. */
 function drawSplashWords() {
-  const scrim = ctx.createLinearGradient(0, H * 0.5, 0, H);
-  scrim.addColorStop(0, "rgba(13,6,30,0)");
-  scrim.addColorStop(1, "rgba(13,6,30,.88)");
-  ctx.fillStyle = scrim;
-  ctx.fillRect(0, H * 0.5, W, H * 0.5);
-
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  ctx.shadowColor = "rgba(0,0,0,.7)";
-  ctx.shadowBlur = 14;
 
   /** Set the font to `px`, or to whatever smaller size makes `text` fit across
    * the screen with a margin. Every line here goes through it: these are three
@@ -1765,26 +1690,25 @@ function drawSplashWords() {
     if (wide > room) ctx.font = face(Math.max(11, px * (room / wide)));
   };
 
-  // The prompt's baseline; the stack is built upwards off it. Clear of a
-  // phone's home indicator, which the canvas (unlike the HUD) gets no
-  // safe-area inset for.
-  const base = H - 46;
+  // The middle of the screen, with the title's own line sitting just above it —
+  // the three baselines below hang off this one.
+  const mid = H / 2;
 
   ctx.fillStyle = "#ffd166";
   fit("CONGRATULATIONS!", 800, Math.min(46, W * 0.1));
-  ctx.fillText("CONGRATULATIONS!", W / 2, base - 66);
+  ctx.fillText("CONGRATULATIONS!", W / 2, mid - 8);
 
   ctx.fillStyle = "#f2ecff";
   fit("every level cleared — the plant is watered", 700, 15);
-  ctx.fillText("every level cleared — the plant is watered", W / 2, base - 36);
+  ctx.fillText("every level cleared — the plant is watered", W / 2, mid + 24);
 
   // The prompt breathes, because it is the only thing to do on a screen that is
-  // otherwise a still picture — the same tell the band anchors use while they
+  // otherwise completely still — the same tell the band anchors use while they
   // wait to be finished.
   ctx.fillStyle = "#c9bdf0";
   ctx.globalAlpha = 0.6 + 0.4 * Math.sin(tGlobal * 2.2);
   fit("tap anywhere to pick a level", 400, 13);
-  ctx.fillText("tap anywhere to pick a level", W / 2, base);
+  ctx.fillText("tap anywhere to pick a level", W / 2, mid + 62);
   ctx.restore();
 }
 

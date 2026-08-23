@@ -26,15 +26,15 @@ u = 10 (one canvas unit = 10 SVG units) in named `<g>` layers, so Figma gets
 `pot`, `blades`, `runner`, `drips` and friends as named groups rather than one
 flattened path soup.
 
-## The splash picture is NOT one of these
+## There is no splash picture
 
-`public/art/splash.webp` is a real loaded asset — the only one this app has —
-drawn by `drawSplash` on the `splash` phase (the screen a cleared room lands on).
-Replace that file and the game picks it up; nothing in `main.js` needs to change,
-including the sky colours that extend it past the ends of a tall phone, which are
-sampled from the picture's own top and bottom rows.
+The `splash` phase (the screen a cleared room lands on) is drawn by `drawSplash`
+in `main.js` and is **black** — CONGRATULATIONS, one line under it, and the way
+into the levels grid. It used to be `public/art/splash.webp`, the only loaded
+asset this app had; that file is gone, and so is the sampler that continued its
+sky past the ends of a tall phone.
 
-It currently holds the same picture as hex-clicker's win screen
-(`apps/hex-clicker/public/art/hex-splash.webp`) — a deliberate stand-in until
-Goomba's own splash exists. Two copies, because the two games are separately
-deployed bundles and these are expected to diverge, not one asset shared.
+hex-clicker's win screen still has a picture of its own
+(`apps/hex-clicker/public/art/hex-splash.webp`). The two games always kept
+separate files rather than sharing one, which is exactly why this one could go
+without touching that one.

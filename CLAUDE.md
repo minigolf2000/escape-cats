@@ -243,15 +243,17 @@ findings — do not design from intuition, the sim disproves it reliably.
   prod: `/proctor`, assign yourself to a team, open the game with `?debug`. Hex
   keeps `?debug&speed=N` for balance work.
 - **NEXT off the finale of a cleared room lands on the `splash` phase**, not a
-  victory lap: the congratulations screen (`drawSplash` in `main.js`) — one
-  full-screen picture with CONGRATULATIONS, what the room just cleared and the
-  way on drawn over it (`drawSplashWords`), and no other control than the level
-  selector the clear just unlocked. The words are on the CANVAS, not in the HUD,
-  because they sit over the art and have to be measured against it — every line
-  shrinks to fit rather than wrapping, since a canvas has no wrapping and a
-  320px phone silently ran them off both sides. They are boilerplate on purpose:
-  the picture is a stand-in (see the splash art below), and words leaning on it
-  would have to be rewritten with it. **The whole screen is the way on** — a tap
+  victory lap: the congratulations screen (`drawSplash` in `main.js`) — a BLACK
+  screen with CONGRATULATIONS, what the room just cleared and the way on drawn
+  on it (`drawSplashWords`), and no other control than the level selector the
+  clear just unlocked. There is no picture here: the stand-in art
+  (`public/art/splash.webp`) is deleted, along with the edge-sampler that
+  continued its sky past the ends of a tall phone, and this app now loads no
+  image asset at all. The words are on the CANVAS rather than in the HUD because
+  they are the screen — every line shrinks to fit rather than wrapping, since a
+  canvas has no wrapping and a 320px phone silently ran them off both sides, and
+  the block centres now that there is no art to sit clear of. **The whole screen
+  is the way on** — a tap
   anywhere opens the levels grid (`splashTap`), the dot strip's plate still does
   too, and both call one `openSelector` so the gate cannot differ between them.
   The tap fires on the RELEASE, so the grid never inherits the tail of the
@@ -259,18 +261,19 @@ findings — do not design from intuition, the sim disproves it reliably.
   plays from the splash; the ways out are a `goto` and a proctor reset.
   `nextLeadsToSplash` is the one predicate for the transition into it — the PLAY
   button's "FINISH ▸" label reads it too.
-- **The splash pictures are drop-in files, and there are TWO of them**:
-  `apps/goomba-glider/public/art/splash.webp` and
-  `apps/hex-clicker/public/art/hex-splash.webp`. Same image today (the cat on
-  the moon) as a deliberate stand-in until Goomba has its own; two copies
-  because the apps are separately deployed bundles and are expected to diverge,
-  not one asset shared. Replace a file and nothing in code changes: both games
-  show the WHOLE picture, fitted on whichever axis binds — width on a phone (far
-  narrower than these are tall), height on a laptop (wider than they are
-  proportionally tall, so a width fit would overflow and eat the cat off the
-  top) — and fill the slack with sky SAMPLED from the picture's own edges: the
-  flat top and bottom rows above and below it, a ramp between those two beside
-  it. Don't hardcode a sky, and don't go back to cropping either axis.
+- **The splash picture is HEX's, and it is a drop-in file**:
+  `apps/hex-clicker/public/art/hex-splash.webp`. Goomba's copy is gone — its
+  splash is black now (see the congratulations screen above) — and the two were
+  always separate files rather than one shared asset, which is what let one game
+  drop its picture without touching the other. Replace hex's file and nothing in
+  code changes: it shows the WHOLE picture, fitted on whichever axis binds —
+  width on a phone (far narrower than it is tall), height on a laptop (wider
+  than it is proportionally tall, so a width fit would overflow and eat the cat
+  off the top) — and fills the slack with sky SAMPLED from the picture's own
+  edges: the flat top and bottom rows above and below it, a ramp between those
+  two beside it. Don't hardcode a sky, and don't go back to cropping either
+  axis. If Goomba ever wants a picture again, that sampler is the pattern to
+  copy back (`skyStops` still lives in hex's `phase.js`; git has Goomba's).
 - **Goomba's waiting screen IS its how-to-play sheet, and it is PICTURES**:
   the gate that a phone waits on before the proctor sorts it in shows the game's
   title, two scenes and two short captions — where she is going (past every can,

@@ -59,8 +59,8 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   a card jumps the whole room to that level (teammates follow) — on a laptop
   that is a DOUBLE-click, since a single one selects (see the editor below). Taking NEXT off
   the finale of a cleared room lands on the **splash** phase — the
-  congratulations screen, whose only control is that selector: the strip is
-  still up top, and a tap anywhere on the picture opens the grid too. `?debug` is nothing but a local override of the
+  congratulations screen, black, whose only control is that selector: the strip
+  is still up top, and a tap anywhere on the screen opens the grid too. `?debug` is nothing but a local override of the
   unlock — one phone in the state a cleared room is in — and `?solo` runs the
   same grid on the in-page sim with no server (hex's
   `?debug` architecture). Testing happens
@@ -662,21 +662,22 @@ the lobby and a proctor re-sort takes effect on reload.
 
 ### The win splash
 
-Both games end on the same picture and reach it two different ways, because the
-two wins are different KINDS of fact.
+Both games end on a terminal screen of their own and reach it two different
+ways, because the two wins are different KINDS of fact. Goomba's is black with
+the congratulations on it; hex's is a picture.
 
 **Goomba Glider scores its own.** Clearing every level sets `finishedAt`
 (`goombaCleared`), and taking NEXT off the finale then lands the room on a
-terminal `splash` phase — one full-screen picture, CONGRATULATIONS over it, and
-one control: the level selector that same clear unlocked. The words are drawn
-on the canvas with the picture (`drawSplashWords`) rather than in the HUD, so
-they are measured against the art and shrink to fit a narrow phone; they are
-deliberately boilerplate, because the art under them is a stand-in and words
-that leaned on a particular picture would have to be redrawn with it. The way on
-is the whole screen — a tap anywhere opens the grid (`splashTap`), the dot
-strip's plate still does too, and both go through one `openSelector`.
-`nextLeadsToSplash` is the single predicate for the transition INTO it, so the
-PLAY button's "FINISH ▸" label and the sim's own branch cannot disagree.
+terminal `splash` phase — a black screen with CONGRATULATIONS on it, and one
+control: the level selector that same clear unlocked. It used to be a picture;
+that stand-in art is deleted, and Goomba Glider now loads no image asset at all.
+The words are drawn on the canvas (`drawSplashWords`) rather than in the HUD,
+centred, and every line shrinks to fit rather than wrapping, which a canvas
+cannot do for itself. The way on is the whole screen — a tap anywhere opens the
+grid (`splashTap`), the dot strip's plate still does too, and both go through
+one `openSelector`. `nextLeadsToSplash` is the single predicate for the
+transition INTO it, so the PLAY button's "FINISH ▸" label and the sim's own
+branch cannot disagree.
 
 **Hex cannot.** Its ending is a code word that leaves the game on a phone and
 comes back as four people reading it out to the proctor, so no amount of state
@@ -691,21 +692,22 @@ travel; these are one room state seen two ways). The splash raises itself once,
 on the live edge, exactly as the night cutscene fires once and never replays for
 a rejoining phone.
 
-Both pictures are ordinary files —
-`apps/{goomba-glider,hex-clicker}/public/art/*splash.webp`, the same image for
-now as a stand-in until Goomba has its own — and both are drawn the same way:
-the WHOLE picture, never cropped, fitted on whichever axis binds. A phone is far
-narrower than these are tall, so the width binds and the slack is above and
-below; a laptop is wider than the picture is proportionally tall, so the height
-binds instead and the slack is to the sides (fitting the width there would
-overflow the screen and eat the top of the art, which is where the cat is). The
-sky is continued into whichever slack there is, in colours sampled from the
-picture's own edges: flat top and bottom rows above and below it, and a ramp
+The remaining picture is an ordinary file —
+`apps/hex-clicker/public/art/hex-splash.webp`; Goomba's copy is gone with its
+artwork, and the two were always separate files rather than one shared asset,
+which is what let one game drop its picture without touching the other. It is
+drawn as the WHOLE picture, never cropped, fitted on whichever axis binds. A
+phone is far narrower than it is tall, so the width binds and the slack is above
+and below; a laptop is wider than the picture is proportionally tall, so the
+height binds instead and the slack is to the sides (fitting the width there
+would overflow the screen and eat the top of the art, which is where the cat
+is). The sky is continued into whichever slack there is, in colours sampled
+from the picture's own edges: flat top and bottom rows above and below it, and a ramp
 between those two beside it, pinned to the art's own ends so it tracks the sky
 painted down the picture's edge. The two fills never collide — a width-fitted
 picture covers the screen side to side, a height-fitted one covers it top to
-bottom — so each is exact rather than approximate. Replace a file and it brings
-its own sky; there is no palette to update.
+bottom — so each is exact rather than approximate. Replace the file and it
+brings its own sky; there is no palette to update.
 
 Either win is taken back by that game's **reset**, along with everything else.
 

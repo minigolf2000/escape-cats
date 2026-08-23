@@ -135,8 +135,10 @@
      them back; what is here instead is two PICTURES, drawn by the game itself
      (`drawSheet` in main.js) out of the same code that draws the level — so a
      player is shown the exact art they are about to touch, and a can in the
-     picture cannot drift from a can in the game. `?` bottom-left re-opens the
-     same sheet mid-party. `.ready` is DISMISSIBLE — the connection lines
+     picture cannot drift from a can in the game. Goomba glides across the
+     TITLE out of the same renderer (drawTitleScene) — the one drawing here
+     with no caption under it, because it says nothing the words don't.
+     `?` bottom-left re-opens the same sheet mid-party. `.ready` is DISMISSIBLE — the connection lines
      swapped for the way out — which the sheet becomes once the room is live
      and is born as when `?` opens it. It never dismisses itself: the sheet
      waits for a tap, because a screen that vanishes the instant the proctor
@@ -145,8 +147,18 @@
           justify-content: center; gap: 12px; background: rgba(13,6,30,.86); pointer-events: auto;
           text-align: center; padding: 24px; }
   #gate.hidden { display: none; }
-  #gate h1 { margin: 0; font-size: clamp(30px, 8vw, 48px); letter-spacing: .01em;
+  /* The title, and Goomba gliding along the top of it. The words' SIZE lives
+     on the wrapper rather than on the h1 so that one `em` means the same thing
+     to both of them: her little canvas is parked off the cap line in em, so she
+     rides the letters at 30px and at 48px without a second breakpoint. */
+  #title { position: relative; font-size: clamp(30px, 8vw, 48px); }
+  #gate h1 { margin: 0; font-size: 1em; letter-spacing: .01em;
              background: linear-gradient(90deg, #ff5db1, #ffd166, #57e6c9); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  /* Bottom edge on the CAP LINE — measured at .19em under the box top here,
+     kept a hair above it — so "the ground" she glides over is the top of the
+     words, and the dip in her glide skims them instead of cutting through. */
+  #title #scTitle { position: absolute; left: 0; width: 100%; height: .9em;
+                    bottom: calc(100% - .17em); pointer-events: none; }
   #gate .how { display: flex; flex-direction: column; align-items: center; gap: 6px;
                width: 100%; max-width: 340px; }
   /* The two pictures. Their SIZE lives here and nowhere else — main.js reads
@@ -222,11 +234,14 @@
   <button id="help" aria-label="how to play">?</button>
   <div id="toast"></div>
   <div id="gate">
-    <h1>GOOMBA GLIDER</h1>
+    <div id="title">
+      <h1>GOOMBA GLIDER</h1>
+      <canvas id="scTitle" aria-hidden="true"></canvas>
+    </div>
     <div class="how">
       <canvas class="scene" id="scGoal" role="img"
-              aria-label="Goomba rides past every watering can and home to her spider plant."></canvas>
-      <div class="cap"><b>water</b> the <b>plant</b></div>
+              aria-label="Goomba rolls downhill past every watering can and home to her spider plant."></canvas>
+      <div class="cap">help <b>water</b> the <b>plant</b></div>
       <canvas class="scene" id="scBands" role="img"
               aria-label="A silly band laid across a gap carries her over it; another is being stretched into place ahead of her."></canvas>
       <div class="cap">using your <b>4 bands</b></div>

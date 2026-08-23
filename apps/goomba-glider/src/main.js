@@ -280,7 +280,7 @@ let parts = [], confetti = [], cushAnim = [], popPrev = null;
 const $ = (id) => document.getElementById(id);
 const hudEl = $("hud");
 const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
-  teamEl = $("team"), playBtn = $("play"), clearBtn = $("clear"), toastEl = $("toast"),
+  playBtn = $("play"), clearBtn = $("clear"), toastEl = $("toast"),
   labEl = $("lab"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
   connEl = $("conn");
@@ -422,7 +422,6 @@ function syncHud() {
   // left to say about them. An empty slot during edit is lit rather than faded,
   // since an empty slot is one I may fill — there is no share of them to be
   // outside of any more.
-  const pid = playerId();
   const ink = bandInk();
   invEl.innerHTML = "";
   for (let i = 0; i < MAX_BANDS; i++) {
@@ -437,17 +436,6 @@ function syncHud() {
     invEl.appendChild(el);
   }
 
-  // Roster line: who is here, in the team's colour; my own name bold. Not one
-  // colour per player any more — a player's colour used to be their band's, and
-  // the bands are the room's now.
-  teamEl.innerHTML = s.players
-    .map((p) => {
-      const name = escapeHtml(p.name);
-      const body = p.id === pid ? `<b>${name}</b>` : name;
-      return `<span class="${p.connected ? "" : "off"}" style="color:${ink}">${body}</span>`;
-    })
-    .join(" · ");
-
   // On the finale of a cleared room NEXT is the curtain call, not another
   // level — nextLeadsToSplash is the sim's own predicate for that transition,
   // so the label cannot disagree with where the button actually goes.
@@ -461,7 +449,6 @@ function syncHud() {
   // is the kind of thing this row has been burned by.
   clearBtn.classList.toggle("hide", !(s.phase === "edit" && s.bands.length));
 }
-const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 playBtn.onclick = () => {
   if (!snap) return;
@@ -915,8 +902,8 @@ function drawBand(bd, excite, ghost) {
 /** A teammate's band-in-progress: same sagging shape as a real band, but
  * translucent with marching dashes and hollow endpoint rings — reads as
  * "being dragged", never as "placed". The team's colour like every other band;
- * what makes it theirs rather than mine is the motion, and the name on the
- * anchor below. */
+ * what makes it theirs rather than mine is the motion — no name, here or
+ * anywhere else on this screen. */
 function drawTeammatePreview(p) {
   const pts = bandPoints(p);
   const col = bandInk();
@@ -966,13 +953,13 @@ function drawAnchor(a) {
   ctx.globalAlpha = 1;
 }
 
-/** The same waiting point, seen from a teammate's phone: their name, no
- * instruction (it isn't your tap to finish). Drawn for any preview too short to
- * be a band — see GoombaBandPreview. */
+/** The same waiting point, seen from a teammate's phone: a ring alone — no
+ * instruction (it isn't your tap to finish) and no name (nothing in this game
+ * draws one; the four of them are in the same room). Drawn for any preview too
+ * short to be a band — see GoombaBandPreview. */
 function drawTeammateAnchor(p) {
   const x = sxp(p.ax), y = syp(p.ay);
   const col = bandInk();
-  const who = snap.players.find((q) => q.id === p.pid)?.name ?? "";
   ctx.globalAlpha = 0.55 + 0.25 * Math.sin(tGlobal * 4);
   ctx.strokeStyle = col; ctx.lineWidth = 1.5;
   ctx.setLineDash([4, 4]); ctx.lineDashOffset = -tGlobal * 22;
@@ -981,16 +968,6 @@ function drawTeammateAnchor(p) {
   ctx.globalAlpha = 1;
   ctx.strokeStyle = col; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.28); ctx.stroke();
-  if (!who) return;
-  const label = who.length > 12 ? who.slice(0, 11) + "…" : who;
-  ctx.font = "600 11px ui-rounded, system-ui, sans-serif";
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  const w = ctx.measureText(label).width + 12;
-  ctx.fillStyle = "rgba(20,10,45,0.82)";
-  ctx.beginPath(); ctx.roundRect(x - w / 2, y + 18, w, 17, 8.5); ctx.fill();
-  ctx.fillStyle = col;
-  ctx.fillText(label, x, y + 27);
-  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 }
 
 function drawCushion(c, squish) {
@@ -1772,12 +1749,10 @@ function frame(nowMs) {
 const NAME_KEY = "escape-cats-name";
 
 function boot() {
-  // `.debug` is now only the tester's chrome (it drops the roster line); the
-  // SELECTOR rides `.cleared`, which syncHud toggles off the room's snapshot —
-  // ?debug simply forces that predicate true (see levelSelect).
-  if (DEBUG) {
-    hudEl.classList.add("debug");
-  }
+  // ?debug adds no chrome of its own any more — the roster line it used to
+  // hide is gone from every phone. The SELECTOR rides `.cleared`, which syncHud
+  // toggles off the room's snapshot, and ?debug simply forces that predicate
+  // true (see levelSelect).
   if (SOLO) {
     // Serverless: the shared sim in-page. A level pasted in via the hash opens
     // ON that level; otherwise we land on the grid as before.

@@ -5,6 +5,8 @@ import {
   earsFor,
   earsHeight,
   teamEarsSvg,
+  OPEN_ROOM_OPEN,
+  OPEN_TEAM,
   TEAM_SIZE,
   TEAMS,
   type LobbyClientMsg,
@@ -14,6 +16,8 @@ import {
 } from "@escape-cats/shared";
 import { PARTYKIT_HOST } from "./net";
 import { TeamGame } from "./TeamGame";
+import { TeamChat, useChats } from "./Chats";
+import { TestRoom } from "./TestRoom";
 
 /** Zone id for the players nobody has sorted yet. `null` is the wire value for
  * "no team"; this string never leaves the page. */
@@ -72,15 +76,19 @@ interface Drag {
  * sort anyone. A team id is also the room id both games run in, so dropping
  * someone on Team 2 is what puts them in room t2 — there is no other route in.
  *
- * A team's box is ALSO that team's live game status (see TeamGame), because the
- * two answer the same question: how is Team 2 doing? Only the Unassigned box is
- * a bare holding pen.
+ * A box is ALSO everything else about the room those players are in — the live
+ * game status (see TeamGame) and the chat log (see TeamChat) — because they all
+ * answer the same question: how is Team 2 doing? Unassigned is no exception,
+ * and that is the point of it being a zone at all: its players are exactly the
+ * phones in the shared testing room, so it carries t0's readout and t0's
+ * channel in the same two slots a team's box uses.
  *
  * The drag runs on POINTER events rather than HTML5 drag-and-drop, which fires
  * no dragstart under a finger. Dragging is the whole interface now, so a
  * proctor holding a tablet would otherwise have no way to sort anybody.
  */
 export function Lobby() {
+  const chats = useChats();
   const [players, setPlayers] = useState<LobbyPlayer[]>([]);
   const [online, setOnline] = useState(false);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -359,13 +367,32 @@ export function Lobby() {
               {isTeam ? (
                 <TeamGame team={z} assigned={members} />
               ) : (
-                members.length === 0 && <p className="zone-empty">Drop here</p>
+                <>
+                  {members.length === 0 && (
+                    <p className="zone-empty">Drop here</p>
+                  )}
+                  {/* The holding pen's own game: every phone in this box is
+                      playing the shared testing room, so it gets the readout a
+                      team's box gets, in the same slot. */}
+                  <TestRoom />
+                </>
+              )}
+              {/* Last block in the box, for teams and the pen alike. The pen
+                  reads t0's channel, because that is the room its phones are
+                  typing in. Skipped when the testing room is closed — there is
+                  no channel to read then. */}
+              {(isTeam || OPEN_ROOM_OPEN) && (
+                <TeamChat room={isTeam ? z.id : OPEN_TEAM.id} />
               )}
             </div>
           );
         })}
       </div>
 
+      {/* The board's two destructive controls, on one row under it. Clearing
+       * the chats lives here rather than over the logs: the logs are inside the
+       * boxes now, five of them, and a wipe-everything button repeated in each
+       * would be five ways to do one thing. */}
       <div className="lobby-actions">
         <button
           className="small"
@@ -376,6 +403,13 @@ export function Lobby() {
           }}
         >
           Clear teams
+        </button>
+        <button
+          className="small danger"
+          disabled={chats.total === 0}
+          onClick={chats.clearAll}
+        >
+          Clear all chats ({chats.total})
         </button>
       </div>
 

@@ -159,8 +159,9 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
   margin-top: 12px;
-  /* Boxes size to their own content — Unassigned holds only names, a team box
-   * also carries a whole game readout. */
+  /* Boxes size to their own content — every one now carries a roster, a game
+   * readout and a chat log, but a team's roster is four fixed seats and the
+   * pen's is however many phones are waiting. */
   align-items: start;
 }
 .zone {
@@ -324,50 +325,26 @@ button.small:disabled {
   cursor: default;
 }
 
-/* ---- Team chat, read-only ---- */
-/* Below the board, never inside a team's box: a box is a drop target of fixed
- * height, and a log that grew with every message would move the boxes beside
- * it out from under a mid-drag finger. See the note in Chats.tsx. */
-.chats {
-  text-align: left;
-  border-top: 1px solid #1e2230;
-  padding-top: 16px;
-}
-.chats-head {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-.chats h2 {
-  margin: 0;
-  font-size: 19px;
-}
-/* The one destructive control down here. Sits after button.small in the file
- * so it wins the background back. */
-.chats-head button.small.danger {
-  margin-top: 0;
-  margin-left: auto;
-  background: #d64b3b;
-  border-color: #d64b3b;
-  color: white;
-}
-.chat-cols {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-  margin-top: 12px;
-}
+/* ---- Chat, read-only, inside the zone boxes ---- */
+/* The last block in a box, under the game readouts and wearing the same
+ * divider, so roster / games / chat read as one stack about one room rather
+ * than three cards. No background or border of its own for the same reason —
+ * the box is the card. It may sit inside a drop target because it cannot change
+ * that target's height: the log below is fixed and scrolls internally. See the
+ * note in Chats.tsx. */
 .chat-col {
-  background: #12141b;
-  border: 1px solid #1e2230;
-  border-radius: 12px;
-  padding: 10px 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #1e2230;
 }
 .chat-col h3 {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
+  /* Same slot as a .game heading — the blocks above it are 15px too. */
+  height: 15px;
+  line-height: 15px;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -375,15 +352,19 @@ button.small:disabled {
   color: #8a90a2;
   margin-bottom: 6px;
 }
-/* Fixed height and scrolled internally, so four unequal conversations leave
- * the row one height rather than four. */
+/* Fixed height and scrolled internally: five unequal conversations leave the
+ * row one height, and — now that this lives in a drop target — no message can
+ * move the box under a proctor's finger mid-drag. */
 .chat-log {
   list-style: none;
   margin: 0;
   padding: 0;
-  height: 220px;
+  height: 150px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* The rows above are drag handles with touch-action: none; this one is not.
+   * A finger inside the log scrolls the log. */
+  touch-action: pan-y;
 }
 .chat-line {
   display: grid;
@@ -406,7 +387,7 @@ button.small:disabled {
   font-variant-numeric: tabular-nums;
 }
 /* The only arbitrary player-authored text on this page — wrapped, not clipped:
- * nothing here is load-bearing for the drag's geometry, and a proctor reading
+ * the log's own height is what holds the geometry still, and a proctor reading
  * a message needs all of it. */
 .chat-body {
   grid-column: 1 / -1;
@@ -421,15 +402,22 @@ button.small:disabled {
 }
 
 /* ---- The shared testing room ---- */
-/* Not one of the board's boxes on purpose — see TestRoom.tsx. It borrows the
- * .zone skin so it reads as the same kind of thing, at the width of one. */
-.testroom {
-  text-align: left;
-}
-.testroom .zone {
-  max-width: 340px;
-}
+/* A block inside the Unassigned box, in the slot a team's games occupy — see
+ * TestRoom.tsx. Nothing to lay out beyond the caption above the readout. */
 .testroom .muted {
   display: block;
-  margin-bottom: 2px;
+  margin: 6px 0 2px;
+}
+
+/* The board's destructive controls, under it. The chat wipe is the one that
+ * must not lose its red to button.small's background. */
+.lobby-actions button.small.danger {
+  background: #d64b3b;
+  border-color: #d64b3b;
+  color: white;
+}
+.lobby-actions button.small.danger:disabled {
+  background: #12141b;
+  border-color: #2b3040;
+  color: #e8eaf0;
 }

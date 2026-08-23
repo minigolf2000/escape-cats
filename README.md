@@ -25,9 +25,9 @@ apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on (and its chat) — no links into the games
 apps/chat/           Per-team chat: one channel per team, roomed by team id
 apps/proctor/        Hidden proctor dashboard, one flat page: five boxes, where a
-                     team's box is BOTH its drag-and-drop drop target and its
-                     live game status (+ reset), plus one QR into the lobby —
-                     and every team's chat below it, read-only
+                     box is a drag-and-drop drop target, its room's live game
+                     status (+ reset) and its room's chat, read-only — plus one
+                     QR into the lobby
 packages/shared/     Wire protocol, seeded RNG, and BOTH whole games: hex
                      balance/rules/sim (hex/), and goomba levels + physics +
                      room sim (goomba/)
@@ -525,6 +525,16 @@ The proctor is the only client that assigns, and nothing here is a security
 boundary, so a second copy of the rule on the server would be one more place to
 forget rather than a real guard.
 
+**A box is EVERYTHING about one room, in one place**: the roster, both game
+readouts, and the chat log, stacked in that order behind one divider each. They
+all answer the same question — how is Team 2 doing? — so they are one card, not
+three. Unassigned is a box like any other: its players are exactly the phones
+in the shared testing room, so it carries t0's readouts and t0's channel in the
+same two slots (`TestRoom.tsx`, `TeamChat` in `Chats.tsx`). What does NOT live
+in a box is the chat SOCKETS — five of them, held by a provider above the board
+so a re-render cannot reconnect them, and so the one "Clear all chats" button
+can fan out over all five at once.
+
 **A team's box is a fixed size, and that is a hard requirement rather than a
 nicety.** Five boxes sit in one grid row, so a box that grew by a line when a
 codeword landed — or when a mouse count reached seven figures, or when a fourth
@@ -534,6 +544,10 @@ whether filled or empty, every readout line is drawn in every state (absent
 values become placeholders, and the finished-run line occupies the same slot the
 "codeword locked" line does), and long values are CLIPPED rather than wrapped.
 Adding a line to a game block is therefore a layout decision, not a free one.
+The chat log obeys the same rule by a different means: it is a fixed 150px that
+scrolls internally, so a hundred messages move nothing. That fixed height is
+what lets it sit inside a drop target at all — it was below the board until the
+height, not the position, turned out to be the load-bearing part.
 
 Goomba Glider's block in each team box is live: the fourth Durable Object
 (`Goomba` binding, roomed by team id like everything else) feeds it phase,
@@ -709,10 +723,13 @@ The details that make it behave:
   team, the page reloads and re-asks — which lands it in the team's room, chat
   included. That is the only new socket this adds, and only for phones that
   would have been sitting on a waiting screen anyway.
-- **The proctor watches it from its own box** (`apps/proctor/src/TestRoom.tsx`),
-  below the board rather than in it: same two game readouts, same two reset
-  buttons, which is the only way to unwedge a room nobody is sorted into. Its
-  chat is the fifth column in the chat panel.
+- **The proctor watches it inside the Unassigned box**
+  (`apps/proctor/src/TestRoom.tsx`): same two game readouts, same two reset
+  buttons, which is the only way to unwedge a room nobody is sorted into, and
+  t0's chat log under them. It goes there because the pen's roster IS the set of
+  phones playing in t0 — the same pairing a team's box makes between its players
+  and its games. It is still not a sixth drop target; it is a block inside the
+  first of the five.
 - **What degrades with a crowd.** Both games are built for four. Goomba has 4
   bands for the whole room however many phones are in it, so a crowd is a lot of
   thumbs over one board — first tap wins the band, and the rest watch or lift it

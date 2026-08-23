@@ -215,7 +215,7 @@ function oneEffectText(e, reveal = false) {
     case "clickShare":
       return `+${hl(e.pct + "%")} of your /s per pet`;
     case "clickMult":
-      return `Petting is ${hl(multWord(e.mult))} as strong`;
+      return `Petting is ${hl(multWord(e.mult))} as good`;
     case "goldenFreq":
       return Number.isInteger(e.mult)
         ? `Golden mice appear ${hl(multWord(e.mult))} as often`

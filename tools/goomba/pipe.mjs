@@ -151,7 +151,7 @@ if (has("link")) {
 }
 
 console.log(`MOMENTUM ARC — quarter-pipe at (${mx},${my}), r ${r}, ${n} lines, popper ${spd} at ${gap} u short of the mouth\n`);
-console.log(`  popper fires her at        ${one.vPop.toFixed(1)} u/s   (max(arrival, spd × 0.82), capped at ${maxSpeed})`);
+console.log(`  popper fires her at        ${one.vPop.toFixed(1)} u/s   (spd × 0.82, capped at ${maxSpeed} — constant, whatever she arrived with)`);
 console.log(`  she reaches the mouth at   ${one.vMouth.toFixed(1)} u/s   (${(one.vPop - one.vMouth).toFixed(1)} eaten by ${gap} u of flat)`);
 console.log(`  she leaves the lip at      ${Math.hypot(one.vLip.x, one.vLip.y).toFixed(1)} u/s   (${one.vLip.y.toFixed(1)} up, ${one.vLip.x.toFixed(1)} across)`);
 console.log(`  RISE above her ride height ${one.rise.toFixed(1)} u    — ${pct(one.keep)} of the ${one.ceiling.toFixed(1)} u that launch was worth`);

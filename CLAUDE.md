@@ -269,10 +269,18 @@ findings — do not design from intuition, the sim disproves it reliably.
   `ctx`/`W`/`H`/`cam` at the sheet's little canvases and back — the same trick
   the level cards play, and the reason a can in the picture cannot drift from a
   can in the game. `?` bottom-left (PLAY's corner, mirrored) re-opens the same
-  element mid-party as `.help`: dismissible by a tap anywhere or any key, with
-  the connection lines swapped for the way out. That button is the point of the
-  redesign — the old four-sentence gate was read once, by whoever was looking,
-  and nothing ever brought it back. Don't add a second copy of these
+  element mid-party. `.ready` is the dismissible wearing — a tap anywhere or any
+  key, with the connection lines swapped for the way out — and the sheet
+  **never dismisses itself**: the first snapshot only ARMS it (`armSheet`), so
+  the player taps past the pictures rather than having them yanked away the
+  instant the proctor sorts the phone in. The exception is the grid already
+  being open (`?solo`, a pasted level), where `#hud.lab > *` would hide the
+  sheet anyway. The tap is bound to **pointerdown, not click** — the kiosk
+  lockdown preventDefault()s touchstart off buttons and links, which kills the
+  synthesised click, so an `onclick` here dismisses on a laptop and does
+  nothing on a phone (it shipped that way once). That `?` button is the point
+  of the redesign — the old four-sentence gate was read once, by whoever was
+  looking, and nothing ever brought it back. Don't add a second copy of these
   instructions anywhere; edit the sheet.
 - **Hex's win is the PROCTOR's press, and it unlocks a splash you can toggle
   away from**: hex cannot score its own win — the code word leaves the game on a

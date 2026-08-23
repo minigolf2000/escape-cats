@@ -132,8 +132,11 @@
      (`drawSheet` in main.js) out of the same code that draws the level — so a
      player is shown the exact art they are about to touch, and a can in the
      picture cannot drift from a can in the game. `?` bottom-left re-opens the
-     same sheet mid-party: `.help` is that second wearing, dismissible, with
-     the connection lines swapped for the way out. */
+     same sheet mid-party. `.ready` is DISMISSIBLE — the connection lines
+     swapped for the way out — which the sheet becomes once the room is live
+     and is born as when `?` opens it. It never dismisses itself: the sheet
+     waits for a tap, because a screen that vanishes the instant the proctor
+     sorts a phone in is a screen nobody read. */
   #gate { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
           justify-content: center; gap: 12px; background: rgba(13,6,30,.86); pointer-events: auto;
           text-align: center; padding: 24px; }
@@ -152,8 +155,8 @@
   #gateStatus { color: #c9bdf0; font-size: 14px; }
   #gateErr { color: #ff8f8f; font-size: 13px; min-height: 1.2em; }
   #gateClose { display: none; color: #8a80b0; font-size: 12px; }
-  #gate.help #gateStatus, #gate.help #gateErr { display: none; }
-  #gate.help #gateClose { display: block; }
+  #gate.ready #gateStatus, #gate.ready #gateErr { display: none; }
+  #gate.ready #gateClose { display: block; }
 
   /* The way back to the sheet, mid-party: PLAY's own corner, mirrored. A party
      game is joined late and handed between people, so "how does this work"

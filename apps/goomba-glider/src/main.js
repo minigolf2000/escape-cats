@@ -288,6 +288,7 @@ const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   playBtn = $("play"), clearBtn = $("clear"), toastEl = $("toast"),
   labEl = $("lab"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
+  gateCloseEl = $("gateClose"),
   helpEl = $("help"), scGoalEl = $("scGoal"), scBandsEl = $("scBands"),
   connEl = $("conn");
 
@@ -364,7 +365,13 @@ function onSnapshot(s) {
 
   if (first) {
     inited = true;
-    closeSheet();
+    // The room is live, so the sheet stops waiting and starts asking: it is
+    // now dismissible, and the player is the one who dismisses it. Unless the
+    // GRID is already open — `?solo` and a pasted level both land there — in
+    // which case the sheet has nowhere to sit: `#hud.lab > *` hides it, so
+    // arming it would only leave an invisible sheet swallowing the next key.
+    if (labOpen) closeSheet();
+    else armSheet("tap anywhere to start");
     requestAnimationFrame(frame);
   }
   if (s.phase !== "edit") resetInput(); // a run kills any half-drawn band
@@ -480,7 +487,7 @@ window.addEventListener("keydown", (e) => {
   // The help sheet owns the keyboard while it is up: Space behind it would
   // launch a run nobody on this screen can see. Any key dismisses it — there is
   // nothing else to answer.
-  if (sheetHelp) {
+  if (sheetTap) {
     if (e.key === "Shift" || e.key === "Control" || e.key === "Alt" || e.key === "Meta") return;
     e.preventDefault(); closeSheet(); return;
   }
@@ -524,7 +531,7 @@ window.addEventListener("paste", (e) => {
   // rest of this file gives it — not a hidden second way to rewrite the pack.
   if (!DESKTOP()) return;
   e.preventDefault();
-  if (sheetHelp) closeSheet();   // the grid must not open behind the sheet
+  if (sheetTap) closeSheet();   // the grid must not open behind the sheet
   // Read the screen NOW, not when the clipboard resolves: this is about what
   // the person was looking at when they pressed the key.
   const onGrid = labOpen;
@@ -1885,25 +1892,43 @@ function drawSheet() {
   drawScene(scBandsEl, BAND_SCENE.bounds, drawBandScene);
 }
 
-// The sheet's two wearings. It opens as the GATE (undismissable, carrying the
-// connection status) and is the same element every time after, opened by `?`
-// and closed by a tap anywhere on it. `sheetOpen` is what the loops render off;
-// `sheetHelp` is only "may this be dismissed", which is the entire difference.
-let sheetOpen = true, sheetHelp = false;
+// The sheet's two wearings. It opens as the GATE, carrying the connection
+// status, and is the same element every time after, opened by `?`. `sheetOpen`
+// is what the loops render off; `sheetTap` is only "may this be dismissed",
+// which is the entire difference — and the sheet is NEVER dismissed by anything
+// but a tap or a key. The room going live only ARMS it (`armSheet` below): a
+// how-to-play sheet that vanishes by itself the moment the proctor sorts a
+// phone in is a sheet nobody read, which is the whole failure the pictures
+// replaced.
+let sheetOpen = true, sheetTap = false;
 
-function openHelp() {
-  sheetOpen = true; sheetHelp = true;
-  gateEl.classList.add("help"); gateEl.classList.remove("hidden");
+/** Make the sheet dismissible, with `label` as the line saying so. */
+function armSheet(label) {
+  sheetOpen = true; sheetTap = true;
+  gateEl.classList.add("ready"); gateEl.classList.remove("hidden");
   hudEl.classList.add("sheet");
+  gateCloseEl.textContent = label;
   drawSheet();   // the frame it appears on is already the picture, never a blank box
 }
+function openHelp() { armSheet("tap anywhere to close"); }
 function closeSheet() {
-  sheetOpen = false; sheetHelp = false;
-  gateEl.classList.add("hidden"); gateEl.classList.remove("help");
+  sheetOpen = false; sheetTap = false;
+  gateEl.classList.add("hidden"); gateEl.classList.remove("ready");
   hudEl.classList.remove("sheet");
 }
 helpEl.onclick = openHelp;
-gateEl.onclick = () => { if (sheetHelp) closeSheet(); };
+// POINTERDOWN, not click: the kiosk lockdown at the top of this file
+// preventDefault()s touchstart on anything that is not a button or a link, and
+// that is exactly what cancels the synthesised `click` a finger would otherwise
+// produce — so an `onclick` here is a desktop-only dismiss. pointerdown is the
+// one press both a finger and a mouse deliver. Nothing beneath can catch the
+// rest of the gesture: the canvas draws bands off touchstart/mousedown, and
+// those went to the gate.
+gateEl.addEventListener("pointerdown", (e) => {
+  if (!sheetTap) return;
+  e.preventDefault();
+  closeSheet();
+});
 
 /** Before the first snapshot there is no game loop — `frame` starts on it —
  * so the sheet drives its own clock until then, and stands down the moment

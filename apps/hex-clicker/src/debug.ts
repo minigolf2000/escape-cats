@@ -43,7 +43,16 @@ export function startDebug(opts: {
       opts.onPetAck(++batchSeq);
     }
   };
-  const emit = () => opts.onSnapshot(sim.snapshot(Date.now(), []));
+  // Income up to the instant the snapshot is STAMPED, exactly as the room's
+  // broadcastState does it — a snapshot banked at the last tick but stamped
+  // now is a bank the page then has to count backwards to. Every path that
+  // emits (the loop, a purchase, the panel) goes through here, so none of them
+  // can forget.
+  const emit = () => {
+    const now = Date.now();
+    sim.tick(now);
+    opts.onSnapshot(sim.snapshot(now, []));
+  };
 
   // Mounted before the loop, because the loop is what keeps the panel's
   // day-only control in step with the phase: the twist lands on a PURCHASE,
@@ -52,8 +61,7 @@ export function startDebug(opts: {
 
   setInterval(() => {
     flushPets(Date.now());
-    sim.tick(Date.now());
-    emit();
+    emit(); // ticks
     syncPanel();
   }, SNAPSHOT_TICK_MS);
 

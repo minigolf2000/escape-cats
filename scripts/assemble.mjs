@@ -42,11 +42,6 @@ const SURFACES = [
   // URL with no rewrite involved -- the path IS the file.
   ["tools/qr-studio.html", "qr-studio", "QR Art Studio"],
   ["tools/reveal-lab.html", "reveal-lab", "Night reveal wall lab"],
-  // Its own surface so g00.mba/ar has somewhere short to land. The file also
-  // ships inside prototypes/ below; duplication is the same deal Goomba Glider
-  // already has, and is cheaper than a rewrite that would have to dodge the
-  // vanity domain's catch-all.
-  ["prototypes/scent-tracker.html", "ar", "Scent Tracker (AR prototype)"],
   ["prototypes", "prototypes", "Prototypes menu + Goomba Glider"],
 ];
 

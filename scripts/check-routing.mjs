@@ -143,14 +143,6 @@ const ENTRIES = [
   ["/", "www.hexxygon.com", "/hexxygon/"],
   ["/", "g00.mba", "/g00mBa/"],
   ["/", "www.g00.mba", "/g00mBa/"],
-  // Both forms: the slashed one exercises the /ar redirect on the vanity host,
-  // the bare one exercises the trailingSlash 308 that precedes it. Either must
-  // beat the host's /:path* catch-all, which would otherwise send /ar into
-  // /g00mBa/ar and 404.
-  ["/ar/", "g00.mba", "/ar/"],
-  ["/ar", "g00.mba", "/ar/"],
-  ["/ar/", "www.g00.mba", "/ar/"],
-  ["/ar", "cat-games-tau.vercel.app", "/ar/"],
 ];
 
 let failures = 0;

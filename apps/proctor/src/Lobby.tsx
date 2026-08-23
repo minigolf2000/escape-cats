@@ -9,6 +9,7 @@ import {
   OPEN_TEAM,
   TEAM_SIZE,
   TEAMS,
+  type AdhocRoom,
   type LobbyClientMsg,
   type LobbyPlayer,
   type LobbyServerMsg,
@@ -18,6 +19,7 @@ import { PARTYKIT_HOST } from "./net";
 import { TeamGame } from "./TeamGame";
 import { TeamChat } from "./Chats";
 import { TestRoom } from "./TestRoom";
+import { AdhocRooms } from "./AdhocRooms";
 
 /** Zone id for the players nobody has sorted yet. `null` is the wire value for
  * "no team"; this string never leaves the page. */
@@ -89,6 +91,9 @@ interface Drag {
  */
 export function Lobby() {
   const [players, setPlayers] = useState<LobbyPlayer[]>([]);
+  /** Only ever populated on a proctor's socket — the lobby sends every other
+   * phone an empty list (see LobbySnapshot.adhoc). */
+  const [adhoc, setAdhoc] = useState<AdhocRoom[]>([]);
   const [online, setOnline] = useState(false);
   const [drag, setDrag] = useState<Drag | null>(null);
   const socketRef = useRef<PartySocket | null>(null);
@@ -115,7 +120,13 @@ export function Lobby() {
       } catch {
         return;
       }
-      if (msg.type === "lobby") setPlayers(msg.snapshot.players);
+      if (msg.type === "lobby") {
+        setPlayers(msg.snapshot.players);
+        // `?? []` for the deploy window, not for a bug: CI starts the Worker
+        // and Vercel at once on a push to main, and a snapshot from a Worker
+        // that predates this field would otherwise blank the whole board.
+        setAdhoc(msg.snapshot.adhoc ?? []);
+      }
     };
     socket.addEventListener("open", onOpen);
     socket.addEventListener("close", onClose);
@@ -410,6 +421,11 @@ export function Lobby() {
           );
         })}
       </div>
+
+      <AdhocRooms
+        rooms={adhoc}
+        onForget={(room) => send({ type: "forgetRoom", room })}
+      />
 
       {drag?.moved && (
         // Moved with a transform, not left/top: this runs on every pointermove,

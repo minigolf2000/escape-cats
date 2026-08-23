@@ -436,3 +436,94 @@ button.small.danger:disabled {
   border-color: #2b3040;
   color: #e8eaf0;
 }
+
+/* ---- Ad-hoc rooms (?r= links) ---- */
+/* A readout at the bottom of the page, outside the board: these are not drop
+ * targets and there is no fixed number of them, so they cannot be boxes in the
+ * zones grid without breaking the rule that a box's height holds still under a
+ * drag. See AdhocRooms.tsx. */
+.adhoc {
+  border-top: 1px solid #1e2230;
+  padding-top: 12px;
+  text-align: left;
+}
+/* The whole header is the toggle — a bar, not a link, because it is the only
+ * thing to press up here and a proctor is often pressing it with a thumb. */
+.adhoc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8a90a2;
+}
+.adhoc-note {
+  margin: 4px 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.adhoc-note code {
+  font-size: 12px;
+  color: #e8eaf0;
+}
+.adhoc-mint {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.adhoc-mint input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 1px solid #2b3040;
+  background: #12141b;
+  color: #ece9f5;
+}
+/* The link that is about to be handed out, spelled in full: it is the thing
+ * being copied, and a proctor with no clipboard permission needs to be able to
+ * read it off the screen. */
+.adhoc-url {
+  font-size: 12px;
+  color: #57e6c9;
+  overflow-wrap: anywhere;
+  margin-bottom: 10px;
+}
+/* Same grid as the board, so a row of rooms reads as the same kind of thing as
+ * a row of teams — just without the drag. */
+.adhoc-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.adhoc-room {
+  border: 1px solid #2b3040;
+  border-radius: 12px;
+  padding: 12px;
+  background: #12141b;
+}
+.adhoc-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.adhoc-btns button.small {
+  margin-top: 0;
+  padding: 6px 11px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.adhoc-mint button.small {
+  margin-top: 0;
+}

@@ -4,12 +4,27 @@ import {
   TEAMS,
   TEAM_IDS,
   decodeLevel,
+  isAdhocRoom,
+  type AdhocRoom,
   type LevelPack,
   type LobbyClientMsg,
   type LobbyPlayer,
   type LobbyServerMsg,
 } from "@escape-cats/shared";
 import { Roster } from "./connections";
+
+/** An ad-hoc room nobody has opened in this long drops off the proctor's list.
+ * The ROOM itself is untouched — this is only how long the lobby keeps saying
+ * "somebody is using this link". A week covers a playtest fortnight's worth of
+ * weekends without the list growing forever. */
+const ADHOC_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** Hard cap on the list, newest kept. A registry fed by anyone with a URL bar
+ * needs a ceiling that does not depend on the TTL doing its job. */
+const ADHOC_MAX = 60;
+/** Don't rewrite storage for an announce this fresh. A room announces on every
+ * connect, and four phones opening one link is four announces in a second —
+ * none of which tells the proctor anything the first one didn't. */
+const ADHOC_SEEN_MS = 60_000;
 
 /**
  * The team lobby. One room ("main" on this party) for the whole event.
@@ -46,6 +61,16 @@ export class LobbyServer extends Server<Env> {
   /** Bumped on every write, so a game room can tell "same pack" from "new
    * pack" without comparing geometry. */
   private packV = 0;
+  /**
+   * **The ad-hoc room registry**: room id -> when a phone last joined it.
+   * Persisted, pruned, and shown to the proctor only.
+   *
+   * The lobby cannot discover these any other way — a Durable Object namespace
+   * has no listing, and an ad-hoc room's players are strangers to the roster
+   * the moment they stop holding a lobby socket. So the ROOM tells us, on the
+   * pack fetch it already makes (see `onRequest`).
+   */
+  private adhoc = new Map<string, number>();
 
   async onStart() {
     const teams =
@@ -57,6 +82,8 @@ export class LobbyServer extends Server<Env> {
     const pack = await this.ctx.storage.get<LevelPack>("pack");
     if (Array.isArray(pack)) this.pack = pack;
     this.packV = (await this.ctx.storage.get<number>("packV")) ?? 0;
+    const adhoc = await this.ctx.storage.get<Record<string, number>>("adhoc");
+    if (adhoc) this.adhoc = new Map(Object.entries(adhoc));
   }
 
   /**
@@ -68,6 +95,13 @@ export class LobbyServer extends Server<Env> {
    * only from inside the Worker — `routePartykitRequest` never routes here.
    */
   async onRequest(request: Request): Promise<Response> {
+    // `?room=` is a goomba room announcing itself as it reads the pack — the
+    // registry's only source (see `adhoc`). It rides this fetch rather than a
+    // door of its own because the room already makes it on every connect, so
+    // the announce costs nothing and cannot drift out of step with "a phone is
+    // actually in there".
+    const room = new URL(request.url).searchParams.get("room");
+    if (room) await this.sawRoom(room);
     if (request.method === "POST") {
       // A pack edit forwarded by a game room (see goomba.ts). Same validation
       // as the socket path — one implementation, two doors.
@@ -75,6 +109,43 @@ export class LobbyServer extends Server<Env> {
       if (msg) await this.packIntent(msg);
     }
     return Response.json({ v: this.packV, pack: this.pack });
+  }
+
+  /**
+   * Record that a phone just joined `room`, if it is one we track.
+   *
+   * Team rooms and the testing room are ignored: they are a fixed list the
+   * proctor's board already draws, and a registry entry for them would be a
+   * second, staler answer to the same question.
+   */
+  private async sawRoom(room: string) {
+    if (!isAdhocRoom(room)) return;
+    const now = Date.now();
+    const seen = this.adhoc.get(room);
+    if (seen !== undefined && now - seen < ADHOC_SEEN_MS) return;
+    this.adhoc.set(room, now);
+    await this.writeAdhoc();
+    this.broadcastState();
+  }
+
+  /** Prune to the TTL and the cap, then persist. Both bounds are applied on
+   * every write rather than on a timer: there is no alarm here, and a lobby
+   * that only ever grows is the failure mode worth spending four lines on. */
+  private async writeAdhoc() {
+    const now = Date.now();
+    const kept = [...this.adhoc]
+      .filter(([, seen]) => now - seen < ADHOC_TTL_MS)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, ADHOC_MAX);
+    this.adhoc = new Map(kept);
+    await this.ctx.storage.put("adhoc", Object.fromEntries(kept));
+  }
+
+  /** The registry as the proctor reads it — newest first. */
+  private adhocList(): AdhocRoom[] {
+    return [...this.adhoc]
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, seenAt]) => ({ id, seenAt }));
   }
 
   onConnect(conn: Connection, ctx: ConnectionContext) {
@@ -153,6 +224,16 @@ export class LobbyServer extends Server<Env> {
           if (t === team) this.teams.delete(pid);
         }
         break;
+      }
+      case "forgetRoom": {
+        if (!proctor) return;
+        // The list, not the room: the Durable Object behind it keeps every
+        // level it has cleared, and the next phone through the link puts it
+        // straight back on the board.
+        this.adhoc.delete(String(msg.room));
+        await this.writeAdhoc();
+        this.broadcastState();
+        return;
       }
       case "forget": {
         if (!proctor) return;
@@ -267,7 +348,7 @@ export class LobbyServer extends Server<Env> {
     );
   }
 
-  private snapshot(): LobbyServerMsg {
+  private snapshot(forProctor: boolean): LobbyServerMsg {
     const live = this.connectedPids();
     const players: LobbyPlayer[] = [...this.names.entries()].map(
       ([pid, name]) => ({
@@ -279,12 +360,36 @@ export class LobbyServer extends Server<Env> {
     );
     return {
       type: "lobby",
-      snapshot: { players, teams: TEAMS, pack: this.pack, packV: this.packV },
+      snapshot: {
+        players,
+        teams: TEAMS,
+        pack: this.pack,
+        packV: this.packV,
+        // The one field that differs by audience — see LobbySnapshot.adhoc.
+        adhoc: forProctor ? this.adhocList() : [],
+      },
     };
   }
 
+  /**
+   * Two payloads, not one: the proctor's carries the ad-hoc room list and a
+   * player's does not, so this cannot use `this.broadcast`.
+   *
+   * Both strings are built once and sent to whoever wants them — the cost of
+   * the split is one extra `JSON.stringify` per broadcast, against a fan-out
+   * that was already one send per phone.
+   */
   private broadcastState() {
-    this.broadcast(JSON.stringify(this.snapshot()));
+    const forPlayers = JSON.stringify(this.snapshot(false));
+    let forProctors: string | null = null;
+    for (const conn of this.getConnections()) {
+      if (this.roster.isProctor(conn)) {
+        forProctors ??= JSON.stringify(this.snapshot(true));
+        conn.send(forProctors);
+      } else {
+        conn.send(forPlayers);
+      }
+    }
   }
 
   private async persist() {

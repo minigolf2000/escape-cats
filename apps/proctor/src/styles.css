@@ -192,15 +192,25 @@ button {
 .games {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid #1e2230;
 }
 .game {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+/* Every seam in the box gets the same rule and the same air: roster / hex /
+ * goomba / chat. Hex and Goomba used to be the one pair separated by a gap
+ * alone, which read as one block with a lot of lines in it — the two games are
+ * as different from each other as either is from the roster above them. The
+ * spacing is a `+` rule rather than .games' gap so the divider and the space
+ * are one decision (see .chat-col, which repeats it as the last block). */
+.game + .game {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #1e2230;
 }
 .game h3 {
   height: 15px;
@@ -327,8 +337,8 @@ button.small:disabled {
  * that target's height: the log below is fixed and scrolls internally. See the
  * note in Chats.tsx. */
 .chat-col {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid #1e2230;
 }
 .chat-col h3 {

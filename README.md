@@ -519,7 +519,9 @@ boundary, so a second copy of the rule on the server would be one more place to
 forget rather than a real guard.
 
 **A box is EVERYTHING about one room, in one place**: the roster, both game
-readouts, and the chat log, stacked in that order behind one divider each. They
+readouts, and the chat log, stacked in that order with a divider and a little
+air at every seam — Hex and Goomba included, which were the one pair that used
+to be split by a gap alone and read as a single long block because of it. They
 all answer the same question — how is Team 2 doing? — so they are one card, not
 three. Unassigned is a box like any other: its players are exactly the phones
 in the shared testing room, so it carries t0's readouts and t0's channel in the
@@ -557,8 +559,11 @@ height, not the position, turned out to be the load-bearing part.
 
 Goomba Glider's block in each team box is live: the fourth Durable Object
 (`Goomba` binding, roomed by team id like everything else) feeds it phase,
-current level, levels completed out of the set, bands placed and fails — plus
-its own reset button. Every level is played with the full 4-band budget; the
+current level, levels completed out of the set and bands placed — plus its own
+reset button. The phase is its ICON alone (🛹 / 🎉 / 🏁 / ✏️), with the word on
+the line's tooltip; the count of failed attempts on the current level is gone
+from the room state entirely — it was a number nobody acted on, and "how stuck
+are they" is a question the level and the band count already answer. Every level is played with the full 4-band budget; the
 finish line the proctor watches for is all levels completed, shown with the
 run time in the same slot the in-progress count occupies (the box never
 changes height). That same finish line is what unlocks the team's level

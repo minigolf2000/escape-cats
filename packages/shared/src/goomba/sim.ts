@@ -42,9 +42,6 @@ export interface GoombaSimState {
   runResult: RunResult | null;
   /** Seconds the scored run lasts — phones animate exactly this long. */
   runT: number | null;
-  /** Failed attempts on the current level — the proctor's "how stuck are
-   * they" read. */
-  fails: number;
   /** Epoch ms every level went done, else null — the proctor's finish line,
    * and the room's "we cleared it" flag (see `goombaCleared`). */
   finishedAt: number | null;
@@ -205,7 +202,6 @@ function freshState(now: number): GoombaSimState {
     runAt: null,
     runResult: null,
     runT: null,
-    fails: 0,
     finishedAt: null,
   };
 }
@@ -232,7 +228,6 @@ export class GoombaSim {
         s.finishedAt = now;
     } else {
       s.phase = "edit";
-      s.fails++;
       s.runAt = null;
       s.runT = null;
       // runResult stays for the fail toast; cleared on the next placement.
@@ -314,8 +309,6 @@ export class GoombaSim {
    * once. `\` and the level selector send `stop` as well, so opening the grid
    * mid-run banked a clear the same way.
    *
-   * `fails` is deliberately NOT bumped: nobody failed, they changed their
-   * mind, and the proctor's "how stuck are they" read should not count it.
    * Clearing `runResult` is what keeps the run→edit edge silent — the fail
    * toast on that edge is gated on it (`main.js`), and an abort has nothing
    * to say. */
@@ -350,7 +343,6 @@ export class GoombaSim {
     s.runAt = null;
     s.runResult = null;
     s.runT = null;
-    s.fails = 0;
   }
 
   next(now: number): void {
@@ -363,7 +355,6 @@ export class GoombaSim {
     s.runAt = null;
     s.runResult = null;
     s.runT = null;
-    s.fails = 0;
     // The finale of a cleared room lands on the splash instead of a victory
     // lap, and stays pointed at the finale behind it — a `goto` out of the
     // splash is what picks the next level now, and clearing the game is what

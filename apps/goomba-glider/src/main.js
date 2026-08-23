@@ -1473,7 +1473,7 @@ function drawLab() {
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   ctx.font = "700 15px ui-rounded, system-ui, sans-serif";
   ctx.fillStyle = "#f2ecff";
-  ctx.fillText(editorOn() ? "Levels — editing" : "Levels", 16, 30);
+  ctx.fillText("Levels", 16, 30);
   ctx.font = "12px ui-rounded, system-ui, sans-serif";
   ctx.fillStyle = editorOn() && editMsgT > 0 ? "#ffd166" : "#8a80b0";
   ctx.fillText(fitText(labHelp(), W - 32), 16, 48);

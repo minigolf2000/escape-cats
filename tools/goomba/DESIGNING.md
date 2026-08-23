@@ -143,6 +143,10 @@ every stage must actually be ridden.
   Two consequences worth holding: a wall is not a way to gain anything (a band
   is 0.32, a cushion 1.3), and a corner where a wall meets a floor is still a
   stall trap, because the speed she arrives with there is already small.
+- **A quarter-pipe stands a horizontal launch on its end, at ~85%.** Rise is
+  capped at `v²/2G` — terrain adds nothing — and what you lose, you lose in the
+  joints, so cut the curve into 24-32 lines and keep the popper on her ride
+  line at the mouth. `node pipe.mjs` rides one and prints the table.
 - **V-basins catch everything** that falls into them — great for goals, fatal
   for "she must not land here" zones. The stuck detector fails a run that
   stops making progress (~4 s).
@@ -360,6 +364,61 @@ UP past the rim on her own speed and drops her neatly at the next popper. The
 walls have to face her: perpendicular to the surface, which on a 60° slope
 means they lean back over the notch like a ratchet tooth. Same reason her
 ratchet teeth work going up and let her slide out going down.
+
+**A half-pipe cannot beat the popper that fed it, and every unit it loses goes
+in the CORNERS (`node pipe.mjs`).** The obvious way to turn a horizontal launch
+into height is a quarter-pipe she rides round, and the obvious question about
+it — "is the perfect shape a circle?" — has an answer with three parts.
+
+First, there is a hard ceiling and the arc is not what sets it. Terrain never
+adds energy (`groundE` is 0.02 on a floor, 0.15 at vertical), so the most any
+90° turn can hand back is the launch itself, stood on end: `rise = v²/2G`. A
+popper 130 (launch 106.6 u/s) is worth 40.6 units of rise and not one more; a
+default 76 is worth 13.9. If a level needs her higher, the popper is the knob,
+not the curve.
+
+Second, in a lossless world every 90° turn would TIE, whatever its shape,
+because the height she climbs inside the pipe is stored rather than spent. So
+the shape is not choosing how much height she gets. It is only choosing how
+much of it she loses — and the loss is at the joints. Each one kills the
+velocity component normal to the next chord, so a turn cut into n lines keeps
+about cos(90°/n)^n. Measured off that 40.6-unit ceiling: **24 lines → 34.5 u
+(85%), 12 → 32.3, 8 → 29.8, 6 → 27.7, and 2 — which is just a 45° ramp — →
+16.6 (41%).** The radius is nearly free by comparison: at 24 lines, r 3.2 / 8 /
+12 / 18 / 26 / 40 give 34.2 / 34.5 / 34.4 / 33.9 / 33.0 / 31.9. Spend your
+lines, not your footprint.
+
+Third, the circle IS optimal, but for the constrained reason rather than the
+romantic one. Hold the tightest bend fixed at r 8 — no curve in the family
+allowed to bend tighter — and the circle wins at 87.1%, against 87.0 / 86.3 /
+85.1 for curves that turn tight low and loosen at the lip, and 86.4 / 85.3 /
+83.1 for the reverse. It wins by being the SHORTEST way through 90° and the
+shallowest, which is least friction and least footprint. So bend tighter and
+you keep gaining, until she stops fitting: r must clear her 2.2 radius, and
+r ≥ 3.2 keeps the mouth and the lip the legal 4.4 apart.
+
+There is a floor under the tessellation too, and it is the substep. Chords much
+shorter than the ~0.4 units she covers in one 1/240 s tick start giving the
+height back — at r 8 the lip speed peaks at 32 lines (90.0 u/s) and is down to
+85.0 by 192, on flat contact time with never more than one segment touching, so
+it is the resolver re-clipping her chord after chord, not friction. Aim for
+chords about one substep long: **n ≈ 377·r/v**, which is 24-32 for a normal arc
+at speed.
+
+Two placement rules fall out of the same measurements. The flat between the
+popper and the mouth is the most expensive part of the whole assembly — about a
+unit of rise per 10 units of floor (34.5 at a 6-unit gap, 27.5 at 65) — so put
+the popper ON her ride line (`floor − 2.2`) and AT the mouth. And she leaves
+the lip with only ~2.8 u/s sideways, so she comes back down almost exactly
+where she went up, into the pipe; if that is not what the level wants, the
+thing to move is what happens at the apex, not the arc.
+
+The one thing that beats it is a bumper, and it beats it by cheating: off the
+same 90.2 u/s launch (worth 29.1 u) the best arc gets 25.1 and a bumper parked
+just past the lip gets **34.3 — 118% of the "lossless" ceiling** — because
+`BUMP_E` is 1.18 and it adds energy. It is also ±0.5 u sensitive in height
+where the arc is not sensitive at all, which is the precision tax the next
+finding is about.
 
 **The bumper is a MIRROR, so she must arrive moving the way you don't want her
 to go (The Long Way Up).** `BUMP_E` reverses and amplifies the normal

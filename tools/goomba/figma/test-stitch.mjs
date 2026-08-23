@@ -118,5 +118,45 @@ check("level 1's platform and shelf both land on the wall",
   ]).map((p) => p[0]),
   [[13.3, 21.5], [75, 31], [13.3, 43], [73, 84], [70.4, 103.3], [12, 137], [13.3, 85.7]]);
 
+// A momentum arc (tools/goomba/pipe.mjs) is drawn FINER than the weld
+// tolerance: a 90° quarter of radius 8 cut into 24 lines has 0.52-unit chords,
+// so both ends of the next segment — and of the two after it — sit inside
+// WELD's 2 units. That is why chaining takes the NEAREST endpoint rather than
+// the first one it finds. Under a first-match rule this case came back
+// scrambled the moment a Line was drawn backwards or a layer moved: 0 of 40
+// perturbed orders reproduced the drawing, with vertices moved by up to 4.4
+// units on a 3.2-unit arc.
+const arcSegs = (r, n) => {
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const p = (Math.PI / 2 * i) / n;
+    pts.push([+(70 + r * Math.sin(p)).toFixed(2), +(200 - r * (1 - Math.cos(p))).toFixed(2)]);
+  }
+  const segs = [[[50, 200], [70, 200]]];
+  for (let i = 0; i + 1 < pts.length; i++) segs.push([pts[i], pts[i + 1]]);
+  return segs;
+};
+/** The segment SET, which is all the physics ever sees. */
+const segSet = (polys) => {
+  const out = [];
+  for (const p of polys)
+    for (let i = 0; i + 1 < p.length; i++)
+      out.push([p[i], p[i + 1]].map((q) => q.join(",")).sort().join("|"));
+  return out.sort().join(";");
+};
+for (const [r, n] of [[8, 24], [3.2, 24], [26, 24]]) {
+  const base = arcSegs(r, n), want = segSet(base);
+  let worst = "";
+  for (let seed = 1; seed <= 20 && !worst; seed++) {
+    let st = seed * 7919;
+    const rnd = () => (st = (st * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const a = base.map((g) => g.map((q) => q.slice()));
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    for (const g of a) if (rnd() < 0.5) g.reverse();
+    if (segSet(stitchTerrain(a)) !== want) worst = `seed ${seed}`;
+  }
+  check(`a ${n}-line r${r} arc survives any order and direction`, worst || "clean", "clean");
+}
+
 console.log(bad ? `\n→ FAIL ✗ (${bad})` : "\n→ PASS ✓  joints weld, tees land, real gaps survive");
 process.exit(bad ? 1 : 0);

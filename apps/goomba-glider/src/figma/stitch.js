@@ -38,7 +38,7 @@
 /** Endpoints closer than this are the same point, drawn twice by a human. */
 const WELD = 2.0;
 
-const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= WELD;
+const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 /** Tenths — the codec's precision, so a snapped point survives the round trip. */
 const round = (v) => Math.round(v * 10) / 10;
 
@@ -102,8 +102,20 @@ function snapTees(polys) {
  * forward-only pass cannot see.)
  *
  * Deterministic despite that freedom: segments are always scanned in their
- * original order and the lowest-index neighbour always wins, so the same paste
- * always yields the same level.
+ * original order, and among candidates the NEAREST endpoint wins, ties going to
+ * the lowest index — so the same paste always yields the same level.
+ *
+ * Nearest rather than first-found, because a curve can be drawn finer than the
+ * weld tolerance and then "is this endpoint the joint?" stops having one
+ * answer. A 90° arc cut into 24 lines has 0.5-unit chords, so BOTH ends of the
+ * next segment sit inside WELD's 2 units, as do the two segments after it. A
+ * first-match rule then chains whichever the loop happened to reach first,
+ * which is the segment's drawn direction and its layer order — neither of which
+ * is information about the surface — and the arc comes back scrambled, with
+ * vertices moved by up to a whole WELD. Picking the nearest endpoint every time
+ * reproduces the drawing exactly, in any order, at any tessellation. Nothing
+ * changes for hand-drawn geometry: this game's 4.4-unit floor means only one
+ * candidate is ever inside 2 units there, and the nearest one is that one.
  *
  * A welded joint keeps the point already in the chain and DROPS the incoming
  * near-duplicate, which is what actually closes the seam — the rest of the
@@ -122,17 +134,25 @@ export function stitchTerrain(segs) {
     // chain within reach of a segment an earlier pass had already walked past.
     for (let grew = true; grew; ) {
       grew = false;
+      let best = null;
       for (let j = i + 1; j < segs.length; j++) {
         if (used[j]) continue;
         const [a, b] = segs[j];
         const tail = chain[chain.length - 1];
         const head = chain[0];
-        if (near(a, tail)) chain.push(b);
-        else if (near(b, tail)) chain.push(a);
-        else if (near(b, head)) chain.unshift(a);
-        else if (near(a, head)) chain.unshift(b);
-        else continue;
-        used[j] = true;
+        // The four ways segment j could extend this chain, best one wins.
+        for (const [d, end, add] of [
+          [dist(a, tail), "tail", b],
+          [dist(b, tail), "tail", a],
+          [dist(b, head), "head", a],
+          [dist(a, head), "head", b],
+        ])
+          if (d <= WELD && (!best || d < best.d)) best = { d, end, add, j };
+      }
+      if (best) {
+        if (best.end === "tail") chain.push(best.add);
+        else chain.unshift(best.add);
+        used[best.j] = true;
         grew = true;
       }
     }

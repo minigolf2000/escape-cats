@@ -77,7 +77,10 @@ And it costs nothing:
 
 Which also answers "how do I make a smooth surface": you don't need one. A
 curve is a fan of lines, and to her that fan **is** smooth. The pack ships
-computed arcs (crest, quarter-pipe, hill) as worked examples. The only rule is
+computed arcs (crest, quarter-pipe, hill, and the **momentum arc** that turns a
+horizontal popper into height) as worked examples. `node ../pipe.mjs --svg
+arc.svg` cuts a momentum arc to your own popper and writes a one-piece sheet to
+import. The only rule is
 the one in the gauges: never let two segments come closer than 4.4 u (2 × her
 radius) or she wedges in the corner and the run stalls.
 
@@ -252,6 +255,19 @@ and drops the incoming near-duplicate, so nothing moves by more than 2 units.
 With it, that level's eight floor Lines become one nine-point polyline that
 traces exactly what was drawn: floor, down into the notch, across, up the far
 wall, along, then the ramp. Ten polylines became four; all 24 segments survive.
+
+**Chaining takes the NEAREST endpoint, not the first one inside the weld.** On
+hand-drawn geometry those are the same thing — the game's 4.4-unit floor means
+only one candidate is ever within 2 units. They stop being the same thing on a
+curve drawn FINER than the tolerance, which a momentum arc is: a 90° quarter of
+radius 8 cut into 24 lines has 0.52-unit chords, so both ends of the next
+segment, and the two segments after it, are all inside WELD. A first-match rule
+then chained whichever the loop reached first — i.e. the direction a Line
+happened to be dragged and where it sat in the layer panel, neither of which is
+information about the surface — and the arc came back scrambled, with vertices
+moved by up to a full 2 units (4.4 on a 3.2-unit arc). Nearest-wins reproduces
+the drawing exactly at any tessellation, in any order: 0 of 40 perturbed orders
+survived before, 40 of 40 after. `test-stitch.mjs` covers it at r 3.2, 8 and 26.
 
 **T-junctions get snapped too.** Chaining is end-to-end, which is the wrong
 shape for the commonest thing anyone draws: a platform butting into a wall ends

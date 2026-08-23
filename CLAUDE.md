@@ -159,6 +159,17 @@ findings — do not design from intuition, the sim disproves it reliably.
   ring is 6 units, a can's 7.5, so one ring measured in pixels converts the
   whole drawing (DESIGNING.md, "Transcribing a sketch"). Cat's Cradle came in
   as a picture; the rings not touching was the design.
+- **A half-pipe cannot beat the popper that fed it.** Terrain never adds energy
+  (0.02 on a floor, 0.15 at vertical), so a 90° turn caps at `v²/2G` and the
+  only design question is where the loss goes — and it goes in the JOINTS, not
+  the curve. Off a popper 130 (worth 40.6 u of rise): 24 lines keeps 34.5,
+  12 keeps 32.3, 8 keeps 29.8, and a plain 45° ramp — the same turn in 2 lines —
+  keeps 16.6. Radius is nearly free between 3.2 and 18; the circle is optimal
+  only in the constrained sense that it is the shortest, shallowest 90° at a
+  given tightest bend. Keep the popper ON her ride line AT the mouth (10 u of
+  flat ≈ 1 u of rise), and expect her back down where she went up.
+  `node pipe.mjs` rides one and prints the table, `--svg` cuts one to size for
+  Figma, and the design kit carries the piece.
 - Parallel level threads: work on your own branch — `levels.ts` is where
   every level thread edits, and sharing a branch collides.
 
@@ -250,6 +261,7 @@ npm run check:cursors  # the two-cursor rule, on its own
 cd tools/goomba && node verify.mjs <idx>   # the level-design gate
 cd tools/goomba && node route.mjs <idx> drop  # the ride + its four deaths
 cd tools/goomba && node slack.mjs <idx>    # per-band forgiveness (jitter/slide/stretch)
+cd tools/goomba && node pipe.mjs           # the momentum arc: a horizontal popper stood on end
 cd tools/goomba && node verify.mjs --hash <editor link>   # same gate, no diff
 cd tools/goomba && node verify.mjs --file <file of links> # ...on a batch
 cd tools/goomba && node quota.mjs          # the participation gate (room rule)

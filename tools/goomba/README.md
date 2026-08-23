@@ -38,6 +38,8 @@ node slack.mjs 3       # per-band forgiveness: which band a real finger loses th
 node scan.mjs 3 v 34 60 '[fixed]' --step 1   # sweep ONE band → win windows (2u by default)
 node solve.mjs 3 3     # beam-search auto-solver: finds the shortcuts you didn't intend
 node arc.mjs 94 200 -115 118 164          # popper ballistics: where the arc lands
+node pipe.mjs                             # the momentum arc: a horizontal popper, stood on end
+node pipe.mjs --r 8 --n 24 --svg a.svg    # ...that arc as a Figma sheet, or --link to paste in
 node diag.mjs 3        # failure modes of jittered placements
 node ridecards.mjs out/ [i...]            # PNG of a level with her traced ride
 ```

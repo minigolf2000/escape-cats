@@ -84,7 +84,51 @@
   <text id="_lbl-26" x="900" y="1322" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">short of a wall or she wedges in the notch.</text>
   <line id="t-47" x1="0" y1="0" x2="280" y2="0" transform="translate(1160 1360) rotate(90)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
   <line id="t-48" x1="0" y1="0" x2="329.54" y2="0" transform="translate(1154 1670) rotate(162.33)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
-  <text id="_lbl-27" x="40" y="1600" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">popper lane · 16 u apart against an ~8 u trigger radius, so crossing the lane always gets her grabbed and re-flung. Poppers erase state, which is what makes stages independent — the structural tool for a 4-band level.</text>
+  <text id="_lbl-27" x="1560" y="830" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">momentum arc · the one shape that stands a horizontal popper on its end. She rides it round and leaves</text>
+  <text id="_lbl-28" x="1560" y="846" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">the lip going straight up with ~94% of the speed she came in with — 85% of the height that launch was worth.</text>
+  <text id="_lbl-29" x="1560" y="862" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">The LINES are the lever, not the radius: 24 of them keeps 85%, 12 keeps 80%, 6 keeps 68%, and a plain 45°</text>
+  <text id="_lbl-30" x="1560" y="878" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">ramp — the same turn drawn in 2 lines — keeps 41%. Nothing beats it either: terrain never adds energy, so</text>
+  <text id="_lbl-31" x="1560" y="894" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">the launch that fed the arc is the ceiling. Keep the popper ON her ride line and AT the mouth; every 10 u</text>
+  <text id="_lbl-32" x="1560" y="910" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">of flat in between costs about a unit of the rise. She comes back down where she went up — plan for that.</text>
+  <text id="_lbl-33" x="1860" y="762" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#ff5db1">35 u of rise off an 8 u curl, from a popper 130.</text>
+  <text id="_lbl-34" x="1860" y="778" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#ff5db1">A 76 buys 11 u; the 120 u/s speed cap buys 44 u.</text>
+  <line id="t-49" x1="0" y1="0" x2="200" y2="0" transform="translate(1900 1180) rotate(0)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-50" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2100 1180) rotate(-1.87)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-51" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2105.23 1179.83) rotate(-5.63)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-52" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2110.44 1179.32) rotate(-9.37)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-53" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2115.61 1178.46) rotate(-13.13)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-54" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2120.71 1177.27) rotate(-16.87)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-55" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2125.72 1175.75) rotate(-20.63)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-56" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2130.61 1173.91) rotate(-24.37)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-57" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2135.38 1171.75) rotate(-28.12)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-58" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2140 1169.28) rotate(-31.88)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-59" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2144.45 1166.52) rotate(-35.62)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-60" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2148.7 1163.47) rotate(-39.38)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-61" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2152.75 1160.15) rotate(-43.12)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-62" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2156.57 1156.57) rotate(-46.88)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-63" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2160.15 1152.75) rotate(-50.62)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-64" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2163.47 1148.7) rotate(-54.38)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-65" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2166.52 1144.45) rotate(-58.13)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-66" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2169.28 1140) rotate(-61.87)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-67" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2171.75 1135.38) rotate(-65.63)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-68" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2173.91 1130.61) rotate(-69.38)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-69" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2175.75 1125.72) rotate(-73.12)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-70" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2177.27 1120.71) rotate(-76.88)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-71" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2178.46 1115.61) rotate(-80.62)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-72" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2179.32 1110.44) rotate(-84.38)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <line id="t-73" x1="0" y1="0" x2="5.24" y2="0" transform="translate(2179.83 1105.23) rotate(-88.12)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
+  <g id="pop130-1">
+  <circle cx="2040" cy="1158" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
+  <circle cx="2040" cy="1158" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
+  <line x1="2040" y1="1158" x2="2104" y2="1158" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
+  <line x1="2104" y1="1158" x2="2086.37" y2="1171.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
+  <line x1="2104" y1="1158" x2="2086.37" y2="1144.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g id="_rise-1">
+  <line x1="2180" y1="1100" x2="2180" y2="750" stroke="#ff5db1" stroke-width="2" stroke-linecap="round" stroke-dasharray="9 9"/>
+  <circle cx="2180" cy="750" r="22" fill="none" stroke="#ff5db1" stroke-width="2"/>
+  </g>
+  <text id="_lbl-35" x="40" y="1600" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">popper lane · 16 u apart against an ~8 u trigger radius, so crossing the lane always gets her grabbed and re-flung. Poppers erase state, which is what makes stages independent — the structural tool for a 4-band level.</text>
   <g id="pop76-1">
   <circle cx="140" cy="1680" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="140" cy="1680" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
@@ -127,28 +171,28 @@
   <line x1="1004" y1="1680" x2="986.37" y2="1693.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="1004" y1="1680" x2="986.37" y2="1666.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <text id="_lbl-28" x="40" y="1830" font-family="Inter, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f3e9d6">TOYS — true radius, symmetric about their anchor. Select one and ⌥⌘K it: instances inherit the name, and the NAME is what carries the meaning.</text>
+  <text id="_lbl-36" x="40" y="1830" font-family="Inter, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f3e9d6">TOYS — true radius, symmetric about their anchor. Select one and ⌥⌘K it: instances inherit the name, and the NAME is what carries the meaning.</text>
   <g id="start-1">
   <circle cx="140" cy="1920" r="22" fill="#57e6c9" stroke="none" stroke-width="2"/>
   <line x1="100" y1="1920" x2="180" y2="1920" stroke="#57e6c9" stroke-width="1" stroke-linecap="round"/>
   <line x1="140" y1="1880" x2="140" y2="1960" stroke="#57e6c9" stroke-width="1" stroke-linecap="round"/>
   </g>
-  <text id="_lbl-29" x="45" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">start · her spawn</text>
+  <text id="_lbl-37" x="45" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">start · her spawn</text>
   <g id="goal-1">
   <circle cx="400" cy="1920" r="34" fill="none" stroke="#ff5db1" stroke-width="3"/>
   <circle cx="400" cy="1920" r="12" fill="#ff5db1" stroke="none" stroke-width="2"/>
   </g>
-  <text id="_lbl-30" x="305" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">goal · the cake</text>
+  <text id="_lbl-38" x="305" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">goal · the cake</text>
   <g id="can-3">
   <circle cx="660" cy="1920" r="97" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="6 6"/>
   <circle cx="660" cy="1920" r="16" fill="#ffd166" stroke="none" stroke-width="2"/>
   </g>
-  <text id="_lbl-31" x="565" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">can · ring is her 9.7 u reach</text>
+  <text id="_lbl-39" x="565" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">can · ring is her 9.7 u reach</text>
   <g id="bumper-1">
   <circle cx="920" cy="1920" r="55" fill="none" stroke="#ff5db1" stroke-width="3"/>
   <circle cx="920" cy="1920" r="12" fill="#ff5db1" stroke="none" stroke-width="2"/>
   </g>
-  <text id="_lbl-32" x="825" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">bumper · piñata, radial kick</text>
+  <text id="_lbl-40" x="825" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">bumper · piñata, radial kick</text>
   <g id="pop76-7">
   <circle cx="1180" cy="1920" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="1180" cy="1920" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
@@ -156,57 +200,57 @@
   <line x1="1244" y1="1920" x2="1226.37" y2="1933.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="1244" y1="1920" x2="1226.37" y2="1906.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <text id="_lbl-33" x="1085" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">pop76 · rotate to aim it.</text>
-  <text id="_lbl-34" x="1085" y="2046" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">Rename pop150 for a faster one.</text>
+  <text id="_lbl-41" x="1085" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">pop76 · rotate to aim it.</text>
+  <text id="_lbl-42" x="1085" y="2046" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">Rename pop150 for a faster one.</text>
   <rect id="cushion-1" x="1440" y="1912" width="240" height="16" rx="8" fill="#ff9dce" stroke="none" stroke-width="2"/>
-  <text id="_lbl-35" x="1440" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">cushion · a rect, not a line. Horizontal only,</text>
-  <text id="_lbl-36" x="1440" y="2046" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">so rotation is ignored. Width = its span.</text>
-  <text id="_lbl-37" x="40" y="2140" font-family="Inter, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f3e9d6">GAUGES — the real numbers, at scale. Named with a leading _ so nothing here ever imports.</text>
+  <text id="_lbl-43" x="1440" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">cushion · a rect, not a line. Horizontal only,</text>
+  <text id="_lbl-44" x="1440" y="2046" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">so rotation is ignored. Width = its span.</text>
+  <text id="_lbl-45" x="40" y="2140" font-family="Inter, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f3e9d6">GAUGES — the real numbers, at scale. Named with a leading _ so nothing here ever imports.</text>
   <g id="_gauge-1">
   <line x1="40" y1="2210" x2="620" y2="2210" stroke="#ff5db1" stroke-width="2" stroke-linecap="round" stroke-dasharray="10 7"/>
   <line x1="40" y1="2202" x2="40" y2="2218" stroke="#ff5db1" stroke-width="2" stroke-linecap="round"/>
   <line x1="620" y1="2202" x2="620" y2="2218" stroke="#ff5db1" stroke-width="2" stroke-linecap="round"/>
   </g>
-  <text id="_lbl-38" x="40" y="2194" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">58 u — one band at full stretch. It sags ~1 u per 20 u of span.</text>
+  <text id="_lbl-46" x="40" y="2194" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">58 u — one band at full stretch. It sags ~1 u per 20 u of span.</text>
   <g id="_gauge-2">
   <line x1="40" y1="2280" x2="490" y2="2280" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   <line x1="40" y1="2272" x2="40" y2="2288" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   <line x1="490" y1="2272" x2="490" y2="2288" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   </g>
-  <text id="_lbl-39" x="40" y="2264" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">45 u — wider than this is unjumpable at normal speed, so 45–58 u is the “needs exactly one band” window.</text>
+  <text id="_lbl-47" x="40" y="2264" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">45 u — wider than this is unjumpable at normal speed, so 45–58 u is the “needs exactly one band” window.</text>
   <g id="_gauge-3">
   <line x1="40" y1="2350" x2="100" y2="2350" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   <line x1="40" y1="2342" x2="40" y2="2358" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   <line x1="100" y1="2342" x2="100" y2="2358" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   </g>
-  <text id="_lbl-40" x="40" y="2334" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">6 u — shortest legal band.</text>
+  <text id="_lbl-48" x="40" y="2334" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">6 u — shortest legal band.</text>
   <g id="_gauge-4">
   <line x1="200" y1="2350" x2="244" y2="2350" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   <line x1="200" y1="2342" x2="200" y2="2358" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   <line x1="244" y1="2342" x2="244" y2="2358" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   </g>
-  <text id="_lbl-41" x="200" y="2334" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">4.4 u — two segments closer than this wedge her.</text>
+  <text id="_lbl-49" x="200" y="2334" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">4.4 u — two segments closer than this wedge her.</text>
   <g id="_gauge-5">
   <line x1="480" y1="2350" x2="640" y2="2350" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   <line x1="480" y1="2342" x2="480" y2="2358" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   <line x1="640" y1="2342" x2="640" y2="2358" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   </g>
-  <text id="_lbl-42" x="480" y="2334" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">16 u — popper spacing in a lane.</text>
+  <text id="_lbl-50" x="480" y="2334" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">16 u — popper spacing in a lane.</text>
   <g id="_gauge-6">
   <line x1="1040" y1="2210" x2="1040" y2="2550" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   <line x1="1032" y1="2210" x2="1048" y2="2210" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   <line x1="1032" y1="2550" x2="1048" y2="2550" stroke="#8a80b0" stroke-width="2" stroke-linecap="round"/>
   </g>
-  <text id="_lbl-43" x="1060" y="2230" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">34 u — the most rise a speed-capped launch buys.</text>
-  <text id="_lbl-44" x="1060" y="2246" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">Put a shelf higher than that above a corridor and</text>
-  <text id="_lbl-45" x="1060" y="2262" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">no fall or hop can reach it — only a band across.</text>
+  <text id="_lbl-51" x="1060" y="2230" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">34 u — the most rise a speed-capped launch buys.</text>
+  <text id="_lbl-52" x="1060" y="2246" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">Put a shelf higher than that above a corridor and</text>
+  <text id="_lbl-53" x="1060" y="2262" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">no fall or hop can reach it — only a band across.</text>
   <g id="_gauge-7">
   <circle cx="1700" cy="2320" r="22" fill="none" stroke="#8a80b0" stroke-width="2"/>
   <circle cx="1700" cy="2320" r="50" fill="none" stroke="#8a80b0" stroke-width="1.5" stroke-dasharray="5 5"/>
   </g>
-  <text id="_lbl-46" x="1760" y="2310" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">her radius is 2.2 u; band ends snap onto terrain</text>
-  <text id="_lbl-47" x="1760" y="2326" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">within 5 u, and lips and corners win the snap.</text>
+  <text id="_lbl-54" x="1760" y="2310" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">her radius is 2.2 u; band ends snap onto terrain</text>
+  <text id="_lbl-55" x="1760" y="2326" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">within 5 u, and lips and corners win the snap.</text>
   <rect id="_world-110x200-1" x="2300" y="60" width="1100" height="2000" fill="none" stroke="#8a80b0" stroke-width="2" stroke-dasharray="12 10"/>
-  <text id="_lbl-48" x="2300" y="34" font-family="Inter, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c9bdf0">_world · 110 × 200 u. Draw a Frame (F) over this, name it “L: Your Level”, and design inside it.</text>
-  <text id="_lbl-49" x="2300" y="50" font-family="Inter, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c9bdf0">y is DOWN in this game, same as in Figma — so what you see is what she falls through.</text>
+  <text id="_lbl-56" x="2300" y="34" font-family="Inter, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c9bdf0">_world · 110 × 200 u. Draw a Frame (F) over this, name it “L: Your Level”, and design inside it.</text>
+  <text id="_lbl-57" x="2300" y="50" font-family="Inter, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c9bdf0">y is DOWN in this game, same as in Figma — so what you see is what she falls through.</text>
 </svg>

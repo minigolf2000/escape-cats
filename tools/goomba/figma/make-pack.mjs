@@ -85,6 +85,29 @@ d.label(900, 1322, "short of a wall or she wedges in the notch.", { size: 11 });
 d.poly(1160, 1360, [[0, 0], [0, 28]]);
 d.poly(1160, 1360, [[-0.6, 31], [-32, 41]]);
 
+// The momentum arc — the composite that turns a horizontal popper into height.
+// Geometry and every number in the caption come out of `node pipe.mjs`, which
+// rides this exact piece through the shipped sim.
+[
+  "momentum arc · the one shape that stands a horizontal popper on its end. She rides it round and leaves",
+  "the lip going straight up with ~94% of the speed she came in with — 85% of the height that launch was worth.",
+  "The LINES are the lever, not the radius: 24 of them keeps 85%, 12 keeps 80%, 6 keeps 68%, and a plain 45°",
+  "ramp — the same turn drawn in 2 lines — keeps 41%. Nothing beats it either: terrain never adds energy, so",
+  "the launch that fed the arc is the ceiling. Keep the popper ON her ride line and AT the mouth; every 10 u",
+  "of flat in between costs about a unit of the rise. She comes back down where she went up — plan for that.",
+].forEach((t, i) => d.label(1560, 830 + i * 16, t, { size: 11 }));
+d.label(1860, 762, "35 u of rise off an 8 u curl, from a popper 130.", { size: 11, fill: PINK });
+d.label(1860, 778, "A 76 buys 11 u; the 120 u/s speed cap buys 44 u.", { size: 11, fill: PINK });
+d.poly(1900, 1180, [[0, 0], [20, 0]]);
+// arc() draws its quarters going DOWN-right; she has to climb this one, so the
+// convex quarter (flat first, then steepening) is flipped in y.
+d.poly(2100, 1180, arc(8, 90, 24, true).map(([x, y]) => [x, -y]));
+d.popper(2040, 1158, 130, 0);
+d.group("_rise", () => {
+  d.rawline(2180, 1100, 2180, 750, { stroke: PINK, sw: 2, dash: "9 9" });
+  d.circle(2180, 750, R_GOOMBA * S, { stroke: PINK, sw: 2 });
+});
+
 d.label(40, 1600, "popper lane · 16 u apart against an ~8 u trigger radius, so crossing the lane always gets her grabbed and re-flung. Poppers erase state, which is what makes stages independent — the structural tool for a 4-band level.", { size: 11 });
 for (let i = 0; i < 6; i++) d.popper(140 + i * 160, 1680, 76, 0);
 

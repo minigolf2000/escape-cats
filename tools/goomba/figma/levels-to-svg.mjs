@@ -16,9 +16,6 @@ import { fileURLToPath } from "node:url";
 import { LEVELS } from "../lib.mjs";
 import { newDoc, slug, S, BG, GUIDE, INK } from "./svgkit.mjs";
 
-// One per player, straight out of main.js BAND_COLORS.
-const BAND_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
-
 const picked = process.argv.slice(2).map(Number).filter((n) => Number.isInteger(n));
 const idxs = picked.length ? picked : LEVELS.map((_, i) => i);
 
@@ -57,14 +54,13 @@ for (const li of idxs) {
   d.start(ox + L.start[0] * S, oy + L.start[1] * S);
   d.goal(ox + L.goal[0] * S, oy + L.goal[1] * S);
 
-  // The baked solution, as dashed bands — the level's own answer key, and the
-  // fastest way to see what each of the four players is actually for.
-  (L.solution || []).forEach(([a, e], i) =>
-    d.band(ox + a[0] * S, oy + a[1] * S, ox + e[0] * S, oy + e[1] * S,
-           BAND_COLORS[i % 4]));
+  // No bands. A frame used to carry the level's baked solution as dashed
+  // `band` layers, and the readers turned them back into `solution` — an answer
+  // key drawn by hand, stale the moment the geometry moved beneath it. The
+  // frame is the GEOMETRY now; what solves it is `verify.mjs`'s to find.
 
   d.label(cursorX, 60 + h + 22,
-          (L.solution || []).length + " bands · " + L.cans.length + " cans" +
+          L.cans.length + " cans" +
           (L.pops.length ? " · " + L.pops.length + " poppers" : "") +
           (L.bumpers.length ? " · " + L.bumpers.length + " bumpers" : ""),
           { size: 11 });

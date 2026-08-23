@@ -113,8 +113,11 @@ export function levelFromFigmaSvg(svgText) {
 
   const warnings = [];
   try {
-    const terrain = [], bands = [], cans = [], bumpers = [], cushions = [], pops = [];
+    const terrain = [], cans = [], bumpers = [], cushions = [], pops = [];
     let start = null, goal = null, name = null;
+    // Old frames still carry `band` layers from when a level shipped its own
+    // answer key. Counted and dropped; see clipboard.js.
+    let droppedBands = 0;
 
     const rootCTM = live.getScreenCTM();
     const toRoot = (el, x, y) => {
@@ -148,7 +151,8 @@ export function levelFromFigmaSvg(svgText) {
         if (!hit) { walk(child); continue; } // not ours: look inside
 
         const { kind, num } = hit;
-        if (kind === "t" || kind === "band") {
+        if (kind === "band") { droppedBands++; continue; }
+        if (kind === "t") {
           if (child.localName !== "line") {
             warnings.push(`"${id}" is a ${child.localName}, not a Line — skipped. Draw terrain with the Line tool (L).`);
             continue;
@@ -157,8 +161,7 @@ export function levelFromFigmaSvg(svgText) {
           const b = toRoot(child, child.x2.baseVal.value, child.y2.baseVal.value);
           const w = parseFloat(child.getAttribute("stroke-width")) || 0;
           const [p, q] = unshiftStroke(a, b, w);
-          const pair = [[W(p.x), W(p.y)], [W(q.x), W(q.y)]];
-          (kind === "t" ? terrain : bands).push(pair);
+          terrain.push([[W(p.x), W(p.y)], [W(q.x), W(q.y)]]);
           continue;
         }
 
@@ -191,7 +194,7 @@ export function levelFromFigmaSvg(svgText) {
     // stripped — same frame, 111 ids with the option, 3 without. Say so
     // instead of reporting a missing `start`, which sends people to look at
     // their level.
-    const named = terrain.length + bands.length + cans.length + bumpers.length +
+    const named = terrain.length + cans.length + bumpers.length +
       cushions.length + pops.length + (start ? 1 : 0) + (goal ? 1 : 0);
     if (!named) {
       throw new Error(
@@ -204,19 +207,23 @@ export function levelFromFigmaSvg(svgText) {
     if (!start) throw new Error("no layer named `start` — the level has no spawn");
     if (!goal) throw new Error("no layer named `goal` — the level has no cake");
     if (!terrain.length) warnings.push("no terrain: nothing named `t`. She will just fall.");
+    if (droppedBands)
+      warnings.push(
+        `ignored ${droppedBands} \`band\` layer(s): a level no longer carries a ` +
+        `baked solution. Delete them from the frame.`,
+      );
 
     return {
       level: {
         name: name || "pasted from Figma",
         budget: 4,
         start, goal,
-        // Chains of Lines back into polylines; see stitch.js. Bands stay apart.
+        // Chains of Lines back into polylines; see stitch.js.
         terrain: stitchTerrain(terrain),
         cans,
         cushions,
         pops,
         bumpers,
-        solution: bands,
       },
       warnings,
     };

@@ -26,10 +26,7 @@
   <circle cx="430" cy="1531" r="34" fill="none" stroke="#ff5db1" stroke-width="3"/>
   <circle cx="430" cy="1531" r="12" fill="#ff5db1" stroke="none" stroke-width="2"/>
   </g>
-  <line id="band-1" x1="0" y1="0" x2="475.11" y2="0" transform="translate(955 463) rotate(178.79)" stroke="#ff5db1" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-2" x1="0" y1="0" x2="350.37" y2="0" transform="translate(712 1201) rotate(-95.08)" stroke="#57e6c9" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-3" x1="0" y1="0" x2="346.16" y2="0" transform="translate(1231 1140) rotate(116.05)" stroke="#ffd166" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <text id="_lbl-2" x="40" y="1683" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">3 bands · 2 cans</text>
+  <text id="_lbl-2" x="40" y="1683" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">2 cans</text>
   <rect id="L--2-The-Long-Way-Up" x="1500" y="60" width="1413" height="1910" fill="#150a2a" stroke="#8a80b0" stroke-width="2" stroke-dasharray="12 10"/>
   <text id="_lbl-3" x="1500" y="44" font-family="Inter, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f3e9d6">2 · The Long Way Up</text>
   <line id="t-8" x1="0" y1="0" x2="101.12" y2="0" transform="translate(1623 1780) rotate(-8.53)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
@@ -128,11 +125,7 @@
   <circle cx="1773" cy="1570" r="34" fill="none" stroke="#ff5db1" stroke-width="3"/>
   <circle cx="1773" cy="1570" r="12" fill="#ff5db1" stroke="none" stroke-width="2"/>
   </g>
-  <line id="band-4" x1="0" y1="0" x2="355.11" y2="0" transform="translate(1723 1765) rotate(-32.35)" stroke="#ff5db1" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-5" x1="0" y1="0" x2="400.78" y2="0" transform="translate(2103 1485) rotate(-56.71)" stroke="#57e6c9" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-6" x1="0" y1="0" x2="277.31" y2="0" transform="translate(2383 1035) rotate(-64.36)" stroke="#ffd166" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-7" x1="0" y1="0" x2="320" y2="0" transform="translate(1663 1020) rotate(90)" stroke="#b18bff" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <text id="_lbl-4" x="1500" y="1992" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">4 bands · 3 cans · 4 poppers · 1 bumpers</text>
+  <text id="_lbl-4" x="1500" y="1992" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">3 cans · 4 poppers · 1 bumpers</text>
   <rect id="L--3-Slalom" x="3033" y="60" width="1320" height="2220" fill="#150a2a" stroke="#8a80b0" stroke-width="2" stroke-dasharray="12 10"/>
   <text id="_lbl-5" x="3033" y="44" font-family="Inter, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f3e9d6">3 · Slalom</text>
   <line id="t-51" x1="0" y1="0" x2="354.4" y2="0" transform="translate(3153 260) rotate(16.39)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
@@ -160,90 +153,87 @@
   <circle cx="4153" cy="2110" r="34" fill="none" stroke="#ff5db1" stroke-width="3"/>
   <circle cx="4153" cy="2110" r="12" fill="#ff5db1" stroke="none" stroke-width="2"/>
   </g>
-  <line id="band-8" x1="0" y1="0" x2="422.57" y2="0" transform="translate(3487 128) rotate(74.91)" stroke="#ff5db1" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-9" x1="0" y1="0" x2="130.25" y2="0" transform="translate(3475 913) rotate(14.68)" stroke="#57e6c9" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-10" x1="0" y1="0" x2="500.15" y2="0" transform="translate(4063 1383) rotate(145.26)" stroke="#ffd166" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <text id="_lbl-6" x="3033" y="2302" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">3 bands · 3 cans</text>
+  <text id="_lbl-6" x="3033" y="2302" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">3 cans</text>
   <rect id="L--4-Cats-Cradle" x="4473" y="60" width="1000" height="1455" fill="#150a2a" stroke="#8a80b0" stroke-width="2" stroke-dasharray="12 10"/>
   <text id="_lbl-7" x="4473" y="44" font-family="Inter, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f3e9d6">4 · Cat's Cradle</text>
-  <g id="pop105-1">
+  <g id="pop114-1">
   <circle cx="4693" cy="435" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="4693" cy="435" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="4693" y1="435" x2="4757" y2="435" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4757" y1="435" x2="4739.37" y2="448.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4757" y1="435" x2="4739.37" y2="421.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-2">
+  <g id="pop114-2">
   <circle cx="4933" cy="435" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="4933" cy="435" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="4933" y1="435" x2="4997" y2="435" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4997" y1="435" x2="4979.37" y2="448.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4997" y1="435" x2="4979.37" y2="421.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-3">
+  <g id="pop114-3">
   <circle cx="5173" cy="435" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="5173" cy="435" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="5173" y1="435" x2="5237" y2="435" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="5237" y1="435" x2="5219.37" y2="448.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="5237" y1="435" x2="5219.37" y2="421.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-4">
+  <g id="pop114-4">
   <circle cx="4813" cy="735" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="4813" cy="735" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="4813" y1="735" x2="4749" y2="735" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4749" y1="735" x2="4766.63" y2="721.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4749" y1="735" x2="4766.63" y2="748.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-5">
+  <g id="pop114-5">
   <circle cx="5053" cy="735" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="5053" cy="735" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="5053" y1="735" x2="4989" y2="735" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4989" y1="735" x2="5006.63" y2="721.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4989" y1="735" x2="5006.63" y2="748.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-6">
+  <g id="pop114-6">
   <circle cx="5293" cy="735" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="5293" cy="735" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="5293" y1="735" x2="5229" y2="735" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="5229" y1="735" x2="5246.63" y2="721.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="5229" y1="735" x2="5246.63" y2="748.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-7">
+  <g id="pop114-7">
   <circle cx="4693" cy="1035" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="4693" cy="1035" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="4693" y1="1035" x2="4757" y2="1035" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4757" y1="1035" x2="4739.37" y2="1048.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4757" y1="1035" x2="4739.37" y2="1021.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-8">
+  <g id="pop114-8">
   <circle cx="4933" cy="1035" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="4933" cy="1035" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="4933" y1="1035" x2="4997" y2="1035" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4997" y1="1035" x2="4979.37" y2="1048.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4997" y1="1035" x2="4979.37" y2="1021.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-9">
+  <g id="pop114-9">
   <circle cx="5173" cy="1035" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="5173" cy="1035" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="5173" y1="1035" x2="5237" y2="1035" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="5237" y1="1035" x2="5219.37" y2="1048.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="5237" y1="1035" x2="5219.37" y2="1021.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-10">
+  <g id="pop114-10">
   <circle cx="4813" cy="1335" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="4813" cy="1335" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="4813" y1="1335" x2="4749" y2="1335" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4749" y1="1335" x2="4766.63" y2="1321.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4749" y1="1335" x2="4766.63" y2="1348.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-11">
+  <g id="pop114-11">
   <circle cx="5053" cy="1335" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="5053" cy="1335" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="5053" y1="1335" x2="4989" y2="1335" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4989" y1="1335" x2="5006.63" y2="1321.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="4989" y1="1335" x2="5006.63" y2="1348.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop105-12">
+  <g id="pop114-12">
   <circle cx="5293" cy="1335" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="5293" cy="1335" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="5293" y1="1335" x2="5229" y2="1335" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
@@ -271,11 +261,7 @@
   <circle cx="4613" cy="1355" r="34" fill="none" stroke="#ff5db1" stroke-width="3"/>
   <circle cx="4613" cy="1355" r="12" fill="#ff5db1" stroke="none" stroke-width="2"/>
   </g>
-  <line id="band-11" x1="0" y1="0" x2="322.49" y2="0" transform="translate(4373 275) rotate(29.74)" stroke="#ff5db1" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-12" x1="0" y1="0" x2="540" y2="0" transform="translate(5263 175) rotate(90)" stroke="#57e6c9" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-13" x1="0" y1="0" x2="400" y2="0" transform="translate(4583 635) rotate(90)" stroke="#ffd166" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-14" x1="0" y1="0" x2="500" y2="0" transform="translate(5413 895) rotate(90)" stroke="#b18bff" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <text id="_lbl-8" x="4473" y="1537" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">4 bands · 3 cans · 12 poppers</text>
+  <text id="_lbl-8" x="4473" y="1537" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">3 cans · 12 poppers</text>
   <rect id="L--5-There-and-Back-Again" x="5593" y="60" width="1205" height="1640" fill="#150a2a" stroke="#8a80b0" stroke-width="2" stroke-dasharray="12 10"/>
   <text id="_lbl-9" x="5593" y="44" font-family="Inter, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f3e9d6">5 · There and Back Again</text>
   <line id="t-55" x1="0" y1="0" x2="60.21" y2="0" transform="translate(5713 1170) rotate(41.63)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
@@ -369,8 +355,5 @@
   <circle cx="6478" cy="620" r="34" fill="none" stroke="#ff5db1" stroke-width="3"/>
   <circle cx="6478" cy="620" r="12" fill="#ff5db1" stroke="none" stroke-width="2"/>
   </g>
-  <line id="band-15" x1="0" y1="0" x2="330.61" y2="0" transform="translate(6628 1220) rotate(93.47)" stroke="#ff5db1" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-16" x1="0" y1="0" x2="356.09" y2="0" transform="translate(6428 140) rotate(51.84)" stroke="#57e6c9" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <line id="band-17" x1="0" y1="0" x2="510.78" y2="0" transform="translate(5848 790) rotate(-66.95)" stroke="#ffd166" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 10"/>
-  <text id="_lbl-10" x="5593" y="1722" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">3 bands · 4 cans · 7 poppers · 4 bumpers</text>
+  <text id="_lbl-10" x="5593" y="1722" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">4 cans · 7 poppers · 4 bumpers</text>
 </svg>

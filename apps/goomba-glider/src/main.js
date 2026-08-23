@@ -127,7 +127,7 @@ function clearLabJump() {
 }
 let labCells = [];          // hit targets for the lab's cards
 let labBtns = [];           // hit targets for the per-card editor buttons
-const labVerdicts = new Map(); // level idx -> {bare, sol, ok} from the real sim
+const labVerdicts = new Map(); // level idx -> {bare, ok} from the real sim
 
 // ---------- the selector IS the editor ----------
 // There is no separate editor page any more. The levels grid a cleared team
@@ -255,7 +255,7 @@ const NO_LEVELS = initLevel({
   start: [20, 20],
   goal: [80, 20],
   terrain: [[[0, 30], [100, 30]]],
-  cans: [], cushions: [], pops: [], bumpers: [], solution: [],
+  cans: [], cushions: [], pops: [], bumpers: [],
 });
 const L = () => GOOMBA_LEVELS[level()] ?? NO_LEVELS;
 const bands = () => (snap ? snap.bands : []);
@@ -1184,18 +1184,23 @@ function drawStartPad(lv) {
 
 // ---------- the LEVELS menu (the level selector) ----------
 // The deleted prototype's lab view, on the shipped sim: every level as a card
-// with live verdicts (bare must NOT win, the solution must) — tap one to send
-// the whole room there. Design triage on any phone straight from the deployed
-// site, and, for a team that has cleared the game, its free-play menu. Who may
-// open it is `levelSelect()` above; this draws the same grid either way.
+// with a live verdict — tap one to send the whole room there. Design triage on
+// any phone straight from the deployed site, and, for a team that has cleared
+// the game, its free-play menu. Who may open it is `levelSelect()` above; this
+// draws the same grid either way.
+//
+// The verdict is the BARE run and nothing else: drop her in with no bands and
+// the level must not solve itself. A card used to grade a baked solution beside
+// it, drawn into the Figma frame as `band` layers and carried through the
+// codec — that is gone. It was an answer key that had to be re-drawn by hand
+// every time the geometry moved, and a stale one graded green; the honest
+// answer to "does this level work" is `verify.mjs`, which searches for the
+// solution instead of being told one. What a card can say for itself, it still
+// says.
 function labVerdict(i) {
   if (!labVerdicts.has(i)) {
-    const lv = GOOMBA_LEVELS[i];
     const bare = scoreRun(i, []).result;
-    const sol = lv.solution && lv.solution.length
-      ? scoreRun(i, lv.solution.map(([a, b]) => snapBand(lv, { ax: a[0], ay: a[1], bx: b[0], by: b[1] }))).result
-      : null;
-    labVerdicts.set(i, { bare, sol, ok: bare !== "win" && sol === "win" });
+    labVerdicts.set(i, { bare, ok: bare !== "win" });
   }
   return labVerdicts.get(i);
 }
@@ -1452,8 +1457,11 @@ function drawLab() {
     lv.bumpers.forEach((bp) => drawBumper(bp, 0));
     lv.cans.forEach((m, k) => drawCan(m[0], m[1], false, k));
     drawGoalPlant(lv, null);
-    (lv.solution || []).forEach((sol, k) => drawBand(
-      snapBand(lv, { ax: sol[0][0], ay: sol[0][1], bx: sol[1][0], by: sol[1][1] }), k % 4, 0, false));
+    // Her spawn, drawn as herself. A card is read at a glance and every other
+    // thing on it is a picture of the thing it is; `start` was the one piece of
+    // the level with nothing standing where it says. Idle, so the grid has her
+    // waiting on all of them at once.
+    drawGoomba(lv.start[0], lv.start[1], lv.startAngle, 1, true, false, true);
     camOX = camOY = 0;
     ctx.restore();
     // frame + labels
@@ -1471,7 +1479,7 @@ function drawLab() {
     ctx.fillText(fitText(lv.name, cw - 18), x + 9, y + ch - 8);
     ctx.font = "10px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = v.ok ? "#57e6c9" : "#ff8f8f";
-    ctx.fillText(`${v.ok ? "✓" : "✗"} bare:${v.bare} · sol:${v.sol ?? "none"}`, x + 9, y + 16);
+    ctx.fillText(`${v.ok ? "✓" : "✗"} bare:${v.bare}`, x + 9, y + 16);
     // A level adopted from the URL hash (?solo#…) is the one kind that is NOT
     // in the event's pack: it plays identically — same sim, same bands, same
     // scoring — but nobody else can see it and no room has to clear it.

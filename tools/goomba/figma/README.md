@@ -21,9 +21,12 @@ purple, `#150a2a` — the same value as `html, body` in the app.
   plant), `watering-can`, `bumper`, `party-popper`, `cushion`.
 - **Goomba Levels** — one real **Frame** per shipped level, named
   `L: <title>`, filled with `drawBackground`'s vertical gradient
-  (`#241245 → #170b30 → #12081f`), terrain as cream zero-height Lines, toys as
-  instances of the kit, and each level's baked solution as a dashed `band` in
-  that player's colour from `BAND_COLORS`.
+  (`#241245 → #170b30 → #12081f`), terrain as cream zero-height Lines and toys
+  as instances of the kit. **A frame carries no bands.** It used to carry the
+  level's baked solution as dashed `band` Lines, which the readers turned back
+  into `solution` and the selector's cards graded — an answer key drawn by hand,
+  stale the moment the geometry moved beneath it. A frame is the GEOMETRY; what
+  solves it is `verify.mjs`'s to find.
 
 Component names deliberately match the names **already in use in that file**
 (`party-popper`, `watering-can`, `bumper`, `start`) rather than importing a new
@@ -96,7 +99,7 @@ Layer **names** carry all the meaning. Position comes from the node.
 | `bumper` | anything | a `bumpers[]` entry — bbox centre |
 | `cushion` | **Rect** | `{x: left, y: centre, w: width}` — horizontal only, rotation ignored |
 | `party-popper` / `pop` | anything | a popper at bbox centre; `deg` from rotation |
-| `band` | Line | an entry in `solution` — optional, documentation only |
+| `band` | Line | **ignored** — one warning per paste. Levels no longer carry a baked solution; delete these |
 | `_…` or `//…` | anything | **ignored** (gauges, guides, notes) |
 | any Text | text | **ignored**, always |
 
@@ -333,13 +336,15 @@ Figma frame  →  Ctrl+C  →  Ctrl+V at /editor/  →  ▶ play
 
 Every step of that is exercised. Reading the smoke-test frame back gave the
 level below, matching the coordinates it was built from **exactly** — terrain,
-band, start, goal, can, bumper, popper (`deg -37`, `spd 137` off the layer
-name) and the cushion's 20-unit span:
+start, goal, can, bumper, popper (`deg -37`, `spd 137` off the layer name) and
+the cushion's 20-unit span. The frame also carries one leftover `band` Line, and
+what comes back is a warning rather than a `solution`:
 
 ```
-terrain [[10,10],[40,16]] [[40,16],[70,14]]   band [[15,30],[50,32]]
+terrain [[10,10],[40,16]] [[40,16],[70,14]]
 start [12,8]  goal [65,50]  cans [[30,25]]  bumpers [{50,40}]
 pops [{20,45,deg:-37,spd:137}]  cushions [{35,52,w:20}]
+warning: ignored 1 `band` layer(s)
 ```
 
 and the link it copied went straight into the bench:
@@ -347,13 +352,21 @@ and the link it copied went straight into the bench:
 ```
 link Smoke Test  (--quick: smaller samples)
   ok    bare run fails — fall@2.93s
-  FAIL  solution is 4 bands (party rule) — 1 band(s)
+  FAIL  solution is 4 bands (party rule) — 0 band(s)
   → FAIL ✗ (solution is 4 bands (party rule))
 ```
 
 which is the gate doing its job: a scatter of props is not a level, and it says
 so about geometry that never entered the repo. No new protocol, no server
 change, no `GOOMBA_LEVELS` mutation.
+
+**What a link can be graded on, now that frames carry no bands.** Check 1 (the
+bare run must fail) and checks 5–7 (no 0/1/2/3-band win exists) are searches
+over the geometry, and they still run on a link exactly as before — those are
+the checks that catch a broken level. Checks 2–4 (the solution is 4 bands, every
+band load-bearing, ±3u finger slop) read `solution`, so on a link they now stop
+at check 2 as above, and a Figma level earns its PASS by landing in `levels.ts`
+with a solution beside it. `solve.mjs <idx> 4` is what finds one to write down.
 
 ## Three ways to read a Figma design back out
 

@@ -88,8 +88,10 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   screen: a phone gets the free-play menu and nothing else (tap plays), a
   laptop gets a file browser — click selects, double-click plays, drag
   reorders, `⧉` copies the level's link, `⌫` deletes, and Ctrl+V lands on the
-  selection. Deleting, and pasting over a card whose level NAME does not match
-  what is coming in, both ask first. The kit and the naming contract are in
+  selection — or, with the grid shut, straight onto the level you are playing,
+  so the Figma loop does not cost a trip out to the grid and back. Deleting,
+  and pasting over a level whose NAME does not match what is coming in, both
+  ask first, on the browser's own `confirm()`. The kit and the naming contract are in
   [`tools/goomba/figma/README.md`](./tools/goomba/figma/README.md).
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported

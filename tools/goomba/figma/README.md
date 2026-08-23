@@ -134,7 +134,13 @@ event's level pack without ever leaving the game.
 
 ```
 copy a frame in Figma  →  \  →  Ctrl+V on the grid  →  src/figma/  →  the pack
+copy a frame in Figma  →  Ctrl+V while playing  →  …over the level on screen
 ```
+
+The second line is the tight loop: with the grid shut, a paste lands on the
+level in front of you and stays there — no bounce out to the grid, and no
+question asked as long as the frame's NAME still matches the level it is
+redrawing.
 
 The readers live in `apps/goomba-glider/src/figma/`: `clipboard.js`, `svg.js`,
 `stitch.js`, and `paste.js` (which decides which of the three shapes arrived).

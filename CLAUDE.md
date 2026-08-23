@@ -29,14 +29,21 @@ findings — do not design from intuition, the sim disproves it reliably.
   with a bar in the gap the drop lands in, and each card carries `⧉` copy — the
   level onto the clipboard as the same link `verify.mjs --hash` grades, which
   is also how you duplicate one — and `⌫` delete. `◀ ▶` are gone with the drag.
-  The SELECTION is where a **Ctrl+V** lands: a card replaces that level, the
-  trailing dashed slot appends, and there is no separate "aim the paste"
-  button any more because a selection already says it. Two edits ask first, on
-  a canvas-drawn confirm (Enter/Esc answer it, and it dies with the grid):
-  a delete, and a paste whose level NAME differs from the card it lands on —
-  a MATCHING name is a redraw of that card from the frame it came from, which
+  **Ctrl+V lands wherever you were looking.** On the grid that is the
+  SELECTION: a card replaces that level, the trailing dashed slot appends, and
+  there is no separate "aim the paste" button any more because a selection
+  already says it. PLAYING, it is the level on the screen — a paste no longer
+  bounces you out to the grid, because the level in front of you is what the
+  paste meant (tweak the frame in Figma, Ctrl+C, Ctrl+V, watch it redraw under
+  you). The only paste that still opens the grid is the one with nowhere else
+  to land: an EMPTY pack, which has no level in front of you and no card to
+  select. Two edits ask first, on the browser's own `confirm()` — a delete, and
+  a paste whose level NAME differs from the level it lands on, card or played.
+  A MATCHING name is a redraw of that level from the frame it came from, which
   is the tweak-copy-paste-verdict loop the editor exists for, so it goes
-  straight through.
+  straight through. The dialog is native rather than the canvas one it used to
+  be precisely because a paste can now land with the grid shut, and a
+  canvas-drawn question needs a grid to be drawn on.
   `src/figma/stitch.js` is the one non-obvious step: Figma stores terrain as one
   Line per segment, and the game strokes each polyline with round caps, so
   unstitched chains grow half-stroke stubs at every shared vertex (2.2 u of

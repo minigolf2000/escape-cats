@@ -145,7 +145,10 @@ export function newDoc() {
   const cushion = (x, y, w) =>
     rect("cushion", x, y - 0.8 * S, w * S, 1.6 * S, { fill: PLUM, rx: 0.8 * S });
 
-  /** A solution band. Colour it by player slot to match the game's four. */
+  /** A dashed band, for the teaching diagrams in make-pack.mjs ("a band goes
+   * here"). NOT a level part: a level frame carries no bands, and the readers
+   * ignore a layer named `band` — a level's geometry is the whole of it and
+   * what solves it is `verify.mjs`'s to find. */
   const band = (x1, y1, x2, y2, colour) =>
     seg(x1, y1, x2, y2, { name: "band", stroke: colour || PINK, sw: 4, dash: "14 10" });
 

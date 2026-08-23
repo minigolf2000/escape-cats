@@ -22,7 +22,6 @@ import {
   stepRun,
   snapBand,
   bandPoints,
-  scoreRun,
   canPlaceBand,
   earsFor,
   goombaCleared,
@@ -160,7 +159,6 @@ function clearLabJump() {
 }
 let labCells = [];          // hit targets for the lab's cards
 let labBtns = [];           // hit targets for the per-card editor buttons
-const labVerdicts = new Map(); // level idx -> {bare, sol, ok} from the real sim
 
 // ---------- the selector IS the editor ----------
 // There is no separate editor page any more. The levels grid a cleared team
@@ -231,13 +229,11 @@ function refit() {
  *
  * `applyPack` writes into the same `GOOMBA_LEVELS` array every rule already
  * reads, so nothing downstream has to know the levels can change. What DOES
- * have to know is this file's two caches: the per-level verdicts, and the
- * camera, which is framed on a level whose geometry may have just been
- * replaced under it.
+ * have to know is this file's one cache: the camera, which is framed on a level
+ * whose geometry may have just been replaced under it.
  */
 function onPack(pack) {
   applyPack(pack);
-  labVerdicts.clear();
   if (selected !== null && selected >= GOOMBA_LEVELS.length) selected = null;
   // A confirm and a drag both name a SLOT, and the pack just renumbered its
   // slots — including, quite possibly, by the very edit they were about to
@@ -288,7 +284,7 @@ const NO_LEVELS = initLevel({
   start: [20, 20],
   goal: [80, 20],
   terrain: [[[0, 30], [100, 30]]],
-  cans: [], cushions: [], pops: [], bumpers: [], solution: [],
+  cans: [], cushions: [], pops: [], bumpers: [],
 });
 const L = () => GOOMBA_LEVELS[level()] ?? NO_LEVELS;
 const bands = () => (snap ? snap.bands : []);
@@ -1211,21 +1207,18 @@ function drawStartPad(lv) {
 
 // ---------- the LEVELS menu (the level selector) ----------
 // The deleted prototype's lab view, on the shipped sim: every level as a card
-// with live verdicts (bare must NOT win, the solution must) — tap one to send
-// the whole room there. Design triage on any phone straight from the deployed
-// site, and, for a team that has cleared the game, its free-play menu. Who may
-// open it is `levelSelect()` above; this draws the same grid either way.
-function labVerdict(i) {
-  if (!labVerdicts.has(i)) {
-    const lv = GOOMBA_LEVELS[i];
-    const bare = scoreRun(i, []).result;
-    const sol = lv.solution && lv.solution.length
-      ? scoreRun(i, lv.solution.map(([a, b]) => snapBand(lv, { ax: a[0], ay: a[1], bx: b[0], by: b[1] }))).result
-      : null;
-    labVerdicts.set(i, { bare, sol, ok: bare !== "win" && sol === "win" });
-  }
-  return labVerdicts.get(i);
-}
+// drawn from its own geometry — tap one to send the whole room there. Design
+// triage on any phone straight from the deployed site, and, for a team that has
+// cleared the game, its free-play menu. Who may open it is `levelSelect()`
+// above; this draws the same grid either way.
+//
+// A card carries NO verdict. It held two once — a baked solution's result, and
+// then the bare run's — and both are gone: grading is `verify.mjs`'s job, which
+// searches for a solution instead of being told one and reports far more than
+// one word will hold. A card is a picture of the level and its name, which is
+// what a grid is read for. The sim work went with the text, so opening the menu
+// no longer runs every level to label it.
+
 /** Ellipsise `s` to at most `maxW` px in the current ctx font. */
 function fitText(s, maxW) {
   if (ctx.measureText(s).width <= maxW) return s;
@@ -1460,7 +1453,6 @@ function drawLab() {
     const c = i % cols, r = (i / cols) | 0;
     const x = padX + c * (cw + padX), y = top + r * (ch + 12);
     labCells.push({ i, x, y, w: cw, h: ch });
-    const v = labVerdict(i);
     // The card being dragged fades where it came from, so the gap it is about
     // to leave reads as a gap rather than as a duplicate.
     if (labDrag && labDrag.moved && labDrag.i === i) ctx.globalAlpha = 0.35;
@@ -1479,8 +1471,11 @@ function drawLab() {
     lv.bumpers.forEach((bp) => drawBumper(bp, 0));
     lv.cans.forEach((m, k) => drawCan(m[0], m[1], false, k));
     drawGoalPlant(lv, null);
-    (lv.solution || []).forEach((sol, k) => drawBand(
-      snapBand(lv, { ax: sol[0][0], ay: sol[0][1], bx: sol[1][0], by: sol[1][1] }), k % 4, 0, false));
+    // Her spawn, drawn as herself. A card is read at a glance and every other
+    // thing on it is a picture of the thing it is; `start` was the one piece of
+    // the level with nothing standing where it says. Idle, so the grid has her
+    // waiting on all of them at once.
+    drawGoomba(lv.start[0], lv.start[1], lv.startAngle, 1, true, false, true);
     camOX = camOY = 0;
     ctx.restore();
     // frame + labels
@@ -1496,16 +1491,14 @@ function drawLab() {
     // The title is all a card says, so trim to the card's real width rather
     // than a guessed character count.
     ctx.fillText(fitText(lv.name, cw - 18), x + 9, y + ch - 8);
-    ctx.font = "10px ui-rounded, system-ui, sans-serif";
-    ctx.fillStyle = v.ok ? "#57e6c9" : "#ff8f8f";
-    ctx.fillText(`${v.ok ? "✓" : "✗"} bare:${v.bare} · sol:${v.sol ?? "none"}`, x + 9, y + 16);
     // A level adopted from the URL hash (?solo#…) is the one kind that is NOT
     // in the event's pack: it plays identically — same sim, same bands, same
-    // scoring — but nobody else can see it and no room has to clear it.
+    // scoring — but nobody else can see it and no room has to clear it. It
+    // takes the top-left corner the bare verdict used to hold.
     if (lv.pasted) {
       ctx.font = "700 9px ui-rounded, system-ui, sans-serif";
       ctx.fillStyle = "#ffd166";
-      ctx.fillText("FROM A LINK — not in the pack", x + 9, y + 28);
+      ctx.fillText("FROM A LINK — not in the pack", x + 9, y + 16);
     }
     // The round trip, made visible: the tap landed, the room is coming with us.
     if (jumping) {

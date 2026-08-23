@@ -53,11 +53,12 @@ const EXPECT = {
     [[12, 137], [122, 137]],
   ],
   cans: [[96, 38], [84, 98]],
-  solution: [
-    [[53, 29], [70, 27]],
-    [[129, 48], [122, 89]],
-    [[124, 90], [76, 111]],
-  ],
+  // The frame has three `band` layers on it — this capture predates their
+  // removal. They are consumed and warned about, never turned into a
+  // `solution`: a level is geometry, and what solves it is `verify.mjs`'s to
+  // find rather than the frame's to declare.
+  solution: undefined,
+  droppedBands: 3,
   counts: [0, 0, 0], // pops / bumpers / cushions
 };
 
@@ -76,11 +77,13 @@ check("start", level.start, EXPECT.start);
 check("goal", level.goal, EXPECT.goal);
 check("terrain polylines", level.terrain, EXPECT.terrain);
 check("cans", level.cans, EXPECT.cans);
-check("solution bands", level.solution, EXPECT.solution);
+check("no baked solution", level.solution, EXPECT.solution);
 check("pops/bumpers/cushions", [level.pops.length, level.bumpers.length, level.cushions.length], EXPECT.counts);
 // The component definitions ride along in the payload and are named exactly
 // like the instances; counting them would show four cans here, not two.
 check("component definitions excluded", level.cans.length, 2);
+check("the `band` layers are warned about",
+      warnings.filter((w) => w.includes("`band`")).length, 1);
 if (warnings.length) console.log("  warnings:", warnings.join(" · "));
 console.log(bad ? `\n→ FAIL ✗ (${bad})` : "\n→ PASS ✓  a real Ctrl+C decodes exactly");
 process.exit(bad ? 1 : 0);

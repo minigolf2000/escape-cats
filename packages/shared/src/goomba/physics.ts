@@ -397,10 +397,38 @@ export function stepRun(st: RunState, dt: number): void {
   else if (st.slowT > 1.4) st.result = "stall";
   else if (st.t > RUN_MAX) st.result = "loop";
   else if (st.t - st.snap.t > 3.5) {
-    // trapped in a bowl/corner, or boinging in place
+    // Trapped in a bowl/corner, or boinging in place: she is still within 8
+    // units of where she was 3.5 seconds ago. Displacement is measured in BOTH
+    // axes, because a route is not obliged to be horizontal. `Math.abs(sdx) < 6`
+    // used to be a second, SUFFICIENT condition on its own, and it read a
+    // straight drop as being stuck.
+    //
+    // First Steps is the level that found it: its plant sits 80 units directly
+    // below its start (goal x 19.5 against start x 18.8), so the last second of
+    // any solution is a fall down the left wall with sdx ~ 0. A run that had
+    // covered 46 units downward and was doing 86 u/s, 0.08s from the wall and
+    // one watering can short of a win, was killed at t=3.50 and told "she's
+    // stuck! try different bands". It also never reached the r=9 goal circle,
+    // so the flare that would have SAID "you still need a can" (#204) never
+    // fired either — the misdiagnosis hid the real diagnosis.
+    //
+    // Across 4400 sampled band sets over both packs the clause fired on its own
+    // 103 times, 49 of those with her moving faster than 20 u/s. What it caught
+    // that the radius does not, `stall` and RUN_MAX still catch: outcomes only
+    // move from `loop` to `stall`, which is the truer word for it, and the
+    // whole sample costs +3% more substeps.
+    //
+    // What the radius is measured against is `st.snap`, a ROLLING anchor rather
+    // than the launch pad: it is seeded at `L.start`, and every 3.5s check she
+    // survives moves it to wherever she is now. So the window always means "the
+    // last 3.5 seconds", never "since launch" — only the FIRST one is against
+    // the start. It is also a two-POINT sample, not a max excursion, so a round
+    // trip whose period lands near 3.5s can come back inside the radius and read
+    // as stuck. That is left standing: RUN_MAX is the real backstop, and STOP is
+    // a free abort now (#205), so under-calling this costs a player nothing.
     const sdx = st.p.x - st.snap.x,
       sdy = st.p.y - st.snap.y;
-    if (sdx * sdx + sdy * sdy < 64 || Math.abs(sdx) < 6) st.result = "loop";
+    if (sdx * sdx + sdy * sdy < 64) st.result = "loop";
     else st.snap = { x: st.p.x, y: st.p.y, t: st.t };
   }
 }

@@ -793,9 +793,15 @@ here, because none of them is about the URL:
   byte for byte — which is exactly what `?room=`'s `toUpperCase()` did not.
 - It stays on **one origin**, so the pid still follows the player.
 
-Goomba only: hex's win is a proctor's press that would never come for a room
-the proctor isn't sorting into, and a chat channel of one is nothing. Both keep
-calling `roomFor` with a team and no slug.
+Both games take the same slug, because it names a ROOM and not a game:
+`/g00mBa/?r=kelly` and `/hexxygon/?r=kelly` are two rooms sharing a name, the
+way a team's two games always have. Hex needs one thing Goomba does not — its
+win is a proctor's press, so an ad-hoc room must reach the board or its players
+could earn the code word and never be told they won. `HexServer` therefore
+announces itself to the registry on connect, which is its only reason to call
+the lobby at all. Chat is the one surface still out: a channel is read from a
+box on the board, and these rooms are a list below it, so it keeps calling
+`roomFor` with a team and no slug.
 
 Two things follow from a slug being a link rather than a credential. Anyone the
 link reaches can join, which is the point when you send it to two people and
@@ -806,7 +812,9 @@ tool, and a link handed outside the party is past that premise — a friend on a
 laptop who cleared the game could otherwise delete a level for the whole event.
 
 The proctor watches them from a collapsible section at the bottom of the board
-(`apps/proctor/src/AdhocRooms.tsx`), which is also where the links are minted.
+(`apps/proctor/src/AdhocRooms.tsx`), which is also where both games' links are
+minted. A row carries the same two game blocks a team's box does — including
+Hex's 🏆, without which these rooms could never be marked won.
 Nothing can list Durable Objects, so that list is a REGISTRY: a goomba room
 announces its own name on the pack fetch it already makes on every connect, and
 the lobby remembers it (pruned to a week and capped). A room therefore appears

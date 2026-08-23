@@ -527,3 +527,8 @@ button.small.danger:disabled {
 .adhoc-mint button.small {
   margin-top: 0;
 }
+/* Both games' links, one per line — the block is what a proctor reads off the
+ * screen when the clipboard is not available. */
+.adhoc-url span {
+  display: block;
+}

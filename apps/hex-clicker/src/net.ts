@@ -11,7 +11,7 @@
 // when someone actually joins a room. Keep the type-only import below type-only.
 
 import type PartySocket from "partysocket";
-import { roomFor } from "@escape-cats/shared";
+import { adhocRoomId, roomFor } from "@escape-cats/shared";
 import type {
   HexClientMsg,
   HexServerMsg,
@@ -152,19 +152,32 @@ export function connectRoom(opts: {
 }
 
 /**
+ * The ad-hoc room this URL asks for, or null. `?r=kelly` -> `r-kelly`.
+ *
+ * Goomba's copy of this function is the same three lines, on purpose: the two
+ * games share no client code, and `adhocRoomId` — the part that must agree
+ * byte for byte, since it decides which room id a slug names — is the shared
+ * one they both call.
+ */
+export function adhocRoom(): string | null {
+  return adhocRoomId(new URLSearchParams(location.search).get("r"));
+}
+
+/**
  * Watch the lobby for this phone's room. Connecting also REGISTERS the phone in
  * the lobby roster (same pid+name contract the landing page uses), so a player
  * who lands here unsorted appears on the proctor's board.
  *
  * Which room that is comes from `roomFor`, not from here — a sorted phone gets
- * its team, and an unsorted one gets the shared testing room (or `null`, the
- * old waiting screen, when that room is closed). One rule, three surfaces.
+ * its team, an unsorted one with a `?r=` link gets that room, and an unsorted
+ * one without gets the shared testing room (or `null`, the old waiting screen,
+ * when that room is closed). One rule, three surfaces.
  *
  * Once we are in a REAL team the socket closes: the answer cannot change under
  * us in a way this phone should follow silently, and the lobby object should be
- * free to hibernate. A phone in the testing room keeps it open instead, because
- * for that one the answer very much can change — the proctor sorting a tester
- * onto a team mid-session reloads the page into it.
+ * free to hibernate. A phone in the testing room — or an ad-hoc one — keeps it
+ * open instead, because for those the answer very much can change: the proctor
+ * sorting a tester onto a team mid-session reloads the page into it.
  */
 export function watchTeam(opts: {
   name: string;
@@ -172,6 +185,7 @@ export function watchTeam(opts: {
   onStatus: (up: boolean) => void;
 }): void {
   const pid = playerId();
+  const adhoc = adhocRoom();
   void (async () => {
     const { default: PartySocket } = await import("partysocket");
     const socket = new PartySocket({
@@ -187,7 +201,9 @@ export function watchTeam(opts: {
       const msg: LobbyServerMsg = JSON.parse(e.data as string);
       if (msg.type !== "lobby") return;
       const me = msg.snapshot.players.find((p) => p.pid === pid);
-      const room = roomFor(me?.team ?? null);
+      // A team beats `?r=` — a URL can never override the proctor, which is
+      // what lets a phone on a friend's link be reclaimed onto a real team.
+      const room = roomFor(me?.team ?? null, adhoc);
       if (room === null) return; // unsorted, and the testing room is closed
       if (joined === null) {
         joined = room;
@@ -195,7 +211,8 @@ export function watchTeam(opts: {
         opts.onTeam(room, me?.name ?? opts.name);
         return;
       }
-      // Only reachable from the testing room, whose socket stayed open.
+      // Only reachable from the testing room or an ad-hoc one, whose sockets
+      // stayed open.
       // A reload is the whole move: the room is never in the URL, so the
       // fresh boot re-asks the lobby and lands in the new team.
       if (room !== joined) location.reload();

@@ -67,9 +67,17 @@ export const OPEN_ROOM_OPEN = true;
  *     proctor. That last one is what stops a friend who bookmarked a
  *     playtest link from turning up on event night stuck outside their team.
  *
- * Goomba only. Hex's win is a proctor's press that would never come for a
- * room the proctor isn't watching for, and a chat channel of one is nothing;
- * both keep asking `roomFor` with no ad-hoc argument, so both ignore `?r=`.
+ * BOTH GAMES take the same slug, because it names a ROOM and not a game:
+ * `/g00mBa/?r=kelly` and `/hexxygon/?r=kelly` are two rooms sharing a name,
+ * exactly as a team's two games are. Hex needs one thing Goomba does not — its
+ * win is a proctor's press (`hexWon`), so an ad-hoc room has to reach the
+ * proctor's board or its players could earn the code word and never be told
+ * they won. That is what the registry is for, and why HexServer announces
+ * itself on connect even though it has no other reason to call the lobby.
+ *
+ * Chat is the one surface still out: a channel is read from a box on the
+ * board, and these rooms are a list below it. It keeps asking `roomFor` with
+ * no ad-hoc argument, so it ignores `?r=`.
  *
  * A slug is not a secret — anyone the link reaches can join. That is the
  * point of handing it to two friends, and the thing to know before handing it

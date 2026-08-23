@@ -37,7 +37,12 @@ import { adoptHashLevel, debugFromUrl, soloFromUrl, startDebug } from "./debug";
 import { levelFromPaste } from "./figma/paste.js";
 
 const cv = document.getElementById("c");
-const ctx = cv.getContext("2d");
+// `let`, not `const`: every draw below reaches for this one context and this
+// one W/H, which is exactly what lets the how-to-play sheet borrow the whole
+// renderer for its little canvases (drawScene, near boot) without any of it
+// growing a "which canvas?" parameter. Swapped synchronously and put back in a
+// finally, so nothing else can ever observe it pointed elsewhere.
+let ctx = cv.getContext("2d");
 let W = 0, H = 0;
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
@@ -283,6 +288,7 @@ const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   playBtn = $("play"), clearBtn = $("clear"), toastEl = $("toast"),
   labEl = $("lab"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
+  helpEl = $("help"), scGoalEl = $("scGoal"), scBandsEl = $("scBands"),
   connEl = $("conn");
 
 const level = () => (snap ? snap.level : 0);
@@ -358,7 +364,7 @@ function onSnapshot(s) {
 
   if (first) {
     inited = true;
-    gateEl.classList.add("hidden");
+    closeSheet();
     requestAnimationFrame(frame);
   }
   if (s.phase !== "edit") resetInput(); // a run kills any half-drawn band
@@ -471,6 +477,13 @@ labEl.onclick = () => {
   setLab(true);
 };
 window.addEventListener("keydown", (e) => {
+  // The help sheet owns the keyboard while it is up: Space behind it would
+  // launch a run nobody on this screen can see. Any key dismisses it — there is
+  // nothing else to answer.
+  if (sheetHelp) {
+    if (e.key === "Shift" || e.key === "Control" || e.key === "Alt" || e.key === "Meta") return;
+    e.preventDefault(); closeSheet(); return;
+  }
   if (e.key === " ") { e.preventDefault(); playBtn.onclick(); }
   // `\` — the whole editor, on one key. Swapping between the game and the
   // level pack has to be instant or nobody uses it mid-party: this is the same
@@ -511,6 +524,7 @@ window.addEventListener("paste", (e) => {
   // rest of this file gives it — not a hidden second way to rewrite the pack.
   if (!DESKTOP()) return;
   e.preventDefault();
+  if (sheetHelp) closeSheet();   // the grid must not open behind the sheet
   // Read the screen NOW, not when the clipboard resolves: this is about what
   // the person was looking at when they pressed the key.
   const onGrid = labOpen;
@@ -1646,6 +1660,7 @@ function frame(nowMs) {
   const dt = Math.min(0.05, (nowMs - (frame.last || nowMs)) / 1000); frame.last = nowMs;
   tGlobal += dt;
   if (editMsgT > 0) editMsgT = Math.max(0, editMsgT - dt);
+  if (sheetOpen) drawSheet();   // `?` mid-party: the pictures keep moving
   if (!snap) return;
   if (labOpen) { drawLab(); return; }
   if (snap.phase === "splash") { drawSplash(); return; }
@@ -1745,10 +1760,179 @@ function frame(nowMs) {
   ctx.restore();
 }
 
+// ---------- how to play: two pictures, drawn by the game ----------
+// The waiting room used to explain this game in four sentences. Nobody reads
+// four sentences at a party, and worse, nothing ever showed them again: the
+// gate is the one screen a player passes through exactly once, so every word
+// on it was spent on the thirty seconds before they could do anything.
+//
+// It says the same two things in two pictures now — WHERE she is going (past
+// every can, home to the plant) and WHAT the players do about it (lay bands in
+// her way) — and `?` bottom-left brings them back mid-party, which is the half
+// that was actually missing.
+//
+// They are drawn by the RENDERER, not by hand: a scene below is a level-shaped
+// literal, and drawTerrain/drawCan/drawGoalPlant/drawBand/drawGoomba paint it
+// exactly as they paint a real level, into the sheet's little canvases instead
+// of the game's big one. That is the whole point — a picture of a watering can
+// that is not the watering can drifts the first time either one is touched,
+// and a second set of drawing code is a second thing to keep true. It is the
+// same trick the level cards play (drawLab): borrow the camera, draw the
+// world, put the camera back.
+
+/** A scene: only the fields the draw functions actually read. Nothing here is
+ * simulated, verified or playable — `bounds` is just the box to frame. */
+const GOAL_SCENE = {
+  terrain: [[[0, 20], [24, 19.5], [48, 18.8], [72, 18.2]]],
+  cans: [[20, 10], [36, 7.2], [52, 9]],
+  goal: [65, 17.8],
+  start: [7, 19.6 - R],
+  // Framed off what the DRAW functions reach, not off the coordinates above:
+  // the plant's glow is 8.8 wide of its goal and a can's is 4.6 of its middle,
+  // so a box drawn to the objects' own points clips both. Same reason the top
+  // is 2.5 and not 7.2.
+  bounds: { x0: -3, x1: 77, y0: 2.5, y1: 21.5 },
+};
+// Her ride, through the cans and into the plant. The one mark in either
+// picture that is not a game object, because "she goes THIS way, through those"
+// is the sentence the picture is replacing, and no arrangement of the objects
+// themselves says it.
+const RIDE_PATH = [[11.5, 16], ...GOAL_SCENE.cans, [58.5, 12.6]];
+
+const BAND_SCENE = {
+  terrain: [[[0, 9], [18, 9.6]], [[48, 17], [72, 16.4]]],
+  cans: [[68, 7.5]],
+  band: { ax: 18, ay: 9.6, bx: 48, by: 17 },      // laid across the gap, ridden
+  ghost: { ax: 53, ay: 16.8, bx: 68, by: 11.5 },  // ...and one going down now
+  bounds: { x0: -3, x1: 76, y0: 2.5, y1: 19.5 },
+};
+
+/** Draw a scene into one of the sheet's canvases, framed to its bounds.
+ *
+ * The renderer's globals ARE the parameters here: point `ctx` at the little
+ * canvas, tell it how big it is, put the camera on the scene, draw, and hand
+ * all of it back. The restore is in a finally because a throw mid-picture that
+ * left `ctx` on a 340px canvas would take the whole game's rendering with it. */
+function drawScene(el, b, body) {
+  const w = el.clientWidth, h = el.clientHeight;
+  if (!w || !h) return;              // the sheet is hidden: nothing to draw into
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (el.width !== bw || el.height !== bh) { el.width = bw; el.height = bh; }
+  const g = el.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  const savedCtx = ctx, savedW = W, savedH = H, savedCam = { ...cam },
+    savedOX = camOX, savedOY = camOY;
+  ctx = g; W = w; H = h; camOX = camOY = 0;
+  cam.s = Math.min(w / (b.x1 - b.x0), h / (b.y1 - b.y0));
+  cam.x = (b.x0 + b.x1) / 2; cam.y = (b.y0 + b.y1) / 2;
+  try {
+    body();
+  } finally {
+    ctx = savedCtx; W = savedW; H = savedH;
+    Object.assign(cam, savedCam); camOX = savedOX; camOY = savedOY;
+  }
+}
+
+/** The dashed ride-line, with an arrow on its nose. Marching dashes, so it
+ * reads as travel rather than as a rope she is hanging from. */
+function drawRide(path) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(87,230,201,0.6)";
+  ctx.lineWidth = 0.42 * cam.s; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.setLineDash([1.5 * cam.s, 1.9 * cam.s]);
+  ctx.lineDashOffset = -tGlobal * 7 * cam.s;
+  ctx.beginPath();
+  ctx.moveTo(sxp(path[0][0]), syp(path[0][1]));
+  for (let i = 1; i < path.length - 1; i++) {
+    const [x, y] = path[i], [nx, ny] = path[i + 1];
+    ctx.quadraticCurveTo(sxp(x), syp(y), sxp((x + nx) / 2), syp((y + ny) / 2));
+  }
+  const end = path[path.length - 1], prev = path[path.length - 2];
+  ctx.lineTo(sxp(end[0]), syp(end[1]));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.translate(sxp(end[0]), syp(end[1]));
+  ctx.rotate(Math.atan2(end[1] - prev[1], end[0] - prev[0]));
+  ctx.beginPath();
+  ctx.moveTo(-1.7 * cam.s, -1.3 * cam.s); ctx.lineTo(0, 0); ctx.lineTo(-1.7 * cam.s, 1.3 * cam.s);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Picture one — the goal. She is idle on her pad at the left, the cans are
+ * strung along the ride, and the plant is drawn READY (st.gotN = every can):
+ * this is the ending, not a snapshot mid-level, so it wears the face the
+ * ending has. */
+function drawGoalScene() {
+  drawTerrain(GOAL_SCENE);
+  drawRide(RIDE_PATH);
+  GOAL_SCENE.cans.forEach((c, i) => drawCan(c[0], c[1], false, i));
+  drawGoalPlant(GOAL_SCENE, { gotN: GOAL_SCENE.cans.length });
+  drawGoomba(GOAL_SCENE.start[0], GOAL_SCENE.start[1], 0, 1, true, false, true);
+}
+
+/** Picture two — the bands. A gap she cannot cross, one band laid across it
+ * with her riding it, and a second going down ahead of her (drawTeammatePreview's
+ * marching dashes are the game's own "someone is placing this"), pointed at the
+ * can that is the reason for any of it. Both in the team's ink, which with no
+ * team yet is the unsorted colour a waiting phone is already wearing. */
+function drawBandScene() {
+  drawTerrain(BAND_SCENE);
+  BAND_SCENE.cans.forEach((c, i) => drawCan(c[0], c[1], false, i));
+  drawBand(BAND_SCENE.band, 0.12, false);
+  drawTeammatePreview(BAND_SCENE.ghost);
+  const pts = bandPoints(BAND_SCENE.band);
+  const [mx, my] = pts[4];
+  const a = Math.atan2(pts[5][1] - pts[3][1], pts[5][0] - pts[3][0]);
+  // her riding height, off the band's own normal — the same R the sim keeps
+  // between her centre and whatever she is standing on
+  drawGoomba(mx + Math.sin(a) * R, my - Math.cos(a) * R, a, 1, true, false, false);
+}
+
+function drawSheet() {
+  drawScene(scGoalEl, GOAL_SCENE.bounds, drawGoalScene);
+  drawScene(scBandsEl, BAND_SCENE.bounds, drawBandScene);
+}
+
+// The sheet's two wearings. It opens as the GATE (undismissable, carrying the
+// connection status) and is the same element every time after, opened by `?`
+// and closed by a tap anywhere on it. `sheetOpen` is what the loops render off;
+// `sheetHelp` is only "may this be dismissed", which is the entire difference.
+let sheetOpen = true, sheetHelp = false;
+
+function openHelp() {
+  sheetOpen = true; sheetHelp = true;
+  gateEl.classList.add("help"); gateEl.classList.remove("hidden");
+  hudEl.classList.add("sheet");
+  drawSheet();   // the frame it appears on is already the picture, never a blank box
+}
+function closeSheet() {
+  sheetOpen = false; sheetHelp = false;
+  gateEl.classList.add("hidden"); gateEl.classList.remove("help");
+  hudEl.classList.remove("sheet");
+}
+helpEl.onclick = openHelp;
+gateEl.onclick = () => { if (sheetHelp) closeSheet(); };
+
+/** Before the first snapshot there is no game loop — `frame` starts on it —
+ * so the sheet drives its own clock until then, and stands down the moment
+ * frame() takes over (which draws it too, for the `?` case mid-party). */
+function sheetFrame(nowMs) {
+  if (inited) return;
+  requestAnimationFrame(sheetFrame);
+  const dt = Math.min(0.05, (nowMs - (sheetFrame.last || nowMs)) / 1000);
+  sheetFrame.last = nowMs;
+  tGlobal += dt;
+  drawSheet();
+}
+
 // ---------- boot — no menu, same contract as hex ----------
 const NAME_KEY = "escape-cats-name";
 
 function boot() {
+  requestAnimationFrame(sheetFrame);   // the gate is up: animate it until frame() exists
   // ?debug adds no chrome of its own any more — the roster line it used to
   // hide is gone from every phone. The SELECTOR rides `.cleared`, which syncHud
   // toggles off the room's snapshot, and ?debug simply forces that predicate

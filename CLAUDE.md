@@ -250,6 +250,20 @@ findings — do not design from intuition, the sim disproves it reliably.
   top) — and fill the slack with sky SAMPLED from the picture's own edges: the
   flat top and bottom rows above and below it, a ramp between those two beside
   it. Don't hardcode a sky, and don't go back to cropping either axis.
+- **Goomba's waiting screen IS its how-to-play sheet, and it is PICTURES**:
+  the gate that a phone waits on before the proctor sorts it in shows the game's
+  title, two scenes and two short captions — where she is going (past every can,
+  home to the plant) and what the players do about it (lay bands in her way).
+  The scenes are drawn by the RENDERER, not by hand: `GOAL_SCENE` / `BAND_SCENE`
+  in `main.js` are level-shaped literals, and `drawScene` points the module's
+  `ctx`/`W`/`H`/`cam` at the sheet's little canvases and back — the same trick
+  the level cards play, and the reason a can in the picture cannot drift from a
+  can in the game. `?` bottom-left (PLAY's corner, mirrored) re-opens the same
+  element mid-party as `.help`: dismissible by a tap anywhere or any key, with
+  the connection lines swapped for the way out. That button is the point of the
+  redesign — the old four-sentence gate was read once, by whoever was looking,
+  and nothing ever brought it back. Don't add a second copy of these
+  instructions anywhere; edit the sheet.
 - **Hex's win is the PROCTOR's press, and it unlocks a splash you can toggle
   away from**: hex cannot score its own win — the code word leaves the game on a
   phone and comes back as four people reading it out — so `wonAt`

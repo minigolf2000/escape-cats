@@ -90,7 +90,7 @@ Layer **names** carry all the meaning. Position comes from the node.
 
 | Layer name | Node type | Becomes |
 | --- | --- | --- |
-| `L: <title>` or `L--<title>` | Frame | one level; the frame's origin is world (0,0). The title IS the level name — nothing else is folded into it |
+| `L: <title>` or `L--<title>` | Frame | one level; the frame's origin is world (0,0). The title IS the level name — nothing else is folded into it, and **no number**: the game numbers a level by its place in the pack (`levelLabel`), so a typed-in "3 · " shows up twice |
 | `t` | Line | one `terrain` segment |
 | `start` | anything | `start` — bbox centre |
 | `goal` | anything | `goal` — bbox centre |

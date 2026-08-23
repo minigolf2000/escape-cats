@@ -4,6 +4,7 @@ import {
   UPGRADES,
   packToLevels,
   hexWon,
+  levelLabel,
   type GoombaServerMsg,
   type GoombaSnapshot,
   type HexServerMsg,
@@ -104,8 +105,14 @@ function goombaStats(s: GoombaSnapshot | null, names: string[]): StatLine[] {
   const finishedMs = s.finishedAt ? s.finishedAt - s.startedAt : null;
   // An event with no pack loaded yet is a real state, not an error; so is a
   // pack message that has not landed on THIS socket yet.
+  // A real name is numbered by its place in the pack (`levelLabel`, the same
+  // one the phones' cards use). Neither fallback is: "no levels loaded" is not
+  // a level, and the other one already IS the number.
+  const known = names[s.level];
   const name =
-    names[s.level] ?? (total === 0 ? "no levels loaded" : `level ${s.level + 1}`);
+    known !== undefined
+      ? levelLabel(s.level, known)
+      : total === 0 ? "no levels loaded" : `level ${s.level + 1}`;
   return [
     { text: `${phase} · ${name}` },
     s.finishedAt

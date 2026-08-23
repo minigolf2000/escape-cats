@@ -54,7 +54,8 @@ export const E_KIND = [0.02, 0.32, 1.3]; // restitution: ground, band, cushion
  * by a second terrain kind: `|nx|` is 1 for a vertical wall and 0 for a level
  * floor, and `wallness()` below ramps between the two. Nothing shallower than
  * 45° changes at all, which is what keeps floors and ridden slopes exactly as
- * they were — level 2's slope and every run-out floor still behave identically.
+ * they were — The Long Way Up's slope and every run-out floor still behave
+ * identically.
  */
 export const E_WALL = 0.15;
 /** cos of the steepest surface still treated as pure floor (45°). */
@@ -239,6 +240,44 @@ const lane = (y: number, xs: number[], dir: number): GoombaPopper[] =>
  * by `setGoombaLevels` from whatever the pack says.
  */
 export const SEED_LEVELS: GoombaLevel[] = [
+  // THE TEACHING LEVEL, and the only one here allowed to want fewer than four
+  // bands. It says the whole game in one screen: a floor, a gap in the middle
+  // of it, a can and the plant on the far side. Bare, she rolls off the lip and
+  // falls (fall@1.44s) — so the ONE thing a player can do is the one thing the
+  // game is about, and they watch it work before anything asks them to aim.
+  //
+  // Drawn in Figma (`L: Welcome to Goomba Glider`) and pasted in, so this entry
+  // is a transcription rather than a source: what was graded is the frame's own
+  // SVG through the shipped reader, which lands exactly this geometry under a
+  // uniform translation. Round numbers because 1 unit is 10 px in that file.
+  //
+  // Deliberately outside the 4-band rule (`verify.mjs` fails it at check 2, and
+  // always will): the rule exists so a level cannot be won by one player while
+  // three watch, and this level is the thirty seconds BEFORE that — nobody has
+  // seen a band yet. Everything after it is gated as usual.
+  //
+  //   · the 0.15 run-up is the shallowest slope that reliably keeps her going
+  //     (under ~0.12 she stalls), so she reaches the lip slow and legible
+  //   · the gap is 22 wide and steps down 12 — she cannot carry across it, and
+  //     both lips are terrain vertices, so a band end snaps to them: ±3u of
+  //     finger slop still wins 30/30
+  //   · one can before the plant, because "past every can, THEN home" is the
+  //     other half of the rules and the waiting-room sheet promises it
+  //   · the whole board is 84 × 45, deliberately small: the camera fits a level
+  //     to the screen, so a SHORT level is a BIG one under a finger — this gap
+  //     is ~100 px across on a 390-wide phone
+  { name: 'Welcome to Goomba Glider', budget: 1,
+    start: [5, 58.5],                      // her radius above the run-up
+    terrain: [
+      [[0, 60], [20, 63]],                 // the run-up, to the near lip
+      [[42, 75], [68, 79]],                // the far side, down to the plant
+    ],
+    cans: [[56, 70]],
+    goal: [64, 78.4],
+    // The one band, lip to lip. Both ends are terrain vertices, so a finger
+    // that misses by 3 units still snaps onto them: 30/30 jittered.
+    solution: [[[20, 63], [42, 75]]] },
+
   // Rebuilt from a hand sketch: a staircase of four ledges the eye reads
   // top-left → top-right → across → down-right, with the spider plant alone on
   // the ground far below. The shapes are the sketch's, transcribed 1:1.
@@ -257,14 +296,14 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // its upper half, and trades the chevron for a long flat shelf at y 43.
   //
   // Measured against THIS geometry: a THREE-band level, and a better-shaped one
-  // than the version it replaces. `minbands.mjs 0` is exhaustive at one band
-  // (0 of 7151) and finds nothing at two (0 of 30000 sampled); `solve.mjs 0 2`
-  // comes back empty and `0 3` solves. The 3-band solution wins at 7.27s with
+  // than the version it replaces. `minbands.mjs 1` is exhaustive at one band
+  // (0 of 7151) and finds nothing at two (0 of 30000 sampled); `solve.mjs 1 2`
+  // comes back empty and `1 3` solves. The 3-band solution wins at 7.27s with
   // both cans.
   //
   // Still short of the 4-band rule at 3, and that is the standing debt — but the
   // three jobs now fail in three DIFFERENT ways, which is what makes a level
-  // teach (`route.mjs 0 drop`):
+  // teach (`route.mjs 1 drop`):
   //   1. BRIDGE the shelf — drop it and she never reaches a can at all:
   //      stall@3.92s, 0/2, parked on the shelf
   //   2. CATCH her off the shelf's right end — drop it and she takes can 1 and
@@ -390,8 +429,8 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // DEBT, introduced on purpose: start was moved to (16,2.5) so she drops
   // straight into pop0 (26,20), the top-left-most popper, on the bare fall —
   // no band needed to enter the lattice any more. That was job 1 below;
-  // `minbands.mjs 2` now measures the true minimum at 3, and
-  // `verify.mjs 2` fails on "every band load-bearing" (drop-one on band 1 →
+  // `minbands.mjs 3` now measures the true minimum at 3, and
+  // `verify.mjs 3` fails on "every band load-bearing" (drop-one on band 1 →
   // still wins). Kept this way deliberately — restoring the 4-band
   // requirement needs a new 4th job designed into the lattice, not a start-
   // position tweak, and that redesign has not been done.
@@ -412,7 +451,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
   //      collected everything and flies past the plant off the right edge
   //      (flew, 3/3).
   //
-  // GATE: FAIL (`node verify.mjs 2`) — bare still fails (she now catches the
+  // GATE: FAIL (`node verify.mjs 3`) — bare still fails (she now catches the
   // first popper instead of falling through), the 4-band solution still wins
   // at ~3.5s, but drop-one on band 1 also wins, so "every band load-bearing"
   // fails and the 4-band rule is not honored. budget dropped to 3 to match the

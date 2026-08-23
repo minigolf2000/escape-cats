@@ -112,6 +112,12 @@ findings — do not design from intuition, the sim disproves it reliably.
   only thing left: with nobody rationed, a level that wins on one band is a
   level three people watch. `node bands.mjs` gates the room half; solo play
   needs no special case, since one phone was never capped.
+  **One level is exempt, on purpose: Welcome to Goomba Glider (1)**, the
+  teaching level that ships first. It wants ONE band, because it is the thirty
+  seconds before anyone has seen a band work — a floor, a gap in the middle,
+  and the only thing a player can do is the thing the game is about.
+  `verify.mjs` fails it at check 2 and always will; that is the rule doing its
+  job, not a defect. Nothing after it is exempt.
 - **A band wears the TEAM's colour** — `earsFor(team).ink` from `shared/ears.ts`,
   the same ink the proctor's board and the cat-ear headbands use. One colour for
   every band on the board, because no band belongs to a player; the four-colour
@@ -122,8 +128,9 @@ findings — do not design from intuition, the sim disproves it reliably.
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
-- **Four levels ship, and TWO pass the gate — The Long Way Up (2) and Cat's
-  Cradle (3).** The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The Popper
+- **Five levels ship, and TWO pass the gate — The Long Way Up (3) and Cat's
+  Cradle (4)** (Welcome to Goomba Glider (1) is the deliberate exemption
+  above). The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The Popper
   Grid, Pop Goes Goomba, Popper Pinball, Piñata Alley, Space Cadet and Slalom
   were cut. **A level's display number is its array index + 1, computed where it
   is shown and stored nowhere** — `levelLabel` in `goomba/levels.ts`, used by
@@ -133,7 +140,7 @@ findings — do not design from intuition, the sim disproves it reliably.
   card. The last level is the finale: `nextLeadsToSplash` and the selector's
   clear-every-level gate both key off the LAST index, so adding a level moves
   the splash behind it.
-- **The Long Way Up (2) is the one to read first if you are building from a
+- **The Long Way Up (3) is the one to read first if you are building from a
   sketch**: one concave-up slope she RIDES, poppers shooting her along it, three
   long rough steps notched perpendicular into it for the players' bands to chord
   across, and a bumper at the top that mirrors her into a flat run home across
@@ -142,9 +149,9 @@ findings — do not design from intuition, the sim disproves it reliably.
   rim), and put every band end on a terrain vertex ~9 units clear of its
   neighbours so snap absorbs finger slop (29/30 at ±3u on a level that is
   otherwise exact ballistics).
-- Levels 1 and 4 need fewer than 4 bands — the standing debt. Re-measured
-  with `minbands`/`solve`, not inherited: The Long Way Down (1) needs **3**;
-  4 is a testbed, not a shipped puzzle. Level 1 is now
+- Levels 2 and 5 need fewer than 4 bands — the standing debt. Re-measured
+  with `minbands`/`solve`, not inherited: The Long Way Down (2) needs **3**;
+  5 is a testbed, not a shipped puzzle. The Long Way Down is now
   drawn in Figma and pasted in, and one pass of it dropped to 2 bands by
   FENCING the world at both edges: two of its three jobs were only jobs because
   failing them threw her out of the world, and a fence does that work for free.
@@ -253,6 +260,20 @@ findings — do not design from intuition, the sim disproves it reliably.
   top) — and fill the slack with sky SAMPLED from the picture's own edges: the
   flat top and bottom rows above and below it, a ramp between those two beside
   it. Don't hardcode a sky, and don't go back to cropping either axis.
+- **Goomba's waiting screen IS its how-to-play sheet, and it is PICTURES**:
+  the gate that a phone waits on before the proctor sorts it in shows the game's
+  title, two scenes and two short captions — where she is going (past every can,
+  home to the plant) and what the players do about it (lay bands in her way).
+  The scenes are drawn by the RENDERER, not by hand: `GOAL_SCENE` / `BAND_SCENE`
+  in `main.js` are level-shaped literals, and `drawScene` points the module's
+  `ctx`/`W`/`H`/`cam` at the sheet's little canvases and back — the same trick
+  the level cards play, and the reason a can in the picture cannot drift from a
+  can in the game. `?` bottom-left (PLAY's corner, mirrored) re-opens the same
+  element mid-party as `.help`: dismissible by a tap anywhere or any key, with
+  the connection lines swapped for the way out. That button is the point of the
+  redesign — the old four-sentence gate was read once, by whoever was looking,
+  and nothing ever brought it back. Don't add a second copy of these
+  instructions anywhere; edit the sheet.
 - **Hex's win is the PROCTOR's press, and it unlocks a splash you can toggle
   away from**: hex cannot score its own win — the code word leaves the game on a
   phone and comes back as four people reading it out — so `wonAt`

@@ -154,11 +154,22 @@
   #title { position: relative; font-size: clamp(30px, 8vw, 48px); }
   #gate h1 { margin: 0; font-size: 1em; letter-spacing: .01em;
              background: linear-gradient(90deg, #ff5db1, #ffd166, #57e6c9); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  /* Bottom edge on the CAP LINE — measured at .19em under the box top here,
-     kept a hair above it — so "the ground" she glides over is the top of the
-     words, and the dip in her glide skims them instead of cutting through. */
-  #title #scTitle { position: absolute; left: 0; width: 100%; height: .9em;
-                    bottom: calc(100% - .17em); pointer-events: none; }
+  /* Her canvas covers the WORDS as well as the air over them — down to the
+     bottom of the line box, not down to the letter tops. A canvas clips what it
+     draws to its own box, so one that stopped at the cap line cut her off at the
+     exact place she is supposed to touch, and a cat sliced along the top of the
+     letters reads as a cat BEHIND them. Overlapping them costs nothing: the
+     canvas is transparent everywhere she is not, and being the positioned
+     element after the h1 puts every pixel of her in front of the text.
+     Where the cap line falls inside this box is NOT written down here —
+     capLine() in main.js measures it off the h1's own font.
+     Its height is SET, never left to `top` + `bottom`: a canvas is a replaced
+     element, so an auto height there resolves to the intrinsic one — the
+     backing store this renderer rewrites every frame — and the box grows itself
+     off its own drawing. */
+  #title #scTitle { position: absolute; left: 0; width: 100%;
+                    top: -.72em; height: calc(100% + .72em);
+                    z-index: 1; pointer-events: none; }
   #gate .how { display: flex; flex-direction: column; align-items: center; gap: 6px;
                width: 100%; max-width: 340px; }
   /* The two pictures. Their SIZE lives here and nowhere else — main.js reads
@@ -241,7 +252,7 @@
     <div class="how">
       <canvas class="scene" id="scGoal" role="img"
               aria-label="Goomba rolls downhill past every watering can and home to her spider plant."></canvas>
-      <div class="cap">help <b>water</b> the <b>plant</b></div>
+      <div class="cap">help Goomba <b>water</b> the <b>plant</b></div>
       <canvas class="scene" id="scBands" role="img"
               aria-label="A silly band laid across a gap carries her over it; another is being stretched into place ahead of her."></canvas>
       <div class="cap">using your <b>4 bands</b></div>

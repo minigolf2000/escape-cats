@@ -303,7 +303,7 @@ const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
   gateCloseEl = $("gateClose"),
   helpEl = $("help"), scGoalEl = $("scGoal"), scBandsEl = $("scBands"),
-  scTitleEl = $("scTitle"),
+  scTitleEl = $("scTitle"), titleH1El = document.querySelector("#gate h1"),
   connEl = $("conn");
 
 const level = () => (snap ? snap.level : 0);
@@ -2019,27 +2019,68 @@ function drawBandScene() {
 /** Picture zero — her, gliding along the top of the words.
  *
  * The one scene with no level in it: the "terrain" she rides IS the title, and
- * that is DOM text, so the geometry lives in the stylesheet (#title #scTitle
- * parks this canvas on the cap line) and the world framed here is just the
- * strip of air above the letters. Nothing else is drawn into it — the title is
- * already three colours and a dashed ride-line over it would be noise — so the
- * strip is sized off HER: TITLE_AIR world units tall against a sprite ~5.6
- * units tall, which lands her at about the cap height of the words beside her.
+ * that is DOM text. Her canvas covers the words as well as the air over them
+ * (#title #scTitle), so she is never sliced off at the line she is riding, and
+ * she is drawn OVER the letters wherever the two meet. Nothing else is drawn
+ * into it — the title is already three colours and a dashed ride-line across it
+ * would be noise — so the strip is sized off HER: TITLE_AIR world units of air
+ * above the cap line against a sprite ~6.4 units tall from her board up, which
+ * lands her at about the cap height of the words beside her.
  *
  * She crosses and comes round again rather than parking mid-word, because a cat
  * sitting on the O is a decal and a cat travelling is the game's verb; the wrap
  * happens with her clear of both ends (TITLE_RUNWAY ≥ her half-width), so the
  * jump is never on screen and the bob's phase at the seam does not matter. */
-const TITLE_AIR = 8;       // world units of air the strip holds — sets her size
+const TITLE_AIR = 8;       // world units of air over the cap line — her size
 const TITLE_CROSS = 9;     // seconds, one end of the words to the other
 const TITLE_RUNWAY = 6;    // ...starting and ending this far outside the canvas
 
-/** Bounds that match the canvas's own aspect, so drawScene's min() picks the
- * same scale on both axes and she is the same size on a wide laptop title as
- * on a narrow phone one — only the distance she has to cross changes. */
-function titleBounds(el) {
+/** The title's CAP LINE, in css px below the top of the h1's own box: the line
+ * she rides, and the one number the stylesheet deliberately does not hold.
+ *
+ * MEASURED off the h1's computed font, because this sheet's font stack resolves
+ * to a different face on every platform — SF Pro Rounded on a phone, Roboto,
+ * whatever a laptop has — and each one seats its capitals somewhere else inside
+ * the line box. An em that is right on the machine it was measured on is a cat
+ * sunk into the letters on the next one. Memoised on the font and the line
+ * height, which is all it depends on: this is read every frame the sheet is
+ * up, and the answer only moves when one of those two does. */
+let capMemo = { key: "", px: 0 };
+function capLine(h1) {
+  const cs = getComputedStyle(h1);
+  const font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const key = font + "|" + cs.lineHeight;
+  if (key === capMemo.key) return capMemo.px;
+  const g = capLine.g || (capLine.g = document.createElement("canvas").getContext("2d"));
+  g.font = font;
+  const m = g.measureText("H");
+  // The LINE box, never the element's height: this title wraps to two lines on
+  // a 320px phone, and an element measured there is two line boxes tall, which
+  // buries her half a line into the letters. `normal` resolves to the font's
+  // own ascent + descent with no leading either side of it.
+  const line = parseFloat(cs.lineHeight)
+    || m.fontBoundingBoxAscent + m.fontBoundingBoxDescent;
+  // half-leading + the font's own ascent = the baseline; back off the height of
+  // an actual capital to reach its top. Fall back to the .19em this measured on
+  // a laptop if the metrics are missing rather than drawing her at the baseline.
+  const px = m.fontBoundingBoxAscent
+    ? (line - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2
+      + m.fontBoundingBoxAscent - m.actualBoundingBoxAscent
+    : parseFloat(cs.fontSize) * 0.19;
+  capMemo = { key, px };
+  return px;
+}
+
+/** The world the title canvas frames: exactly the canvas, at the scale that
+ * makes the air above the cap line TITLE_AIR units. Both axes are handed the
+ * same scale, so drawScene's min() cannot letterbox it and `ground` is the one
+ * line in world coordinates she has to sit on. */
+function titleFrame(el, h1) {
   const w = el.clientWidth, h = el.clientHeight;
-  return { x0: 0, x1: TITLE_AIR * (w / (h || 1)), y0: 0, y1: TITLE_AIR };
+  const air = h1.getBoundingClientRect().top - el.getBoundingClientRect().top
+    + capLine(h1);
+  const s = Math.max(air, 1) / TITLE_AIR;      // css px per world unit
+  return { x0: 0, x1: w / s, y0: 0, y1: h / s, ground: TITLE_AIR };
 }
 
 function drawTitleScene(b) {
@@ -2049,7 +2090,7 @@ function drawTitleScene(b) {
   // positive slope is a positive (clockwise) rotation — the same sign the sim
   // hands drawGoomba off a band's normal.
   const k = 0.26, amp = 0.4;
-  const y = b.y1 - R + Math.sin(x * k) * amp;
+  const y = b.ground - R + Math.sin(x * k) * amp;
   // GROUNDED, not airborne: she is riding the words, the way she rides a band
   // in the picture below. `airborne` is not a pose here, it is a FACE — it
   // blows her pupils up 1.5x, which is the game's tell for being off the
@@ -2058,7 +2099,7 @@ function drawTitleScene(b) {
 }
 
 function drawSheet() {
-  const tb = titleBounds(scTitleEl);
+  const tb = titleFrame(scTitleEl, titleH1El);
   drawScene(scTitleEl, tb, () => drawTitleScene(tb));
   drawScene(scGoalEl, GOAL_SCENE.bounds, drawGoalScene);
   drawScene(scBandsEl, BAND_SCENE.bounds, drawBandScene);

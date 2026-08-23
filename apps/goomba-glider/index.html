@@ -49,11 +49,11 @@
      mutually exclusive later shouldn't have to rediscover this collision. */
   #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 80px); left: 0; right: 0;
           text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
-  #team { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 102px); left: 0; right: 0;
-          text-align: center; font-size: 11px; color: #8a80b0; text-shadow: 0 2px 6px rgba(0,0,0,.7);
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 20px; }
-  #team b { font-weight: 700; }
-  #team .off { opacity: .45; }
+  /* There is no roster line. Player NAMES are never drawn in this game — the
+     four of them are in one living room, so who is here is answered by looking
+     up, and a name on the HUD (or on a teammate's anchor) only ever said what
+     the room already knew. The lobby still keeps names for the proctor's
+     board; nothing on this screen renders one. */
   button { pointer-events: auto; font: inherit; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   #play { position: absolute; right: 16px; bottom: max(16px, env(safe-area-inset-bottom));
           min-width: 118px; height: 56px; border-radius: 28px; font-size: 19px; font-weight: 800;
@@ -88,7 +88,6 @@
   #clear::before { content: ""; position: absolute; inset: -9px; border-radius: 24px; }
   #clear:active { transform: translateX(-50%) scale(.94); }
   #clear.hide { visibility: hidden; opacity: 0; pointer-events: none; }
-  #hud.debug #team { display: none; }
   /* levels open: the grid is the whole screen; tap a card to leave */
   #hud.lab > * { visibility: hidden; }
   /* ...except the way back to where levels come from. The grid is drawn on the
@@ -176,7 +175,6 @@
     </div>
   </div>
   <div id="hint"></div>
-  <div id="team"></div>
   <div id="conn">reconnecting…</div>
   <a id="figma" href="https://www.figma.com/design/vRN6Q44ReIaESP5wv8M2dI/"
      target="_blank" rel="noopener">Figma ↗</a>

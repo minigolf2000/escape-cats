@@ -29,14 +29,21 @@ findings — do not design from intuition, the sim disproves it reliably.
   with a bar in the gap the drop lands in, and each card carries `⧉` copy — the
   level onto the clipboard as the same link `verify.mjs --hash` grades, which
   is also how you duplicate one — and `⌫` delete. `◀ ▶` are gone with the drag.
-  The SELECTION is where a **Ctrl+V** lands: a card replaces that level, the
-  trailing dashed slot appends, and there is no separate "aim the paste"
-  button any more because a selection already says it. Two edits ask first, on
-  a canvas-drawn confirm (Enter/Esc answer it, and it dies with the grid):
-  a delete, and a paste whose level NAME differs from the card it lands on —
-  a MATCHING name is a redraw of that card from the frame it came from, which
+  **Ctrl+V lands wherever you were looking.** On the grid that is the
+  SELECTION: a card replaces that level, the trailing dashed slot appends, and
+  there is no separate "aim the paste" button any more because a selection
+  already says it. PLAYING, it is the level on the screen — a paste no longer
+  bounces you out to the grid, because the level in front of you is what the
+  paste meant (tweak the frame in Figma, Ctrl+C, Ctrl+V, watch it redraw under
+  you). The only paste that still opens the grid is the one with nowhere else
+  to land: an EMPTY pack, which has no level in front of you and no card to
+  select. Two edits ask first, on the browser's own `confirm()` — a delete, and
+  a paste whose level NAME differs from the level it lands on, card or played.
+  A MATCHING name is a redraw of that level from the frame it came from, which
   is the tweak-copy-paste-verdict loop the editor exists for, so it goes
-  straight through.
+  straight through. The dialog is native rather than the canvas one it used to
+  be precisely because a paste can now land with the grid shut, and a
+  canvas-drawn question needs a grid to be drawn on.
   `src/figma/stitch.js` is the one non-obvious step: Figma stores terrain as one
   Line per segment, and the game strokes each polyline with round caps, so
   unstitched chains grow half-stroke stubs at every shared vertex (2.2 u of
@@ -91,12 +98,22 @@ findings — do not design from intuition, the sim disproves it reliably.
   line is recomputed in both directions. It deliberately does NOT remap flags by
   identity — deleting a level shifts every flag after it. That is the accepted
   cost of editing live.
-- **The party rule is locked: every level must genuinely REQUIRE 4 bands**
-  (4 players × 1). Not "allow" — require. Its other half is enforced in code:
-  a player may hold at most **⌈4 / connected players⌉** bands at once
-  (`bandQuota` in `goomba/sim.ts`), so four players is one each. Geometry that
-  needs 4 bands + a cap of 1 each = nobody spectates. `node quota.mjs` is that
-  half's gate; a lone tester is `n=1`, quota 4, so solo play still works.
+- **The 4-band rule is locked: every level must genuinely REQUIRE 4 bands.**
+  Not "allow" — require. There are four bands for the ROOM and **no rule about
+  whose**: any player may lay any of the four and lift any of them, their own or
+  a teammate's (`canPlaceBand` in `goomba/sim.ts` is the whole check —
+  `bands.length < MAX_BANDS`). The per-player quota of ⌈4 / connected players⌉
+  that used to force one band each is **reverted, on purpose** — the game is
+  multiplayer because four people share four bands, not because the room
+  rations them (README, "The four bands"). That revert makes the level gate the
+  only thing left: with nobody rationed, a level that wins on one band is a
+  level three people watch. `node bands.mjs` gates the room half; solo play
+  needs no special case, since one phone was never capped.
+- **A band wears the TEAM's colour** — `earsFor(team).ink` from `shared/ears.ts`,
+  the same ink the proctor's board and the cat-ear headbands use. One colour for
+  every band on the board, because no band belongs to a player; the four-colour
+  palette left in `main.js` (`PARTY_COLORS`) is confetti and bunting only. The
+  testing room (t0) and `?solo` have no team, and fall back to the old pink.
 - **The gate: `cd tools/goomba && node verify.mjs <levelIdx>`** must print
   PASS before a level ships. It runs the bare/solution checks, load-bearing +
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
@@ -137,7 +154,7 @@ findings — do not design from intuition, the sim disproves it reliably.
   There and Back Again (4) grew from a hand sketch over several rounds and is the
   near-miss: bare fails, all three bands load-bearing with three different
   deaths, and finger slop 22/30 — the best any board here has scored with a
-  bumper in the loop. It fails only the party rule, at 3 bands. Its fourth can
+  bumper in the loop. It fails only the 4-band rule, at 3 bands. Its fourth can
   at (13,54) is a TOLL BOOTH: it sits on the ↙ popper's 135° throw arc, so the
   only way to collect it is to actually be thrown by that popper, which is what
   stops winning lines threading past it. Its ↙ return
@@ -261,7 +278,7 @@ cd tools/goomba && node route.mjs <idx> drop  # the ride + its four deaths
 cd tools/goomba && node slack.mjs <idx>    # per-band forgiveness (jitter/slide/stretch)
 cd tools/goomba && node verify.mjs --hash <editor link>   # same gate, no diff
 cd tools/goomba && node verify.mjs --file <file of links> # ...on a batch
-cd tools/goomba && node quota.mjs          # the participation gate (room rule)
+cd tools/goomba && node bands.mjs          # the room's band budget (4, and no rule about whose)
 cd tools/goomba && node seed.mjs           # print the seed pack
 cd tools/goomba && node seed.mjs --push    # …load it into a running event
 cd tools/goomba && node seed.mjs --pull    # what is the event running right now?

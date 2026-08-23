@@ -33,7 +33,7 @@
 //   u8    nBumpers, then × i16×2
 //   u8    nSolution,then × i16×4  (ax, ay, bx, by)
 //
-// `budget` is not carried: the party rule locks every level to MAX_BANDS, and
+// `budget` is not carried: the 4-band rule locks every level to MAX_BANDS, and
 // a save format that could disagree with it would be a way to smuggle a
 // 3-band level past the gate.
 import type { GoombaLevel, Pt } from "./levels";

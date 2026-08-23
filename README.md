@@ -64,9 +64,9 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   same grid on the in-page sim with no server (hex's
   `?debug` architecture). Testing happens
   on the real game — assign yourself to a team from `/proctor`, open with
-  `?debug`; the band quota divides by the players actually CONNECTED, so a
-  lone tester's quota is all 4 and one phone can still play everything (see
-  "The band quota" below). **Laying a band** (`main.js`) takes
+  `?debug`; the four bands belong to the room and not to anybody in it, so one
+  phone can still play everything (see "The four bands" below).
+  **Laying a band** (`main.js`) takes
   whichever gesture a player reaches for — tap both ends, drag one end to the
   other, or stretch between two fingers — all three funnel into the same
   `place` intent. The edit camera is fixed at fit-the-whole-level and nothing
@@ -89,8 +89,10 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   screen: a phone gets the free-play menu and nothing else (tap plays), a
   laptop gets a file browser — click selects, double-click plays, drag
   reorders, `⧉` copies the level's link, `⌫` deletes, and Ctrl+V lands on the
-  selection. Deleting, and pasting over a card whose level NAME does not match
-  what is coming in, both ask first. The kit and the naming contract are in
+  selection — or, with the grid shut, straight onto the level you are playing,
+  so the Figma loop does not cost a trip out to the grid and back. Deleting,
+  and pasting over a level whose NAME does not match what is coming in, both
+  ask first, on the browser's own `confirm()`. The kit and the naming contract are in
   [`tools/goomba/figma/README.md`](./tools/goomba/figma/README.md).
 - **Art & rendering** — client-only, one module per system:
   `apps/hex-clicker/src/{wall,cat,art,fx,shop}.js`; Goomba's is one ported
@@ -505,7 +507,7 @@ it is ever a diff.
 - Per-session code words configured from the proctor dashboard.
 - CI beyond the deploy guard: nothing runs `npm run typecheck` across the whole
   repo, the level gates (`tools/goomba/verify.mjs`) or the room gate
-  (`quota.mjs`) on a pull request. The Worker deploy typechecks only the
+  (`bands.mjs`) on a pull request. The Worker deploy typechecks only the
   workspace it ships, deliberately — a broken proctor page shouldn't block a
   room-server deploy — so a PR check is still a separate job worth adding.
 
@@ -553,84 +555,58 @@ match. It is a toggle: press it again to take a win back, which asks first,
 because it pulls a picture off four phones mid-event. Granting one does not
 ask — you are standing in front of the team who just read the word out.
 
-### The band quota
+### The four bands
 
-Goomba Glider's 4 bands are shared out by a rule rather than by manners. With
-`n` players in the room, **no player may hold more than**
+Goomba Glider gives a room **4 bands per level** (`MAX_BANDS`) and says nothing
+about whose they are. Any player may lay any of the four, take back any of them
+— their own or a teammate's — and clear the board. The whole permission check is
 
 ```
-quota  k(n) = ceil(MAX_BANDS / n)      →   n = 1  2  3  4
-                                           k = 4  2  2  1
+canPlaceBand(bands)  ⟺  bands.length < MAX_BANDS
 ```
 
-**bands at once.** That single ceiling is the whole rule, and it is the
-*tightest* cap the team can still finish a level under: `n·k ≥ 4` by
-definition of the ceiling, while `n·(k−1) < 4` would leave the fourth band
-unplaceable. Smallest legal cap ⟺ most forced participation.
+in `goomba/sim.ts`, and it is enforced at two points off that one
+implementation: the client greys the gesture out with it (so a refused tap is
+never a silent one, and the toast says why) and the Durable Object rejects with
+it anyway.
 
-Two things fall out of the one formula, which is why it is stated as one:
+**This replaced a per-player quota**, and the revert is the product decision
+worth recording. The room used to cap a player at ⌈4 / connected players⌉ bands,
+so a full team was forced to lay exactly one each and nobody could spectate.
+It worked, and it cost more than it bought: presence became a game rule, a
+phone that locked mid-level took a band's worth of the team's budget with it
+until its socket closed, and a player who wanted to say "no — put it *there*"
+had to talk someone else's thumb through it. Four people around one board are
+already a crowd; the argument over where the four bands go is the game, and
+rationing the placements is not what makes it multiplayer.
 
-- **When `n` divides 4 the cap becomes an equality.** The counts are each ≤ `k`
-  and must sum to `4 = n·k`, so everyone places *exactly* `k` — "two each" at
-  n=2 and "one each" at n=4 are not separate rules, they are this one.
-- **Otherwise the slack `n·k − 4` is the freedom a short team gets.** n=3 has 2
-  spare units, which is exactly why a third player *may* sit out (up to two
-  each) where a fourth may not.
-
-By pigeonhole at least `⌈4/k⌉` distinct players touch every completed level:
-1, 2, 2, 4 for n = 1…4.
-
-The rule caps hoarding; it cannot conjure effort. What makes a level actually
-*require* four pairs of hands is this rule **plus** the level-design gate —
-geometry that genuinely needs 4 bands (`tools/goomba/verify.mjs`) means a team
-of four cannot win without all four placing. Two halves, two gates:
-`verify.mjs` for the geometry, `tools/goomba/quota.mjs` for the room.
+What is left carrying that weight is the level-design gate. With nobody
+rationed, **a level that wins on one band is a level three people watch** — so
+geometry that genuinely needs all four (`tools/goomba/verify.mjs`) is the only
+thing standing between the party and a solo puzzle. Two gates still, but they
+no longer split one rule: `verify.mjs` for the geometry, `tools/goomba/bands.mjs`
+for the room.
 
 Mechanics worth knowing before changing any of it:
 
-- **`n` counts CONNECTED players, not roster seats** (`activePlayerCount`). A
-  phone that locks or drops keeps its seat but stops holding a share nobody
-  can spend — otherwise a team sits at 3/4 bands with no legal way to lay the
-  fourth. It also keeps solo testing working: one connected phone is `n=1`,
-  quota 4.
-- **The quota counts current holdings, never a lifetime tally.** Taking a band
-  back returns its share, so repositioning your own band is free, and removing
-  a teammate's band (still allowed, by the same trust as everything else here)
-  hands the share to *them*, gaining the remover nothing.
-- **Already-placed bands are never retracted** when the quota tightens under a
-  mid-level join, so a player can sit legitimately over quota. A level still
-  cannot wedge: room headroom `Σ max(0, k − cᵢ) ≥ n·k − Σcᵢ ≥ 4 − placed`, so
-  while bands remain, someone may always lay one.
-- **One rule, two enforcement points, one implementation.** `canPlaceBand` in
-  `goomba/sim.ts` is what the Durable Object rejects with *and* what the client
-  greys the gesture out with — the phone refuses the tap before it reaches the
-  wire (with a toast saying why), and the server refuses it anyway.
-
-**What this asks of partyserver.** The quota turns *presence* into a game rule,
-which is the one part of the sim that cannot live in the sim — so the headcount
-is read off the roster at placement time (`activePlayerCount(roster.list())`)
-and passed into `sim.place`, rather than the sim holding a roster. Four
-existing properties of the room carry the rest, and none of them needed
-changing:
-
-- **Presence is already the connection set.** `Roster` derives it from
-  `getConnections()`, and per-connection identity rides the socket attachment
-  (`conn.setState`), so it survives hibernation. The `onConnect`/`onClose`
-  broadcasts that existed to redraw the roster line are now also what hands a
-  dropped player's share back to the room, live, on every phone.
+- **A band still carries the `pid` of whoever laid it**, and the pid is the
+  persistent localStorage identity, so it survives a drop and rejoin. It is a
+  note, not a claim: no rule reads it, and it no longer picks the band's colour.
+- **A band's colour is the TEAM's colour** — `earsFor(team).ink` from
+  `shared/ears.ts`, the same ink the proctor's board paints that team's box in
+  and the same colour as the cat-ear headbands on the table. Every band on the
+  board is that one colour, because every band is anybody's. The bands used to
+  wear one colour per roster slot, which is exactly the ownership that is gone.
+  The testing room (`t0`) is not a team and has no headband, so it and `?solo`
+  fall back to the old pink. The party palette (confetti, the ambient drift, the
+  bunting) keeps all four colours: that is decor, not identity.
 - **A Durable Object handles one message at a time**, so the last band needs no
-  locking: two eligible players racing for it are serialized, and the loser is
-  refused by the `bands.length` check the room already had.
-- **Eviction cannot change the quota.** An eviction drops the roster's memory
-  of *offline* players, which is exactly the set `activePlayerCount` doesn't
-  count. Had the rule divided by roster seats, a room waking up would silently
-  hand everyone a bigger share.
-- **Seat reclaim keeps band ownership.** Bands store the placer's `pid`, and
-  the pid is the persistent localStorage identity, so a phone that drops and
-  rejoins still owns the bands it laid — its quota is spent, not refunded.
+  locking: two players racing for it are serialized, and the loser is refused by
+  the `bands.length` check.
+- **Presence is no longer a game rule.** The `onConnect`/`onClose` broadcasts
+  are back to being what they look like — the roster line redrawing — and a
+  phone that locks mid-level costs the team nothing.
 
-The proctor connects as a spectator and is never in the roster, so watching a
-team never changes their quota.
 
 The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
 lists everyone currently on that page as **five boxes** — Unassigned, then one
@@ -728,10 +704,11 @@ The details that make it behave:
   below the board rather than in it: same two game readouts, same two reset
   buttons, which is the only way to unwedge a room nobody is sorted into. Its
   chat is the fifth column in the chat panel.
-- **What degrades with a crowd.** Both games are built for four. Goomba's band
-  quota is `⌈4/n⌉`, already 1 at four phones, so with more than four connected
-  only four can hold a band at a time and the rest watch (the room still works,
-  it just stops being a party). Hex's click income is per tap, so it scales with
+- **What degrades with a crowd.** Both games are built for four. Goomba has 4
+  bands for the whole room however many phones are in it, so a crowd is a lot of
+  thumbs over one board — first tap wins the band, and the rest watch or lift it
+  back off (the room still works, it just stops being a party). Hex's click
+  income is per tap, so it scales with
   however many phones are tapping — weakly: the sim puts 20 phones about 14%
   ahead of 4, well inside the noise of how a team spends. Neither is a reason
   not to test on it; both are reasons not to leave `OPEN_ROOM_OPEN` on for a

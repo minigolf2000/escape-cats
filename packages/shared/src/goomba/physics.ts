@@ -37,10 +37,9 @@ export interface GoombaBand {
   ay: number;
   bx: number;
   by: number;
-  /** Roster slot of the player who placed it — drives its colour, and lets
-   * the room say "that was YOUR band" when it mattered. */
-  slot: number;
-  /** pid of the placer, so a phone can tell its own bands from teammates'. */
+  /** pid of whoever laid it. A note, not a claim: no rule reads it (any player
+   * may take any band back), and it no longer picks the band's colour — every
+   * band on the board wears the TEAM's colour now. */
   pid: string;
 }
 

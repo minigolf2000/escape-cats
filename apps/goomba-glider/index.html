@@ -35,12 +35,12 @@
   #inv .band { width: 27px; height: 27px; border-radius: 8px; border: 2.5px dashed rgba(201,189,240,.4);
                box-sizing: border-box; transition: opacity .25s, transform .25s; }
   #inv .band.used { border-style: solid; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
-  /* An empty slot that is MINE to fill (the band quota, see sim.ts): lit, and
-     wearing my roster colour — set inline, since only the client knows which
-     slot is mine. A slot my quota doesn't cover keeps the faded rule above, so
-     "mine" vs "a teammate's" reads at a glance and the row never changes size:
-     the quota is presentation here, never layout. */
-  #inv .band.mine { box-shadow: 0 0 10px rgba(255,255,255,.18); }
+  /* An empty slot I could fill right now — which, since the per-player quota
+     is gone, is every empty slot while the room is editing: lit, and wearing
+     the TEAM's colour, set inline because only the client knows its team. Off
+     the edit phase they keep the faded rule above, so the row says "not now"
+     without ever changing size — this is presentation, never layout. */
+  #inv .band.open { box-shadow: 0 0 10px rgba(255,255,255,.18); }
   /* #lvl (the level's name) is gone, so #hint is the first prose line under
      the dots/slots row. It sits below the clear-bands chip's line (30px row +
      6px gap + 30px chip = 66px) with the same ~14px clearance every other gap

@@ -1,5 +1,5 @@
 // THE GATE: one command, one PASS/FAIL verdict on whether a level honors the
-// party rule. A level ships only when this prints PASS.
+// 4-band rule. A level ships only when this prints PASS.
 //
 //   node verify.mjs <levelIdx>          full gate on one level (stops at the
 //                                       first failure — it is a gate, not a
@@ -23,7 +23,7 @@
 //
 // What it checks, in order (cheap first):
 //   1. bare run fails, and fails legibly
-//   2. the solution is exactly 4 bands (the locked party rule), every band a
+//   2. the solution is exactly 4 bands (the locked 4-band rule), every band a
 //      legal length, and it wins inside the run cap
 //   3. every solution band is load-bearing (drop-one fails)
 //   4. ±3-unit finger slop still mostly wins (players aren't surgeons)
@@ -178,7 +178,7 @@ function verify(L, hint) {
   // 2. solution shape + win
   const sol = L.solution ?? [];
   const lens = sol.map(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1]));
-  if (!check(`solution is ${MAX_BANDS} bands (party rule)`, sol.length === MAX_BANDS,
+  if (!check(`solution is ${MAX_BANDS} bands (4-band rule)`, sol.length === MAX_BANDS,
              `${sol.length} band(s)`)) return checks;
   if (!check("solution band lengths legal", lens.every((l) => l >= BAND_MIN && l <= BAND_MAX),
              lens.map((l) => l.toFixed(1)).join(","))) return checks;
@@ -271,5 +271,5 @@ for (const { L, label, hint } of targets) {
 }
 if (arg === "all")
   console.log(allOk ? "ALL LEVELS PASS THE PARTY GATE"
-                    : "Some levels fail the gate — levels predating the party rule are known debt (see README.md).");
+                    : "Some levels fail the gate — levels predating the 4-band rule are known debt (see README.md).");
 process.exit(allOk ? 0 : 1);

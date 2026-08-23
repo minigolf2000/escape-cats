@@ -275,6 +275,14 @@ let shownRunId = 0;
 
 let anim = null;            // { key, st } — the local replay of the scored run
 let winFx = false;          // confetti fired for the current win
+// The locked-goal flare: when she reaches the plant with cans still out, the
+// state the plant is ALREADY wearing gets accented for four tenths of a second.
+// Only two numbers of state, and both are local presentation — nothing here is
+// on the wire and nothing here is in physics.ts, because passing over the goal
+// on the way to somewhere else is legitimate level design — so this may never
+// block, bounce or delay her, only say something while she goes by.
+let lockT = -9;             // st.t of the last crossing into the goal circle
+let lockArmed = false;      // inside it now? — so one pass fires once
 let preview = null;         // band being stretched right now, local only
 let pending = null;         // optimistic ghost: sent to the server, not yet echoed
 let anchor = null;          // first tap of a tap-tap placement, awaiting its end
@@ -382,6 +390,7 @@ function onSnapshot(s) {
     Object.assign(cam, clampCam((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, fitScale(L()), b));
     resetInput();
     anim = null; winFx = false; parts = []; confetti = [];
+    lockT = -9; lockArmed = false;
     cushAnim = L().cushions.map(() => 0); popPrev = null;
     shownRunId = s.runId; shownLevel = s.level; shownPhase = s.phase;
     if (wasReset && !first) toast("fresh start! 🧽", 1400);
@@ -591,6 +600,16 @@ window.addEventListener("paste", (e) => {
 });
 
 // ---------- the run replay ----------
+// The flare's shape: snap up, fall away. It is clocked off the RUN's own
+// seconds rather than off wall-clock dt, which is what makes it survive the
+// fast-forward — a phone that joins late walks the missed substeps in one
+// frame, and reading `st.t - lockT` lands it at the right point of the
+// envelope instead of starting a fresh 0.4s that nobody else is seeing.
+const LOCK_ATTACK = 0.06, LOCK_RELEASE = 0.34;
+const lockFlare = (dt) =>
+  dt < 0 ? 0
+    : dt < LOCK_ATTACK ? dt / LOCK_ATTACK
+    : Math.max(0, 1 - (dt - LOCK_ATTACK) / LOCK_RELEASE);
 /** Keep the local animation in step with the room's shared clock. Returns the
  * RunState to draw, or null when nobody is riding. */
 function syncAnim() {
@@ -600,6 +619,7 @@ function syncAnim() {
   if (!anim || anim.key !== key) {
     anim = { key, st: makeRun(L(), s.bands) };
     popPrev = anim.st.popT.slice();
+    lockT = -9; lockArmed = false;
   }
   // Step to the shared timeline. A phone that joins late fast-forwards through
   // the missed part in one frame — same substeps, same ending.
@@ -1035,9 +1055,21 @@ function drawPopper(pp, i) {
 }
 
 // The collectible: a watering can, mid-pour and dripping.
-function drawCan(mx, my, taken, i) {
+/** `ping` (0..1) is the locked-goal flare's ring: she touched the plant and
+ * this is one of the cans that is why nothing happened. Gold, because that is
+ * the can's own colour and the badge's number counts these — the ring, the can
+ * and the 💧N are deliberately one colour saying one thing. It is drawn from
+ * the can's RESTING centre, outside the bob, so a row of them reads as a set. */
+function drawCan(mx, my, taken, i, ping = 0) {
   if (taken) return;
   const u = Math.max(cam.s, 2.2), x = sxp(mx), y = syp(my);
+  if (ping > 0) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.strokeStyle = `rgba(255,209,102,${(0.75 * ping).toFixed(3)})`;
+    ctx.lineWidth = (0.55 + 0.35 * ping) * u;
+    ctx.beginPath(); ctx.arc(0, 0, (4.6 + (1 - ping) * 4.2) * u, 0, 6.28); ctx.stroke();
+    ctx.restore();
+  }
   ctx.save(); ctx.translate(x, y + Math.sin(tGlobal * 2.2 + i * 1.7) * 0.3 * u); ctx.rotate(-0.16);
   ctx.fillStyle = "rgba(87,230,201,0.13)";
   ctx.beginPath(); ctx.arc(0, 0, 4.6 * u, 0, 6.28); ctx.fill();
@@ -1102,12 +1134,27 @@ const SPIDER_BLADES = [
 const CROWN_Y = -3.4;   // the crown sits just ABOVE the pot rim, so the blades
                         // drape in front of it instead of being sliced by it
 
-function drawGoalPlant(lv, st) {
+// The badge's two inks: mint at rest, the can's own gold at the top of a flare.
+// Interpolated rather than switched, because the whole point of a 0.4s accent
+// is that it goes away again and a hard swap reads as a different badge.
+const BADGE_MINT = [87, 230, 201], BADGE_GOLD = [255, 209, 102];
+const badgeInk = (k) =>
+  `rgb(${BADGE_MINT.map((v, i) => Math.round(v + (BADGE_GOLD[i] - v) * k)).join(",")})`;
+
+/** `fx` (0..1) is the locked-goal flare — she is in the goal circle with cans
+ * still out. Two of its three parts live here: the plant shivers and droops
+ * that bit further (the same `lift`/`sag`/rotate knobs that already draw
+ * thirsty, pushed for a moment), and the 💧N badge pops and warms to gold. Both
+ * are accents of what the plant was already saying, not new vocabulary — the
+ * third part, the ring off each can she still needs, is drawCan's. */
+function drawGoalPlant(lv, st, fx = 0) {
   const x = sxp(lv.goal[0]), y = syp(lv.goal[1]), u = Math.max(cam.s, 2.6);
   const left = lv.cans.length - (st ? st.gotN : 0), ready = left === 0;
   const pulse = 1 + Math.sin(tGlobal * 3) * 0.05;
   ctx.save(); ctx.translate(x, y + 2 * u); ctx.scale(pulse, pulse);
-  ctx.fillStyle = ready ? "rgba(87,230,201,0.2)" : "rgba(255,209,102,0.12)";
+  ctx.fillStyle = ready
+    ? "rgba(87,230,201,0.2)"
+    : `rgba(255,209,102,${(0.12 + 0.16 * fx).toFixed(3)})`;
   ctx.beginPath(); ctx.ellipse(0, -3.5 * u, 8.8 * u, 7.5 * u, 0, 0, 6.28); ctx.fill();
   // pot first — saucer, tapered body, rim: a spider plant's blades hang OVER
   // the rim, so every one of them rides in front of the pot, not behind it
@@ -1119,11 +1166,13 @@ function drawGoalPlant(lv, st) {
   ctx.fillStyle = "#ffd166";
   ctx.beginPath(); ctx.roundRect(-3.5 * u, -3.2 * u, 7 * u, 1.3 * u, 0.6 * u); ctx.fill();
 
-  ctx.save(); ctx.rotate(Math.sin(tGlobal * 1.7) * (ready ? 0.05 : 0.02));
+  ctx.save();
+  ctx.rotate(Math.sin(tGlobal * 1.7) * (ready ? 0.05 : 0.02)   // the idle sway…
+    + Math.sin(tGlobal * 46) * 0.055 * fx);                    // …and the shiver
   const leaf = ready ? "#57e6c9" : "#49a08f";
   // the runner: a wiry stolon out past the rim with a baby plantlet on its end
   const swing = Math.sin(tGlobal * 1.9) * (ready ? 0.55 : 0.15) * u;
-  const rx = 6.0 * u + swing, ry = (ready ? -1.2 : 0.2) * u;
+  const rx = 6.0 * u + swing, ry = (ready ? -1.2 : 0.2 + 0.5 * fx) * u;
   ctx.strokeStyle = ready ? "#8fe3c4" : "#5f8f7f";
   ctx.lineWidth = 0.22 * u; ctx.lineCap = "round"; ctx.lineJoin = "round";
   ctx.beginPath(); ctx.moveTo(0.4 * u, CROWN_Y * u);
@@ -1136,7 +1185,8 @@ function drawGoalPlant(lv, st) {
     ctx.fill();
   }
   // the blades, each a tapered arc with the cream stripe down its middle
-  const lift = ready ? 1 : 0.62, sag = ready ? 0 : 1.6, spread = ready ? 1 : 0.88;
+  const lift = (ready ? 1 : 0.62) - 0.07 * fx, sag = (ready ? 0 : 1.6) + 1.3 * fx,
+    spread = ready ? 1 : 0.88;
   for (const [dir, reach, rise, drop, w] of SPIDER_BLADES) {
     const tx = dir * reach * spread * u, ty = (CROWN_Y + drop + sag) * u;
     const cx = dir * reach * 0.42 * u, cy = (CROWN_Y - rise * lift) * u;
@@ -1156,11 +1206,13 @@ function drawGoalPlant(lv, st) {
   ctx.restore();
   ctx.restore();
   if (left > 0) {
+    const ink = badgeInk(fx);
     ctx.save(); ctx.translate(x, y - 12.5 * u);
+    ctx.scale(1 + 0.38 * fx, 1 + 0.38 * fx);
     ctx.fillStyle = "rgba(20,10,45,0.85)";
     ctx.beginPath(); ctx.roundRect(-3.4 * u, -1.6 * u, 6.8 * u, 3.2 * u, 1.2 * u); ctx.fill();
-    ctx.strokeStyle = "#57e6c9"; ctx.lineWidth = 0.28 * u; ctx.stroke();
-    ctx.fillStyle = "#57e6c9";
+    ctx.strokeStyle = ink; ctx.lineWidth = (0.28 + 0.18 * fx) * u; ctx.stroke();
+    ctx.fillStyle = ink;
     ctx.font = `700 ${2.3 * u}px ui-rounded, system-ui, sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText("💧" + left, 0, 0.1 * u);
@@ -1686,6 +1738,16 @@ function frame(nowMs) {
     });
     popPrev = st.popT.slice();
     st.bandHits.forEach((h, i) => { if (h) bandExcite.set(i, 1); });
+    // She reached the plant with cans still out. The 81 is the sim's own win
+    // circle (r=9, `stepRun`'s last test in physics.ts) read back rather than
+    // re-guessed: the flare has to fire on exactly the pass that WOULD have
+    // won, or it is telling the player about a line that was never there.
+    // Armed on the way in and re-armed on the way out, so a level that threads
+    // her over the goal three times reads as three taps, not one stuck alarm.
+    const gdx = st.p.x - lv.goal[0], gdy = st.p.y - lv.goal[1];
+    const inGoal = gdx * gdx + gdy * gdy < 81 && st.gotN < lv.cans.length;
+    if (inGoal && !lockArmed) lockT = st.t;
+    lockArmed = inGoal;
   }
   for (const [i, v] of bandExcite) bandExcite.set(i, Math.max(0, v - dt * 1.6));
   cushAnim = cushAnim.map((v) => Math.max(0, v - dt * 2.2));
@@ -1706,8 +1768,23 @@ function frame(nowMs) {
   lv.cushions.forEach((c, i) => drawCushion(c, cushAnim[i] || 0));
   lv.pops.forEach((pp, i) => drawPopper(pp, i));
   lv.bumpers.forEach((bp, i) => drawBumper(bp, st ? Math.max(0, 1 - (st.t - st.bumpT[i]) * 4) : 0));
-  lv.cans.forEach((m, i) => drawCan(m[0], m[1], st ? st.got[i] : false, i));
-  drawGoalPlant(lv, st);
+  // The flare, and the rings it throws off the cans she still needs. They
+  // stagger in the order they are stored, which is the order a designer laid
+  // them out, so a handful of cans arrives as a list rather than a flashbulb —
+  // capped, because a twelve-can level should not still be pinging a second
+  // later.
+  const lockFx = st ? lockFlare(st.t - lockT) : 0;
+  let nth = 0;
+  lv.cans.forEach((m, i) => {
+    const taken = st ? st.got[i] : false;
+    // ...and each ring is read off its OWN envelope, not gated on the plant's:
+    // a staggered one is still fading when the plant has finished, and cutting
+    // it there is a ring that vanishes mid-fade.
+    const ping = !taken && st ? lockFlare(st.t - lockT - Math.min(nth, 5) * 0.06) : 0;
+    if (!taken) nth++;
+    drawCan(m[0], m[1], taken, i, ping);
+  });
+  drawGoalPlant(lv, st, lockFx);
   bands().forEach((bd, i) => drawBand(bd, bandExcite.get(i) || 0, false));
   if (snap.phase === "edit") {
     // Teammates' bands-in-progress: unmistakably in motion (marching dashes,

@@ -132,6 +132,11 @@ const SOLO = soloFromUrl();   // serverless backend for the same menu
 // tablet that gains a trackpad mid-party gets the editor without a reload.
 const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
 const DESKTOP = () => finePointer.matches;
+// Read the same way, and for the same reason: a phone can change this setting
+// while the sheet is on the screen. It stops the one piece of motion here that
+// TRAVELS — Goomba crossing the title — and leaves the rest of the sheet alone.
+const calmMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const REDUCED = () => calmMotion.matches;
 // WHO GETS THE LEVEL SELECTOR: a team that has CLEARED the game. That is room
 // state off the snapshot (goombaCleared = every level done), so all four phones
 // unlock on the same message and a proctor reset takes it back with everything
@@ -298,6 +303,7 @@ const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
   gateCloseEl = $("gateClose"),
   helpEl = $("help"), scGoalEl = $("scGoal"), scBandsEl = $("scBands"),
+  scTitleEl = $("scTitle"),
   connEl = $("conn");
 
 const level = () => (snap ? snap.level : 0);
@@ -1865,7 +1871,9 @@ function frame(nowMs) {
 // that is not the watering can drifts the first time either one is touched,
 // and a second set of drawing code is a second thing to keep true. It is the
 // same trick the level cards play (drawLab): borrow the camera, draw the
-// world, put the camera back.
+// world, put the camera back. A third canvas rides the TITLE (drawTitleScene,
+// below) — no caption, nothing to read: she is the same sprite the two
+// pictures under her use, gliding across the words the game is named after.
 
 /** A scene: only the fields the draw functions actually read. Nothing here is
  * simulated, verified or playable — `bounds` is just the box to frame. */
@@ -1978,7 +1986,46 @@ function drawBandScene() {
   drawGoomba(mx + Math.sin(a) * R, my - Math.cos(a) * R, a, 1, true, false, false);
 }
 
+/** Picture zero — her, gliding along the top of the words.
+ *
+ * The one scene with no level in it: the "terrain" she rides IS the title, and
+ * that is DOM text, so the geometry lives in the stylesheet (#title #scTitle
+ * parks this canvas on the cap line) and the world framed here is just the
+ * strip of air above the letters. Nothing else is drawn into it — the title is
+ * already three colours and a dashed ride-line over it would be noise — so the
+ * strip is sized off HER: TITLE_AIR world units tall against a sprite ~5.6
+ * units tall, which lands her at about the cap height of the words beside her.
+ *
+ * She crosses and comes round again rather than parking mid-word, because a cat
+ * sitting on the O is a decal and a cat travelling is the game's verb; the wrap
+ * happens with her clear of both ends (TITLE_RUNWAY ≥ her half-width), so the
+ * jump is never on screen and the bob's phase at the seam does not matter. */
+const TITLE_AIR = 8;       // world units of air the strip holds — sets her size
+const TITLE_CROSS = 9;     // seconds, one end of the words to the other
+const TITLE_RUNWAY = 6;    // ...starting and ending this far outside the canvas
+
+/** Bounds that match the canvas's own aspect, so drawScene's min() picks the
+ * same scale on both axes and she is the same size on a wide laptop title as
+ * on a narrow phone one — only the distance she has to cross changes. */
+function titleBounds(el) {
+  const w = el.clientWidth, h = el.clientHeight;
+  return { x0: 0, x1: TITLE_AIR * (w / (h || 1)), y0: 0, y1: TITLE_AIR };
+}
+
+function drawTitleScene(b) {
+  const t = REDUCED() ? 0.5 : (tGlobal % TITLE_CROSS) / TITLE_CROSS;
+  const x = b.x0 - TITLE_RUNWAY + (b.x1 - b.x0 + TITLE_RUNWAY * 2) * t;
+  // A shallow glide path, and her nose on its slope. World y is down, so a
+  // positive slope is a positive (clockwise) rotation — the same sign the sim
+  // hands drawGoomba off a band's normal.
+  const k = 0.26, amp = 0.4;
+  const y = b.y1 - R + Math.sin(x * k) * amp;
+  drawGoomba(x, y, Math.atan(amp * k * Math.cos(x * k)), 1, false, true, false);
+}
+
 function drawSheet() {
+  const tb = titleBounds(scTitleEl);
+  drawScene(scTitleEl, tb, () => drawTitleScene(tb));
   drawScene(scGoalEl, GOAL_SCENE.bounds, drawGoalScene);
   drawScene(scBandsEl, BAND_SCENE.bounds, drawBandScene);
 }

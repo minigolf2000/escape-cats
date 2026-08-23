@@ -603,9 +603,18 @@ Mechanics worth knowing before changing any of it:
 - **A Durable Object handles one message at a time**, so the last band needs no
   locking: two players racing for it are serialized, and the loser is refused by
   the `bands.length` check.
-- **Presence is no longer a game rule.** The `onConnect`/`onClose` broadcasts
-  are back to being what they look like — the roster line redrawing — and a
-  phone that locks mid-level costs the team nothing.
+- **Presence is no longer a game rule**, and it is no longer drawn either. The
+  `onConnect`/`onClose` broadcasts still keep `players` current on the snapshot,
+  but nothing on Goomba's HUD renders it: a phone that locks mid-level costs the
+  team nothing, and there is nobody to watch drop out.
+- **Goomba draws no player NAMES.** Not a roster line under the band slots, not
+  a label on a teammate's waiting anchor — both were there and both are gone.
+  Four people playing one board are in one living room, so a name on the screen
+  only ever repeated what everyone could see by looking up. Names still travel
+  the wire (`join` carries one, the room keeps it on `players`) because the
+  LOBBY and the proctor's board are where a name does real work; the game just
+  never paints one. Hex still shows its roster line — this is Goomba's call, not
+  a house rule.
 
 
 The flow: a player opens `/`, types a name, and waits. The proctor's dashboard

@@ -16,7 +16,7 @@ import {
 } from "@escape-cats/shared";
 import { PARTYKIT_HOST } from "./net";
 import { TeamGame } from "./TeamGame";
-import { TeamChat, useChats } from "./Chats";
+import { TeamChat } from "./Chats";
 import { TestRoom } from "./TestRoom";
 
 /** Zone id for the players nobody has sorted yet. `null` is the wire value for
@@ -88,7 +88,6 @@ interface Drag {
  * proctor holding a tablet would otherwise have no way to sort anybody.
  */
 export function Lobby() {
-  const chats = useChats();
   const [players, setPlayers] = useState<LobbyPlayer[]>([]);
   const [online, setOnline] = useState(false);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -265,6 +264,13 @@ export function Lobby() {
     send({ type: "forget", pid: p.pid });
   };
 
+  // This one DOES confirm: it unsorts up to four phones at once, and the phones
+  // find out by being thrown back to the waiting screen mid-game.
+  const clearTeam = (z: Team) => {
+    if (!confirm(`Send ${z.name}'s players back to Unassigned?`)) return;
+    send({ type: "clearTeam", team: z.id });
+  };
+
   return (
     <div className="lobby">
       <div className="lobby-head">
@@ -364,6 +370,19 @@ export function Lobby() {
                     ),
                   )}
               </ul>
+              {/* Under the roster, because it is about the roster: it empties
+                  THIS box, and only this box. Always drawn on a team, disabled
+                  at zero — a box is a drop target and must not change height.
+                  The pen has none: its players are already unassigned. */}
+              {isTeam && (
+                <button
+                  className="small danger"
+                  disabled={members.length === 0}
+                  onClick={() => clearTeam(z)}
+                >
+                  Clear team
+                </button>
+              )}
               {isTeam ? (
                 <TeamGame team={z} assigned={members} />
               ) : (
@@ -382,35 +401,14 @@ export function Lobby() {
                   typing in. Skipped when the testing room is closed — there is
                   no channel to read then. */}
               {(isTeam || OPEN_ROOM_OPEN) && (
-                <TeamChat room={isTeam ? z.id : OPEN_TEAM.id} />
+                <TeamChat
+                  room={isTeam ? z.id : OPEN_TEAM.id}
+                  label={isTeam ? z.name : OPEN_TEAM.name}
+                />
               )}
             </div>
           );
         })}
-      </div>
-
-      {/* The board's two destructive controls, on one row under it. Clearing
-       * the chats lives here rather than over the logs: the logs are inside the
-       * boxes now, five of them, and a wipe-everything button repeated in each
-       * would be five ways to do one thing. */}
-      <div className="lobby-actions">
-        <button
-          className="small"
-          disabled={players.every((p) => !p.team)}
-          onClick={() => {
-            if (confirm("Send every player back to Unassigned?"))
-              send({ type: "clearTeams" });
-          }}
-        >
-          Clear teams
-        </button>
-        <button
-          className="small danger"
-          disabled={chats.total === 0}
-          onClick={chats.clearAll}
-        >
-          Clear all chats ({chats.total})
-        </button>
       </div>
 
       {drag?.moved && (

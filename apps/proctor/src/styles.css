@@ -304,12 +304,6 @@ button {
   font-weight: 700;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
 }
-.lobby-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
 button.small {
   padding: 8px 12px;
   font-size: 13px;
@@ -409,14 +403,25 @@ button.small:disabled {
   margin: 6px 0 2px;
 }
 
-/* The board's destructive controls, under it. The chat wipe is the one that
- * must not lose its red to button.small's background. */
-.lobby-actions button.small.danger {
+/* A box's own destructive controls — Clear team under the roster, Clear chat
+ * under the log. Red, and it must not lose that red to button.small's
+ * background; a DISABLED one drops back to the neutral pill, because an empty
+ * team and an empty log have nothing to warn anybody about. Both are always
+ * drawn — see the box-height rule. */
+/* Sized like a game block's Reset, not like a page-level pill: both of these
+ * live INSIDE a box now, and a box's buttons should all be one size. */
+.zone > button.small,
+.chat-col button.small {
+  padding: 6px 11px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+button.small.danger {
   background: #d64b3b;
   border-color: #d64b3b;
   color: white;
 }
-.lobby-actions button.small.danger:disabled {
+button.small.danger:disabled {
   background: #12141b;
   border-color: #2b3040;
   color: #e8eaf0;

@@ -108,7 +108,11 @@ export interface LobbySnapshot {
 export type LobbyClientMsg =
   | { type: "rename"; name: string }
   | { type: "assign"; pid: string; team: string | null } // proctor only
-  | { type: "clearTeams" } // proctor only
+  /** Send one team's players back to Unassigned. Per TEAM rather than a
+   * board-wide wipe: the proctor's board is five boxes, groups turn over one
+   * team at a time, and a clear that emptied the other three with it was one
+   * mis-click away from unsorting a room mid-event. */
+  | { type: "clearTeam"; team: string } // proctor only
   | { type: "forget"; pid: string } // proctor only — drop one player
   // ---- the level pack. Open to any phone, on purpose: the editor IS the
   // game's level selector, the party's own phones are the tool, and this runs

@@ -54,8 +54,9 @@ export type ChatClientMsg =
   /**
    * Wipe this room's history — proctor only, and the one destructive thing a
    * chat room can be asked to do. It is per ROOM because a Durable Object can
-   * only clear itself; the proctor page's "Clear all chats" is one button
-   * fanned out over the socket it already holds to each team.
+   * only clear itself, which is also the shape the proctor page now wears: a
+   * "Clear chat" button inside each team's box, sending down the socket the
+   * page already holds to that room. There is no wipe-everything button.
    */
   | { type: "clear" };
 

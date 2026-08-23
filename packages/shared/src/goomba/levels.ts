@@ -181,10 +181,19 @@ export function initLevel(L: GoombaLevel): GoombaLevelInit {
 // The fire speed is what keeps a SPARSE lane alive. Columns are 24 apart while
 // a popper's reach is only ~8 (POP_R + R), so the trigger circles never touch
 // and a lane can only grab her while she is flying ALONG it: leaving at
-// LANE_SPD × 0.82 ≈ 86 she crosses the 24 units to the next popper having
-// dropped ~6, comfortably inside the grab. Slow the lane down and the chain
+// LANE_SPD × 0.82 ≈ 93 she crosses the 24 units to the next popper having
+// dropped ~4.6, comfortably inside the grab. Slow the lane down and the chain
 // breaks in the middle; that is the number to re-check before moving a column.
-const LANE_SPD = 105;
+//
+// It was 105 while a popper carried her arrival speed through: the first hop
+// left at 86 and each one after it ACCELERATED (86 → 90 → 93.5 on gravity
+// alone), so the lane's own margin grew as she crossed it and only the entry
+// hop ran at the floor. Constant fire speed took that away — every hop runs at
+// the entry number now — and the level felt it in exactly the predicted place:
+// jitter 99% → 96% on the weakest band, failing `fall`, i.e. dropped under the
+// reach mid-lane. 114 puts the constant where the chain used to end up and
+// restores it (99%, true rates 97/95/93 vs 97/96/93 before).
+const LANE_SPD = 114;
 const LANE_ODD = [26, 50, 74]; // lanes 1 and 3
 const LANE_EVEN = [38, 62, 86]; // lanes 2 and 4, half a step over
 const lane = (y: number, xs: number[], dir: number): GoombaPopper[] =>

@@ -327,14 +327,28 @@ export function stepRun(st: RunState, dt: number): void {
     const dx = st.p.x - pp.x,
       dy = st.p.y - pp.y;
     if (dx * dx + dy * dy < POP_R2) {
-      // A popper redirects rather than overwrites: it sets DIRECTION, but
-      // carries her arrival speed through (with pp.spd as a floor). Replacing
-      // velocity outright would erase everything the players did upstream —
-      // and in a 4-player run the whole point is "that was MY band."
+      // A popper OVERWRITES velocity — grabbed to the centre, fired at its own
+      // aim and its own speed, whatever she arrived with. It used to carry her
+      // arrival speed through when that beat the fire speed (`max(arrive, …)`),
+      // on the argument that erasing it would erase what the players did
+      // upstream. Measured across every shipped solution, it never did that:
+      // the floor bound 15 of 25 pops, and all 10 carries were one popper
+      // feeding the next — gravity's few units on the hop between them, not a
+      // band. What the `max` did cost was the property the levels are built on
+      // (DESIGNING.md, "poppers are the antidote"): a popper erases state, so
+      // nothing upstream changes what happens downstream, so each stage needs
+      // its own band. A speed that leaks across is a hole in exactly that, and
+      // the documented "extend the start ramp" shortcut is what fits through
+      // it. Constant is also the only version a player can aim: the speed she
+      // leaves at is a property of the POPPER, not of how she got there, so the
+      // same popper hit slow and hit fast throws the same arc.
       st.p.x = pp.x;
       st.p.y = pp.y;
-      const arrive = Math.hypot(st.v.x, st.v.y);
-      const sp2 = Math.min(st.L.maxSpeed || MAX_SPEED, Math.max(arrive, pp.spd * 0.82));
+      // 0.82 is folded in here rather than into `spd` on purpose: `spd` is
+      // level DATA, encoded into every share link and every pack a lobby is
+      // already holding, so rescaling it would silently re-tune levels this
+      // repo has never seen.
+      const sp2 = Math.min(st.L.maxSpeed || MAX_SPEED, pp.spd * 0.82);
       st.v.x = pp.ux * sp2;
       st.v.y = pp.uy * sp2;
       st.popT[i] = st.t;

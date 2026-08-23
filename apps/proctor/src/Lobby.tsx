@@ -122,7 +122,10 @@ export function Lobby() {
       }
       if (msg.type === "lobby") {
         setPlayers(msg.snapshot.players);
-        setAdhoc(msg.snapshot.adhoc);
+        // `?? []` for the deploy window, not for a bug: CI starts the Worker
+        // and Vercel at once on a push to main, and a snapshot from a Worker
+        // that predates this field would otherwise blank the whole board.
+        setAdhoc(msg.snapshot.adhoc ?? []);
       }
     };
     socket.addEventListener("open", onOpen);

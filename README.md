@@ -58,8 +58,9 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   and a ▦), every level a card with live bare/solution verdicts, and tapping
   a card jumps the whole room to that level (teammates follow) — on a laptop
   that is a DOUBLE-click, since a single one selects (see the editor below). Taking NEXT off
-  the finale of a cleared room lands on the blank **splash** phase, whose only
-  control is that selector. `?debug` is nothing but a local override of the
+  the finale of a cleared room lands on the **splash** phase — the
+  congratulations screen, whose only control is that selector: the strip is
+  still up top, and a tap anywhere on the picture opens the grid too. `?debug` is nothing but a local override of the
   unlock — one phone in the state a cleared room is in — and `?solo` runs the
   same grid on the in-page sim with no server (hex's
   `?debug` architecture). Testing happens
@@ -666,10 +667,16 @@ two wins are different KINDS of fact.
 
 **Goomba Glider scores its own.** Clearing every level sets `finishedAt`
 (`goombaCleared`), and taking NEXT off the finale then lands the room on a
-terminal `splash` phase — one full-screen picture whose only control is the
-level selector that same clear unlocked. `nextLeadsToSplash` is the single
-predicate for that transition, so the PLAY button's "FINISH ▸" label and the
-sim's own branch cannot disagree.
+terminal `splash` phase — one full-screen picture, CONGRATULATIONS over it, and
+one control: the level selector that same clear unlocked. The words are drawn
+on the canvas with the picture (`drawSplashWords`) rather than in the HUD, so
+they are measured against the art and shrink to fit a narrow phone; they are
+deliberately boilerplate, because the art under them is a stand-in and words
+that leaned on a particular picture would have to be redrawn with it. The way on
+is the whole screen — a tap anywhere opens the grid (`splashTap`), the dot
+strip's plate still does too, and both go through one `openSelector`.
+`nextLeadsToSplash` is the single predicate for the transition INTO it, so the
+PLAY button's "FINISH ▸" label and the sim's own branch cannot disagree.
 
 **Hex cannot.** Its ending is a code word that leaves the game on a phone and
 comes back as four people reading it out to the proctor, so no amount of state

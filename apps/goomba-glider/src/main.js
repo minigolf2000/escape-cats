@@ -487,11 +487,15 @@ playBtn.onclick = () => {
 // vanishing off the board IS the feedback, and the only phone a local toast
 // could reach is the one that already knows.
 clearBtn.onclick = () => { resetInput(); transport.send({ type: "clear" }); };
-labEl.onclick = () => {
+/** Open the levels grid. Two things reach it — the dot strip's plate, and a tap
+ * anywhere on the congratulations screen (`splashTap`) — so the gate and the
+ * "stop whatever is running first" live in one place and cannot disagree. */
+function openSelector() {
   if (!levelSelect()) return; // an indicator until the team clears the game
   if (snap && snap.phase === "run") transport.send({ type: "stop" });
   setLab(true);
-};
+}
+labEl.onclick = openSelector;
 window.addEventListener("keydown", (e) => {
   // The help sheet owns the keyboard while it is up: Space behind it would
   // launch a run nobody on this screen can see. Any key dismisses it — there is
@@ -660,6 +664,22 @@ const ANCHOR_BEAT_MS = 1200; // re-send it this often; the room forgets ghosts a
 
 const canEdit = () => snap && snap.phase === "edit";
 
+/** The congratulations screen is one big button: the only thing anyone can do
+ * from it is pick a level, so a press anywhere on the picture opens the grid
+ * rather than making a thumb find the dot strip in the corner (which still
+ * works — it is the same `openSelector`).
+ *
+ * Called from the RELEASE, not the press, so the grid never inherits the tail
+ * of the gesture that opened it: the same finger's touchend would otherwise
+ * land on whatever card the grid had just drawn under it. Nothing else on this
+ * screen wants the gesture — `canEdit()` is false in the splash phase, so the
+ * band handlers have already bowed out by the time this is asked. */
+function splashTap() {
+  if (labOpen || !snap || snap.phase !== "splash") return false;
+  openSelector();
+  return true;
+}
+
 /** The open anchor, or null once it has timed out. Anything that reads the
  * anchor goes through here so a forgotten tap can't place a band minutes
  * later. */
@@ -796,6 +816,7 @@ cv.addEventListener("touchend", (e) => {
   e.preventDefault();
   if (labOpen) { const t = e.changedTouches[0]; labPointerUp(t.clientX, t.clientY); return; }
   for (const t of e.changedTouches) touches.delete(t.identifier);
+  if (splashTap()) return;
   if (!canEdit()) { resetInput(); return; }
   // A stretch places on the FIRST finger up; a drag places on its only one.
   if (preview && touches.size < 2) placePreview();
@@ -827,6 +848,7 @@ window.addEventListener("mousemove", (e) => {
 });
 window.addEventListener("mouseup", (e) => {
   if (labOpen) { labPointerUp(e.clientX, e.clientY); return; }
+  if (splashTap()) return;
   if (!mouseDrag) return;
   const drag = mouseDrag;
   mouseDrag = null;
@@ -1624,8 +1646,11 @@ function drawLab() {
 
 // ---------- the splash (phase "splash") ----------
 // Where a cleared room lands when it takes NEXT off the finale, instead of the
-// old victory lap: one full-screen picture, and the level selector's strip over
-// it. Nothing else — no HUD, no PLAY (index.html hides them on #hud.splash).
+// old victory lap: the congratulations screen. One full-screen picture, the
+// words over it (`drawSplashWords`), and the level selector's strip up top.
+// Nothing else — no HUD, no PLAY (index.html hides them on #hud.splash) — and
+// the one way on is the selector: the strip, or a tap anywhere on the picture
+// (`splashTap`), which is the same `openSelector` either way.
 //
 // DROP-IN ART: replace public/art/splash.webp and nothing here changes. The
 // file is a stand-in shared with hex-clicker's win screen until Goomba's own
@@ -1698,6 +1723,69 @@ function drawSplash() {
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
   ctx.drawImage(splashImg, x, y, w, h);
+  drawSplashWords();
+}
+
+/** The congratulations, over the picture — and the one instruction the screen
+ * carries, which is that touching it anywhere opens the levels grid
+ * (`splashTap`).
+ *
+ * BOILERPLATE on purpose. The art here is a stand-in and will be replaced (see
+ * the DROP-IN note above), so the words deliberately lean on nothing in the
+ * picture: a scrim, a title, one line about what the room just did, and the way
+ * on. Everything is measured off W/H — a phone is ~390 CSS px across and a
+ * laptop ~1400 — so it fits whatever lands in art/splash.webp without a second
+ * set of numbers per surface.
+ *
+ * The scrim covers the BOTTOM of the screen only. The subject of a splash sits
+ * high (today, a cat on the moon) and the sky is where text stays readable, so
+ * the words go under the picture's centre of interest rather than across it. */
+function drawSplashWords() {
+  const scrim = ctx.createLinearGradient(0, H * 0.5, 0, H);
+  scrim.addColorStop(0, "rgba(13,6,30,0)");
+  scrim.addColorStop(1, "rgba(13,6,30,.88)");
+  ctx.fillStyle = scrim;
+  ctx.fillRect(0, H * 0.5, W, H * 0.5);
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.shadowColor = "rgba(0,0,0,.7)";
+  ctx.shadowBlur = 14;
+
+  /** Set the font to `px`, or to whatever smaller size makes `text` fit across
+   * the screen with a margin. Every line here goes through it: these are three
+   * centred one-liners on a canvas, which has no wrapping and no ellipsis of
+   * its own, so a phone narrower than the one this was written on would
+   * silently run the words off both sides (it did — the second line, at 390). */
+  const fit = (text, weight, px) => {
+    const face = (n) => `${weight} ${n}px ui-rounded, system-ui, sans-serif`;
+    ctx.font = face(px);
+    const room = W - 44, wide = ctx.measureText(text).width;
+    if (wide > room) ctx.font = face(Math.max(11, px * (room / wide)));
+  };
+
+  // The prompt's baseline; the stack is built upwards off it. Clear of a
+  // phone's home indicator, which the canvas (unlike the HUD) gets no
+  // safe-area inset for.
+  const base = H - 46;
+
+  ctx.fillStyle = "#ffd166";
+  fit("CONGRATULATIONS!", 800, Math.min(46, W * 0.1));
+  ctx.fillText("CONGRATULATIONS!", W / 2, base - 66);
+
+  ctx.fillStyle = "#f2ecff";
+  fit("every level cleared — the plant is watered", 700, 15);
+  ctx.fillText("every level cleared — the plant is watered", W / 2, base - 36);
+
+  // The prompt breathes, because it is the only thing to do on a screen that is
+  // otherwise a still picture — the same tell the band anchors use while they
+  // wait to be finished.
+  ctx.fillStyle = "#c9bdf0";
+  ctx.globalAlpha = 0.6 + 0.4 * Math.sin(tGlobal * 2.2);
+  fit("tap anywhere to pick a level", 400, 13);
+  ctx.fillText("tap anywhere to pick a level", W / 2, base);
+  ctx.restore();
 }
 
 // ---------- main loop ----------

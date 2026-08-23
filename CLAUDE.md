@@ -243,11 +243,22 @@ findings — do not design from intuition, the sim disproves it reliably.
   prod: `/proctor`, assign yourself to a team, open the game with `?debug`. Hex
   keeps `?debug&speed=N` for balance work.
 - **NEXT off the finale of a cleared room lands on the `splash` phase**, not a
-  victory lap: a terminal screen (`drawSplash` in `main.js`) that is one
-  full-screen picture and nothing else — its only control is the level selector
-  the clear just unlocked. Nothing places or plays from it; the ways out are a
-  `goto` and a proctor reset. `nextLeadsToSplash` is the one predicate for that
-  transition — the PLAY button's "FINISH ▸" label reads it too.
+  victory lap: the congratulations screen (`drawSplash` in `main.js`) — one
+  full-screen picture with CONGRATULATIONS, what the room just cleared and the
+  way on drawn over it (`drawSplashWords`), and no other control than the level
+  selector the clear just unlocked. The words are on the CANVAS, not in the HUD,
+  because they sit over the art and have to be measured against it — every line
+  shrinks to fit rather than wrapping, since a canvas has no wrapping and a
+  320px phone silently ran them off both sides. They are boilerplate on purpose:
+  the picture is a stand-in (see the splash art below), and words leaning on it
+  would have to be rewritten with it. **The whole screen is the way on** — a tap
+  anywhere opens the levels grid (`splashTap`), the dot strip's plate still does
+  too, and both call one `openSelector` so the gate cannot differ between them.
+  The tap fires on the RELEASE, so the grid never inherits the tail of the
+  gesture that opened it (a phone plays a card on the press). Nothing places or
+  plays from the splash; the ways out are a `goto` and a proctor reset.
+  `nextLeadsToSplash` is the one predicate for the transition into it — the PLAY
+  button's "FINISH ▸" label reads it too.
 - **The splash pictures are drop-in files, and there are TWO of them**:
   `apps/goomba-glider/public/art/splash.webp` and
   `apps/hex-clicker/public/art/hex-splash.webp`. Same image today (the cat on

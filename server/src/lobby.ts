@@ -143,9 +143,15 @@ export class LobbyServer extends Server<Env> {
         else this.teams.set(pid, team);
         break;
       }
-      case "clearTeams": {
+      case "clearTeam": {
         if (!proctor) return;
-        this.teams.clear();
+        // Same gate as `assign`: an unknown id would be a no-op here, but
+        // refusing it keeps "which strings name a team" in one place.
+        const team = String(msg.team);
+        if (!TEAM_IDS.includes(team)) return;
+        for (const [pid, t] of [...this.teams]) {
+          if (t === team) this.teams.delete(pid);
+        }
         break;
       }
       case "forget": {

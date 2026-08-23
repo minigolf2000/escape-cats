@@ -533,8 +533,21 @@ three. Unassigned is a box like any other: its players are exactly the phones
 in the shared testing room, so it carries t0's readouts and t0's channel in the
 same two slots (`TestRoom.tsx`, `TeamChat` in `Chats.tsx`). What does NOT live
 in a box is the chat SOCKETS — five of them, held by a provider above the board
-so a re-render cannot reconnect them, and so the one "Clear all chats" button
-can fan out over all five at once.
+so a re-render cannot reconnect them (five connections that reopened on every
+board re-render would replay history each time); a box's "Clear chat" sends
+down the socket the page is already holding for that room.
+
+**Every destructive control is per BOX**, and that is the same argument the box
+itself is: one card, one room. A team's box carries **Clear team** under its
+roster and **Clear chat** under its log, beside the two game resets that were
+already there — so the question a press answers is always "this team", never
+"the board". The board-wide pair they replaced (`Clear teams`, `Clear all
+chats`) is gone: with a log now inside every box, one button that emptied all
+five wiped four conversations nobody had asked about, and the same went for
+unsorting three teams to turn over one. Both are always drawn and go DISABLED
+at zero rather than disappearing — box heights are fixed (below) — and both
+confirm, because each one throws up to four phones back to a waiting screen or
+deletes a conversation the proctor is reading.
 
 **A team's box is a fixed size, and that is a hard requirement rather than a
 nicety.** Five boxes sit in one grid row, so a box that grew by a line when a
@@ -650,8 +663,10 @@ The drag runs on **pointer events, not HTML5 drag-and-drop** — `dragstart`
 never fires under a finger, and since dragging is now the whole interface, a
 proctor on a tablet would otherwise be unable to sort anyone. Two other
 controls survive: **×** on a row forgets that one player (their phone
-re-registers if it is still connected), and **Clear teams** sends everybody
-back to Unassigned between groups.
+re-registers if it is still connected), and **Clear team** — one per team box,
+under its roster — sends that team back to Unassigned between groups
+(`{type:"clearTeam", team}`, proctor only, validated against `TEAM_IDS` exactly
+as `assign` is).
 
 **The game has no menu.** `apps/hex-clicker` never shows a form: it asks the
 lobby for this pid's room and slots straight in. Opening the game page also
@@ -831,14 +846,16 @@ as much as between teammates, so the dashboard shows every log below the board
 while it is open — live. It connects with
 `?role=proctor`, which the chat server already treated as a spectator: a `say`
 from that connection is refused, and the Roster never counts it, so watching a
-channel doesn't change the "n here" line the team sees. The logs sit BELOW the
-board rather than inside the team boxes because a box is a fixed-height drop
-target — see the box-height rule above.
+channel doesn't change the "n here" line the team sees. Each log is drawn
+inside its own zone box, as the last block in that box's stack; what keeps it
+out of a fixed-height drop target's way is that the log itself is fixed-height
+and scrolls internally — see the box-height rule above.
 
-**Clear all chats** wipes every channel, for use between groups. It is
-per-room on the wire (`{type:"clear"}`, proctor only — a Durable Object can
-only clear its own storage), and "global" is the proctor page fanning that one
-message out over the four sockets it already holds. The server deletes the
+**Clear chat** wipes one channel, for use between groups, and it is the last
+thing in the box whose channel it wipes. The wire was always per-room
+(`{type:"clear"}`, proctor only — a Durable Object can only clear its own
+storage); what changed is that the page stopped pretending otherwise with a
+single button fanned out over all five sockets. The server deletes the
 `m:` keys by prefix, in chunks of 128 (`storage.delete` takes no more at once,
 and `CHAT_HISTORY` is larger), then broadcasts an ordinary `chat` snapshot with
 an empty list — the same message a fresh connection gets, which every client

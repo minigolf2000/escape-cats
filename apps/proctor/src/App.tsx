@@ -7,8 +7,9 @@ import { Lobby } from "./Lobby";
  * is the shared testing room, so it carries that readout and that channel.
  *
  * The chat sockets are the one thing that cannot live in a box (they belong to
- * the page, and the clear-all fan-out needs all five at once), hence the
- * provider around the board rather than a section under it. */
+ * the page: five connections that reopened on every board re-render would
+ * replay history each time), hence the provider around the board rather than a
+ * section under it. */
 export function App() {
   return (
     <div className="setup">

@@ -102,13 +102,13 @@ findings — do not design from intuition, the sim disproves it reliably.
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
-- **Five levels ship, and TWO pass the gate — The Long Way Up (2) and Cat's
-  Cradle (4).** The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The Popper
-  Grid, Pop Goes Goomba, Popper Pinball, Piñata Alley and Space Cadet were cut,
-  and the survivors renumbered — a level's display number is its array index +
+- **Four levels ship, and TWO pass the gate — The Long Way Up (2) and Cat's
+  Cradle (3).** The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The Popper
+  Grid, Pop Goes Goomba, Popper Pinball, Piñata Alley, Space Cadet and Slalom
+  were cut, and the survivors renumbered — a level's display number is its array index +
   1, so removing or inserting one renumbers everything after it (and the
-  numbers live in the `name` strings, so renumbering means editing them). Up
-  the Middle (5) is the finale: `nextLeadsToSplash` and the selector's
+  numbers live in the `name` strings, so renumbering means editing them). The
+  last level is the finale: `nextLeadsToSplash` and the selector's
   clear-every-level gate both key off the LAST index, so adding a level moves
   the splash behind it.
 - **The Long Way Up (2) is the one to read first if you are building from a
@@ -120,9 +120,9 @@ findings — do not design from intuition, the sim disproves it reliably.
   rim), and put every band end on a terrain vertex ~9 units clear of its
   neighbours so snap absorbs finger slop (29/30 at ±3u on a level that is
   otherwise exact ballistics).
-- Levels 1, 3 and 5 need fewer than 4 bands — the standing debt. Re-measured
-  with `minbands`/`solve`, not inherited: The Long Way Down (1) needs **3** and
-  Slalom (3) needs 3; 5 is a testbed, not a shipped puzzle. Level 1 is now
+- Levels 1 and 4 need fewer than 4 bands — the standing debt. Re-measured
+  with `minbands`/`solve`, not inherited: The Long Way Down (1) needs **3**;
+  4 is a testbed, not a shipped puzzle. Level 1 is now
   drawn in Figma and pasted in, and one pass of it dropped to 2 bands by
   FENCING the world at both edges: two of its three jobs were only jobs because
   failing them threw her out of the world, and a fence does that work for free.
@@ -130,11 +130,11 @@ findings — do not design from intuition, the sim disproves it reliably.
   anything else. Reopening the right edge put it back to 3, and to three
   different deaths (stall / off-the-left / flew-off-the-right). The
   old blanket "these all collapse to 1 band" note was stale for both — if you
-  are about to repeat a debt claim, re-run the tool first. Level 3 predates the
-  party rule; level 1 joined it on purpose, rebuilt to a hand sketch whose
+  are about to repeat a debt claim, re-run the tool first. Level 1 joined the
+  debt on purpose, rebuilt to a hand sketch whose
   silhouette has no room for a 4th gate (DESIGNING.md has the
   reachability sweep that proves no can placement fixes it).
-  There and Back Again (5) grew from a hand sketch over several rounds and is the
+  There and Back Again (4) grew from a hand sketch over several rounds and is the
   near-miss: bare fails, all three bands load-bearing with three different
   deaths, and finger slop 22/30 — the best any board here has scored with a
   bumper in the loop. It fails only the party rule, at 3 bands. Its fourth can
@@ -145,7 +145,7 @@ findings — do not design from intuition, the sim disproves it reliably.
   what matters is whether a popper's aim has ROOM downrange, and the fix for a
   135° throw that overshot the world's left edge was moving the LANDING popper
   left, not re-aiming the thrower.
-  Don't copy the structure of 1 or 3; copy **The Long Way Up** (a ridden slope
+  Don't copy the structure of 1; copy **The Long Way Up** (a ridden slope
   with perpendicular notches), **Cat's Cradle** (four one-way popper lanes,
   sparse and staggered, where the players' bands are the only walls — it
   replaced The Popper Grid's dense version of the same idea and is more

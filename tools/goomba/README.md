@@ -66,10 +66,14 @@ Its room-side half — nobody holds more than ⌈4/n⌉ bands, so a full team is
 each — is enforced in the shared sim and gated by `quota.mjs`; that cap stops
 one player hoarding, but only geometry can make a level *need* four bands, so
 the level gate below still does the load-bearing work.
-Five levels ship. TWO pass the full gate — The Long Way Up (2) and Cat's
-Cradle (4) — and the others are the standing rebalance debt: they win with
+Four levels ship. TWO pass the full gate — The Long Way Up (2) and Cat's
+Cradle (3) — and the others are the standing rebalance debt: they win with
 fewer than 4 bands. Freshly measured, not inherited: The Long Way Down (1)
-needs 3 and Slalom (3) needs 3 (0/10325 at one band, exhaustive).
+needs 3.
+Slalom was cut when `MAX_SPEED` became one game constant at 145: it was built
+against the old 120, and at the faster cap `solve.mjs 2 4` finds no solution at
+all. It was already debt (3 bands, failing the party rule), so it was retired
+rather than shipped dead.
 Level 1 joined that list deliberately: it was rebuilt to a hand sketch whose
 silhouette cannot carry a 4th gate (see DESIGNING.md on why no can placement
 fixes it), replacing Four Ways to Help, which passed.
@@ -95,7 +99,7 @@ The blanket "levels 3-8 collapse to 1 band" this file used to carry was
 stale for two of its members. (The Skim, The Puzzle Box and Pillow Fort were
 cut, and Mind the Gap, which passed, was cut with them. Level numbers are
 array index + 1, so removals and insertions renumber everything after them.)
-There and Back Again (5) grew from a hand sketch over several rounds, finished by
+There and Back Again (4) grew from a hand sketch over several rounds, finished by
 hand in the editor. It is the closest thing here to a third passing level:
 bare fails, all three bands load-bearing with three different deaths, every
 band in-bounds and under BAND_MAX, and finger slop 22/30 against a threshold

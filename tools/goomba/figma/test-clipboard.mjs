@@ -75,13 +75,12 @@ function line(name, x1, y1, x2, y2, pos) {
 nodes.push({
   guid: FRAME,
   parentIndex: { guid: { sessionID: 0, localID: 0 }, position: "!" },
-  name: "L: Clipboard Test @145",
+  name: "L: Clipboard Test",
   type: "FRAME",
   transform: { m00: 1, m01: 0, m02: 20000, m10: 0, m11: 1, m12: 400 },
   size: { x: 800, y: 600 },
 });
 
-// The same layout the SVG fixture uses, so the two readers are comparable.
 line("t", 100, 100, 400, 160, "a");
 line("t", 400, 160, 700, 140, "b");
 line("band", 150, 300, 500, 320, "c"); // a leftover from the old answer-key layer — must be ignored
@@ -129,8 +128,7 @@ writeFileSync(outDir + "sample-figma-clipboard.html", html);
 const { level, warnings } = await levelFromFigmaClipboard(html);
 
 const TRUTH = {
-  name: "L: Clipboard Test",
-  maxSpeed: 145,
+  name: "Clipboard Test",
   // Two Figma Lines sharing (40,16): `stitchTerrain` chains them into one
   // polyline, so the game strokes a lineJoin there rather than two round caps
   // overhanging the shared vertex. Same surface either way — `segsFor` splits
@@ -147,8 +145,10 @@ const TRUTH = {
   pops: [{ x: 20, y: 45, deg: -37, spd: 137 }],
   cushions: [{ x: 35, y: 52, w: 20 }],
 };
-// The frame name carries "@145"; the level name drops the suffix and the L:.
-TRUTH.name = "Clipboard Test";
+// The frame name and the level name are now the same string bar the `L:`
+// marker. A trailing "@145" used to ride here too, setting that level's own
+// speed cap; speed is one game constant (MAX_SPEED) now, so it is gone and
+// there is no suffix left to strip.
 
 let bad = 0;
 const check = (key, got, want) => {

@@ -12,7 +12,20 @@
 export const G = 140; // gravity, units/s^2
 export const R = 2.2; // Goomba's collision radius
 export const START_VX = 20; // the little push when PLAY is hit
-export const MAX_SPEED = 120;
+/** Her speed ceiling, and it BINDS — she rides pinned to it for part of the
+ * run on most levels, so it is a tuning parameter, not a safety limit.
+ *
+ * ONE value for the whole game. A level used to be able to override it and
+ * exactly one ever did (The Long Way Up, at 145), which bought a per-level
+ * field in the type, a flag bit and an i16 in every share link, and a `@145`
+ * suffix in the Figma frame-name contract — all to carry a single number that
+ * is really a property of how the game feels. The override is gone and 145 is
+ * the constant, so the level that wanted it keeps its exact ride.
+ *
+ * It cost Slalom, which was built against the old 120 and does not survive the
+ * faster cap; it was retired rather than shipped dead. If you change this
+ * number, every level is retuned by it — re-run the gate on all of them. */
+export const MAX_SPEED = 145;
 export const BAND_MAX = 58; // one silly band's worth of stretch
 export const BAND_MIN = 6;
 /** Team budget: 4 players × 1 band. This is the LOCKED party rule — every level
@@ -90,7 +103,6 @@ export interface GoombaLevel {
    * rule locks every level to MAX_BANDS slots — but the design bench still
    * reads it, so it rides along in the mirror. */
   budget?: number;
-  maxSpeed?: number;
   start: Pt;
   goal: Pt;
   terrain: Pt[][];
@@ -302,7 +314,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // 3, off the left edge past the plant), jitter 29/30, no 1-band win over 9567
   // exhaustive placements, none in 30000/20000 sampled 2/3-band sets, and no
   // ≤3-band win from the beam search.
-  { name: '2 · The Long Way Up', budget: 4, maxSpeed: 145,
+  { name: '2 · The Long Way Up', budget: 4,
     start: [4, 176],
     terrain: [
       // the slope: smooth pad, notch, pad, notch, pad, notch, pad to the launcher
@@ -332,23 +344,6 @@ export const SEED_LEVELS: GoombaLevel[] = [
     solution: [ [[10, 178.5], [40, 159.5]], [[48, 150.5], [70, 117]],
                 [[76, 105.5], [88, 80.5]], [[4, 104], [4, 136]] ] },
 
-  // The floor is pitched 20 units over 98 (0.204), not the 6 it used to be.
-  // The old 0.061 was under the ~0.12 stranding threshold, and worse, under
-  // what it takes to beat the snowboard pump: the pump shoves her the way she
-  // FACES, so a soft leftward landing near the left wall pumped her into the
-  // corner and stalled there — 741 of 3312 sampled left-side arrivals never
-  // reached the plant. At 0.204 gravity outvotes the pump and every one of
-  // those 3312 slides down to the plant on the right. It cost nothing: the
-  // 3-band solution still wins (1.3s faster) and the level still needs 3.
-  { name: '3 · Slalom', budget: 3,
-    start: [10, 22],
-    terrain: [ [[-4, 20], [30, 30]],
-               [[6, 34], [6, 190], [104, 210], [104, 34]] ],
-    goal: [96, 205],
-    cans: [[32, 72], [76, 118], [32, 164]],
-    solution: [ [[29.4, 6.8], [40.4, 47.6]], [[28.2, 85.3], [40.8, 88.6]],
-                [[87, 132.3], [45.9, 160.8]] ] },
-
   // CAT'S CRADLE — the sparse staggered lattice, drawn from a sketch, that
   // replaced The Popper Grid (four DENSE lanes of six poppers 16 apart, plus an
   // entry chute and a V-basin; git history has the geometry). The finding it
@@ -377,8 +372,8 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // DEBT, introduced on purpose: start was moved to (16,2.5) so she drops
   // straight into pop0 (26,20), the top-left-most popper, on the bare fall —
   // no band needed to enter the lattice any more. That was job 1 below;
-  // `minbands.mjs 3` now measures the true minimum at 3, and
-  // `verify.mjs 3` fails on "every band load-bearing" (drop-one on band 1 →
+  // `minbands.mjs 2` now measures the true minimum at 3, and
+  // `verify.mjs 2` fails on "every band load-bearing" (drop-one on band 1 →
   // still wins). Kept this way deliberately — restoring the 4-band
   // requirement needs a new 4th job designed into the lattice, not a start-
   // position tweak, and that redesign has not been done.
@@ -399,12 +394,12 @@ export const SEED_LEVELS: GoombaLevel[] = [
   //      collected everything and flies past the plant off the right edge
   //      (flew, 3/3).
   //
-  // GATE: FAIL (`node verify.mjs 3`) — bare still fails (she now catches the
+  // GATE: FAIL (`node verify.mjs 2`) — bare still fails (she now catches the
   // first popper instead of falling through), the 4-band solution still wins
   // at ~3.5s, but drop-one on band 1 also wins, so "every band load-bearing"
   // fails and the party rule is not honored. budget dropped to 3 to match the
   // measured truth until the lattice is redesigned around the new entry.
-  { name: "4 · Cat's Cradle", budget: 3,
+  { name: "3 · Cat's Cradle", budget: 3,
     start: [16, 2.5],
     terrain: [], // deliberate: the players' bands are the only surfaces here
     goal: [18, 112],
@@ -470,7 +465,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // dot leaves with START_VX=20 and sails past the popper beneath it, and
   // `decodeLevel` rejects a level with no terrain at all, so the shelf is also
   // what lets this board travel as an editor link.
-  { name: '5 · There and Back Again', budget: 4,
+  { name: '4 · There and Back Again', budget: 4,
     start: [3, 100],
     terrain: [ [[-1.5, 103], [3, 107]] ],  // the start shelf — the only terrain
     goal: [75, 48],

@@ -90,8 +90,7 @@ Layer **names** carry all the meaning. Position comes from the node.
 
 | Layer name | Node type | Becomes |
 | --- | --- | --- |
-| `L: <title>` or `L--<title>` | Frame | one level; the frame's origin is world (0,0) |
-| `L: <title> @145` | Frame | …and raises the level's `maxSpeed` to 145 |
+| `L: <title>` or `L--<title>` | Frame | one level; the frame's origin is world (0,0). The title IS the level name — nothing else is folded into it |
 | `t` | Line | one `terrain` segment |
 | `start` | anything | `start` — bbox centre |
 | `goal` | anything | `goal` — bbox centre |

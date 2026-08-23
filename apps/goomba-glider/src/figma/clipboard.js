@@ -230,7 +230,7 @@ export async function levelFromFigmaClipboard(html) {
   // have the layers, so they are consumed and counted rather than silently
   // read as something else.
   let droppedBands = 0;
-  let start = null, goal = null, name = null, maxSpeed = null;
+  let start = null, goal = null, name = null;
 
   // Children by parent, in sibling order, so repeated toys land in the order
   // they sit on the canvas.
@@ -255,15 +255,13 @@ export async function levelFromFigmaClipboard(html) {
   // watering-can component sitting at x 10240 over on the kit page. So walk DOWN
   // from the level frame instead of scanning every node, and stop descending at
   // anything that matches, since a component's inner art repeats its own name.
+  // The frame's title IS the level's name, with nothing else folded into it.
+  // A trailing "@145" used to ride here too, raising that level's speed cap —
+  // the one level field Figma had nowhere else to put. Speed is one game
+  // constant now (MAX_SPEED), so the suffix is gone and a frame name and a
+  // level name are the same string.
   const frameNode = changes.find((n) => levelName(n.name));
-  if (frameNode) {
-    const asLevel = levelName(frameNode.name);
-    // "L: My Level @145" raises the speed cap, the one level field Figma has
-    // nowhere else to put.
-    const at = /\s*@\s*(\d+)\s*$/.exec(asLevel);
-    name = at ? asLevel.slice(0, at.index).trim() : asLevel;
-    if (at) maxSpeed = Number(at[1]);
-  }
+  if (frameNode) name = levelName(frameNode.name);
   const roots = frameNode
     ? [frameNode]
     // No frame in the selection: take everything sitting directly on the page.
@@ -360,6 +358,5 @@ export async function levelFromFigmaClipboard(html) {
       `baked solution. Delete them from the frame — the bench and the players ` +
       `find the bands now.`,
     );
-  if (maxSpeed) level.maxSpeed = maxSpeed;
   return { level, warnings };
 }

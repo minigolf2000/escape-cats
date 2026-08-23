@@ -1,8 +1,8 @@
 // Popper ballistics helper — poppers set velocity exactly, so each arc is deterministic.
 // Usage: node arc.mjs px py deg spd [shelfY]
 // `spd` here is the EXIT speed, which is the level's `spd × 0.82` (capped at
-// the level's maxSpeed) — a popper overwrites her velocity, so that is the only
-// speed it ever fires at, whatever she arrived with.
+// MAX_SPEED) — a popper overwrites her velocity, so that is the only speed it
+// ever fires at, whatever she arrived with.
 // Prints apex and, for a shelf at shelfY, the x where she DESCENDS through it (land here).
 const [px, py, deg, spd, shelfY] = process.argv.slice(2).map(Number);
 const r = deg * Math.PI / 180, vx = spd * Math.cos(r), vy = spd * Math.sin(r);

@@ -232,11 +232,10 @@ export function stepRun(st: RunState, dt: number): void {
   if (st.result) return;
   st.t += dt;
   st.v.y += G * dt;
-  const cap = st.L.maxSpeed || MAX_SPEED; // later levels run hotter
   const sp0 = Math.hypot(st.v.x, st.v.y);
-  if (sp0 > cap) {
-    st.v.x *= cap / sp0;
-    st.v.y *= cap / sp0;
+  if (sp0 > MAX_SPEED) {
+    st.v.x *= MAX_SPEED / sp0;
+    st.v.y *= MAX_SPEED / sp0;
   }
   st.p.x += st.v.x * dt;
   st.p.y += st.v.y * dt;
@@ -348,7 +347,7 @@ export function stepRun(st: RunState, dt: number): void {
       // level DATA, encoded into every share link and every pack a lobby is
       // already holding, so rescaling it would silently re-tune levels this
       // repo has never seen.
-      const sp2 = Math.min(st.L.maxSpeed || MAX_SPEED, pp.spd * 0.82);
+      const sp2 = Math.min(MAX_SPEED, pp.spd * 0.82);
       st.v.x = pp.ux * sp2;
       st.v.y = pp.uy * sp2;
       st.popT[i] = st.t;

@@ -123,8 +123,9 @@ every stage must actually be ridden.
   — straight into the ground's dead restitution (level 1's bridge: in at 39 u/s,
   off the lip at 10.6 horizontal). Flush is free at both ends; lifting the
   endpoint instead only moves the kerb to the departure end.
-- **Gravity pulls at 140 u/s²; speed caps at 120 u/s** (some levels raise it
-  via `maxSpeed`). Max height anything can gain: ~51 units.
+- **Gravity pulls at 140 u/s²; speed caps at 145 u/s** — `MAX_SPEED`, one
+  constant for the whole game (a level could once override it; exactly one did,
+  and the override is gone). Max height anything can gain: ~51 units.
 - **Poppers grab her to their center and OVERWRITE her velocity**: direction
   from the popper's aim, speed exactly `spd × 0.82`, whatever she arrived with.
   So a launch is exact, and identical every time — the same popper hit slow and
@@ -437,7 +438,7 @@ error in where she strikes becomes a larger error in where she goes next.
 Popper Pinball — a testbed since removed, findings stand; git history has the
 geometry — measured the gap on one solution: the band whose job ended in a
 popper jittered 30/30, the band whose job ended in a bumper jittered 10/30, and
-the whole solution scored the bumper band's number. There and Back Again (5) is the
+the whole solution scored the bumper band's number. There and Back Again (4) is the
 constructive version of the same fact: its fragile band hands off to a POPPER
 on the leg that follows, and it scores 29/30 with a bumper wall in the loop.
 Consequence for design: a bumper is fine as an obstacle or a curtain (Piñata
@@ -502,7 +503,8 @@ a leg the solution could route around into one it must hit exactly.
 snowboard pump (`sp < 12` while grounded) pushes her the way she FACES, so a
 floor that only just clears the ~0.12 stranding pitch still traps anything that
 lands on it moving the WRONG way: she pumps into the far corner and stalls
-facing it. Slalom's floor was 0.061 and stranded 741 of 3312
+facing it. Slalom's floor — level since cut, the finding stands — was 0.061
+and stranded 741 of 3312
 sampled left-side arrivals; at 0.204 all 3312 slide to the goal. If a floor's
 job is "wherever she lands, she ends up at the plant", pitch it ~0.2, and test
 it with arrivals that carry velocity AWAY from the goal — a straight drop keeps

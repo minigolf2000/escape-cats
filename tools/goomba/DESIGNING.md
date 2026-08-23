@@ -125,9 +125,15 @@ every stage must actually be ridden.
   endpoint instead only moves the kerb to the departure end.
 - **Gravity pulls at 140 u/s²; speed caps at 120 u/s** (some levels raise it
   via `maxSpeed`). Max height anything can gain: ~51 units.
-- **Poppers grab her to their center before firing**, set DIRECTION and carry
-  arrival speed through (floor: `spd × 0.82`), so launches are exact — use
-  them to reset sloppy trajectories mid-level. Trigger radius ~8.
+- **Poppers grab her to their center and OVERWRITE her velocity**: direction
+  from the popper's aim, speed exactly `spd × 0.82`, whatever she arrived with.
+  So a launch is exact, and identical every time — the same popper hit slow and
+  hit fast produces the same arc, which is what makes it safe to reset a sloppy
+  trajectory mid-level. Trigger radius ~8. (It used to carry arrival speed
+  through when that beat the fire speed. It didn't buy anything measurable —
+  across every shipped solution the floor bound 15 of 25 pops and all 10
+  carries were popper-to-popper gravity — and it punched a hole in the state
+  erasure the next section is about.)
 - **Fast lips throw flat.** Off a lip at speed she travels far horizontally;
   don't put a floor 25–45 units below a fast lip unless you want her to land
   on it bare.
@@ -166,10 +172,14 @@ one-band solutions. Anything that descends toward its goal has this problem.
 opening slope just buys speed, and speed clears gaps that were supposed to
 need bridging. Any level where *more speed helps* can be trivialized this way.
 
-**Poppers are the antidote, because they erase state.** A popper redirects at a
-known speed, so nothing upstream changes what happens downstream. That makes
-stages independent, which is precisely what forces one band per stage. Poppers
-aren't decoration — they're the structural tool for multiplayer levels.
+**Poppers are the antidote, because they erase state.** A popper fires at a
+fixed speed along a fixed aim, so nothing upstream changes what happens
+downstream. That makes stages independent, which is precisely what forces one
+band per stage. Poppers aren't decoration — they're the structural tool for
+multiplayer levels. The erasure is *total* and that is the point: it is what
+stops "extend the start ramp" (shortcut #2 above) buying anything past the
+first popper, because a stage entered hot and a stage entered cold run
+identically.
 
 **But a popper must fire *away* from the band that feeds it.** Launch back
 across the band she just rode and she immediately re-collides with it. Give the
@@ -208,10 +218,17 @@ bare run fall through it — but they also mean a lane can only grab her while s
 is flying ALONG it, and that is a ballistics condition, not a layout one. She
 leaves a popper at `spd × 0.82` and drops `70 × (gap/speed)²` on the way to the
 next one, which has to come out under the ~8-unit reach: **fire speed ≳ 3 × the
-column gap**. Cat's Cradle's 24-unit columns need ≳ 72 and fire at 105 → 86,
-dropping ~6. Slow that lane down and the chain breaks in the middle of the
+column gap**. Cat's Cradle's 24-unit columns need ≳ 72 and fire at 114 → 93,
+dropping ~4.6. Slow that lane down and the chain breaks in the middle of the
 level, which reads as a mystery rather than a miss. Re-check this number before
 moving a column or retuning `spd`.
+
+Budget the WHOLE lane at the fire speed, not the entry hop. While poppers
+carried arrival speed through, a lane accelerated as she crossed it (86 → 90 →
+93.5 on gravity alone) and only the first hop ran at the number you tuned, so
+`spd` 105 was really "105 at the door, 114 by the far wall". Constant fire
+speed makes every hop the entry hop — the honest reading of `≳ 3 × gap`, and
+worth 9 units of `spd` on this level when the rule was made literal.
 
 **Wall the END of a lane, never the middle — and let the stagger aim it.** A
 wall does not drop her straight down: she rebounds at ≈ .32 of her speed and
@@ -431,7 +448,9 @@ dies on. And `BUMP_MIN` (58) is a state-eraser as useful as a popper's floor —
 a slow arrival leaves at exactly 58 along the contact normal, so a bumper
 positioned near the top of an arc *normalises* whatever reached it, while one
 positioned well below the apex passes the arrival's variance straight through
-at 1.18×. Pick which you want.
+at 1.18×. Pick which you want. (`BUMP_MIN` is a floor, where a popper is now a
+flat assignment — a bumper normalises only the arrivals slow enough to hit it,
+a popper normalises all of them.)
 
 **Snap IS the forgiveness — anchor every band end on a terrain vertex (The
 Long Way Up).** The ±3u jitter check is
@@ -468,7 +487,10 @@ of jobs: could one band stand in both of these places at once?
 The two toys look interchangeable — both hurl her somewhere — but they sit on
 opposite sides of the finger-slop check. A popper *grabs her to its centre*
 before firing, so every trajectory that triggers it leaves identically: it is a
-position AND direction reset, and slop upstream of one costs nothing. A bumper
+position, direction AND speed reset, and slop upstream of one costs nothing.
+(This paragraph was written when the speed half was only mostly true — a fast
+arrival carried its speed through — which is a good part of why it is a flat
+assignment now: "leaves identically" is what the toy is FOR.) A bumper
 reflects off wherever she happened to touch it, at `BUMP_E` 1.18, so a 3-unit
 error in where she strikes becomes a larger error in where she goes next.
 Popper Pinball — a testbed since removed, findings stand; git history has the

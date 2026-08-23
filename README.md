@@ -328,8 +328,8 @@ come from `vercel.json`, so there is nothing to override in the dashboard.
 | `/prototypes/` | `prototypes/` | Prototypes menu |
 
 A single-file surface is copied to `<name>/index.html`, so it gets a pretty URL
-without a rewrite — the path is a real directory. `/ar/` and both `tools/` pages
-work that way.
+without a rewrite — the path is a real directory. Both `tools/` pages work that
+way.
 
 Env vars (all in this one project — `VITE_PARTYKIT_HOST` is set once here, so
 every surface points at one server):
@@ -406,14 +406,6 @@ rewriting to it:
 | --- | --- | --- |
 | `hexxygon.com` | `/hexxygon/` | Hex Clicker coop |
 | `g00.mba` | `/g00mBa/` | Goomba Glider coop |
-| `g00.mba/ar` | `/ar/` | Scent Tracker (AR prototype) |
-
-`g00.mba/ar` borrows the Goomba domain purely as a short URL to type on a
-phone; it is not part of that game. Its rule must sit **before** the host's
-`/:path*` catch-all in `vercel.json` — redirects are matched in array order, and
-the catch-all would otherwise swallow `/ar` into `/g00mBa/ar/` and 404. It is
-registered in both slashed and unslashed forms for the same reason the
-`/qr-studio` rewrites are.
 
 Redirect, not rewrite, is the whole point: it puts every player on one origin,
 so the `localStorage` pid the lobby assigned a team to is the same pid the game
@@ -446,7 +438,7 @@ and immune to the trailing slash.
 
 `vercel.json` sets **`trailingSlash: true`**, so directory URLs keep their
 slash. That is what hand-authored HTML in `prototypes/` assumes: a sibling link
-like `scent-tracker.html` resolves correctly from `/prototypes/` but points at
+like `hex-clicker-neon.html` resolves correctly from `/prototypes/` but points at
 the site root from `/prototypes`. Paths carrying a file extension are excluded
 from the redirect, so a rewrite whose source is an extensionless pretty URL has
 to be registered in both slashed and unslashed forms to catch both sides of

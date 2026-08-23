@@ -357,15 +357,25 @@ export function stepRun(st: RunState, dt: number): void {
   const sp = Math.hypot(st.v.x, st.v.y);
   if (Math.abs(st.v.x) > 1) st.face = st.v.x >= 0 ? 1 : -1;
   if (st.grounded && sp < 12) st.v.x += st.face * 10 * dt; // tiny snowboard pump
-  // board angle: follow the ground, else follow the flight
+  // Board angle: follow the ground, else follow the flight. `boardA` is the
+  // angle in HER OWN frame, which is mirrored when she travels left — the
+  // renderer draws her as rotate(boardA * face) then scale(face, 1), so a
+  // screen angle A costs boardA = A for face 1 and boardA = pi - A for face -1.
+  // Both branches therefore measure against `v.x * face` / `tanX * face`, the
+  // forward axis after the mirror, and never against raw +x. Feeding a screen
+  // angle straight in (what `atan2(tanY, tanX)` did) draws her UPSIDE DOWN and
+  // nose-backwards the moment she rides a slope leftward: it is off by
+  // pi - 2A, which is ~127 degrees on a 30-degree descent, and it reads as her
+  // sinking through the terrain because the rotation puts her body below the
+  // centre the sim is keeping R clear of the surface.
   let target: number;
   if (st.grounded && (tanX || tanY)) {
     if (tanX * st.face < 0) {
       tanX = -tanX;
       tanY = -tanY;
     }
-    target = Math.atan2(tanY, tanX);
-  } else target = Math.atan2(st.v.y, st.v.x * st.face) * 0.35 * st.face;
+    target = Math.atan2(tanY, tanX * st.face);
+  } else target = Math.atan2(st.v.y, st.v.x * st.face) * 0.35;
   let da = target - st.boardA;
   while (da > Math.PI) da -= 2 * Math.PI;
   while (da < -Math.PI) da += 2 * Math.PI;

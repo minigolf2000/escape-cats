@@ -22,7 +22,8 @@ import {
   stepRun,
   snapBand,
   bandPoints,
-  bandsHeldBy,
+  canPlaceBand,
+  earsFor,
   goombaCleared,
   nextLeadsToSplash,
   applyPack,
@@ -69,8 +70,40 @@ window.addEventListener(
 );
 
 // ---------- state: the snapshot mirror + local presentation ----------
-const BAND_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
-const BAND_DARK = ["#c23a85", "#2fae95", "#d0a53e", "#7f5ad9"];
+// The party palette: confetti, the ambient drift, the bunting across the top.
+// DECOR, and nothing else — it used to double as "one colour per roster slot",
+// which is the job the team colour has taken over (see bandInk below).
+const PARTY_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
+
+// ---------- the team's colour ----------
+// A band belongs to the ROOM, not to whoever laid it, so every band on the
+// board wears one colour: the TEAM's. That is the same ink the proctor's board
+// paints a team's box in and the same ink as the cat-ear headband on the table
+// (TEAM_EARS in shared/ears.ts) — so "we're the teal team" is one fact a player
+// can read off their own screen, the proctor's screen, and their own head.
+//
+// A team id doubles as its room id, so `onTeam` below already knows it.
+let myTeam = null;
+/** The testing room (t0) is not a team and has no headband — `earsFor` says so
+ * by returning null — and ?solo has no lobby at all. Both fall back to the pink
+ * the bands wore back when a band's colour meant a roster slot. */
+const NO_TEAM_INK = "#ff5db1";
+const bandInk = () => earsFor(myTeam)?.ink ?? NO_TEAM_INK;
+/** The darker under-stroke a band is drawn with. Derived rather than tabled:
+ * the ears carry one ink per team, and a second hand-picked shade per team is
+ * a thing to keep in sync for no gain. 0.72 is where the old hand-picked pairs
+ * sat (#ff5db1 → #c23a85 and friends). */
+const shade = (hex, k) => {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v * k));
+  return "#" + ch.map((v) => v.toString(16).padStart(2, "0")).join("");
+};
+let inkShade = { ink: null, dark: NO_TEAM_INK };
+const bandInkDark = () => {
+  const ink = bandInk();
+  if (inkShade.ink !== ink) inkShade = { ink, dark: shade(ink, 0.72) };
+  return inkShade.dark;
+};
 // Run zoom only: the edit view sits at fitScale so the WHOLE level is on
 // screen. Nothing pans any more, so every point a band can reach has to be
 // reachable by a finger without moving the camera.
@@ -257,21 +290,18 @@ const L = () => GOOMBA_LEVELS[level()] ?? NO_LEVELS;
 const bands = () => (snap ? snap.bands : []);
 const now = () => Date.now() + serverOffset; // the room's shared clock
 
-// ---------- my share of the 4 bands ----------
-// The room divides MAX_BANDS by its live headcount (snap.quota = ⌈4/n⌉) and
-// nobody may hold more than that. The server enforces it; these read the same
-// snapshot so the gesture is refused BEFORE it goes on the wire — a tap that
-// silently does nothing reads as a broken screen.
+// ---------- the 4 bands ----------
+// Four bands for the room, and no per-player share of them any more: anyone may
+// lay any of the four and take any of them back. So the only question left is
+// whether one is free, and it is asked with the authority's own predicate so
+// the gesture is refused BEFORE it goes on the wire — a tap that silently does
+// nothing reads as a broken screen.
 //
-// `pending` (my optimistic ghost, already sent) counts as mine: without it the
-// 4-player case lets a fast double-tap send a second band that the room throws
+// `pending` (my optimistic ghost, already sent) counts as placed: without it a
+// fast double-tap on the last free band sends a second one that the room throws
 // away, and the phone shows a band that then vanishes.
-const myBands = () =>
-  bandsHeldBy(bands(), playerId()) + (pending ? 1 : 0);
-const myQuota = () => (snap ? snap.quota : MAX_BANDS);
-/** Free slot in the room AND under my own quota. */
-const iMayPlace = () =>
-  bands().length + (pending ? 1 : 0) < MAX_BANDS && myBands() < myQuota();
+const bandsOut = () => bands().length + (pending ? 1 : 0);
+const iMayPlace = () => canPlaceBand(pending ? [...bands(), pending] : bands());
 
 const FAIL_MSG = {
   fall: "Goomba fell! 🙀", left: "she rolled away! 🙀", flew: "overshot the party! 🙀",
@@ -368,36 +398,35 @@ function syncHud() {
     dotsEl.appendChild(d);
   });
 
-  // The 4 band slots — the locked team budget. Filled slots wear the OWNER's
-  // colour, so the row doubles as "who has placed". Of the empty ones, the
-  // next `quota - mine` wear MY colour: that is my share of the four, shown
-  // before I reach for it rather than explained by a toast after I'm refused.
+  // The 4 band slots — the room's whole budget, in the team's colour. Every
+  // one of them is the same colour now, because every one of them is anybody's
+  // to lay: the row says "two of the four are out", which is the only thing
+  // left to say about them. An empty slot during edit is lit rather than faded,
+  // since an empty slot is one I may fill — there is no share of them to be
+  // outside of any more.
   const pid = playerId();
-  const mySlot = Math.max(0, s.players.findIndex((p) => p.id === pid));
-  let mine = Math.max(0, s.quota - bandsHeldBy(s.bands, pid));
+  const ink = bandInk();
   invEl.innerHTML = "";
   for (let i = 0; i < MAX_BANDS; i++) {
     const el = document.createElement("div");
     const bd = s.bands[i];
-    el.className = "band" + (bd ? " used" : "");
-    if (bd) {
-      el.style.borderColor = BAND_COLORS[bd.slot % 4];
-      el.style.background = BAND_COLORS[bd.slot % 4] + "33";
-    } else if (mine > 0 && s.phase === "edit") {
-      mine--;
-      el.className += " mine";
-      el.style.borderColor = BAND_COLORS[mySlot % 4];
-    }
+    const open = !bd && s.phase === "edit";
+    el.className = "band" + (bd ? " used" : open ? " open" : "");
+    // Inline, because only the client knows which team it is on. A slot that is
+    // neither filled nor fillable (mid-run) keeps the faded dashes from CSS.
+    if (bd || open) el.style.borderColor = ink;
+    if (bd) el.style.background = ink + "33";
     invEl.appendChild(el);
   }
 
-  // Roster line: teammates in slot colours; my own name bold.
+  // Roster line: who is here, in the team's colour; my own name bold. Not one
+  // colour per player any more — a player's colour used to be their band's, and
+  // the bands are the room's now.
   teamEl.innerHTML = s.players
-    .map((p, i) => {
+    .map((p) => {
       const name = escapeHtml(p.name);
-      const col = BAND_COLORS[i % 4];
       const body = p.id === pid ? `<b>${name}</b>` : name;
-      return `<span class="${p.connected ? "" : "off"}" style="color:${col}">${body}</span>`;
+      return `<span class="${p.connected ? "" : "off"}" style="color:${ink}">${body}</span>`;
     })
     .join(" · ");
 
@@ -550,7 +579,7 @@ function syncAnim() {
     for (let i = 0; i < 90; i++) confetti.push({
       x: lv.goal[0], y: lv.goal[1] - 4,
       vx: (Math.random() - 0.5) * 70, vy: -Math.random() * 70 - 15,
-      c: BAND_COLORS[i % 4], r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 10,
+      c: PARTY_COLORS[i % 4], r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 10,
       life: 2.2 + Math.random(),
     });
     toast(s.completed.filter(Boolean).length === s.levelCount ? "ALL LEVELS CLEAR! 🎉🪴" : "LEVEL CLEAR! 🎉", 1800);
@@ -632,15 +661,8 @@ function placePreview() {
     // Say why nothing landed — a tap-tap that silently does nothing reads as
     // a broken screen. (Too SHORT stays quiet: that's the cancel gesture.)
     if (preview && preview.len > BAND_MAX) toast("too stretchy! 🫨", 900);
-    else if (preview && bands().length + (pending ? 1 : 0) >= MAX_BANDS)
-      toast("all 4 bands are out! 🫰", 900);
-    else if (preview && myBands() >= myQuota())
-      toast(
-        myQuota() === 1
-          ? "that was your band — a teammate lays the next 🤝"
-          : `your ${myQuota()} bands are out — pass it on 🤝`,
-        1300,
-      );
+    else if (preview && bandsOut() >= MAX_BANDS)
+      toast("all 4 bands are out! 🫰 tap one to take it back", 1300);
     transport.preview(null); // gesture ended without a placement
   }
   preview = null;
@@ -780,7 +802,7 @@ function clampCam(x, y, s, b) {
 const ambient = [];
 for (let i = 0; i < 34; i++) ambient.push({
   x: Math.random(), y: Math.random(), s: 2 + Math.random() * 3,
-  c: BAND_COLORS[i % 4], vy: 6 + Math.random() * 12, sway: Math.random() * 6.28,
+  c: PARTY_COLORS[i % 4], vy: 6 + Math.random() * 12, sway: Math.random() * 6.28,
 });
 
 function drawBackground(dt) {
@@ -797,7 +819,7 @@ function drawBackground(dt) {
       const t = i / n, u = 1 - t;
       const bx = u * u * x0 + 2 * u * t * (W / 2) + t * t * x1;
       const by = u * u * y0 + 2 * u * t * (y0 + sagg * 2) + t * t * y0;
-      const c = BAND_COLORS[(i + row) % 4];
+      const c = PARTY_COLORS[(i + row) % 4];
       const tw = 0.55 + 0.45 * Math.sin(tGlobal * 2.2 + i * 1.7 + row);
       ctx.fillStyle = c; ctx.globalAlpha = 0.35 + 0.5 * tw;
       ctx.beginPath(); ctx.arc(bx, by + 4, 3, 0, 6.28); ctx.fill();
@@ -833,7 +855,9 @@ function drawTerrain(lv) {
   }
 }
 
-function drawBand(bd, colorIdx, excite, ghost) {
+/** One band, in the TEAM's colour — every band on the board is the same one,
+ * because none of them belongs to a player any more. */
+function drawBand(bd, excite, ghost) {
   const pts = bandPoints(bd);
   const jig = excite * Math.sin(tGlobal * 32) * 1.2;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -846,14 +870,15 @@ function drawBand(bd, colorIdx, excite, ghost) {
   };
   const bad = ghost && preview && !preview.ok;
   ctx.globalAlpha = ghost ? 0.75 : 1;
-  ctx.strokeStyle = bad ? "#ff4a4a" : BAND_DARK[colorIdx];
+  const ink = bandInk();
+  ctx.strokeStyle = bad ? "#ff4a4a" : bandInkDark();
   if (ghost) ctx.setLineDash(bad ? [6, 6] : []);
   ctx.lineWidth = 1.5 * cam.s; path(); ctx.stroke();
-  ctx.strokeStyle = bad ? "#ff8f8f" : BAND_COLORS[colorIdx];
+  ctx.strokeStyle = bad ? "#ff8f8f" : ink;
   ctx.lineWidth = 0.8 * cam.s; path(); ctx.stroke();
   ctx.setLineDash([]);
   for (const [x, y] of [pts[0], pts[8]]) {
-    ctx.fillStyle = BAND_COLORS[colorIdx];
+    ctx.fillStyle = ink;
     ctx.beginPath(); ctx.arc(sxp(x), syp(y), 0.9 * cam.s, 0, 6.28); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.beginPath(); ctx.arc(sxp(x) - 0.25 * cam.s, syp(y) - 0.25 * cam.s, 0.3 * cam.s, 0, 6.28); ctx.fill();
@@ -863,10 +888,12 @@ function drawBand(bd, colorIdx, excite, ghost) {
 
 /** A teammate's band-in-progress: same sagging shape as a real band, but
  * translucent with marching dashes and hollow endpoint rings — reads as
- * "being dragged", never as "placed". */
+ * "being dragged", never as "placed". The team's colour like every other band;
+ * what makes it theirs rather than mine is the motion, and the name on the
+ * anchor below. */
 function drawTeammatePreview(p) {
   const pts = bandPoints(p);
-  const col = BAND_COLORS[p.slot % 4];
+  const col = bandInk();
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   ctx.globalAlpha = 0.5 + 0.15 * Math.sin(tGlobal * 6);
   ctx.strokeStyle = col;
@@ -892,7 +919,7 @@ function drawAnchor(a) {
   // Screen units, not world: the edit camera is whatever fits the level, and
   // a fingertip is the same size on every one of them.
   const x = sxp(a.x), y = syp(a.y);
-  const col = BAND_COLORS[mySlot() % 4];
+  const col = bandInk();
   const left = ANCHOR_TTL - (performance.now() - a.at);
   ctx.globalAlpha = Math.max(0, Math.min(1, left / 900));
   ctx.strokeStyle = col; ctx.lineWidth = 2;
@@ -913,12 +940,12 @@ function drawAnchor(a) {
   ctx.globalAlpha = 1;
 }
 
-/** The same waiting point, seen from a teammate's phone: their colour, their
- * name, no instruction (it isn't your tap to finish). Drawn for any preview
- * too short to be a band — see GoombaBandPreview. */
+/** The same waiting point, seen from a teammate's phone: their name, no
+ * instruction (it isn't your tap to finish). Drawn for any preview too short to
+ * be a band — see GoombaBandPreview. */
 function drawTeammateAnchor(p) {
   const x = sxp(p.ax), y = syp(p.ay);
-  const col = BAND_COLORS[p.slot % 4];
+  const col = bandInk();
   const who = snap.players.find((q) => q.id === p.pid)?.name ?? "";
   ctx.globalAlpha = 0.55 + 0.25 * Math.sin(tGlobal * 4);
   ctx.strokeStyle = col; ctx.lineWidth = 1.5;
@@ -1681,7 +1708,7 @@ function frame(nowMs) {
     if (riding && st.onBand >= 0 && Math.random() < 0.5) {
       const bd = bands()[st.onBand];
       parts.push({ x: st.p.x, y: st.p.y + R, vx: -st.v.x * 0.15, vy: -12,
-                   c: BAND_COLORS[bd ? bd.slot % 4 : 0], life: 0.5 });
+                   c: bandInk(), life: 0.5 });
     }
     st.cushHits.forEach((h, i) => { if (h) { cushAnim[i] = 1; st.cushHits[i] = 0; } });
     st.popT.forEach((t, i) => {
@@ -1690,7 +1717,7 @@ function frame(nowMs) {
         for (let k = 0; k < 22; k++) confetti.push({
           x: pp.x, y: pp.y,
           vx: pp.vx * 0.25 + (Math.random() - 0.5) * 40, vy: pp.vy * 0.25 - Math.random() * 20,
-          c: BAND_COLORS[k % 4], r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 12,
+          c: PARTY_COLORS[k % 4], r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 12,
           life: 0.8 + Math.random() * 0.5,
         });
       }
@@ -1719,7 +1746,7 @@ function frame(nowMs) {
   lv.bumpers.forEach((bp, i) => drawBumper(bp, st ? Math.max(0, 1 - (st.t - st.bumpT[i]) * 4) : 0));
   lv.cans.forEach((m, i) => drawCan(m[0], m[1], st ? st.got[i] : false, i));
   drawGoalPlant(lv, st);
-  bands().forEach((bd, i) => drawBand(bd, bd.slot % 4, bandExcite.get(i) || 0, false));
+  bands().forEach((bd, i) => drawBand(bd, bandExcite.get(i) || 0, false));
   if (snap.phase === "edit") {
     // Teammates' bands-in-progress: unmistakably in motion (marching dashes,
     // pulsing alpha) so nobody confuses a drag with a placed band.
@@ -1731,8 +1758,8 @@ function frame(nowMs) {
       else drawTeammatePreview(p);
     }
   }
-  if (pending && snap.phase === "edit") drawBand(snapBand(lv, pending), mySlot() % 4, 0, true);
-  if (preview && snap.phase === "edit") drawBand(preview, mySlot() % 4, 0, true);
+  if (pending && snap.phase === "edit") drawBand(snapBand(lv, pending), 0, true);
+  if (preview && snap.phase === "edit") drawBand(preview, 0, true);
   if (snap.phase === "edit") {
     const a = liveAnchor();
     if (a && !preview) {
@@ -1767,13 +1794,6 @@ function frame(nowMs) {
   ctx.restore();
 }
 
-function mySlot() {
-  if (!snap) return 0;
-  const pid = playerId();
-  const i = snap.players.findIndex((p) => p.id === pid);
-  return i < 0 ? 0 : i;
-}
-
 // ---------- boot — no menu, same contract as hex ----------
 const NAME_KEY = "escape-cats-name";
 
@@ -1803,6 +1823,11 @@ function boot() {
     name,
     onTeam: (team, lobbyName) => {
       localStorage.setItem(NAME_KEY, lobbyName);
+      // A team id doubles as its room id, so this is also the colour every band
+      // on this phone is about to be drawn in (bandInk). Set before the first
+      // snapshot can arrive, so nothing is ever painted in the fallback pink
+      // and then swapped.
+      myTeam = team;
       gateStatusEl.textContent = "Joining your team…";
       connectRoom({
         room: team,

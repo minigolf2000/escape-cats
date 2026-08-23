@@ -19,20 +19,23 @@ a copy. Design happens in the editor or by editing `levels.ts`, graded by these
 tools; playtests happen on the deployed game by assigning yourself to a team
 from `/proctor`.
 
-## The party rule (non-negotiable)
+## The 4-band rule (non-negotiable)
 
-**This is a 4-player game, locked. Every level must genuinely REQUIRE 4 bands**
-— not merely allow them — or a player gets benched.
+**Every level must genuinely REQUIRE all 4 bands** — not merely allow them.
 
-The rule has two halves, and level design owns the first. The room enforces the
-second: a player may hold at most **⌈4 / connected players⌉** bands at once
-(`bandQuota` in `packages/shared/src/goomba/sim.ts`; `node quota.mjs` is its
-gate), so a full team is one band each and a 3-player team is up to two each.
-That cap stops one player laying all four — but it cannot make a level *need*
-all four. **A level that wins on 1 band still wins on 1 band with four players
-in the room**; the other three just place decoration. Only geometry can close
-that gap, which is why this half is non-negotiable and why the two gates are
-separate.
+This used to be half of a "party rule" whose other half lived in the room: a
+per-player cap of ⌈4 / connected players⌉ bands, so a full team was forced to
+lay exactly one each. **That cap is gone.** Nobody owns a band now — any player
+may lay any of the four and lift any of them, their own or a teammate's — and
+the room's only remaining question is whether a band is free (`canPlaceBand` in
+`packages/shared/src/goomba/sim.ts`; `node bands.mjs` is its gate).
+
+Losing the cap does not soften this half; it makes it the *only* half. Four
+people crowd one board with four bands between them, and what gives all four of
+them something to do is a level that cannot be won without all four placements.
+**A level that wins on 1 band still wins on 1 band with four players in the
+room** — the other three now have nothing to argue about, where before they at
+least had to hand over their token. Only geometry can close that gap.
 
 `minbands.mjs` is the judge: exhaustive at 0–1 bands, sampled at 2–3,
 plus your 4-band solution as the upper bound. The structural trick that makes

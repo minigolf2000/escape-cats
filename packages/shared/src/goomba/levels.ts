@@ -2,7 +2,7 @@
 //
 // The single-file prototype these grew from is deleted; levels are designed by
 // editing THIS file and running the tools in tools/goomba/ (start with its
-// DESIGNING.md — the loop, the locked 4-band party rule, and the anti-shortcut
+// DESIGNING.md — the loop, the locked 4-band rule, and the anti-shortcut
 // vocabulary live there).
 //
 // The client animates a run with this sim while the server has already scored
@@ -15,10 +15,11 @@ export const START_VX = 20; // the little push when PLAY is hit
 export const MAX_SPEED = 120;
 export const BAND_MAX = 58; // one silly band's worth of stretch
 export const BAND_MIN = 6;
-/** Team budget: 4 players × 1 band. This is the LOCKED party rule — every level
- * ships with 4 band slots, and how they are shared out is not up to the team:
- * no player may hold more than ⌈MAX_BANDS / players in the room⌉ of them at
- * once (`bandQuota` in sim.ts). Four players means exactly one each. */
+/** The team's band budget: four silly bands per level, for the whole room.
+ * Every level ships with these four slots and no more — but WHO lays them is
+ * nobody's business, so any player may lay any of the four and take any of them
+ * back (`canPlaceBand` in sim.ts). The per-player quota that used to divide
+ * these four between the players in the room is gone. */
 export const MAX_BANDS = 4;
 export const SUB = 1 / 240; // physics substep
 export const RUN_MAX = 15; // seconds before we call a run stuck
@@ -232,7 +233,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // comes back empty and `0 3` solves. The 3-band solution wins at 7.27s with
   // both cans.
   //
-  // Still short of the party rule at 3, and that is the standing debt — but the
+  // Still short of the 4-band rule at 3, and that is the standing debt — but the
   // three jobs now fail in three DIFFERENT ways, which is what makes a level
   // teach (`route.mjs 0 drop`):
   //   1. BRIDGE the shelf — drop it and she never reaches a can at all:
@@ -402,7 +403,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // GATE: FAIL (`node verify.mjs 3`) — bare still fails (she now catches the
   // first popper instead of falling through), the 4-band solution still wins
   // at ~3.5s, but drop-one on band 1 also wins, so "every band load-bearing"
-  // fails and the party rule is not honored. budget dropped to 3 to match the
+  // fails and the 4-band rule is not honored. budget dropped to 3 to match the
   // measured truth until the lattice is redesigned around the new entry.
   { name: "4 · Cat's Cradle", budget: 3,
     start: [16, 2.5],
@@ -461,7 +462,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // here has scored with a bumper in the loop. (It was 29/30 on three cans;
   // the (13,54) toll-booth can costs seven trials' worth of tolerance, which
   // is the price of making the ↙ popper compulsory.) The one thing it
-  // fails is the party rule: the true minimum is 3 bands, not 4. Two stages
+  // fails is the 4-band rule: the true minimum is 3 bands, not 4. Two stages
   // still carry themselves — the bare feed chain hands her the far-right can
   // for free, and the up-column self-chains once she is in it — so those are
   // where geometry would have to go to force a fourth.
@@ -503,7 +504,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
 
 /**
  * **The levels the game is playing right now**, and the ONE array every rule
- * reads: `scoreRun`, the band quota, the phases, the selector and the phone
+ * reads: `scoreRun`, the placement rules, the phases, the selector and the phone
  * animation all index this and cannot tell where a level came from.
  *
  * It starts EMPTY. The pack lives in the lobby DO and arrives over the wire, so

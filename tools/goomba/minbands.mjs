@@ -1,5 +1,5 @@
 // How many bands does a level ACTUALLY need? Exhaustive for k=1, randomized for k=2,3.
-// The party rule locks every level to 4 placed bands; a level is only honest if its
+// The 4-band rule locks every level to 4 placed bands; a level is only honest if its
 // true minimum matches what its design claims to need.
 // Usage: node minbands.mjs [levelIdx...]   (default: all)
 import { LEVELS, BAND_MAX, simulate } from "./lib.mjs";

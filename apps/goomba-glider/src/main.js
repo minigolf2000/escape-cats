@@ -303,7 +303,8 @@ const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
   gateCloseEl = $("gateClose"),
   helpEl = $("help"), scGoalEl = $("scGoal"), scBandsEl = $("scBands"),
-  scTitleEl = $("scTitle"), titleH1El = document.querySelector("#gate h1"),
+  scTitleEl = $("scTitle"), scDragEl = $("scDrag"),
+  titleH1El = document.querySelector("#gate h1"),
   connEl = $("conn");
 
 const level = () => (snap ? snap.level : 0);
@@ -935,7 +936,10 @@ function drawTerrain(lv) {
     ctx.strokeStyle = "#f3e9d6"; ctx.lineWidth = 1.5 * cam.s;
     ctx.stroke();
     ctx.strokeStyle = "rgba(255,93,177,0.55)"; ctx.lineWidth = 0.5 * cam.s;
-    ctx.setLineDash([2 * cam.s, 7 * cam.s]);
+    // The pink ticks are PAINT on the floor: they mark it, they do not travel
+    // along it. Hence the explicit offset — the marching-ants drawings below
+    // leave one on the context, and terrain that inherits it crawls.
+    ctx.setLineDash([2 * cam.s, 7 * cam.s]); ctx.lineDashOffset = 0;
     ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -989,7 +993,10 @@ function drawTeammatePreview(p) {
   ctx.beginPath();
   pts.forEach(([x, y], i) => (i ? ctx.lineTo(sxp(x), syp(y)) : ctx.moveTo(sxp(x), syp(y))));
   ctx.stroke();
-  ctx.setLineDash([]);
+  // the offset goes back with the pattern: it is context state, and everything
+  // dashed drawn after this one — the terrain on the next frame included —
+  // inherits whatever is left on it
+  ctx.setLineDash([]); ctx.lineDashOffset = 0;
   for (const [x, y] of [pts[0], pts[8]]) {
     ctx.strokeStyle = col;
     ctx.lineWidth = 0.45 * cam.s;
@@ -1011,7 +1018,7 @@ function drawAnchor(a) {
   ctx.strokeStyle = col; ctx.lineWidth = 2;
   ctx.setLineDash([4, 4]); ctx.lineDashOffset = -tGlobal * 22;
   ctx.beginPath(); ctx.arc(x, y, 15 + 2 * Math.sin(tGlobal * 5), 0, 6.28); ctx.stroke();
-  ctx.setLineDash([]);
+  ctx.setLineDash([]); ctx.lineDashOffset = 0;
   ctx.fillStyle = col;
   ctx.beginPath(); ctx.arc(x, y, 4, 0, 6.28); ctx.fill();
   // Caption on a dark pill — it has to be readable over terrain and confetti.
@@ -1037,7 +1044,7 @@ function drawTeammateAnchor(p) {
   ctx.strokeStyle = col; ctx.lineWidth = 1.5;
   ctx.setLineDash([4, 4]); ctx.lineDashOffset = -tGlobal * 22;
   ctx.beginPath(); ctx.arc(x, y, 13, 0, 6.28); ctx.stroke();
-  ctx.setLineDash([]);
+  ctx.setLineDash([]); ctx.lineDashOffset = 0;
   ctx.globalAlpha = 1;
   ctx.strokeStyle = col; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.28); ctx.stroke();
@@ -2100,11 +2107,98 @@ function drawTitleScene(b) {
   drawGoomba(x, y, Math.atan(amp * k * Math.cos(x * k)), 1, true, false, false);
 }
 
+/** Picture three — the gesture, because the two above say what a band DOES and
+ * nothing says how one gets there. It plays the whole loop: a fingertip presses
+ * on the ledge, drags a band out across the gap (the ghost the game draws under
+ * a live drag), releases it solid, and then taps it away again.
+ *
+ * Only the two gestures worth teaching are here. A band can also be laid
+ * tap-then-tap or stretched between two fingers (see "three ways to lay a
+ * band"), and a picture that showed all three would be a manual — the drag is
+ * the one a thumb finds by itself, and the other two are discovered by anyone
+ * who tries them.
+ *
+ * The FINGERTIP is the one mark in this sheet with no counterpart in the game,
+ * the same licence the ride-line takes in picture one: a gesture cannot be
+ * drawn out of the things it acts on. Everything under it is the game's own —
+ * drawTerrain, and drawBand as a ghost then solid, exactly as a real drag and
+ * a placed band are drawn. */
+const DRAG_SCENE = {
+  terrain: [[[0, 8], [22, 8]], [[54, 17], [80, 17]]],
+  band: { ax: 22, ay: 8, bx: 54, by: 17 },    // what the drag lays, end to end
+  // A ledge down onto a lower one, so the band goes in on the SLANT every band
+  // in this game goes in on — and so the picture uses the height of its strip.
+  // Drawn flat first, it was a rule across the middle of an empty box: 35% ink
+  // against the 70% the two pictures above it carry, which reads as a stray
+  // line rather than as the third of three.
+  // Same world width as those two (~80 units), because three pictures at three
+  // scales look like three different games.
+  bounds: { x0: -4, x1: 84, y0: 6, y1: 19 },
+};
+// The beats, in seconds along the loop. Held long enough to be read at a
+// glance, short enough that a player looking up mid-caption sees it again.
+const DRAG_PRESS = 0.25, DRAG_PULL = 1.55, DRAG_LET = 1.7,
+  DRAG_TAP = 2.45, DRAG_GONE = 3.05, DRAG_LOOP = 3.8;
+
+/** A fingertip: a soft disc under a ring, `press` scaling both (1 = down on the
+ * glass) and `a` fading them. White, because it is a hand rather than anything
+ * in the world, and the only white thing on this canvas. */
+function drawTouch(x, y, press, a) {
+  const r = 2.0 * cam.s * press;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.beginPath(); ctx.arc(sxp(x), syp(y), r, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 0.3 * cam.s;
+  ctx.beginPath(); ctx.arc(sxp(x), syp(y), r, 0, 6.28); ctx.stroke();
+  ctx.restore();
+}
+
+function drawDragScene() {
+  const bd = DRAG_SCENE.band;
+  // Parked mid-pull when the phone asks for less motion: one frame of this
+  // picture has to carry it, and the frame that does is the one with a band
+  // half-drawn under a finger.
+  const t = REDUCED() ? 0.9 : tGlobal % DRAG_LOOP;
+  const smooth = (u) => u * u * (3 - 2 * u);
+  drawTerrain(DRAG_SCENE);
+
+  if (t < DRAG_LET) {
+    // ...being dragged out: a ghost band, exactly what the game draws under a
+    // live drag (drawBand's third argument), with the finger on its moving end
+    const u = smooth(Math.max(0, Math.min(1, (t - DRAG_PRESS) / (DRAG_PULL - DRAG_PRESS))));
+    const bx = bd.ax + (bd.bx - bd.ax) * u, by = bd.ay + (bd.by - bd.ay) * u;
+    if (u > 0) drawBand({ ax: bd.ax, ay: bd.ay, bx, by }, 0, true);
+    drawTouch(bx, by, Math.min(1, t / DRAG_PRESS), 1);
+  } else if (t < DRAG_GONE) {
+    drawBand(bd, 0, false);
+    // the tap: the finger comes back down on the band it is about to lift
+    if (t > DRAG_TAP) {
+      const u = Math.min(1, (t - DRAG_TAP) / (DRAG_GONE - DRAG_TAP));
+      drawTouch((bd.ax + bd.bx) / 2, (bd.ay + bd.by) / 2 + 1.6, 1.35 - 0.35 * u, u);
+    }
+  } else {
+    // gone, and the ring the tap left going out with it
+    const u = (t - DRAG_GONE) / 0.45;
+    if (u < 1) {
+      ctx.save();
+      ctx.globalAlpha = 1 - u;
+      ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 0.3 * cam.s;
+      ctx.beginPath();
+      ctx.arc(sxp((bd.ax + bd.bx) / 2), syp((bd.ay + bd.by) / 2 + 1.6),
+        (2 + 4 * u) * cam.s, 0, 6.28);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
 function drawSheet() {
   const tb = titleFrame(scTitleEl, titleH1El);
   drawScene(scTitleEl, tb, () => drawTitleScene(tb));
   drawScene(scGoalEl, GOAL_SCENE.bounds, drawGoalScene);
   drawScene(scBandsEl, BAND_SCENE.bounds, drawBandScene);
+  drawScene(scDragEl, DRAG_SCENE.bounds, drawDragScene);
 }
 
 // The sheet's two wearings. It opens as the GATE, carrying the connection

@@ -3,15 +3,23 @@
 //
 // This is what is left of the old /editor page. That page existed because the
 // game had no way to take a level in; now the SELECTOR is the editor, so the
-// only part worth keeping is the part that reads a clipboard. Three shapes
-// arrive in practice and all three are accepted:
+// only part worth keeping is the part that reads a clipboard. Two shapes
+// arrive and both are accepted:
 //
-//   1. a plain Ctrl+C in Figma  — a `fig-kiwi` payload on text/html. The good
-//      path: real layer names, stored geometry, no exporter corrections.
-//   2. an exported .svg (dropped, or its text pasted) — needs the `id`
-//      attribute switched on, which Copy as SVG cannot do.
-//   3. one of our own level links — how a level comes back from `verify.mjs`
+//   1. a plain Ctrl+C in Figma — a `fig-kiwi` payload on text/html. Real layer
+//      names, stored geometry, nothing corrected on the way in.
+//   2. one of our own level links — how a level comes back from `verify.mjs`
 //      or from someone else's phone.
+//
+// There used to be a third: an exported .svg, read through the browser's SVG
+// engine. It is gone. It was always the WORSE path and it was never the one
+// anyone used — Figma writes layer names into SVG only when the `id` attribute
+// is on, and names are the entire contract, so the route people reach for first
+// ("Copy as SVG") could not work by construction. What survived it had to undo
+// the exporter's half-stroke shift on every line and chase a component's
+// dropped padding with `anchor` dots, both leaning on undocumented exporter
+// behaviour that could drift without throwing. Ctrl+C needs none of that: it
+// carries the numbers the Figma file actually holds. One reader, one contract.
 //
 // Nothing here is allowed to be silent. "I pressed Ctrl+V and nothing happened"
 // is the one report a party cannot act on, so every path either returns a level
@@ -19,13 +27,14 @@
 
 import { decodeLevel } from "@escape-cats/shared";
 import { hasFigmaBuffer, levelFromFigmaClipboard } from "./clipboard.js";
-import { levelFromFigmaSvg } from "./svg.js";
 
-/** Text on the clipboard is either an SVG or one of our own level links. */
+/** Does this text look like SVG? Only to say "wrong copy", never to read it. */
+const looksLikeSvg = (s) => /^<(\?xml|svg)/i.test(s) || s.includes("<svg");
+
+/** Text on the clipboard is one of our own level links, or nothing we want. */
 function fromText(text) {
   const s = String(text || "").trim();
-  if (!s) return null;
-  if (/^<(\?xml|svg)/i.test(s) || s.includes("<svg")) return levelFromFigmaSvg(s);
+  if (!s || looksLikeSvg(s)) return null;
   const hash = s.startsWith("#") ? s.slice(1) : s.slice(s.indexOf("#") + 1);
   const level = decodeLevel(hash || s);
   return level ? { level, warnings: [] } : null;
@@ -46,33 +55,31 @@ function describe(dt) {
 }
 
 /**
- * Read a paste (or a drop) into a level. Returns `{ level, warnings }`.
+ * Read a paste into a level. Returns `{ level, warnings }`.
  * Throws with a message meant to be read out loud.
  */
 export async function levelFromPaste(dt) {
   if (!dt) throw new Error("that paste carried no clipboard data at all");
 
-  const file = [...(dt.files || [])].find(
-    (f) => /svg/i.test(f.type) || /\.svg$/i.test(f.name),
-  );
-  if (file) {
-    const text = await file.text();
-    const got = fromText(text);
-    if (!got) throw new Error(`${file.name} did not parse as a Figma SVG`);
-    return got;
-  }
-
   const html = dt.getData("text/html") || "";
   const text = dt.getData("text/plain") || "";
 
-  // The Figma copy first: it needs none of the SVG path's corrections.
   if (hasFigmaBuffer(html)) return await levelFromFigmaClipboard(html);
 
   const got = fromText(text || html);
   if (got) return got;
 
+  // The one wrong turn that actually happens: Figma's "Copy as SVG" sits right
+  // next to plain Copy in the same menu, and it produces something that looks
+  // like it ought to work. Name it rather than listing MIME types at someone.
+  if (looksLikeSvg(String(text || html).trim()))
+    throw new Error(
+      "that is “Copy as SVG”, which strips every layer name — and the names are " +
+        "the whole contract. Select the frame in Figma and press Ctrl+C instead.",
+    );
+
   throw new Error(
-    `that is not a Figma copy, an SVG, or a level link — it held: ${describe(dt)}. ` +
+    `that is not a Figma copy or a level link — it held: ${describe(dt)}. ` +
       `In Figma select the frame and press Ctrl+C (not Copy as SVG).`,
   );
 }

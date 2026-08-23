@@ -79,9 +79,10 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   grid a cleared team earns is the same screen that edits the event's level
   pack, because both only ever wanted to show the same thing: every level as a
   card. `clipboard.js` decodes a plain Ctrl+C from Figma (a `fig-kiwi` payload,
-  real layer names and stored geometry); `svg.js` is the fallback for an
-  exported SVG, read through the browser's own SVG engine (`getBBox`/`getCTM`,
-  so nesting and rotation come out right); `stitch.js` chains the one-Line-per-
+  real layer names and stored geometry) and is the ONLY reader — an SVG-export
+  path sat beside it and is gone, because Figma writes layer names into SVG only
+  when the `id` attribute is on and names are the whole contract, so the copy
+  people reach for first could never work; `stitch.js` chains the one-Line-per-
   segment terrain back into polylines so it DRAWS like a hand-authored level.
   What a paste produces is a level link, and the pack is a list of those — see
   "Levels live in the lobby" below. The grid it edits is two surfaces on one

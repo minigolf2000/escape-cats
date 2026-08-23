@@ -21,10 +21,11 @@
 // `levels.ts` round-trips byte-identical.
 //
 //   u8    fmt = 1
-//   u8    flags        bit0: maxSpeed present
+//   u8    flags        bit0: a legacy per-level maxSpeed follows (never written
+//                      now; still READ, see below)
 //   u8    nameLen, then that many UTF-8 bytes
 //   i16×2 start, i16×2 goal
-//   i16   maxSpeed     (only when flags bit0)
+//   i16   maxSpeed     (only when flags bit0) — legacy, read and discarded
 //   u8    nPolys,   then per poly: u8 nPts, then nPts × i16×2
 //   u8    nCans,    then × i16×2
 //   u8    nPops,    then × i16×4  (x, y, deg, spd)
@@ -110,9 +111,12 @@ const b64urlDecode = (str: string): Uint8Array => {
 /** Pack a level into the base64url payload that goes after the `#`. */
 export function encodeLevel(L: GoombaLevel): string {
   const w = new Writer();
-  const hasMax = typeof L.maxSpeed === "number";
   w.u8(LEVEL_CODEC_FMT);
-  w.u8(hasMax ? 1 : 0);
+  // flags bit0 used to mean "a per-level maxSpeed follows". Speed is one game
+  // constant now (MAX_SPEED in levels.ts), so nothing sets it any more — but
+  // the bit keeps its meaning on the way IN, because links written before this
+  // are sitting in live lobby packs.
+  w.u8(0);
 
   const name = new TextEncoder().encode(L.name ?? "");
   const nameLen = Math.min(255, name.length);
@@ -121,7 +125,6 @@ export function encodeLevel(L: GoombaLevel): string {
 
   w.pt(L.start);
   w.pt(L.goal);
-  if (hasMax) w.fx(L.maxSpeed as number);
 
   const polys = L.terrain ?? [];
   const nPolys = w.count(polys.length);
@@ -203,7 +206,12 @@ export function decodeLevel(input: string): GoombaLevel | null {
 
   const start = r.pt();
   const goal = r.pt();
-  const maxSpeed = flags & 1 ? r.fx() : undefined;
+  // A link from before speed became one constant carries its level's own cap
+  // here. Read it — the bytes have to be consumed either way or everything
+  // after them shifts — then drop it on the floor: MAX_SPEED is the only cap
+  // now, and honouring an old one would leave two levels in the same pack
+  // running different physics.
+  if (flags & 1) r.fx();
 
   const terrain: Pt[][] = [];
   const nPolys = r.u8();
@@ -250,7 +258,5 @@ export function decodeLevel(input: string): GoombaLevel | null {
   if (!r.ok || !(terrain.length || pops.length || cushions.length || bumpers.length))
     return null;
 
-  const L: GoombaLevel = { name, start, goal, terrain, cans, cushions, pops, bumpers, solution };
-  if (maxSpeed !== undefined) L.maxSpeed = maxSpeed;
-  return L;
+  return { name, start, goal, terrain, cans, cushions, pops, bumpers, solution };
 }

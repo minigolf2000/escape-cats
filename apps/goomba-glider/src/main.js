@@ -383,7 +383,9 @@ function onSnapshot(s) {
     return;
   }
 
-  // Phase edges. The run→edit edge is a scored FAIL (wins go run→win).
+  // Phase edges. run→edit is a scored FAIL (wins go run→win) — but only when
+  // `runResult` survived the edge. STOP takes the same edge and clears it,
+  // because an abort is nobody's failure and has nothing to shake or say.
   if (shownPhase === "run" && s.phase === "edit" && s.runResult) {
     shake = 1;
     toast(FAIL_MSG[s.runResult] || "try again!");

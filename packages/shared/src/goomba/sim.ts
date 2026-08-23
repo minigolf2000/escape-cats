@@ -109,8 +109,8 @@ export type GoombaClientMsg =
    * never touches the sim, never persisted. */
   | { type: "preview"; ax?: number; ay?: number; bx?: number; by?: number }
   | { type: "play" }
-  /** Stop watching a run early (any player) — back to edit, scored as a fail
-   * only if the scored result was one. */
+  /** Stop watching a run early (any player) — back to edit with the bands
+   * still down and NOTHING scored, neither a clear nor a fail. See `stop`. */
   | { type: "stop" }
   /** Advance after a win (any player). */
   | { type: "next" }
@@ -301,12 +301,36 @@ export class GoombaSim {
     s.runT = t;
   }
 
+  /** Cutting a run short is an ABORT, not a verdict: straight back to edit
+   * with the bands still on the board and nothing scored either way.
+   *
+   * It used to backdate `runAt` and resolve, on the reasoning that the run was
+   * already scored at PLAY and stopping only skipped the movie. For a fail
+   * that reads fine; for a WIN it handed the room the clear without anyone
+   * seeing the ride. And the button makes that a one-tap accident: `▶ PLAY`
+   * becomes `■ STOP` at the same pixel under the same finger (Space too), so a
+   * second impatient press a beat later cleared the level in a single frame —
+   * `syncAnim`'s join-late catch-up loop burning every remaining substep at
+   * once. `\` and the level selector send `stop` as well, so opening the grid
+   * mid-run banked a clear the same way.
+   *
+   * `fails` is deliberately NOT bumped: nobody failed, they changed their
+   * mind, and the proctor's "how stuck are they" read should not count it.
+   * Clearing `runResult` is what keeps the run→edit edge silent — the fail
+   * toast on that edge is gated on it (`main.js`), and an abort has nothing
+   * to say. */
   stop(now: number): void {
-    // Cutting a run short: score it as the fail/win it already was, now.
-    const s = this.st;
-    if (s.phase !== "run" || s.runAt === null) return;
-    s.runAt = now - (s.runT ?? 0) * 1000 - 1;
+    // A run that has already played out to its end gets to resolve on its own
+    // terms first. resolve() is lazy, so the state can still say "run" for a
+    // moment after the ride actually finished, and aborting THAT would throw
+    // away a win the room genuinely earned.
     this.resolve(now);
+    const s = this.st;
+    if (s.phase !== "run") return;
+    s.phase = "edit";
+    s.runAt = null;
+    s.runResult = null;
+    s.runT = null;
   }
 
   /** The level selector's jump: fresh edit phase on the chosen level, for

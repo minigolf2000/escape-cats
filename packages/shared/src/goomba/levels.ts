@@ -98,7 +98,24 @@ export interface GoombaBumper {
   y: number;
 }
 
+/**
+ * How a level is NAMED to players: where it sits in the pack, then its own
+ * name. `index` is the pack index, so the first level reads "1 · ...".
+ *
+ * The number is computed HERE, at display time, and is stored nowhere. It used
+ * to be typed into the `name` string of every level, which made the position
+ * and the name one editable thing and meant that inserting, deleting or
+ * reordering a single level was a rename of every level after it — done by
+ * hand, in a file, for a number the array already knew. Now the pack's order
+ * IS the numbering: drag a card and the grid renumbers itself for free.
+ *
+ * So a level's `name` is just its name. Don't type a number into one.
+ */
+export const levelLabel = (index: number, name: string): string =>
+  `${index + 1} · ${name}`;
+
 export interface GoombaLevel {
+  /** Just the name — no number. See `levelLabel`, which adds the position. */
   name: string;
   /** Historical per-level allowance. The shipped game ignores it — the party
    * rule locks every level to MAX_BANDS slots — but the design bench still
@@ -254,7 +271,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
   //      then runs off the LEFT edge of the world at 1/2
   //   3. WALL the run-out — drop it and she has both cans and FLIES off the
   //      right edge, plant still locked, which is the most legible death of all
-  { name: '1 · The Long Way Down', budget: 3,
+  { name: 'The Long Way Down', budget: 3,
     start: [20, 20],
     terrain: [
       [[12.4, 21.5], [50, 24.3]],               // the start pad
@@ -315,7 +332,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // 3, off the left edge past the plant), jitter 29/30, no 1-band win over 9567
   // exhaustive placements, none in 30000/20000 sampled 2/3-band sets, and no
   // ≤3-band win from the beam search.
-  { name: '2 · The Long Way Up', budget: 4,
+  { name: 'The Long Way Up', budget: 4,
     start: [4, 176],
     terrain: [
       // the slope: smooth pad, notch, pad, notch, pad, notch, pad to the launcher
@@ -400,7 +417,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // at ~3.5s, but drop-one on band 1 also wins, so "every band load-bearing"
   // fails and the 4-band rule is not honored. budget dropped to 3 to match the
   // measured truth until the lattice is redesigned around the new entry.
-  { name: "3 · Cat's Cradle", budget: 3,
+  { name: "Cat's Cradle", budget: 3,
     start: [16, 2.5],
     terrain: [], // deliberate: the players' bands are the only surfaces here
     goal: [18, 112],
@@ -466,7 +483,7 @@ export const SEED_LEVELS: GoombaLevel[] = [
   // dot leaves with START_VX=20 and sails past the popper beneath it, and
   // `decodeLevel` rejects a level with no terrain at all, so the shelf is also
   // what lets this board travel as an editor link.
-  { name: '4 · There and Back Again', budget: 4,
+  { name: 'There and Back Again', budget: 4,
     start: [3, 100],
     terrain: [ [[-1.5, 103], [3, 107]] ],  // the start shelf — the only terrain
     goal: [75, 48],

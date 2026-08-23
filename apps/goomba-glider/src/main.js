@@ -29,6 +29,7 @@ import {
   applyPack,
   encodeLevel,
   initLevel,
+  levelLabel,
   PACK_MAX,
 } from "@escape-cats/shared";
 import { connectRoom, watchTeam, transport, playerId } from "./net";
@@ -371,7 +372,7 @@ function onSnapshot(s) {
     cushAnim = L().cushions.map(() => 0); popPrev = null;
     shownRunId = s.runId; shownLevel = s.level; shownPhase = s.phase;
     if (wasReset && !first) toast("fresh start! 🧽", 1400);
-    else if (levelChanged && !first) toast(L().name, 1400);
+    else if (levelChanged && !first) toast(levelLabel(s.level, L().name), 1400);
     syncHud();
     return;
   }
@@ -1501,7 +1502,14 @@ function drawLab() {
     ctx.fillStyle = "#f2ecff";
     // The title is all a card says, so trim to the card's real width rather
     // than a guessed character count.
-    ctx.fillText(fitText(lv.name, cw - 18), x + 9, y + ch - 8);
+    //
+    // The number comes from the card's PLACE, not from the level — see
+    // `levelLabel`. A hash-adopted level is the one card that gets no number:
+    // it is appended to this array locally and is not in the pack at all, so
+    // numbering it would claim a position in a pack it never joined, which is
+    // the opposite of what the rest of the card says about itself.
+    const title = lv.pasted ? lv.name : levelLabel(i, lv.name);
+    ctx.fillText(fitText(title, cw - 18), x + 9, y + ch - 8);
     // A level adopted from the URL hash (?solo#…) is the one kind that is NOT
     // in the event's pack: it plays identically — same sim, same bands, same
     // scoring — but nobody else can see it and no room has to clear it. It

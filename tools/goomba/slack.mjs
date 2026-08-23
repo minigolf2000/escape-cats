@@ -39,11 +39,12 @@ for (let i = 0; i < argv.length; i++) {
   else if (target === undefined && hash === undefined) target = a;
   else if (trials === undefined) trials = Number(a);
 }
-let L;
+let L, title;
 if (hash !== undefined) {
   const dec = decodeLevel(hash);
   if (!dec) { console.error("--hash: not a level link"); process.exit(2); }
   L = initLevel(dec);
+  title = L.name; // a link has no place in the pack to number it by
 } else {
   const li = Number(target ?? 0);
   if (!(li >= 0 && li < LEVELS.length)) {
@@ -51,6 +52,7 @@ if (hash !== undefined) {
     process.exit(2);
   }
   L = LEVELS[li];
+  title = `L${li + 1} ${L.name}`;
 }
 const N = trials || 200;
 const sol = setArg ? JSON.parse(setArg) : L.solution ?? [];
@@ -107,7 +109,7 @@ function stretch(i) {
   return wins;
 }
 
-console.log(`${L.name}  solution ${sol.length} band(s), ${N} jitter trials each`);
+console.log(`${title}  solution ${sol.length} band(s), ${N} jitter trials each`);
 const base = run(sol);
 if (base !== "win") console.log(`  !! the set does not win (${base}) — the numbers below mean nothing`);
 const scores = [];

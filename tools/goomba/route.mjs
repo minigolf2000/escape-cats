@@ -27,11 +27,12 @@ for (let i = 0; i < argv.length; i++) {
   else if (target === undefined && !hash) target = a;
   else sets.push(a);
 }
-let L;
+let L, title;
 if (hash !== undefined) {
   const dec = decodeLevel(hash);
   if (!dec) { console.error("--hash: not a level link"); process.exit(2); }
   L = initLevel(dec);
+  title = L.name; // a link has no place in the pack to number it by
   if (target !== undefined) sets.unshift(target);
 } else {
   const li = Number(target ?? 0);
@@ -40,6 +41,7 @@ if (hash !== undefined) {
     process.exit(2);
   }
   L = LEVELS[li];
+  title = `L${li + 1} ${L.name}`;
 }
 const sol = L.solution ?? [];
 
@@ -78,7 +80,7 @@ function show(label, pairs, ids) {
   if (line.trim()) console.log(line);
 }
 
-console.log(`${L.name}  start=${JSON.stringify(L.start)} goal=${JSON.stringify(L.goal)} ` +
+console.log(`${title}  start=${JSON.stringify(L.start)} goal=${JSON.stringify(L.goal)} ` +
             `cans=${L.cans.length} pops=${L.pops.length}`);
 if (!sets.length) show("bare (no bands)", []);
 for (const s of sets) {

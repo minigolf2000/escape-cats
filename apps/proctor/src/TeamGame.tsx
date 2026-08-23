@@ -4,6 +4,7 @@ import {
   UPGRADES,
   GOOMBA_LEVELS,
   hexWon,
+  levelLabel,
   type GoombaServerMsg,
   type GoombaSnapshot,
   type HexServerMsg,
@@ -97,7 +98,7 @@ function goombaStats(s: GoombaSnapshot | null): StatLine[] {
   const done = s.completed.filter(Boolean).length;
   const finishedMs = s.finishedAt ? s.finishedAt - s.startedAt : null;
   return [
-    { text: `${phase} · ${GOOMBA_LEVELS[s.level].name}` },
+    { text: `${phase} · ${levelLabel(s.level, GOOMBA_LEVELS[s.level].name)}` },
     s.finishedAt
       ? {
           text: `✅ all ${total} levels${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,

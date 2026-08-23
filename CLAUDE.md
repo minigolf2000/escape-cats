@@ -122,10 +122,12 @@ findings — do not design from intuition, the sim disproves it reliably.
 - **Four levels ship, and TWO pass the gate — The Long Way Up (2) and Cat's
   Cradle (3).** The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The Popper
   Grid, Pop Goes Goomba, Popper Pinball, Piñata Alley, Space Cadet and Slalom
-  were cut, and the survivors renumbered — a level's display number is its array index +
-  1, so removing or inserting one renumbers everything after it (and the
-  numbers live in the `name` strings, so renumbering means editing them). The
-  last level is the finale: `nextLeadsToSplash` and the selector's
+  were cut. **A level's display number is its array index + 1, computed where it
+  is shown and stored nowhere** — `levelLabel` in `goomba/levels.ts`, used by
+  the selector's cards, the level-change toast and the proctor's Goomba line.
+  So removing, inserting or DRAGGING one renumbers the whole pack for free; a
+  `name` is just a name, and typing a number into one now double-numbers the
+  card. The last level is the finale: `nextLeadsToSplash` and the selector's
   clear-every-level gate both key off the LAST index, so adding a level moves
   the splash behind it.
 - **The Long Way Up (2) is the one to read first if you are building from a

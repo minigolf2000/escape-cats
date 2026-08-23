@@ -60,7 +60,7 @@ function svgCard(li) {
     stats: { level: li + 1, result: r.result, t: r.t, airPct: r.airPct, topSpeed: r.topSpeed, events: r.events.length, cans: r.cans },
     svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_W}" height="${CARD_H}">
 <rect width="100%" height="100%" fill="#150a2a"/>
-<text x="14" y="26" fill="#f2ecff" font-family="system-ui,sans-serif" font-weight="700" font-size="15">${L.name}</text>
+<text x="14" y="26" fill="#f2ecff" font-family="system-ui,sans-serif" font-weight="700" font-size="15">${li + 1} · ${L.name}</text>
 <text x="14" y="44" fill="${r.result === "win" ? "#57e6c9" : "#ff8f8f"}" font-family="system-ui,sans-serif" font-size="11">${stats}</text>
 ${el.join("\n")}
 </svg>`,

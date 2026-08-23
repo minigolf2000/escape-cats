@@ -5,7 +5,7 @@ import {
   adhocSlug,
   type AdhocRoom,
 } from "@escape-cats/shared";
-import { GoombaBlock } from "./TeamGame";
+import { GoombaBlock, HexBlock } from "./TeamGame";
 
 /**
  * Where the links point. Same origin as this page, because that is the whole
@@ -13,18 +13,31 @@ import { GoombaBlock } from "./TeamGame";
  * domains REDIRECT here rather than rewriting, and a link built off any other
  * host would hand out a different player to the same person.
  *
- * `npm run dev` is the exception, serving each app on its own port; set
- * VITE_GOOMBA_URL there if you want the copy button to produce something you
- * can paste.
+ * `npm run dev` is the exception, serving each app on its own port; the env
+ * vars are set in .env.development so the copy buttons produce something you
+ * can paste there too.
  */
-const GOOMBA_URL =
-  import.meta.env.VITE_GOOMBA_URL ?? new URL("/g00mBa/", location.origin).href;
+const GAMES = [
+  {
+    key: "goomba",
+    label: "🍄 link",
+    base: import.meta.env.VITE_GOOMBA_URL ?? new URL("/g00mBa/", location.origin).href,
+  },
+  {
+    key: "hex",
+    label: "🐱 link",
+    base: import.meta.env.VITE_HEX_URL ?? new URL("/hexxygon/", location.origin).href,
+  },
+] as const;
 
-/** The link for a slug. One function, so the URL the proctor copies and the URL
- * the game parses cannot disagree about what a slug is — `adhocRoomId` has
- * already lowercased and stripped it by the time it gets here. */
-function linkFor(room: string): string {
-  const url = new URL(GOOMBA_URL);
+type GameKey = (typeof GAMES)[number]["key"];
+
+/** The link for a slug, in one game. One function, so the URL the proctor
+ * copies and the URL the game parses cannot disagree about what a slug is —
+ * `adhocRoomId` has already lowercased and stripped it by the time it gets
+ * here. The two games take the SAME slug: it names a room, not a game. */
+function linkFor(room: string, game: GameKey): string {
+  const url = new URL(GAMES.find((g) => g.key === game)!.base);
   url.searchParams.set("r", adhocSlug(room));
   return url.href;
 }
@@ -81,9 +94,9 @@ export function AdhocRooms({
       {open && (
         <>
           <p className="muted adhoc-note">
-            Rooms opened by a <code>?r=</code> link. They are not teams — nobody
-            can be dropped into one, and sorting a phone onto a team takes it
-            out of here. Anyone with a link can join it.
+            Rooms opened by a <code>?r=</code> link — both games, same slug.
+            They are not teams: nobody can be dropped into one, and sorting a
+            phone onto a team takes it out of here. Anyone with a link can join.
           </p>
 
           {/* Minting a link is the reason to be on this page at all: the list
@@ -96,9 +109,17 @@ export function AdhocRooms({
               placeholder="new room name, e.g. kittens"
               onChange={(e) => setSlug(e.target.value)}
             />
-            <CopyLink room={minted} label="Copy link" />
+            {GAMES.map((g) => (
+              <CopyLink key={g.key} room={minted} game={g.key} label={g.label} />
+            ))}
           </div>
-          {minted && <p className="adhoc-url">{linkFor(minted)}</p>}
+          {minted && (
+            <p className="adhoc-url">
+              {GAMES.map((g) => (
+                <span key={g.key}>{linkFor(minted, g.key)}</span>
+              ))}
+            </p>
+          )}
 
           {rooms.length === 0 ? (
             <p className="muted">
@@ -118,9 +139,21 @@ export function AdhocRooms({
   );
 }
 
-/** One room: what it is called, when it was last joined, its Goomba readout,
- * and the two things a proctor can do to it. No Hex block and no chat — an
- * ad-hoc room is a Goomba room and nothing else (see ADHOC_PREFIX in shared). */
+/**
+ * One room: what it is called, when it was last joined, both games' readouts,
+ * and the two things a proctor can do to the row itself.
+ *
+ * BOTH games, in the same two slots a team's box uses, because `?r=kelly` names
+ * a room rather than a game — the same slug plays Hex at `/hexxygon/?r=kelly`
+ * and Goomba at `/g00mBa/?r=kelly`, in two separate rooms that happen to share
+ * a name (as a team's two games always have). Hex's block is the load-bearing
+ * one: its win is a proctor's press, so without a 🏆 here a room could reach
+ * the code word and never be told it won.
+ *
+ * The two "playing" counts are genuinely two numbers, not one repeated: a
+ * friend in the glider holds a socket to the goomba room and none to the hex
+ * one. No chat, though — a channel needs a box on the board to be read from.
+ */
 function AdhocRow({
   room,
   onForget,
@@ -136,9 +169,14 @@ function AdhocRow({
           joined {ago(room.seenAt)}
         </span>
       </div>
-      <GoombaBlock room={room.id} label={adhocSlug(room.id)} showPlayers />
+      <div className="games">
+        <HexBlock room={room.id} label={adhocSlug(room.id)} />
+        <GoombaBlock room={room.id} label={adhocSlug(room.id)} showPlayers />
+      </div>
       <div className="adhoc-btns">
-        <CopyLink room={room.id} label="Copy link" />
+        {GAMES.map((g) => (
+          <CopyLink key={g.key} room={room.id} game={g.key} label={g.label} />
+        ))}
         {/* Drops the ROW, not the room — the levels it has cleared are safe,
             and the next phone through the link puts it straight back. So no
             confirm: this is a tidy-up, exactly like forgetting a player. */}
@@ -150,17 +188,26 @@ function AdhocRow({
   );
 }
 
-/** Copy a room's link, and say so. Disabled with nothing to copy, so the button
- * is never a no-op that looks like a failure. */
-function CopyLink({ room, label }: { room: string | null; label: string }) {
+/** Copy one game's link for a room, and say so. Disabled with nothing to copy,
+ * so the button is never a no-op that looks like a failure. */
+function CopyLink({
+  room,
+  game,
+  label,
+}: {
+  room: string | null;
+  game: GameKey;
+  label: string;
+}) {
   const [done, setDone] = useState(false);
   return (
     <button
       className="small"
       disabled={!room}
+      title={room ? linkFor(room, game) : undefined}
       onClick={() => {
         if (!room) return;
-        void navigator.clipboard.writeText(linkFor(room)).then(
+        void navigator.clipboard.writeText(linkFor(room, game)).then(
           () => {
             setDone(true);
             setTimeout(() => setDone(false), 1500);

@@ -212,8 +212,14 @@ findings — do not design from intuition, the sim disproves it reliably.
   enter (`assign` still validates against `TEAM_IDS`), `roomFor` answers the
   TEAM FIRST so a stale bookmark can never override the proctor, and
   `adhocRoomId` normalises the slug in shared so nothing can case it wrong the
-  way `?room=` did. Goomba only — hex needs a proctor for its win and a chat
-  channel of one is nothing, so both call `roomFor` with no slug. An ad-hoc room
+  way `?room=` did. BOTH GAMES take the slug — it names a room, not a game, so
+  `/hexxygon/?r=kelly` and `/g00mBa/?r=kelly` are two rooms sharing a name
+  exactly as a team's two are, and the proctor's row carries both readouts.
+  Hex's 🏆 is why that row must exist at all: hex cannot score its own win, so a
+  room off the board is one whose players reach the code word and are never told
+  they won — which is also why `HexServer` announces itself to the registry on
+  connect despite having no other reason to call the lobby. Chat is the one
+  surface still out (a channel is read from a box on the board). An ad-hoc room
   PLAYS the pack and cannot edit it (`isAdhocRoom` in `server/src/goomba.ts`):
   the levels grid is open to any phone on the premise that the party's own
   phones are the tool, and a link handed outside the party is past that premise.

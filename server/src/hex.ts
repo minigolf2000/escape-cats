@@ -2,6 +2,7 @@ import { Server, type Connection, type ConnectionContext, type WSMessage } from 
 import {
   HexSim,
   SNAPSHOT_TICK_MS,
+  isAdhocRoom,
   type HexPersistedV1,
   type HexClientMsg,
   type HexServerMsg,
@@ -100,9 +101,30 @@ export class HexServer extends Server<Env> {
   }
 
   onConnect(conn: Connection, ctx: ConnectionContext) {
-    this.roster.register(conn, ctx);
+    const meta = this.roster.register(conn, ctx);
     this.syncLoops();
     this.broadcastState();
+    if (meta.role === "player") this.announce();
+  }
+
+  /**
+   * Tell the lobby an AD-HOC room has somebody in it (see `sawRoom` there).
+   *
+   * Only ad-hoc rooms, and only this game's one reason to talk to the lobby at
+   * all: a team's room is on a board built from a constant, but a `?r=` room
+   * exists nowhere until it announces itself, and a Hex room that never does is
+   * one the proctor cannot press 🏆 on — which is the whole of Hex's win.
+   *
+   * Goomba announces on the pack fetch it already makes; Hex has no such fetch,
+   * so this is a bare one whose answer is discarded. Fire-and-forget: a room
+   * the proctor cannot see yet is worth less than a connection that stalls, and
+   * the next phone through the door tries again.
+   */
+  private announce() {
+    if (!isAdhocRoom(this.name)) return;
+    void this.env.Lobby.get(this.env.Lobby.idFromName("main"))
+      .fetch(`http://lobby/pack?room=${encodeURIComponent(this.name)}`)
+      .catch(() => undefined);
   }
 
   onClose(conn: Connection) {

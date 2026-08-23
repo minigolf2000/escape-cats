@@ -152,7 +152,36 @@ export function TeamGame({
   assigned: LobbyPlayer[];
 }) {
   // The room id IS the team id, verbatim — nothing on any surface cases it.
-  const { snap, reset, setWon } = useHexRoom(team.id, team.name);
+  return (
+    <div className="games">
+      <HexBlock room={team.id} label={team.name} assigned={assigned} />
+      <GoombaBlock room={team.id} label={team.name} />
+    </div>
+  );
+}
+
+/**
+ * One room's Hex readout, its 🏆 and its reset, as a block.
+ *
+ * The trophy is why an ad-hoc room needs this and not just the Goomba half:
+ * Hex cannot score its own win — `wonAt` is set by a proctor-only intent — so a
+ * room with no box on this page is a room whose players can reach the code word
+ * and never be told they won. Sharing the component is what stops that being a
+ * second, thinner version of the same readout.
+ */
+export function HexBlock({
+  room,
+  label,
+  assigned,
+}: {
+  room: string;
+  label: string;
+  /** Who the LOBBY says belongs here, for the "not in game" half of the
+   * presence line. An ad-hoc room has no assigned roster anywhere — nobody is
+   * sorted into one — so it passes none and the line is a plain count. */
+  assigned?: LobbyPlayer[];
+}) {
+  const { snap, reset, setWon } = useHexRoom(room, label);
 
   const inRoom = new Set(
     (snap?.players ?? []).filter((p) => p.connected).map((p) => p.id),
@@ -161,7 +190,9 @@ export function TeamGame({
   // honest presence signal for a sorted phone (the lobby's own `connected` goes
   // false as soon as a phone leaves the landing page). Who IS playing is
   // already on screen: the roster above this block, minus these names.
-  const missing = assigned.filter((p) => !inRoom.has(p.pid)).map((p) => p.name);
+  const missing = (assigned ?? [])
+    .filter((p) => !inRoom.has(p.pid))
+    .map((p) => p.name);
   const finishedMs = snap?.legibleAt ? snap.legibleAt - snap.startedAt : null;
   // The proctor's own mark, not something the game scored — see HexSim.setWon.
   const won = snap !== null && hexWon(snap);
@@ -186,40 +217,33 @@ export function TeamGame({
   ];
 
   return (
-    <div className="games">
-      <GameBlock
-        title="🐱 Hex Clicker"
-        progress={snap?.progress ?? 0}
-        lines={lines}
-      >
-        <div className="btns">
-          {/* The win, as the proctor witnesses it: they hear the code word, they
-              press this, and all four of that team's phones get their splash.
-              Pressing it again takes it back (a mis-pressed team box must not
-              need a whole-game reset to fix) — that direction confirms, the
-              granting direction doesn't. */}
-          <button className={won ? "won on" : "won"} onClick={() => setWon(!won)}>
-            {won ? "🏆 Won ✓" : "🏆 Mark won"}
-          </button>
-          <button className="danger" onClick={reset}>
-            Reset Hex
-          </button>
-        </div>
-      </GameBlock>
-      <GoombaBlock room={team.id} label={team.name} />
-    </div>
+    <GameBlock title="🐱 Hex Clicker" progress={snap?.progress ?? 0} lines={lines}>
+      <div className="btns">
+        {/* The win, as the proctor witnesses it: they hear the code word, they
+            press this, and all four of that team's phones get their splash.
+            Pressing it again takes it back (a mis-pressed team box must not
+            need a whole-game reset to fix) — that direction confirms, the
+            granting direction doesn't. */}
+        <button className={won ? "won on" : "won"} onClick={() => setWon(!won)}>
+          {won ? "🏆 Won ✓" : "🏆 Mark won"}
+        </button>
+        <button className="danger" onClick={reset}>
+          Reset Hex
+        </button>
+      </div>
+    </GameBlock>
   );
 }
 
 /**
  * One room's Goomba readout and its reset, as a block.
  *
- * Split out of TeamGame because it is the WHOLE of what an ad-hoc room's row
- * shows (see AdhocRooms.tsx): those rooms have no Hex game to pair it with and
- * no roster to head it, but the readout is exactly a team's. One component
- * means the two cannot drift into telling the same story two ways — including
- * the fixed line count, which an ad-hoc row needs for the same reason a team
- * box does (a list of rows that reflow as rooms report in is unreadable).
+ * Split out of TeamGame for the same reason as HexBlock: an ad-hoc room's row
+ * is these two blocks without the roster and the chat around them, and the
+ * readout is exactly a team's. One component means the two cannot drift into
+ * telling the same story two ways — including the fixed line count, which an
+ * ad-hoc row needs for the same reason a team box does (a list of rows that
+ * reflow as rooms report in is unreadable).
  */
 export function GoombaBlock({
   room,

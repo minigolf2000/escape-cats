@@ -36,9 +36,9 @@ export function soloFromUrl() {
  * real" lands here — appended to the level list and returned as its index.
  *
  * Appending to `GOOMBA_LEVELS` rather than teaching the sim about a second kind
- * of level is what makes this play for REAL: the placement rules, the band
- * quota, the phases, the scoring and the animation all read that array and
- * cannot tell the difference. The one thing they must not do is disagree about
+ * of level is what makes this play for REAL: the placement rules, the phases,
+ * the scoring and the animation all read that array and cannot tell the
+ * difference. The one thing they must not do is disagree about
  * its LENGTH, so this has to run before `new GoombaSim`, which sizes
  * `completed` from it.
  *
@@ -61,10 +61,10 @@ export function startDebug(opts) {
   const sim = new GoombaSim(Date.now());
   let runTimer = null;
 
-  // A one-player room, and this phone's REAL pid: the band quota divides by
-  // the roster, so the lab has to look like a room of one rather than a room
-  // of nobody — ⌈4/1⌉ = 4, all four bands to the one player, which is exactly
-  // what a solo bench wants.
+  // A one-player room, on this phone's REAL pid — the roster line is drawn from
+  // it, and a band carries it as a note of who laid it. Nothing divides the
+  // four bands by headcount any more, so a solo bench lays all four exactly as
+  // a full room's first player could.
   const pid = playerId();
   const emit = () => {
     opts.onSnapshot(
@@ -90,7 +90,7 @@ export function startDebug(opts) {
       case "preview":
         return; // presentation-only; nothing to show solo
       case "place":
-        sim.place(pid, 0, msg, now, 1);
+        sim.place(pid, msg, now);
         break;
       case "remove":
         sim.remove(msg.index, now);

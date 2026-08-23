@@ -29,7 +29,7 @@ await writeFile(
 ` +
   // gate.ts: the thresholds that define "passes", shared with the editor.
   `export * from ${JSON.stringify(join(srcDir, "gate.ts"))};\n` +
-  // sim.ts too, so the ROOM rules (the band quota) are testable off the same
+  // sim.ts too, so the ROOM rules (the band budget) are testable off the same
   // bundle as the physics — the same files shared/src/index.ts re-exports.
   `export * from ${JSON.stringify(join(srcDir, "sim.ts"))};\n`,
 );
@@ -40,9 +40,6 @@ const sim = await import(pathToFileURL(outfile).href);
 export const {
   GOOMBA_LEVELS: LEVELS,
   GoombaSim,
-  activePlayerCount,
-  bandQuota,
-  bandsHeldBy,
   canPlaceBand,
   BAND_MAX,
   BAND_MIN,

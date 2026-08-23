@@ -1,7 +1,6 @@
 import { Server, type Connection, type ConnectionContext, type WSMessage } from "partyserver";
 import {
   GoombaSim,
-  activePlayerCount,
   applyPack,
   type LevelPack,
   type GoombaBandPreview,
@@ -113,9 +112,9 @@ export class GoombaServer extends Server<Env> {
     const m = this.roster.get(conn);
     if (m) this.previews.delete(m.pid); // no ghost left hanging by a dropped phone
     this.roster.disconnect(conn);
-    // Presence is now a game rule, not just a roster line: this broadcast is
-    // what hands a dropped player's band share back to the room (and the one
-    // in onConnect is what takes it away again).
+    // The roster line is presentation now that no rule divides the bands by
+    // headcount — but it is still the "who is here" every phone shows, so a
+    // drop is broadcast the moment it happens.
     this.broadcastState();
   }
 
@@ -136,11 +135,10 @@ export class GoombaServer extends Server<Env> {
         break;
       case "place":
         if (!proctor && me) {
-          // The band quota divides MAX_BANDS by who is HERE, so the headcount
-          // is read at placement time, off the live roster — not stored. A
-          // teammate joining or dropping between two placements legitimately
-          // changes what the next one is allowed to be.
-          this.sim.place(me.pid, this.roster.slot(me.pid), msg, now, this.players());
+          // Four bands, and anyone may lay any of them — the room's only
+          // question is whether one is free (`canPlaceBand`). The pid rides
+          // along as a note of who laid it, nothing more.
+          this.sim.place(me.pid, msg, now);
           this.previews.delete(me.pid); // the ghost became a real band
         }
         break;
@@ -159,8 +157,7 @@ export class GoombaServer extends Server<Env> {
         const { ax, ay, bx, by } = msg;
         if ([ax, ay, bx, by].every((v) => typeof v === "number" && Number.isFinite(v))) {
           this.previews.set(me.pid, {
-            pid: me.pid, slot: this.roster.slot(me.pid),
-            ax: ax!, ay: ay!, bx: bx!, by: by!, at: now,
+            pid: me.pid, ax: ax!, ay: ay!, bx: bx!, by: by!, at: now,
           });
         } else {
           this.previews.delete(me.pid); // drag ended without a placement
@@ -228,13 +225,6 @@ export class GoombaServer extends Server<Env> {
         this.broadcastState();
       }
     }, ms + 50);
-  }
-
-  /** Live headcount for the band quota. Proctors are spectators and the roster
-   * never lists them; a phone that dropped is listed but not connected, and
-   * does not hold a share it cannot spend. */
-  private players() {
-    return activePlayerCount(this.roster.list());
   }
 
   /** Hand a pack edit to the lobby and take its answer straight back, so the

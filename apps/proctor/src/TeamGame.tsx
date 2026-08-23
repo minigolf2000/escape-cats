@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import PartySocket from "partysocket";
 import {
   UPGRADES,
-  GOOMBA_LEVELS,
+  packToLevels,
   hexWon,
   type GoombaServerMsg,
   type GoombaSnapshot,
@@ -85,10 +85,16 @@ function GameBlock({
 
 /** The Goomba readout — same fixed-line contract as hexStats: every line drawn
  * in every state, absent values as placeholders, so the box never changes
- * height. */
-function goombaStats(s: GoombaSnapshot | null): StatLine[] {
-  const total = GOOMBA_LEVELS.length;
-  if (!s) return [{ text: "…" }, { text: `…/${total} levels` }, { text: "…" }];
+ * height.
+ *
+ * The levels come from the ROOM, never from this bundle: `GOOMBA_LEVELS` ships
+ * empty on every surface now, and a proctor never applies a pack (four teams
+ * share one module-global array, so it would be four writers on one variable
+ * React is not watching anyway). So the count is the one the server stamped on
+ * the snapshot, and `names` is this team's pack decoded — see useGoombaRoom. */
+function goombaStats(s: GoombaSnapshot | null, names: string[]): StatLine[] {
+  if (!s) return [{ text: "…" }, { text: "…/… levels" }, { text: "…" }];
+  const total = s.levelCount;
   const phase =
     s.phase === "run" ? "🛹 riding"
     : s.phase === "win" ? "🎉 cleared"
@@ -96,8 +102,12 @@ function goombaStats(s: GoombaSnapshot | null): StatLine[] {
     : "✏️ placing";
   const done = s.completed.filter(Boolean).length;
   const finishedMs = s.finishedAt ? s.finishedAt - s.startedAt : null;
+  // An event with no pack loaded yet is a real state, not an error; so is a
+  // pack message that has not landed on THIS socket yet.
+  const name =
+    names[s.level] ?? (total === 0 ? "no levels loaded" : `level ${s.level + 1}`);
   return [
-    { text: `${phase} · ${GOOMBA_LEVELS[s.level].name}` },
+    { text: `${phase} · ${name}` },
     s.finishedAt
       ? {
           text: `✅ all ${total} levels${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,
@@ -185,7 +195,7 @@ export function TeamGame({
       <GameBlock
         title="🍄 Goomba Glider"
         progress={goomba.snap?.progress ?? 0}
-        lines={goombaStats(goomba.snap)}
+        lines={goombaStats(goomba.snap, goomba.names)}
       >
         <button className="danger" onClick={goomba.reset}>
           Reset Goomba
@@ -196,12 +206,19 @@ export function TeamGame({
 }
 
 /** Watch one team's Goomba room as a spectator — the hex hook's shape, aimed
- * at the `goomba` party. */
+ * at the `goomba` party.
+ *
+ * Two messages, not one: the room sends its level `pack` on connect (before the
+ * first snapshot) and again whenever someone edits it, and a snapshot's `level`
+ * only means something against that pack. We keep the NAMES rather than the
+ * levels — the proctor draws no geometry — and keep them per team, so one
+ * team's mid-event edit cannot relabel another team's box. */
 function useGoombaRoom(
   room: string,
   teamName: string,
-): { snap: GoombaSnapshot | null; reset: () => void } {
+): { snap: GoombaSnapshot | null; names: string[]; reset: () => void } {
   const [snap, setSnap] = useState<GoombaSnapshot | null>(null);
+  const [names, setNames] = useState<string[]>([]);
   const socketRef = useRef<PartySocket | null>(null);
 
   useEffect(() => {
@@ -215,6 +232,10 @@ function useGoombaRoom(
     socket.addEventListener("message", (e) => {
       const msg: GoombaServerMsg = JSON.parse(e.data as string);
       if (msg.type === "state") setSnap(msg.state);
+      // `packToLevels` drops what will not decode, exactly as the room's own
+      // `applyPack` does — so these indices are the indices the room plays.
+      else if (msg.type === "pack")
+        setNames(packToLevels(msg.pack).map((L) => L.name ?? ""));
     });
     const unbindVisibility = closeWhileHidden(socket);
     return () => {
@@ -225,6 +246,7 @@ function useGoombaRoom(
 
   return {
     snap,
+    names,
     reset: () => {
       if (confirm(`Reset ${teamName}'s Goomba game back to level 1?`)) {
         socketRef.current?.send(JSON.stringify({ type: "reset" }));

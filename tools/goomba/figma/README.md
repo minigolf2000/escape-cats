@@ -20,13 +20,21 @@ purple, `#150a2a` — the same value as `html, body` in the app.
   art**: `start` (the goomba on her dashed pad), `goal` (the thirsty spider
   plant), `watering-can`, `bumper`, `party-popper`, `cushion`.
 - **Goomba Levels** — one real **Frame** per shipped level, named
-  `L: <title>`, filled with `drawBackground`'s vertical gradient
+  `L: <title>` — **the title alone, never a number.** The frames used to read
+  `L: 2 · The Long Way Up`, which stored a level's place in the pack inside a
+  string in another application; `levelLabel` makes the number from the pack
+  itself now, so one written here could only go stale the first time anyone
+  reordered anything. Filled with `drawBackground`'s vertical gradient
   (`#241245 → #170b30 → #12081f`), terrain as cream zero-height Lines and toys
   as instances of the kit. **A frame carries no bands.** It used to carry the
   level's baked solution as dashed `band` Lines, which the readers turned back
   into `solution` and the selector's cards graded — an answer key drawn by hand,
   stale the moment the geometry moved beneath it. A frame is the GEOMETRY; what
   solves it is `verify.mjs`'s to find.
+
+`L: Welcome to Goomba Glider` is the teaching level, and the frame to copy if
+you want the smallest thing that is still a level: two `t` Lines with a gap
+between them, a `start`, one `watering-can` and a `goal`. Nothing else.
 
 Component names deliberately match the names **already in use in that file**
 (`party-popper`, `watering-can`, `bumper`, `start`) rather than importing a new

@@ -39,12 +39,15 @@ for (const li of idxs) {
   // The artboard. A pasted <rect> arrives as a rect, not a Frame — select it
   // plus its contents and hit ⌘⌥G ("Frame selection") to promote it, or let
   // the plugin/MCP path build real Frames in the first place.
-  // The frame name is the whole contract: "L--" plus the level's own title
-  // (which already carries its number). The reader turns the hyphens back into
-  // spaces, so a round trip keeps the name it shipped with.
+  // The frame name is the whole contract: "L--" plus the level's own title, and
+  // nothing else — no number (`levelLabel` makes those from the pack position;
+  // one written into a frame name could only go stale). The reader turns the
+  // hyphens back into spaces, so a round trip keeps the name it shipped with.
+  // The caption under it is a Text layer, which every reader ignores, so it can
+  // carry the number this pass happens to be printing.
   d.rect("frame", cursorX, 60, w, h,
          { id: "L--" + slug(L.name), fill: BG, stroke: GUIDE, dash: "12 10" });
-  d.label(cursorX, 44, L.name, { size: 15, weight: 700, fill: INK });
+  d.label(cursorX, 44, `${li + 1} · ${L.name}`, { size: 15, weight: 700, fill: INK });
 
   for (const p of L.terrain) d.poly(ox, oy, p);
   for (const c of L.cushions) d.cushion(ox + c.x * S, oy + c.y * S, c.w);

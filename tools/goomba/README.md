@@ -42,6 +42,11 @@ node diag.mjs 3        # failure modes of jittered placements
 node ridecards.mjs out/ [i...]            # PNG of a level with her traced ride
 ```
 
+An `<idx>` above is a position in `SEED_LEVELS` (`goomba/levels.ts`) — the same
+index `verify.mjs` prints as `Ln` where n is idx + 1. The teaching level took
+slot 0 when it shipped, so an index in an older note is one behind; check the
+list with `node seed.mjs` before trusting one.
+
 `ridecards.mjs` imports Playwright by absolute path
 (`/opt/node22/lib/node_modules/playwright`) — adjust that line if your install
 lives elsewhere. Everything else is dependency-free beyond the repo's own
@@ -61,24 +66,28 @@ near the goal bypassed the whole zigzag. The drop-one-band test had passed,
 because each of *my* three bands was load-bearing; that says nothing about a
 completely different lone band.
 
-Every level is locked to 4 bands (see DESIGNING.md). Its room-side half —
+Every level is locked to 4 bands (see DESIGNING.md) — every level but the
+teaching one, Welcome to Goomba Glider, which wants exactly one and fails the
+gate at check 2 by design: it is the screen where a player finds out what a
+band does, thirty seconds before any of this applies.
+ Its room-side half —
 4 bands for the room and no per-player quota, so anyone may lay or lift any of
 them — is enforced in the shared sim and gated by `bands.mjs`. Only geometry can
 make a level *need* four bands, so the level gate below does the load-bearing
 work: with nobody rationed, a level that wins on one band is a level three
 people watch.
-Four levels ship. TWO pass the full gate — The Long Way Up (2) and Cat's
-Cradle (3) — and the others are the standing rebalance debt: they win with
-fewer than 4 bands. Freshly measured, not inherited: The Long Way Down (1)
+Five levels ship. TWO pass the full gate — The Long Way Up (3) and Cat's
+Cradle (4) — and the others are the standing rebalance debt: they win with
+fewer than 4 bands. Freshly measured, not inherited: The Long Way Down (2)
 needs 3.
 Slalom was cut when `MAX_SPEED` became one game constant at 145: it was built
 against the old 120, and at the faster cap `solve.mjs 2 4` finds no solution at
 all. It was already debt (3 bands, short of the 4-band rule), so it was retired
 rather than shipped dead.
-Level 1 joined that list deliberately: it was rebuilt to a hand sketch whose
+The Long Way Down joined that list deliberately: it was rebuilt to a hand sketch whose
 silhouette cannot carry a 4th gate (see DESIGNING.md on why no can placement
 fixes it), replacing Four Ways to Help, which passed.
-The Long Way Up (2) took Pop Goes Goomba's slot in the roster (the only level
+The Long Way Up (3) took Pop Goes Goomba's slot in the roster (the only level
 that truly collapsed to a single band, 196/8738 exhaustive — now cut): a
 concave-up slope she rides from the bottom-left to a launcher at the top right,
 poppers shooting her along it, three long rough steps notched PERPENDICULAR

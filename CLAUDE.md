@@ -109,6 +109,12 @@ findings — do not design from intuition, the sim disproves it reliably.
   only thing left: with nobody rationed, a level that wins on one band is a
   level three people watch. `node bands.mjs` gates the room half; solo play
   needs no special case, since one phone was never capped.
+  **One level is exempt, on purpose: Welcome to Goomba Glider (1)**, the
+  teaching level that ships first. It wants ONE band, because it is the thirty
+  seconds before anyone has seen a band work — a floor, a gap in the middle,
+  and the only thing a player can do is the thing the game is about.
+  `verify.mjs` fails it at check 2 and always will; that is the rule doing its
+  job, not a defect. Nothing after it is exempt.
 - **A band wears the TEAM's colour** — `earsFor(team).ink` from `shared/ears.ts`,
   the same ink the proctor's board and the cat-ear headbands use. One colour for
   every band on the board, because no band belongs to a player; the four-colour
@@ -119,8 +125,9 @@ findings — do not design from intuition, the sim disproves it reliably.
   finger-slop robustness, the exhaustive/randomized minimum-band search, and
   a beam-search shortcut hunt. If verify finds a 1-band win, the level is
   broken no matter how clever the design felt.
-- **Four levels ship, and TWO pass the gate — The Long Way Up (2) and Cat's
-  Cradle (3).** The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The Popper
+- **Five levels ship, and TWO pass the gate — The Long Way Up (3) and Cat's
+  Cradle (4)** (Welcome to Goomba Glider (1) is the deliberate exemption
+  above). The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The Popper
   Grid, Pop Goes Goomba, Popper Pinball, Piñata Alley, Space Cadet and Slalom
   were cut. **A level's display number is its array index + 1, computed where it
   is shown and stored nowhere** — `levelLabel` in `goomba/levels.ts`, used by
@@ -130,7 +137,7 @@ findings — do not design from intuition, the sim disproves it reliably.
   card. The last level is the finale: `nextLeadsToSplash` and the selector's
   clear-every-level gate both key off the LAST index, so adding a level moves
   the splash behind it.
-- **The Long Way Up (2) is the one to read first if you are building from a
+- **The Long Way Up (3) is the one to read first if you are building from a
   sketch**: one concave-up slope she RIDES, poppers shooting her along it, three
   long rough steps notched perpendicular into it for the players' bands to chord
   across, and a bumper at the top that mirrors her into a flat run home across
@@ -139,9 +146,9 @@ findings — do not design from intuition, the sim disproves it reliably.
   rim), and put every band end on a terrain vertex ~9 units clear of its
   neighbours so snap absorbs finger slop (29/30 at ±3u on a level that is
   otherwise exact ballistics).
-- Levels 1 and 4 need fewer than 4 bands — the standing debt. Re-measured
-  with `minbands`/`solve`, not inherited: The Long Way Down (1) needs **3**;
-  4 is a testbed, not a shipped puzzle. Level 1 is now
+- Levels 2 and 5 need fewer than 4 bands — the standing debt. Re-measured
+  with `minbands`/`solve`, not inherited: The Long Way Down (2) needs **3**;
+  5 is a testbed, not a shipped puzzle. The Long Way Down is now
   drawn in Figma and pasted in, and one pass of it dropped to 2 bands by
   FENCING the world at both edges: two of its three jobs were only jobs because
   failing them threw her out of the world, and a fence does that work for free.

@@ -33,12 +33,15 @@ poses. The heads are exported onto one shared 828x652 canvas registered by eye
 position, with the eyes painted out, so `#hexCat` can swap them freely under a
 single rigged pair of eyes.
 
-The DAY heads in `public/art/` are not the raw export: Hex is a black cat, and
-the day sheet draws her grey-brown (`#665B59`). `node tools/hex/blacken-coat.mjs`
-re-inks the coat to the night sheet's own `#0C0B0A` and leaves the drawn line and
-the inner-ear pink where they are, so her outline survives as a charcoal rim on
-black. Run it after any fresh day export — it is idempotent, and `--check` exits
-1 on a frame that is still grey.
+The DAY heads in `public/art/` are not the raw export. Hex is a black cat with
+white whiskers; the artist's day sheet draws her grey-brown (`#665B59`) with a
+dark line (`#302B2A`). `node tools/hex/reink-day.mjs` gives it the night sheet's
+two inks — coat to `#0C0B0A`, and the whole drawn line (outline, ear rims, nose
+dashes, whiskers) to white — leaving the inner-ear pink alone. Run it after any
+fresh day export: it reads each frame's current inks, so it converts a raw export
+and a half-converted one alike, and `--check` exits 1 on a frame it has not been
+run over. One consequence to know about: the two sheets are now near-identical, so
+the day->night coat cross-fade in `index.html` no longer shows a change of coat.
 
 That rigged pair is three nested transform channels, one job each, because a
 blink, a glance and a dilation all happen at once and one transform can only say

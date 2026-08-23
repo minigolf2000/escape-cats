@@ -330,7 +330,7 @@ cd tools/goomba && node bands.mjs          # the room's band budget (4, and no r
 cd tools/goomba && node seed.mjs           # print the seed pack
 cd tools/goomba && node seed.mjs --push    # …load it into a running event
 cd tools/goomba && node seed.mjs --pull    # what is the event running right now?
-node tools/hex/blacken-coat.mjs            # re-ink a fresh hex DAY export to her black coat
+node tools/hex/reink-day.mjs               # re-ink a fresh hex DAY export to her shipped inks
 ```
 
 `npm run dev` no longer starts an editor on :5179 — press `\` in the game

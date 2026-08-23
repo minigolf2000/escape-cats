@@ -184,10 +184,10 @@ export function updateCat(t) {
   wasAsleep = asleep;
 
   // --- Which head is on screen ------------------------------------------
-  // The night coat outranks the squash entirely: the four squash frames are
-  // drawn in the day coat, and day and night differ by their KEYLINE now that
-  // she is black in both (dark rim by day, white by night), so playing one at
-  // night would flash her outline off and back on for two frames.
+  // The night coat outranks the squash entirely: the squash frames are the day
+  // sheet's drawings of an AWAKE cat, and the night sheet is a different one —
+  // her sleeping silhouette, on a slightly heavier line. Playing a squash at
+  // night would pop the wrong drawing in for two frames while she is asleep.
   let pose = "day";
   if (asleep) pose = "night";
   else if (squashPose) pose = squashPose;

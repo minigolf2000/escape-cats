@@ -473,8 +473,8 @@
   #catWrap.zoomies #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
 
   /* THE HEAD, as drawn. One frame visible at a time, picked by data-pose:
-       day  -> resting coat, charcoal keyline   s1..s3 -> the pet squash, in order
-       night-> the same black coat, white keyline
+       day  -> resting coat        s1..s3 -> the pet squash, in order
+       night-> the sleeping sheet
      Visibility rather than display, because display:none on an <image> can drop
      it from the decode queue in some engines and the first pet of the game would
      then flash an empty head while the PNG loads. All five decode at boot and
@@ -513,26 +513,31 @@
     transform-box: fill-box; transform-origin: 50% 100%;
   }
 
-  /* THE COAT CHANGE. Day and night are two drawings of the same cat, and she is
-     BLACK in both — the day sheet shipped grey-brown and was re-inked to the
-     night drawing's own #0C0B0A (tools/hex/blacken-coat.mjs is that transform,
-     and why the day art no longer matches whatever the artist last exported).
-     What still differs between the two sheets is the KEYLINE — a charcoal rim by
-     day, white at night — and the silhouette it is drawn around, and picking
-     between them on a class flip cut from one to the other in a single frame, at
-     the one moment in the game where she is supposed to be falling asleep. So
-     the night coat CROSS-FADES in over the day one, on the same 1.8s and the
-     same curve as the camera move, and her line lifts into the night rather than
-     being swapped for another one.
+  /* THE COAT CHANGE, which barely changes a coat any more. The artist drew two
+     cats — a grey-brown day one and a black night one — and this fade existed
+     because picking between them on a class flip turned her from brown to black
+     in a single frame, at the one moment in the game where she is supposed to be
+     falling asleep. The day sheet has since been re-inked to the night sheet's
+     own two inks, black coat and white line (tools/hex/reink-day.mjs is that
+     transform, and why the day art no longer matches whatever the artist last
+     exported), so what the fade now covers is the difference between two
+     drawings of the SAME black cat: a slightly different silhouette and a
+     slightly heavier night line. Sampled across the 1.8s in the browser, the
+     five frames are near-identical.
+     It is kept anyway, and not because it is pretty: it is the thing that makes a
+     sheet swap safe. Restore either drawing's own colours — a fresh export, or an
+     artist who wants her brown by day again — and this is what stops the swap
+     being a one-frame cut. Deleting it would be work that has to be redone.
      The day coat stays FULLY OPAQUE underneath for the whole fade instead of
      fading out in step with it: two half-transparent layers would let a quarter
      of the page through the middle of the blend and she would go briefly
      ghostly. It hides only after the fade, on a delayed visibility flip, because
-     the night drawing's white keyline makes it ~2% wider than the day one —
-     left underneath at full opacity that 2% reads as a thin charcoal fringe all
-     the way round her.
+     the night drawing's line makes it ~2% wider than the day one — left
+     underneath at full opacity that 2% used to read as a thin fringe all the way
+     round her. Two white lines hide it today; a re-coloured day sheet would put
+     it straight back.
      The delay is declared on the NIGHT rule alone, so the return leg (a dev jump
-     back to day) reads 0s off the day rule and her day line snaps back at once.
+     back to day) reads 0s off the day rule and the day sheet snaps back at once.
      Same cascade rule as #dock's cutscene fade: the browser takes a transition
      from the after-change style. */
   #hexCat #headNight {
@@ -562,8 +567,11 @@
   /* The artist's yellow. Briefly the shop's green, to tie the tray to the thing
      you tap — that tie is gone with the green shop, and a brutalist tray has no
      hue to match anyway, so the eyes go back to the drawing. */
-  /* The pupil is inked in the drawing's own line colour (#302B2A, sampled off
-     hex-day.png rather than guessed) on the solid yellow socket. */
+  /* The pupil is inked in the day sheet's ORIGINAL line colour (#302B2A, sampled
+     off hex-day.png back when that line was dark rather than guessed) on the
+     solid yellow socket. The drawn line is white now and the pupil deliberately
+     did not follow it: it sits inside the yellow socket, where dark is the only
+     thing that reads as a pupil. */
   #hexCat { --hex-eye: #D0D060; --hex-pupil: #302B2A; }
   #hexCat .eye path { fill: var(--hex-eye); }
   #hexCat .eye path.pupil { fill: var(--hex-pupil); }

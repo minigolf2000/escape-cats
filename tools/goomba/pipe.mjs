@@ -42,8 +42,26 @@
 //   node pipe.mjs                        the design table — what a pipe keeps
 //   node pipe.mjs --r 8 --n 24 --spd 130 one arc, ridden through the shipped sim
 //   node pipe.mjs --at 70,200 --pts      its vertices, ready for levels.ts
-//   node pipe.mjs --svg arc.svg          a Figma sheet: popper + floor + arc as `t` Lines
+//   node pipe.mjs --svg arc.svg          the piece as a sheet — a TRACING GUIDE, see below
 //   node pipe.mjs --link                 a level link to Ctrl+V into the game
+//
+// ON THE SVG, AND WHY IT IS NOT A WAY INTO FIGMA. It emits real `<line>`
+// elements, which is what the game's own SVG reader wants — drop the FILE on
+// the grid and they read. What it cannot do is travel through Figma. Measured
+// on a real import of this file: every `<line>` arrives as a **VECTOR** node
+// (it keeps the id as its name, so they come in correctly named `t-1`…`t-25`,
+// which is what makes the failure look like a success until the paste banner
+// says otherwise), and both readers then skip it — `clipboard.js` on
+// `n.type !== "LINE"`, `svg.js` on `localName !== "line"`. That refusal is
+// deliberate and worth keeping: for anything but a Line, (0,0)-(width,0) is
+// the top edge of a bounding box, which arrives as a perfectly plausible
+// straight segment that silently changes whether the level is winnable. A
+// layer that goes missing is a bug you can SEE.
+//
+// So Figma's importer cannot make a Line; only the Line tool (L) and the
+// Plugin API's `figma.createLine()` can. Into a Figma FRAME, the route is the
+// Plugin API. Into the GAME, the route is `--link`. This sheet is for reading
+// the piece and for tracing over.
 import { writeFile } from "node:fs/promises";
 import { makeRun, stepRun, initLevel, encodeLevel, SUB } from "./lib.mjs";
 import { newDoc, S, BG, PINK, GUIDE } from "./figma/svgkit.mjs";
@@ -141,12 +159,11 @@ console.log(`  the lip is at              (${one.pts[n][0]}, ${one.pts[n][1]}), 
 
 const svg = opt("svg", null);
 if (svg) {
-  // The same piece as a drop-in Figma sheet: the run-in floor and the arc as
-  // `t` Lines, the popper as its true 8.2 u trigger ring, and the rise it buys
-  // drawn to scale so the picture argues its own case. Everything that is not
-  // terrain or the popper lives in a `_` group, which the reader ignores —
-  // import it, drag the group into your `L:` frame, and the contract does the
-  // rest.
+  // The piece as a sheet: the run-in floor and the arc as `t` Lines, the popper
+  // as its true 8.2 u trigger ring, and the rise it buys drawn to scale so the
+  // picture argues its own case. Everything that is not terrain or the popper
+  // lives in a `_` group, which the readers ignore. The game reads this file
+  // directly; Figma does not (see the note at the top).
   const d = newDoc();
   const runIn = gap + 26;
   const left = mx - runIn - 6, top = one.apex[1] - 8;
@@ -175,7 +192,10 @@ if (svg) {
   d.label(20, 78, `Every 10 u of flat between popper and mouth costs about a unit of it.`, { size: 11, fill: GUIDE });
 
   await writeFile(svg, d.render(W, H, "Goomba Glider momentum arc — tools/goomba/pipe.mjs"));
-  console.log(`\nwrote ${svg}  ${W}×${H}px  (${S}px = 1 unit) — import into Figma, drag the group into your L: frame`);
+  console.log(`\nwrote ${svg}  ${W}×${H}px  (${S}px = 1 unit)`);
+  console.log(`  the game reads this file directly (drop it on the grid). Through FIGMA it cannot:`);
+  console.log(`  an SVG import makes VECTOR nodes, never Lines, and both readers skip those on purpose.`);
+  console.log(`  For a Figma frame use the Plugin API (figma.createLine); for the game use --link.`);
 }
 
 if (argv.length && !has("table")) process.exit(0);

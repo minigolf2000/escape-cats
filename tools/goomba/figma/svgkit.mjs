@@ -3,10 +3,19 @@
 //
 // THE ONE INVARIANT, and the reason this file exists: every terrain segment is
 // emitted as a ZERO-HEIGHT horizontal <line> carrying its slope in a rotate()
-// transform — the exact node shape Figma's own Line tool (L) produces. Such a
+// transform — the markup Figma's own Line tool (L) round-trips to. Such a
 // node's geometry is fully described by position + width + rotation, all of
 // which sit in the plain node record. A diagonal *vector path* keeps its points
 // in a compressed blob instead, so a pen-drawn level can't be read back out.
+//
+// WHAT THIS DOES NOT BUY YOU: a way INTO Figma. Emitting the right markup does
+// not make Figma build the right node. Measured on a real import of a generated
+// sheet, every <line> came back as a **VECTOR** — correctly NAMED from its id,
+// which is what makes it look like it worked — and both readers skip a `t`
+// that is not a Line, on purpose. So these files are for the game (which reads
+// <line> directly), for reading, and for tracing over. To put terrain in a
+// Figma frame, draw it with L or create it with the Plugin API's
+// figma.createLine(); no SVG can do it.
 // Lines cost nothing either: the sim flattens terrain to segments anyway
 // (`segsFor` in packages/shared/src/goomba/physics.ts), so a bag of separate
 // segments is physically identical to an authored polyline.

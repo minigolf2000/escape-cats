@@ -61,7 +61,26 @@ Two deliberate departures from a pixel-exact copy:
 
 ## Why everything is a Line
 
-**Draw terrain with the Line tool (L). Never the pen.**
+**Draw terrain with the Line tool (L). Never the pen — and never an SVG import.**
+
+The last of those is the one that costs a round trip, because it looks like it
+worked. `make-pack.mjs` and `levels-to-svg.mjs` emit real `<line>` elements, and
+the game's own SVG reader takes them — drop one of those FILES on the grid and
+the terrain reads. Import the same file into **Figma**, though, and every
+`<line>` becomes a **VECTOR** node. It keeps the id as its layer name, so the
+layers panel fills up with a convincing row of `t-1`, `t-2`, `t-3`… and nothing
+says otherwise until the paste banner reads *"t-1" is a VECTOR, not a Line —
+skipped*. Both readers refuse it deliberately (`clipboard.js` on
+`n.type !== "LINE"`, `svg.js` on `localName !== "line"`) and that refusal is
+the right call: for anything but a Line, `(0,0)-(width,0)` is the top edge of a
+bounding box, which arrives as a perfectly plausible straight segment that
+silently changes whether the level is winnable. A layer that goes missing is a
+bug you can see; a wrong one is not.
+
+So the generated sheets are a kit to READ and TRACE OVER, not a kit to paste in
+and keep. Terrain gets into a Figma frame two ways only: the Line tool, or the
+Plugin API's `figma.createLine()` (which is how the level frames in this file
+were built in the first place).
 
 A Figma line is a zero-height node: its geometry is entirely position + width +
 rotation, all sitting in the plain node record where any reader can get at it.

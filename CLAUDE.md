@@ -203,7 +203,25 @@ findings — do not design from intuition, the sim disproves it reliably.
 - **One origin**: vanity domains (hexxygon.com, g00.mba) REDIRECT to
   cat-games-tau.vercel.app — never turn them into rewrites; the localStorage
   pid (team identity) only follows players on one origin. No `?room=` params,
-  ever — the lobby is the only way into a team.
+  ever — the lobby is the only way into a TEAM.
+- **`?r=<slug>` is the one room a URL may name, and it is never a team.**
+  `g00.mba/?r=kittens` plays Goomba in room `r-kittens` — the link you hand to
+  friends, durable like a team room, so two who share it play together and one
+  on his own plays alone. Three things keep it clear of the rule above, and all
+  three are load-bearing: the `r-` prefix is a namespace a team id can never
+  enter (`assign` still validates against `TEAM_IDS`), `roomFor` answers the
+  TEAM FIRST so a stale bookmark can never override the proctor, and
+  `adhocRoomId` normalises the slug in shared so nothing can case it wrong the
+  way `?room=` did. Goomba only — hex needs a proctor for its win and a chat
+  channel of one is nothing, so both call `roomFor` with no slug. An ad-hoc room
+  PLAYS the pack and cannot edit it (`isAdhocRoom` in `server/src/goomba.ts`):
+  the levels grid is open to any phone on the premise that the party's own
+  phones are the tool, and a link handed outside the party is past that premise.
+  The proctor's list of them (bottom of the board, collapsed — each open row
+  holds a spectator socket) is a REGISTRY, because nothing can list Durable
+  Objects: the room announces itself on the pack fetch it already makes on
+  every connect, so a room appears when somebody first JOINS it, not when the
+  link is made. Proctor connections only see the list.
 - **Vite `base` is absolute** per app and must match its `dist/` subdirectory
   (`/hexxygon/`, `/g00mBa/` — casing is load-bearing). `npm run build:vercel`
   runs `check-routing.mjs`; keep its expectations current.

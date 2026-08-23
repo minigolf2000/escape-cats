@@ -153,7 +153,6 @@ export function TeamGame({
 }) {
   // The room id IS the team id, verbatim — nothing on any surface cases it.
   const { snap, reset, setWon } = useHexRoom(team.id, team.name);
-  const goomba = useGoombaRoom(team.id, team.name);
 
   const inRoom = new Set(
     (snap?.players ?? []).filter((p) => p.connected).map((p) => p.id),
@@ -207,16 +206,52 @@ export function TeamGame({
           </button>
         </div>
       </GameBlock>
-      <GameBlock
-        title="🍄 Goomba Glider"
-        progress={goomba.snap?.progress ?? 0}
-        lines={goombaStats(goomba.snap, goomba.names)}
-      >
-        <button className="danger" onClick={goomba.reset}>
-          Reset Goomba
-        </button>
-      </GameBlock>
+      <GoombaBlock room={team.id} label={team.name} />
     </div>
+  );
+}
+
+/**
+ * One room's Goomba readout and its reset, as a block.
+ *
+ * Split out of TeamGame because it is the WHOLE of what an ad-hoc room's row
+ * shows (see AdhocRooms.tsx): those rooms have no Hex game to pair it with and
+ * no roster to head it, but the readout is exactly a team's. One component
+ * means the two cannot drift into telling the same story two ways — including
+ * the fixed line count, which an ad-hoc row needs for the same reason a team
+ * box does (a list of rows that reflow as rooms report in is unreadable).
+ */
+export function GoombaBlock({
+  room,
+  label,
+  showPlayers = false,
+}: {
+  room: string;
+  label: string;
+  /** Add a "who is in there" line. A team box gets this from the ROSTER above
+   * it (and from Hex's own line); an ad-hoc room has no roster anywhere — the
+   * lobby never learns who walked through the link — so the room itself is the
+   * only place to ask. Fixed per call site, so neither caller's line count
+   * changes as its state does, which is the rule that matters. */
+  showPlayers?: boolean;
+}) {
+  const { snap, names, reset } = useGoombaRoom(room, label);
+  const playing = (snap?.players ?? []).filter((p) => p.connected).length;
+  return (
+    <GameBlock
+      title="🍄 Goomba Glider"
+      progress={snap?.progress ?? 0}
+      lines={[
+        ...goombaStats(snap, names),
+        ...(showPlayers
+          ? [{ text: snap ? `${playing} playing` : "connecting…" }]
+          : []),
+      ]}
+    >
+      <button className="danger" onClick={reset}>
+        Reset Goomba
+      </button>
+    </GameBlock>
   );
 }
 

@@ -776,6 +776,45 @@ domains redirect — see "The origin constraint"), so the pid the proctor sorted
 is the pid the game sees. The proctor page therefore shows **one** QR code, for
 the lobby, rather than one per team.
 
+**`?r=` is the one thing a URL may name, and it is never a team.** Goomba
+Glider reads `?r=<slug>` and plays in room `r-<slug>` — a link you hand to
+friends, so that two who share it play together and one who gets his own plays
+alone, both with the durable progress a team room has (`ADHOC_PREFIX` in
+`packages/shared/src/lobby.ts`). Every reason `?room=` had to go still holds
+here, because none of them is about the URL:
+
+- It cannot reach a **team**. The `r-` prefix is a namespace a team id can
+  never enter, `assign` still validates against `TEAM_IDS`, and `roomFor`
+  answers the team FIRST — so a stale bookmark can never override the
+  proctor's board, and a friend who turns up on event night is sorted onto a
+  team like anyone else. Their ad-hoc room simply goes dormant behind them.
+- It cannot be **cased wrong**. `adhocRoomId` lowercases and strips the slug in
+  shared, so the URL bar, the game and the link the proctor copies all agree
+  byte for byte — which is exactly what `?room=`'s `toUpperCase()` did not.
+- It stays on **one origin**, so the pid still follows the player.
+
+Goomba only: hex's win is a proctor's press that would never come for a room
+the proctor isn't sorting into, and a chat channel of one is nothing. Both keep
+calling `roomFor` with a team and no slug.
+
+Two things follow from a slug being a link rather than a credential. Anyone the
+link reaches can join, which is the point when you send it to two people and
+worth knowing when you send it to one. And an ad-hoc room **plays** the level
+pack without editing it (`isAdhocRoom` in `server/src/goomba.ts`): the levels
+grid is open to any phone on the premise that the party's own phones are the
+tool, and a link handed outside the party is past that premise — a friend on a
+laptop who cleared the game could otherwise delete a level for the whole event.
+
+The proctor watches them from a collapsible section at the bottom of the board
+(`apps/proctor/src/AdhocRooms.tsx`), which is also where the links are minted.
+Nothing can list Durable Objects, so that list is a REGISTRY: a goomba room
+announces its own name on the pack fetch it already makes on every connect, and
+the lobby remembers it (pruned to a week and capped). A room therefore appears
+the first time somebody joins it, never when the link is made, and the list
+goes to proctor connections only — a slug is not a secret, but broadcasting
+every friend room to the landing page would put each one a tap away from every
+guest at the party.
+
 Both parties persist to `room.storage`, tuned to what each can afford to lose:
 
 - **The lobby writes through on every change.** Losing it costs every team its

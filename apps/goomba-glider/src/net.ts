@@ -7,7 +7,7 @@
 // though with no serverless mode left the win is only initial paint.
 
 import type PartySocket from "partysocket";
-import { roomFor } from "@escape-cats/shared";
+import { adhocRoomId, roomFor } from "@escape-cats/shared";
 import type {
   GoombaClientMsg,
   GoombaServerMsg,
@@ -123,16 +123,30 @@ export function connectRoom(opts: {
   })();
 }
 
-/** Watch the lobby for this phone's room — verbatim the hex-clicker contract,
- * including the `roomFor` fallback into the shared testing room and the socket
- * that stays open there so a mid-session sort reloads into the real team.
- * Connecting also registers the phone in the lobby roster. */
+/**
+ * The ad-hoc room this URL asks for, or null. `?r=kittens` -> `r-kittens`.
+ *
+ * Goomba is the only surface that reads it (see ADHOC_PREFIX in shared): hex's
+ * win needs a proctor and a chat channel of one is nothing, so those two keep
+ * calling `roomFor` with a team and nothing else. The QUERY string, not the
+ * hash — the hash is already spoken for by a pasted level under `?solo`, and
+ * is read once at boot.
+ */
+export function adhocRoom(): string | null {
+  return adhocRoomId(new URLSearchParams(location.search).get("r"));
+}
+
+/** Watch the lobby for this phone's room — the hex-clicker contract plus
+ * `?r=`, including the `roomFor` fallback into the shared testing room and the
+ * socket that stays open there so a mid-session sort reloads into the real
+ * team. Connecting also registers the phone in the lobby roster. */
 export function watchTeam(opts: {
   name: string;
   onTeam: (team: string, name: string) => void;
   onStatus: (up: boolean) => void;
 }): void {
   const pid = playerId();
+  const adhoc = adhocRoom();
   void (async () => {
     const { default: PartySocket } = await import("partysocket");
     const socket = new PartySocket({
@@ -148,10 +162,16 @@ export function watchTeam(opts: {
       const msg: LobbyServerMsg = JSON.parse(e.data as string);
       if (msg.type !== "lobby") return;
       const me = msg.snapshot.players.find((p) => p.pid === pid);
-      const room = roomFor(me?.team ?? null);
+      // A team beats `?r=` — a URL can never override the proctor, which is
+      // what lets an ad-hoc phone be reclaimed onto a real team later.
+      const room = roomFor(me?.team ?? null, adhoc);
       if (room === null) return;
       if (joined === null) {
         joined = room;
+        // Only a REAL team closes the socket. An ad-hoc room keeps it open for
+        // the same reason the testing room does: its answer can still change
+        // under us, and when the proctor sorts this phone onto a team the
+        // reload below is what moves it there.
         if (me?.team) socket.close();
         opts.onTeam(room, me?.name ?? opts.name);
         return;

@@ -2,6 +2,7 @@ import { Server, type Connection, type ConnectionContext, type WSMessage } from 
 import {
   GoombaSim,
   applyPack,
+  isAdhocRoom,
   type LevelPack,
   type GoombaBandPreview,
   type GoombaPersistedV1,
@@ -59,12 +60,7 @@ export class GoombaServer extends Server<Env> {
    */
   async onRequest(request: Request): Promise<Response> {
     if (new URL(request.url).pathname.endsWith("/pack-changed")) {
-      if (await this.syncPack()) {
-        this.sim.reconcile(Date.now());
-        await this.persist();
-        this.broadcastPack();
-        this.broadcastState();
-      }
+      await this.refreshPack();
       return new Response("ok");
     }
     return new Response("not found", { status: 404 });
@@ -79,10 +75,18 @@ export class GoombaServer extends Server<Env> {
    * from the authority that owns it. `applyPack` writes into the same
    * `GOOMBA_LEVELS` array every rule in the shared sim already reads.
    */
-  private async syncPack(): Promise<boolean> {
+  private async syncPack(announce = false): Promise<boolean> {
     try {
       const res = await this.env.Lobby.get(this.env.Lobby.idFromName("main")).fetch(
-        "http://lobby/pack",
+        // `?room=` tells the lobby this room has somebody in it — the ad-hoc
+        // room registry's only source, since nothing can list Durable Objects
+        // (see LobbyServer.sawRoom). It rides the fetch the pack needs anyway,
+        // so a room announces itself exactly when a phone arrives in it. Only
+        // a PLAYER's connect announces: a proctor watching a room would
+        // otherwise keep it looking alive forever.
+        announce
+          ? `http://lobby/pack?room=${encodeURIComponent(this.name)}`
+          : "http://lobby/pack",
       );
       const body = (await res.json()) as { v: number; pack: LevelPack };
       if (typeof body?.v !== "number" || !Array.isArray(body.pack)) return false;
@@ -100,11 +104,27 @@ export class GoombaServer extends Server<Env> {
   }
 
   onConnect(conn: Connection, ctx: ConnectionContext) {
-    this.roster.register(conn, ctx);
+    const meta = this.roster.register(conn, ctx);
     this.armRunTimer();
     // The pack first: a phone cannot draw a level, or even know how many there
     // are, until it has one.
     conn.send(JSON.stringify(this.packMsg()));
+    this.broadcastState();
+    // …then re-read it from the authority. `writePack` pokes the four TEAM_IDS
+    // rooms and nothing else — it cannot poke an ad-hoc room, because there is
+    // no list of them to poke — so a room outside that four learns about an
+    // edit HERE, on the next phone through the door. Costs one internal fetch
+    // per connect, and `syncPack` returns early when the version is unchanged.
+    void this.refreshPack(meta.role === "player");
+  }
+
+  /** Re-read the pack, and apply it if it moved. The three call sites that
+   * follow a change all want the same four steps afterwards. */
+  private async refreshPack(announce = false) {
+    if (!(await this.syncPack(announce))) return;
+    this.sim.reconcile(Date.now());
+    await this.persist();
+    this.broadcastPack();
     this.broadcastState();
   }
 
@@ -195,6 +215,14 @@ export class GoombaServer extends Server<Env> {
       case "packDelete":
       case "packAll":
         if (proctor) return;
+        // An AD-HOC room plays the pack, it does not edit it. The editor is
+        // open to any phone on purpose — the party's own phones are the tool —
+        // but that premise is "one weekend, one room", and a link handed to a
+        // friend widens the population past it. A friend on a laptop who
+        // clears the game gets the same levels grid a team does; `⌫` on a card
+        // there would delete a level for the whole event. So the grid stays,
+        // and the writes stop at the door.
+        if (isAdhocRoom(this.name)) return;
         void this.forwardPackIntent(msg);
         return;
       case "reset":
@@ -239,12 +267,7 @@ export class GoombaServer extends Server<Env> {
     } catch {
       return; // the lobby will still be there on the next try
     }
-    if (await this.syncPack()) {
-      this.sim.reconcile(Date.now());
-      await this.persist();
-      this.broadcastPack();
-      this.broadcastState();
-    }
+    await this.refreshPack();
   }
 
   private packMsg(): GoombaServerMsg {

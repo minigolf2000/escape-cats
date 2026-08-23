@@ -72,8 +72,7 @@ export class HexServer extends Server<Env> {
    * credits nothing. */
   private wake() {
     this.ticker ??= setInterval(() => {
-      this.sim.tick(Date.now());
-      this.broadcastState();
+      this.broadcastState(); // ticks income up to the stamp — see below
     }, SNAPSHOT_TICK_MS);
     // Write-behind, not write-through: the sim mutates 4x/sec on its own
     // (income), so per-change writes would be nearly per-tick writes. A 5s
@@ -207,7 +206,17 @@ export class HexServer extends Server<Env> {
         this.petAcked.set(conn.id, seq);
       }
     }
-    const state = this.sim.snapshot(Date.now(), this.roster.list(), this.taps);
+    // Income up to THIS instant, before the snapshot is stamped with it.
+    // Only the 4Hz ticker used to tick; every OTHER path into this method — a
+    // purchase, a join, a disconnect, a proctor press — fired between ticks and
+    // sent a bank banked at `lastTick` under a `serverTime` of now. The phones
+    // extrapolate in real time, so a bank up to 250ms stale is a counter they
+    // have to walk BACKWARDS, and a room where four people are buying things is
+    // a room where that happens constantly. Awake-only: `sleep()` clears the
+    // ticker, and a paused game must not accrue on a proctor's press.
+    const now = Date.now();
+    if (this.ticker) this.sim.tick(now);
+    const state = this.sim.snapshot(now, this.roster.list(), this.taps);
     this.taps = [];
     const msg: HexServerMsg = { type: "state", state };
     this.broadcast(JSON.stringify(msg));

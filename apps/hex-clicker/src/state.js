@@ -118,10 +118,11 @@ const OPTIMISTIC_BACKSTOP_MS = 5000;
 let optimistic = []; // {seq, gain, at: perfNow}
 
 export function petCredit(gain, seq) {
-  game.mice += gain;
-  game.total += gain;
-  game.clicks += 1;
   optimistic.push({ seq, gain, at: performance.now() });
+  game.clicks += 1;
+  // Straight onto the counter rather than on the next frame: the tap and the
+  // number have to move together or the pet feels like it missed.
+  extrapolate();
 }
 
 /** Every batch at or below `seq` is baked into the snapshot that follows. */
@@ -135,14 +136,48 @@ function optimisticGain() {
   return optimistic.reduce((a, o) => a + o.gain, 0);
 }
 
-/** Frame-loop extrapolation between snapshots (passive income only — pets are
- * credited at the tap). */
-export function extrapolate(dt) {
-  const inc = baseCps() * dt * game.speed;
-  if (inc > 0) {
-    game.mice += inc;
-    game.total += inc;
-  }
+// ---------------------------------------------------------------------------
+// THE BANK IS A FUNCTION OF TIME, NOT A RUNNING TOTAL
+// ---------------------------------------------------------------------------
+// It used to be a running total: add cps*dt every frame, then ASSIGN the
+// snapshot's bank over the top of it four times a second. That assignment is
+// what made the counter tick backwards, in two ways that are both small and
+// both permanent:
+//
+//   - it re-based on ARRIVAL, which drops the snapshot's own age on the floor.
+//     A constant latency cancels, but the JITTER in it does not, so every
+//     wobble in the network moved the bank — either way, and the down way is
+//     the one you can see; and
+//   - the frame after a snapshot credited dt from the previous FRAME rather
+//     than from the snapshot, so each interval double-counted the sliver
+//     between the two — up to a frame of income, handed straight back the
+//     moment the next snapshot landed.
+//
+// So the bank is read off an ANCHOR instead: a value, the moment on the shared
+// clock it was true, and the rate it was climbing at. That makes it a pure
+// function of time, and consecutive anchors AGREE — the authority integrates
+// the same rate across the same interval we do, so anchor n+1 evaluates to
+// exactly what anchor n was already showing. There is nothing left to
+// reconcile, so there is nothing to hand back.
+//
+// The other half is that income cannot move the bank down at all any more.
+// `total` is lifetime-earned and only ever climbs; the gap between it and the
+// bank is what the room has SPENT, and that only moves when somebody buys
+// something. Extrapolate the climbing half, subtract the stepping half, and
+// the one thing that can still take the number down is a teammate at the shop
+// — which is not the counter miscounting, it is the money actually being gone.
+let anchorTotal = 0; // lifetime mice as of anchorAt
+let anchorSpent = 0; // total - mice there; only a purchase moves it
+let anchorCps = 0; // mice/sec it was climbing at (dev speed already folded in)
+let anchorAt = null; // server-epoch ms, on the shared clock — see wallNow()
+
+/** Recompute the bank from the anchor. Every frame, and again the instant
+ * anything feeding it changes, so no reader is handed a stale one. */
+export function extrapolate() {
+  if (anchorAt === null) return;
+  const age = Math.max(0, (wallNow() - anchorAt) / 1000);
+  game.total = anchorTotal + anchorCps * age + optimisticGain();
+  game.mice = game.total - anchorSpent;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,7 +214,6 @@ export function applySnapshot(snap) {
     optimistic = [];
   }
 
-  game.total = snap.total;
   game.clicks = snap.clicks;
   game.goldCaught = snap.goldCaught;
   game.owned = { ...snap.owned };
@@ -194,9 +228,6 @@ export function applySnapshot(snap) {
     snap.zoomUntil > snap.serverTime
       ? performance.now() + (snap.zoomUntil - snap.serverTime)
       : 0;
-  // The bank: authoritative value plus any of our own taps still in flight.
-  game.mice = snap.mice + optimisticGain();
-
   recalc();
   // After the fold, because the fallbacks need the CURRENT rest values: a snapshot
   // from a build without these must read as "nothing is handing over" rather than
@@ -204,6 +235,16 @@ export function applySnapshot(snap) {
   game.wallFrom = snap.wallFrom ?? wallSpeed(mods);
   game.wallGlowFrom = snap.wallGlowFrom ?? wallGlow(mods);
   players = snap.players || [];
+
+  // The bank's anchor — what the authority held, the moment it held it, and how
+  // fast it was climbing. `cps` and `serverTime` both ride the snapshot, so none
+  // of it is measured against when the message happened to ARRIVE. After the
+  // fold too, so the fallback rate is this snapshot's economy and not the last.
+  anchorTotal = snap.total;
+  anchorSpent = snap.total - snap.mice;
+  anchorCps = snap.cps ?? baseCps() * game.speed;
+  anchorAt = snap.serverTime;
+  extrapolate();
 
   const nightAfter = nightOf(game.bought);
   edges.nightFlip = !first && !nightBefore && nightAfter;

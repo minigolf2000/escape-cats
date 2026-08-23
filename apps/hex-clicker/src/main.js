@@ -199,9 +199,10 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
 
-  // Income between snapshots — same shared rules the server ticks with, so
-  // the reconcile on the next snapshot is a sub-frame nudge.
-  extrapolate(dt);
+  // Income between snapshots, read off the last snapshot's anchor rather than
+  // accumulated per frame — see state.js. There is no reconcile: the next
+  // snapshot's anchor evaluates to what this one is already showing.
+  extrapolate();
 
   // Buff pill countdown
   if (game.zoomUntil > now) {

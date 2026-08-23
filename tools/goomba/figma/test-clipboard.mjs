@@ -84,7 +84,7 @@ nodes.push({
 // The same layout the SVG fixture uses, so the two readers are comparable.
 line("t", 100, 100, 400, 160, "a");
 line("t", 400, 160, 700, 140, "b");
-line("band", 150, 300, 500, 320, "c");
+line("band", 150, 300, 500, 320, "c"); // a leftover from the old answer-key layer — must be ignored
 node("start", "INSTANCE", 120, 80, 110, 110, 0, "d");
 node("goal", "INSTANCE", 650, 500, 200, 210, 0, "e");
 node("watering-can", "INSTANCE", 300, 250, 180, 140, 0, "f");
@@ -136,7 +136,10 @@ const TRUTH = {
   // overhanging the shared vertex. Same surface either way — `segsFor` splits
   // polylines back into segments before collision.
   terrain: [[[10, 10], [40, 16], [70, 14]]],
-  solution: [[[15, 30], [50, 32]]],
+  // No `solution`: the frame's `band` layer is consumed and dropped, so a level
+  // arrives as geometry only. `undefined` is the assertion — a level that came
+  // back with a baked answer key would fail here.
+  solution: undefined,
   start: [12, 8],
   goal: [65, 50],
   cans: [[30, 25]],
@@ -156,6 +159,7 @@ const check = (key, got, want) => {
 console.log("native Figma clipboard -> GoombaLevel");
 for (const k of Object.keys(TRUTH)) check(k, level[k], TRUTH[k]);
 check("no stray props (_gauge ignored)", level.cans.length + level.bumpers.length + level.pops.length, 3);
+check("the `band` layer is warned about, not read", warnings.filter((w) => w.includes("`band`")).length, 1);
 if (warnings.length) console.log("  warnings:", warnings.join(" · "));
 // --- the wrapper, every way it might survive ------------------------------
 // A real Figma copy reached the page with the (figma) marker present but the

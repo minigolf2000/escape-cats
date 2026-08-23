@@ -197,10 +197,16 @@ findings — do not design from intuition, the sim disproves it reliably.
   the same snapshot, and a proctor **reset** takes it back with the rest of the
   room state. The level dots top-left ARE its button: once unlocked the dot
   strip wears a plate and a ▦, and tapping it opens the grid — every level as a
-  card with live bare/solution verdicts, and tapping a card jumps THE WHOLE
-  ROOM to that level (a real wire intent; teammates follow). `?debug` puts one
-  phone in the unlocked state without playing the game first — that is ALL it
-  does now, so don't add features behind it that a cleared room doesn't get.
+  card drawn from its own geometry (Goomba idle on her `start`, the plant on the
+  goal) with a live BARE verdict beside it, and tapping a card jumps THE WHOLE
+  ROOM to that level (a real wire intent; teammates follow). A card grades the
+  bare run only: it once graded a baked `solution` too, drawn into the Figma
+  frame as `band` layers and carried through the codec, and that answer key is
+  GONE from both readers — it had to be re-drawn by hand every time the geometry
+  moved and a stale one graded green. What solves a level is `verify.mjs`'s to
+  find, not the frame's to declare. `?debug` puts one phone in the unlocked
+  state without playing the game first — that is ALL it does now, so don't add
+  features behind it that a cleared room doesn't get.
   `?solo` runs the same grid on the in-page sim with no server. Testing on
   prod: `/proctor`, assign yourself to a team, open the game with `?debug`. Hex
   keeps `?debug&speed=N` for balance work.

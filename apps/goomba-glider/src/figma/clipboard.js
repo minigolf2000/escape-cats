@@ -220,11 +220,17 @@ export async function levelFromFigmaClipboard(html) {
   }
 
   const warnings = [];
-  const terrain = [], bands = [], cans = [], bumpers = [], cushions = [], pops = [];
+  const terrain = [], cans = [], bumpers = [], cushions = [], pops = [];
+  // `band` used to be a kind: a level carried its own answer key, drawn in
+  // Figma and shown back on the selector's cards. It is gone — a solution is
+  // the players' job and the bench's, never the frame's — but old frames still
+  // have the layers, so they are consumed and counted rather than silently
+  // read as something else.
+  let droppedBands = 0;
   let start = null, goal = null, name = null, maxSpeed = null;
 
-  // Children by parent, in sibling order, so `band` order matches the four
-  // player colours the way it does on the canvas.
+  // Children by parent, in sibling order, so repeated toys land in the order
+  // they sit on the canvas.
   const kids = new Map();
   for (const n of changes) {
     const p = n.parentIndex && gid(n.parentIndex.guid);
@@ -271,7 +277,8 @@ export async function levelFromFigmaClipboard(html) {
     if (!hit) return false;
     const { kind, num } = hit;
     const w = n.size?.x ?? 0, h = n.size?.y ?? 0;
-    if (kind === "t" || kind === "band") {
+    if (kind === "band") { droppedBands++; return true; }
+    if (kind === "t") {
       // A Figma line is a zero-height node: local (0,0)-(width,0) IS the
       // segment, so its stored geometry needs no correction of any kind.
       //
@@ -290,7 +297,7 @@ export async function levelFromFigmaClipboard(html) {
         return true;
       }
       const a = apply(m, 0, 0), b = apply(m, w, 0);
-      (kind === "t" ? terrain : bands).push([[W(a.x), W(a.y)], [W(b.x), W(b.y)]]);
+      terrain.push([[W(a.x), W(a.y)], [W(b.x), W(b.y)]]);
       return true;
     }
     const c = apply(m, w / 2, h / 2); // instance centre
@@ -326,7 +333,7 @@ export async function levelFromFigmaClipboard(html) {
     }
   }
 
-  const found = terrain.length + bands.length + cans.length + bumpers.length +
+  const found = terrain.length + cans.length + bumpers.length +
     cushions.length + pops.length + (start ? 1 : 0) + (goal ? 1 : 0);
   if (!found)
     throw new Error(
@@ -341,13 +348,16 @@ export async function levelFromFigmaClipboard(html) {
     name: name || "pasted from Figma",
     budget: 4,
     start, goal,
-    // One Figma Line per segment; chains of them are one surface. See stitch.js
-    // — bands are deliberately NOT stitched, since two bands meeting at a point
-    // are still two players' bands.
+    // One Figma Line per segment; chains of them are one surface. See stitch.js.
     terrain: stitchTerrain(terrain),
     cans, cushions, pops, bumpers,
-    solution: bands,
   };
+  if (droppedBands)
+    warnings.push(
+      `ignored ${droppedBands} \`band\` layer(s): a level no longer carries a ` +
+      `baked solution. Delete them from the frame — the bench and the players ` +
+      `find the bands now.`,
+    );
   if (maxSpeed) level.maxSpeed = maxSpeed;
   return { level, warnings };
 }

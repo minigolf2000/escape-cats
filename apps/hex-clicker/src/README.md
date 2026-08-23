@@ -33,6 +33,13 @@ poses. The heads are exported onto one shared 828x652 canvas registered by eye
 position, with the eyes painted out, so `#hexCat` can swap them freely under a
 single rigged pair of eyes.
 
+The DAY heads in `public/art/` are not the raw export: Hex is a black cat, and
+the day sheet draws her grey-brown (`#665B59`). `node tools/hex/blacken-coat.mjs`
+re-inks the coat to the night sheet's own `#0C0B0A` and leaves the drawn line and
+the inner-ear pink where they are, so her outline survives as a charcoal rim on
+black. Run it after any fresh day export — it is idempotent, and `--check` exits
+1 on a frame that is still grey.
+
 That rigged pair is three nested transform channels, one job each, because a
 blink, a glance and a dilation all happen at once and one transform can only say
 one of them: `#eyeLeft/#eyeRight` are the lids (scaleY), the `.look` groups

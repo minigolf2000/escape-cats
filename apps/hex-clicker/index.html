@@ -473,8 +473,8 @@
   #catWrap.zoomies #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
 
   /* THE HEAD, as drawn. One frame visible at a time, picked by data-pose:
-       day  -> resting daytime coat        s1..s3 -> the pet squash, in order
-       night-> the black night coat
+       day  -> resting coat, charcoal keyline   s1..s3 -> the pet squash, in order
+       night-> the same black coat, white keyline
      Visibility rather than display, because display:none on an <image> can drop
      it from the decode queue in some engines and the first pet of the game would
      then flash an empty head while the PNG loads. All five decode at boot and
@@ -513,23 +513,28 @@
     transform-box: fill-box; transform-origin: 50% 100%;
   }
 
-  /* THE COAT CHANGE. Day and night are two drawings of the same cat, one brown
-     and one black, and picking between them on a class flip cut from one to the
-     other in a single frame — at the one moment in the game where she is
-     supposed to be falling asleep. So the night coat CROSS-FADES in over the day
-     one, on the same 1.8s and the same curve as the camera move, and she darkens
-     into the night rather than being replaced by it.
+  /* THE COAT CHANGE. Day and night are two drawings of the same cat, and she is
+     BLACK in both — the day sheet shipped grey-brown and was re-inked to the
+     night drawing's own #0C0B0A (tools/hex/blacken-coat.mjs is that transform,
+     and why the day art no longer matches whatever the artist last exported).
+     What still differs between the two sheets is the KEYLINE — a charcoal rim by
+     day, white at night — and the silhouette it is drawn around, and picking
+     between them on a class flip cut from one to the other in a single frame, at
+     the one moment in the game where she is supposed to be falling asleep. So
+     the night coat CROSS-FADES in over the day one, on the same 1.8s and the
+     same curve as the camera move, and her line lifts into the night rather than
+     being swapped for another one.
      The day coat stays FULLY OPAQUE underneath for the whole fade instead of
      fading out in step with it: two half-transparent layers would let a quarter
      of the page through the middle of the blend and she would go briefly
      ghostly. It hides only after the fade, on a delayed visibility flip, because
      the night drawing's white keyline makes it ~2% wider than the day one —
-     left underneath at full opacity that 2% reads as a thin brown fringe all the
-     way round her.
+     left underneath at full opacity that 2% reads as a thin charcoal fringe all
+     the way round her.
      The delay is declared on the NIGHT rule alone, so the return leg (a dev jump
-     back to day) reads 0s off the day rule and she brightens immediately. Same
-     cascade rule as #dock's cutscene fade: the browser takes a transition from
-     the after-change style. */
+     back to day) reads 0s off the day rule and her day line snaps back at once.
+     Same cascade rule as #dock's cutscene fade: the browser takes a transition
+     from the after-change style. */
   #hexCat #headNight {
     visibility: visible; opacity: 0;
     transition: opacity 1.8s cubic-bezier(.22, .61, .36, 1);

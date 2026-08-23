@@ -136,13 +136,14 @@ event's level pack without ever leaving the game.
 copy a frame in Figma  →  \  →  Ctrl+V on the grid  →  src/figma/  →  the pack
 ```
 
-The readers live in `apps/goomba-glider/src/figma/`: `clipboard.js`, `svg.js`,
-`stitch.js`, and `paste.js` (which decides which of the three shapes arrived).
+The reader lives in `apps/goomba-glider/src/figma/`: `clipboard.js`, with
+`stitch.js` beside it and `paste.js` deciding which of the two shapes arrived
+(a Figma copy, or one of our own level links).
 
 **Just copy in Figma and paste here.** A plain `Ctrl+C` puts a `fig-kiwi`
-payload on the clipboard and `src/figma-clipboard.js` decodes it — that path
-carries the real layer names and each node's *stored* geometry, so it needs
-none of the SVG path's corrections, and the `anchor` dots are not even used.
+payload on the clipboard and `clipboard.js` decodes it — that path carries the
+real layer names and each node's *stored* geometry, so it needs no corrections
+of any kind, and the `anchor` dots are not used.
 The travelling Kiwi schema means `kiwi-schema` decodes the wire format
 generically; the only Figma-specific knowledge is which fields to read
 (`name`, `type`, `transform`, `size`, `parentIndex`).
@@ -169,50 +170,32 @@ asserts it reproduces `levels.ts[0]` exactly, segment for segment, up to that
 uniform translation. That fixture is the only test here made of real data, and
 it is the one that caught all four.
 
-Also accepted: drop an exported `.svg` file, paste that file's text, or paste
-one of our own level links.
+Also accepted: paste one of our own level links.
 `fixtures/sample-figma-clipboard.html` is a synthetic-but-valid copy you can
 feed the decoder without Figma open.
 
-**Export, do not "Copy as SVG".** Figma only writes layer names into SVG when the
-`id` attribute is switched on, and it is **off by default** — measured on the
-same frame, the exporter emits 111 ids with the flag and 3 without (just the
-gradient defs). "Copy as SVG" gives you no way to switch it on, so that route
-arrives with every name stripped, including the `L:` frame wrapper. Since names
-are the entire contract, the reader has nothing to read and says so.
+**Copy, do not "Copy as SVG".** They sit next to each other in the same menu and
+only one of them works. Figma writes layer names into SVG only when the `id`
+attribute is switched on, and it is **off by default** — measured on the same
+frame, the exporter emits 111 ids with the flag and 3 without (just the gradient
+defs). "Copy as SVG" gives you no way to switch it on, so that route arrives
+with every name stripped, including the `L:` frame wrapper, and since names are
+the entire contract there is nothing left to read. `paste.js` recognises that
+shape and says so by name rather than listing MIME types at you.
 
-Every level frame in the Figma file now carries an SVG export preset with the
-flag baked in, so **select the frame → Export → drop the file** is enough. If
-you are setting up a new frame by hand, the checkbox is under Export → the `…`
-beside the format → `Include "id" attribute`.
+There used to be a second reader for an exported `.svg` — the one route where
+the `id` flag *could* be ticked — and it is gone. It cost two corrections for
+undocumented exporter behaviour that could drift without ever throwing: every
+Line came out inset half a stroke at each end and offset half a stroke
+perpendicular (`unshiftStroke` undid it), and export dropped a component's
+transparent padding, so a bounding-box centre was not the anchor and the goal
+landed 1.5 units low — which is the entire reason the kit components carry
+`anchor` dots. Ctrl+C reproduces the file's own numbers and needs neither. One
+reader, one contract.
 
-The reader hands the SVG to the **browser's own SVG engine** rather than parsing
-geometry by hand — it parks the document off-screen and asks `getBBox()` and
-`getCTM()` for boxes and accumulated transforms — which is why nested groups,
-clip paths and rotations all come out right without any matrix code of ours.
-
-Two things it has to know about Figma's exporter, both measured against the file
-rather than assumed:
-
-- **Lines come out shifted by half their stroke.** Figma *stores* the first
-  terrain segment of level 1 exactly (`x 180, y 220, width 356.93`) but exports
-  it inset by half the stroke at each end and offset half a stroke
-  perpendicular. `unshiftStroke` undoes that, deriving the amount from the
-  `stroke-width` on the same element. Verified: the correction returns the two
-  segments of the smoke test to `(100,100)→(400,160)` and `(400,160)→(700,140)`
-  — and they still *share* the middle vertex, which is what proves it is exact
-  and not merely close.
-- **Export drops a component's transparent padding**, so a group's bounding-box
-  centre is *not* the anchor — the goal would land 1.5 units low. Every kit
-  component therefore carries a small `anchor` dot, and the reader takes its
-  position and its rotation (`atan2(b, a)` off its CTM, which is the game `deg`
-  directly). Miss the dot and the reader falls back to the bounding box **and
-  says so** in the banner.
-
-Because both of those lean on undocumented exporter behaviour, a pasted level is
-only ever *proposed*: nothing throws if Figma changes, the geometry just drifts
-half a stroke. That is exactly why the copy-link button stayed —
-`node verify.mjs --hash <link>` is the thing that actually proves a level.
+A pasted level is still only ever *proposed*, which is why the copy-link button
+stayed — `node verify.mjs --hash <link>` is the thing that actually proves a
+level.
 
 ## One Line per segment, one polyline per surface
 
@@ -228,8 +211,8 @@ past the joint — where a hand-authored polyline has one clean `lineJoin`. On a
 shallow chevron that reads as a slightly swollen corner; on the ~90° elbow in
 level 1 it reads as a blunt knee.
 
-`stitchTerrain` (`apps/goomba-glider/src/figma/stitch.js`, used by BOTH readers)
-chains segments back into polylines. It grows a chain from BOTH ends and accepts
+`stitchTerrain` (`apps/goomba-glider/src/figma/stitch.js`) chains segments back
+into polylines. It grows a chain from BOTH ends and accepts
 a segment drawn in either direction, because neither is information about the
 surface: which way a Line points is which way the designer dragged it.
 
@@ -269,8 +252,8 @@ invisible at play time. So a loose end within `WELD` of another polyline's body
 is pulled onto it. This does NOT chain the two — a T is not a chain.
 
 Terrain must still be a **Line**. A `t` that is a pen path or a rect is skipped
-with a warning by both readers, because `(0,0)-(width,0)` on one of those is the
-top edge of its bounding box — which can be nowhere near the shape drawn, and
+with a warning, because `(0,0)-(width,0)` on one of those is the top edge of its
+bounding box — which can be nowhere near the shape drawn, and
 would arrive as a plausible straight segment that silently changes whether the
 level is winnable. A named layer that goes missing is a bug someone can see; a
 wrong one is not.

@@ -1,14 +1,17 @@
 // Figma's NATIVE clipboard -> GoombaLevel. Plain Ctrl+C in Figma, Ctrl+V here.
 //
-// This is the good path, and the reason is that it reads the same numbers the
-// Figma file holds rather than the ones its SVG exporter prints:
+// The ONLY reader. There was an SVG one beside it once, and the reason this is
+// what is left is that it reads the same numbers the Figma file holds rather
+// than the ones an exporter prints:
 //
 //   * layer names always survive (SVG only carries them when the `id` attribute
-//     is switched on, and that flag is unreachable from Copy as SVG);
+//     is switched on, and that flag is unreachable from Copy as SVG — which is
+//     the copy people actually reach for, so that path was born broken);
 //   * a Line arrives as x 180, y 220, width 356.93 — its stored geometry — so
-//     the half-stroke correction figma-svg.js has to make simply does not exist;
+//     the exporter's half-stroke shift is not something to undo, it is not
+//     something that happened;
 //   * an instance carries its own transform and size, so its centre is exact
-//     and the `anchor` dots are not needed at all.
+//     and the `anchor` dots the SVG path needed are not needed at all.
 //
 // HOW THE PAYLOAD IS SHAPED
 // Ctrl+C puts HTML on the clipboard holding two comment-wrapped base64 blobs:
@@ -287,8 +290,7 @@ export async function levelFromFigmaClipboard(html) {
       // its bounding box, which can be nowhere near the shape the designer
       // drew — and it would arrive as a perfectly plausible straight segment
       // that silently changes whether the level is winnable. A named layer that
-      // goes missing is a bug someone can SEE; a wrong one is not. (Same rule
-      // as the SVG reader, which skips a `t` that is not a <line>.)
+      // goes missing is a bug someone can SEE; a wrong one is not.
       if (n.type !== "LINE" || Math.abs(h) > 0.01) {
         warnings.push(
           `"${n.name}" is a ${n.type || "shape"}, not a Line — skipped. ` +

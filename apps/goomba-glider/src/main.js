@@ -1878,21 +1878,51 @@ function frame(nowMs) {
 /** A scene: only the fields the draw functions actually read. Nothing here is
  * simulated, verified or playable — `bounds` is just the box to frame. */
 const GOAL_SCENE = {
-  terrain: [[[0, 20], [24, 19.5], [48, 18.8], [72, 18.2]]],
-  cans: [[20, 10], [36, 7.2], [52, 9]],
-  goal: [65, 17.8],
-  start: [7, 19.6 - R],
+  // The floor RUNS DOWNHILL, and steepens before it flattens out under the
+  // plant. It used to be a flat shelf, which left the picture with no engine in
+  // it: a cat at rest on a level floor with three cans strung above her says
+  // nothing about why she would ever move. Gravity is the only motor in this
+  // game — the players never push her, they only put things in her way — so the
+  // hill is the sentence, and every other mark here descends with it: the cans
+  // are strung 2.7-2.9 clear of the surface as it drops away from under her
+  // (she leaves the ground where it steepens and flies the rest), and each one
+  // sits LOWER than the last so the whole ride reads as one fall.
+  terrain: [[[0, 10.2], [24, 12.7], [48, 16.3], [72, 20.3]]],
+  cans: [[19, 7], [37, 9.4], [55, 12.4]],
+  goal: [65, 18.7],
+  startX: 7,   // ...her seat on the slope is derived from it, see seatOn
   // Framed off what the DRAW functions reach, not off the coordinates above:
   // the plant's glow is 8.8 wide of its goal and a can's is 4.6 of its middle,
-  // so a box drawn to the objects' own points clips both. Same reason the top
-  // is 2.5 and not 7.2.
-  bounds: { x0: -3, x1: 77, y0: 2.5, y1: 21.5 },
+  // so a box drawn to the objects' own points clips both. The canvas is far
+  // wider than it is tall, so the WIDTH is what sets the scale here and these
+  // two y's do nothing but centre the picture: their midpoint is the middle of
+  // everything drawn, from the top of the first can's glow (3.4) to the bottom
+  // of the plant's (23.6).
+  bounds: { x0: -3, x1: 77, y0: 4.0, y1: 23.1 },
 };
+
+/** Her seat on a scene's terrain at `x`: the surface angle there, and her
+ * centre R clear of it along the surface NORMAL — the same two numbers the sim
+ * keeps for a body resting on the ground, and the same trick the band picture
+ * plays off the band. Derived rather than written down, because a hand-typed
+ * start next to a slope is one edit away from leaving her hanging in the air. */
+function seatOn(poly, x) {
+  let i = 0;
+  while (i < poly.length - 2 && poly[i + 1][0] < x) i++;
+  const [ax, ay] = poly[i], [bx, by] = poly[i + 1];
+  const a = Math.atan2(by - ay, bx - ax);
+  const y = ay + (by - ay) * ((x - ax) / (bx - ax));
+  return { x: x + Math.sin(a) * R, y: y - Math.cos(a) * R, a };
+}
+const GOAL_SEAT = seatOn(GOAL_SCENE.terrain[0], GOAL_SCENE.startX);
+
 // Her ride, through the cans and into the plant. The one mark in either
 // picture that is not a game object, because "she goes THIS way, through those"
 // is the sentence the picture is replacing, and no arrangement of the objects
-// themselves says it.
-const RIDE_PATH = [[11.5, 16], ...GOAL_SCENE.cans, [58.5, 12.6]];
+// themselves says it. It only ever goes DOWN now — a dashed line that climbs
+// over the cans and drops onto the plant is a picture of a throw, and nothing
+// here throws her.
+const RIDE_PATH = [[11.5, 8.6], ...GOAL_SCENE.cans, [60, 14.6]];
 
 const BAND_SCENE = {
   terrain: [[[0, 9], [18, 9.6]], [[48, 17], [72, 16.4]]],
@@ -1956,8 +1986,8 @@ function drawRide(path) {
   ctx.restore();
 }
 
-/** Picture one — the goal. She is idle on her pad at the left, the cans are
- * strung along the ride, and the plant is drawn READY (st.gotN = every can):
+/** Picture one — the goal. She is idle at the TOP of the slope, the cans are
+ * strung down it, and the plant is drawn READY (st.gotN = every can):
  * this is the ending, not a snapshot mid-level, so it wears the face the
  * ending has. */
 function drawGoalScene() {
@@ -1965,7 +1995,7 @@ function drawGoalScene() {
   drawRide(RIDE_PATH);
   GOAL_SCENE.cans.forEach((c, i) => drawCan(c[0], c[1], false, i));
   drawGoalPlant(GOAL_SCENE, { gotN: GOAL_SCENE.cans.length });
-  drawGoomba(GOAL_SCENE.start[0], GOAL_SCENE.start[1], 0, 1, true, false, true);
+  drawGoomba(GOAL_SEAT.x, GOAL_SEAT.y, GOAL_SEAT.a, 1, true, false, true);
 }
 
 /** Picture two — the bands. A gap she cannot cross, one band laid across it

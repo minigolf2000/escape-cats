@@ -103,9 +103,13 @@
            border: 1.5px solid rgba(201,189,240,.35); }
   #hud.lab.editing #figma { display: block; visibility: visible; }
   /* The splash a cleared room lands on (phase "splash", see goomba/sim.ts):
-     a blank screen whose ONLY control is the level selector the clear just
-     unlocked — so the strip stays up and the rest of the HUD goes. Same
-     visibility idiom as .lab above, so nothing here moves any layout; the
+     the congratulations screen, whose ONLY control is the level selector the
+     clear just unlocked — so the strip stays up and the rest of the HUD goes.
+     The congratulations themselves are drawn on the CANVAS (drawSplashWords in
+     main.js), with the rest of that screen, because they sit over the art and
+     have to be measured against the picture rather than against this layout —
+     and because a tap anywhere on that canvas is the second way into the grid.
+     Same visibility idiom as .lab above, so nothing here moves any layout; the
      :not(.lab) keeps the grid a whole screen when it opens from here. */
   #hud.splash > * { visibility: hidden; }
   #hud.splash:not(.lab) #top, #hud.splash:not(.lab) #lab { visibility: visible; }

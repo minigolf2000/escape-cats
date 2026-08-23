@@ -26,9 +26,12 @@ findings — do not design from intuition, the sim disproves it reliably.
   LAPTOP gets a file browser: a click SELECTS a card, a double-click plays it
   (hand-rolled off two presses, because touchstart is preventDefault'd here and
   a touchscreen laptop never gets a synthesised `dblclick`), **drag** reorders
-  with a bar in the gap the drop lands in, and each card carries `⧉` copy — the
-  level onto the clipboard as the same link `verify.mjs --hash` grades, which
-  is also how you duplicate one — and `⌫` delete. `◀ ▶` are gone with the drag.
+  with a bar in the gap the drop lands in, and each card carries `⌫` delete —
+  the only per-card button left. `◀ ▶` went with the drag, and `⧉` copy went
+  too: it put the level on the clipboard as a link, which covered duplicating,
+  sending and grading, and Figma now owns the first two (the frame is the
+  source) while grading a live event reads the pack off the lobby instead —
+  `seed.mjs --pull` prints it, `verify.mjs --pack` grades all of it at once.
   **Ctrl+V lands wherever you were looking.** On the grid that is the
   SELECTION: a card replaces that level, the trailing dashed slot appends, and
   there is no separate "aim the paste" button any more because a selection

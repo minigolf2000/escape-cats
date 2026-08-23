@@ -183,8 +183,8 @@ let editing = false;
  *
  * Both clauses are under DESKTOP, the empty one included: the dead end it
  * rescues is a dead end for the machine that can actually paste, and a phone
- * handed a `⧉ ◀ ▶ ⌫` row it has no keyboard to follow up on is not rescued
- * from anything — it is just a menu with buttons that lead nowhere.
+ * handed a `⌫` it has no keyboard to follow up on is not rescued from
+ * anything — it is just a menu with a button that leads nowhere.
  */
 const editorOn = () => DESKTOP() && (editing || GOOMBA_LEVELS.length === 0);
 
@@ -193,7 +193,7 @@ const editorOn = () => DESKTOP() && (editing || GOOMBA_LEVELS.length === 0);
 // selection is what a paste lands on: an index REPLACES that level, `null`
 // means the trailing dashed slot and APPENDS. It used to take a button (`⧉`)
 // to aim a paste; a selection is the same aim with no button and no second
-// idea of "current" on the screen — which is why `⧉` is now a real copy.
+// idea of "current" on the screen. That button is gone entirely now.
 let selected = null;
 /** A card being dragged to a new slot. `gap` is an insertion point (0..n), not
  * a card index — "between these two" is what a drop actually means. */
@@ -1276,21 +1276,6 @@ function labJumpTo(i) {
 function labButtonHit(b) {
   const lv = GOOMBA_LEVELS[b.i];
   switch (b.kind) {
-    // COPY — the level, onto the clipboard, as the link it already knows how
-    // to be. That is the same string `verify.mjs --hash` grades and the same
-    // string this grid's own Ctrl+V reads, so one button covers "grade this",
-    // "send this to someone" and "duplicate this" (copy, select the dashed
-    // slot, paste) without inventing a second format for any of them.
-    case "copy": {
-      if (!lv) return;
-      const write = navigator.clipboard && navigator.clipboard.writeText(encodeLevel(lv));
-      if (!write) return editSay("this browser won't hand over the clipboard here (needs https)");
-      write.then(
-        () => editSay(`copied level ${b.i + 1} — Ctrl+V it onto a card, or grade it with verify.mjs --hash`),
-        () => editSay("the browser refused the clipboard — click the page once, then try again"),
-      );
-      return;
-    }
     // DELETE — behind a confirm, because it is the one control here that
     // destroys a level rather than moving it, and the pack is the only copy.
     case "del":
@@ -1411,14 +1396,18 @@ function drawLab() {
   /** The per-card editor controls. Drawn last so they sit over the level, and
    * hit-tested BEFORE the card, so pressing ⌫ never also selects it.
    *
-   * Two buttons, not four: ◀ ▶ went to the drag, and `⧉` stopped meaning "aim
-   * the next paste here" (the selection says that now) and became a real copy.
-   * Both of the survivors act on the card they sit on whatever is selected —
-   * a button on a card is a sentence about that card. */
+   * ONE button, down from four: ◀ ▶ went to the drag, and `⧉` copy went too.
+   * Copy existed to get a level back OUT as a link — to duplicate it, to send
+   * it, or to grade it with `verify.mjs --hash`. Duplicating and sending are
+   * Figma's now (the frame is the source, and Ctrl+C there is the way in), and
+   * grading a live event reads its pack straight off the lobby: `seed.mjs
+   * --pull` prints it and `verify.mjs --pack` grades the lot, which beats
+   * copying one card at a time. It acts on the card it sits on whatever is
+   * selected — a button on a card is a sentence about that card. */
   const cardButtons = (i, x, y) => {
     if (!editorOn()) return;
     const B = 22, G = 4;
-    const kinds = [["copy", "⧉"], ["del", "⌫"]];
+    const kinds = [["del", "⌫"]];
     let bx = x + cw - 8 - (B * kinds.length + G * (kinds.length - 1));
     for (const [kind, glyph] of kinds) {
       const by = y + 8;

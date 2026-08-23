@@ -198,9 +198,11 @@ landed 1.5 units low — which is the entire reason the kit components carry
 `anchor` dots. Ctrl+C reproduces the file's own numbers and needs neither. One
 reader, one contract.
 
-A pasted level is still only ever *proposed*, which is why the copy-link button
-stayed — `node verify.mjs --hash <link>` is the thing that actually proves a
-level.
+A pasted level is still only ever *proposed*. What proves one is the bench, and
+it reads the event's own pack rather than needing anything copied out of the
+game: `node seed.mjs --pull` prints what the event is running and `node
+verify.mjs --pack <file>` grades all of it. (`verify.mjs --hash <link>` still
+takes a single link, for a level that never reached a pack.)
 
 ## One Line per segment, one polyline per surface
 

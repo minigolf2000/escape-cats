@@ -2050,7 +2050,11 @@ function drawTitleScene(b) {
   // hands drawGoomba off a band's normal.
   const k = 0.26, amp = 0.4;
   const y = b.y1 - R + Math.sin(x * k) * amp;
-  drawGoomba(x, y, Math.atan(amp * k * Math.cos(x * k)), 1, false, true, false);
+  // GROUNDED, not airborne: she is riding the words, the way she rides a band
+  // in the picture below. `airborne` is not a pose here, it is a FACE — it
+  // blows her pupils up 1.5x, which is the game's tell for being off the
+  // ground with nothing under her, and a title is no place to wear it.
+  drawGoomba(x, y, Math.atan(amp * k * Math.cos(x * k)), 1, true, false, false);
 }
 
 function drawSheet() {

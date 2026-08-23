@@ -2055,7 +2055,7 @@ function boot() {
   // together, and a ?debug phone differs only in getting at the selector
   // before the team has earned it.
   const name = localStorage.getItem(NAME_KEY) ?? "Cat";
-  gateStatusEl.textContent = "Waiting for the proctor…";
+  gateStatusEl.textContent = "Loading…";
   watchTeam({
     name,
     onTeam: (team, lobbyName) => {

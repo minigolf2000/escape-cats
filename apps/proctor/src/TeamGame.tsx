@@ -96,11 +96,19 @@ function GameBlock({
 function goombaStats(s: GoombaSnapshot | null, names: string[]): StatLine[] {
   if (!s) return [{ text: "…" }, { text: "…/… levels" }, { text: "…" }];
   const total = s.levelCount;
+  // The icon alone: four states, four glyphs, and the word beside them was
+  // only ever restating the picture. Kept as the line's `title` so a hover
+  // still says which is which.
   const phase =
-    s.phase === "run" ? "🛹 riding"
-    : s.phase === "win" ? "🎉 cleared"
-    : s.phase === "splash" ? "🏁 splash" // done with the game, on the curtain call
-    : "✏️ placing";
+    s.phase === "run" ? "🛹"
+    : s.phase === "win" ? "🎉"
+    : s.phase === "splash" ? "🏁" // done with the game, on the curtain call
+    : "✏️";
+  const phaseWord =
+    s.phase === "run" ? "riding"
+    : s.phase === "win" ? "cleared"
+    : s.phase === "splash" ? "splash"
+    : "placing";
   const done = s.completed.filter(Boolean).length;
   const finishedMs = s.finishedAt ? s.finishedAt - s.startedAt : null;
   // An event with no pack loaded yet is a real state, not an error; so is a
@@ -114,14 +122,14 @@ function goombaStats(s: GoombaSnapshot | null, names: string[]): StatLine[] {
       ? levelLabel(s.level, known)
       : total === 0 ? "no levels loaded" : `level ${s.level + 1}`;
   return [
-    { text: `${phase} · ${name}` },
+    { text: `${phase} ${name}`, title: `${phaseWord} · ${name}` },
     s.finishedAt
       ? {
           text: `✅ all ${total} levels${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,
           className: "codeword",
         }
       : { text: `${done}/${total} levels done` },
-    { text: `${s.bands.length}/4 bands · ${s.fails} fails this level` },
+    { text: `${s.bands.length}/4 bands` },
   ];
 }
 

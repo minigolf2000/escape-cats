@@ -147,11 +147,10 @@ const LAB_JUMP_MS = 1500;
 function setLab(open) {
   labOpen = open;
   hudEl.classList.toggle("lab", open);
-  // Everything the grid was in the middle of goes with it. The confirm matters
-  // most: it owns the keyboard while it is up, and a latched card tap can pull
-  // the grid out from under one (tap a card, press ⌫ inside the round trip),
-  // which would leave an invisible dialog swallowing Space back in the game.
-  if (!open) { clearLabJump(); confirmBox = null; labDrag = null; }
+  // Everything the grid was in the middle of goes with it: a latched card tap
+  // can pull the grid out from under a drag, and a drag with no cards under it
+  // has nothing left to mean.
+  if (!open) { clearLabJump(); labDrag = null; }
 }
 function clearLabJump() {
   if (labJump) clearTimeout(labJump.timer);
@@ -206,16 +205,35 @@ let labDownHandled = false;
 let lastLabClick = { i: -1, t: 0 };
 const DBL_MS = 420;
 /**
- * The one modal on the grid: `{ title, body, yes, onYes, btns }`, drawn on the
- * canvas like everything else here. It guards the two edits that cannot be
- * taken back — a delete, and a paste over a level it does not look like.
+ * The one question this file asks, and it is the BROWSER's. It guards the two
+ * edits that cannot be taken back — a delete, and a paste over a level it does
+ * not look like.
+ *
+ * It used to be drawn on the canvas, with hand-laid buttons, its own Enter/Esc
+ * branch in the keydown handler and its own swallow-everything branch in the
+ * grid's hit test. That was a dialog only the grid could ask, and a paste now
+ * lands while the grid is SHUT (see the paste handler) — so the question has
+ * to be askable when there is no grid to draw it on. `confirm()` is that, for
+ * free, and it blocks: the answer is back before this returns, so nothing here
+ * has to hold a callback open across frames.
  */
-let confirmBox = null;
-function askConfirm(title, body, yes, onYes) {
-  confirmBox = { title, body, yes, onYes, btns: [] };
+function askConfirm(title, body, onYes) {
+  if (window.confirm(body ? `${title}\n\n${body}` : title)) onYes();
 }
 let editMsg = "", editMsgT = 0;
 function editSay(msg) { editMsg = msg; editMsgT = 4; }
+/**
+ * Everything a paste has to say. `editSay` is the line under the grid's title,
+ * which is no use to a paste that landed while the grid was shut — so when it
+ * is, the game's own toast carries the same words. Without it, a paste over
+ * the level you are playing is silent unless the geometry happens to move
+ * somewhere you were looking, and "did that work?" is the one thing this loop
+ * must never make you guess.
+ */
+function pasteSay(msg) {
+  editSay(msg);
+  if (!labOpen) toast(msg, 2600);
+}
 
 /** Re-frame the camera on the current level. Called when the level changes and
  * whenever the PACK changes under us, since a new level has new bounds. */
@@ -235,10 +253,9 @@ function refit() {
 function onPack(pack) {
   applyPack(pack);
   if (selected !== null && selected >= GOOMBA_LEVELS.length) selected = null;
-  // A confirm and a drag both name a SLOT, and the pack just renumbered its
-  // slots — including, quite possibly, by the very edit they were about to
-  // make. Neither can be re-aimed honestly, so both are dropped.
-  confirmBox = null;
+  // A drag names a SLOT, and the pack just renumbered its slots — including,
+  // quite possibly, by the very edit it was about to make. It cannot be
+  // re-aimed honestly, so it is dropped.
   labDrag = null;
   anim = null; // a replay of geometry that may no longer exist
   if (snap) { refit(); syncHud(); }
@@ -466,17 +483,6 @@ labEl.onclick = () => {
   setLab(true);
 };
 window.addEventListener("keydown", (e) => {
-  // A confirm is modal, so it takes the whole keyboard until it is answered —
-  // otherwise `\` would close the editor out from under a question about a
-  // level, and Space would launch a run behind it.
-  if (confirmBox) {
-    if (e.key === "Escape") { e.preventDefault(); confirmBox = null; }
-    else if (e.key === "Enter") {
-      e.preventDefault();
-      const c = confirmBox; confirmBox = null; c.onYes();
-    }
-    return;
-  }
   if (e.key === " ") { e.preventDefault(); playBtn.onclick(); }
   // `\` — the whole editor, on one key. Swapping between the game and the
   // level pack has to be instant or nobody uses it mid-party: this is the same
@@ -495,44 +501,62 @@ window.addEventListener("keydown", (e) => {
 });
 
 // ---------- pasting a level in ----------
-// Ctrl+V anywhere on the page. It opens the editor if it was shut, because a
-// paste is unambiguous about what you meant and making someone press `\` first
-// would be a rule with no purpose.
+// Ctrl+V anywhere on the page. Where it LANDS is the one question, and the
+// answer is simply which screen you were looking at:
 //
-// It lands on the SELECTION: a card replaces that level, the trailing dashed
-// slot appends. That is the whole reason the laptop grid grew a selection —
-// "which level does this overwrite" is a question about a place on the screen,
-// and now the answer is the place that is lit.
+//   · the GRID is up — the selection. A card replaces that level, the trailing
+//     dashed slot appends. That is the whole reason the laptop grid grew a
+//     selection: "which level does this overwrite" is a question about a place
+//     on the screen, and now the answer is the place that is lit.
+//   · you are PLAYING — the level in front of you. Pasting over the level you
+//     are looking at is the editor's tightest loop (tweak the frame in Figma,
+//     Ctrl+C, Ctrl+V, watch the same level redraw under you), and it used to
+//     cost a bounce out to the grid and back for no reason: the paste already
+//     said which level it meant.
+//
+// The only paste that still opens the grid is the one with nowhere to land: an
+// EMPTY pack has no level in front of you and no card to select, so the first
+// one in is an append, and the grid is where you watch it arrive.
 window.addEventListener("paste", (e) => {
   // Laptop only, like every other editing gesture. A phone reaching here would
   // have had to grow a Ctrl+V first, and if one ever does, it gets the grid the
   // rest of this file gives it — not a hidden second way to rewrite the pack.
   if (!DESKTOP()) return;
   e.preventDefault();
-  // Always `editing`, not just when the grid was shut: pasting IS editing, and
-  // the first paste into an EMPTY pack used to hand the controls back the
-  // moment it succeeded — editorOn() had been true only because there were no
-  // levels, so landing one turned the buttons off under the person using them.
-  editing = true;
-  if (!labOpen) setLab(true);
-  syncHud();
-  editSay("reading the clipboard…");
+  // Read the screen NOW, not when the clipboard resolves: this is about what
+  // the person was looking at when they pressed the key.
+  const onGrid = labOpen;
+  const toGrid = !onGrid && GOOMBA_LEVELS.length === 0;
+  if (onGrid || toGrid) {
+    // Always `editing`, not just when the grid was shut: pasting IS editing,
+    // and the first paste into an EMPTY pack used to hand the controls back
+    // the moment it succeeded — editorOn() had been true only because there
+    // were no levels, so landing one turned the buttons off under the person
+    // using them.
+    editing = true;
+    if (!labOpen) { selected = null; setLab(true); }
+    syncHud();
+  }
+  pasteSay("reading the clipboard…");
   levelFromPaste(e.clipboardData).then(
     ({ level: lv, warnings }) => {
-      const target = selected;
+      // `selected` on the grid (null = the dashed slot, so append); playing,
+      // the level on screen — which is never an append, and never null, since
+      // an empty pack took the grid branch above.
+      const target = onGrid || toGrid ? selected : level();
       if (target === null && GOOMBA_LEVELS.length >= PACK_MAX) {
-        return editSay(`the pack is full at ${PACK_MAX} levels`);
+        return pasteSay(`the pack is full at ${PACK_MAX} levels`);
       }
       const land = () => {
         // Re-read the pack on the way in: a confirm is answered by a person,
         // and a teammate's edit can land on this socket while they think.
         if (target !== null && target >= GOOMBA_LEVELS.length)
-          return editSay("that slot is gone — select another card and paste again");
+          return pasteSay("that slot is gone — select another card and paste again");
         // The pack is a list of level LINKS, so a paste becomes one here and
         // the authority stores exactly what it validated.
         transport.send({ type: "packSet", index: target, hash: encodeLevel(lv) });
         const where = target === null ? "as a new level" : `over level ${target + 1}`;
-        editSay(warnings.length
+        pasteSay(warnings.length
           ? `${lv.name} ${where} · ${warnings.join(" · ")}`
           : `${lv.name} — in, ${where}`);
       };
@@ -542,17 +566,18 @@ window.addEventListener("paste", (e) => {
       // to ask would tax the loop the editor exists for (tweak in Figma, copy,
       // paste, re-read the verdict) on every single lap. A DIFFERENT name is a
       // different level, and "I meant to add this, not to overwrite level 3"
-      // is worth one click to catch — nothing on this grid is undoable.
+      // is worth one click to catch — nothing on this grid is undoable. That
+      // holds just as much when the paste landed on the level you are playing:
+      // same rule, same question, no grid required to ask it.
       if (over && over.name !== lv.name)
         askConfirm(
           `Replace level ${target + 1}?`,
           `“${over.name}” → “${lv.name}”`,
-          "Replace",
           land,
         );
       else land();
     },
-    (err) => editSay(String(err.message || err)),
+    (err) => pasteSay(String(err.message || err)),
   );
 });
 
@@ -1291,7 +1316,7 @@ function labButtonHit(b) {
     // DELETE — behind a confirm, because it is the one control here that
     // destroys a level rather than moving it, and the pack is the only copy.
     case "del":
-      askConfirm(`Delete level ${b.i + 1}?`, lv ? lv.name : "", "Delete", () => {
+      askConfirm(`Delete level ${b.i + 1}?`, lv ? lv.name : "", () => {
         // Follow the selection across the hole this leaves, or it silently
         // re-aims at whatever slides up into the slot.
         if (selected === b.i) selected = null;
@@ -1314,20 +1339,6 @@ function labButtonHit(b) {
 function labPointerDown(px, py) {
   labDownHandled = false;
   labDrag = null;
-  // A confirm is modal: while one is up it is the only thing on the grid that
-  // can be clicked, and a press anywhere else is swallowed rather than acted
-  // on — a question about deleting a level must not be answered by accident.
-  if (confirmBox) {
-    labDownHandled = true;
-    for (const b of confirmBox.btns) {
-      if (px < b.x || px > b.x + b.w || py < b.y || py > b.y + b.h) continue;
-      const c = confirmBox;
-      confirmBox = null;
-      if (b.yes) c.onYes();
-      return;
-    }
-    return;
-  }
   // Editor buttons next. They sit ON the cards, so hit-testing them after the
   // card would make ⌫ ask about a level AND select it under the question.
   const btn = labButtonAt(px, py);
@@ -1562,51 +1573,6 @@ function drawLab() {
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   }
   Object.assign(cam, savedCam);
-  drawConfirm();
-}
-
-/**
- * The confirm dialog. Canvas, like the rest of this screen — a native
- * `confirm()` would freeze the frame loop behind it and look nothing like the
- * grid it is asking about. Its buttons are laid out here, at draw time, and
- * `labPointerDown` reads the rects back; Enter and Esc answer it too, so it is
- * never the one thing on this screen that needs the mouse.
- */
-function drawConfirm() {
-  const c = confirmBox;
-  if (!c) return;
-  ctx.fillStyle = "rgba(8,3,20,0.72)"; ctx.fillRect(0, 0, W, H);
-  const bw = Math.min(380, W - 48), bh = 172;
-  const x = (W - bw) / 2, y = (H - bh) / 2;
-  ctx.beginPath(); ctx.roundRect(x, y, bw, bh, 16);
-  ctx.fillStyle = "#1b0f38"; ctx.fill();
-  ctx.strokeStyle = "rgba(201,189,240,0.45)"; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-  ctx.font = "700 16px ui-rounded, system-ui, sans-serif";
-  ctx.fillStyle = "#f2ecff";
-  ctx.fillText(fitText(c.title, bw - 32), x + bw / 2, y + 38);
-  ctx.font = "12px ui-rounded, system-ui, sans-serif";
-  ctx.fillStyle = "#c9bdf0";
-  ctx.fillText(fitText(c.body, bw - 32), x + bw / 2, y + 62);
-  ctx.font = "10px ui-rounded, system-ui, sans-serif";
-  ctx.fillStyle = "#8a80b0";
-  ctx.fillText("Enter confirms · Esc cancels", x + bw / 2, y + 84);
-  const btnW = (bw - 48) / 2, btnH = 38, by = y + bh - 22 - btnH;
-  c.btns = [
-    { yes: false, label: "Cancel", x: x + 16, y: by, w: btnW, h: btnH },
-    { yes: true, label: c.yes, x: x + bw - 16 - btnW, y: by, w: btnW, h: btnH },
-  ];
-  ctx.textBaseline = "middle";
-  for (const b of c.btns) {
-    ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 10);
-    ctx.fillStyle = b.yes ? "#ff5db1" : "rgba(255,255,255,0.08)"; ctx.fill();
-    ctx.strokeStyle = b.yes ? "#ff5db1" : "rgba(201,189,240,0.35)";
-    ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = b.yes ? "#1b0f38" : "#f2ecff";
-    ctx.font = "700 14px ui-rounded, system-ui, sans-serif";
-    ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2);
-  }
-  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 }
 
 // ---------- the splash (phase "splash") ----------

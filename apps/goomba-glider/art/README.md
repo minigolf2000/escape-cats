@@ -5,8 +5,12 @@ Design copies of the two props, for Figma and anything else that wants vectors.
 | file | what |
 | --- | --- |
 | `watering-can.svg` | the collectible, mid-pour, with its three drips |
-| `spider-plant-thirsty.svg` | the goal plant with cans still outstanding — blades barely lifted, sagging, dulled |
-| `spider-plant-watered.svg` | the goal plant with the last can in — the fountain arched up and bright |
+| `spider-plant-thirsty.svg` | the goal plant with cans outstanding — blades sagging, dulled |
+| `spider-plant-watered.svg` | the goal plant with the last can in — fountain arched up, bright |
+| `goomba.svg` | Goomba herself, idle |
+| `party-popper.svg` | the popper, with its aim arrow |
+| `bumper.svg` | the piñata bumper |
+| `cushion.svg` | a cushion segment |
 
 **The game does not load these.** `apps/goomba-glider/src/main.js` draws both
 props procedurally on canvas (`drawCan`, `drawGoalPlant`), and that is still

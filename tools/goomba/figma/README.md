@@ -6,7 +6,7 @@ Figma, and the naming contract that makes them mean something.
 
 ```sh
 node make-pack.mjs        # -> figma-pack.svg     (the kit you design with)
-node levels-to-svg.mjs    # -> figma-levels.svg   (every shipped level)
+node levels-to-svg.mjs    # -> figma-levels.svg   (a pack, one artboard per level)
 node levels-to-svg.mjs 1 3   # just those two
 ```
 

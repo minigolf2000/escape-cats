@@ -360,7 +360,6 @@ export async function levelFromFigmaClipboard(html) {
 
   const level = {
     name: name || "pasted from Figma",
-    budget: 4,
     start, goal,
     ...(frame ? { frame } : {}),
     // One Figma Line per segment; chains of them are one surface. See stitch.js.

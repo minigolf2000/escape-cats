@@ -2,7 +2,7 @@
 
 Companion notes for [`qr-studio.html`](./qr-studio.html) — how the
 Disney-poster style of QR art actually works, and what the studio does about
-it. The committed [`cat-qr.png`](../prototypes/cat-qr.png) / [`cat-qr.svg`](../prototypes/cat-qr.svg)
+it. The committed [`cat-qr.png`](qr-art/cat-qr.png) / [`cat-qr.svg`](qr-art/cat-qr.svg)
 were generated with the studio's cat preset (v6, EC level L, flip budget 50%,
 hard cap 80%, scheme+host case play, 64 restarts) and encode
 `https://github.com/minigolf2000/escape-cats` (private repo — scanners who
@@ -101,7 +101,7 @@ don't reliably open as URLs on all scanners.
 
 The posters' second trick is compositional: the character's ears/hat live
 *outside* the symbol, so the code itself only has to carry the face.
-[`hex-poster.svg`](../prototypes/hex-poster.svg) / [`.png`](../prototypes/hex-poster.png) do this for
+[`hex-poster.svg`](qr-art/hex-poster.svg) / [`.png`](qr-art/hex-poster.png) do this for
 Hex: green field, white rounded card (its padding doubles as the quiet zone),
 black ear triangles tucked behind the card, white whisker strokes on the
 field, and inside the code just eyes/nose/muzzle. Two color notes that keep
@@ -126,13 +126,13 @@ exactly the part that makes these read as *drawn*.
 
 ## Which art styles survive module resolution
 
-Two more source artworks are baked in as presets ([`ink-cat.png`](../prototypes/ink-cat.png),
-[`tabby-cat.png`](../prototypes/tabby-cat.png), head-cropped; loaded through the studio's
+Two more source artworks are baked in as presets ([`ink-cat.png`](qr-art/ink-cat.png),
+[`tabby-cat.png`](qr-art/tabby-cat.png), head-cropped; loaded through the studio's
 **line art** mode — tri-tone with despeckling and whisker-stroke rescue).
 What they taught us:
 
 - **Bold ink/flat art translates beautifully.** The scratchy ink cat reads
-  at v6/41px ([`ink-cat-qr.png`](../prototypes/ink-cat-qr.png)) — big black masses, white
+  at v6/41px ([`ink-cat-qr.png`](qr-art/ink-cat-qr.png)) — big black masses, white
   eye shapes, and a style whose own chaos absorbs solver misses as
   "scratchiness".
 - **Engraving/hatching art doesn't.** The tabby's identity lives in fine

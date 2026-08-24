@@ -319,7 +319,6 @@ const level = () => (snap ? snap.level : 0);
  */
 const NO_LEVELS = initLevel({
   name: "no levels yet — press \ and paste one from Figma",
-  budget: 4,
   start: [20, 20],
   goal: [80, 20],
   terrain: [[[0, 30], [100, 30]]],

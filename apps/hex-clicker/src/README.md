@@ -43,20 +43,15 @@ it against the rim instead of through it. (There are four `.look` groups, not
 two: the sleeping lash arc drifts with the same look but is drawn wider than the
 socket, so it has to sit outside the clip.)
 
-One socket ships, and there is no longer a choice: the artist's outline filled
-edge to edge, with the pupil inked in the drawing's own line colour. The hollow
-ring she drew (coat showing through, yellow pupil inside) shipped alongside it
-behind `?eyes=` for a while and lost — filled is far more legible at the size
-Hex renders at on a phone, and the dark pupil can dilate right out to a saucer
-where the ring's yellow-on-yellow one merged into a smear if it grew. Don't
-reintroduce the switch; see the eye blocks in `index.html` and `cat.js`.
+One socket ships: the artist's outline filled edge to edge, pupil in the
+drawing's own line colour. The hollow ring she drew was tried against it and
+lost — filled is far more legible at phone size, and a dark pupil can dilate to
+a saucer where a yellow-on-yellow ring smeared. Don't reintroduce the switch.
 
 Game RULES live in `packages/shared/src/hex/` (data/rules/sim) — never here.
 The markup + CSS are in `index.html`, ported verbatim from the prototype plus
 the multiplayer shell (join gate, team strip, reconnect toast) at the bottom.
 
 Debug: `window.__hex` exposes the mirror + `send()` for console/Playwright
-driving. `?debug&speed=20` fast-forwards a debug run. The 🛠 panel's `spawn
-golden` puts a golden mouse up immediately (day only — greyed out at night,
-where a golden pays nothing), and its `eyes` row flips the socket variant in
-place so the two can be judged against each other without a reload.
+driving. `?debug&speed=20` fast-forwards a run. The 🛠 panel's `spawn golden`
+puts a golden mouse up immediately (day only — at night a golden pays nothing).

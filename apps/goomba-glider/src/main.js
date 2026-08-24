@@ -16,6 +16,7 @@
 //   input.js     three ways to lay a band, one way to take it back
 //   sheet.js     the how-to-play pictures, which are also the join gate
 
+import "./styles.css";
 import {
   GOOMBA_LEVELS,
   MAX_BANDS,

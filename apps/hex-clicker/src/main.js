@@ -4,6 +4,7 @@
 // its own buy path — so the night cutscene, the neon flip and the shop close
 // play on every phone in the room, whoever pressed the button.
 
+import "./styles.css";
 import { BUILDINGS, UPGRADES, costOf, isRevealed } from "@escape-cats/shared";
 import {
   buffEl,

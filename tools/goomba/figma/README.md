@@ -52,7 +52,7 @@ every animation term zeroed (no bob, no pulse, no drip phase, no dash march,
 is exactly this kit's scale, so an export drops straight in.
 
 That file's own warning still applies, and now applies to four more props:
-**the game does not load these.** `main.js` draws every prop procedurally, so
+**the game does not load these.** `render.js` draws every prop procedurally, so
 retuning art there means re-running the export and re-importing here.
 
 ```sh
@@ -230,20 +230,18 @@ with every name stripped, including the `L:` frame wrapper, and since names are
 the entire contract there is nothing left to read. `paste.js` recognises that
 shape and says so by name rather than listing MIME types at you.
 
-There used to be a second reader for an exported `.svg` — the one route where
-the `id` flag *could* be ticked — and it is gone. It cost two corrections for
-undocumented exporter behaviour that could drift without ever throwing: every
-Line came out inset half a stroke at each end and offset half a stroke
-perpendicular (`unshiftStroke` undid it), and export dropped a component's
-transparent padding, so a bounding-box centre was not the anchor and the goal
-landed 1.5 units low — which is the entire reason the kit components carry
-`anchor` dots. Ctrl+C reproduces the file's own numbers and needs neither. One
+**Don't add a second reader for exported `.svg`.** One existed and is gone: it
+needed two corrections for undocumented exporter behaviour that could drift
+without ever throwing — every Line came out inset half a stroke at each end and
+offset half a stroke perpendicular, and export dropped a component's transparent
+padding, so a bounding-box centre was not the anchor and the goal landed 1.5
+units low. (That second one is the entire reason the kit components carry
+`anchor` dots.) Ctrl+C reproduces the file's own numbers and needs neither. One
 reader, one contract.
 
-A pasted level is *live*, for everyone, a second later — which is the whole
-point and also the only thing that judges it. There was a bench here that graded
-a level by simulation before anyone played it, and it is deleted. `node seed.mjs
---pull` prints what an event is currently running.
+A pasted level is *live*, for everyone, a second later — which is the whole point
+and also the only thing that judges it. `node seed.mjs --pull` prints what an
+event is currently running.
 
 ## One Line per segment, one polyline per surface
 

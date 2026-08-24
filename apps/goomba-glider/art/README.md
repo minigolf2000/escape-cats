@@ -12,12 +12,12 @@ Design copies of the two props, for Figma and anything else that wants vectors.
 | `bumper.svg` | the piñata bumper |
 | `cushion.svg` | a cushion segment |
 
-**The game does not load these.** `apps/goomba-glider/src/main.js` draws both
-props procedurally on canvas (`drawCan`, `drawGoalPlant`), and that is still
+**The game does not load these.** `apps/goomba-glider/src/render.js` draws every
+prop procedurally on canvas (`drawCan`, `drawGoalPlant` and friends), and that is
 the only copy the game runs — editing an SVG here changes nothing on screen.
 
 `export-svg.mjs` is where these come from, and it mirrors that canvas geometry
-by hand. So the two can drift: **retune the art in `main.js`, then re-run the
+by hand. So the two can drift: **retune the art in `render.js`, then re-run the
 export and commit the result.**
 
 ```sh
@@ -30,15 +30,10 @@ u = 10 (one canvas unit = 10 SVG units) in named `<g>` layers, so Figma gets
 `pot`, `blades`, `runner`, `drips` and friends as named groups rather than one
 flattened path soup.
 
-## There is no splash picture
+## No splash picture
 
-The `splash` phase (the screen a cleared room lands on) is drawn by `drawSplash`
-in `main.js` and is **black** — CONGRATULATIONS, one line under it, and the way
-into the levels grid. It used to be `public/art/splash.webp`, the only loaded
-asset this app had; that file is gone, and so is the sampler that continued its
-sky past the ends of a tall phone.
-
-hex-clicker's win screen still has a picture of its own
-(`apps/hex-clicker/public/art/hex-splash.webp`). The two games always kept
-separate files rather than sharing one, which is exactly why this one could go
+Goomba's `splash` phase is drawn black (`drawSplash` in `src/render.js`), and
+this app loads **no image asset at all**. hex-clicker's win screen has a picture
+of its own at `apps/hex-clicker/public/art/hex-splash.webp`; the two games always
+kept separate files rather than sharing one, which is why this one could go
 without touching that one.

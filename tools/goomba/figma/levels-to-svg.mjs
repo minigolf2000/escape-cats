@@ -1,8 +1,12 @@
 #!/usr/bin/env node
-// Builds figma-levels.svg — the shipped levels, laid out side by side as
-// one artboard each, in the same vocabulary as the design pack. Paste it into
-// Figma and you can edit real levels immediately instead of starting from a
-// blank page; it also doubles as the worked example of the naming convention.
+// Builds figma-levels.svg — a PACK, laid out side by side as one artboard each,
+// in the same vocabulary as the design pack. Paste it into Figma and you can
+// edit an event's real levels instead of starting from a blank page; it also
+// doubles as the worked example of the naming convention.
+//
+// There are no levels in this repo, so point it at a pack: --pack <file>,
+// GOOMBA_PACK=<file>, or a pack.json in tools/goomba/ (gitignored). The output
+// is gitignored too — a committed copy could only be a stale render.
 //
 //   node levels-to-svg.mjs            # all levels
 //   node levels-to-svg.mjs 1 2 9      # just these

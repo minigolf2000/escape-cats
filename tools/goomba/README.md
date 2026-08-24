@@ -21,34 +21,22 @@ reader's tests, and `levels-to-svg.mjs`, which draws a pack as one artboard per
 level. It has [its own README](./figma/README.md) and that is where a level
 actually starts.
 
-## What used to be here
+## Two things the deleted bench took with it
 
-A simulation bench: `verify.mjs` — **THE GATE**, a PASS/FAIL battery a level had
-to clear before it shipped — plus `route`, `trace`, `slack`, `scan`, `solve`,
-`minbands`, `reach`, `search`, `searchall`, `robust`, `diag` and `ridecards`,
-and the `gate.ts` thresholds in shared/ that defined what "passes" meant. All
-deleted, along with the **4-band rule** the gate existed to enforce.
-
-It was a real rig — it ran the shipped physics, it caught genuine exploits, and
-it could prove a level unwinnable at one band by exhausting the lattice. It
-still did not earn its keep. Four people around a table found what mattered
-faster, and told you *why* in a form you could act on, which a verdict never
-did. Git history has every line of it if a question ever genuinely needs a
-simulator.
-
-Two things it is worth knowing it took with it:
+A simulation bench used to live here — `verify.mjs` (**THE GATE**, a PASS/FAIL
+battery a level had to clear) and twelve other commands, plus the `gate.ts`
+thresholds. All deleted, along with the **4-band rule** it enforced: four people
+around a table found what mattered faster, and said *why*. Git history has it.
 
 - **A level's `solution` is gone**, the field and the bytes both. It was the
-  baked answer key the gate graded against; nothing had produced one since Figma
-  frames stopped carrying `band` layers. Removing it cost a codec version (fmt
-  2) because `nSolution` sat unconditionally in the MIDDLE of the layout — see
-  the header of `codec.ts`. Old links still decode; a new link is ~10% shorter
-  and an older bundle refuses it outright rather than misreading it.
-- **`bands.mjs` is not part of that.** It tests SHIPPED code: that the room
-  hands out exactly `MAX_BANDS` and puts no conditions on who lays or lifts
-  them, which is a product decision ("A may lay all four while B, C and D
-  watch") that should fail a test rather than surprise a party. It carries its
-  own throwaway board so it does not depend on what anyone is playing.
+  baked answer key the gate graded against. Removing it cost a codec version
+  (fmt 2) because `nSolution` sat unconditionally in the MIDDLE of the layout —
+  see the header of `codec.ts`. Old links still decode; a new link is ~10%
+  shorter and an older bundle refuses it outright rather than misreading it.
+- **`bands.mjs` is not part of that.** It tests SHIPPED code: that the room hands
+  out exactly `MAX_BANDS` and puts no conditions on who lays or lifts them, which
+  is a product decision ("A may lay all four while B, C and D watch") that should
+  fail a test rather than surprise a party. It carries its own throwaway board.
 
 ## An `<idx>`, where one still appears
 

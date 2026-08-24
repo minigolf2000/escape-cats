@@ -1,16 +1,10 @@
 # Hex Clicker — Design Decisions
 
-Living decision log for **Hex Clicker**, the cooperative cookie-clicker in the
-Escape Cats series. Playable prototype: [`hex-clicker-neon.html`](./hex-clicker-neon.html).
+Living decision log for **Hex Clicker**. It records what is **LOCKED** — settled,
+don't relitigate without the team — versus **OPEN**, still being tuned. When a
+decision moves from OPEN to LOCKED, move it up and date it.
 
-This file exists so future work (human or Claude) knows what is **LOCKED** —
-settled, don't relitigate without the team — versus **OPEN** — still being
-tuned or brainstormed. When a decision moves from OPEN to LOCKED, move it up
-and date it. When you build a LOCKED decision into real app code
-(`apps/hex-clicker`, `packages/shared/balance.ts`, the server), leave a comment
-pointing back here.
-
-_Last updated: 2026-08-03._
+The game ships in this directory; its balance is `packages/shared/src/hex/`.
 
 ---
 

@@ -11,14 +11,11 @@ of links in its lobby; whether it is any good is answered by four people playing
 it. This document is what was learned from doing that — the physics, and the
 shapes that turned out to work.
 
-> There used to be a bench here that simulated levels in node: `verify.mjs` (THE
-> GATE — a PASS/FAIL battery), plus `route`, `trace`, `slack`, `scan`, `solve`,
-> `minbands`, `reach`, `search`, `searchall`, `robust`, `diag`, `ridecards`. It
-> and the 4-band rule it enforced are deleted. It was not earning its keep:
-> playtesting caught what mattered, sooner, and in a form you could act on. Git
-> history has all of it if a question ever genuinely needs a simulator. The
-> numbers quoted throughout these notes were measured with it, on levels that
-> are now Figma frames — treat them as findings, not as claims about your board.
+> **The numbers in these notes were measured with a simulation bench that is
+> deleted**, on levels that are now Figma frames. Treat them as findings, not as
+> claims about your board. Git history has the bench if a question ever genuinely
+> needs a simulator — but playtesting caught what mattered sooner, which is why
+> it went.
 
 What is left in this folder is not about levels: `seed.mjs` moves a pack between
 events, `test-codec.mjs` tests the save format, `bands.mjs` tests the room's band
@@ -203,11 +200,9 @@ else too: the renderer and the editor already iterate an empty `terrain`, and
 the codec used to reject a level without a polyline — it now asks for furniture
 of any kind, so a level like this still travels as a link.)
 
-**Don't ship on a lucky 30 trials.** The gate's finger-slop check is 30 jittered
-runs on one fixed seed — a stable verdict, and a noisy measurement. A solution
-whose true rate was 48% passed a 19-out-of-30 threshold during one level's
-tuning, and only a re-run on unrelated seeds showed it up. The general lesson
-outlives the tool: **thirty trials cannot tell 60% from 85%**, and only one of
+**Don't ship on a lucky 30 trials.** A line whose true success rate was 48% once
+passed a 19-of-30 jittered check on a fixed seed, and only a re-run on unrelated
+seeds showed it up. **Thirty trials cannot tell 60% from 85%**, and only one of
 those is a level people can actually place. If you are counting anything, count
 enough of it.
 
@@ -227,7 +222,7 @@ predicted nothing. Lengthening the boring part is metric-gaming.
 **A collectible on the line she'd fly anyway is a chime, not a constraint.**
 Cans only create routing pressure when they're *expensive* — off the greedy
 path, costing speed or height or another can. (An early draft hung cans a
-few units under each bridge line — the beam search disproved it; see
+few units under each bridge line — that turned out to be wrong; see
 shelf-gating below for why in-gap collectibles never survive scrutiny.)
 
 **Collectibles beat geometry for forcing multi-band.** Scattered watering cans
@@ -239,7 +234,7 @@ findings stand; git history has the geometry).** Floors alternating
 direction, a band-sized gap in each, walls between floors erasing her speed.
 What makes it honestly need one band per floor is WHERE the collectibles sit:
 **on the far shelves between gap and wall, never hanging in the gaps**. A
-watering can in a gap can be grazed by anything flying through it — the beam search
+watering can in a gap can be grazed by anything flying through it — search
 found both a diagonal launcher band that overflew a whole floor through its
 gap, and an under-floor band that dropped her down a column past a lower
 can. A shelf, by contrast, has solid floor directly above (no fall reaches
@@ -271,7 +266,7 @@ speed, because no band can substitute for a band doing a different job. Two
 rules make it hold. Give every gap a far lip **1 unit above** its near lip —
 arcs only fall, so no speed ever crosses it and gap width becomes purely a
 question of band length. And **floor every dead column with a bowl**: the
-level's tall empty space is where shortcuts live, and the beam search found a
+level's tall empty space is where shortcuts live, and search found a
 2-band win that simply dropped her down the column under the start pad onto a
 much later ledge, collecting its can en route. A wide V-basin under that
 column turns the whole family into a stall. Bonus for a tutorial: four gates
@@ -361,7 +356,7 @@ rival vertices ~9 units apart so a jittered end cannot prefer the wrong one
 longer). The Long Way Up is a chain of exact ballistics and scores 29/30 on
 jitter this way; check the spacing whenever a jitter score comes back at 17.
 
-**One band will always try to do two jobs; the beam search finds how (The Long
+**One band will always try to do two jobs, and search will find how (The Long
 Way Up, three drafts running).** Every draft of that level died the same way and
 the fix was always spacing, never cleverness. On popper hops it was a single
 band slung above two apexes as a CEILING — hitting a sloped band from below near
@@ -422,7 +417,7 @@ belong at the other end.
 **A can ON a popper's throw arc is a toll booth — the cheapest way to make a
 popper compulsory (There and Back Again, level 5).** A popper that merely *can* be hit
 will be skipped: the winning lines that thread past it are usually the ones
-with the most slack, so the solver finds them and the popper becomes scenery.
+with the most slack, so a winning line finds them and the popper becomes scenery.
 Putting a collectible where the popper's own arc passes fixes that with no
 geometry at all — the popper delivers her to it and nothing else does. Compute
 the arc, don't eyeball it: here the throw leaves (35,30) at 135° and ~90 u/s,

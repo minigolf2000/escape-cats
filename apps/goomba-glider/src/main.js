@@ -1319,11 +1319,11 @@ function drawStartPad(lv) {
 // above; this draws the same grid either way.
 //
 // A card carries NO verdict. It held two once — a baked solution's result, and
-// then the bare run's — and both are gone: grading is `verify.mjs`'s job, which
-// searches for a solution instead of being told one and reports far more than
-// one word will hold. A card is a picture of the level and its name, which is
-// what a grid is read for. The sim work went with the text, so opening the menu
-// no longer runs every level to label it.
+// then the bare run's — and both are gone. So is the node bench that used to
+// grade a level properly: nothing evaluates a level now except people playing
+// it, so there is no true word to put on a card. A card is a picture of the
+// level and its name, which is what a grid is read for. The sim work went with
+// the text, so opening the menu no longer runs every level to label it.
 
 /** Ellipsise `s` to at most `maxW` px in the current ctx font. */
 function fitText(s, maxW) {
@@ -1501,11 +1501,11 @@ function drawLab() {
    *
    * ONE button, down from four: ◀ ▶ went to the drag, and `⧉` copy went too.
    * Copy existed to get a level back OUT as a link — to duplicate it, to send
-   * it, or to grade it with `verify.mjs --hash`. Duplicating and sending are
-   * Figma's now (the frame is the source, and Ctrl+C there is the way in), and
-   * grading a live event reads its pack straight off the lobby: `seed.mjs
-   * --pull` prints it and `verify.mjs --pack` grades the lot, which beats
-   * copying one card at a time. It acts on the card it sits on whatever is
+   * it, or to grade it on the bench. Duplicating and sending are Figma's now
+   * (the frame is the source, and Ctrl+C there is the way in), and grading is
+   * nobody's — the bench is deleted, and a level is judged by being played.
+   * `seed.mjs --pull` reads a live event's whole pack off the lobby, which beat
+   * copying one card at a time even when there was something to grade with. It acts on the card it sits on whatever is
    * selected — a button on a card is a sentence about that card. */
   const cardButtons = (i, x, y) => {
     if (!editorOn()) return;

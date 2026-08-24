@@ -53,11 +53,16 @@ const EXPECT = {
     [[12, 137], [122, 137]],
   ],
   cans: [[96, 38], [84, 98]],
+  // The frame's own box, which a REAL Figma frame node turns out to carry in
+  // `size` exactly as an instance does — the one thing about this field no
+  // synthetic fixture could settle. 134×149 units around ink that spans
+  // 12-122 × 20-137, so the drawn padding is real and, before `frame` existed,
+  // was dropped on the floor and re-derived away.
+  frame: { x0: 0, y0: 0, x1: 134, y1: 149 },
   // The frame has three `band` layers on it — this capture predates their
-  // removal. They are consumed and warned about, never turned into a
-  // `solution`: a level is geometry, and what solves it is `verify.mjs`'s to
-  // find rather than the frame's to declare.
-  solution: undefined,
+  // removal. They are consumed and warned about, never turned into geometry:
+  // what solves a level is for players to find rather than the frame's to
+  // declare, and since fmt 2 a level has no field that could hold an answer.
   droppedBands: 3,
   counts: [0, 0, 0], // pops / bumpers / cushions
 };
@@ -77,7 +82,8 @@ check("start", level.start, EXPECT.start);
 check("goal", level.goal, EXPECT.goal);
 check("terrain polylines", level.terrain, EXPECT.terrain);
 check("cans", level.cans, EXPECT.cans);
-check("no baked solution", level.solution, EXPECT.solution);
+check("frame box (size read, canvas position dropped)", level.frame, EXPECT.frame);
+check("no `solution` key at all — the field is gone", "solution" in level, false);
 check("pops/bumpers/cushions", [level.pops.length, level.bumpers.length, level.cushions.length], EXPECT.counts);
 // The component definitions ride along in the payload and are named exactly
 // like the instances; counting them would show four cans here, not two.

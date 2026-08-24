@@ -13,11 +13,11 @@
 import { writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LEVELS } from "../lib.mjs";
+import { allIndexes, levelAt } from "../lib.mjs";
 import { newDoc, slug, S, BG, GUIDE, INK } from "./svgkit.mjs";
 
 const picked = process.argv.slice(2).map(Number).filter((n) => Number.isInteger(n));
-const idxs = picked.length ? picked : LEVELS.map((_, i) => i);
+const idxs = picked.length ? picked : allIndexes();
 
 const GAP = 120; // px between artboards
 const PAD = 40;  // px of margin inside one, past the level's own bounds
@@ -27,14 +27,21 @@ let cursorX = PAD;
 let sheetH = 0;
 
 for (const li of idxs) {
-  const L = LEVELS[li];
-  if (!L) continue;
-  // initLevel already computed padded world bounds; use them as the artboard.
-  const b = L.bounds;
-  const w = (b.x1 - b.x0) * S + PAD * 2;
-  const h = (b.y1 - b.y0) * S + PAD * 2;
-  const ox = cursorX + PAD - b.x0 * S; // px of world x=0 inside this artboard
-  const oy = 60 + PAD - b.y0 * S;
+  const L = levelAt(li);
+  // The artboard IS the level's world. A level that carries a `frame` had that
+  // world AUTHORED — it came from a Figma frame, and the empty space inside it
+  // is a design decision — so it is used verbatim rather than re-padded, which
+  // is what makes export -> paste -> export a fixed point instead of a world
+  // that grows by PAD every pass. Without one, fall back to the derived bounds
+  // plus a margin, which is what every level here has always got.
+  const b = L.frame ?? {
+    x0: L.bounds.x0 - PAD / S, y0: L.bounds.y0 - PAD / S,
+    x1: L.bounds.x1 + PAD / S, y1: L.bounds.y1 + PAD / S,
+  };
+  const w = (b.x1 - b.x0) * S;
+  const h = (b.y1 - b.y0) * S;
+  const ox = cursorX - b.x0 * S; // px of world x=0 inside this artboard
+  const oy = 60 - b.y0 * S;
 
   // The artboard. A pasted <rect> arrives as a rect, not a Frame — select it
   // plus its contents and hit ⌘⌥G ("Frame selection") to promote it, or let
@@ -60,7 +67,7 @@ for (const li of idxs) {
   // No bands. A frame used to carry the level's baked solution as dashed
   // `band` layers, and the readers turned them back into `solution` — an answer
   // key drawn by hand, stale the moment the geometry moved beneath it. The
-  // frame is the GEOMETRY now; what solves it is `verify.mjs`'s to find.
+  // frame is the GEOMETRY now; what solves it is for players to find.
 
   d.label(cursorX, 60 + h + 22,
           L.cans.length + " cans" +

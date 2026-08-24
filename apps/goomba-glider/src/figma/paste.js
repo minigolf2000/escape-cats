@@ -8,8 +8,8 @@
 //
 //   1. a plain Ctrl+C in Figma — a `fig-kiwi` payload on text/html. Real layer
 //      names, stored geometry, nothing corrected on the way in.
-//   2. one of our own level links — how a level comes back from `verify.mjs`
-//      or from someone else's phone.
+//   2. one of our own level links — how a level comes back from someone else's
+//      phone, or out of an event's pack.
 //
 // There used to be a third: an exported .svg, read through the browser's SVG
 // engine. It is gone. It was always the WORSE path and it was never the one

@@ -59,9 +59,9 @@ d.poly(820, 660, hill(64, 7, 14));
 d.label(820, 566, "smooth hill · 14 lines over 64 u", { size: 11 });
 
 // ==========================================================================
-// SECTION C — composites. The shapes that survive the shortcut hunt.
+// SECTION C — composites. The shapes that held up in play.
 // ==========================================================================
-d.heading(40, 790, "COMPOSITES — patterns that hold up under verify.mjs. Copy the whole group.");
+d.heading(40, 790, "COMPOSITES — patterns that held up in play. Copy the whole group.");
 
 d.label(40, 830, "V-basin · floor every dead column with one, or a single catch band turns the whole fall into a free ride to somewhere much later.", { size: 11 });
 d.poly(40, 860, [[0, 0], [40, 14], [80, -2]]);

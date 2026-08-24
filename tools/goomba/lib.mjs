@@ -1,11 +1,22 @@
-// The one bridge between the level tools and the SHIPPED physics: bundles
-// packages/shared/src/goomba (TypeScript) with esbuild on the fly and exposes
-// the same handles the deleted prototype used to hang on `window.__gr` — so
-// every tool exercises exactly the sim the server scores runs with. No browser
-// involved: the sim is pure code, and node runs it ~100× faster than the old
-// Playwright round-trips did.
+// The one bridge between what is left of these tools and the SHIPPED code:
+// bundles `packages/shared/src/goomba` (TypeScript) with esbuild on the fly, so
+// nothing here carries a second copy of the codec, the pack rules or the room
+// sim. No browser involved.
+//
+// It used to bridge to the PHYSICS, for a bench that simulated levels: verify,
+// route, trace, slack, solve, minbands, reach, scan, search, robust, diag,
+// searchall, ridecards — a node-side rig that graded a level before anyone
+// played it. That bench is deleted, and with it the gate it served. Levels are
+// evaluated by people playing them.
+//
+// What still needs the bridge is not about levels at all: `test-codec.mjs` (the
+// save format), `bands.mjs` (the room hands out four bands and rations nobody)
+// and `figma/levels-to-svg.mjs` (draw a pack as artboards). Physics still comes
+// along inside the bundle because `sim.ts` imports it — but nothing here
+// exposes a way to run it, which is the point.
 import { build } from "esbuild";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -18,19 +29,11 @@ const entry = join(dir, "entry.ts");
 await writeFile(
   entry,
   `export * from ${JSON.stringify(join(srcDir, "levels.ts"))};\n` +
-  `export * from ${JSON.stringify(join(srcDir, "physics.ts"))};\n` +
-  // codec.ts, so the bench can open a level that arrived as a share link from
-  // the editor instead of as a diff to levels.ts.
+  // codec.ts + pack.ts: a level is a link and a pack is a list of them, which
+  // is the only shape a level travels in now.
   `export * from ${JSON.stringify(join(srcDir, "codec.ts"))};\n` +
-  // pack.ts: the level PACK — the shape the game's levels live in now (a list
-  // of links in the lobby DO). The bench needs it to seed itself, and to grade
-  // a pack that was never committed.
-  `export * from ${JSON.stringify(join(srcDir, "pack.ts"))};
-` +
-  // gate.ts: the thresholds that define "passes", shared with the editor.
-  `export * from ${JSON.stringify(join(srcDir, "gate.ts"))};\n` +
-  // sim.ts too, so the ROOM rules (the band budget) are testable off the same
-  // bundle as the physics — the same files shared/src/index.ts re-exports.
+  `export * from ${JSON.stringify(join(srcDir, "pack.ts"))};\n` +
+  // sim.ts: the ROOM rules, for the one test that drives them (bands.mjs).
   `export * from ${JSON.stringify(join(srcDir, "sim.ts"))};\n`,
 );
 const outfile = join(dir, "sim.mjs");
@@ -41,104 +44,88 @@ export const {
   GOOMBA_LEVELS: LEVELS,
   GoombaSim,
   canPlaceBand,
-  BAND_MAX,
-  BAND_MIN,
   MAX_BANDS,
-  SUB,
-  RUN_MAX,
-  makeRun,
-  stepRun,
-  snapBand,
-  bandPoints,
   encodeLevel,
   decodeLevel,
   initLevel,
-  legalBands,
-  mulberry,
-  jitterSolution,
-  JITTER_TRIALS,
-  JITTER_MIN_WINS,
-  JITTER_SEED,
   applyPack,
-  seedPack,
   packToLevels,
   levelsToPack,
-  SEED_LEVELS,
 } = sim;
 
 /**
- * Fill the level array before any tool indexes it.
+ * Fill the level array from a PACK, for the one caller that still indexes
+ * levels: `figma/levels-to-svg.mjs`, which draws each one as an artboard.
  *
- * `GOOMBA_LEVELS` ships EMPTY now — the game's levels live in the lobby DO and
- * arrive over the wire — so `verify.mjs 2` would otherwise grade nothing. The
- * bench loads the repo's own SEED_LEVELS, which are the levels every note in
- * DESIGNING.md is written about, so `verify.mjs <idx>` means exactly what it
- * always meant.
+ * There is nothing else to fill it from. The repo holds no levels — a level's
+ * source is the Figma frame it was drawn in, and what an event plays is a pack
+ * of links in its lobby — so:
  *
- * To grade the levels an EVENT is actually running, hand the tool a pack:
- * `verify.mjs --pack pack.json` (or `--hash <link>` for a single one), which
- * calls `usePack` below and re-indexes everything against that instead.
+ *   node seed.mjs --pull > pack.json    then the tool needs no flag
+ *   --pack <file>                       explicit, per-run
+ *   GOOMBA_PACK=<file>                  for a whole session
+ *
+ * `pack.json` beside these tools is gitignored: a pack is what an event is
+ * running right now, not something the repo has an opinion about.
+ *
+ * `--pack <file>` is spliced OUT of `process.argv` here, before any tool's own
+ * argument parsing runs (imports evaluate first), so a tool that reads its
+ * arguments positionally never sees it.
  */
-applyPack(seedPack());
+const packArgAt = process.argv.indexOf("--pack");
+const packFile = packArgAt > 1 && process.argv[packArgAt + 1]
+  ? process.argv.splice(packArgAt, 2)[1]
+  : process.env.GOOMBA_PACK || join(dirname(fileURLToPath(import.meta.url)), "pack.json");
+export const packSource = existsSync(packFile) ? packFile : null;
+if (packSource) applyPack(JSON.parse(await readFile(packSource, "utf8")));
 
 /**
- * Point the bench at a different pack — a file of links, or one pulled off a
- * running lobby. Returns how many levels are now loaded.
+ * The level at `<idx>`, or an error a person at a terminal can act on.
  *
- * `LEVELS` IS `sim.GOOMBA_LEVELS` (the destructure above binds the same array
- * object, not a copy), and `applyPack` fills that array in place. So there is
- * nothing to copy here — and copying was actively wrong: clearing `LEVELS`
- * first emptied the very array the copy then read from.
+ * With no pack loaded, indexing is `undefined.bounds` — a stack trace that says
+ * nothing about the one thing that is actually wrong. "I ran it and it exploded"
+ * is a report nobody can act on, so this is the message instead.
  */
-export function usePack(pack) {
-  return applyPack(pack);
-}
-
-/** The prototype's `__gr.simulate`, verbatim: run a level with a band set,
- * return the outcome plus a 30fps trajectory. */
-export function simulate(li, bandPairs) {
-  return simulateLevel(LEVELS[li], bandPairs);
-}
-
-/** The same run on a level OBJECT — for levels that aren't in the array, like
- * an editor share link `verify.mjs --hash` is gating. */
-export function simulateLevel(L, bandPairs) {
-  const bands = (bandPairs || []).map(([a, b]) =>
-    snapBand(L, { ax: a[0], ay: a[1], bx: b[0], by: b[1] }));
-  const st = makeRun(L, bands);
-  const traj = [];
-  let acc = 0;
-  while (!st.result && st.t < RUN_MAX + 1) {
-    stepRun(st, SUB);
-    acc += SUB;
-    if (acc >= 1 / 30) { acc = 0; traj.push([+st.p.x.toFixed(2), +st.p.y.toFixed(2)]); }
+export function levelAt(li) {
+  // stderr + exit(2), not a throw: these are commands run by a person at a
+  // terminal, and every other bad-argument path here already answers that way.
+  // A stack trace would bury the one line worth reading.
+  if (!LEVELS.length) {
+    console.error(packSource
+      ? `${packSource} decoded to an empty pack — no levels to work on`
+      : "no levels loaded. There are no levels in this repo: a level's source is\n" +
+        "its Figma frame, and an event's levels live in its lobby. Point this at a\n" +
+        "pack, any of three ways —\n" +
+        "  node seed.mjs --pull > pack.json   (then this command needs no flag)\n" +
+        "  --pack <file>                      per-run\n" +
+        "  GOOMBA_PACK=<file>                 for a whole session");
+    process.exit(2);
   }
-  return { result: st.result || "timeout", t: +st.t.toFixed(2), traj };
-}
-
-/** Full-detail run for ride cards: dense path with grounded flags, airborne
- * seconds, top speed, and the mechanic events that fired. */
-export function rideTrace(li, bandPairs) {
   const L = LEVELS[li];
-  const bands = (bandPairs ?? L.solution ?? []).map(([a, b]) =>
-    snapBand(L, { ax: a[0], ay: a[1], bx: b[0], by: b[1] }));
-  const st = makeRun(L, bands);
-  const path = [];
-  let acc = 0, top = 1e9, fastest = 0, air = 0;
-  while (!st.result && st.t < RUN_MAX + 1) {
-    const wasGround = st.grounded;
-    stepRun(st, SUB);
-    if (!wasGround) air += SUB;
-    top = Math.min(top, st.p.y);
-    fastest = Math.max(fastest, Math.hypot(st.v.x, st.v.y));
-    acc += SUB;
-    if (acc >= 1 / 60) { acc = 0; path.push([st.p.x, st.p.y, st.grounded ? 1 : 0]); }
+  if (!L) {
+    console.error(`no level at index ${li} — ${packSource ?? "the pack"} holds ` +
+      `${LEVELS.length} (0..${LEVELS.length - 1})`);
+    process.exit(2);
   }
-  return {
-    L, bands, path, events: st.events, end: { x: st.p.x, y: st.p.y },
-    result: st.result ?? "timeout", t: +st.t.toFixed(2),
-    airPct: +((100 * air) / Math.max(st.t, 0.01)).toFixed(0),
-    topSpeed: +fastest.toFixed(0),
-    cans: `${st.gotN}/${L.cans.length}`,
-  };
+  return L;
+}
+
+// `usePack(pack)` used to live here, for a tool that wanted to re-point the
+// bench mid-run. Nothing calls it now that loading a pack is the only way the
+// bench gets levels at all — it happens once, above, before any tool's own code
+// runs. `LEVELS` IS `sim.GOOMBA_LEVELS` and `applyPack` fills it IN PLACE,
+// which is the part worth keeping written down: a caller that tried to swap the
+// binding instead would strand every module holding the old array.
+
+/**
+ * Every index in the loaded pack — and `levelAt`'s guidance instead when there
+ * is none.
+ *
+ * A tool that sweeps "all levels" must not run cleanly over nothing: an SVG of
+ * a pack that silently came out empty is a file you notice much later than an
+ * error you get right now.
+ */
+export function allIndexes() {
+  if (!LEVELS.length) levelAt(0); // prints the how-to and exits
+  return LEVELS.map((_, i) => i);
 }

@@ -28,9 +28,10 @@ purple, `#150a2a` — the same value as `html, body` in the app.
   (`#241245 → #170b30 → #12081f`), terrain as cream zero-height Lines and toys
   as instances of the kit. **A frame carries no bands.** It used to carry the
   level's baked solution as dashed `band` Lines, which the readers turned back
-  into `solution` and the selector's cards graded — an answer key drawn by hand,
-  stale the moment the geometry moved beneath it. A frame is the GEOMETRY; what
-  solves it is `verify.mjs`'s to find.
+  into a `solution` field and the selector's cards graded — an answer key drawn
+  by hand, stale the moment the geometry moved beneath it. There is no such
+  field any more (codec fmt 2). A frame is the GEOMETRY; what
+  solves it is for the people playing it to find.
 
 `L: Welcome to Goomba Glider` is the teaching level, and the frame to copy if
 you want the smallest thing that is still a level: two `t` Lines with a gap
@@ -98,7 +99,7 @@ Layer **names** carry all the meaning. Position comes from the node.
 
 | Layer name | Node type | Becomes |
 | --- | --- | --- |
-| `L: <title>` or `L--<title>` | Frame | one level; the frame's origin is world (0,0). The title IS the level name — nothing else is folded into it, and **no number**: the game numbers a level by its place in the pack (`levelLabel`), so a typed-in "3 · " shows up twice |
+| `L: <title>` or `L--<title>` | Frame | one level; the frame's origin is world (0,0) **and its size is the world** (see "The frame is the world"). The title IS the level name — nothing else is folded into it, and **no number**: the game numbers a level by its place in the pack (`levelLabel`), so a typed-in "3 · " shows up twice |
 | `t` | Line | one `terrain` segment |
 | `start` | anything | `start` — bbox centre |
 | `goal` | anything | `goal` — bbox centre |
@@ -106,7 +107,7 @@ Layer **names** carry all the meaning. Position comes from the node.
 | `bumper` | anything | a `bumpers[]` entry — bbox centre |
 | `cushion` | **Rect** | `{x: left, y: centre, w: width}` — horizontal only, rotation ignored |
 | `party-popper` / `pop` | anything | a popper at bbox centre; `deg` from rotation |
-| `band` | Line | **ignored** — one warning per paste. Levels no longer carry a baked solution; delete these |
+| `band` | Line | **ignored** — one warning per paste. A level has no field for a solution; delete these |
 | `_…` or `//…` | anything | **ignored** (gauges, guides, notes) |
 | any Text | text | **ignored**, always |
 
@@ -132,6 +133,39 @@ Rules that keep it forgiving:
   `toy` component set with a `kind=can` variant would name every instance
   `toy` and push the meaning into variant properties the clipboard path can't
   read. Six components keep the contract legible in the layers panel.
+
+## The frame is the world
+
+**Resize the frame and you have changed the level.** Its box arrives as the
+level's `frame` and `initLevel` unions it into `bounds`, which is three things
+at once: the camera (there is no free pan — `fitScale`/`clampCam` frame
+`bounds` and that is the whole screen), three of the four deaths (`fall` at
+`y1+25`, `left` at `x0−12`, `flew` at `x1+30`, in `physics.ts`), and therefore
+the whole of what a player can see and reach.
+
+Which is why it had to stop being dropped. Padding drawn on purpose — the empty
+run to the right of a wall that a band is *meant* to reach out into — left no
+trace in the level, because `bounds` is derived from the ink and the frame
+around it was read for its origin and nothing else. The level re-cropped itself
+to its own geometry the moment it loaded, and the room the design called for
+was simply not there.
+
+Two rules keep it from biting back:
+
+- **Union, never replace.** A frame drawn tighter than its contents can only
+  ever add nothing. That is an accident — a frame resized after the fact, a
+  guide dragged past the edge — and honouring it would push terrain outside the
+  world, which is a level that kills her at the spawn.
+- **Padding only ever makes a level easier.** More world is more room to
+  overshoot into and more room to solve it in, and that cuts both ways:
+  *closing* a world is what dropped The Long Way Down from three jobs to two
+  (CLAUDE.md, "closing a world makes it more forgiving" — the same fact, read
+  from the other end). **Play it again after resizing a frame**, even when the
+  ink did not move.
+
+The box rides in the level link (`codec.ts`, flags bit1, four coordinates at
+the tail), so it survives the trip through the lobby like everything else. Old
+links have no frame and derive their bounds exactly as they always did.
 
 ## The paste target
 
@@ -206,11 +240,10 @@ landed 1.5 units low — which is the entire reason the kit components carry
 `anchor` dots. Ctrl+C reproduces the file's own numbers and needs neither. One
 reader, one contract.
 
-A pasted level is still only ever *proposed*. What proves one is the bench, and
-it reads the event's own pack rather than needing anything copied out of the
-game: `node seed.mjs --pull` prints what the event is running and `node
-verify.mjs --pack <file>` grades all of it. (`verify.mjs --hash <link>` still
-takes a single link, for a level that never reached a pack.)
+A pasted level is *live*, for everyone, a second later — which is the whole
+point and also the only thing that judges it. There was a bench here that graded
+a level by simulation before anyone played it, and it is deleted. `node seed.mjs
+--pull` prints what an event is currently running.
 
 ## One Line per segment, one polyline per surface
 
@@ -324,19 +357,19 @@ along, so the weld was not what joined them.
 
 ## The loop, end to end
 
-Nothing here touches `levels.ts` until a level has earned it:
+Nothing here writes to the repo at all — a level goes from a frame to a room:
 
 ```
-Figma frame  →  Ctrl+C  →  Ctrl+V at /editor/  →  ▶ play
+Figma frame  →  Ctrl+C  →  Ctrl+V in the game (`\`)  →  ▶ play
                                       ↓
-                                 copy link  →  node verify.mjs --hash <link>
+                        it is in the event's pack, on four phones
 ```
 
 Every step of that is exercised. Reading the smoke-test frame back gave the
 level below, matching the coordinates it was built from **exactly** — terrain,
 start, goal, can, bumper, popper (`deg -37`, `spd 137` off the layer name) and
 the cushion's 20-unit span. The frame also carries one leftover `band` Line, and
-what comes back is a warning rather than a `solution`:
+what comes back is a warning rather than geometry:
 
 ```
 terrain [[10,10],[40,16]] [[40,16],[70,14]]
@@ -345,26 +378,17 @@ pops [{20,45,deg:-37,spd:137}]  cushions [{35,52,w:20}]
 warning: ignored 1 `band` layer(s)
 ```
 
-and the link it copied went straight into the bench:
+A frame that is NOT a level is refused by name, rather than turning a scatter of props into a
+plausible level:
 
 ```
-link Smoke Test  (--quick: smaller samples)
-  ok    bare run fails — fall@2.93s
-  FAIL  solution is 4 bands (party rule) — 0 band(s)
-  → FAIL ✗ (solution is 4 bands (party rule))
+no layer named `start` — the level has no spawn
 ```
 
-which is the gate doing its job: a scatter of props is not a level, and it says
-so about geometry that never entered the repo. No new protocol, no server
-change, no `GOOMBA_LEVELS` mutation.
-
-**What a link can be graded on, now that frames carry no bands.** Check 1 (the
-bare run must fail) and checks 5–7 (no 0/1/2/3-band win exists) are searches
-over the geometry, and they still run on a link exactly as before — those are
-the checks that catch a broken level. Checks 2–4 (the solution is 4 bands, every
-band load-bearing, ±3u finger slop) read `solution`, so on a link they now stop
-at check 2 as above, and a Figma level earns its PASS by landing in `levels.ts`
-with a solution beside it. `solve.mjs <idx> 4` is what finds one to write down.
+Everything in the contract fails that way. A named layer that goes missing is a
+bug someone can SEE; a wrong one that decodes cleanly is not, which is why a `t`
+that is not a Line is skipped loudly and a frame with no `start` is refused
+outright.
 
 ## Three ways to read a Figma design back out
 

@@ -7,8 +7,10 @@ are the invariants that bite.
 ## Goomba Glider level design (most common task)
 
 **Start at [`tools/goomba/DESIGNING.md`](./tools/goomba/DESIGNING.md).** It is
-the whole loop, the physics cheat sheet, and the accumulated anti-shortcut
-findings — do not design from intuition, the sim disproves it reliably.
+the loop, the physics cheat sheet, and the accumulated findings. Design in
+Figma, paste it in, and PLAY it — alone with `?solo`, then with four people.
+There is no simulator here any more and no verdict to clear; the findings in
+that file are what a deleted one left behind.
 
 - **The level SELECTOR is the editor, and `\` is the door.** There is no
   `/editor/` page any more (`apps/goomba-editor` is deleted); its two useful
@@ -30,8 +32,8 @@ findings — do not design from intuition, the sim disproves it reliably.
   the only per-card button left. `◀ ▶` went with the drag, and `⧉` copy went
   too: it put the level on the clipboard as a link, which covered duplicating,
   sending and grading, and Figma now owns the first two (the frame is the
-  source) while grading a live event reads the pack off the lobby instead —
-  `seed.mjs --pull` prints it, `verify.mjs --pack` grades all of it at once.
+  source) while grading is nobody's — the gate is deleted and a level is judged
+  by being played. `seed.mjs --pull` prints what an event is running.
   **Ctrl+V lands wherever you were looking.** On the grid that is the
   SELECTION: a card replaces that level, the trailing dashed slot appends, and
   there is no separate "aim the paste" button any more because a selection
@@ -65,6 +67,19 @@ findings — do not design from intuition, the sim disproves it reliably.
   be a **Line**; a `t` that is a pen path or rect is skipped with a warning,
   because reading its bbox edge would be a plausible straight segment that
   silently changes whether the level is winnable.
+  **The FRAME's size is the world, not just its origin.** It arrives as the
+  level's `frame` and `initLevel` UNIONS it into `bounds` — never replaces, so
+  a frame drawn tighter than its own ink can only add nothing. Padding is a
+  design decision (the empty run past a wall that a band is meant to reach out
+  into), and before this it left no trace: `bounds` is derived from the ink, so
+  every level re-cropped itself the moment it loaded. Bounds are the camera
+  (there is no free pan) and three of the four deaths — so **resizing a frame
+  is a design change even when the ink did not move; play it again.** More
+  world is more forgiving, which is
+  "closing a world makes it more forgiving" read from the other end. The box
+  rides in the link (`codec.ts`, flags bit1, four coordinates at the TAIL —
+  every offset before it is untouched, so live packs decode unchanged and an
+  older bundle reads a new link right up to the frame and stops).
   **Before debugging "the geometry looks off", read "Testing this bridge" in
   `tools/goomba/figma/README.md`.** Two rounds of it were closed by reasoning
   about the code and shipping a fix that passed its own tests; both were wrong.
@@ -74,10 +89,10 @@ findings — do not design from intuition, the sim disproves it reliably.
   only at boot (a fragment-only navigation silently shows you the OLD level).
   A level still **saves by being a URL** — `encodeLevel` in
   `packages/shared/src/goomba/codec.ts` packs one into ~100–450 base64url chars,
-  which is both how `node verify.mjs --hash <link>` grades an uncommitted level
-  and what a PACK is a list of. The codec lives in shared/ because the browser,
-  the Worker and the node bench must agree on it byte for byte; never fork it.
-  Same for `goomba/gate.ts`.
+  which is how a level travels before it is anywhere, and what a PACK is a list
+  of. The codec lives in shared/ because the browser, the Worker and the node
+  tools must agree on it byte for byte; never fork it. `tools/goomba/test-codec.mjs`
+  is the proof, and the reason a new field rides at the tail behind a flag.
 - **Levels live in the LOBBY Durable Object, as a pack of links.** That is the
   only copy: `GOOMBA_LEVELS` ships EMPTY and is filled by `setGoombaLevels` from
   whatever arrives. `packages/shared/src/goomba/pack.ts` is the shape (an
@@ -89,11 +104,14 @@ findings — do not design from intuition, the sim disproves it reliably.
   (the lobby's is closed the moment a phone learns its team) and are forwarded
   to the lobby, which validates by DECODING, writes, and pokes all four
   `TEAM_IDS` rooms so a change lands mid-session.
-  `packages/shared/src/goomba/levels.ts` still holds the five designed levels as
-  **`SEED_LEVELS`** — nothing reads them at play time; they are the day-one
-  seed and the worked examples DESIGNING.md is written about. `node seed.mjs
-  --push` loads them into an event; `--pull` prints what an event is running.
-  **A new event starts with no levels.**
+  **There is no copy of any level in this repo.** `SEED_LEVELS` — five levels
+  written out as TypeScript literals in `levels.ts`, which nothing read at play
+  time — is DELETED. It was a transcription of drawings that live in Figma,
+  maintained by hand in a third language, and its only jobs were seeding an
+  event on day one and giving the bench something to index. A level's source is
+  its Figma frame; a pack is what an event is running. `node seed.mjs --pull`
+  prints that pack, `--push --file <pack.json>` moves one between events, and
+  **a new event starts with no levels** — you fill it by pasting frames.
 - **The pack can change under a live room**, and `GoombaSim.reconcile` is the
   whole of "apply immediately, keep progress": `completed` is re-fitted to the
   new length, `level` is clamped back inside the pack, a run in flight is
@@ -101,38 +119,48 @@ findings — do not design from intuition, the sim disproves it reliably.
   line is recomputed in both directions. It deliberately does NOT remap flags by
   identity — deleting a level shifts every flag after it. That is the accepted
   cost of editing live.
-- **The 4-band rule is locked: every level must genuinely REQUIRE 4 bands.**
-  Not "allow" — require. There are four bands for the ROOM and **no rule about
-  whose**: any player may lay any of the four and lift any of them, their own or
-  a teammate's (`canPlaceBand` in `goomba/sim.ts` is the whole check —
-  `bands.length < MAX_BANDS`). The per-player quota of ⌈4 / connected players⌉
-  that used to force one band each is **reverted, on purpose** — the game is
-  multiplayer because four people share four bands, not because the room
-  rations them (README, "The four bands"). That revert makes the level gate the
-  only thing left: with nobody rationed, a level that wins on one band is a
-  level three people watch. `node bands.mjs` gates the room half; solo play
-  needs no special case, since one phone was never capped.
-  **One level is exempt, on purpose: Welcome to Goomba Glider (1)**, the
-  teaching level that ships first. It wants ONE band, because it is the thirty
-  seconds before anyone has seen a band work — a floor, a gap in the middle,
-  and the only thing a player can do is the thing the game is about.
-  `verify.mjs` fails it at check 2 and always will; that is the rule doing its
-  job, not a defect. Nothing after it is exempt.
+- **Four bands for the ROOM, and no rule about whose**: any player may lay any
+  of the four and lift any of them, their own or a teammate's (`canPlaceBand` in
+  `goomba/sim.ts` is the whole check — `bands.length < MAX_BANDS`). The
+  per-player quota of ⌈4 / connected players⌉ that used to force one band each
+  is **reverted, on purpose** — the game is multiplayer because four people
+  share four bands, not because the room rations them (README, "The four
+  bands"). `node bands.mjs` is the test on that, and it is a test of SHIPPED
+  code, not of a level; solo play needs no special case, since one phone was
+  never capped.
+  **There is no rule about what a LEVEL must require.** There was: "every level
+  must genuinely REQUIRE all 4 bands", enforced by a simulation bench, and both
+  are deleted — see the next bullet.
 - **A band wears the TEAM's colour** — `earsFor(team).ink` from `shared/ears.ts`,
   the same ink the proctor's board and the cat-ear headbands use. One colour for
   every band on the board, because no band belongs to a player; the four-colour
   palette left in `main.js` (`PARTY_COLORS`) is confetti and bunting only. The
   testing room (t0) and `?solo` have no team, and fall back to the old pink.
-- **The gate: `cd tools/goomba && node verify.mjs <levelIdx>`** must print
-  PASS before a level ships. It runs the bare/solution checks, load-bearing +
-  finger-slop robustness, the exhaustive/randomized minimum-band search, and
-  a beam-search shortcut hunt. If verify finds a 1-band win, the level is
-  broken no matter how clever the design felt.
-- **Five levels ship, and TWO pass the gate — The Long Way Up (3) and Cat's
-  Cradle (4)** (Welcome to Goomba Glider (1) is the deliberate exemption
-  above). The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The Popper
-  Grid, Pop Goes Goomba, Popper Pinball, Piñata Alley, Space Cadet and Slalom
-  were cut. **A level's display number is its array index + 1, computed where it
+- **THE GATE IS DELETED, and so is the bench under it.** `verify.mjs` (the
+  PASS/FAIL battery a level had to clear before shipping), `route`, `trace`,
+  `slack`, `scan`, `solve`, `minbands`, `reach`, `search`, `searchall`,
+  `robust`, `diag`, `ridecards`, and `packages/shared/src/goomba/gate.ts` — all
+  gone, with the 4-band rule they existed to enforce. **A level is evaluated by
+  people playing it.** Don't rebuild any of it, don't add a verdict to a level
+  card, and don't write "must pass" into a doc: this was tried, at length, and
+  four people around a table found what mattered sooner and said WHY. Git
+  history has every line if a question ever genuinely needs a simulator.
+  The level's `solution` field went with it — the baked answer key the gate
+  graded against — and that cost a **codec version bump to fmt 2**, because
+  `nSolution` sat unconditionally in the middle of the layout where no flag
+  could excuse it. `decodeLevel` still reads fmt 1 (and discards the solution),
+  so every link in every lobby survives; `encodeLevel` only writes 2. **A fmt-2
+  link is unreadable by an older bundle** — it refuses it rather than
+  misreading it, which is the property the bump was bought for — so this one
+  needs the Worker out first (see "Deploy order").
+- **Five levels were designed here** — Welcome to Goomba Glider, The Long Way
+  Down, The Long Way Up, Cat's Cradle, There and Back Again. They are frames in
+  Figma now, not code; the numbers below were measured on those boards with a
+  bench that no longer exists, and the PATTERNS are what survives them, written
+  up in DESIGNING.md. The Skim, The Puzzle Box, Pillow Fort, Mind the Gap, The
+  Popper Grid, Pop Goes Goomba, Popper Pinball, Piñata Alley, Space Cadet and
+  Slalom were cut earlier. **Level numbers in these notes are historical** —
+  a number is a position in a pack, and nothing renumbers a pack but the pack. **A level's display number is its array index + 1, computed where it
   is shown and stored nowhere** — `levelLabel` in `goomba/levels.ts`, used by
   the selector's cards, the level-change toast and the proctor's Goomba line.
   So removing, inserting or DRAGGING one renumbers the whole pack for free; a
@@ -149,32 +177,27 @@ findings — do not design from intuition, the sim disproves it reliably.
   rim), and put every band end on a terrain vertex ~9 units clear of its
   neighbours so snap absorbs finger slop (29/30 at ±3u on a level that is
   otherwise exact ballistics).
-- Levels 2 and 5 need fewer than 4 bands — the standing debt. Re-measured
-  with `minbands`/`solve`, not inherited: The Long Way Down (2) needs **3**;
-  5 is a testbed, not a shipped puzzle. The Long Way Down is now
-  drawn in Figma and pasted in, and one pass of it dropped to 2 bands by
-  FENCING the world at both edges: two of its three jobs were only jobs because
-  failing them threw her out of the world, and a fence does that work for free.
-  **Closing a world makes it more forgiving** — worth remembering before fencing
-  anything else. Reopening the right edge put it back to 3, and to three
-  different deaths (stall / off-the-left / flew-off-the-right). The
-  old blanket "these all collapse to 1 band" note was stale for both — if you
-  are about to repeat a debt claim, re-run the tool first. Level 1 joined the
-  debt on purpose, rebuilt to a hand sketch whose
-  silhouette has no room for a 4th gate (DESIGNING.md has the
-  reachability sweep that proves no can placement fixes it).
-  There and Back Again (4) grew from a hand sketch over several rounds and is the
-  near-miss: bare fails, all three bands load-bearing with three different
-  deaths, and finger slop 22/30 — the best any board here has scored with a
-  bumper in the loop. It fails only the 4-band rule, at 3 bands. Its fourth can
-  at (13,54) is a TOLL BOOTH: it sits on the ↙ popper's 135° throw arc, so the
+- **Fencing a world makes it more forgiving.** The Long Way Down, drawn in
+  Figma and pasted in, dropped from three jobs to two the moment both edges were
+  fenced: two of its jobs were only jobs because failing them threw her out of
+  the world, and a fence does that work for free. Reopening the right edge put
+  the third back, and with it three different deaths (stall / off-the-left /
+  flew-off-the-right). Worth remembering before fencing anything else — and it
+  is the same fact as "a bigger frame is a more forgiving level", read from the
+  other end.
+  There and Back Again grew from a hand sketch over several rounds and was the
+  best-measured board here: the bare run failed, all three bands were
+  load-bearing with three different deaths, and it survived ±3u of finger slop
+  22 times in 30 — the best any board managed with a bumper in the loop. Its
+  fourth can at (13,54) is a TOLL BOOTH: it sits on the ↙ popper's 135° throw arc, so the
   only way to collect it is to actually be thrown by that popper, which is what
   stops winning lines threading past it. Its ↙ return
-  popper is the piece that was wrong twice, and the lesson is in `levels.ts`:
+  popper is the piece that was wrong twice, and the lesson is the sentence after
+  this one (it used to live in a comment in `levels.ts`, which is deleted):
   what matters is whether a popper's aim has ROOM downrange, and the fix for a
   135° throw that overshot the world's left edge was moving the LANDING popper
   left, not re-aiming the thrower.
-  Don't copy the structure of 1; copy **The Long Way Up** (a ridden slope
+  Don't copy the structure of the teaching level; copy **The Long Way Up** (a ridden slope
   with perpendicular notches), **Cat's Cradle** (four one-way popper lanes,
   sparse and staggered, where the players' bands are the only walls — it
   replaced The Popper Grid's dense version of the same idea and is more
@@ -188,8 +211,12 @@ findings — do not design from intuition, the sim disproves it reliably.
   ring is 6 units, a can's 7.5, so one ring measured in pixels converts the
   whole drawing (DESIGNING.md, "Transcribing a sketch"). Cat's Cradle came in
   as a picture; the rings not touching was the design.
-- Parallel level threads: work on your own branch — `levels.ts` is where
-  every level thread edits, and sharing a branch collides.
+- Parallel level threads no longer collide in a file: a level is a frame in
+  Figma and a link in an event's pack, so two people designing at once share
+  nothing but the pack itself — and a `packSet` writes one slot. What they do
+  share is the EVENT: a paste is live for all four phones a second later, so
+  point a second thread at its own event rather than editing over a party in
+  progress.
 
 ## Repo invariants (violating these has burned us before)
 
@@ -231,12 +258,12 @@ findings — do not design from intuition, the sim disproves it reliably.
   real wire intent; teammates follow). **A card carries NO verdict**, and both
   the ones it used to are gone for the same reason. It graded a baked
   `solution` — dashed `band` layers drawn into the Figma frame and carried
-  through the codec — which had to be re-drawn by hand every time the geometry
+  through the codec, back when a level had such a field — which had to be re-drawn by hand every time the geometry
   moved, and a stale one graded green; then it graded the BARE run alone, which
   was honest but was one word about a level, and it cost a full sim of every
-  level just to open the menu. Grading is `verify.mjs`'s: it SEARCHES for a
-  solution rather than being told one, and says far more than a card can hold.
-  Don't put a verdict back on a card. `?debug` puts one phone in the unlocked
+  level just to open the menu. Nothing grades a level now — the bench that did
+  is deleted and people playing it is the answer — so a card has nothing true
+  to say in one word. Don't put a verdict back on one. `?debug` puts one phone in the unlocked
   state without playing the game first — that is ALL it does now, so don't add
   features behind it that a cleared room doesn't get.
   `?solo` runs the same grid on the in-page sim with no server. Testing on
@@ -321,18 +348,18 @@ npm run dev            # everything: server :1999, hex :5173, goomba :5178,
 npm run typecheck      # all workspaces
 npm run build:vercel   # full build + assemble + routing & cursor checks
 npm run check:cursors  # the two-cursor rule, on its own
-cd tools/goomba && node verify.mjs <idx>   # the level-design gate
-cd tools/goomba && node route.mjs <idx> drop  # the ride + its four deaths
-cd tools/goomba && node slack.mjs <idx>    # per-band forgiveness (jitter/slide/stretch)
-cd tools/goomba && node verify.mjs --hash <editor link>   # same gate, no diff
-cd tools/goomba && node verify.mjs --file <file of links> # ...on a batch
 cd tools/goomba && node bands.mjs          # the room's band budget (4, and no rule about whose)
-cd tools/goomba && node seed.mjs           # print the seed pack
-cd tools/goomba && node seed.mjs --push    # …load it into a running event
+cd tools/goomba && node test-codec.mjs     # the save format (a link round-trips; old links still decode)
 cd tools/goomba && node seed.mjs --pull    # what is the event running right now?
+cd tools/goomba && node seed.mjs --push --file pack.json  # move a pack between events
 ```
 
 `npm run dev` no longer starts an editor on :5179 — press `\` in the game
-instead. The bench (`lib.mjs`) loads `SEED_LEVELS` on import so `verify.mjs
-<idx>` still indexes the five designed levels exactly as before; `usePack`
-points it at an event's real pack.
+instead. **There is no command that evaluates a level**, and that is the whole
+of the change: the bench that used to (`verify.mjs` and twelve others) is
+deleted, so a level is designed in Figma, pasted in, and played. `?solo` for the
+in-page sim, `/proctor` + `?debug` for a real room.
+
+The three commands left need no levels except `figma/levels-to-svg.mjs`, which
+draws a pack as artboards and takes one from `--pack <file>`, `GOOMBA_PACK`, or
+a gitignored `pack.json` in `tools/goomba/` (`seed.mjs --pull > pack.json`).

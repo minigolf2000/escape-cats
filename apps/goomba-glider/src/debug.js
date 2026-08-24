@@ -44,8 +44,8 @@ export function soloFromUrl() {
  *
  * Solo only, and now the ONE kind of level that is not in the event's pack:
  * everything else a phone plays arrives from the lobby over the room socket.
- * A link is how a level travels before anyone has committed it to the pack —
- * out of `verify.mjs`, off someone else's phone — so it stays.
+ * A link is how a level travels before it has reached a pack — off someone
+ * else's phone, out of a chat message — so it stays.
  */
 export function adoptHashLevel() {
   if (location.hash.length <= 1) return null;

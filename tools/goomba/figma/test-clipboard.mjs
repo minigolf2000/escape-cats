@@ -134,16 +134,23 @@ const TRUTH = {
   // overhanging the shared vertex. Same surface either way — `segsFor` splits
   // polylines back into segments before collision.
   terrain: [[[10, 10], [40, 16], [70, 14]]],
-  // No `solution`: the frame's `band` layer is consumed and dropped, so a level
-  // arrives as geometry only. `undefined` is the assertion — a level that came
-  // back with a baked answer key would fail here.
-  solution: undefined,
+  // The frame's `band` layer is consumed and dropped (it is warned about below).
+  // There is no `solution` field on a level at all any more — a level is
+  // geometry, and the codec stopped carrying an answer key at fmt 2 — so what
+  // is asserted here is the absence of the KEY, further down.
   start: [12, 8],
   goal: [65, 50],
   cans: [[30, 25]],
   bumpers: [{ x: 50, y: 40 }],
   pops: [{ x: 20, y: 45, deg: -37, spd: 137 }],
   cushions: [{ x: 35, y: 52, w: 20 }],
+  // The frame's SIZE (800×600 px = 80×60 units), and none of its POSITION: the
+  // frame node sits at canvas x 20000, which must leave no trace. This is the
+  // padding a designer draws on purpose — here, 10 units of empty world past
+  // the terrain's right end at x 70, which is room for a band and is exactly
+  // what re-cropping to the ink used to throw away. `initLevel` unions it with
+  // the derived box; see `frame` in levels.ts.
+  frame: { x0: 0, y0: 0, x1: 80, y1: 60 },
 };
 // The frame name and the level name are now the same string bar the `L:`
 // marker. A trailing "@145" used to ride here too, setting that level's own
@@ -158,6 +165,7 @@ const check = (key, got, want) => {
 };
 console.log("native Figma clipboard -> GoombaLevel");
 for (const k of Object.keys(TRUTH)) check(k, level[k], TRUTH[k]);
+check("no `solution` key at all — the field is gone", "solution" in level, false);
 check("no stray props (_gauge ignored)", level.cans.length + level.bumpers.length + level.pops.length, 3);
 check("the `band` layer is warned about, not read", warnings.filter((w) => w.includes("`band`")).length, 1);
 if (warnings.length) console.log("  warnings:", warnings.join(" · "));

@@ -26,8 +26,7 @@
 // schema to keep in step with Figma.
 //
 // It is still an undocumented format. Everything below fails loudly rather than
-// guessing, and a pasted level is still only proposed until `verify.mjs --hash`
-// has had it.
+// guessing — a level that decodes wrong is a level nobody can see is wrong.
 import { decodeBinarySchema, compileSchema } from "kiwi-schema";
 import { stitchTerrain } from "./stitch.js";
 
@@ -226,9 +225,9 @@ export async function levelFromFigmaClipboard(html) {
   const terrain = [], cans = [], bumpers = [], cushions = [], pops = [];
   // `band` used to be a kind: a level carried its own answer key, drawn in
   // Figma and shown back on the selector's cards. It is gone — a solution is
-  // the players' job and the bench's, never the frame's — but old frames still
-  // have the layers, so they are consumed and counted rather than silently
-  // read as something else.
+  // the players' job, never the frame's, and since codec fmt 2 there is no
+  // field that could hold one — but old frames still have the layers, so they
+  // are consumed and counted rather than silently read as something else.
   let droppedBands = 0;
   let start = null, goal = null, name = null;
 
@@ -322,6 +321,21 @@ export async function levelFromFigmaClipboard(html) {
       if (!emit(child, cm)) walk(child, cm, depth + 1);
     }
   };
+  // The frame's own SIZE is the world the level was drawn in. Its POSITION on
+  // the Figma canvas is not part of the level (the walk below starts from
+  // identity inside it), so the box is frame-local: (0,0) to (w,h).
+  //
+  // This is the padding a designer draws on purpose — the empty run to the
+  // right of a wall that a band is meant to reach out into. Without it the
+  // level arrives cropped to its own ink, because `bounds` is derived from the
+  // geometry and the frame around it left no trace. `initLevel` unions the two,
+  // so a frame drawn smaller than its contents can only ever add nothing.
+  let frame;
+  if (frameNode && frameNode.size) {
+    const fw = frameNode.size.x ?? 0, fh = frameNode.size.y ?? 0;
+    if (fw > 0 && fh > 0) frame = { x0: 0, y0: 0, x1: W(fw), y1: W(fh) };
+  }
+
   for (const r of roots) {
     if (frameNode) {
       // The frame IS the coordinate space, so its own placement on the Figma
@@ -348,15 +362,16 @@ export async function levelFromFigmaClipboard(html) {
     name: name || "pasted from Figma",
     budget: 4,
     start, goal,
+    ...(frame ? { frame } : {}),
     // One Figma Line per segment; chains of them are one surface. See stitch.js.
     terrain: stitchTerrain(terrain),
     cans, cushions, pops, bumpers,
   };
   if (droppedBands)
     warnings.push(
-      `ignored ${droppedBands} \`band\` layer(s): a level no longer carries a ` +
-      `baked solution. Delete them from the frame — the bench and the players ` +
-      `find the bands now.`,
+      `ignored ${droppedBands} \`band\` layer(s): a level does not carry a ` +
+      `solution — there is no field for one. Delete them from the frame; the ` +
+      `players find the bands.`,
     );
   return { level, warnings };
 }

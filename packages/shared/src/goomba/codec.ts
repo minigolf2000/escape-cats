@@ -5,24 +5,24 @@
 // drawings. So this file is the save format — encode a `GoombaLevel` to a
 // base64url string that rides in `location.hash`, decode it back.
 //
-// It lives in shared/ rather than in the editor because two very different
-// programs have to agree on it byte for byte: the browser editor writes the
-// link, and `tools/goomba/verify.mjs` reads it to run THE GATE on a level that
-// never entered `levels.ts`. That handoff — designer shares a link, the bench
-// verifies it — is the whole point, and a second copy of the format would
-// break it the first time one side gained a field.
+// It lives in shared/ rather than in the app because three very different
+// programs have to agree on it byte for byte: the browser writes the link, the
+// lobby Durable Object validates it by DECODING, and the node tools read it. A
+// second copy of the format would break that the first time one side gained a
+// field — which has now happened once (`frame`), so the rule is not theoretical.
+// `tools/goomba/test-codec.mjs` is the proof.
 //
 // Layout (little-endian; every coordinate is a signed 16-bit value in TENTHS
 // of a world unit, so ±3276.7 at 0.1 precision). Tenths rather than a binary
 // fraction because that is the precision the level data actually uses: terrain
-// is drawn on halves, and the band endpoints that `scan.mjs`/`solve.mjs` hand
-// back carry one decimal — a binary scale quantises those and moves a shipped
-// solution by a hundredth of a unit for no reason. At tenths every level in
-// `levels.ts` round-trips byte-identical.
+// is drawn on halves, and a band endpoint carries one decimal — a binary scale
+// quantises those and moves a placement by a hundredth of a unit for no reason.
+// At tenths a level round-trips byte-identical.
 //
-//   u8    fmt = 1
+//   u8    fmt          2 today; 1 still READS (see below)
 //   u8    flags        bit0: a legacy per-level maxSpeed follows (never written
 //                      now; still READ, see below)
+//                      bit1: a frame box follows (see the tail)
 //   u8    nameLen, then that many UTF-8 bytes
 //   i16×2 start, i16×2 goal
 //   i16   maxSpeed     (only when flags bit0) — legacy, read and discarded
@@ -31,14 +31,43 @@
 //   u8    nPops,    then × i16×4  (x, y, deg, spd)
 //   u8    nCushions,then × i16×3  (x, y, w)
 //   u8    nBumpers, then × i16×2
-//   u8    nSolution,then × i16×4  (ax, ay, bx, by)
+//   u8    nSolution,then × i16×4  — **fmt 1 ONLY**, read and discarded
+//   i16×4 frame       (only when flags bit1) — x0, y0, x1, y1
 //
-// `budget` is not carried: the 4-band rule locks every level to MAX_BANDS, and
-// a save format that could disagree with it would be a way to smuggle a
-// 3-band level past the gate.
+// **Why the version went to 2.** A level used to carry `solution`, a baked
+// answer key: the band set a designer swore by, which the design bench graded
+// against. The bench and the gate it served are deleted, nothing has produced a
+// solution since Figma frames stopped carrying `band` layers, and so the field
+// was bytes describing a concept the game no longer has.
+//
+// It could not leave the way `frame` arrived, behind a flag. `frame` rides at
+// the TAIL and is OPTIONAL, so every offset before it is untouched and an older
+// reader just stops early. `nSolution` sits in the MIDDLE and is unconditional —
+// every link ever written has that byte — so dropping it moves every byte after
+// it. There is no flag that fixes that, because an old link has no flag bit set
+// to say "I have one": it simply does.
+//
+// So the version does the work, and it buys the one property worth having: an
+// old reader meeting a fmt-2 link REFUSES it (`fmt !== 2` → null → the pack
+// drops that entry, visibly) instead of reading the frame's first byte as a
+// band count and handing back a level made of garbage. A missing level is a bug
+// someone can see. Meanwhile every fmt-1 link ever written still decodes here,
+// exactly, minus a field nothing reads.
+//
+// **This makes a new link unreadable by an older bundle**, which is the one
+// thing this format had never done before. Ship the Worker first (see CLAUDE.md,
+// "Deploy order"); during the window an old phone drops a newly-pasted level
+// rather than misreading it.
+//
+// `budget` is not carried either: the room gives out `MAX_BANDS` and a save
+// format that could disagree with it would be a way to smuggle a different
+// number into a party.
 import type { GoombaLevel, Pt } from "./levels";
 
-const LEVEL_CODEC_FMT = 1;
+/** What `encodeLevel` writes. `decodeLevel` also accepts 1 — see the header. */
+const LEVEL_CODEC_FMT = 2;
+/** The version that carried a baked `solution`, still read for old links. */
+const FMT_WITH_SOLUTION = 1;
 
 /** Fixed-point scale: tenths of a unit. Exact for every coordinate the design
  * tools produce, and ±3276.7 is far more world than a portrait level uses. */
@@ -116,7 +145,13 @@ export function encodeLevel(L: GoombaLevel): string {
   // constant now (MAX_SPEED in levels.ts), so nothing sets it any more — but
   // the bit keeps its meaning on the way IN, because links written before this
   // are sitting in live lobby packs.
-  w.u8(0);
+  //
+  // bit1 says a frame box is at the tail. `bounds` is NOT carried and must not
+  // be: it is derived, and a link that could disagree with initLevel would be
+  // two answers to where the world ends. `frame` is authored — it is the box
+  // somebody drew in — so it is the half that has to survive the trip.
+  const frame = L.frame;
+  w.u8(frame ? 2 : 0);
 
   const name = new TextEncoder().encode(L.name ?? "");
   const nameLen = Math.min(255, name.length);
@@ -164,11 +199,11 @@ export function encodeLevel(L: GoombaLevel): string {
     w.fx(bumps[i].y);
   }
 
-  const sol = L.solution ?? [];
-  const nSol = w.count(sol.length);
-  for (let i = 0; i < nSol; i++) {
-    w.pt(sol[i][0]);
-    w.pt(sol[i][1]);
+  if (frame) {
+    w.fx(frame.x0);
+    w.fx(frame.y0);
+    w.fx(frame.x1);
+    w.fx(frame.y1);
   }
 
   return b64urlEncode(Uint8Array.from(w.bytes));
@@ -196,7 +231,8 @@ export function decodeLevel(input: string): GoombaLevel | null {
   }
 
   const r = new Reader(bytes);
-  if (r.u8() !== LEVEL_CODEC_FMT) return null;
+  const fmt = r.u8();
+  if (fmt !== LEVEL_CODEC_FMT && fmt !== FMT_WITH_SOLUTION) return null;
   const flags = r.u8();
 
   const nameLen = r.u8();
@@ -240,9 +276,22 @@ export function decodeLevel(input: string): GoombaLevel | null {
   const nBumps = r.u8();
   for (let i = 0; i < nBumps; i++) bumpers.push({ x: r.fx(), y: r.fx() });
 
-  const solution: [Pt, Pt][] = [];
-  const nSol = r.u8();
-  for (let i = 0; i < nSol; i++) solution.push([r.pt(), r.pt()]);
+  // fmt 1 carried a baked solution here. Consume it and throw it away — the
+  // bytes have to be read either way or the frame after them is read from the
+  // wrong offset, which is the whole reason this costs a version.
+  if (fmt === FMT_WITH_SOLUTION) {
+    const nSol = r.u8();
+    for (let i = 0; i < nSol; i++) {
+      r.pt();
+      r.pt();
+    }
+  }
+
+  // The frame the level was drawn in, if the writer had one. Read it BEFORE the
+  // `ok` test below, so a link that claims a frame and then ends early fails as
+  // `null` like any other truncation rather than quietly losing its padding.
+  let frame: GoombaLevel["frame"];
+  if (flags & 2) frame = { x0: r.fx(), y0: r.fx(), x1: r.fx(), y1: r.fx() };
 
   // Only now: any short read anywhere above tripped `ok`, and a level needs
   // SOMETHING to interact with — terrain, poppers, cushions or bumpers. That
@@ -258,5 +307,10 @@ export function decodeLevel(input: string): GoombaLevel | null {
   if (!r.ok || !(terrain.length || pops.length || cushions.length || bumpers.length))
     return null;
 
-  return { name, start, goal, terrain, cans, cushions, pops, bumpers, solution };
+  // `frame` is attached only when there was one, rather than left sitting as an
+  // explicit `undefined`: a decoded level is compared against a literal in both
+  // benches, and a key that exists holding nothing is not equal to no key.
+  const L: GoombaLevel = { name, start, goal, terrain, cans, cushions, pops, bumpers };
+  if (frame) L.frame = frame;
+  return L;
 }

@@ -1,5 +1,11 @@
-// THE ROOM'S BAND RULE. verify.mjs proves a level NEEDS 4 bands; this proves the
-// room hands out exactly 4 and puts no conditions on who lays or lifts them.
+// THE ROOM'S BAND RULE: the room hands out exactly 4 bands and puts no
+// conditions on who lays or lifts them.
+//
+// This is a test of SHIPPED behaviour, not of a level. There used to be a level
+// gate beside it — `verify.mjs`, which proved a level NEEDS all four — and it
+// is deleted along with the rest of the simulation bench: whether a level is
+// any good is answered by people playing it. What is left here is the room
+// rule itself, which is code, and code is what a test is for.
 //
 // It drives the real GoombaSim (the same class the Durable Object wraps) through
 // the placement paths a room actually takes: one player laying all four, four
@@ -16,7 +22,24 @@
 // four while B, C and D watch" is a product decision, not an accident, and a
 // re-introduced quota should fail a test rather than surprise a party.
 
-import { GoombaSim, canPlaceBand, MAX_BANDS } from "./lib.mjs";
+import { GoombaSim, canPlaceBand, MAX_BANDS, applyPack, levelsToPack } from "./lib.mjs";
+
+/**
+ * A board of its own, installed before any room is built.
+ *
+ * `GoombaSim` places bands against whatever level the room is on, so this test
+ * needs A level — but emphatically not a REAL one. It used to run on the repo's
+ * seed levels, which are deleted, and pointing it at an event's pack instead
+ * would make a test of the room's rules fail or pass depending on what somebody
+ * was playing that night. Geometry is irrelevant here: we are testing who may
+ * place a band, not what a band does. So: a floor, a spawn, a plant.
+ */
+applyPack(levelsToPack([{
+  name: "Band Rule Fixture",
+  start: [10, 50],
+  goal: [90, 50],
+  terrain: [[[0, 60], [100, 60]]],
+}]));
 
 let fails = 0;
 const check = (label, ok, detail = "") => {

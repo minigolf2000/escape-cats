@@ -34,9 +34,9 @@ packages/shared/     Wire protocol, seeded RNG, and BOTH whole games: hex
 server/              Cloudflare Worker: two game rooms, team lobby and team
                      chat, as four Durable Objects (partyserver, NOT the
                      PartyKit platform)
-tools/goomba/        Goomba level-design bench: node QA tools over the shared
-                     sim + the design guide (DESIGNING.md). `verify.mjs` is the
-                     gate, and it accepts an editor link as well as an index
+tools/goomba/        The design guide (DESIGNING.md), the Figma bridge, and
+                     three commands: move a pack between events, test the save
+                     format, test the room's band rule. Nothing grades a level
 ```
 
 ## Where things live (so a retune touches one file)
@@ -47,16 +47,18 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
   so there is exactly one copy to edit.
 - **Game logic** — what a pet/purchase/golden-catch does: `packages/shared/src/hex/sim.ts`
   (the room server is a thin websocket wrapper around it).
-- **Goomba levels & physics** — `packages/shared/src/goomba/levels.ts` and
-  `physics.ts`; the multiplayer room state machine is `goomba/sim.ts`. The
+- **Goomba levels & physics** — `physics.ts` and `levels.ts` (the level TYPE and
+  `initLevel`; the levels themselves are not in the repo — they are Figma frames
+  and, once pasted, links in an event's pack); the multiplayer room state machine is `goomba/sim.ts`. The
   level-design loop and QA tools live in `tools/goomba/` (start with its
   `DESIGNING.md`). The **level selector** is what a team earns by clearing
   every level (`goombaCleared` in `goomba/sim.ts`, which is the same
   `finishedAt` the proctor's finish line reads — so it arrives on one snapshot
   for all four phones and a proctor reset takes it back): the **levels** grid,
   opened from the top-left level dots (once unlocked the strip wears a plate
-  and a ▦), every level a card with live bare/solution verdicts, and tapping
-  a card jumps the whole room to that level (teammates follow) — on a laptop
+  and a ▦), every level a card drawn from its own geometry under its name — no
+  verdict, because nothing grades a level — and tapping a card jumps the whole
+  room to that level (teammates follow) — on a laptop
   that is a DOUBLE-click, since a single one selects (see the editor below). Taking NEXT off
   the finale of a cleared room lands on the **splash** phase — the
   congratulations screen, black, whose only control is that selector: the strip
@@ -125,8 +127,9 @@ tools/goomba/        Goomba level-design bench: node QA tools over the shared
    that exact string. Nothing here is a security boundary; see also the
    proctor role in `server/src/connections.ts`.
 7. **10 minutes is a completion target, not a timer** — achieved through
-   balance. All economy/level tuning lives in `packages/shared/src/hex/data.ts`
-   and `levels.ts`, never in game code.
+   balance. All economy tuning lives in `packages/shared/src/hex/data.ts` and
+   the physics constants in `goomba/levels.ts`, never in game code; Goomba's
+   levels themselves are drawn in Figma and live in the event's pack.
 8. **Seat reclaim** — each phone has a persistent player id in localStorage,
    so a locked phone or dropped wifi rejoins the same seat.
 
@@ -480,10 +483,21 @@ person and a drawing tool.
 
 So a level IS a link. `encodeLevel` (`packages/shared/src/goomba/codec.ts`)
 packs a whole level — name, terrain, cans, poppers, cushions, bumpers, start,
-goal, the four-band solution — into 100–450 base64url characters, which fits in
-a URL, a chat message, a sticky note or a QR code. Every level currently in
-`levels.ts` round-trips through it byte-identical (coordinates are stored in
-tenths of a world unit, which is exactly the precision the design tools emit).
+goal, the frame it was drawn in — into 100–450 base64url characters, which fits
+in a URL, a chat message, a sticky note or a QR code. A level round-trips
+through it byte-identical (coordinates are stored in tenths of a world unit,
+which is exactly the precision the design tools emit); `tools/goomba/test-codec.mjs`
+is the proof, against a real link frozen from before the format last moved.
+
+The format has moved twice, in opposite directions, and the two cases are worth
+holding together. Adding `frame` was free: it rides at the TAIL behind a flag
+bit, so every offset before it is untouched and an older bundle reads a new link
+right up to the frame and stops. Removing `solution` was not: `nSolution` sat
+unconditionally in the MIDDLE, so dropping it moved every byte after it and no
+flag could have said otherwise. That cost a version (fmt 2). Old links still
+decode; new links are ~10% shorter; and an older bundle now REFUSES a new link
+rather than misreading it, which is deliberate — a level that goes missing is a
+bug someone can see.
 This is the trade `tools/qr-studio.html` already makes for its drawings, and
 the storage tiers are the same three:
 
@@ -494,21 +508,20 @@ the storage tiers are the same three:
 2. **`localStorage` — the draft.** Autosaved continuously, so a reload or a
    closed lid costs nothing.
 3. **The tray** — a named list of links in `localStorage`, so one laptop can
-   hold a whole group's output, and *download .links* writes the file
-   `node verify.mjs --file` reads.
+   hold a whole group's output.
 
-The payoff is that the codec is shared code, not editor code: `lib.mjs` bundles
-it for the node bench too, so `node verify.mjs --hash <link>` runs the full
-gate — including the beam search the browser never runs — on a level that
-nobody has committed. A design can be made, shared, gated and rejected before
-it is ever a diff.
+The payoff is that the codec is shared code: the browser writes a link, the
+Worker validates it by decoding, and `tools/goomba/test-codec.mjs` proves the
+round trip byte for byte. A design can be made, shared and played before it is
+ever a diff — and since there is no gate any more, being played is the only
+thing that decides it.
 
 ## Next steps (deliberately not in the scaffold)
 
 - Per-session code words configured from the proctor dashboard.
 - CI beyond the deploy guard: nothing runs `npm run typecheck` across the whole
-  repo, the level gates (`tools/goomba/verify.mjs`) or the room gate
-  (`bands.mjs`) on a pull request. The Worker deploy typechecks only the
+  repo, or the tests (`tools/goomba/bands.mjs`, `test-codec.mjs`, the three in
+  `tools/goomba/figma/`) on a pull request. The Worker deploy typechecks only the
   workspace it ships, deliberately — a broken proctor page shouldn't block a
   room-server deploy — so a PR check is still a separate job worth adding.
 
@@ -608,12 +621,12 @@ had to talk someone else's thumb through it. Four people around one board are
 already a crowd; the argument over where the four bands go is the game, and
 rationing the placements is not what makes it multiplayer.
 
-What is left carrying that weight is the level-design gate. With nobody
-rationed, **a level that wins on one band is a level three people watch** — so
-geometry that genuinely needs all four (`tools/goomba/verify.mjs`) is the only
-thing standing between the party and a solo puzzle. Two gates still, but they
-no longer split one rule: `verify.mjs` for the geometry, `tools/goomba/bands.mjs`
-for the room.
+What carries that weight instead is the level, and **a level that wins on one
+band is a level three people watch**. That used to be enforced: a rule that
+every level must genuinely require all four bands, and a simulation bench
+(`verify.mjs`) that proved it before a level shipped. Both are deleted — they
+did not earn their keep next to four people playing the thing. `tools/goomba/bands.mjs`
+still tests the room half, because that half is code.
 
 Mechanics worth knowing before changing any of it:
 

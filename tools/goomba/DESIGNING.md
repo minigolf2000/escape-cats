@@ -1,119 +1,63 @@
 # Designing a Goomba Glider level (read this first)
 
-**Fastest way in: draw it in Figma, then paste it at `/editor/`** (`npm run
-dev` serves that page on :5179). The design kit, the naming contract and the
-scale live in [`../goomba/figma/README.md`](./figma/README.md); the page itself
-authors nothing — it reads the pasted frame, plays it on the shipped physics,
-and copies a link. A level travelling as a link is how it reaches this bench:
-`node verify.mjs --hash <link>` runs the full gate on a level that was never
-committed. Figma is the fast loop; the gate below is still the authority.
+**Draw it in Figma, paste it into the game, play it.** That is the whole loop.
+The design kit, the naming contract and the scale live in
+[`figma/README.md`](./figma/README.md); pressing `\` in Goomba Glider opens the
+levels grid, and Ctrl+V lands a copied frame on whatever you were looking at.
 
-This folder is the rest of the level-design bench. The game itself is the coop app in
-`apps/goomba-glider/` on the shared sim in `packages/shared/src/goomba/`; the
-single-player prototype it grew from is deleted (git history has it), so there
-is exactly **one copy of the physics and one copy of the levels** —
-`packages/shared/src/goomba/levels.ts`. Every tool here bundles that TypeScript
-on the fly (`lib.mjs`) and drives the identical code the server scores runs
-with — as does the editor, which imports the same package rather than carrying
-a copy. Design happens in the editor or by editing `levels.ts`, graded by these
-tools; playtests happen on the deployed game by assigning yourself to a team
-from `/proctor`.
+There is no copy of any level in this repo, and **nothing here grades one**. A
+level's source is the Figma frame it was drawn in; what an event plays is a pack
+of links in its lobby; whether it is any good is answered by four people playing
+it. This document is what was learned from doing that — the physics, and the
+shapes that turned out to work.
 
-## The 4-band rule (non-negotiable)
+> There used to be a bench here that simulated levels in node: `verify.mjs` (THE
+> GATE — a PASS/FAIL battery), plus `route`, `trace`, `slack`, `scan`, `solve`,
+> `minbands`, `reach`, `search`, `searchall`, `robust`, `diag`, `ridecards`. It
+> and the 4-band rule it enforced are deleted. It was not earning its keep:
+> playtesting caught what mattered, sooner, and in a form you could act on. Git
+> history has all of it if a question ever genuinely needs a simulator. The
+> numbers quoted throughout these notes were measured with it, on levels that
+> are now Figma frames — treat them as findings, not as claims about your board.
 
-**Every level must genuinely REQUIRE all 4 bands** — not merely allow them.
+What is left in this folder is not about levels: `seed.mjs` moves a pack between
+events, `test-codec.mjs` tests the save format, `bands.mjs` tests the room's band
+rule, and `figma/` is the bridge in from Figma. `lib.mjs` bundles
+`packages/shared/src/goomba/` for those three so nothing carries a second copy of
+the codec.
 
-This used to be half of a "party rule" whose other half lived in the room: a
-per-player cap of ⌈4 / connected players⌉ bands, so a full team was forced to
-lay exactly one each. **That cap is gone.** Nobody owns a band now — any player
-may lay any of the four and lift any of them, their own or a teammate's — and
-the room's only remaining question is whether a band is free (`canPlaceBand` in
-`packages/shared/src/goomba/sim.ts`; `node bands.mjs` is its gate).
-
-Losing the cap does not soften this half; it makes it the *only* half. Four
-people crowd one board with four bands between them, and what gives all four of
-them something to do is a level that cannot be won without all four placements.
-**A level that wins on 1 band still wins on 1 band with four players in the
-room** — the other three now have nothing to argue about, where before they at
-least had to hand over their token. Only geometry can close that gap.
-
-`minbands.mjs` is the judge: exhaustive at 0–1 bands, sampled at 2–3,
-plus your 4-band solution as the upper bound. The structural trick that makes
-"requires 4" possible is **state erasure between stages**: poppers and
-wall-drops reset her speed, so stages become independent and no single band can
-shortcut across them. Off-path watering cans then gate the spider plant so
-every stage must actually be ridden.
+The game itself is the coop app in `apps/goomba-glider/` on the shared sim in
+`packages/shared/src/goomba/` — one copy of the physics, `physics.ts`, which the
+server scores runs with and every phone animates.
 
 ## The loop
 
-1. **Sketch in data, not in your head.** Either drag it in the **editor**
-   (`/editor/`, and start from a level that already passes rather than
-   from the skeleton — remixing structure that works beats inventing it), or
-   add the candidate straight to `packages/shared/src/goomba/levels.ts` (its
-   index = position in the array). Levels are plain data either way: `terrain`
-   (polylines; walls are just steep segments), `start`, `goal`, and the toys —
-   `cans` (watering cans: the collectibles that lock the goal spider plant),
-   `pops` (poppers: forced re-launch, erases state), `cushions`, `bumpers`.
-   World is portrait-leaning (~110 wide × 200 tall), y is DOWN. Leave
-   `solution: []` until you find one. The editor's *copy levels.ts entry*
-   button emits the array entry when the shape is settled — every shipped level
-   round-trips through it byte-identical, so the paste is safe.
-2. **Trace the bare run**: `node route.mjs <idx>` narrates it as a chain —
-   which poppers fired, which cans she took, which bands she touched, with
-   times — which is the readable form of "did she ride lane 3, or fall past it
-   into lane 4"; `node trace.mjs <idx>` dumps the raw 30fps coordinates, which
-   is what you want when placing a ledge against her arc. Either way the level
-   must NOT win with no bands, and the failure should be legible (a smirk, not a
-   shrug). Later, `node route.mjs <idx> drop` runs the solution and then the
-   solution minus each band in turn — that output IS the "four deaths" line a
-   level comment carries, so write the comment from it, not from memory.
-3. **Find where bands work**: `node scan.mjs <idx> v|h <spanLo> <spanHi>
-   '[fixed]'` sweeps one band across the level and prints outcome windows —
-   how you discover the win window for each intended band and its width
-   (forgiveness). Aim for windows ≥ ~8 units, and once you have a window,
-   re-sweep it with `--step 1`: the default 2-unit sweep reports a 5-wide window
-   as 4 or 6 depending on phase, which is the difference between shipping a band
-   centred and shipping it on an edge. `node solve.mjs <idx> [k]` (beam
-   search) finds the solutions you did NOT intend — run it at k = 1–3 to hunt
-   shortcuts before a player does. Once a set wins, `node slack.mjs <idx>` is
-   the forgiveness card for it: per band, the ±3u jitter rate with its failure
-   modes, the win window along that band's own perpendicular (so it works for
-   tilted bands, which `scan.mjs` cannot sweep) and how far off-centre the band
-   is parked in it, and the lengths that still win. A band parked off-centre
-   gets its centred version measured on the same jitter stream and a verdict —
-   *take it*, *same*, or *leave it*, because a window's two edges are not
-   equally lethal and centring is not automatically a gain. It closes with the
-   whole solution jittered on the gate's seed AND three others, because 30
-   trials cannot tell 60% from 85% and only one of those ships.
-4. **Bake the solution** into the level's `solution` field, then run THE GATE:
-   `node verify.mjs <idx>` — one PASS/FAIL over the whole battery (bare fails,
-   4-band solution wins, every band load-bearing, finger-slop, exhaustive
-   0/1-band, sampled 2/3-band, beam-search shortcut hunt). `--quick` while
-   iterating; the full gate before shipping. A level still living in an editor
-   link takes `--hash <link>`, and a file of links (what the editor's tray
-   downloads) takes `--file <path>` — same battery, same verdict, no diff
-   required. The individual tools (`test.mjs`, `robust.mjs`, `minbands.mjs`)
-   remain for richer diagnostics when a check fails.
+1. **Draw it in Figma.** Start from a frame that already plays well rather than
+   from an empty one — remixing structure that works beats inventing it. A level
+   is plain data underneath: `terrain` (polylines; walls are just steep
+   segments), `start`, `goal`, and the toys — `cans` (watering cans: the
+   collectibles that lock the goal spider plant), `pops` (poppers: forced
+   re-launch, erases state), `cushions`, `bumpers`. World is portrait-leaning
+   (~110 wide × 200 tall), y is DOWN, and **the frame's own size is the world**,
+   so padding you draw on purpose is part of the design — room to lay a band out
+   past an edge is room you drew.
 
-   The editor runs checks 1–4 of that battery live and hunts checks 5–6 in the
-   background, which catches most breakage in seconds. It is not a substitute:
-   its samples are smaller and it never runs the beam search, which is the
-   hunter that has caught every exploit random sampling missed. **PASS from
-   `verify.mjs` is the only thing that ships a level.**
-5. **Look at the ride**: `node ridecards.mjs <outDir> <idx>` renders the level
-   with her traced path — Read the PNG. Judge fun by `duration × %airborne`,
-   not duration. For live play, open the game with **`?solo`** — the LEVELS
-   grid on the in-page sim (no server) — or with **`?debug`** in a real room,
-   where tapping a level card jumps the whole room to that level (multiplayer
-   playtesting). `?debug` no longer OWNS that grid: it overrides the gate a
-   team otherwise earns by clearing every level, so the selector you design
-   against is the one players get. Scriptable via `window.__goomba`:
-   `state() / send({type:'place',...}) / send({type:'play'}) /
-   send({type:'goto',level:i})`.
-6. **Update what the level makes stale**: the level-count claims in the root
-   `README.md` and this folder's docs. A level carries a `name` and nothing
-   else prose-wise — there are no hint/description fields, so the title is
-   the only text players read; make it earn its place.
+2. **Play it yourself first.** Open the game with **`?solo`** — the levels grid
+   on the in-page sim, no server — and Ctrl+V your frame straight onto the level
+   in front of you. Tweak in Figma, copy, paste, watch it redraw under you; a
+   paste whose name matches goes through without a question, which is what makes
+   this loop tight. Scriptable via `window.__goomba`: `state() /
+   send({type:'place',...}) / send({type:'play'}) / send({type:'goto',level:i})`.
+
+3. **Then play it with four people**, which is the only thing that has ever
+   really told us whether a level works. `/proctor`, assign yourself to a team,
+   open the game with `?debug`; tapping a level card jumps the whole room there,
+   so a table can walk a pack. Watch for the two failures a single player never
+   sees: nobody having anything to do, and everybody talking over one placement.
+
+4. **Update what the level makes stale.** A level carries a `name` and nothing
+   else prose-wise — there are no hint or description fields, so the title is the
+   only text players read. Make it earn its place.
 
 ## Physics cheat sheet (world units)
 
@@ -157,11 +101,12 @@ every stage must actually be ridden.
   for "she must not land here" zones. The stuck detector fails a run that
   stops making progress (~4 s).
 
-## Design notes: what the sim taught us
+## Design notes: what building these taught us
 
-Findings from brute-forcing the solution space (`minbands.mjs`). These are
-physics facts about this game, not opinions — each came from a level that
-failed a check.
+These are physics facts about this game, not opinions — each came from a level
+that broke, and most were first found by brute-forcing the solution space with
+tools that no longer exist. The numbers are what was measured then; the
+mechanisms are what to design against now.
 
 **The universal shortcut is "long fall + one catch band."** If the plant sits at
 the bottom and the start at the top, gravity does all the work and a single
@@ -193,9 +138,10 @@ lay four horizontal lanes of forced poppers aimed in alternation, like a 2D line
 maze. Bands can't help her travel — the players' only verb is to *wall* a lane:
 she rebounds off the band (band restitution ≈ .32 kills most of her speed),
 drifts backwards while she falls, and lands in the lane below, which runs the
-other way. Each lane needs its own wall, and `minbands.mjs` confirms no 1/2/3
--band set wins. This is the one structure whose true minimum is honestly 4, and
-it has now been built twice.
+other way. Each lane needs its own wall — nothing smaller than one wall per
+lane was ever found to win it, exhaustively at one band and by sampling at two
+and three. This is the structure that most reliably gives four people four
+separate jobs, and it has now been built twice.
 
 The Popper Grid built it DENSE — six poppers a lane, 16 units apart against the
 ~8-unit trigger reach, so crossing a lane anywhere got her grabbed — plus a
@@ -239,16 +185,16 @@ that range still lands on one of the interlocked columns rather than in a gap.
 Which one varies (its three walls land half a step back, level, and half a step
 on), so sweep the position instead of computing it. Park the wall BEFORE the
 lane's last popper and the same drift drops her through a gap and out of the
-level. (`route.mjs` prints the hand-off as `band1(81,20) … pop4(62,50)`: wall
-face at 81, caught 19 units back.)
+level. (Measured on Cat's Cradle: wall face at x 81, and she was caught by the
+popper 19 units back from it.)
 
 **A long wall survives fingers; a short one does not.** The biggest robustness
 lever found while tuning Cat's Cradle, and it is pure geometry: ±3u of slop on
 each end of a **26**-unit wall tilts it up to 13°, and a tilt turns the rebound
 by *twice* that — 26° off, easily enough to throw the landing clear of the
 popper below. The same slop on a **50**-unit wall tilts it 7°. Measured, same
-walls, same positions: at 26 units they jittered 68–90% and the gate read 19/30;
-stretched to 40–54 they read 96–99% and 30/30. So when the job is "wall this
+walls, same positions: at 26 units they survived ±3u slop 68–90% of the time,
+stretched to 40–54 they survived 96–99%. So when the job is "wall this
 lane", ship the wall LONG — a band stretches to 58 and nothing charges you for
 using it. Corollary for a level with no terrain: endpoints snap only to terrain,
 so a terrain-free level gets no snap assistance at all, and band length is the
@@ -258,11 +204,12 @@ the codec used to reject a level without a polyline — it now asks for furnitur
 of any kind, so a level like this still travels as a link.)
 
 **Don't ship on a lucky 30 trials.** The gate's finger-slop check is 30 jittered
-runs on one fixed seed — the right contract (a stable verdict both graders
-agree on) and a noisy measurement. A solution whose true rate was 48% passed at
-19/30 during this level's tuning. `slack.mjs` prints the gate's verdict beside
-the rate on three unrelated seeds and says SCRAPED PAST when they disagree. Aim
-for ≳ 90% true, not for 18.
+runs on one fixed seed — a stable verdict, and a noisy measurement. A solution
+whose true rate was 48% passed a 19-out-of-30 threshold during one level's
+tuning, and only a re-run on unrelated seeds showed it up. The general lesson
+outlives the tool: **thirty trials cannot tell 60% from 85%**, and only one of
+those is a level people can actually place. If you are counting anything, count
+enough of it.
 
 **Transcribing a sketch: the toys carry the scale.** A level handed over as a
 picture is already dimensioned, because the furniture has fixed sizes — a
@@ -318,8 +265,8 @@ gets smashed by it — angle the fire or end the feed outside the barrel line.
 
 **A chain of different gates needs one band each, without any state erasure
 (Four Ways to Help — level replaced, findings stand; git history has the
-geometry).** The other route to "requires 4" is four stages that fail
-*differently*: bridge, wall, bridge, choose-the-hole. Nothing has to reset her
+geometry).** The other way to get four separate jobs out of one board is four
+stages that fail *differently*: bridge, wall, bridge, choose-the-hole. Nothing has to reset her
 speed, because no band can substitute for a band doing a different job. Two
 rules make it hold. Give every gap a far lip **1 unit above** its near lip —
 arcs only fall, so no speed ever crosses it and gap width becomes purely a
@@ -331,22 +278,22 @@ column turns the whole family into a stall. Bonus for a tutorial: four gates
 with four distinct deaths means every partial solution reads as a specific
 lesson rather than a generic "she died".
 
-**A 58-unit band is half this world — "requires 4" needs structure, not a
-better collectible placement (The Long Way Down).** Rebuilding level 1 from a
+**A 58-unit band is half this world — spreading the work out takes structure,
+not better collectible placement (The Long Way Down).** Rebuilding level 1 from a
 hand sketch — four ledges descending to a plant on a flat, full-width ground —
 the obvious lever was "move the second can somewhere a 3-band solution cannot
-reach". It does not exist, and `reach.mjs` is the tool that says so: it paints
-every winning trajectory the beam search can find at k bands and at k+1 onto a
-grid and reports the cells only k+1 reaches. Here (`node reach.mjs 0 3
---drop-can 1`) that list is EMPTY — the 3-band reachable set covers the 4-band
-one, so there is no cell to put the can in. Two reasons, both
+reach". It does not exist. Painting every winning 3-band trajectory and every
+winning 4-band one onto a grid and asking which cells only the 4-band set
+reaches returned an EMPTY list — the 3-band reachable set covers the other
+completely, so there is no cell to put the can in. Two reasons, both
 structural. A band stretches 58 units across a world only ~110 wide, so one
 band spans half of anywhere; and a flat full-width floor is nearly frictionless
 here (she slid 24 units in 0.47 s losing almost nothing), so it delivers her to
 the plant from anywhere on it — the last stage is free no matter what happens
-above. If a level must REQUIRE 4, the floor has to be broken, tilted away from
-the plant, or fenced, and the descent has to be interrupted by something that
-erases state. No amount of collectible placement substitutes.
+above. To stop one band from carrying the whole board, the floor has to be
+broken, tilted away from the plant, or fenced, and the descent has to be
+interrupted by something that erases state. No amount of collectible placement
+substitutes.
 
 **Terrain detail and height pull in opposite directions — and the way out is
 to make the terrain PERPENDICULAR (The Long Way Up).** Height only comes from
@@ -447,8 +394,8 @@ on the leg that follows, and it scores 29/30 with a bumper wall in the loop.
 Consequence for design: a bumper is fine as an obstacle or a curtain (Piñata
 Alley — level cut, the pattern stands: bumpers packed tighter than she is wide
 make a curtain she MUST bounce through) and fine as a *free* stage nothing is
-aimed at, but a band that must aim her at one is a precision tax you will pay
-at the gate. Aim bands at poppers; let bumpers be scenery.
+aimed at, but a band that must aim her at one is a precision tax a real finger
+pays. Aim bands at poppers; let bumpers be scenery.
 
 **An up-column of poppers is a trap, and that is the good part** (Up the
 Middle, level 5). Poppers firing straight up in a line make an elevator she
@@ -521,8 +468,15 @@ run.
 
 ## Sharing the result
 
-Ship the level in `levels.ts`, verified, and note that live rooms restore
-saved state — `GoombaSim.restore` clamps a stale level index and re-sizes the
-`completed` array, so a deploy that adds or removes levels is safe for rooms
-mid-run. If the user asked for an *idea* rather than code, still build it — a
-traced ride card is worth more than prose — and show the PNG.
+Ship the level by pasting it into the event — there is no file to commit it to
+and no deploy in the loop, which is the whole point: a level is live for
+everyone a second after somebody pastes it.
+
+A pack can change under a live room, and that is safe by design:
+`GoombaSim.reconcile` re-fits `completed`, clamps the level index back inside
+the pack and abandons a run in flight. It does NOT remap flags by identity, so
+deleting a level shifts every flag after it — the accepted cost of editing live.
+
+If someone asked for an *idea* rather than a level, still build it. A board
+people can actually play for thirty seconds settles arguments that prose
+cannot.

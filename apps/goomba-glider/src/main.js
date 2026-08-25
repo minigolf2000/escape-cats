@@ -386,7 +386,7 @@ function onSnapshot(s) {
     // which case the sheet has nowhere to sit: `#hud.lab > *` hides it, so
     // arming it would only leave an invisible sheet swallowing the next key.
     if (labOpen) closeSheet(false);
-    else armSheet("tap anywhere to start");
+    else armSheet();
     requestAnimationFrame(frame);
   }
   if (s.phase !== "edit") resetInput(); // a run kills any half-drawn band
@@ -2260,8 +2260,13 @@ function drawSheet() {
 // replaced.
 let sheetOpen = true, sheetTap = false;
 
-/** Make the sheet dismissible, with `label` as the line saying so. */
-function armSheet(label) {
+/** Make the sheet dismissible. `label` is the line saying so, and the first
+ * arm passes none: a player who has never dismissed this sheet is not waiting
+ * to be told how to, they are reading the pictures, and the one line of chrome
+ * under them was the only thing on the screen that was not the game. What is
+ * left is what a phone answers to anyway — a tap — and `?` says where the
+ * sheet went on the way out. */
+function armSheet(label = "") {
   sheetOpen = true; sheetTap = true;
   cancelZoop();   // re-opened mid-flight: the sheet is back, not still leaving
   gateEl.classList.add("ready"); gateEl.classList.remove("hidden");
@@ -2283,10 +2288,10 @@ function openHelp() { armSheet("tap anywhere to close"); }
 // about the close is unchanged: `hidden` still lands, just a beat later.
 let zoopTimers = [];
 /** Put the sheet away. `.ready` comes off HERE rather than at the top of the
- * close: it is what hides the connection lines, so dropping it early swaps
- * "tap anywhere to close" for "Connecting…" for the whole flight down — the
- * sheet's last visible word, and a lie. Nothing needs it gone sooner;
- * `sheetTap` is what says the sheet can no longer be dismissed. */
+ * close: it is one of the two things keeping the connection lines invisible, so
+ * dropping it early would raise "Joining your team…" on a sheet that is already
+ * flying into the corner — its last visible word, and a lie. Nothing needs it
+ * gone sooner; `sheetTap` is what says the sheet can no longer be dismissed. */
 function hideGate() {
   gateEl.classList.add("hidden"); gateEl.classList.remove("ready");
 }
@@ -2352,6 +2357,31 @@ function sheetFrame(nowMs) {
 
 // ---------- boot — no menu, same contract as hex ----------
 const NAME_KEY = "escape-cats-name";
+// THE CONNECTION LINES, AND WHY ALMOST NOBODY SEES THEM.
+//
+// They are held invisible until this phone has been disconnected for STALL_MS
+// WITHOUT A BREAK, and they go back the instant it reconnects. Time since boot
+// would have been the wrong clock: a phone the proctor has not sorted yet has
+// no room to join and waits here indefinitely — connected, healthy, and by far
+// the commonest thing on this screen at the start of a party — so a plain timer
+// would put "Loading…" under the pictures for everyone. Being unable to REACH
+// anything is the only state worth a word.
+//
+// 1.5s because under a second is not a wait anyone perceives (a line there is
+// noise about something that already worked), because two of the three gaps
+// this covers — the first socket, and the one between being sorted and the room
+// answering — are normally a couple of hundred milliseconds, and because a
+// player who has been stuck this long is still wondering rather than long past
+// caring. It is a floor on complaining, not a timeout: nothing is given up on
+// at 1.5s, the words merely stop being withheld.
+const STALL_MS = 1500;
+let stallTimer = null;
+/** Connected or not; the lines follow, after the delay when the answer is no. */
+function netQuiet(up) {
+  clearTimeout(stallTimer); stallTimer = null;
+  if (up) gateEl.classList.add("quiet");
+  else stallTimer = setTimeout(() => gateEl.classList.remove("quiet"), STALL_MS);
+}
 
 function boot() {
   requestAnimationFrame(sheetFrame);   // the gate is up: animate it until frame() exists
@@ -2373,10 +2403,17 @@ function boot() {
   // before the team has earned it.
   const name = localStorage.getItem(NAME_KEY) ?? "Cat";
   gateStatusEl.textContent = "Loading…";
+  netQuiet(false);   // nothing is connected yet: the clock starts here
+  let sorted = false;   // a team is known, so the ROOM socket is the live wire
   watchTeam({
     name,
     onTeam: (team, lobbyName) => {
       localStorage.setItem(NAME_KEY, lobbyName);
+      // The lobby socket is deliberately closed the moment a real team lands,
+      // and that close is a `false` on onStatus below. From here the room
+      // socket is the only connection this phone has an opinion about.
+      sorted = true;
+      netQuiet(false);   // ...and it is not open yet, so the clock restarts
       // A team id doubles as its room id, so this is also the colour every band
       // on this phone is about to be drawn in (bandInk). Set before the first
       // snapshot can arrive, so nothing is ever painted in the fallback pink
@@ -2392,12 +2429,18 @@ function boot() {
           connEl.classList.toggle("on", !up && inited);
           if (!inited) {
             gateErrEl.textContent = up ? "" : "Can't reach the room — hang tight, retrying…";
+            netQuiet(up);
           }
         },
       });
     },
     onStatus: (up) => {
+      // Silent once sorted, TEXT included: the lobby socket is closed on
+      // purpose at that point, and letting its "check wifi?" land would leave
+      // the wrong sentence sitting there for a slow room join to reveal.
+      if (sorted) return;
       gateErrEl.textContent = up ? "" : "Can't reach the server — check wifi?";
+      netQuiet(up);
     },
   });
 }

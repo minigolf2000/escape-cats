@@ -82,12 +82,16 @@ function pageScale() {
  * new scale and stays crisp while the canvas does not, which is the exact shape
  * of the report this came from: PLAY sharp, the game soft.
  *
- * The awkward part, measured rather than assumed (Playwright's WebKit build,
- * iPhone emulation, `?pixels` reading it back): **the two engines disagree
- * about whether dpr already contains the scale.** WebKit at
- * `width=260, initial-scale=1.5` reports dpr 4.5 — 3 x 1.5, the scale folded
- * in — while Chromium under a compositor page scale leaves dpr alone and only
- * moves `visualViewport`. Nothing readable from JS distinguishes the two.
+ * The awkward part, measured rather than assumed: **engines disagree about
+ * whether dpr already contains the scale.** Playwright's WebKit port at
+ * `width=260, initial-scale=1.5` reports dpr 4.5 — 3 x 1.5, folded in — AND
+ * `visualViewport.scale` 1.5, both at once; Chromium under a compositor page
+ * scale leaves dpr alone and moves only `visualViewport`; a live iOS pinch is
+ * believed to move only `visualViewport.scale` with dpr fixed, but no
+ * instrument here can perform one, so that is the one unmeasured case.
+ * Nothing readable from JS says which convention is in force, so the product
+ * can DOUBLE-COUNT (WebKit above: 4.5 x 1.5 = 6.75 asked, 4.5 true) — the cap
+ * below is what bounds that, and over-asking under a cap is the cheap failure.
  *
  * So take the product and let it over-ask. Over-asking costs memory and is
  * bounded below; under-asking is the blur. That is also why the cap moved to
@@ -98,8 +102,26 @@ function pageScale() {
  * 3 or 2, scale 1, product unchanged. It only ever rises now on a phone denser
  * than 4x or a page that is genuinely zoomed. */
 const MAX_BACKING = 4;
+/** The ratio cap is not a memory guard, because screens are not the same size.
+ * 4x on an iPhone 13 is 4.1 megapixels; 4x on an iPad Pro 12.9 is 22.4 — past
+ * iOS's ~16.7-megapixel canvas ceiling, where allocation fails SILENTLY: the
+ * context stays valid, every draw is a no-op, and the game is a blank screen.
+ * A soft game beats no game, so the AREA binds too, with margin under the
+ * ceiling. It only ever bites zoomed-in on the biggest screens; at rest the
+ * largest board (iPad 12.9 at dpr 2) is 5.6 MP, nowhere near it. */
+const MAX_AREA = 14e6;
 function backingScale() {
-  return Math.min((window.devicePixelRatio || 1) * pageScale(), MAX_BACKING);
+  let s = Math.min((window.devicePixelRatio || 1) * pageScale(), MAX_BACKING);
+  const area = window.innerWidth * window.innerHeight * s * s;
+  if (area > MAX_AREA) s *= Math.sqrt(MAX_AREA / area);
+  // Quantised UP to eighths. A pinch reports its scale every frame, each
+  // fractionally different, and `resize` keys its idempotence on this number —
+  // measured unquantised, one two-finger zoom reallocated the backing store 40
+  // times. Steps make almost all of those the same answer (a real gesture now
+  // costs a handful), UP so quantisation can never be the thing that
+  // under-asks, and eighths because every real dpr (1, 1.25, 1.5, 2, 2.25, 3)
+  // is already an exact multiple: at rest this rounds nothing.
+  return Math.ceil(s * 8) / 8;
 }
 
 // Idempotent, because the listeners below include visualViewport's `scroll`,
@@ -138,8 +160,17 @@ function resize() {
  * trade than one getBoundingClientRect a second. */
 function checkFit() {
   const r = cv.getBoundingClientRect();
-  if (Math.abs(r.width - W) > 0.5 || Math.abs(r.height - H) > 0.5) {
-    sizeKey = "";   // the box moved under us: re-apply even if inner* agrees
+  if (!r.width || !r.height) return;   // display:none — nothing to fit to
+  // Compare what the canvas HAS against what this moment's box and scale say
+  // it should have. Checking only the box misses the change where the box
+  // stays put and the scale moves under it — dragging the window to a 1x
+  // monitor, desktop zoom with the window size unchanged — which fires no
+  // event this file listens to. Tolerance is device pixels, and more than one,
+  // because layout snaps the box to the device grid and a half-pixel of snap
+  // must not re-allocate the store once a second forever.
+  const s = backingScale();
+  if (Math.abs(cv.width - r.width * s) > 1.5 || Math.abs(cv.height - r.height * s) > 1.5) {
+    sizeKey = "";   // the world moved under us: re-apply even if inner* agrees
     resize();
   }
 }

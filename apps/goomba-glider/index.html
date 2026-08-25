@@ -8,7 +8,13 @@
   #c { position: fixed; inset: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
   #hud { position: fixed; inset: 0; pointer-events: none;
          font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-         color: #f2ecff; }
+         color: #f2ecff;
+         /* How long the sheet takes to fall into the `?` (see THE ZOOP below).
+            One number, shared by the flight and the landing that has to meet
+            it, and main.js reads it back off this element rather than keeping
+            a second copy of it — the two halves are one gesture and cannot be
+            allowed to drift. */
+         --zoop-ms: 460ms; }
   #top { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
          display: flex; align-items: center; justify-content: space-between; padding: 0 14px; gap: 8px; }
   /* The level dots — and, once the team has CLEARED the game (or on a ?debug
@@ -185,6 +191,75 @@
   #gate.ready #gateStatus, #gate.ready #gateErr { display: none; }
   #gate.ready #gateClose { display: block; }
 
+  /* ---- THE ZOOP: the sheet shrinks into the `?` --------------------------
+     Dismissing the how-to-play sheet is the one moment every player is looking
+     straight at it, so it is the moment to say where it went. The whole sheet
+     flies down into `#help`'s corner and the button pops as it lands: "the
+     instructions live here" is learned by watching it happen, which is the
+     only way anyone was ever going to learn it — the old dismissal cut, and a
+     button that was never on screen at the same time as the thing it reopens
+     may as well not exist.
+
+     Nothing here knows where that corner IS. main.js measures both boxes on
+     the way out and writes the four --zoop-* values, so moving `#help` moves
+     the animation with it and a rotation cannot leave it flying at yesterday's
+     corner. The scale is ANISOTROPIC on purpose — a phone screen is not square
+     and the button is — which is also what makes the 50% radius land as the
+     button's CIRCLE rather than as a small rounded rectangle.
+
+     The children fade in the first half: the title and the two pictures are
+     the one part of this that must not be seen squashed, and they have said
+     everything they have to say by the time the flight starts. */
+  #gate.zoop { pointer-events: none;
+               transform-origin: var(--zoop-ox) var(--zoop-oy);
+               animation: gateZoop var(--zoop-ms) forwards; }
+  /* The pictures hold most of the way down — the thing flying at the corner
+     has to still look like the sheet, or all anyone sees is a dark shape
+     leaving. They go in the last third, once the shape is small enough that
+     the anisotropy would start to read as squashed text. */
+  #gate.zoop > * { animation: zoopFade calc(var(--zoop-ms) * .66) ease-in forwards; }
+  @keyframes gateZoop {
+    /* A beat of anticipation, then most of the SIZE spent early. Scale is
+       perceived in ratios, not in pixels: interpolated evenly, 1 → 0.1 looks
+       like nothing happening followed by a collapse, which is exactly what it
+       looked like on the first take. The 45% stop pins it at about a third of
+       full size a third of the way in, and the curves either side do the
+       gather and the settle. */
+    0%   { transform: scale(1, 1); border-radius: 0; opacity: 1;
+           animation-timing-function: cubic-bezier(.3, 0, .7, 1); }
+    12%  { transform: scale(1.035, 1.02); border-radius: 3%; opacity: 1;
+           animation-timing-function: cubic-bezier(.55, 0, .55, 1); }
+    45%  { transform: scale(calc(var(--zoop-sx) * .7 + .3), calc(var(--zoop-sy) * .7 + .3));
+           border-radius: 22%; opacity: 1;
+           animation-timing-function: cubic-bezier(.25, .55, .3, 1); }
+    86%  { opacity: 1; }
+    100% { transform: scale(var(--zoop-sx), var(--zoop-sy)); border-radius: 50%; opacity: 0; }
+  }
+  @keyframes zoopFade { to { opacity: 0; } }
+  /* The landing. `both` fill is load-bearing: the button is unhidden the
+     instant the sheet starts moving (it is no longer `#hud.sheet`), and
+     without the 0% frame held through the delay it would simply BE there,
+     already arrived, while the sheet was still on its way to it. */
+  #help.pop { animation: helpPop calc(var(--zoop-ms) * .62) cubic-bezier(.2,1.5,.4,1)
+                         calc(var(--zoop-ms) * .62) both; }
+  @keyframes helpPop {
+    0%   { transform: scale(.35); opacity: 0; }
+    45%  { transform: scale(1.22); opacity: 1;
+           background: rgba(255,209,102,.22); border-color: #ffd166; color: #ffd166; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  /* One ring off the landing, drawn OUTSIDE the button's box so it does not
+     move the 44px target: it is the flourish that says the thing that just
+     flew down here is now this. */
+  #help.pop::after { content: ""; position: absolute; inset: -2px; border-radius: 50%;
+                     border: 2px solid #ffd166; pointer-events: none;
+                     animation: helpRing calc(var(--zoop-ms) * .85)
+                                ease-out calc(var(--zoop-ms) * .78) both; }
+  @keyframes helpRing {
+    0%   { transform: scale(1); opacity: .9; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
+
   /* The way back to the sheet, mid-party: PLAY's own corner, mirrored. A party
      game is joined late and handed between people, so "how does this work"
      gets asked long after the waiting room is gone — and the answer is a
@@ -221,6 +296,10 @@
   }
   @media (prefers-reduced-motion: reduce) {
     #rotate .glyph { animation: none; }
+    /* closeSheet takes the same branch and hides the gate outright, so these
+       are belt-and-braces for a preference flipped mid-flight. */
+    #gate.zoop, #gate.zoop > *, #help.pop, #help.pop::after { animation: none; }
+    #help.pop::after { display: none; }
   }
 </style>
 <canvas id="c"></canvas>

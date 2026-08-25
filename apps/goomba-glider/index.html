@@ -213,11 +213,30 @@
     #gate .scene { height: 74px; }
     #gate .scene.gesture { height: 54px; }
   }
-  #gateStatus { color: #c9bdf0; font-size: 14px; }
+  /* The two lines about the connection, and the one rule that matters about
+     them: in the common case NOBODY EVER SEES THEM. A phone that joins in the
+     half second it normally takes has nothing to report, and "Loading…" for
+     400ms is a flash of anxiety about something that already worked. They are
+     held invisible (`.quiet`) until the join has been slow for STALL_MS, and
+     they go invisible again the moment the room is live (`.ready`).
+
+     Invisible by OPACITY, and never by display: both lines keep their box in
+     every state. Dropping them out of the flow would shunt the pictures up the
+     screen the moment a slow join finally said something — and again when it
+     stopped — on a sheet whose whole job is to be looked at. The min-heights
+     are what make that box exist while the line is empty. */
+  #gateStatus { color: #c9bdf0; font-size: 14px; min-height: 1.2em; }
   #gateErr { color: #ff8f8f; font-size: 13px; min-height: 1.2em; }
+  #gateStatus, #gateErr { transition: opacity .3s; }
+  #gate.quiet #gateStatus, #gate.quiet #gateErr,
+  #gate.ready #gateStatus, #gate.ready #gateErr { opacity: 0; }
   #gateClose { display: none; color: #8a80b0; font-size: 12px; }
-  #gate.ready #gateStatus, #gate.ready #gateErr { display: none; }
+  /* The way out, when there is one to name. Nothing is said on the FIRST
+     showing — a player who has not dismissed this sheet yet is not waiting to
+     be told how, they are looking at the pictures — so that arm passes no
+     label and `:empty` keeps the line from taking a gap it has no text for. */
   #gate.ready #gateClose { display: block; }
+  #gate.ready #gateClose:empty { display: none; }
 
   /* ---- THE ZOOP: the sheet shrinks into the `?` --------------------------
      Dismissing the how-to-play sheet is the one moment every player is looking
@@ -351,7 +370,7 @@
   <button id="play">▶ PLAY</button>
   <button id="help" aria-label="how to play">?</button>
   <div id="toast"></div>
-  <div id="gate">
+  <div id="gate" class="quiet">
     <div id="title">
       <h1>GOOMBA GLIDER</h1>
       <canvas id="scTitle" aria-hidden="true"></canvas>

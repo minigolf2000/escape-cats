@@ -56,7 +56,7 @@ tools/goomba/        The design guide (DESIGNING.md), the Figma bridge, and
   `finishedAt` the proctor's finish line reads — so it arrives on one snapshot
   for all four phones and a proctor reset takes it back): the **levels** grid,
   opened from the top-left level dots (once unlocked the strip wears a plate
-  and a ▦), every level a card drawn from its own geometry under its name — no
+  and the words **select level** under the dots), every level a card drawn from its own geometry under its name — no
   verdict, because nothing grades a level — and tapping a card jumps the whole
   room to that level (teammates follow) — on a laptop
   that is a DOUBLE-click, since a single one selects (see the editor below). Taking NEXT off

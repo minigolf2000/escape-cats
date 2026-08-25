@@ -25,13 +25,20 @@
      pointer-events and cursor reset off the global button rule — and hence
      `.cleared` toggling per snapshot (syncHud) rather than once at boot: it is
      room state, and a proctor reset takes it away again. */
-  #lab { display: flex; align-items: center; gap: 4px; padding: 0;
+  #lab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0;
          background: none; pointer-events: none; cursor: default; }
-  #hud.cleared #lab { padding: 5px 10px; border-radius: 13px; gap: 7px;
+  #hud.cleared #lab { padding: 5px 10px; border-radius: 13px; gap: 5px;
                       background: rgba(255,255,255,.08);
                       border: 1.5px solid rgba(201,189,240,.35);
                       pointer-events: auto; cursor: pointer; }
-  #hud.cleared #lab::after { content: "▦"; font-size: 12px; color: #c9bdf0; line-height: 1; }
+  /* The words, not a glyph: "▦" had to be learned, and there was nowhere to
+     learn it from — this is the one control the clear unlocks, so it says what
+     it does. BELOW the dots, because the dots are what it is about: the strip
+     reads "here is the pack, here is where you are" and the line under it is
+     the way in. Only in `.cleared` — before that the same element is an
+     indicator, and a label on it would be an offer the gate refuses. */
+  #hud.cleared #lab::after { content: "select level"; font-size: 11px; font-weight: 700;
+                             color: #c9bdf0; line-height: 1; letter-spacing: .02em; }
   #dots { display: flex; gap: 4px; }
   .dot { box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%;
          border: 2px solid #6b5a98; background: transparent; }

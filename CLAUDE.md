@@ -276,7 +276,10 @@ that file are what a deleted one left behind.
   set, in `goomba/sim.ts`) unlocks the **levels** grid for all four phones on
   the same snapshot, and a proctor **reset** takes it back with the rest of the
   room state. The level dots top-left ARE its button: once unlocked the dot
-  strip wears a plate and a ▦, and tapping it opens the grid — every level as a
+  strip wears a plate and the words **select level** on a line UNDER the dots —
+  a glyph (`▦`) said nothing a player could learn from, and this is the only
+  control the clear unlocks, so it names itself — and tapping anywhere on that
+  plate, dots included, opens the grid — every level as a
   card drawn from its own geometry (Goomba idle on her `start`, the plant on the
   goal) under its name, and tapping a card jumps THE WHOLE ROOM to that level (a
   real wire intent; teammates follow). **A card carries NO verdict**, and both

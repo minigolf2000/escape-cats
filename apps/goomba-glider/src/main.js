@@ -44,15 +44,83 @@ const cv = document.getElementById("c");
 // finally, so nothing else can ever observe it pointed elsewhere.
 let ctx = cv.getContext("2d");
 let W = 0, H = 0;
-function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 3);
-  W = window.innerWidth; H = window.innerHeight;
-  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  cv.style.width = W + "px"; cv.style.height = H + "px";
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+/** Backing pixels per CSS pixel: how many real pixels this canvas gets to
+ *  paint each CSS pixel with.
+ *
+ * `devicePixelRatio` alone is not that number. It says how dense the panel is;
+ * it says nothing about the page's SCALE, and the two multiply. A pinch — or a
+ * webview that settles at a page scale other than 1, which in-app browsers do
+ * on their way in — leaves devicePixelRatio untouched while everything on
+ * screen gets bigger, and a canvas sized for scale 1 is then stretched to fill
+ * it. DOM text re-rasterises at the new scale and stays crisp while the canvas
+ * does not, which is the exact shape of the report this came from: PLAY sharp,
+ * the game soft.
+ *
+ * Two caps, not one. The dpr cap stays at 3 so a phone at scale 1 gets byte-for
+ * -byte what it got before this — no regression hiding in here — and the
+ * product is capped at 4 so a deep pinch cannot ask for a backing store the
+ * size of a memory problem. */
+const MAX_DPR = 3, MAX_BACKING = 4;
+function backingScale() {
+  const vv = window.visualViewport;
+  const scale = vv && vv.scale > 0 ? vv.scale : 1;
+  return Math.min(Math.min(window.devicePixelRatio || 1, MAX_DPR) * scale, MAX_BACKING);
 }
+
+// Idempotent, because the listeners below include visualViewport's `scroll`,
+// which fires continuously through a pinch — and reallocating the backing store
+// is the one genuinely expensive thing in this file (it also resets the whole
+// 2D context state). Same geometry in, nothing done.
+let sizeKey = "";
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  const s = backingScale();
+  const key = W + "x" + H + "@" + s;
+  if (key === sizeKey) return;
+  sizeKey = key;
+  cv.width = Math.round(W * s); cv.height = Math.round(H * s);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  // W/H stay in CSS px, so every sxp/syp/cam.s number downstream is unchanged.
+  ctx.setTransform(s, 0, 0, s, 0, 0);
+}
+
+/** The self-heal, called on a slow timer from frame().
+ *
+ * Every listener below is a guess about WHEN the viewport changes. This is the
+ * one that does not have to guess: it asks the canvas how big it actually is
+ * and re-sizes if that disagrees with what we sized it for. A viewport change
+ * that fires no event we listen to, a bfcache restore, an in-app browser
+ * settling after its presentation animation — they all land here. The failure
+ * it insures against is silent, and a blurry game nobody can explain is a worse
+ * trade than one getBoundingClientRect a second. */
+function checkFit() {
+  const r = cv.getBoundingClientRect();
+  if (Math.abs(r.width - W) > 0.5 || Math.abs(r.height - H) > 0.5) {
+    sizeKey = "";   // the box moved under us: re-apply even if inner* agrees
+    resize();
+  }
+}
+
+// `resize` is not the only way the picture changes size. orientationchange can
+// land before window.resize on iOS, visualViewport is the only one that reports
+// a pinch at all (and reports it as scroll as often as resize), and pageshow is
+// the bfcache restore.
 window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", resize);
+window.addEventListener("pageshow", resize);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", resize);
+  window.visualViewport.addEventListener("scroll", resize);
+}
 resize();
+
+// The resolution probe, loaded only when asked for so it costs a normal player
+// nothing: `?pixels` is a diagnostic, not a feature. See pixelprobe.js for what
+// it measures and how to read it.
+if (new URLSearchParams(location.search).has("pixels")) {
+  import("./pixelprobe.js").then((m) => m.startPixelProbe(cv));
+}
 if (!ctx.roundRect) {
   CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
     r = Math.min(r, w / 2, h / 2);
@@ -1723,10 +1791,12 @@ function drawSplashWords() {
 // ---------- main loop ----------
 const bandExcite = new Map(); // band index -> 0..1 wobble
 
+let lastFitCheck = 0;
 function frame(nowMs) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (nowMs - (frame.last || nowMs)) / 1000); frame.last = nowMs;
   tGlobal += dt;
+  if (tGlobal - lastFitCheck > 1) { lastFitCheck = tGlobal; checkFit(); }
   if (editMsgT > 0) editMsgT = Math.max(0, editMsgT - dt);
   if (sheetOpen) drawSheet();   // `?` mid-party: the pictures keep moving
   if (!snap) return;
@@ -1941,7 +2011,7 @@ const BAND_SCENE = {
 function drawScene(el, b, body) {
   const w = el.clientWidth, h = el.clientHeight;
   if (!w || !h) return;              // the sheet is hidden: nothing to draw into
-  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const dpr = backingScale();
   const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
   if (el.width !== bw || el.height !== bh) { el.width = bw; el.height = bh; }
   const g = el.getContext("2d");

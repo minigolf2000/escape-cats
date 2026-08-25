@@ -384,7 +384,7 @@ function onSnapshot(s) {
     // GRID is already open — `?solo` and a pasted level both land there — in
     // which case the sheet has nowhere to sit: `#hud.lab > *` hides it, so
     // arming it would only leave an invisible sheet swallowing the next key.
-    if (labOpen) closeSheet();
+    if (labOpen) closeSheet(false);
     else armSheet("tap anywhere to start");
     requestAnimationFrame(frame);
   }
@@ -552,7 +552,9 @@ window.addEventListener("paste", (e) => {
   // rest of this file gives it — not a hidden second way to rewrite the pack.
   if (!DESKTOP()) return;
   e.preventDefault();
-  if (sheetTap) closeSheet();   // the grid must not open behind the sheet
+  // No zoop: this is a laptop editing gesture, and the grid it is usually
+  // about to open hides `#help` with the rest of the HUD.
+  if (sheetTap) closeSheet(false);   // the grid must not open behind the sheet
   // Read the screen NOW, not when the clipboard resolves: this is about what
   // the person was looking at when they pressed the key.
   const onGrid = labOpen;
@@ -2118,16 +2120,66 @@ let sheetOpen = true, sheetTap = false;
 /** Make the sheet dismissible, with `label` as the line saying so. */
 function armSheet(label) {
   sheetOpen = true; sheetTap = true;
+  cancelZoop();   // re-opened mid-flight: the sheet is back, not still leaving
   gateEl.classList.add("ready"); gateEl.classList.remove("hidden");
   hudEl.classList.add("sheet");
   gateCloseEl.textContent = label;
   drawSheet();   // the frame it appears on is already the picture, never a blank box
 }
 function openHelp() { armSheet("tap anywhere to close"); }
-function closeSheet() {
-  sheetOpen = false; sheetTap = false;
+
+// The dismissal is the one moment a player is looking straight at the sheet,
+// and it is the only moment `#help` and the thing `#help` reopens are ever on
+// screen together — so that is where the sheet is told to say where it went.
+// It ZOOPS: the whole screen shrinks into the button's corner while the button
+// pops up to catch it (the keyframes are in index.html, under "THE ZOOP").
+//
+// Both boxes are MEASURED here rather than written into the CSS, because
+// `#help` sits on a safe-area inset and a rotation moves it — an animation
+// aimed at a hardcoded corner would fly at yesterday's one. Everything else
+// about the close is unchanged: `hidden` still lands, just a beat later.
+let zoopTimers = [];
+/** Put the sheet away. `.ready` comes off HERE rather than at the top of the
+ * close: it is what hides the connection lines, so dropping it early swaps
+ * "tap anywhere to close" for "Connecting…" for the whole flight down — the
+ * sheet's last visible word, and a lie. Nothing needs it gone sooner;
+ * `sheetTap` is what says the sheet can no longer be dismissed. */
+function hideGate() {
   gateEl.classList.add("hidden"); gateEl.classList.remove("ready");
-  hudEl.classList.remove("sheet");
+}
+function cancelZoop() {
+  zoopTimers.forEach(clearTimeout); zoopTimers = [];
+  gateEl.classList.remove("zoop"); helpEl.classList.remove("pop");
+}
+/** The clock, read off the CSS so the flight and the landing cannot drift. */
+function zoopMs() {
+  const v = parseFloat(getComputedStyle(hudEl).getPropertyValue("--zoop-ms"));
+  return Number.isFinite(v) && v > 0 ? v : 460;
+}
+/**
+ * @param animate false where there is nothing to watch — the grid is already
+ *   up over the sheet (`?solo`, a pasted level), so `#help` is hidden with the
+ *   rest of the HUD and the sheet would be flying at a button nobody can see.
+ */
+function closeSheet(animate = true) {
+  sheetOpen = false; sheetTap = false;
+  hudEl.classList.remove("sheet");   // before measuring: it is what unhides `#help`
+  cancelZoop();
+  const hidden = hudEl.classList.contains("lab") || hudEl.classList.contains("splash");
+  if (!animate || hidden || REDUCED()) { hideGate(); return; }
+  const g = gateEl.getBoundingClientRect(), h = helpEl.getBoundingClientRect();
+  if (!g.width || !g.height || !h.width) { hideGate(); return; }
+  gateEl.style.setProperty("--zoop-ox", `${h.left + h.width / 2 - g.left}px`);
+  gateEl.style.setProperty("--zoop-oy", `${h.top + h.height / 2 - g.top}px`);
+  gateEl.style.setProperty("--zoop-sx", `${h.width / g.width}`);
+  gateEl.style.setProperty("--zoop-sy", `${h.height / g.height}`);
+  gateEl.classList.add("zoop");
+  helpEl.classList.add("pop");       // its own delay lands it as the sheet arrives
+  const ms = zoopMs();
+  // `hidden` the moment the flight ends — the pop and its ring run on past
+  // that, over a game that is already playable, and are cleared after.
+  zoopTimers.push(setTimeout(hideGate, ms));
+  zoopTimers.push(setTimeout(cancelZoop, ms * 2));
 }
 helpEl.onclick = openHelp;
 // POINTERDOWN, not click: the kiosk lockdown at the top of this file

@@ -303,7 +303,7 @@ const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
   gateCloseEl = $("gateClose"),
   helpEl = $("help"), scGoalEl = $("scGoal"), scBandsEl = $("scBands"),
-  scTitleEl = $("scTitle"), scDragEl = $("scDrag"),
+  scTitleEl = $("scTitle"), scDragEl = $("scDrag"), scLiftEl = $("scLift"),
   titleH1El = document.querySelector("#gate h1"),
   connEl = $("conn");
 
@@ -2107,42 +2107,53 @@ function drawTitleScene(b) {
   drawGoomba(x, y, Math.atan(amp * k * Math.cos(x * k)), 1, true, false, false);
 }
 
-/** Picture three — the gesture, because the two above say what a band DOES and
- * nothing says how one gets there. It plays the whole loop: a fingertip presses
- * on the ledge, drags a band out across the gap (the ghost the game draws under
- * a live drag), releases it solid, and then taps it away again.
+/** Pictures three and four — the two gestures, side by side on one stage.
  *
- * Only the two gestures worth teaching are here. A band can also be laid
- * tap-then-tap or stretched between two fingers (see "three ways to lay a
- * band"), and a picture that showed all three would be a manual — the drag is
- * the one a thumb finds by itself, and the other two are discovered by anyone
- * who tries them.
+ * The two pictures above say what a band DOES and nothing said how one gets
+ * there. These are a PAIR: the same two ledges and the same band in both, so
+ * the only difference between the panels is what the hand does — laying it on
+ * the left, taking it back on the right. One stage twice is why they can be
+ * read together at a glance; two different stages would be two puzzles.
+ *
+ * Only these two gestures are here. A band can also be laid tap-then-tap or
+ * stretched between two fingers (see "three ways to lay a band"), and a picture
+ * showing all three would be a manual — the drag is the one a thumb finds by
+ * itself, and the other two are found by anyone who tries them.
+ *
+ * There is no X over the band on the right, and there must not be: a mark
+ * across a band already means something in this game — drawBand paints an
+ * illegal placement RED and dashed — so an X here would teach "you cannot put
+ * one there" in the one place that is teaching how to take one away. The hand
+ * and the ring it leaves say it without borrowing that word.
  *
  * The FINGERTIP is the one mark in this sheet with no counterpart in the game,
  * the same licence the ride-line takes in picture one: a gesture cannot be
  * drawn out of the things it acts on. Everything under it is the game's own —
- * drawTerrain, and drawBand as a ghost then solid, exactly as a real drag and
- * a placed band are drawn. */
-const DRAG_SCENE = {
-  terrain: [[[0, 8], [22, 8]], [[54, 17], [80, 17]]],
-  band: { ax: 22, ay: 8, bx: 54, by: 17 },    // what the drag lays, end to end
+ * drawTerrain, and drawBand as a ghost and then solid, exactly as a live drag
+ * and a placed band are drawn. */
+const GESTURE_SCENE = {
+  terrain: [[[0, 8], [11, 8]], [[26, 15], [37, 15]]],
+  band: { ax: 11, ay: 8, bx: 26, by: 15 },    // what the drag lays, end to end
   // A ledge down onto a lower one, so the band goes in on the SLANT every band
-  // in this game goes in on — and so the picture uses the height of its strip.
-  // Drawn flat first, it was a rule across the middle of an empty box: 35% ink
-  // against the 70% the two pictures above it carry, which reads as a stray
-  // line rather than as the third of three.
-  // Same world width as those two (~80 units), because three pictures at three
-  // scales look like three different games.
-  bounds: { x0: -4, x1: 84, y0: 6, y1: 19 },
+  // in this game goes in on — and so a half-width panel still uses its height.
+  // Drawn flat and level first, it was a rule across the middle of an empty
+  // box: 35% ink against the ~70% the two pictures above it carry.
+  // Half the width of those two, at the same SCALE as them (~4 px per world
+  // unit at 340px), because four pictures at two scales look like two games.
+  // Wide enough for the terrain's HALO, not just its line: the stroke runs 2.2
+  // either side of a polyline, so ledges drawn to 0 and 37 need the frame out
+  // at -3 and 40 or they are shaved off against the panel's edges.
+  bounds: { x0: -3, x1: 40, y0: 5, y1: 18 },
 };
-// The beats, in seconds along the loop. Held long enough to be read at a
-// glance, short enough that a player looking up mid-caption sees it again.
-const DRAG_PRESS = 0.25, DRAG_PULL = 1.55, DRAG_LET = 1.7,
-  DRAG_TAP = 2.45, DRAG_GONE = 3.05, DRAG_LOOP = 3.8;
+// The beats of each loop, in seconds. Both run 3s, held long enough to read at
+// a glance and short enough that a player looking up mid-caption sees it again.
+const LAY_PRESS = 0.25, LAY_PULL = 1.55, LAY_LET = 1.75, LAY_HOLD = 2.75,
+  LIFT_TAP = 0.75, LIFT_GONE = 1.35, LIFT_BACK = 2.05, LIFT_SOLID = 2.25,
+  GESTURE_LOOP = 3;
 
 /** A fingertip: a soft disc under a ring, `press` scaling both (1 = down on the
  * glass) and `a` fading them. White, because it is a hand rather than anything
- * in the world, and the only white thing on this canvas. */
+ * in the world, and the only white thing on these two canvases. */
 function drawTouch(x, y, press, a) {
   const r = 2.0 * cam.s * press;
   ctx.save();
@@ -2154,42 +2165,79 @@ function drawTouch(x, y, press, a) {
   ctx.restore();
 }
 
-function drawDragScene() {
-  const bd = DRAG_SCENE.band;
-  // Parked mid-pull when the phone asks for less motion: one frame of this
-  // picture has to carry it, and the frame that does is the one with a band
-  // half-drawn under a finger.
-  const t = REDUCED() ? 0.9 : tGlobal % DRAG_LOOP;
-  const smooth = (u) => u * u * (3 - 2 * u);
-  drawTerrain(DRAG_SCENE);
+/** The ring a tap leaves behind, `u` running 0→1 as it goes out. */
+function drawTapRing(x, y, u) {
+  ctx.save();
+  ctx.globalAlpha = 1 - u;
+  ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 0.3 * cam.s;
+  ctx.beginPath(); ctx.arc(sxp(x), syp(y), (2 + 4 * u) * cam.s, 0, 6.28); ctx.stroke();
+  ctx.restore();
+}
 
-  if (t < DRAG_LET) {
-    // ...being dragged out: a ghost band, exactly what the game draws under a
-    // live drag (drawBand's third argument), with the finger on its moving end
-    const u = smooth(Math.max(0, Math.min(1, (t - DRAG_PRESS) / (DRAG_PULL - DRAG_PRESS))));
+/** Where a tap lands on the band: its middle, plus the sag it hangs with. */
+const bandMid = (bd) => [(bd.ax + bd.bx) / 2, (bd.ay + bd.by) / 2 + 0.85];
+
+/** LEFT — laying one. Press, pull the band out under the finger (drawn as the
+ * ghost the game puts under a live drag), let go, hold it there. The loop's
+ * last beat drops the band back to a ghost and then to nothing: a rewind, and
+ * one deliberately done with no finger anywhere near it, so that the panel
+ * whose whole subject is placing never appears to remove. */
+function drawLayScene() {
+  const bd = GESTURE_SCENE.band;
+  // Parked mid-pull when the phone asks for less motion: one frame has to carry
+  // this, and the one that does is a band half-drawn under a finger.
+  const t = REDUCED() ? 0.9 : tGlobal % GESTURE_LOOP;
+  const smooth = (u) => u * u * (3 - 2 * u);
+  drawTerrain(GESTURE_SCENE);
+  if (t < LAY_LET) {
+    const u = smooth(Math.max(0, Math.min(1, (t - LAY_PRESS) / (LAY_PULL - LAY_PRESS))));
     const bx = bd.ax + (bd.bx - bd.ax) * u, by = bd.ay + (bd.by - bd.ay) * u;
     if (u > 0) drawBand({ ax: bd.ax, ay: bd.ay, bx, by }, 0, true);
-    drawTouch(bx, by, Math.min(1, t / DRAG_PRESS), 1);
-  } else if (t < DRAG_GONE) {
+    drawTouch(bx, by, Math.min(1, t / LAY_PRESS), Math.min(1, (LAY_LET - t) / 0.2));
+  } else if (t < LAY_HOLD) {
     drawBand(bd, 0, false);
-    // the tap: the finger comes back down on the band it is about to lift
-    if (t > DRAG_TAP) {
-      const u = Math.min(1, (t - DRAG_TAP) / (DRAG_GONE - DRAG_TAP));
-      drawTouch((bd.ax + bd.bx) / 2, (bd.ay + bd.by) / 2 + 1.6, 1.35 - 0.35 * u, u);
+  } else if (t < LAY_HOLD + 0.15) {
+    drawBand(bd, 0, true);   // ...and out through the ghost it came in as
+  }
+}
+
+/** RIGHT — taking it back. The band is already there; the finger comes down on
+ * it, it goes, and the ring goes out after it. Then it steps back in through
+ * the same ghost, which is the loop resetting rather than anything the hand
+ * did — the finger is long gone by then. */
+function drawLiftScene() {
+  const bd = GESTURE_SCENE.band, [mx, my] = bandMid(bd);
+  drawTerrain(GESTURE_SCENE);
+  if (REDUCED()) {
+    // No loop to watch, so one frame has to say "tapped, and going": the band
+    // still there under the finger, with the ring already leaving.
+    drawBand(bd, 0, true);
+    drawTapRing(mx, my, 0.35);
+    drawTouch(mx, my, 1, 1);
+    return;
+  }
+  const t = tGlobal % GESTURE_LOOP;
+  if (t < LIFT_GONE) {
+    drawBand(bd, 0, false);
+    if (t > LIFT_TAP) {
+      const u = (t - LIFT_TAP) / (LIFT_GONE - LIFT_TAP);
+      drawTouch(mx, my, 1.35 - 0.35 * u, u);
     }
+  } else if (t < LIFT_BACK) {
+    // It comes OFF: both ends pulled into the tap over a beat and a half, then
+    // the ring out after it. A band that simply stopped being drawn read as a
+    // cut in the film — and this way the panel's motion is the opposite of the
+    // one beside it, where a band grows OUT of an anchor, instead of a second
+    // picture of the same slanted line.
+    const c = (t - LIFT_GONE) / 0.14;
+    if (c < 1) drawBand({ ax: bd.ax + (mx - bd.ax) * c, ay: bd.ay + (my - bd.ay) * c,
+      bx: bd.bx + (mx - bd.bx) * c, by: bd.by + (my - bd.by) * c }, 0, true);
+    const u = (t - LIFT_GONE) / 0.4;
+    if (u < 1) drawTapRing(mx, my, u);
+  } else if (t < LIFT_SOLID) {
+    drawBand(bd, 0, true);
   } else {
-    // gone, and the ring the tap left going out with it
-    const u = (t - DRAG_GONE) / 0.45;
-    if (u < 1) {
-      ctx.save();
-      ctx.globalAlpha = 1 - u;
-      ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 0.3 * cam.s;
-      ctx.beginPath();
-      ctx.arc(sxp((bd.ax + bd.bx) / 2), syp((bd.ay + bd.by) / 2 + 1.6),
-        (2 + 4 * u) * cam.s, 0, 6.28);
-      ctx.stroke();
-      ctx.restore();
-    }
+    drawBand(bd, 0, false);
   }
 }
 
@@ -2198,7 +2246,8 @@ function drawSheet() {
   drawScene(scTitleEl, tb, () => drawTitleScene(tb));
   drawScene(scGoalEl, GOAL_SCENE.bounds, drawGoalScene);
   drawScene(scBandsEl, BAND_SCENE.bounds, drawBandScene);
-  drawScene(scDragEl, DRAG_SCENE.bounds, drawDragScene);
+  drawScene(scDragEl, GESTURE_SCENE.bounds, drawLayScene);
+  drawScene(scLiftEl, GESTURE_SCENE.bounds, drawLiftScene);
 }
 
 // The sheet's two wearings. It opens as the GATE, carrying the connection

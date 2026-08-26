@@ -234,13 +234,6 @@
   #gateStatus, #gateErr { transition: opacity .3s; }
   #gate.quiet #gateStatus, #gate.quiet #gateErr,
   #gate.ready #gateStatus, #gate.ready #gateErr { opacity: 0; }
-  #gateClose { display: none; color: #8a80b0; font-size: 12px; }
-  /* The way out, when there is one to name. Nothing is said on the FIRST
-     showing — a player who has not dismissed this sheet yet is not waiting to
-     be told how, they are looking at the pictures — so that arm passes no
-     label and `:empty` keeps the line from taking a gap it has no text for. */
-  #gate.ready #gateClose { display: block; }
-  #gate.ready #gateClose:empty { display: none; }
 
   /* ---- THE ZOOP: the sheet shrinks into the `?` --------------------------
      Dismissing the how-to-play sheet is the one moment every player is looking

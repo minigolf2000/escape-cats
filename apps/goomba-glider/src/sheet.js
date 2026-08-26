@@ -15,7 +15,7 @@
 import { R } from "@escape-cats/shared";
 import { S, REDUCED } from "./state";
 import {
-  gateEl, gateCloseEl, helpEl, hudEl, scGoalEl, scTitleEl, titleH1El,
+  gateEl, helpEl, hudEl, scGoalEl, scTitleEl, titleH1El,
   scDragEl, scLiftEl,
 } from "./dom";
 import {
@@ -377,21 +377,19 @@ export const sheetIsOpen = () => sheetOpen;
 /** May a key or a tap dismiss it? Armed by the first snapshot, never by it. */
 export const sheetIsArmed = () => sheetTap;
 
-/** Make the sheet dismissible. `label` is the line saying so, and the first
- * arm passes none: a player who has never dismissed this sheet is not waiting
- * to be told how to, they are reading the pictures, and the one line of chrome
- * under them was the only thing on the screen that was not the game. What is
- * left is what a phone answers to anyway — a tap — and `?` says where the
- * sheet went on the way out. */
-export function armSheet(label = "") {
+/** Make the sheet dismissible. It says NOTHING about how — not on the first
+ * showing and not on any showing after it. A player looking at this sheet is
+ * reading the pictures, and a line of chrome under them is the only thing on
+ * the screen that is not the game. What is left is what a phone answers to
+ * anyway — a tap — and the zoop out says where the sheet went, which is the
+ * one thing a second showing could not have taught itself. */
+export function armSheet() {
   sheetOpen = true; sheetTap = true;
   cancelZoop();   // re-opened mid-flight: the sheet is back, not still leaving
   gateEl.classList.add("ready"); gateEl.classList.remove("hidden");
   hudEl.classList.add("sheet");
-  gateCloseEl.textContent = label;
   drawSheet();   // the frame it appears on is already the picture, never a blank box
 }
-function openHelp() { armSheet("tap anywhere to close"); }
 
 // The dismissal is the one moment a player is looking straight at the sheet,
 // and it is the only moment `#help` and the thing `#help` reopens are ever on
@@ -455,7 +453,7 @@ export function closeSheet(animate = true) {
   zoopTimers.push(setTimeout(hideGate, ms));
   zoopTimers.push(setTimeout(cancelZoop, ms * 2));
 }
-helpEl.onclick = openHelp;
+helpEl.onclick = () => armSheet();
 // POINTERDOWN, not click: the kiosk lockdown at the top of this file
 // preventDefault()s touchstart on anything that is not a button or a link, and
 // that is exactly what cancels the synthesised `click` a finger would otherwise

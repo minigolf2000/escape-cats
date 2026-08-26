@@ -18,7 +18,6 @@ export const connEl = $("conn");
 export const gateEl = $("gate");
 export const gateStatusEl = $("gateStatus");
 export const gateErrEl = $("gateErr");
-export const gateCloseEl = $("gateClose");
 export const helpEl = $("help");
 export const scGoalEl = $("scGoal");
 export const scTitleEl = $("scTitle");

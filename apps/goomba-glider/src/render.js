@@ -533,6 +533,17 @@ const SPIDER_BLADES = [
 ];
 const CROWN_Y = -3.4;   // the crown sits just ABOVE the pot rim, so the blades
                         // drape in front of it instead of being sliced by it
+// Where the plant hangs off `goal`, and where its ink CENTRES. `goal` is the
+// point the sim tests her against; the pot is drawn POT_DROP below it (see
+// drawGoalPlant), and the glow — an ellipse about the whole plant, pot and
+// blades together — sits GLOW_Y above the pot's origin. So `goalMid` is the
+// middle of the plant as a player sees it, a little over the rim where the
+// blades leave the crown, and nowhere near `goal` itself.
+const POT_DROP = 2, GLOW_Y = -3.5;
+/** The middle of the plant's INK, in world units. Exported because the how-to
+ * sheet aims its ride-line arrow at it: a second copy of these two offsets
+ * would drift the first time the pot moves inside its glow. */
+export const goalMid = (lv) => [lv.goal[0], lv.goal[1] + POT_DROP + GLOW_Y];
 
 // The badge's two inks: mint at rest, the can's own gold at the top of a flare.
 // Interpolated rather than switched, because the whole point of a 0.4s accent
@@ -551,11 +562,11 @@ export function drawGoalPlant(lv, st, fx = 0) {
   const x = sxp(lv.goal[0]), y = syp(lv.goal[1]), u = Math.max(cam.s, 2.6);
   const left = lv.cans.length - (st ? st.gotN : 0), ready = left === 0;
   const pulse = 1 + Math.sin(tGlobal * 3) * 0.05;
-  ctx.save(); ctx.translate(x, y + 2 * u); ctx.scale(pulse, pulse);
+  ctx.save(); ctx.translate(x, y + POT_DROP * u); ctx.scale(pulse, pulse);
   ctx.fillStyle = ready
     ? "rgba(87,230,201,0.2)"
     : `rgba(255,209,102,${(0.12 + 0.16 * fx).toFixed(3)})`;
-  ctx.beginPath(); ctx.ellipse(0, -3.5 * u, 8.8 * u, 7.5 * u, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, GLOW_Y * u, 8.8 * u, 7.5 * u, 0, 0, 6.28); ctx.fill();
   // pot first — saucer, tapered body, rim: a spider plant's blades hang OVER
   // the rim, so every one of them rides in front of the pot, not behind it
   ctx.fillStyle = "#cfc4ec";

@@ -145,7 +145,7 @@
      It is also the HOW-TO-PLAY sheet, and those are one screen rather than two
      on purpose. The four sentences that used to fill it were read once, by
      whoever happened to be looking while they waited, and nothing ever brought
-     them back; what is here instead is two PICTURES, drawn by the game itself
+     them back; what is here instead is PICTURES, drawn by the game itself
      (`drawSheet` in main.js) out of the same code that draws the level — so a
      player is shown the exact art they are about to touch, and a can in the
      picture cannot drift from a can in the game. Goomba glides across the
@@ -169,7 +169,11 @@
      on the line above (she rides the FIRST line's cap line, wherever the words
      break). Every width from 320 up now keeps it on one line, and the size only
      stops shrinking below a screen narrower than any phone. */
-  #title { position: relative; font-size: clamp(24px, 8vw, 48px); }
+  #title { position: relative; font-size: clamp(24px, 8vw, 48px);
+           /* Air under the words. The gate's own 12px gap put the title on top
+              of the first picture, so the whole sheet read as one column of
+              four things instead of a name and then what to do about it. */
+           margin-bottom: 40px; }
   #gate h1 { margin: 0; font-size: 1em; letter-spacing: .01em;
              background: linear-gradient(90deg, #ff5db1, #ffd166, #57e6c9); -webkit-background-clip: text; background-clip: text; color: transparent; }
   /* Her canvas covers the WORDS as well as the air over them — down to the
@@ -190,7 +194,7 @@
                     z-index: 1; pointer-events: none; }
   #gate .how { display: flex; flex-direction: column; align-items: center; gap: 6px;
                width: 100%; max-width: 340px; }
-  /* The two pictures. Their SIZE lives here and nowhere else — main.js reads
+  /* The pictures. Their SIZE lives here and nowhere else — main.js reads
      clientWidth/clientHeight and matches the backing store to it at device
      pixel ratio, so a phone, a laptop and a rotation all draw sharp without a
      second copy of these numbers in the renderer. */
@@ -212,14 +216,6 @@
   #gate .scene.gesture { height: 74px; }
   #gate .cap { color: #c9bdf0; font-size: 13px; line-height: 1.4; margin-bottom: 6px; }
   #gate .cap b { color: #ffd166; font-weight: 700; }
-  /* A short screen buys the room out of the PICTURES, never the words: a
-     caption that is off the bottom cannot be read, and a picture 25% shorter is
-     just a smaller picture. */
-  @media (max-height: 620px) {
-    #gate { gap: 8px; padding: 16px; }
-    #gate .scene { height: 74px; }
-    #gate .scene.gesture { height: 54px; }
-  }
   /* The two lines about the connection, and the one rule that matters about
      them: in the common case NOBODY EVER SEES THEM. A phone that joins in the
      half second it normally takes has nothing to report, and "Loading…" for
@@ -261,7 +257,7 @@
      and the button is — which is also what makes the 50% radius land as the
      button's CIRCLE rather than as a small rounded rectangle.
 
-     The children fade in the first half: the title and the two pictures are
+     The children fade in the first half: the title and the pictures are
      the one part of this that must not be seen squashed, and they have said
      everything they have to say by the time the flight starts. */
   #gate.zoop { pointer-events: none;
@@ -386,9 +382,6 @@
       <canvas class="scene" id="scGoal" role="img"
               aria-label="Goomba rolls downhill past every watering can and home to her spider plant."></canvas>
       <div class="cap">help Goomba <b>water</b> the <b>plant</b></div>
-      <canvas class="scene" id="scBands" role="img"
-              aria-label="A silly band laid across a gap carries her over it; another is being stretched into place ahead of her."></canvas>
-      <div class="cap">using your <b>4 bands</b></div>
       <div class="pair">
         <div>
           <canvas class="scene gesture" id="scDrag" role="img"

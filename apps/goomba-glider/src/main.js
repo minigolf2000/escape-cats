@@ -439,7 +439,7 @@ const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   labEl = $("lab"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
   gateCloseEl = $("gateClose"),
-  helpEl = $("help"), scGoalEl = $("scGoal"), scBandsEl = $("scBands"),
+  helpEl = $("help"), scGoalEl = $("scGoal"),
   scTitleEl = $("scTitle"), scDragEl = $("scDrag"), scLiftEl = $("scLift"),
   titleH1El = document.querySelector("#gate h1"),
   connEl = $("conn");
@@ -2002,16 +2002,21 @@ function frame(nowMs) {
   ctx.restore();
 }
 
-// ---------- how to play: two pictures, drawn by the game ----------
+// ---------- how to play: pictures, drawn by the game ----------
 // The waiting room used to explain this game in four sentences. Nobody reads
 // four sentences at a party, and worse, nothing ever showed them again: the
 // gate is the one screen a player passes through exactly once, so every word
 // on it was spent on the thirty seconds before they could do anything.
 //
-// It says the same two things in two pictures now — WHERE she is going (past
-// every can, home to the plant) and WHAT the players do about it (lay bands in
-// her way) — and `?` bottom-left brings them back mid-party, which is the half
-// that was actually missing.
+// It is pictures now — WHERE she is going (past every can, home to the plant),
+// and the two gestures that put a band in her way — and `?` bottom-left brings
+// them back mid-party, which is the half that was actually missing.
+//
+// There WAS a middle picture, a band laid across a gap with her riding it,
+// captioned "using your 4 bands". It is gone: the goal above it and the hands
+// below it say the same thing between them, and a sheet is read in the seconds
+// before somebody taps it, so the third of three that only restated the other
+// two was the one costing that reading.
 //
 // They are drawn by the RENDERER, not by hand: a scene below is a level-shaped
 // literal, and drawTerrain/drawCan/drawGoalPlant/drawBand/drawGoomba paint it
@@ -2020,41 +2025,61 @@ function frame(nowMs) {
 // that is not the watering can drifts the first time either one is touched,
 // and a second set of drawing code is a second thing to keep true. It is the
 // same trick the level cards play (drawLab): borrow the camera, draw the
-// world, put the camera back. A third canvas rides the TITLE (drawTitleScene,
-// below) — no caption, nothing to read: she is the same sprite the two
-// pictures under her use, gliding across the words the game is named after.
+// world, put the camera back. One more canvas rides the TITLE (drawTitleScene,
+// below) — no caption, nothing to read: she is the same sprite the pictures
+// under her use, gliding across the words the game is named after.
 
 /** A scene: only the fields the draw functions actually read. Nothing here is
  * simulated, verified or playable — `bounds` is just the box to frame. */
 const GOAL_SCENE = {
-  // The floor RUNS DOWNHILL, and steepens before it flattens out under the
-  // plant. It used to be a flat shelf, which left the picture with no engine in
-  // it: a cat at rest on a level floor with three cans strung above her says
-  // nothing about why she would ever move. Gravity is the only motor in this
-  // game — the players never push her, they only put things in her way — so the
-  // hill is the sentence, and every other mark here descends with it: the cans
-  // are strung 2.7-2.9 clear of the surface as it drops away from under her
-  // (she leaves the ground where it steepens and flies the rest), and each one
-  // sits LOWER than the last so the whole ride reads as one fall.
-  terrain: [[[0, 10.2], [24, 12.7], [48, 16.3], [72, 20.3]]],
-  cans: [[19, 7], [37, 9.4], [55, 12.4]],
-  goal: [65, 18.7],
+  // The floor RUNS DOWNHILL and then STOPS, one gap short of the plant. The
+  // hill is the motor — gravity is the only one this game has, since the
+  // players never push her, they only put things in her way — and the gap is
+  // what the band is FOR: a band drawn over solid ground is decoration, and
+  // this one is the last thing between her fall and the pot.
+  //
+  // The gap is at the END rather than in the middle because that is what lets
+  // the cans stay UP. She leaves the ground where the hill steepens and flies
+  // the rest, so her line runs high and clear across the picture; a gap in the
+  // middle has to be crossed ON the band, which drags that line — and every can
+  // strung along it — down onto the floor.
+  //
+  // The band's ends ARE the two platform ends, which is where a real band snaps
+  // (a terrain vertex), so nothing here is a shape the game could not make. The
+  // far side sits LOWER than the near side's line would reach, so the band
+  // slants at twice the floor's grade: drawn level with it, it read as a pink
+  // section OF the floor rather than as a break.
+  terrain: [[[0, 10.2], [24, 12.7], [48, 16.3]], [[60, 20], [74, 22.4]]],
+  band: { ax: 48, ay: 16.3, bx: 60, by: 20 },
+  // Up in the air, where they belong: 4.5-7 clear of a floor that is falling
+  // away faster than she is. The last one hangs over the GAP, which has no
+  // floor under it for its glow to sit on at all.
+  cans: [[17, 7.2], [32, 9], [46, 11.6]],
   startX: 7,   // ...her seat on the slope is derived from it, see seatOn
+  // The plant SITS ON the far platform rather than standing in it.
+  // drawGoalPlant anchors on the CROWN, not the base — its saucer lands 3.6
+  // below `goal` — so a goal placed a few tenths above the surface, which is
+  // where a level's own `goal` layer sits and where this one used to, buries
+  // the pot in the terrain's 4.4-wide stroke. This one is that 3.6 measured off
+  // the floor under it (21.2 at x=68), so the pot rests on the line.
+  goal: [67, 21.2 - 3.6],
   // Framed off what the DRAW functions reach, not off the coordinates above:
   // the plant's glow is 8.8 wide of its goal and a can's is 4.6 of its middle,
   // so a box drawn to the objects' own points clips both. The canvas is far
   // wider than it is tall, so the WIDTH is what sets the scale here and these
   // two y's do nothing but centre the picture: their midpoint is the middle of
-  // everything drawn, from the top of the first can's glow (3.4) to the bottom
-  // of the plant's (23.6).
-  bounds: { x0: -3, x1: 77, y0: 4.0, y1: 23.1 },
+  // everything drawn, from the top of the first can's glow (2.4) to the bottom
+  // of the far platform's stroke (24.3).
+  bounds: { x0: -3, x1: 77, y0: 4.2, y1: 23 },
 };
+
 
 /** Her seat on a scene's terrain at `x`: the surface angle there, and her
  * centre R clear of it along the surface NORMAL — the same two numbers the sim
- * keeps for a body resting on the ground, and the same trick the band picture
- * plays off the band. Derived rather than written down, because a hand-typed
- * start next to a slope is one edit away from leaving her hanging in the air. */
+ * keeps for a body resting on the ground, and the same trick the gesture
+ * pictures play off a band. Derived rather than written down, because a
+ * hand-typed start next to a slope is one edit away from leaving her hanging in
+ * the air. */
 function seatOn(poly, x) {
   let i = 0;
   while (i < poly.length - 2 && poly[i + 1][0] < x) i++;
@@ -2065,21 +2090,11 @@ function seatOn(poly, x) {
 }
 const GOAL_SEAT = seatOn(GOAL_SCENE.terrain[0], GOAL_SCENE.startX);
 
-// Her ride, through the cans and into the plant. The one mark in either
-// picture that is not a game object, because "she goes THIS way, through those"
-// is the sentence the picture is replacing, and no arrangement of the objects
-// themselves says it. It only ever goes DOWN now — a dashed line that climbs
-// over the cans and drops onto the plant is a picture of a throw, and nothing
-// here throws her.
-const RIDE_PATH = [[11.5, 8.6], ...GOAL_SCENE.cans, [60, 14.6]];
-
-const BAND_SCENE = {
-  terrain: [[[0, 9], [18, 9.6]], [[48, 17], [72, 16.4]]],
-  cans: [[68, 7.5]],
-  band: { ax: 18, ay: 9.6, bx: 48, by: 17 },      // laid across the gap, ridden
-  ghost: { ax: 53, ay: 16.8, bx: 68, by: 11.5 },  // ...and one going down now
-  bounds: { x0: -3, x1: 76, y0: 2.5, y1: 19.5 },
-};
+// ...and the last two points are not cans: one is her RIDING HEIGHT over the
+// band's middle (R above where it hangs), the other is past its far end, on the
+// platform the band delivers her to. Without them the line flew over the gap
+// and the band was decoration again.
+const RIDE_PATH = [[11, 8.8], ...GOAL_SCENE.cans, [54, 16.6], [63, 19.2]];
 
 /** Draw a scene into one of the sheet's canvases, framed to its bounds.
  *
@@ -2155,25 +2170,11 @@ function drawGoalScene() {
   drawRide(RIDE_PATH);
   GOAL_SCENE.cans.forEach((c, i) => drawCan(c[0], c[1], false, i));
   drawGoalPlant(GOAL_SCENE, { gotN: GOAL_SCENE.cans.length });
+  // After the cans and the plant, exactly as the game draws them: a band is in
+  // front of everything it is laid across, and a can's glow is 4.6 wide enough
+  // to swallow one drawn underneath it.
+  drawBand(GOAL_SCENE.band, 0, false);
   drawGoomba(GOAL_SEAT.x, GOAL_SEAT.y, GOAL_SEAT.a, 1, true, false, true);
-}
-
-/** Picture two — the bands. A gap she cannot cross, one band laid across it
- * with her riding it, and a second going down ahead of her (drawTeammatePreview's
- * marching dashes are the game's own "someone is placing this"), pointed at the
- * can that is the reason for any of it. Both in the team's ink, which with no
- * team yet is the unsorted colour a waiting phone is already wearing. */
-function drawBandScene() {
-  drawTerrain(BAND_SCENE);
-  BAND_SCENE.cans.forEach((c, i) => drawCan(c[0], c[1], false, i));
-  drawBand(BAND_SCENE.band, 0.12, false);
-  drawTeammatePreview(BAND_SCENE.ghost);
-  const pts = bandPoints(BAND_SCENE.band);
-  const [mx, my] = pts[4];
-  const a = Math.atan2(pts[5][1] - pts[3][1], pts[5][0] - pts[3][0]);
-  // her riding height, off the band's own normal — the same R the sim keeps
-  // between her centre and whatever she is standing on
-  drawGoomba(mx + Math.sin(a) * R, my - Math.cos(a) * R, a, 1, true, false, false);
 }
 
 /** Picture zero — her, gliding along the top of the words.
@@ -2258,12 +2259,12 @@ function drawTitleScene(b) {
   drawGoomba(x, y, Math.atan(amp * k * Math.cos(x * k)), 1, true, false, false);
 }
 
-/** Pictures three and four — the two gestures, side by side on one stage.
+/** The two gestures, side by side on one stage.
  *
- * The two pictures above say what a band DOES and nothing said how one gets
- * there. These are a PAIR: the same two ledges and the same band in both, so
- * the only difference between the panels is what the hand does — laying it on
- * the left, taking it back on the right. One stage twice is why they can be
+ * The picture above says where she is going and nothing said how a band gets
+ * into her way. These are a PAIR: the same two ledges and the same band in
+ * both, so the difference between the panels is only what the hand does —
+ * laying it on the left, taking it back on the right. One stage twice is why they can be
  * read together at a glance; two different stages would be two puzzles.
  *
  * Only these two gestures are here. A band can also be laid tap-then-tap or
@@ -2288,7 +2289,7 @@ const GESTURE_SCENE = {
   // A ledge down onto a lower one, so the band goes in on the SLANT every band
   // in this game goes in on — and so a half-width panel still uses its height.
   // Drawn flat and level first, it was a rule across the middle of an empty
-  // box: 35% ink against the ~70% the two pictures above it carry.
+  // box: 35% ink against the ~70% the picture above it carries.
   // Half the width of those two, at the same SCALE as them (~4 px per world
   // unit at 340px), because four pictures at two scales look like two games.
   // Wide enough for the terrain's HALO, not just its line: the stroke runs 2.2
@@ -2396,7 +2397,6 @@ function drawSheet() {
   const tb = titleFrame(scTitleEl, titleH1El);
   drawScene(scTitleEl, tb, () => drawTitleScene(tb));
   drawScene(scGoalEl, GOAL_SCENE.bounds, drawGoalScene);
-  drawScene(scBandsEl, BAND_SCENE.bounds, drawBandScene);
   drawScene(scDragEl, GESTURE_SCENE.bounds, drawLayScene);
   drawScene(scLiftEl, GESTURE_SCENE.bounds, drawLiftScene);
 }

@@ -57,6 +57,11 @@
 const STRIPE_W = 168;   // CSS px per block
 const STRIPE_H = 26;
 
+/** Stamped in by `vite.config.ts` — commit and build time. `typeof` rather than
+ * a bare read so this file stays safe outside a Vite build, where the define
+ * never happens: `typeof` on an undeclared name is "undefined", not a throw. */
+const BUILD = typeof __BUILD__ === "string" ? __BUILD__ : "unstamped";
+
 
 /** One block of `n`-device-pixel columns, as a canvas that is 1:1 by
  *  construction: backing = CSS x dpr, and no transform on the context, so a
@@ -242,6 +247,12 @@ export function startPixelProbe(cv) {
                ` = ${fmt(el.width / b.width)}, ${fmt(el.height / b.height)}`;
       });
     out.textContent = [
+      // FIRST, because it is the line that says whether the rest is worth
+      // reading. A phone caches the HTML shell and hides the query string, so
+      // two rounds of this investigation were spent photographing a build that
+      // did not contain the instrument being asked about. Stamped by
+      // vite.config.ts; `local` outside a checkout.
+      `build       ${BUILD}`,
       `dpr         ${live}`,
       `inner       ${window.innerWidth} x ${window.innerHeight}`,
       `vviewport   ${vv ? `${fmt(vv.width)} x ${fmt(vv.height)}  scale ${fmt(vv.scale)}` : "unsupported"}`,

@@ -59,9 +59,12 @@ tools/               Two self-contained browser tools: QR Art Studio and the
 A team that has cleared every level (`goombaCleared` in `goomba/sim.ts` — the
 same `finishedAt` the proctor's finish line reads) unlocks the **levels** grid
 on all four phones at once, and a proctor reset takes it back. The level dots
-top-left ARE the button: once unlocked the strip wears a plate and a ▦. Every
-level is a card drawn from its own geometry, under its name and **no verdict** —
-nothing grades a level. Tapping a card jumps the whole room there.
+top-left ARE the button: once unlocked the strip wears a plate and the words
+**select level** on a line under the dots — a glyph said nothing a player could
+learn from, and this is the only control the clear unlocks, so it names itself.
+Tapping anywhere on that plate, dots included, opens the grid. Every level is a
+card drawn from its own geometry, under its name and **no verdict** — nothing
+grades a level. Tapping a card jumps the whole room there.
 
 **The selector IS the editor** (`apps/goomba-glider/src/figma/`), and `\` is the
 door — it opens the grid with editing on, and `\` again goes back to playing.

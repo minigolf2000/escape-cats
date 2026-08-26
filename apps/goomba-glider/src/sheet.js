@@ -16,6 +16,7 @@ import { R, bandPoints } from "@escape-cats/shared";
 import { S, REDUCED } from "./state";
 import {
   gateEl, gateCloseEl, helpEl, hudEl, scGoalEl, scBandsEl, scTitleEl, titleH1El,
+  scDragEl, scLiftEl,
 } from "./dom";
 import {
   ctx, cam, tGlobal, sxp, syp, drawScene,
@@ -219,11 +220,147 @@ function drawTitleScene(b) {
   drawGoomba(x, y, Math.atan(amp * k * Math.cos(x * k)), 1, true, false, false);
 }
 
+/** Pictures three and four — the two gestures, side by side on one stage.
+ *
+ * The two pictures above say what a band DOES and nothing said how one gets
+ * there. These are a PAIR: the same two ledges and the same band in both, so
+ * the only difference between the panels is what the hand does — laying it on
+ * the left, taking it back on the right. One stage twice is why they can be
+ * read together at a glance; two different stages would be two puzzles.
+ *
+ * Only these two gestures are here. A band can also be laid tap-then-tap or
+ * stretched between two fingers (see "three ways to lay a band"), and a picture
+ * showing all three would be a manual — the drag is the one a thumb finds by
+ * itself, and the other two are found by anyone who tries them.
+ *
+ * There is no X over the band on the right, and there must not be: a mark
+ * across a band already means something in this game — drawBand paints an
+ * illegal placement RED and dashed — so an X here would teach "you cannot put
+ * one there" in the one place that is teaching how to take one away. The hand
+ * and the ring it leaves say it without borrowing that word.
+ *
+ * The FINGERTIP is the one mark in this sheet with no counterpart in the game,
+ * the same licence the ride-line takes in picture one: a gesture cannot be
+ * drawn out of the things it acts on. Everything under it is the game's own —
+ * drawTerrain, and drawBand as a ghost and then solid, exactly as a live drag
+ * and a placed band are drawn. */
+const GESTURE_SCENE = {
+  terrain: [[[0, 8], [11, 8]], [[26, 15], [37, 15]]],
+  band: { ax: 11, ay: 8, bx: 26, by: 15 },    // what the drag lays, end to end
+  // A ledge down onto a lower one, so the band goes in on the SLANT every band
+  // in this game goes in on — and so a half-width panel still uses its height.
+  // Drawn flat and level first, it was a rule across the middle of an empty
+  // box: 35% ink against the ~70% the two pictures above it carry.
+  // Half the width of those two, at the same SCALE as them (~4 px per world
+  // unit at 340px), because four pictures at two scales look like two games.
+  // Wide enough for the terrain's HALO, not just its line: the stroke runs 2.2
+  // either side of a polyline, so ledges drawn to 0 and 37 need the frame out
+  // at -3 and 40 or they are shaved off against the panel's edges.
+  bounds: { x0: -3, x1: 40, y0: 5, y1: 18 },
+};
+// The beats of each loop, in seconds. Both run 3s, held long enough to read at
+// a glance and short enough that a player looking up mid-caption sees it again.
+const LAY_PRESS = 0.25, LAY_PULL = 1.55, LAY_LET = 1.75, LAY_HOLD = 2.75,
+  LIFT_TAP = 0.75, LIFT_GONE = 1.35, LIFT_BACK = 2.05, LIFT_SOLID = 2.25,
+  GESTURE_LOOP = 3;
+
+/** A fingertip: a soft disc under a ring, `press` scaling both (1 = down on the
+ * glass) and `a` fading them. White, because it is a hand rather than anything
+ * in the world, and the only white thing on these two canvases. */
+function drawTouch(x, y, press, a) {
+  const r = 2.0 * cam.s * press;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.beginPath(); ctx.arc(sxp(x), syp(y), r, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 0.3 * cam.s;
+  ctx.beginPath(); ctx.arc(sxp(x), syp(y), r, 0, 6.28); ctx.stroke();
+  ctx.restore();
+}
+
+/** The ring a tap leaves behind, `u` running 0→1 as it goes out. */
+function drawTapRing(x, y, u) {
+  ctx.save();
+  ctx.globalAlpha = 1 - u;
+  ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 0.3 * cam.s;
+  ctx.beginPath(); ctx.arc(sxp(x), syp(y), (2 + 4 * u) * cam.s, 0, 6.28); ctx.stroke();
+  ctx.restore();
+}
+
+/** Where a tap lands on the band: its middle, plus the sag it hangs with. */
+const bandMid = (bd) => [(bd.ax + bd.bx) / 2, (bd.ay + bd.by) / 2 + 0.85];
+
+/** LEFT — laying one. Press, pull the band out under the finger (drawn as the
+ * ghost the game puts under a live drag), let go, hold it there. The loop's
+ * last beat drops the band back to a ghost and then to nothing: a rewind, and
+ * one deliberately done with no finger anywhere near it, so that the panel
+ * whose whole subject is placing never appears to remove. */
+function drawLayScene() {
+  const bd = GESTURE_SCENE.band;
+  // Parked mid-pull when the phone asks for less motion: one frame has to carry
+  // this, and the one that does is a band half-drawn under a finger.
+  const t = REDUCED() ? 0.9 : tGlobal % GESTURE_LOOP;
+  const smooth = (u) => u * u * (3 - 2 * u);
+  drawTerrain(GESTURE_SCENE);
+  if (t < LAY_LET) {
+    const u = smooth(Math.max(0, Math.min(1, (t - LAY_PRESS) / (LAY_PULL - LAY_PRESS))));
+    const bx = bd.ax + (bd.bx - bd.ax) * u, by = bd.ay + (bd.by - bd.ay) * u;
+    if (u > 0) drawBand({ ax: bd.ax, ay: bd.ay, bx, by }, 0, true);
+    drawTouch(bx, by, Math.min(1, t / LAY_PRESS), Math.min(1, (LAY_LET - t) / 0.2));
+  } else if (t < LAY_HOLD) {
+    drawBand(bd, 0, false);
+  } else if (t < LAY_HOLD + 0.15) {
+    drawBand(bd, 0, true);   // ...and out through the ghost it came in as
+  }
+}
+
+/** RIGHT — taking it back. The band is already there; the finger comes down on
+ * it, it goes, and the ring goes out after it. Then it steps back in through
+ * the same ghost, which is the loop resetting rather than anything the hand
+ * did — the finger is long gone by then. */
+function drawLiftScene() {
+  const bd = GESTURE_SCENE.band, [mx, my] = bandMid(bd);
+  drawTerrain(GESTURE_SCENE);
+  if (REDUCED()) {
+    // No loop to watch, so one frame has to say "tapped, and going": the band
+    // still there under the finger, with the ring already leaving.
+    drawBand(bd, 0, true);
+    drawTapRing(mx, my, 0.35);
+    drawTouch(mx, my, 1, 1);
+    return;
+  }
+  const t = tGlobal % GESTURE_LOOP;
+  if (t < LIFT_GONE) {
+    drawBand(bd, 0, false);
+    if (t > LIFT_TAP) {
+      const u = (t - LIFT_TAP) / (LIFT_GONE - LIFT_TAP);
+      drawTouch(mx, my, 1.35 - 0.35 * u, u);
+    }
+  } else if (t < LIFT_BACK) {
+    // It comes OFF: both ends pulled into the tap over a beat and a half, then
+    // the ring out after it. A band that simply stopped being drawn read as a
+    // cut in the film — and this way the panel's motion is the opposite of the
+    // one beside it, where a band grows OUT of an anchor, instead of a second
+    // picture of the same slanted line.
+    const c = (t - LIFT_GONE) / 0.14;
+    if (c < 1) drawBand({ ax: bd.ax + (mx - bd.ax) * c, ay: bd.ay + (my - bd.ay) * c,
+      bx: bd.bx + (mx - bd.bx) * c, by: bd.by + (my - bd.by) * c }, 0, true);
+    const u = (t - LIFT_GONE) / 0.4;
+    if (u < 1) drawTapRing(mx, my, u);
+  } else if (t < LIFT_SOLID) {
+    drawBand(bd, 0, true);
+  } else {
+    drawBand(bd, 0, false);
+  }
+}
+
 export function drawSheet() {
   const tb = titleFrame(scTitleEl, titleH1El);
   drawScene(scTitleEl, tb, () => drawTitleScene(tb));
   drawScene(scGoalEl, GOAL_SCENE.bounds, drawGoalScene);
   drawScene(scBandsEl, BAND_SCENE.bounds, drawBandScene);
+  drawScene(scDragEl, GESTURE_SCENE.bounds, drawLayScene);
+  drawScene(scLiftEl, GESTURE_SCENE.bounds, drawLiftScene);
 }
 
 // The sheet's two wearings. It opens as the GATE, carrying the connection
@@ -240,19 +377,83 @@ export const sheetIsOpen = () => sheetOpen;
 /** May a key or a tap dismiss it? Armed by the first snapshot, never by it. */
 export const sheetIsArmed = () => sheetTap;
 
-/** Make the sheet dismissible, with `label` as the line saying so. */
-export function armSheet(label) {
+/** Make the sheet dismissible. `label` is the line saying so, and the first
+ * arm passes none: a player who has never dismissed this sheet is not waiting
+ * to be told how to, they are reading the pictures, and the one line of chrome
+ * under them was the only thing on the screen that was not the game. What is
+ * left is what a phone answers to anyway — a tap — and `?` says where the
+ * sheet went on the way out. */
+export function armSheet(label = "") {
   sheetOpen = true; sheetTap = true;
+  cancelZoop();   // re-opened mid-flight: the sheet is back, not still leaving
   gateEl.classList.add("ready"); gateEl.classList.remove("hidden");
   hudEl.classList.add("sheet");
   gateCloseEl.textContent = label;
   drawSheet();   // the frame it appears on is already the picture, never a blank box
 }
 function openHelp() { armSheet("tap anywhere to close"); }
-export function closeSheet() {
-  sheetOpen = false; sheetTap = false;
+
+// The dismissal is the one moment a player is looking straight at the sheet,
+// and it is the only moment `#help` and the thing `#help` reopens are ever on
+// screen together — so that is where the sheet is told to say where it went.
+// It ZOOPS: the whole screen shrinks into the button's corner while the button
+// pops up to catch it (the keyframes are in index.html, under "THE ZOOP").
+//
+// Both boxes are MEASURED here rather than written into the CSS, because
+// `#help` sits on a safe-area inset and a rotation moves it — an animation
+// aimed at a hardcoded corner would fly at yesterday's one. Everything else
+// about the close is unchanged: `hidden` still lands, just a beat later.
+let zoopTimers = [];
+/** Put the sheet away. `.ready` comes off HERE rather than at the top of the
+ * close: it is one of the two things keeping the connection lines invisible, so
+ * dropping it early would raise "Joining your team…" on a sheet that is already
+ * flying into the corner — its last visible word, and a lie. Nothing needs it
+ * gone sooner; `sheetTap` is what says the sheet can no longer be dismissed. */
+function hideGate() {
   gateEl.classList.add("hidden"); gateEl.classList.remove("ready");
-  hudEl.classList.remove("sheet");
+}
+function cancelZoop() {
+  zoopTimers.forEach(clearTimeout); zoopTimers = [];
+  gateEl.classList.remove("zoop"); helpEl.classList.remove("pop");
+}
+/** The clock, read off the CSS so the flight and the landing cannot drift.
+ *
+ * UNIT-AWARE, and it has to be: a CSS time is `460ms` or `0.46s` and both are
+ * the same duration, but the value that comes back here is whichever one the
+ * BUILD chose. Vite's CSS minifier rewrites `460ms` to `.46s` — so a bare
+ * parseFloat reads 0.46, calls it milliseconds, and retires the sheet half a
+ * millisecond in. Dev looked right and the deployed build skipped the whole
+ * animation. */
+function zoopMs() {
+  const raw = getComputedStyle(hudEl).getPropertyValue("--zoop-ms").trim();
+  const v = parseFloat(raw);
+  if (!Number.isFinite(v) || v <= 0) return 460;
+  return /ms\s*$/.test(raw) ? v : v * 1000;   // bare `s`, or a unitless fallback
+}
+/**
+ * @param animate false where there is nothing to watch — the grid is already
+ *   up over the sheet (`?solo`, a pasted level), so `#help` is hidden with the
+ *   rest of the HUD and the sheet would be flying at a button nobody can see.
+ */
+export function closeSheet(animate = true) {
+  sheetOpen = false; sheetTap = false;
+  hudEl.classList.remove("sheet");   // before measuring: it is what unhides `#help`
+  cancelZoop();
+  const hidden = hudEl.classList.contains("lab") || hudEl.classList.contains("splash");
+  if (!animate || hidden || REDUCED()) { hideGate(); return; }
+  const g = gateEl.getBoundingClientRect(), h = helpEl.getBoundingClientRect();
+  if (!g.width || !g.height || !h.width) { hideGate(); return; }
+  gateEl.style.setProperty("--zoop-ox", `${h.left + h.width / 2 - g.left}px`);
+  gateEl.style.setProperty("--zoop-oy", `${h.top + h.height / 2 - g.top}px`);
+  gateEl.style.setProperty("--zoop-sx", `${h.width / g.width}`);
+  gateEl.style.setProperty("--zoop-sy", `${h.height / g.height}`);
+  gateEl.classList.add("zoop");
+  helpEl.classList.add("pop");       // its own delay lands it as the sheet arrives
+  const ms = zoopMs();
+  // `hidden` the moment the flight ends — the pop and its ring run on past
+  // that, over a game that is already playable, and are cleared after.
+  zoopTimers.push(setTimeout(hideGate, ms));
+  zoopTimers.push(setTimeout(cancelZoop, ms * 2));
 }
 helpEl.onclick = openHelp;
 // POINTERDOWN, not click: the kiosk lockdown at the top of this file

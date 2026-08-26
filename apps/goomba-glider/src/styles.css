@@ -1,14 +1,21 @@
 /* goomba-glider — the whole stylesheet. Imported from main.js, so Vite
  * hashes it like every other app's. The game itself is a canvas; this is the
- * HUD around it (the dot strip, the band slots, PLAY/CLEAR, the toast) and the
- * how-to-play sheet that doubles as the join gate.
+ * HUD around it (the dot strip, the select-level plate, the band slots,
+ * PLAY/CLEAR, the toast) and the how-to-play sheet that doubles as the join
+ * gate, including the zoop that flies it into the `?` button.
  */
 
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #150a2a; }
   #c { position: fixed; inset: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
   #hud { position: fixed; inset: 0; pointer-events: none;
          font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-         color: #f2ecff; }
+         color: #f2ecff;
+         /* How long the sheet takes to fall into the `?` (see THE ZOOP below).
+            One number, shared by the flight and the landing that has to meet
+            it, and main.js reads it back off this element rather than keeping
+            a second copy of it — the two halves are one gesture and cannot be
+            allowed to drift. */
+         --zoop-ms: 460ms; }
   #top { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
          display: flex; align-items: center; justify-content: space-between; padding: 0 14px; gap: 8px; }
   /* The level dots — and, once the team has CLEARED the game (or on a ?debug
@@ -19,13 +26,20 @@
      pointer-events and cursor reset off the global button rule — and hence
      `.cleared` toggling per snapshot (syncHud) rather than once at boot: it is
      room state, and a proctor reset takes it away again. */
-  #lab { display: flex; align-items: center; gap: 4px; padding: 0;
+  #lab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0;
          background: none; pointer-events: none; cursor: default; }
-  #hud.cleared #lab { padding: 5px 10px; border-radius: 13px; gap: 7px;
+  #hud.cleared #lab { padding: 5px 10px; border-radius: 13px; gap: 5px;
                       background: rgba(255,255,255,.08);
                       border: 1.5px solid rgba(201,189,240,.35);
                       pointer-events: auto; cursor: pointer; }
-  #hud.cleared #lab::after { content: "▦"; font-size: 12px; color: #c9bdf0; line-height: 1; }
+  /* The words, not a glyph: "▦" had to be learned, and there was nowhere to
+     learn it from — this is the one control the clear unlocks, so it says what
+     it does. BELOW the dots, because the dots are what it is about: the strip
+     reads "here is the pack, here is where you are" and the line under it is
+     the way in. Only in `.cleared` — before that the same element is an
+     indicator, and a label on it would be an offer the gate refuses. */
+  #hud.cleared #lab::after { content: "select level"; font-size: 11px; font-weight: 700;
+                             color: #c9bdf0; line-height: 1; letter-spacing: .02em; }
   #dots { display: flex; gap: 4px; }
   .dot { box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%;
          border: 2px solid #6b5a98; background: transparent; }
@@ -151,7 +165,12 @@
      on the wrapper rather than on the h1 so that one `em` means the same thing
      to both of them: her little canvas is parked off the cap line in em, so she
      rides the letters at 30px and at 48px without a second breakpoint. */
-  #title { position: relative; font-size: clamp(30px, 8vw, 48px); }
+  /* The floor is 24, not 30: at 320px 8vw is 25.6, and a 30px floor there put
+     GLIDER on its own second line — which halves the title and strands the cat
+     on the line above (she rides the FIRST line's cap line, wherever the words
+     break). Every width from 320 up now keeps it on one line, and the size only
+     stops shrinking below a screen narrower than any phone. */
+  #title { position: relative; font-size: clamp(24px, 8vw, 48px); }
   #gate h1 { margin: 0; font-size: 1em; letter-spacing: .01em;
              background: linear-gradient(90deg, #ff5db1, #ffd166, #57e6c9); -webkit-background-clip: text; background-clip: text; color: transparent; }
   /* Her canvas covers the WORDS as well as the air over them — down to the
@@ -177,13 +196,124 @@
      pixel ratio, so a phone, a laptop and a rotation all draw sharp without a
      second copy of these numbers in the renderer. */
   #gate .scene { display: block; width: 100%; height: 104px; }
+  /* The two gesture panels: half the width each, and shorter than the pictures
+     above them — they hold one band and a fingertip, not a level, and this
+     sheet's tightest screen (320x568) has about 96px to spare before the bottom
+     line is cut off. Side by side rather than stacked because they are one
+     sentence with two halves, and because two more full-width rows is exactly
+     the height this sheet does not have. */
+  #gate .pair { display: flex; gap: 12px; width: 100%; }
+  #gate .pair > div { flex: 1 1 0; min-width: 0;
+                      display: flex; flex-direction: column; gap: 6px; }
+  /* These two captions are sized to their COLUMN, not to the sheet: half a
+     320px phone is 130px, and "drag to place a band" at the 13px the full-width
+     captions use needs 133 of them — one wrapped line under one panel and not
+     the other, which reads as a mistake rather than as a pair. */
+  #gate .pair .cap { font-size: clamp(11px, 3.6vw, 13px); }
+  #gate .scene.gesture { height: 74px; }
   #gate .cap { color: #c9bdf0; font-size: 13px; line-height: 1.4; margin-bottom: 6px; }
   #gate .cap b { color: #ffd166; font-weight: 700; }
-  #gateStatus { color: #c9bdf0; font-size: 14px; }
+  /* A short screen buys the room out of the PICTURES, never the words: a
+     caption that is off the bottom cannot be read, and a picture 25% shorter is
+     just a smaller picture. */
+  @media (max-height: 620px) {
+    #gate { gap: 8px; padding: 16px; }
+    #gate .scene { height: 74px; }
+    #gate .scene.gesture { height: 54px; }
+  }
+  /* The two lines about the connection, and the one rule that matters about
+     them: in the common case NOBODY EVER SEES THEM. A phone that joins in the
+     half second it normally takes has nothing to report, and "Loading…" for
+     400ms is a flash of anxiety about something that already worked. They are
+     held invisible (`.quiet`) until the join has been slow for STALL_MS, and
+     they go invisible again the moment the room is live (`.ready`).
+
+     Invisible by OPACITY, and never by display: both lines keep their box in
+     every state. Dropping them out of the flow would shunt the pictures up the
+     screen the moment a slow join finally said something — and again when it
+     stopped — on a sheet whose whole job is to be looked at. The min-heights
+     are what make that box exist while the line is empty. */
+  #gateStatus { color: #c9bdf0; font-size: 14px; min-height: 1.2em; }
   #gateErr { color: #ff8f8f; font-size: 13px; min-height: 1.2em; }
+  #gateStatus, #gateErr { transition: opacity .3s; }
+  #gate.quiet #gateStatus, #gate.quiet #gateErr,
+  #gate.ready #gateStatus, #gate.ready #gateErr { opacity: 0; }
   #gateClose { display: none; color: #8a80b0; font-size: 12px; }
-  #gate.ready #gateStatus, #gate.ready #gateErr { display: none; }
+  /* The way out, when there is one to name. Nothing is said on the FIRST
+     showing — a player who has not dismissed this sheet yet is not waiting to
+     be told how, they are looking at the pictures — so that arm passes no
+     label and `:empty` keeps the line from taking a gap it has no text for. */
   #gate.ready #gateClose { display: block; }
+  #gate.ready #gateClose:empty { display: none; }
+
+  /* ---- THE ZOOP: the sheet shrinks into the `?` --------------------------
+     Dismissing the how-to-play sheet is the one moment every player is looking
+     straight at it, so it is the moment to say where it went. The whole sheet
+     flies down into `#help`'s corner and the button pops as it lands: "the
+     instructions live here" is learned by watching it happen, which is the
+     only way anyone was ever going to learn it — the old dismissal cut, and a
+     button that was never on screen at the same time as the thing it reopens
+     may as well not exist.
+
+     Nothing here knows where that corner IS. main.js measures both boxes on
+     the way out and writes the four --zoop-* values, so moving `#help` moves
+     the animation with it and a rotation cannot leave it flying at yesterday's
+     corner. The scale is ANISOTROPIC on purpose — a phone screen is not square
+     and the button is — which is also what makes the 50% radius land as the
+     button's CIRCLE rather than as a small rounded rectangle.
+
+     The children fade in the first half: the title and the two pictures are
+     the one part of this that must not be seen squashed, and they have said
+     everything they have to say by the time the flight starts. */
+  #gate.zoop { pointer-events: none;
+               transform-origin: var(--zoop-ox) var(--zoop-oy);
+               animation: gateZoop var(--zoop-ms) forwards; }
+  /* The pictures hold most of the way down — the thing flying at the corner
+     has to still look like the sheet, or all anyone sees is a dark shape
+     leaving. They go in the last third, once the shape is small enough that
+     the anisotropy would start to read as squashed text. */
+  #gate.zoop > * { animation: zoopFade calc(var(--zoop-ms) * .66) ease-in forwards; }
+  @keyframes gateZoop {
+    /* A beat of anticipation, then most of the SIZE spent early. Scale is
+       perceived in ratios, not in pixels: interpolated evenly, 1 → 0.1 looks
+       like nothing happening followed by a collapse, which is exactly what it
+       looked like on the first take. The 45% stop pins it at about a third of
+       full size a third of the way in, and the curves either side do the
+       gather and the settle. */
+    0%   { transform: scale(1, 1); border-radius: 0; opacity: 1;
+           animation-timing-function: cubic-bezier(.3, 0, .7, 1); }
+    12%  { transform: scale(1.035, 1.02); border-radius: 3%; opacity: 1;
+           animation-timing-function: cubic-bezier(.55, 0, .55, 1); }
+    45%  { transform: scale(calc(var(--zoop-sx) * .7 + .3), calc(var(--zoop-sy) * .7 + .3));
+           border-radius: 22%; opacity: 1;
+           animation-timing-function: cubic-bezier(.25, .55, .3, 1); }
+    86%  { opacity: 1; }
+    100% { transform: scale(var(--zoop-sx), var(--zoop-sy)); border-radius: 50%; opacity: 0; }
+  }
+  @keyframes zoopFade { to { opacity: 0; } }
+  /* The landing. `both` fill is load-bearing: the button is unhidden the
+     instant the sheet starts moving (it is no longer `#hud.sheet`), and
+     without the 0% frame held through the delay it would simply BE there,
+     already arrived, while the sheet was still on its way to it. */
+  #help.pop { animation: helpPop calc(var(--zoop-ms) * .62) cubic-bezier(.2,1.5,.4,1)
+                         calc(var(--zoop-ms) * .62) both; }
+  @keyframes helpPop {
+    0%   { transform: scale(.35); opacity: 0; }
+    45%  { transform: scale(1.22); opacity: 1;
+           background: rgba(255,209,102,.22); border-color: #ffd166; color: #ffd166; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  /* One ring off the landing, drawn OUTSIDE the button's box so it does not
+     move the 44px target: it is the flourish that says the thing that just
+     flew down here is now this. */
+  #help.pop::after { content: ""; position: absolute; inset: -2px; border-radius: 50%;
+                     border: 2px solid #ffd166; pointer-events: none;
+                     animation: helpRing calc(var(--zoop-ms) * .85)
+                                ease-out calc(var(--zoop-ms) * .78) both; }
+  @keyframes helpRing {
+    0%   { transform: scale(1); opacity: .9; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
 
   /* The way back to the sheet, mid-party: PLAY's own corner, mirrored. A party
      game is joined late and handed between people, so "how does this work"
@@ -221,4 +351,8 @@
   }
   @media (prefers-reduced-motion: reduce) {
     #rotate .glyph { animation: none; }
+    /* closeSheet takes the same branch and hides the gate outright, so these
+       are belt-and-braces for a preference flipped mid-flight. */
+    #gate.zoop, #gate.zoop > *, #help.pop, #help.pop::after { animation: none; }
+    #help.pop::after { display: none; }
   }

@@ -37,14 +37,14 @@ import { adoptHashLevel, startDebug } from "./debug";
 import { levelFromPaste } from "./figma/paste.js";
 import {
   cv, hudEl, hintEl, dotsEl, invEl, playBtn, clearBtn, labEl, connEl,
-  gateStatusEl, gateErrEl,
+  gateEl, gateStatusEl, gateErrEl,
 } from "./dom";
 import {
   S, L, bands, level, now, toast, askConfirm, bandInk, FAIL_MSG,
   SOLO, DESKTOP, PARTY_COLORS, levelSelect, editorOn,
 } from "./state";
 import {
-  ctx, cam, sxp, syp, fitScale, clampCam, advanceClock,
+  ctx, cam, sxp, syp, fitScale, clampCam, advanceClock, tGlobal, checkFit,
   drawBackground, drawTerrain, drawBand, drawTeammatePreview, drawAnchor,
   drawTeammateAnchor, drawCushion, drawPopper, drawCan, drawBumper,
   drawGoalPlant, drawGoomba, drawStartPad, drawSplash,
@@ -138,8 +138,8 @@ function onSnapshot(s) {
     // GRID is already open — `?solo` and a pasted level both land there — in
     // which case the sheet has nowhere to sit: `#hud.lab > *` hides it, so
     // arming it would only leave an invisible sheet swallowing the next key.
-    if (S.labOpen) closeSheet();
-    else armSheet("tap anywhere to start");
+    if (S.labOpen) closeSheet(false);
+    else armSheet();
     requestAnimationFrame(frame);
   }
   if (s.phase !== "edit") resetInput(); // a run kills any half-drawn band
@@ -312,7 +312,9 @@ window.addEventListener("paste", (e) => {
   // rest of this file gives it — not a hidden second way to rewrite the pack.
   if (!DESKTOP()) return;
   e.preventDefault();
-  if (sheetIsArmed()) closeSheet();   // the grid must not open behind the sheet
+  // No zoop: this is a laptop editing gesture, and the grid it is usually
+  // about to open hides `#help` with the rest of the HUD.
+  if (sheetIsArmed()) closeSheet(false);   // the grid must not open behind the sheet
   // Read the screen NOW, not when the clipboard resolves: this is about what
   // the person was looking at when they pressed the key.
   const onGrid = S.labOpen;
@@ -418,10 +420,13 @@ function syncAnim() {
 // ---------- main loop ----------
 const bandExcite = new Map(); // band index -> 0..1 wobble
 
+let lastFitCheck = 0;
+
 function frame(nowMs) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (nowMs - (frame.last || nowMs)) / 1000); frame.last = nowMs;
   advanceClock(dt);
+  if (tGlobal - lastFitCheck > 1) { lastFitCheck = tGlobal; checkFit(); }
   tickEditMsg(dt);
   if (sheetIsOpen()) drawSheet();   // `?` mid-party: the pictures keep moving
   if (!S.snap) return;
@@ -551,6 +556,32 @@ function frame(nowMs) {
 
 // ---------- boot — no menu, same contract as hex ----------
 const NAME_KEY = "escape-cats-name";
+// THE CONNECTION LINES, AND WHY ALMOST NOBODY SEES THEM.
+//
+// They are held invisible until this phone has been disconnected for STALL_MS
+// WITHOUT A BREAK, and they go back the instant it reconnects. Time since boot
+// would have been the wrong clock: a phone the proctor has not sorted yet has
+// no room to join and waits here indefinitely — connected, healthy, and by far
+// the commonest thing on this screen at the start of a party — so a plain timer
+// would put "Loading…" under the pictures for everyone. Being unable to REACH
+// anything is the only state worth a word.
+//
+// 1.5s because under a second is not a wait anyone perceives (a line there is
+// noise about something that already worked), because two of the three gaps
+// this covers — the first socket, and the one between being sorted and the room
+// answering — are normally a couple of hundred milliseconds, and because a
+// player who has been stuck this long is still wondering rather than long past
+// caring. It is a floor on complaining, not a timeout: nothing is given up on
+// at 1.5s, the words merely stop being withheld.
+const STALL_MS = 1500;
+let stallTimer = null;
+/** Connected or not; the lines follow, after the delay when the answer is no. */
+function netQuiet(up) {
+  clearTimeout(stallTimer); stallTimer = null;
+  if (up) gateEl.classList.add("quiet");
+  else stallTimer = setTimeout(() => gateEl.classList.remove("quiet"), STALL_MS);
+}
+
 
 function boot() {
   requestAnimationFrame(sheetFrame);   // the gate is up: animate it until frame() exists
@@ -572,10 +603,17 @@ function boot() {
   // before the team has earned it.
   const name = localStorage.getItem(NAME_KEY) ?? "Cat";
   gateStatusEl.textContent = "Loading…";
+  netQuiet(false);   // nothing is connected yet: the clock starts here
+  let sorted = false;   // a team is known, so the ROOM socket is the live wire
   watchTeam({
     name,
     onTeam: (team, lobbyName) => {
       localStorage.setItem(NAME_KEY, lobbyName);
+      // The lobby socket is deliberately closed the moment a real team lands,
+      // and that close is a `false` on onStatus below. From here the room
+      // socket is the only connection this phone has an opinion about.
+      sorted = true;
+      netQuiet(false);   // ...and it is not open yet, so the clock restarts
       // A team id doubles as its room id, so this is also the colour every band
       // on this phone is about to be drawn in (bandInk). Set before the first
       // snapshot can arrive, so nothing is ever painted in the fallback pink
@@ -591,12 +629,18 @@ function boot() {
           connEl.classList.toggle("on", !up && S.inited);
           if (!S.inited) {
             gateErrEl.textContent = up ? "" : "Can't reach the room — hang tight, retrying…";
+            netQuiet(up);
           }
         },
       });
     },
     onStatus: (up) => {
+      // Silent once sorted, TEXT included: the lobby socket is closed on
+      // purpose at that point, and letting its "check wifi?" land would leave
+      // the wrong sentence sitting there for a slow room join to reveal.
+      if (sorted) return;
       gateErrEl.textContent = up ? "" : "Can't reach the server — check wifi?";
+      netQuiet(up);
     },
   });
 }

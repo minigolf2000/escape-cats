@@ -23,4 +23,6 @@ export const helpEl = $("help");
 export const scGoalEl = $("scGoal");
 export const scBandsEl = $("scBands");
 export const scTitleEl = $("scTitle");
+export const scDragEl = $("scDrag");
+export const scLiftEl = $("scLift");
 export const titleH1El = document.querySelector("#gate h1");

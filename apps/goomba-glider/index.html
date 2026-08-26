@@ -24,7 +24,7 @@
   <button id="play">▶ PLAY</button>
   <button id="help" aria-label="how to play">?</button>
   <div id="toast"></div>
-  <div id="gate">
+  <div id="gate" class="quiet">
     <div id="title">
       <h1>GOOMBA GLIDER</h1>
       <canvas id="scTitle" aria-hidden="true"></canvas>
@@ -36,6 +36,18 @@
       <canvas class="scene" id="scBands" role="img"
               aria-label="A silly band laid across a gap carries her over it; another is being stretched into place ahead of her."></canvas>
       <div class="cap">using your <b>4 bands</b></div>
+      <div class="pair">
+        <div>
+          <canvas class="scene gesture" id="scDrag" role="img"
+                  aria-label="A finger drags a band out from one ledge down to a lower one and lets go."></canvas>
+          <div class="cap"><b>drag</b> to place a band</div>
+        </div>
+        <div>
+          <canvas class="scene gesture" id="scLift" role="img"
+                  aria-label="A finger taps a band that is already placed, and it goes."></canvas>
+          <div class="cap"><b>tap</b> it to take it back</div>
+        </div>
+      </div>
     </div>
     <div id="gateStatus">Connecting…</div>
     <div id="gateErr"></div>

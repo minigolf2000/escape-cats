@@ -100,11 +100,63 @@ function fullOverlay(cv) {
   return paint;
 }
 
+/** `?pixels=c` — the same three blocks, painted into #c ITSELF.
+ *
+ * The blocks in the rack are little canvases of their own, and `full` makes a
+ * COPY of #c's box. Neither one IS #c, and #c is the element being called
+ * blurry — so if Safari hands it a smaller surface than the size we asked for
+ * and scales up on composite, nothing above can tell: `SHARPNESS` divides
+ * `cv.width` by the box, and `cv.width` is the number we ASSIGNED. It reads 1
+ * whatever the hardware did with it. This is the blind spot, and this is the
+ * instrument for it.
+ *
+ * It is a RELATIVE test, and that is the entire point. A camera pointed at a
+ * 3x panel undersamples it and collapses a 1-pixel block on its own, so a
+ * photograph of one rack proves nothing — which is why the file above says to
+ * read it on the phone. But two racks of the SAME widths, a few centimetres
+ * apart in ONE frame, are sampled by that camera identically. If #c's 4px
+ * block is mush while the rack's 4px block is clean, the camera cannot be what
+ * did it, and the difference belongs to #c. That is a question a photo CAN
+ * answer, and it is the one left.
+ *
+ * Drawn at device scale with the game's transform undone, and re-drawn at the
+ * END of every frame so the game cannot paint over it — `frame()` re-arms
+ * itself at the top of its own callback, so re-arming at the bottom of this one
+ * keeps this behind it in the queue forever. */
+function stripesIntoMain(cv) {
+  const paint = () => {
+    const g = cv.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.round(STRIPE_W * dpr), h = Math.round(STRIPE_H * dpr);
+    const x = Math.round(14 * dpr);
+    // Below the readout panel, which is opaque and sits over this canvas.
+    let y = Math.round(cv.height * 0.42);
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = "#0a0418";
+    g.fillRect(0, y - Math.round(22 * dpr), cv.width, 3 * (h + Math.round(20 * dpr)) + Math.round(14 * dpr));
+    for (const n of [1, 2, 4]) {
+      g.fillStyle = "#c9bdf0";
+      g.font = `600 ${Math.round(9 * dpr)}px ui-monospace,Menlo,monospace`;
+      g.fillText(`#c — ${n}px columns`, x, y - Math.round(5 * dpr));
+      g.fillStyle = "#000"; g.fillRect(x, y, w, h);
+      g.fillStyle = "#fff";
+      for (let i = 0; i < w; i += n * 2) g.fillRect(x + i, y, n, h);
+      y += h + Math.round(20 * dpr);
+    }
+    g.restore();
+    requestAnimationFrame(paint);
+  };
+  requestAnimationFrame(paint);
+}
+
 let worst = 1, peakScale = 1;
 
 export function startPixelProbe(cv) {
   const dpr = window.devicePixelRatio || 1;
-  if (new URLSearchParams(location.search).get("pixels") === "full") fullOverlay(cv);
+  const mode = new URLSearchParams(location.search).get("pixels");
+  if (mode === "full") fullOverlay(cv);
+  if (mode === "c") stripesIntoMain(cv);
 
   const panel = document.createElement("div");
   // pointer-events:none and no cursor of its own — the two-cursor rule counts

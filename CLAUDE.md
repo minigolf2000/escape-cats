@@ -144,10 +144,35 @@ position in a pack.
   (placeholders, never fewer lines) so boxes don't shift under a drag.
 - **Each client's CSS is `src/styles.css`**, imported from its `main.js` — not
   inline `<style>` in `index.html`.
-- **Goomba's waiting screen IS its how-to-play sheet**, and its two scenes are
-  drawn by the RENDERER from level-shaped literals, so a can in the picture cannot
-  drift from a can in the game. The sheet never dismisses itself (the first
-  snapshot only ARMS it), and its tap is bound to **pointerdown, not click** — the
+- **Goomba's waiting screen IS its how-to-play sheet, and it is PICTURES.** The
+  title with Goomba gliding over it, where she is going (downhill past the cans
+  and across a HOLE in the floor on a band, home to the plant), and the two
+  gestures that put the band there — **drag** to place, **tap** to take back.
+  `GOAL_SCENE` / `GESTURE_SCENE` in `sheet.js` are level-shaped literals drawn by
+  the RENDERER, so a can in the picture cannot drift from a can in the game.
+  Four things here are load-bearing:
+  - **The gap is what a band is FOR.** A band drawn over solid ground is
+    decoration. It is at the END of the run, one platform short of the plant,
+    because a gap in the middle has to be crossed ON the band, which drags her
+    line — and every can strung along it — down onto the floor.
+  - **No X over the band being taken back**, ever: `drawBand` already paints an
+    illegal placement red and dashed, so an X would teach "you cannot put one
+    there" in the one place teaching how to take one away.
+  - **The plant's `goal` sits 3.6 ABOVE the floor**, unlike a real level's, because
+    `drawGoalPlant` anchors on the CROWN — on the surface it buries the pot in
+    the terrain's stroke.
+  - **The FINGERTIP is the one mark with no counterpart in the game**, on the same
+    licence the dashed ride-line takes: a gesture cannot be drawn out of the
+    things it acts on.
+
+  The sheet **never dismisses itself** (the first snapshot only ARMS it) and says
+  nothing about how to on the first showing. The connection lines stay invisible
+  until the phone has been unreachable for `STALL_MS` (1.5s) unbroken — an
+  unsorted phone is connected and waiting indefinitely, so time since boot is the
+  wrong clock — and they keep their box (opacity, never display) so the pictures
+  are never shunted up the screen. Dismissing ZOOPS the sheet into `?`; `zoopMs`
+  reads `--zoop-ms` off the CSS and must stay UNIT-AWARE, because Vite's minifier
+  rewrites `460ms` to `.46s`. The tap is bound to **pointerdown, not click** — the
   kiosk lockdown kills the synthesised click, so an `onclick` here works on a
   laptop and does nothing on a phone (it shipped that way once). Don't add a
   second copy of these instructions anywhere; edit the sheet.

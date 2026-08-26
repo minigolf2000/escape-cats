@@ -21,7 +21,6 @@ export const gateErrEl = $("gateErr");
 export const gateCloseEl = $("gateClose");
 export const helpEl = $("help");
 export const scGoalEl = $("scGoal");
-export const scBandsEl = $("scBands");
 export const scTitleEl = $("scTitle");
 export const scDragEl = $("scDrag");
 export const scLiftEl = $("scLift");

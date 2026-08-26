@@ -20,7 +20,7 @@ import {
 } from "./dom";
 import {
   ctx, cam, tGlobal, sxp, syp, drawScene,
-  drawTerrain, drawCan, drawGoalPlant, drawBand, drawGoomba,
+  drawTerrain, drawCan, drawGoalPlant, goalMid, drawBand, drawGoomba,
   advanceClock,
 } from "./render";
 
@@ -54,13 +54,29 @@ const GOAL_SCENE = {
   // it sits on the floor.
   cans: [[33, 9.2]],
   startX: 7,   // ...her seat on the slope is derived from it, see seatOn
-  // The plant SITS ON the far platform rather than standing in it.
-  // drawGoalPlant anchors on the CROWN, not the base — its saucer lands 3.6
-  // below `goal` — so a goal placed a few tenths above the surface, which is
-  // where a level's own `goal` layer sits and where this one used to, buries
-  // the pot in the terrain's 4.4-wide stroke. This one is that 3.6 measured off
-  // the floor under it (21.2 at x=68), so the pot rests on the line.
-  goal: [67, 21.2 - 3.6],
+  // The plant SITS ON the far platform rather than standing IN it, and three
+  // numbers put it there.
+  //
+  // drawGoalPlant anchors on the CROWN, not the base — its saucer's bottom
+  // lands 3.6 below `goal` — so a goal placed a few tenths over the surface,
+  // which is where a level's own `goal` layer sits and where this one used to,
+  // sinks the whole pot into the floor.
+  //
+  // Then the floor is not the polyline. Terrain is drawn twice (drawTerrain): a
+  // 4.4-wide halo, which is 2×R and reads as air she may not be in, and the
+  // 1.5-wide cream LINE inside it, which is what a player sees as the ground —
+  // her own board rides that line. So the pot rests on the cream's top edge,
+  // 0.75 over the polyline, and not on the halo's: sat on the halo it hangs a
+  // clear 1.45 off the floor, which is the same picture as sunk into it, upside
+  // down.
+  //
+  // And a wide flat saucer on a SLOPING shelf touches down on its uphill edge,
+  // not under its middle. The saucer is a 4.2×0.8 ellipse and this ledge falls
+  // 2.4 over 14, so tangency wants √((4.2·0.171)² + 0.8²) ≈ 1.08 under its
+  // centre where a level shelf would want 0.8 — 1.1 over the polyline once the
+  // ellipse's own half-height is taken back off. Rest it at 0.75 and the uphill
+  // rim cuts a quarter of a unit into the cream.
+  goal: [67, 21.2 - 1.1 - 3.6],
   // Framed off what the DRAW functions reach, not off the coordinates above:
   // the plant's glow is 8.8 wide of its goal and a can's is 4.6 of its middle,
   // so a box drawn to the objects' own points clips both. The canvas is far
@@ -93,12 +109,38 @@ const GOAL_SEAT = seatOn(GOAL_SCENE.terrain[0], GOAL_SCENE.startX);
 // band were not there, and that is deliberate — bent down onto the band and
 // back up it stopped being an arc and became a route, with a kink at every
 // place the geometry underneath happened to be interesting. The band is what
-// the floor needs, not what her line needs; the arc passes over the gap and
-// meets the far ledge where the band has already put a floor back under her.
-const RIDE_PATH = [[11, 8.8], ...GOAL_SCENE.cans, [51, 13.6], [61, 18.4]];
+// the floor needs, not what her line needs; the arc passes over the gap without
+// ever asking what is under it.
+//
+// It ends at the PLANT'S MIDDLE — `goalMid`, derived rather than typed. An
+// arrow is a sentence with a subject, and this one used to stop over the far
+// ledge with its nose still on the fall's slope, which put its point on the
+// floor a little short of the pot: it read as "down there somewhere" next to a
+// plant it never named. `TIP_CLEAR` is what lets it aim AT the plant without
+// landing on it — the tip stops that far short, outside the blades, and the aim
+// carries the rest.
+//
+// The plant's middle sits a good 5 over the floor it stands on — the pot rests
+// on the cream and drawGoalPlant centres the ink up by the crown — so a line
+// that keeps falling cannot arrive at it: the tail is a shallower descent than
+// it was, and the shaping point comes UP with it to keep the arc steepening the
+// whole way. The alternative — dive to the ledge and lift into the pot — is the
+// route with a kink in it that this arc already replaced once. The shaping
+// point is the one number here still set by eye, and it is set against the
+// endpoint: move the plant and it wants looking at again.
+const RIDE_PATH = [[11, 8.8], ...GOAL_SCENE.cans, [53, 12.2], goalMid(GOAL_SCENE)];
+// World units from the plant's middle to the arrow's nose. The blades fan ~5.4
+// out of the crown, so anything under about 5 buries the nose in leaves; much
+// over 6 and the nose backs out of the glow and stops looking aimed at all.
+const TIP_CLEAR = 5.6;
 
 /** The dashed ride-line, with an arrow on its nose. Marching dashes, so it
- * reads as travel rather than as a rope she is hanging from. */
+ * reads as travel rather than as a rope she is hanging from.
+ *
+ * The path's last point is what the arrow AIMS at, not where it is drawn: the
+ * nose stops TIP_CLEAR short of it, along the same line, so the arrowhead's
+ * rotation is the true bearing to that point rather than something eyeballed
+ * against it. Move the plant and the arrow follows. */
 function drawRide(path) {
   ctx.save();
   ctx.strokeStyle = "rgba(87,230,201,0.6)";
@@ -111,12 +153,15 @@ function drawRide(path) {
     const [x, y] = path[i], [nx, ny] = path[i + 1];
     ctx.quadraticCurveTo(sxp(x), syp(y), sxp((x + nx) / 2), syp((y + ny) / 2));
   }
-  const end = path[path.length - 1], prev = path[path.length - 2];
+  const aim = path[path.length - 1], prev = path[path.length - 2];
+  const dx = aim[0] - prev[0], dy = aim[1] - prev[1];
+  const k = Math.max(0, 1 - TIP_CLEAR / (Math.hypot(dx, dy) || 1));
+  const end = [prev[0] + dx * k, prev[1] + dy * k];
   ctx.lineTo(sxp(end[0]), syp(end[1]));
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.translate(sxp(end[0]), syp(end[1]));
-  ctx.rotate(Math.atan2(end[1] - prev[1], end[0] - prev[0]));
+  ctx.rotate(Math.atan2(dy, dx));
   ctx.beginPath();
   ctx.moveTo(-1.7 * cam.s, -1.3 * cam.s); ctx.lineTo(0, 0); ctx.lineTo(-1.7 * cam.s, 1.3 * cam.s);
   ctx.stroke();

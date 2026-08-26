@@ -209,13 +209,30 @@
   #gate .pair { display: flex; gap: 12px; width: 100%; }
   #gate .pair > div { flex: 1 1 0; min-width: 0;
                       display: flex; flex-direction: column; gap: 6px; }
-  /* These two captions are sized to their COLUMN, not to the sheet: half a
-     320px phone is 130px, and "drag to place a band" at the 13px the full-width
-     captions use needs 133 of them — one wrapped line under one panel and not
-     the other, which reads as a mistake rather than as a pair. */
-  #gate .pair .cap { font-size: clamp(11px, 3.6vw, 13px); }
   #gate .scene.gesture { height: 74px; }
-  #gate .cap { color: #c9bdf0; font-size: 13px; line-height: 1.4; margin-bottom: 6px; }
+  /* The words. They are the only words on this sheet, so they are sized to be
+     READ across a table rather than to be the smallest thing that fits: at 13px
+     they were three points under the connection line nobody is meant to notice.
+     What paid for it is the height #226 freed — it cut the middle picture row
+     AND the short-screen media query, and the captions kept their old size on a
+     sheet that is now 139px clear of the bottom on the tightest screen there is
+     (320x568) and 400 clear on a phone anyone actually brings. Measured, not
+     guessed: `help Goomba water the plant` wants 15.5x its font size, so 17px
+     needs 263 of the column's 340 and cannot wrap at any width. */
+  #gate .cap { color: #c9bdf0; font-size: clamp(15px, 4.4vw, 17px);
+               line-height: 1.4; margin-bottom: 6px; }
+  /* The pair's two captions wrap onto TWO LINES, and that is the point rather
+     than a cost. Half a 320px phone is 130px and "drag to place a band" wants
+     10.7x its font size, so one line caps these at 12px — smaller than the
+     sheet's own words, on the half of it that teaches the gestures. Sized with
+     the rest and allowed to wrap, both of them break at every width this column
+     reaches (they need 182 and 176 at 17px against a 164px half at the 340px
+     max), so the pair is symmetric by ARITHMETIC and not by luck — which was
+     the real worry when they were shrunk: one wrapped line under one panel and
+     not the other reads as a mistake. `min-height` is the belt to that braces,
+     holding the two boxes level if a font stack ever measures narrower than
+     this one. */
+  #gate .pair .cap { min-height: 2.8em; text-wrap: balance; }
   #gate .cap b { color: #ffd166; font-weight: 700; }
   /* The two lines about the connection, and the one rule that matters about
      them: in the common case NOBODY EVER SEES THEM. A phone that joins in the

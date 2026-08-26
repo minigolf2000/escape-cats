@@ -44,15 +44,152 @@ const cv = document.getElementById("c");
 // finally, so nothing else can ever observe it pointed elsewhere.
 let ctx = cv.getContext("2d");
 let W = 0, H = 0;
-function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 3);
-  W = window.innerWidth; H = window.innerHeight;
-  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  cv.style.width = W + "px"; cv.style.height = H + "px";
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+/** The page scale the canvas is being stretched by — and never a number below 1.
+ *
+ * Asked for twice. `visualViewport.scale` is the direct answer and the one to
+ * believe; the WIDTH ratio is the same question from the other side, since
+ * `innerWidth` is the layout viewport and the visual viewport is the part of it
+ * you can currently see, so their quotient IS the zoom. Width, never height — a
+ * soft keyboard shortens the visual viewport without zooming anything. The
+ * larger wins, for the reason in `backingScale` below.
+ *
+ * **The floor at 1 is not tidiness, it is the safety of the whole fix.**
+ * Measured in WebKit: a page at `width=780, initial-scale=2` is RELAID OUT
+ * rather than composited — innerWidth 780, devicePixelRatio 1.5, and the same
+ * 1170 device pixels are still 1170 device pixels, so the canvas was already
+ * exactly right while `visualViewport.scale` reads 0.5. Letting that 0.5 through
+ * would halve the backing store and turn this fix into the blur it was written
+ * to remove. Scaling UP is the only direction that can ever be needed: the thing
+ * being corrected for is a compositor stretching a bitmap we already painted,
+ * which by definition no relayout told us about. */
+function pageScale() {
+  const vv = window.visualViewport;
+  if (!vv) return 1;
+  const byWidth = vv.width > 0 ? window.innerWidth / vv.width : 1;
+  return Math.max(1, vv.scale || 1, byWidth);
 }
+
+/** Device pixels per CSS pixel — how many real pixels this canvas gets to paint
+ *  each CSS pixel with, and the one number this whole section exists to get
+ *  right.
+ *
+ * `devicePixelRatio` alone is not it. It reports how dense the panel is, and a
+ * page SCALE multiplies that — a pinch (which iOS Safari allows whatever
+ * `user-scalable=no` says), or an in-app browser that lands at a scale other
+ * than 1. Layout does not change, so the canvas is never asked to resize; the
+ * compositor just stretches the bitmap it has. DOM text re-rasterises at the
+ * new scale and stays crisp while the canvas does not, which is the exact shape
+ * of the report this came from: PLAY sharp, the game soft.
+ *
+ * The awkward part, measured rather than assumed: **engines disagree about
+ * whether dpr already contains the scale.** Playwright's WebKit port at
+ * `width=260, initial-scale=1.5` reports dpr 4.5 — 3 x 1.5, folded in — AND
+ * `visualViewport.scale` 1.5, both at once; Chromium under a compositor page
+ * scale leaves dpr alone and moves only `visualViewport`; a live iOS pinch is
+ * believed to move only `visualViewport.scale` with dpr fixed, but no
+ * instrument here can perform one, so that is the one unmeasured case.
+ * Nothing readable from JS says which convention is in force, so the product
+ * can DOUBLE-COUNT (WebKit above: 4.5 x 1.5 = 6.75 asked, 4.5 true) — the cap
+ * below is what bounds that, and over-asking under a cap is the cheap failure.
+ *
+ * So take the product and let it over-ask. Over-asking costs memory and is
+ * bounded below; under-asking is the blur. That is also why the cap moved to
+ * the PRODUCT: capping dpr at 3 first threw away exactly the resolution a
+ * folded-in scale had just told us about (WebKit's 4.5 became 3, a third of the
+ * pixels gone) — the old cap was doing the damage it was meant to prevent. At
+ * rest on every iPhone and iPad this is byte-for-byte what shipped before: dpr
+ * 3 or 2, scale 1, product unchanged. It only ever rises now on a phone denser
+ * than 4x or a page that is genuinely zoomed. */
+const MAX_BACKING = 4;
+/** The ratio cap is not a memory guard, because screens are not the same size.
+ * 4x on an iPhone 13 is 4.1 megapixels; 4x on an iPad Pro 12.9 is 22.4 — past
+ * iOS's ~16.7-megapixel canvas ceiling, where allocation fails SILENTLY: the
+ * context stays valid, every draw is a no-op, and the game is a blank screen.
+ * A soft game beats no game, so the AREA binds too, with margin under the
+ * ceiling. It only ever bites zoomed-in on the biggest screens; at rest the
+ * largest board (iPad 12.9 at dpr 2) is 5.6 MP, nowhere near it. */
+const MAX_AREA = 14e6;
+function backingScale() {
+  let s = Math.min((window.devicePixelRatio || 1) * pageScale(), MAX_BACKING);
+  const area = window.innerWidth * window.innerHeight * s * s;
+  if (area > MAX_AREA) s *= Math.sqrt(MAX_AREA / area);
+  // Quantised UP to eighths. A pinch reports its scale every frame, each
+  // fractionally different, and `resize` keys its idempotence on this number —
+  // measured unquantised, one two-finger zoom reallocated the backing store 40
+  // times. Steps make almost all of those the same answer (a real gesture now
+  // costs a handful), UP so quantisation can never be the thing that
+  // under-asks, and eighths because every real dpr (1, 1.25, 1.5, 2, 2.25, 3)
+  // is already an exact multiple: at rest this rounds nothing.
+  return Math.ceil(s * 8) / 8;
+}
+
+// Idempotent, because the listeners below include visualViewport's `scroll`,
+// which fires continuously through a pinch — and reallocating the backing
+// store is the one genuinely expensive thing in this file (it also resets the
+// whole 2D context state). Same geometry in, nothing done.
+let sizeKey = "";
+function resize() {
+  const s = backingScale();
+  const key = window.innerWidth + "x" + window.innerHeight + "@" + s;
+  if (key === sizeKey) return;
+  sizeKey = key;
+  // The backing store has to be a whole number of pixels, so let IT be the
+  // exact thing and derive the CSS box from it. Sizing the other way round —
+  // box from `innerWidth`, backing rounded off it — leaves a box that is a
+  // fraction of a pixel wider than the bitmap covering it, and the browser
+  // resamples the whole canvas to close the gap. That is a real gap on iOS,
+  // where `innerWidth` is not always an integer. The box moves by under half a
+  // device pixel, which no layout here can feel.
+  const bw = Math.round(window.innerWidth * s), bh = Math.round(window.innerHeight * s);
+  cv.width = bw; cv.height = bh;
+  W = bw / s; H = bh / s;
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  // W/H stay in CSS px, so every sxp/syp/cam.s number downstream is unchanged.
+  ctx.setTransform(s, 0, 0, s, 0, 0);
+}
+
+/** The self-heal, called on a slow timer from frame().
+ *
+ * Every listener below is a guess about WHEN the viewport changes. This one
+ * does not have to guess: it asks the canvas how big it actually is and
+ * re-sizes if that disagrees with what we sized it for. A viewport change that
+ * fires no event we listen to, a bfcache restore, an in-app browser settling
+ * after its presentation animation — they all land here. The failure it
+ * insures against is silent, and a blurry game nobody can explain is a worse
+ * trade than one getBoundingClientRect a second. */
+function checkFit() {
+  const r = cv.getBoundingClientRect();
+  if (!r.width || !r.height) return;   // display:none — nothing to fit to
+  // Compare what the canvas HAS against what this moment's box and scale say
+  // it should have. Checking only the box misses the change where the box
+  // stays put and the scale moves under it — dragging the window to a 1x
+  // monitor, desktop zoom with the window size unchanged — which fires no
+  // event this file listens to. Tolerance is device pixels, and more than one,
+  // because layout snaps the box to the device grid and a half-pixel of snap
+  // must not re-allocate the store once a second forever.
+  const s = backingScale();
+  if (Math.abs(cv.width - r.width * s) > 1.5 || Math.abs(cv.height - r.height * s) > 1.5) {
+    sizeKey = "";   // the world moved under us: re-apply even if inner* agrees
+    resize();
+  }
+}
+
+// `resize` is not the only way the picture changes size. orientationchange can
+// land before window.resize on iOS, visualViewport is the only one that
+// reports a pinch at all (and reports it as scroll as often as resize), and
+// pageshow is the bfcache restore.
 window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", resize);
+window.addEventListener("pageshow", resize);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", resize);
+  window.visualViewport.addEventListener("scroll", resize);
+}
 resize();
+if (new URLSearchParams(location.search).has("pixels")) {
+  import("./pixelprobe.js").then((m) => m.startPixelProbe(cv));
+}
 if (!ctx.roundRect) {
   CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
     r = Math.min(r, w / 2, h / 2);
@@ -1732,10 +1869,13 @@ function drawSplashWords() {
 // ---------- main loop ----------
 const bandExcite = new Map(); // band index -> 0..1 wobble
 
+let lastFitCheck = 0;
+
 function frame(nowMs) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (nowMs - (frame.last || nowMs)) / 1000); frame.last = nowMs;
   tGlobal += dt;
+  if (tGlobal - lastFitCheck > 1) { lastFitCheck = tGlobal; checkFit(); }
   if (editMsgT > 0) editMsgT = Math.max(0, editMsgT - dt);
   if (sheetOpen) drawSheet();   // `?` mid-party: the pictures keep moving
   if (!snap) return;
@@ -1948,13 +2088,24 @@ const BAND_SCENE = {
  * all of it back. The restore is in a finally because a throw mid-picture that
  * left `ctx` on a 340px canvas would take the whole game's rendering with it. */
 function drawScene(el, b, body) {
-  const w = el.clientWidth, h = el.clientHeight;
+  // getBoundingClientRect, not clientWidth: these boxes are laid out by CSS
+  // (a percentage width, a height in `em`) and land on fractions of a pixel,
+  // and clientWidth rounds that away. Sizing the backing store off the rounded
+  // number leaves up to a whole CSS pixel of stretch across the canvas — a
+  // resample of everything in it, on the sheet that is the first screen a
+  // phone sees. #scTitle measured 381.19 CSS px wide in Safari.
+  const rect = el.getBoundingClientRect();
+  const w = rect.width, h = rect.height;
   if (!w || !h) return;              // the sheet is hidden: nothing to draw into
-  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const dpr = backingScale();
   const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
   if (el.width !== bw || el.height !== bh) { el.width = bw; el.height = bh; }
   const g = el.getContext("2d");
-  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // The scale the bitmap ACTUALLY has against its box, not the one we asked
+  // for: `bw` was rounded to a whole pixel, so `bw / w` is a hair off `dpr`,
+  // and drawing at `dpr` would leave the last fraction of a pixel unpainted
+  // and shift everything against the box it is stretched into.
+  g.setTransform(bw / w, 0, 0, bh / h, 0, 0);
   g.clearRect(0, 0, w, h);
   const savedCtx = ctx, savedW = W, savedH = H, savedCam = { ...cam },
     savedOX = camOX, savedOY = camOY;

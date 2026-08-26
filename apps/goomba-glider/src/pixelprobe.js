@@ -12,7 +12,7 @@
  * phone is in the cleared-room state) and CLAUDE.md is explicit that nothing
  * else may hide behind it.
  *
- * Two halves, because they answer two different questions:
+ * Three parts, because they answer three different questions:
  *
  *   STRIPES — blocks of alternating columns 1, 2 and 4 DEVICE pixels wide,
  *     drawn into a canvas built so one backing pixel is one device pixel (no
@@ -20,6 +20,16 @@
  *     lines. Anything resampling the canvas on its way to the glass collapses
  *     them into flat grey or a moire, narrowest block first. This is the
  *     answer in a photograph, with nothing to read.
+ *
+ *   #c STRIPES — the same three widths, painted into the suspect canvas
+ *     ITSELF, just under the panel so ONE photograph catches both racks. The
+ *     blocks above are their own little canvases; this is the element being
+ *     called blurry. A camera undersamples a 3x panel and mushes a 1px block by
+ *     itself, so one rack proves nothing — but two racks in one frame are
+ *     sampled identically, and a difference BETWEEN them cannot be the camera.
+ *     Measured on an iPhone 15: a sharp load and a blurry one print the same
+ *     numbers to the last digit, so this is the only part still able to see a
+ *     difference at all.
  *
  *   NUMBERS — every quantity sitting between a world unit and a device pixel.
  *     The line that matters is `backing/box`: backing pixels per CSS pixel,
@@ -192,7 +202,17 @@ export function startPixelProbe(cv) {
   document.body.appendChild(panel);
   // After the panel is in the document, because it places itself by MEASURING
   // it — the whole point of this rack is to sit beside the one above, visible.
-  if (mode === "c") stripesIntoMain(cv, panel);
+  //
+  // ALWAYS, not behind `pixels=c`. It was a mode for two rounds and four
+  // photographs of the phone came back without it, because the query string is
+  // the part of a URL a phone hides and a person retypes. The rack costs three
+  // blocks of screen on a page that is already nothing but instrumentation, and
+  // it answers the question the numbers above cannot: a sharp load and a blurry
+  // one on the same phone print IDENTICAL readouts — dpr, inner, backing, box,
+  // ratio, transform, all of it — so whatever differs is below JavaScript, and
+  // the only way left to see it is to look at pixels we drew into the suspect
+  // element itself. A diagnostic nobody remembers to switch on is not one.
+  stripesIntoMain(cv, panel);
 
   const read = () => {
     const vv = window.visualViewport;

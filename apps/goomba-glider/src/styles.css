@@ -299,17 +299,10 @@
            background: rgba(255,209,102,.22); border-color: #ffd166; color: #ffd166; }
     100% { transform: scale(1); opacity: 1; }
   }
-  /* One ring off the landing, drawn OUTSIDE the button's box so it does not
-     move the 44px target: it is the flourish that says the thing that just
-     flew down here is now this. */
-  #help.pop::after { content: ""; position: absolute; inset: -2px; border-radius: 50%;
-                     border: 2px solid #ffd166; pointer-events: none;
-                     animation: helpRing calc(var(--zoop-ms) * .85)
-                                ease-out calc(var(--zoop-ms) * .78) both; }
-  @keyframes helpRing {
-    0%   { transform: scale(1); opacity: .9; }
-    100% { transform: scale(2.1); opacity: 0; }
-  }
+  /* There is no ring off the landing. One was tried — a gold circle pinging
+     outward past the button — and the arrival does not need announcing twice:
+     the sheet flying into the corner is already the sentence, and the pop is
+     already the full stop. */
 
   /* The way back to the sheet, mid-party: PLAY's own corner, mirrored. A party
      game is joined late and handed between people, so "how does this work"
@@ -349,6 +342,5 @@
     #rotate .glyph { animation: none; }
     /* closeSheet takes the same branch and hides the gate outright, so these
        are belt-and-braces for a preference flipped mid-flight. */
-    #gate.zoop, #gate.zoop > *, #help.pop, #help.pop::after { animation: none; }
-    #help.pop::after { display: none; }
+    #gate.zoop, #gate.zoop > *, #help.pop { animation: none; }
   }

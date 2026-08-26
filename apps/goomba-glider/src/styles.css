@@ -293,10 +293,13 @@
      already arrived, while the sheet was still on its way to it. */
   #help.pop { animation: helpPop calc(var(--zoop-ms) * .62) cubic-bezier(.2,1.5,.4,1)
                          calc(var(--zoop-ms) * .62) both; }
+  /* Scale only. The peak used to go gold as well — background, border and glyph
+     all `#ffd166` for a frame — which is a RING on a round button with a border,
+     and the whole point of dropping the ping was that the landing does not want
+     announcing. The catch is the pop; the colour was the pop shouting. */
   @keyframes helpPop {
     0%   { transform: scale(.35); opacity: 0; }
-    45%  { transform: scale(1.22); opacity: 1;
-           background: rgba(255,209,102,.22); border-color: #ffd166; color: #ffd166; }
+    45%  { transform: scale(1.22); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
   }
   /* There is no ring off the landing. One was tried — a gold circle pinging

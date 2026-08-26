@@ -21,6 +21,28 @@ import { S, bandInk, bandInkDark, PARTY_COLORS } from "./state";
  * (`Object.assign`, `cam.x +=`), never rebound, so both names are one object. */
 export const cam = S.cam;
 
+/** `?flat` — draw the game with its AURAS off, and nothing else changed.
+ *
+ * Four shapes in this file are wide, low-alpha fills sitting under the thing
+ * they belong to: the 4.4-unit cream stroke under every terrain polyline (the
+ * wedge rule, 2 x her radius, made visible), and the soft discs behind a can, a
+ * bumper and the goal plant. Every one has hard edges and every one is painted
+ * at full resolution — but a 13%-alpha disc 9 units wide reads as a GLOW, and a
+ * glow around everything reads as a blurry screen.
+ *
+ * So this exists to answer one question a screenshot cannot: when someone says
+ * the game looks soft, do they mean the pixels or do they mean the art? `?pixels`
+ * measures the first and has come back clean on every machine we have pointed it
+ * at; this flips the second off so the two can be told apart by looking. It is a
+ * DIAGNOSTIC, not a setting — nobody plays with it, and if the answer turns out
+ * to be the art then the fix is to change the art, not to ship this.
+ *
+ * Its own flag, never folded into `?debug`: that one means exactly one thing
+ * (this phone is in the cleared-room state) and nothing else may hide behind
+ * it. Boot-time const rather than a live read, because unlike a pointer type a
+ * URL cannot change without a reload. */
+const FLAT = new URLSearchParams(location.search).has("flat");
+
 export let ctx = cv.getContext("2d");
 export let W = 0, H = 0;
 /** The lab draws levels into grid cells by offsetting the camera. */
@@ -315,10 +337,12 @@ export function drawBackground(dt) {
 export function drawTerrain(lv) {
   ctx.lineJoin = "round"; ctx.lineCap = "round";
   for (const poly of lv.terrain) {
-    ctx.strokeStyle = "rgba(243,233,214,0.14)"; ctx.lineWidth = 4.4 * cam.s;
     ctx.beginPath();
     poly.forEach(([x, y], i) => i ? ctx.lineTo(sxp(x), syp(y)) : ctx.moveTo(sxp(x), syp(y)));
-    ctx.stroke();
+    if (!FLAT) {
+      ctx.strokeStyle = "rgba(243,233,214,0.14)"; ctx.lineWidth = 4.4 * cam.s;
+      ctx.stroke();
+    }
     ctx.strokeStyle = "#f3e9d6"; ctx.lineWidth = 1.5 * cam.s;
     ctx.stroke();
     ctx.strokeStyle = "rgba(255,93,177,0.55)"; ctx.lineWidth = 0.5 * cam.s;
@@ -501,8 +525,10 @@ export function drawCan(mx, my, taken, i, ping = 0) {
     ctx.restore();
   }
   ctx.save(); ctx.translate(x, y + Math.sin(tGlobal * 2.2 + i * 1.7) * 0.3 * u); ctx.rotate(-0.16);
-  ctx.fillStyle = "rgba(87,230,201,0.13)";
-  ctx.beginPath(); ctx.arc(0, 0, 4.6 * u, 0, 6.28); ctx.fill();
+  if (!FLAT) {
+    ctx.fillStyle = "rgba(87,230,201,0.13)";
+    ctx.beginPath(); ctx.arc(0, 0, 4.6 * u, 0, 6.28); ctx.fill();
+  }
   ctx.strokeStyle = "#ffd166"; ctx.lineCap = "round"; ctx.lineWidth = 0.42 * u;
   ctx.beginPath(); ctx.arc(0.1 * u, -1.1 * u, 1.5 * u, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
   ctx.lineWidth = 0.75 * u;                                            // spout, out to the left and up
@@ -524,8 +550,10 @@ export function drawBumper(bp, hot) {
   const u = Math.max(cam.s, 2.2), x = sxp(bp.x), y = syp(bp.y);
   const pop = 1 + hot * 0.35;
   ctx.save(); ctx.translate(x, y); ctx.scale(pop, pop);
-  ctx.fillStyle = "rgba(255,93,177,0.15)";
-  ctx.beginPath(); ctx.arc(0, 0, (BUMP_R + 2.5) * cam.s, 0, 6.28); ctx.fill();
+  if (!FLAT) {
+    ctx.fillStyle = "rgba(255,93,177,0.15)";
+    ctx.beginPath(); ctx.arc(0, 0, (BUMP_R + 2.5) * cam.s, 0, 6.28); ctx.fill();
+  }
   const g = ctx.createRadialGradient(-BUMP_R * u * 0.3, -BUMP_R * u * 0.3, BUMP_R * u * 0.15, 0, 0, BUMP_R * u);
   g.addColorStop(0, "#ffd166"); g.addColorStop(0.55, "#ff5db1"); g.addColorStop(1, "#c23a85");
   ctx.fillStyle = g;
@@ -593,10 +621,12 @@ export function drawGoalPlant(lv, st, fx = 0) {
   const left = lv.cans.length - (st ? st.gotN : 0), ready = left === 0;
   const pulse = 1 + Math.sin(tGlobal * 3) * 0.05;
   ctx.save(); ctx.translate(x, y + POT_DROP * u); ctx.scale(pulse, pulse);
-  ctx.fillStyle = ready
-    ? "rgba(87,230,201,0.2)"
-    : `rgba(255,209,102,${(0.12 + 0.16 * fx).toFixed(3)})`;
-  ctx.beginPath(); ctx.ellipse(0, GLOW_Y * u, 8.8 * u, 7.5 * u, 0, 0, 6.28); ctx.fill();
+  if (!FLAT) {
+    ctx.fillStyle = ready
+      ? "rgba(87,230,201,0.2)"
+      : `rgba(255,209,102,${(0.12 + 0.16 * fx).toFixed(3)})`;
+    ctx.beginPath(); ctx.ellipse(0, GLOW_Y * u, 8.8 * u, 7.5 * u, 0, 0, 6.28); ctx.fill();
+  }
   // pot first — saucer, tapered body, rim: a spider plant's blades hang OVER
   // the rim, so every one of them rides in front of the pot, not behind it
   ctx.fillStyle = "#cfc4ec";

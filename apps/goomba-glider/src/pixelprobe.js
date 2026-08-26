@@ -125,14 +125,17 @@ function fullOverlay(cv) {
  * whatever the hardware did with it. This is the blind spot, and this is the
  * instrument for it.
  *
- * It is a RELATIVE test, and that is the entire point. A camera pointed at a
- * 3x panel undersamples it and collapses a 1-pixel block on its own, so a
- * photograph of one rack proves nothing — which is why the file above says to
- * read it on the phone. But two racks of the SAME widths, a few centimetres
- * apart in ONE frame, are sampled by that camera identically. If #c's 4px
- * block is mush while the rack's 4px block is clean, the camera cannot be what
- * did it, and the difference belongs to #c. That is a question a photo CAN
- * answer, and it is the one left.
+ * It is a RELATIVE test: the inline rack above is small canvases of the same
+ * make, a few centimetres away in the same frame, so anything that touches both
+ * equally (a camera, a screenshot pipeline) cancels out, and a difference
+ * between the racks belongs to #c. Measured on the iPhone 15 that prompted all
+ * this: the inline canvases stay crisp on a blurry load while #c goes soft —
+ * whatever Safari does, it does to the one BIG canvas, which reads like the
+ * compositor downsampling a large layer under memory pressure, decided at
+ * layer creation and held until reload. The 4px width is shared with the
+ * inline rack for the head-to-head; 8 and 16 exist because the first version
+ * of this rack used 1/2/4 and was destroyed by the very degradation it was
+ * measuring — stripes, labels and all — and went unfound in six photographs.
  *
  * Drawn at device scale with the game's transform undone, and re-drawn at the
  * END of every frame so the game cannot paint over it — `frame()` re-arms
@@ -164,9 +167,25 @@ function stripesIntoMain(cv, panel) {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = "#0a0418";
     g.fillRect(0, y - Math.round(22 * dpr), cv.width, 3 * step + Math.round(14 * dpr));
-    for (const n of [1, 2, 4]) {
-      g.fillStyle = "#c9bdf0";
-      g.font = `600 ${Math.round(9 * dpr)}px ui-monospace,Menlo,monospace`;
+    // The magenta frame is the "did you find it at all" signal. On the phone
+    // this rack rendered as three featureless grey smudges — the degradation it
+    // exists to measure ate its own stripes AND its own labels, and it went
+    // unrecognised in six photographs. An instrument has to survive the fault
+    // it measures; a border with no fine detail survives any blur.
+    g.strokeStyle = "#ff5db1"; g.lineWidth = 3 * dpr;
+    g.strokeRect(x - 6 * dpr, y - Math.round(20 * dpr) - 6 * dpr,
+                 w + 12 * dpr, 3 * step + 12 * dpr);
+    // 4 / 8 / 16, not 1 / 2 / 4 — an eye chart for the COMPOSITOR, so the
+    // failure grades itself instead of vanishing. The small inline canvases
+    // above stay crisp on the same blurry screen, so whatever Safari does, it
+    // does to the one big canvas: if its layer is composited at half scale a
+    // 4px block goes grey, 8px barely survives, 16px always survives. The first
+    // striped block from the top IS the effective scale, readable by eye:
+    // all three striped = healthy; only 8 and 16 = ~1.5x of 3x; only 16 =
+    // ~0.75x or worse. 1 and 2px blocks graded the camera, not the layer.
+    for (const n of [4, 8, 16]) {
+      g.fillStyle = "#f2ecff";
+      g.font = `700 ${Math.round(12 * dpr)}px ui-monospace,Menlo,monospace`;
       g.fillText(`#c — ${n}px columns`, x, y - Math.round(5 * dpr));
       g.fillStyle = "#000"; g.fillRect(x, y, w, h);
       g.fillStyle = "#fff";

@@ -73,6 +73,26 @@ window.addEventListener(
   },
   { capture: true, passive: false },
 );
+// And no zoom. `user-scalable=no` in the viewport meta has not stopped a pinch
+// since iOS 10 — Safari ignores it deliberately, so the meta is a statement of
+// intent and these three are the enforcement. WebKit-only events, and the only
+// ones that fire for a MAC trackpad pinch as well as an iOS one.
+//
+// The touchstart above already suppresses a pinch nearly everywhere, so this
+// closes one specific hole: the `button, a` exemption up there is load-bearing
+// (preventDefault on touchstart kills the synthesised click), which means a
+// pinch that happens to START on PLAY or the Figma link is not covered. Gesture
+// events synthesise no click, so they need no such exemption and get none.
+//
+// Two fingers are the game's own (`input.js` — a stretch lays a band), so
+// nothing here is taking a gesture away from a player; it is stopping the
+// BROWSER from reading the same two fingers as a zoom. What it cannot reach:
+// iOS "Always Allow Zoom", the system three-finger Accessibility Zoom, and
+// Safari's own AA-menu / Cmd+- page zoom. Those are browser chrome, and a page
+// that pretends otherwise is making a promise it cannot keep.
+for (const ev of ["gesturestart", "gesturechange", "gestureend"]) {
+  window.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+}
 
 // Run zoom only: the edit view sits at fitScale so the WHOLE level is on screen.
 // Nothing pans any more, so every point a band can reach has to be reachable by

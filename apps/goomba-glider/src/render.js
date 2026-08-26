@@ -94,13 +94,43 @@ const MAX_BACKING = 4;
  * iOS's ~16.7-megapixel canvas ceiling, where allocation fails SILENTLY: the
  * context stays valid, every draw is a no-op, and the game is a blank screen.
  * A soft game beats no game, so the AREA binds too, with margin under the
- * ceiling. It only ever bites zoomed-in on the biggest screens; at rest the
- * largest board (iPad 12.9 at dpr 2) is 5.6 MP, nowhere near it. */
-const MAX_AREA = 14e6;
+ * ceiling.
+ *
+ * **That ceiling is iOS's, and it used to be charged to everyone.** One
+ * constant for all platforms meant a desktop paid an iOS tax it does not owe:
+ * measured in WebKit, a 6K-class viewport (3008x1692 at dpr 2 — a Pro Display
+ * XDR) wants 20.4 MP, got clamped to 1.75x, and read SHARPNESS 0.875 SITTING
+ * STILL, un-zoomed, on a machine with gigabytes to spare. Desktop Safari,
+ * Chrome and Firefox are all documented at 2^28 px or memory-bound; none of
+ * them is anywhere near 2^24. So the ceiling now asks which machine it is on.
+ *
+ * The question it asks is "can this thing be touched at all", not "is this a
+ * phone", and it is deliberately biased: **unknown counts as touch.** Guessing
+ * desktop wrong is the blank screen above — the worst thing this file can do,
+ * at a party, on someone else's phone, where nobody can debug it. Guessing
+ * touch wrong only costs sharpness on a display nobody carries to a party.
+ * That asymmetry is the whole design, and it is why this is not the runtime
+ * allocation probe that would be cleaner: nothing here can test a real iOS
+ * allocation failure, and an untestable probe trades a soft game for a blank
+ * one. `finePointer` in `state.js` asks a different question (is there a
+ * CURSOR) for a different reason, so it is not reused here.
+ *
+ * On every iPhone and iPad this is byte-for-byte what shipped before. */
+const MAX_AREA_TOUCH = 14e6;
+/** Covers every real display at rest — the largest, a Pro Display XDR at dpr 2,
+ * is 20.4 MP — while still refusing an absurd allocation (an 8K panel at dpr 2
+ * would ask 132 MP / ~530 MB). Nothing between those two is a party game. */
+const MAX_AREA_DESKTOP = 64e6;
+/** Read live, never latched: `maxTouchPoints` is the one signal here, and a
+ * boot-time snapshot is how the pointer-type bug in the selector got written. */
+const maxArea = () =>
+  ((navigator.maxTouchPoints ?? 1) > 0 || "ontouchstart" in window)
+    ? MAX_AREA_TOUCH : MAX_AREA_DESKTOP;
 function backingScale() {
   let s = Math.min((window.devicePixelRatio || 1) * pageScale(), MAX_BACKING);
   const area = window.innerWidth * window.innerHeight * s * s;
-  if (area > MAX_AREA) s *= Math.sqrt(MAX_AREA / area);
+  const cap = maxArea();
+  if (area > cap) s *= Math.sqrt(cap / area);
   // Quantised UP to eighths. A pinch reports its scale every frame, each
   // fractionally different, and `resize` keys its idempotence on this number —
   // measured unquantised, one two-finger zoom reallocated the backing store 40

@@ -2032,34 +2032,54 @@ function frame(nowMs) {
 /** A scene: only the fields the draw functions actually read. Nothing here is
  * simulated, verified or playable — `bounds` is just the box to frame. */
 const GOAL_SCENE = {
-  // The floor RUNS DOWNHILL, and steepens before it flattens out under the
-  // plant. It used to be a flat shelf, which left the picture with no engine in
-  // it: a cat at rest on a level floor with three cans strung above her says
-  // nothing about why she would ever move. Gravity is the only motor in this
-  // game — the players never push her, they only put things in her way — so the
-  // hill is the sentence, and every other mark here descends with it: the cans
-  // are strung 2.7-2.9 clear of the surface as it drops away from under her
-  // (she leaves the ground where it steepens and flies the rest), and each one
-  // sits LOWER than the last so the whole ride reads as one fall.
-  terrain: [[[0, 10.2], [24, 12.7], [48, 16.3], [72, 20.3]]],
-  cans: [[19, 7], [37, 9.4], [55, 12.4]],
-  goal: [65, 18.7],
+  // The floor RUNS DOWNHILL and then STOPS, one gap short of the plant. The
+  // hill is the motor — gravity is the only one this game has, since the
+  // players never push her, they only put things in her way — and the gap is
+  // what the band is FOR: a band drawn over solid ground is decoration, and
+  // this one is the last thing between her fall and the pot.
+  //
+  // The gap is at the END rather than in the middle because that is what lets
+  // the cans stay UP. She leaves the ground where the hill steepens and flies
+  // the rest, so her line runs high and clear across the picture; a gap in the
+  // middle has to be crossed ON the band, which drags that line — and every can
+  // strung along it — down onto the floor.
+  //
+  // The band's ends ARE the two platform ends, which is where a real band snaps
+  // (a terrain vertex), so nothing here is a shape the game could not make. The
+  // far side sits LOWER than the near side's line would reach, so the band
+  // slants at twice the floor's grade: drawn level with it, it read as a pink
+  // section OF the floor rather than as a break.
+  terrain: [[[0, 10.2], [24, 12.7], [48, 16.3]], [[60, 20], [74, 22.4]]],
+  band: { ax: 48, ay: 16.3, bx: 60, by: 20 },
+  // Up in the air, where they belong: 4.5-7 clear of a floor that is falling
+  // away faster than she is. The last one hangs over the GAP, which has no
+  // floor under it for its glow to sit on at all.
+  cans: [[17, 7.2], [32, 9], [46, 11.6]],
   startX: 7,   // ...her seat on the slope is derived from it, see seatOn
+  // The plant SITS ON the far platform rather than standing in it.
+  // drawGoalPlant anchors on the CROWN, not the base — its saucer lands 3.6
+  // below `goal` — so a goal placed a few tenths above the surface, which is
+  // where a level's own `goal` layer sits and where this one used to, buries
+  // the pot in the terrain's 4.4-wide stroke. This one is that 3.6 measured off
+  // the floor under it (21.2 at x=68), so the pot rests on the line.
+  goal: [67, 21.2 - 3.6],
   // Framed off what the DRAW functions reach, not off the coordinates above:
   // the plant's glow is 8.8 wide of its goal and a can's is 4.6 of its middle,
   // so a box drawn to the objects' own points clips both. The canvas is far
   // wider than it is tall, so the WIDTH is what sets the scale here and these
   // two y's do nothing but centre the picture: their midpoint is the middle of
-  // everything drawn, from the top of the first can's glow (3.4) to the bottom
-  // of the plant's (23.6).
-  bounds: { x0: -3, x1: 77, y0: 4.0, y1: 23.1 },
+  // everything drawn, from the top of the first can's glow (2.4) to the bottom
+  // of the far platform's stroke (24.3).
+  bounds: { x0: -3, x1: 77, y0: 4.2, y1: 23 },
 };
+
 
 /** Her seat on a scene's terrain at `x`: the surface angle there, and her
  * centre R clear of it along the surface NORMAL — the same two numbers the sim
- * keeps for a body resting on the ground, and the same trick the band picture
- * plays off the band. Derived rather than written down, because a hand-typed
- * start next to a slope is one edit away from leaving her hanging in the air. */
+ * keeps for a body resting on the ground, and the same trick the gesture
+ * pictures play off a band. Derived rather than written down, because a
+ * hand-typed start next to a slope is one edit away from leaving her hanging in
+ * the air. */
 function seatOn(poly, x) {
   let i = 0;
   while (i < poly.length - 2 && poly[i + 1][0] < x) i++;
@@ -2070,13 +2090,11 @@ function seatOn(poly, x) {
 }
 const GOAL_SEAT = seatOn(GOAL_SCENE.terrain[0], GOAL_SCENE.startX);
 
-// Her ride, through the cans and into the plant. The one mark in either
-// picture that is not a game object, because "she goes THIS way, through those"
-// is the sentence the picture is replacing, and no arrangement of the objects
-// themselves says it. It only ever goes DOWN now — a dashed line that climbs
-// over the cans and drops onto the plant is a picture of a throw, and nothing
-// here throws her.
-const RIDE_PATH = [[11.5, 8.6], ...GOAL_SCENE.cans, [60, 14.6]];
+// ...and the last two points are not cans: one is her RIDING HEIGHT over the
+// band's middle (R above where it hangs), the other is past its far end, on the
+// platform the band delivers her to. Without them the line flew over the gap
+// and the band was decoration again.
+const RIDE_PATH = [[11, 8.8], ...GOAL_SCENE.cans, [54, 16.6], [63, 19.2]];
 
 /** Draw a scene into one of the sheet's canvases, framed to its bounds.
  *
@@ -2152,6 +2170,10 @@ function drawGoalScene() {
   drawRide(RIDE_PATH);
   GOAL_SCENE.cans.forEach((c, i) => drawCan(c[0], c[1], false, i));
   drawGoalPlant(GOAL_SCENE, { gotN: GOAL_SCENE.cans.length });
+  // After the cans and the plant, exactly as the game draws them: a band is in
+  // front of everything it is laid across, and a can's glow is 4.6 wide enough
+  // to swallow one drawn underneath it.
+  drawBand(GOAL_SCENE.band, 0, false);
   drawGoomba(GOAL_SEAT.x, GOAL_SEAT.y, GOAL_SEAT.a, 1, true, false, true);
 }
 

@@ -169,7 +169,11 @@
      on the line above (she rides the FIRST line's cap line, wherever the words
      break). Every width from 320 up now keeps it on one line, and the size only
      stops shrinking below a screen narrower than any phone. */
-  #title { position: relative; font-size: clamp(24px, 8vw, 48px); }
+  #title { position: relative; font-size: clamp(24px, 8vw, 48px);
+           /* Air under the words. The gate's own 12px gap put the title on top
+              of the first picture, so the whole sheet read as one column of
+              four things instead of a name and then what to do about it. */
+           margin-bottom: 40px; }
   #gate h1 { margin: 0; font-size: 1em; letter-spacing: .01em;
              background: linear-gradient(90deg, #ff5db1, #ffd166, #57e6c9); -webkit-background-clip: text; background-clip: text; color: transparent; }
   /* Her canvas covers the WORDS as well as the air over them — down to the

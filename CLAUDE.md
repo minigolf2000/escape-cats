@@ -331,8 +331,9 @@ that file are what a deleted one left behind.
 - **Goomba's waiting screen IS its how-to-play sheet, and it is PICTURES**:
   the gate that a phone waits on before the proctor sorts it in shows the game's
   title — with Goomba gliding along the top of the words — where she is going
-  (downhill past every can, home to the plant), and the two gestures that put a
-  band in her way, as a side-by-side PAIR: **drag** to place a band, **tap** it
+  (downhill past every can and across the HOLE in the floor on a band, home to
+  the plant), and the two gestures that put that band there, as a side-by-side
+  PAIR: **drag** to place a band, **tap** it
   to take it back. Every one of those is drawn by the RENDERER, not by hand:
   `GOAL_SCENE` / `GESTURE_SCENE` in `main.js` are level-shaped literals, and
   `drawScene` points the module's `ctx`/`W`/`H`/`cam` at the sheet's little
@@ -344,7 +345,19 @@ that file are what a deleted one left behind.
   not be — `drawBand` already paints an illegal placement red and dashed, so an
   X would teach "you cannot put one there" in the one place teaching how to take
   one away. A third picture was cut (a band across a gap, captioned "using your
-  4 bands"): the goal above it and the hands below it said it between them.
+  4 bands"): the goal above it and the hands below it say it between them, and
+  the GAP in the goal picture's floor is what carries the half of that sentence
+  the hands do not. A band drawn over solid ground is decoration — the gap is
+  what a band is FOR — so the floor stops, the band bridges it with its ends on
+  the two platform ends (where a real band snaps, a terrain vertex), the far
+  side sits lower so the break cannot be read as a pink section of floor, and
+  her dashed ride line runs down across it. The gap is at the END of the run,
+  one platform short of the plant, because that is what lets the CANS stay up:
+  a gap in the middle has to be crossed on the band, which drags her line — and
+  every can strung along it — down onto the floor. The plant's `goal` sits 3.6
+  ABOVE the floor under it, not on it: drawGoalPlant anchors on the crown, so a
+  goal placed where a level's own `goal` layer sits buries the pot in the
+  terrain's 4.4-wide stroke.
   `?` bottom-left (PLAY's corner, mirrored) re-opens the same
   element mid-party. `.ready` is the dismissible wearing, and the sheet
   **never dismisses itself**: the first snapshot only ARMS it (`armSheet`), so

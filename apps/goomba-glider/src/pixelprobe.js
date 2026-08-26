@@ -123,18 +123,25 @@ function fullOverlay(cv) {
  * END of every frame so the game cannot paint over it — `frame()` re-arms
  * itself at the top of its own callback, so re-arming at the bottom of this one
  * keeps this behind it in the queue forever. */
-function stripesIntoMain(cv) {
+function stripesIntoMain(cv, panel) {
   const paint = () => {
     const g = cv.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
     const w = Math.round(STRIPE_W * dpr), h = Math.round(STRIPE_H * dpr);
     const x = Math.round(14 * dpr);
-    // Below the readout panel, which is opaque and sits over this canvas.
-    let y = Math.round(cv.height * 0.42);
+    // MEASURED off the panel, never a fraction of the screen. The panel is
+    // opaque and taller than it looks — on a phone it covers well over half the
+    // viewport — so a guessed 42% painted this whole rack underneath it and the
+    // one comparison it exists for was invisible. Ask the element.
+    const step = h + Math.round(20 * dpr);
+    let y = Math.round((panel.getBoundingClientRect().bottom + 14) * dpr);
+    // Still has to fit. If the panel has eaten the screen, sit on the bottom
+    // edge rather than off it — clipped stripes answer nothing.
+    y = Math.min(y, Math.max(0, cv.height - 3 * step));
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = "#0a0418";
-    g.fillRect(0, y - Math.round(22 * dpr), cv.width, 3 * (h + Math.round(20 * dpr)) + Math.round(14 * dpr));
+    g.fillRect(0, y - Math.round(22 * dpr), cv.width, 3 * step + Math.round(14 * dpr));
     for (const n of [1, 2, 4]) {
       g.fillStyle = "#c9bdf0";
       g.font = `600 ${Math.round(9 * dpr)}px ui-monospace,Menlo,monospace`;
@@ -142,7 +149,7 @@ function stripesIntoMain(cv) {
       g.fillStyle = "#000"; g.fillRect(x, y, w, h);
       g.fillStyle = "#fff";
       for (let i = 0; i < w; i += n * 2) g.fillRect(x + i, y, n, h);
-      y += h + Math.round(20 * dpr);
+      y += step;
     }
     g.restore();
     requestAnimationFrame(paint);
@@ -156,7 +163,6 @@ export function startPixelProbe(cv) {
   const dpr = window.devicePixelRatio || 1;
   const mode = new URLSearchParams(location.search).get("pixels");
   if (mode === "full") fullOverlay(cv);
-  if (mode === "c") stripesIntoMain(cv);
 
   const panel = document.createElement("div");
   // pointer-events:none and no cursor of its own — the two-cursor rule counts
@@ -184,6 +190,9 @@ export function startPixelProbe(cv) {
   }
   panel.appendChild(rack);
   document.body.appendChild(panel);
+  // After the panel is in the document, because it places itself by MEASURING
+  // it — the whole point of this rack is to sit beside the one above, visible.
+  if (mode === "c") stripesIntoMain(cv, panel);
 
   const read = () => {
     const vv = window.visualViewport;

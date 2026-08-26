@@ -174,7 +174,15 @@ position in a pack.
   reads `--zoop-ms` off the CSS and must stay UNIT-AWARE, because Vite's minifier
   rewrites `460ms` to `.46s`. The tap is bound to **pointerdown, not click** — the
   kiosk lockdown kills the synthesised click, so an `onclick` here works on a
-  laptop and does nothing on a phone (it shipped that way once). Don't add a
+  laptop and does nothing on a phone (it shipped that way once). Space, Enter and
+  Escape dismiss it too, and that list is short ON PURPOSE: it used to be ANY
+  key, which skipped the modifier keys themselves but not modifier COMBOS, so
+  Cmd+R arrived as `r` with metaKey set and preventDefault ate the reload — Ctrl+V
+  went the same way, stopping the paste listener from ever seeing a paste on a
+  screen that closes itself so a paste can land. **A catch-all on a keyboard is a
+  promise you cannot keep**: the whole keydown listener exists for the laptop
+  that EDITS (`\` opens the selector, Escape leaves it, Space plays), a modifier
+  combo is never ours, and everything else belongs to the browser. Don't add a
   second copy of these instructions anywhere; edit the sheet.
 - **Hex's win is the PROCTOR's press** (`wonAt`, a proctor-only intent) — hex
   cannot score its own win, because the code word leaves the game on a phone and

@@ -439,7 +439,7 @@ const hintEl = $("hint"), dotsEl = $("dots"), invEl = $("inv"),
   labEl = $("lab"),
   gateEl = $("gate"), gateStatusEl = $("gateStatus"), gateErrEl = $("gateErr"),
   gateCloseEl = $("gateClose"),
-  helpEl = $("help"), scGoalEl = $("scGoal"), scBandsEl = $("scBands"),
+  helpEl = $("help"), scGoalEl = $("scGoal"),
   scTitleEl = $("scTitle"), scDragEl = $("scDrag"), scLiftEl = $("scLift"),
   titleH1El = document.querySelector("#gate h1"),
   connEl = $("conn");
@@ -2002,16 +2002,21 @@ function frame(nowMs) {
   ctx.restore();
 }
 
-// ---------- how to play: two pictures, drawn by the game ----------
+// ---------- how to play: pictures, drawn by the game ----------
 // The waiting room used to explain this game in four sentences. Nobody reads
 // four sentences at a party, and worse, nothing ever showed them again: the
 // gate is the one screen a player passes through exactly once, so every word
 // on it was spent on the thirty seconds before they could do anything.
 //
-// It says the same two things in two pictures now — WHERE she is going (past
-// every can, home to the plant) and WHAT the players do about it (lay bands in
-// her way) — and `?` bottom-left brings them back mid-party, which is the half
-// that was actually missing.
+// It is pictures now — WHERE she is going (past every can, home to the plant),
+// and the two gestures that put a band in her way — and `?` bottom-left brings
+// them back mid-party, which is the half that was actually missing.
+//
+// There WAS a middle picture, a band laid across a gap with her riding it,
+// captioned "using your 4 bands". It is gone: the goal above it and the hands
+// below it say the same thing between them, and a sheet is read in the seconds
+// before somebody taps it, so the third of three that only restated the other
+// two was the one costing that reading.
 //
 // They are drawn by the RENDERER, not by hand: a scene below is a level-shaped
 // literal, and drawTerrain/drawCan/drawGoalPlant/drawBand/drawGoomba paint it
@@ -2020,9 +2025,9 @@ function frame(nowMs) {
 // that is not the watering can drifts the first time either one is touched,
 // and a second set of drawing code is a second thing to keep true. It is the
 // same trick the level cards play (drawLab): borrow the camera, draw the
-// world, put the camera back. A third canvas rides the TITLE (drawTitleScene,
-// below) — no caption, nothing to read: she is the same sprite the two
-// pictures under her use, gliding across the words the game is named after.
+// world, put the camera back. One more canvas rides the TITLE (drawTitleScene,
+// below) — no caption, nothing to read: she is the same sprite the pictures
+// under her use, gliding across the words the game is named after.
 
 /** A scene: only the fields the draw functions actually read. Nothing here is
  * simulated, verified or playable — `bounds` is just the box to frame. */
@@ -2072,14 +2077,6 @@ const GOAL_SEAT = seatOn(GOAL_SCENE.terrain[0], GOAL_SCENE.startX);
 // over the cans and drops onto the plant is a picture of a throw, and nothing
 // here throws her.
 const RIDE_PATH = [[11.5, 8.6], ...GOAL_SCENE.cans, [60, 14.6]];
-
-const BAND_SCENE = {
-  terrain: [[[0, 9], [18, 9.6]], [[48, 17], [72, 16.4]]],
-  cans: [[68, 7.5]],
-  band: { ax: 18, ay: 9.6, bx: 48, by: 17 },      // laid across the gap, ridden
-  ghost: { ax: 53, ay: 16.8, bx: 68, by: 11.5 },  // ...and one going down now
-  bounds: { x0: -3, x1: 76, y0: 2.5, y1: 19.5 },
-};
 
 /** Draw a scene into one of the sheet's canvases, framed to its bounds.
  *
@@ -2156,24 +2153,6 @@ function drawGoalScene() {
   GOAL_SCENE.cans.forEach((c, i) => drawCan(c[0], c[1], false, i));
   drawGoalPlant(GOAL_SCENE, { gotN: GOAL_SCENE.cans.length });
   drawGoomba(GOAL_SEAT.x, GOAL_SEAT.y, GOAL_SEAT.a, 1, true, false, true);
-}
-
-/** Picture two — the bands. A gap she cannot cross, one band laid across it
- * with her riding it, and a second going down ahead of her (drawTeammatePreview's
- * marching dashes are the game's own "someone is placing this"), pointed at the
- * can that is the reason for any of it. Both in the team's ink, which with no
- * team yet is the unsorted colour a waiting phone is already wearing. */
-function drawBandScene() {
-  drawTerrain(BAND_SCENE);
-  BAND_SCENE.cans.forEach((c, i) => drawCan(c[0], c[1], false, i));
-  drawBand(BAND_SCENE.band, 0.12, false);
-  drawTeammatePreview(BAND_SCENE.ghost);
-  const pts = bandPoints(BAND_SCENE.band);
-  const [mx, my] = pts[4];
-  const a = Math.atan2(pts[5][1] - pts[3][1], pts[5][0] - pts[3][0]);
-  // her riding height, off the band's own normal — the same R the sim keeps
-  // between her centre and whatever she is standing on
-  drawGoomba(mx + Math.sin(a) * R, my - Math.cos(a) * R, a, 1, true, false, false);
 }
 
 /** Picture zero — her, gliding along the top of the words.
@@ -2258,12 +2237,12 @@ function drawTitleScene(b) {
   drawGoomba(x, y, Math.atan(amp * k * Math.cos(x * k)), 1, true, false, false);
 }
 
-/** Pictures three and four — the two gestures, side by side on one stage.
+/** The two gestures, side by side on one stage.
  *
- * The two pictures above say what a band DOES and nothing said how one gets
- * there. These are a PAIR: the same two ledges and the same band in both, so
- * the only difference between the panels is what the hand does — laying it on
- * the left, taking it back on the right. One stage twice is why they can be
+ * The picture above says where she is going and nothing said how a band gets
+ * into her way. These are a PAIR: the same two ledges and the same band in
+ * both, so the difference between the panels is only what the hand does —
+ * laying it on the left, taking it back on the right. One stage twice is why they can be
  * read together at a glance; two different stages would be two puzzles.
  *
  * Only these two gestures are here. A band can also be laid tap-then-tap or
@@ -2288,7 +2267,7 @@ const GESTURE_SCENE = {
   // A ledge down onto a lower one, so the band goes in on the SLANT every band
   // in this game goes in on — and so a half-width panel still uses its height.
   // Drawn flat and level first, it was a rule across the middle of an empty
-  // box: 35% ink against the ~70% the two pictures above it carry.
+  // box: 35% ink against the ~70% the picture above it carries.
   // Half the width of those two, at the same SCALE as them (~4 px per world
   // unit at 340px), because four pictures at two scales look like two games.
   // Wide enough for the terrain's HALO, not just its line: the stroke runs 2.2
@@ -2396,7 +2375,6 @@ function drawSheet() {
   const tb = titleFrame(scTitleEl, titleH1El);
   drawScene(scTitleEl, tb, () => drawTitleScene(tb));
   drawScene(scGoalEl, GOAL_SCENE.bounds, drawGoalScene);
-  drawScene(scBandsEl, BAND_SCENE.bounds, drawBandScene);
   drawScene(scDragEl, GESTURE_SCENE.bounds, drawLayScene);
   drawScene(scLiftEl, GESTURE_SCENE.bounds, drawLiftScene);
 }

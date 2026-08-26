@@ -330,18 +330,34 @@ that file are what a deleted one left behind.
   copy back (`skyStops` still lives in hex's `phase.js`; git has Goomba's).
 - **Goomba's waiting screen IS its how-to-play sheet, and it is PICTURES**:
   the gate that a phone waits on before the proctor sorts it in shows the game's
-  title, two scenes and two short captions — where she is going (past every can,
-  home to the plant) and what the players do about it (lay bands in her way).
-  The scenes are drawn by the RENDERER, not by hand: `GOAL_SCENE` / `BAND_SCENE`
-  in `main.js` are level-shaped literals, and `drawScene` points the module's
-  `ctx`/`W`/`H`/`cam` at the sheet's little canvases and back — the same trick
-  the level cards play, and the reason a can in the picture cannot drift from a
-  can in the game. `?` bottom-left (PLAY's corner, mirrored) re-opens the same
-  element mid-party. `.ready` is the dismissible wearing — a tap anywhere or any
-  key, with the connection lines swapped for the way out — and the sheet
+  title — with Goomba gliding along the top of the words — where she is going
+  (downhill past every can, home to the plant), and the two gestures that put a
+  band in her way, as a side-by-side PAIR: **drag** to place a band, **tap** it
+  to take it back. Every one of those is drawn by the RENDERER, not by hand:
+  `GOAL_SCENE` / `GESTURE_SCENE` in `main.js` are level-shaped literals, and
+  `drawScene` points the module's `ctx`/`W`/`H`/`cam` at the sheet's little
+  canvases and back — the same trick the level cards play, and the reason a can
+  in the picture cannot drift from a can in the game. The one mark with no
+  counterpart in the game is the FINGERTIP, on the same licence the goal
+  picture's dashed ride-line takes: a gesture cannot be drawn out of the things
+  it acts on. There is **no X over the band** being taken back and there must
+  not be — `drawBand` already paints an illegal placement red and dashed, so an
+  X would teach "you cannot put one there" in the one place teaching how to take
+  one away. A third picture was cut (a band across a gap, captioned "using your
+  4 bands"): the goal above it and the hands below it said it between them.
+  `?` bottom-left (PLAY's corner, mirrored) re-opens the same
+  element mid-party. `.ready` is the dismissible wearing, and the sheet
   **never dismisses itself**: the first snapshot only ARMS it (`armSheet`), so
   the player taps past the pictures rather than having them yanked away the
-  instant the proctor sorts the phone in. The exception is the grid already
+  instant the proctor sorts the phone in. **Nothing says how to dismiss it** on
+  the first showing — a player who has never seen it is reading the pictures,
+  not waiting to be told to tap — and nothing says "Loading…" either: the
+  connection lines are invisible until the phone has been unreachable for
+  `STALL_MS` (1.5s) WITHOUT A BREAK. Time since boot would be the wrong clock,
+  because an unsorted phone is connected and waiting here indefinitely; being
+  unable to REACH anything is the only state worth a word. Both lines keep their
+  box (opacity, never display) so the pictures cannot be shunted up the screen
+  when one appears. The exception is the grid already
   being open (`?solo`, a pasted level), where `#hud.lab > *` would hide the
   sheet anyway. The tap is bound to **pointerdown, not click** — the kiosk
   lockdown preventDefault()s touchstart off buttons and links, which kills the

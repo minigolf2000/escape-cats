@@ -250,12 +250,32 @@ playBtn.onclick = () => {
 // could reach is the one that already knows.
 clearBtn.onclick = () => { resetInput(); transport.send({ type: "clear" }); };
 labEl.onclick = openSelector;
+// THE KEYBOARD, AND HOW LITTLE OF IT IS OURS.
+//
+// This listener exists for the laptop that EDITS: `\` is the whole level
+// selector on one key, and Escape is the way back out of it. Space is a
+// convenience on the same machine. That is the entire list, and everything else
+// on a keyboard belongs to the browser.
+//
+// It used to end with a catch-all — any key at all dismissed the help sheet —
+// and a catch-all on a keyboard is a promise you cannot keep. It skipped the
+// modifier keys THEMSELVES but not modifier COMBOS, so Cmd+R arrived as `r`
+// with metaKey set and preventDefault ate the reload; Ctrl+V went the same way,
+// which stopped the `paste` listener below from ever seeing a paste, on a
+// screen that closes itself precisely so a paste can land. Enumerating what to
+// skip does not fix that shape — F5, Tab and whatever a phone keyboard sends
+// next are all the same bug waiting — so the rule is inverted: a modifier combo
+// is never ours, and the sheet answers to the three keys that mean "go" rather
+// than to all of them.
+const chord = (e) => e.metaKey || e.ctrlKey || e.altKey;
+const GO_KEYS = [" ", "Enter", "Escape"];
+
 window.addEventListener("keydown", (e) => {
-  // The help sheet owns the keyboard while it is up: Space behind it would
-  // launch a run nobody on this screen can see. Any key dismisses it — there is
-  // nothing else to answer.
+  if (chord(e)) return;
+  // The help sheet owns those three while it is up: Space behind it would
+  // launch a run nobody on this screen can see.
   if (sheetIsArmed()) {
-    if (e.key === "Shift" || e.key === "Control" || e.key === "Alt" || e.key === "Meta") return;
+    if (!GO_KEYS.includes(e.key)) return;
     e.preventDefault(); closeSheet(); return;
   }
   if (e.key === " ") { e.preventDefault(); playBtn.onclick(); }

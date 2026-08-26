@@ -46,10 +46,13 @@ const GOAL_SCENE = {
   // section OF the floor rather than as a break.
   terrain: [[[0, 10.2], [24, 12.7], [48, 16.3]], [[60, 20], [74, 22.4]]],
   band: { ax: 48, ay: 16.3, bx: 60, by: 20 },
-  // Up in the air, where they belong: 4.5-7 clear of a floor that is falling
-  // away faster than she is. The last one hangs over the GAP, which has no
-  // floor under it for its glow to sit on at all.
-  cans: [[17, 7.2], [32, 9], [46, 11.6]],
+  // ONE can, where the middle of three used to be. Three of them said "and
+  // another, and another" about a number that is not the point — a level's cans
+  // are however many its designer drew — while one reads as "collect this on
+  // the way", which is the whole sentence. Up in the air where the three were:
+  // 4.5 clear of a floor that is falling away faster than she is, so no part of
+  // it sits on the floor.
+  cans: [[33, 9.2]],
   startX: 7,   // ...her seat on the slope is derived from it, see seatOn
   // The plant SITS ON the far platform rather than standing in it.
   // drawGoalPlant anchors on the CROWN, not the base — its saucer lands 3.6
@@ -85,11 +88,14 @@ function seatOn(poly, x) {
 }
 const GOAL_SEAT = seatOn(GOAL_SCENE.terrain[0], GOAL_SCENE.startX);
 
-// ...and the last two points are not cans: one is her RIDING HEIGHT over the
-// band's middle (R above where it hangs), the other is past its far end, on the
-// platform the band delivers her to. Without them the line flew over the gap
-// and the band was decoration again.
-const RIDE_PATH = [[11, 8.8], ...GOAL_SCENE.cans, [54, 16.6], [63, 19.2]];
+// ...and the trailing points are not cans, they are the SHAPE: one arc, from
+// her pad to the pot, steepening the way a fall does. It is drawn as though the
+// band were not there, and that is deliberate — bent down onto the band and
+// back up it stopped being an arc and became a route, with a kink at every
+// place the geometry underneath happened to be interesting. The band is what
+// the floor needs, not what her line needs; the arc passes over the gap and
+// meets the far ledge where the band has already put a floor back under her.
+const RIDE_PATH = [[11, 8.8], ...GOAL_SCENE.cans, [51, 13.6], [61, 18.4]];
 
 /** The dashed ride-line, with an arrow on its nose. Marching dashes, so it
  * reads as travel rather than as a rope she is hanging from. */

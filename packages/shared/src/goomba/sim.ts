@@ -310,7 +310,7 @@ export class GoombaSim {
    * mid-run banked a clear the same way.
    *
    * Clearing `runResult` is what keeps the run→edit edge silent — the fail
-   * toast on that edge is gated on it (`main.js`), and an abort has nothing
+   * toast on that edge is gated on it (the client's main.js), and an abort has nothing
    * to say. */
   stop(now: number): void {
     // A run that has already played out to its end gets to resolve on its own

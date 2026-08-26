@@ -42,7 +42,6 @@ const SURFACES = [
   // URL with no rewrite involved -- the path IS the file.
   ["tools/qr-studio.html", "qr-studio", "QR Art Studio"],
   ["tools/reveal-lab.html", "reveal-lab", "Night reveal wall lab"],
-  ["prototypes", "prototypes", "Prototypes menu + Goomba Glider"],
 ];
 
 const exists = async (p) =>

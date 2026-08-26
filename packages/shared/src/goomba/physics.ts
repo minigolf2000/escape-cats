@@ -1,11 +1,10 @@
-// The Goomba Glider physics, ported verbatim from the prototype
-// (prototypes/goomba-rider.html). Deterministic and side-effect free: the room
-// server scores a run with it the instant PLAY lands, and every phone animates
-// the same run with it in real time — both walk the identical 240Hz substeps,
-// so the animation ends exactly where the server said it would.
+// The Goomba Glider physics — the ONLY copy. Deterministic and side-effect free:
+// the room server scores a run with it the instant PLAY lands, and every phone
+// animates the same run with it in real time. Both walk the identical 240Hz
+// substeps, so the animation ends exactly where the server said it would.
 //
-// If you change a number here, change it in the prototype too (and vice
-// versa) — the design tools in prototypes/tools/ drive the prototype's copy.
+// A number changed here retunes every level in every event's pack. There is
+// nowhere else to change it and nothing to keep in sync.
 
 import {
   GOOMBA_LEVELS,

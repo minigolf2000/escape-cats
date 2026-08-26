@@ -49,27 +49,14 @@ import { MOUSE_COLORS, MOUSE_KEYLINE, MOUSE_EYE, SIL_LO, BODY_LO } from "./art.j
 // note on WALL in shared/hex/rules.ts for why the ramp went and why the golden mice
 // can be out there from the start without leaking a letter.
 //
-// A REVEAL_ORDER used to live here — [4, 7, 0, 3, 8, 2, 1, 6, 5], the order the nine
-// golden letter-mice were staffed in as the ramp climbed, so the board read `·· ··E
-// ····`, then `·· ··E ··O·`, and so on to TO THE MOON. It was chosen to delay the
-// moment a team can GUESS the rest rather than merely to reveal slowly: it
-// interleaved the two lines so neither word completed until step 6, opened on the
-// cheapest letters (E the commonest in English, a medial O the least distinctive),
-// and held M for last so that at step 8 the board read "?OON" — boon, coon, goon,
-// loon, moon, noon, soon, toon — where "MOO?" would admit only five.
-//
-// It is deleted rather than kept, because with all nine golden mice on the wall in
-// the opening frame there is no staging left for it to describe: every letter is
-// staffed at once, so the permutation only decided which cast slot served which
-// letter, which nothing can see. The staging job it was doing now belongs entirely
-// to the trail ladder — an unstaffed letter and a letter with no ink behind it look
-// identical, and the ladder inks all nine together. It is recoverable from git
-// history if per-letter staging ever comes back (it would need a mechanism other
-// than headcount, e.g. per-crew trail length).
+// The whole cast is on the wall from the opening frame, so there is no per-letter
+// staging here: an unstaffed letter and a letter with no ink behind it look
+// identical, and the trail ladder inks all nine together. (Git history has a
+// REVEAL_ORDER permutation, from when headcount climbed — bringing per-letter
+// staging back would need a different mechanism, e.g. per-crew trail length.)
 function wallMiceCount() { return nightActive() ? WALL_CAP : 0; }
-// Colors come from the shared MOUSE_COLORS table (see spawnMousePop) — the
-// wall used to keep its own separate palette object; deleted in favor of one
-// source of truth. Usage here is fixed-per-role, not random: see loadWallScene.
+// Colors come from the shared MOUSE_COLORS table (see spawnMousePop) — one source
+// of truth. Usage here is fixed-per-role, not random: see loadWallScene.
 //
 // SPEED AND INK WIDTH, both settled in the lab:
 //

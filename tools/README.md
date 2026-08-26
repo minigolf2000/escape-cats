@@ -1,46 +1,27 @@
 # tools 🛠
 
-[`goomba/`](./goomba/) is the Goomba Glider level-design bench — node QA
-harnesses over the shared sim, plus the design guide (`DESIGNING.md`). It is
-its own world with its own README; everything below is about the two browser
-tools in this folder.
+[`goomba/`](./goomba/) is the Goomba Glider design guide (`DESIGNING.md`), the
+Figma bridge, and three small commands. It has its own README.
 
-The bench's browser half, the **level editor**, is not here either — and it is
-not its own page any more. It is the game's level selector, reached with `\`
-from inside Goomba Glider (`apps/goomba-glider/src/figma/`). Folding it in is
-what made "there is only one play mode" true: the editor never had a second
-renderer or a second sim worth keeping, only a second copy of the same grid.
-
-Standalone browser tools — not games, not part of the multiplayer
-architecture. Each is a single self-contained HTML file with zero
-dependencies, zero build step, and no server, so it costs nothing to keep and
-rides along on the same Vercel deploy as everything else.
+Everything else here is a **standalone browser tool** — not a game, not part of
+the multiplayer architecture. Each is a single self-contained HTML file with zero
+dependencies, zero build step and no server, so it costs nothing to keep and
+rides along on the same Vercel deploy.
 
 | File | Serves at | What it does |
 | --- | --- | --- |
-| `qr-studio.html` | `/qr-studio/` | QR Art Studio — live QR pixel painter. Paint black/white/noise directly on a working code; a GF(2) solver honors your pixels in paint order (~4ms/solve), an error-correction budget absorbs stragglers, and a background pass retries every EC level × mask to keep more of your paint legal. Over-budget pixels are annotated, never blocked; the code always scans. Drawings save into the URL hash. Notes in [`qr-art-notes.md`](./qr-art-notes.md). |
+| `qr-studio.html` | `/qr-studio/` | QR Art Studio — live QR pixel painter. Paint black/white/noise directly on a working code; a GF(2) solver honors your pixels in paint order (~4ms/solve), an error-correction budget absorbs stragglers, and a background pass retries every EC level × mask to keep more of your paint legal. Over-budget pixels are annotated, never blocked; the code always scans. Drawings save into the URL hash. Notes in [`qr-art-notes.md`](./qr-art-notes.md), source art in [`qr-art/`](./qr-art/). |
 | `reveal-lab.html` | `/reveal-lab/` | The tuning instrument for the night reveal wall's mice/word-legibility sim. The shipped wall is `apps/hex-clicker/src/wall.js`, ported from here; the lab is where the ramp gets eyeballed before it lands there. |
 
-Both files land at their own pretty URL through `scripts/assemble.mjs`, which
-copies a single-file surface to `<name>/index.html`. **That is why there are no
-rewrites for these paths in `vercel.json`** — the URL is a real directory on
-disk, so `/qr-studio/` is served by the filesystem the way `/hexxygon/` is. The
-tools previously lived in a `hex/` folder deployed at `/solo-hex/` and needed a
-rewrite pair each (slashed and unslashed) to reach them inside it; that folder
-existed for the frozen single-player prototype, which is gone (see below), and
-the rewrites went with it.
+Both land at their own pretty URL through `scripts/assemble.mjs`, which copies a
+single-file surface to `<name>/index.html`. **That is why there are no rewrites
+for these paths in `vercel.json`** — the URL is a real directory on disk, so
+`/qr-studio/` is served by the filesystem the way `/hexxygon/` is.
 
-Neither file makes a single relative reference, so nothing here is sensitive to
-the directory depth it is served at — the trailing-slash trap documented in the
-root README does not apply to them.
+Neither file makes a single relative reference, so the trailing-slash trap
+documented in the root README does not apply to them.
 
-## The prototype that used to live here
-
-`hex/index.html` — the original 5,400-line single-file Hex Clicker prototype —
-was deleted. It had been frozen since #88 while the shipped balance in
-`packages/shared/src/hex/` moved on without it, and its job as the tuning bench
-now belongs to the coop client's **`?debug`** mode, which runs the same shared
-`HexSim` in-page with no server (`apps/hex-clicker/src/debug.ts`). Keeping a
-second, stale copy of the rules around only invited tuning against balance that
-no longer ships. Git history has it if the port ever needs checking against its
-source.
+**The level editor is not here.** It is the game's level selector, reached with
+`\` from inside Goomba Glider (`apps/goomba-glider/src/figma/`) — the editor
+never had a second renderer or a second sim worth keeping, only a second copy of
+the same grid.

@@ -1,9 +1,7 @@
-// Goomba Glider level data + physics constants — the ONLY copy.
+// Goomba Glider level types + physics constants — the ONLY copy.
 //
-// The single-file prototype these grew from is deleted; levels are designed by
-// editing THIS file and running the tools in tools/goomba/ (start with its
-// DESIGNING.md — the loop, the locked 4-band rule, and the anti-shortcut
-// vocabulary live there).
+// There are no levels here: a level is a Figma frame, and an event's pack lives
+// in its lobby DO. See tools/goomba/DESIGNING.md.
 //
 // The client animates a run with this sim while the server has already scored
 // it with the same sim, so a constant changed in only one place would show as
@@ -12,27 +10,15 @@
 export const G = 140; // gravity, units/s^2
 export const R = 2.2; // Goomba's collision radius
 export const START_VX = 20; // the little push when PLAY is hit
-/** Her speed ceiling, and it BINDS — she rides pinned to it for part of the
- * run on most levels, so it is a tuning parameter, not a safety limit.
- *
- * ONE value for the whole game. A level used to be able to override it and
- * exactly one ever did (The Long Way Up, at 145), which bought a per-level
- * field in the type, a flag bit and an i16 in every share link, and a `@145`
- * suffix in the Figma frame-name contract — all to carry a single number that
- * is really a property of how the game feels. The override is gone and 145 is
- * the constant, so the level that wanted it keeps its exact ride.
- *
- * It cost Slalom, which was built against the old 120 and does not survive the
- * faster cap; it was retired rather than shipped dead. If you change this
- * number, every level is retuned by it — re-run the gate on all of them. */
+/** Her speed ceiling, and it BINDS — she rides pinned to it for part of the run
+ * on most levels, so it is a tuning parameter, not a safety limit. ONE value for
+ * the whole game; there is no per-level override. Change it and every level is
+ * retuned by it — replay them all. */
 export const MAX_SPEED = 145;
 export const BAND_MAX = 58; // one silly band's worth of stretch
 export const BAND_MIN = 6;
-/** The team's band budget: four silly bands per level, for the whole room.
- * Every level ships with these four slots and no more — but WHO lays them is
- * nobody's business, so any player may lay any of the four and take any of them
- * back (`canPlaceBand` in sim.ts). The per-player quota that used to divide
- * these four between the players in the room is gone. */
+/** Four bands per level for the whole ROOM, and no rule about whose: any player
+ * may lay any of them and lift any of them (`canPlaceBand` in sim.ts). */
 export const MAX_BANDS = 4;
 export const SUB = 1 / 240; // physics substep
 export const RUN_MAX = 15; // seconds before we call a run stuck
@@ -118,10 +104,6 @@ export const levelLabel = (index: number, name: string): string =>
 export interface GoombaLevel {
   /** Just the name — no number. See `levelLabel`, which adds the position. */
   name: string;
-  /** Historical per-level allowance. The shipped game ignores it — the party
-   * rule locks every level to MAX_BANDS slots — but the design bench still
-   * reads it, so it rides along in the mirror. */
-  budget?: number;
   start: Pt;
   goal: Pt;
   terrain: Pt[][];

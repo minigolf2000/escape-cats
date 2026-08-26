@@ -26,7 +26,6 @@ import { encodeLevel, decodeLevel, initLevel } from "./lib.mjs";
  */
 const FIXTURE = {
   name: "Codec Fixture",
-  budget: 4,
   start: [10, 10],
   goal: [90, 60],
   terrain: [[[0, 70], [40, 72.5], [80, 66]], [[95, 20], [95, 55]]],

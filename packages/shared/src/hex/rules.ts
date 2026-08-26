@@ -276,22 +276,10 @@ export const WALL_COUNT_KEYS = ["yellow", "pink", "blue", "green", "purple"];
 export const WALL_CAP = WALL_COUNT_KEYS.reduce((a, k) => a + WALL_COUNT[k], 0);
 
 export const WALL = {
-  // THE WHOLE CAST, FROM THE FIRST FRAME OF NIGHT. There used to be a ramp here
-  // — mouseBase 2000, mouseR 1.23, startMice 0, with mouse k climbing on when
-  // lifetime total crossed mouseBase * mouseR^(k-1) — so the dream opened on an
-  // empty wall and filled to 33 across the phase. It is gone, and the beat it
-  // was protecting survives without it: the reason to start empty was that cast
-  // slot 1 is GOLDEN and "a starting mouse would hand over a letter before the
-  // phase starts", but a golden mouse with NO TRAIL BEHIND IT is a moving dot.
-  // That is the same argument the deleted Word of Mouse row was retired on (see
-  // data.ts) — the word stays unreadable until Lucid Dreaming, which the ladder
-  // already calls its hinge.
-  //
-  // What dropping it buys: the wall stops growing by 33 arrivals nobody bought,
-  // every shape in the scene is being drawn from the opening frame instead of
-  // being staffed in over minutes, and every visible change at night is once
-  // again something a player pressed — the rule the whole night ladder is
-  // written to.
+  // THE WHOLE CAST, FROM THE FIRST FRAME OF NIGHT. Don't reintroduce an arrival
+  // ramp: a golden mouse with NO TRAIL BEHIND IT is a moving dot, so starting the
+  // wall full gives nothing away, and it keeps the rule the whole night ladder is
+  // written to — every visible change at night is something a player pressed.
   maxMice: WALL_CAP,
   // Scene units/sec, ONE rate for every mouse — and, since Paper Lantern, the LIT
   // rate: the phase opens at a quarter of it (see unlitSpeed below). 9.6, four
@@ -528,11 +516,9 @@ export const WORD_INK_EST = 1067;
 // the rolling trail PLUS Scent Trail's persistence (2^(-t/half) integrates to
 // half/ln2 ms of full-strength equivalent).
 //
-// All nine golden mice are on the wall for the whole night now (see WALL), so the
+// All nine golden mice are on the wall for the whole night (see WALL), so the
 // word's ink RATE is a constant and coverage is a pure function of the purchases:
-// trail length, plus persistence. It used to climb with lifetime total as well,
-// through the ramp's share of yellow — hence the `total` argument this function
-// and isLegible below both used to take.
+// trail length, plus persistence. Nothing here reads lifetime total.
 //
 // wallSpeed is halved before Paper Lantern, so this reads half rate during the
 // unlit opening — which changes NOTHING, because trail is 0 until Lucid Dreaming

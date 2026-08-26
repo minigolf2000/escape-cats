@@ -1,9 +1,9 @@
-// The Hex Clicker economy: every building, upgrade, and dial, moved verbatim
-// (tuning comments included — they are the balance documentation) from the
-// single-player prototype that used to live at hex/index.html (deleted; in git
-// history only — this file is the surviving copy of that balance).
-// This file is the ONE place balance lives: the PartyKit server, the
-// multiplayer client, and the client's ?debug mode all import it.
+// The Hex Clicker economy: every building, upgrade and dial. The tuning comments
+// ARE the balance documentation — a number here is load-bearing and the note
+// beside it says what pins it.
+//
+// This is the ONE place balance lives: the server, the client and `?debug` all
+// import it.
 
 export interface HexBuilding {
   id: string;
@@ -699,7 +699,7 @@ export const UPGRADES: HexUpgrade[] = [
   // that keeps their game.owned-dependent multipliers live. A synergy only
   // changes behavior when its term dwarfs the subject's own mps, so the subject
   // must be a cheap, low-mps building (Mouse Subscription 0.4 or Mouse Farm 1),
-  // never the Factory. See prototypes/hex-clicker-synergy-brief.md (historical).
+  // never the Factory.
 
   // --- Bespoke ---
   // Empty, and worth keeping as a warning. Three rows have been retired from
@@ -820,11 +820,9 @@ export const UPGRADES: HexUpgrade[] = [
   // weather. Trails especially — that is the single biggest visual beat in the game
   // and it must be something someone bought.
   //
-  // Every rung is VISIBILITY. It used to alternate with rows whose only effect was to
-  // reveal the next building, and those are gone: paying for permission to buy a thing
-  // is a different game's mechanic, and the buildings reveal themselves on lifetime
-  // now, the same way the day's do. What is left is a single clean line from anonymous
-  // specks to a readable wall:
+  // Every rung is VISIBILITY, and nothing here sells permission to buy a thing —
+  // buildings reveal themselves on lifetime, the same way the day's do. The ladder runs
+  // in one clean line from anonymous specks to a readable wall:
   //
   //   Lucid Dreaming I      THE STARS START TO HAVE TRAILS  <- the hinge
   //   Lucid Dreaming II     longer trails
@@ -840,14 +838,13 @@ export const UPGRADES: HexUpgrade[] = [
   // reason, derived from the same count (CRUX_KEYS) — Lucky Number 6 is the third and
   // stays plain, because it is the economy row and states its own effect in words.
   //
-  // There was a speed rung here (Running in Her Sleep, +8, between II and III). Deleted,
-  // and the speed it used to buy is NOT absorbed into WALL.speedBase: 9.6 is the pace the
-  // wall wants. The coverage it was quietly providing is paid for by the trail rungs
-  // instead — see the note on speedBase, and the 98 -> 180 budget below.
+  // Don't add a speed rung here. One existed and the coverage it bought is paid for by
+  // the trail rungs instead: 9.6 is the pace the wall wants, and selling speed as an
+  // upgrade re-opens the linearity trap described under the trail budget below.
   //
-  // Counting Mice is LATE on purpose, and it changes what the whole phase is about. It
-  // used to land at 0:13, which meant the player spent 95% of the night watching mice
-  // they already knew were mice. Parked just before Lucky Number 6 instead, the wall
+  // Counting Mice is LATE on purpose, and it changes what the whole phase is about: the
+  // player must not spend the night watching mice they already know are mice. Parked
+  // just before Lucky Number 6, the wall
   // spends a minute and a half as a drifting starfield that slowly draws something — and
   // the trails are white until this fires, because drawWall inks in WALL_POINT_COLOR
   // while `neon` is off, so the reveal recolours the whole drawing at once as well as
@@ -871,14 +868,6 @@ export const UPGRADES: HexUpgrade[] = [
   // effect, so without the numerals a team has no way to tell "this is more of what you
   // just bought" from "this is a new thing". I, II, III, IV says it in one glyph.
   //
-  // It costs three bespoke names to say it: Paper Lantern, Deep Sleep and REM Sleep were
-  // all better NAMES than "Lucid Dreaming III", and all three were lying about being
-  // different from each other. Paper Lantern was the one that earned its place — a
-  // lantern is a light you release and then watch go — and it has since been ISSUED TO A
-  // REAL ROW: the night's unlit opening, above, where the light and the going are the
-  // actual mechanic instead of a metaphor for trail length. The other two are still
-  // free if the numbering ever comes off.
-  //
   // I is the hinge of the whole night regardless of what it is called: before it the
   // lights leave nothing behind and the wall is unreadable in principle, not just in
   // practice. After it the dream starts recording itself. The other three only deepen it.
@@ -891,17 +880,12 @@ export const UPGRADES: HexUpgrade[] = [
   // ON it. The window is [204, 247): below it the finale cannot get the word over the line,
   // at or above it the rungs alone already have.
   //
-  // It was 180 while the wall ran at 12 units/sec, and 98 before that while a speed rung
-  // carried 8 of the 20. Both grew for the same reason and it is the only lever there is:
-  // COVERAGE IS LINEAR IN SPEED, so the wall's drop to 9.6 (see WALL.speedBase — the whole
-  // cast is out from the first frame now, and a full wall wants a slower drift) inked the
-  // word 20% less per unit of trail, and 180 / 0.8 is 225 before the persistence term is
-  // re-fitted around it. Raising LEGIBLE_COV's twin instead was the wrong half of the
-  // inequality to touch; see the note there.
+  // **COVERAGE IS LINEAR IN SPEED**, and that is the only lever there is: change
+  // WALL.speedBase and this total has to be refitted by the same ratio before the
+  // persistence term is re-fitted around it. Raising LEGIBLE_COV instead is the wrong
+  // half of the inequality to touch; see the note there.
   //
-  // In DRAWN terms the tail is 181 scene units, within a nose of the 173 it was at the old
-  // speed and budget — the wall ends the night looking the same, drawn by slower mice
-  // remembering further back. What it costs is FRAMETIME, because the tail is SAMPLED
+  // What the budget costs is FRAMETIME, because the tail is SAMPLED
   // rather than recorded (see wallGrowTrail): 33 mice x 236 samples is ~467k tour lookups
   // a second at 60fps against ~356k before. Measured in headless Chromium at 390x844 DPR2,
   // the finished wall ran 27.5fps against 31.6 before — the last rung of the night is the
@@ -923,9 +907,8 @@ export const UPGRADES: HexUpgrade[] = [
   // the word can never be read. `requires: "lantern"` is still doing its half of the
   // work. See WALL.unlitSpeed / paceSteps in rules.ts.
   //
-  // The icon is 🛌, not the 🏮 this row wore for as long as it has been numbered — that
-  // was a fossil of its own deleted name and it has gone back to the row that is
-  // actually a paper lantern (see above). `key` stays `paperlantern`: it is a save key.
+  // `key` stays `paperlantern` though the row is named Lucid Dreaming I: it is a SAVE
+  // KEY, and renaming one strands every persisted purchase of it.
   { key: "paperlantern", name: "Lucid Dreaming I", icon: "🛌",
     cost: 50000, unlock: { requires: "lantern" },
     effect: [{ type: "trail", add: 34 }, { type: "pace", add: 1 }] },

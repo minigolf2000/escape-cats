@@ -227,36 +227,22 @@ if (window.visualViewport) {
 }
 resize();
 
-/** Re-allocate the backing store once, after the first frames have gone out.
+/** The post-load backing-store re-roll that used to live here is GONE, and the
+ * negative result is worth more than the code was.
  *
- * A CANDIDATE FIX, and labelled one: a shot at a signature, not a proven cause.
- * What is measured is that on an iPhone 15 the game comes up sharp on some loads
- * and soft on others, stays whichever it got until the page is reloaded, and
- * prints an IDENTICAL `?pixels` readout either way — dpr 3, inner 393x659,
- * backing 1179x1977, backing/box 3 want 3, SHARPNESS 1, transform a=3 d=3, on
- * both. Nothing readable from JavaScript differs between the two, so nothing in
- * this file can detect the bad case, and `checkFit` — which compares numbers —
- * cannot heal what it cannot see.
+ * The theory: WebKit picks a rasterisation scale for a compositing layer once,
+ * at layer-creation time, `#c` is `position:fixed; inset:0` and therefore a
+ * layer of its own, and re-assigning `cv.width` two frames after `load` would
+ * throw that surface away and force a new one under better conditions. It was
+ * verified to do exactly what it claimed — a mutation observer caught precisely
+ * one width/height reassignment after `load` in both WebKit and Chromium — and
+ * the phone came back blurry anyway, on the build that contained it.
  *
- * Decided once, stuck until reload, invisible to script, canvas soft while DOM
- * text stays crisp: that is the shape of a compositing layer whose rasterisation
- * scale WebKit picked at layer-creation time, and `#c` is `position:fixed;
- * inset:0`, which is a layer of its own by construction. Assigning `cv.width`
- * throws the old surface away and forces a new one — a second roll of that die,
- * taken when the page is fully laid out and composited instead of mid-boot.
- *
- * Cheap enough to be worth a shot in the dark: one allocation, once, on a canvas
- * that reallocates on every rotate anyway. If blurry loads keep happening then
- * this is wrong and should come OUT rather than be tuned; the next thing to try
- * is taking `#c` off `position:fixed` so it is not its own layer at all. */
-window.addEventListener("load", () => {
-  // Two frames, not one: `load` can still land before the first composite, and
-  // re-rolling before the layer exists is re-rolling the same dice.
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    sizeKey = "";   // past the idempotence guard; the point IS the reallocation
-    resize();
-  }));
-});
+ * So reallocating the surface after the page is composited does NOT re-roll
+ * whatever is being decided. Either the decision is not per-surface, or it is
+ * not re-made when the surface is replaced. Do not try this again; the next
+ * thing untested is taking `#c` off `position:fixed` so it is not a layer of its
+ * own at all. */
 
 if (new URLSearchParams(location.search).has("pixels")) {
   import("./pixelprobe.js").then((m) => m.startPixelProbe(cv));

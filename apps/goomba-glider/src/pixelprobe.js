@@ -138,6 +138,12 @@ function fullOverlay(cv) {
  * END of every frame so the game cannot paint over it — `frame()` re-arms
  * itself at the top of its own callback, so re-arming at the bottom of this one
  * keeps this behind it in the queue forever. */
+/** Where the rack put itself and how many times it has painted — printed in the
+ * readout because five photographs of the phone came back without a visible
+ * rack and there was no way to tell WHY: not running, running and painted over,
+ * or running and off-screen all look identical from here. A number says which. */
+let rackY = -1, rackN = 0;
+
 function stripesIntoMain(cv, panel) {
   const paint = () => {
     const g = cv.getContext("2d");
@@ -153,6 +159,7 @@ function stripesIntoMain(cv, panel) {
     // Still has to fit. If the panel has eaten the screen, sit on the bottom
     // edge rather than off it — clipped stripes answer nothing.
     y = Math.min(y, Math.max(0, cv.height - 3 * step));
+    const y0 = y;   // the loop below walks `y` down; the readout wants the top
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = "#0a0418";
@@ -167,6 +174,7 @@ function stripesIntoMain(cv, panel) {
       y += step;
     }
     g.restore();
+    rackY = y0; rackN++;
     requestAnimationFrame(paint);
   };
   requestAnimationFrame(paint);
@@ -266,6 +274,11 @@ export function startPixelProbe(cv) {
       // backing store was always dpr per CSS px, so the deficit WAS 1/scale.
       `was        ${fmt(1 / scale)}   worst ${fmt(1 / peakScale)}`,
       `transform   ${tf}`,
+      // Not cosmetic. Five photographs came back with no visible rack and no
+      // way to tell whether it never ran, ran and was painted over, or ran
+      // off-screen. `n` climbing means it is painting; `y` says where to look,
+      // in DEVICE px down the backing store, against `backing` two lines up.
+      `#c rack     y ${rackY}  of ${cv.height}   painted ${rackN}`,
       ...others,
     ].join("\n");
   };

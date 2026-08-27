@@ -36,10 +36,10 @@ Figma, paste it in, and PLAY it — alone with `?solo`, then with four people.
     with the grid shut.
 - **Both top corners are ONE idiom** (README, "Goomba's level selector"): a strip
   of state that, when its control is live, wears a plate and says what it does on
-  a line underneath — dots + **select level**, band slots + **clear bands**. They
-  differ in exactly one way, and reversing it is the bug: `#lab` grows its plate
-  ONCE, on the clear; the band plate's condition is the EDIT PHASE, which comes
-  and goes on every PLAY, so **its box is always reserved and only the ink
+  a line underneath — dots + **select level**, band slots + **clear all bands**.
+  They differ in exactly one way, and reversing it is the bug: `#lab` grows its
+  plate ONCE, on the clear; the band plate's condition is the EDIT PHASE, which
+  comes and goes on every PLAY, so **its box is always reserved and only the ink
   changes** — chrome on `.laying`, words dimmed and the button `disabled` at zero
   bands. Key its chrome on the band COUNT and the slots jump forty times a
   session. It uses the real `disabled` (pointer, `:disabled` ink and the a11y

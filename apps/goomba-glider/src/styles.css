@@ -122,10 +122,14 @@
         something to rely on being announced.
 
      The label can never widen the plate: the slots are 120px (4 x 27 + 3 x 4)
-     and "clear bands" at 11px/700 is about 68. That is what the old chip's
+     and "clear all bands" at 11px/700 measures 94. That is what the old chip's
      absolute positioning was buying, and here it comes for free — which is why
      this corner is a better home for the idiom than the left one, where
      "select level" is wider than a short pack's dots and DOES drive the width.
+     The 26px of headroom left is not licence to keep adding words: past 120 the
+     label starts driving the plate instead, and the row is back in the fight
+     that moved the old chip out of it in the first place. (Measured: the pair
+     still clears by 55px on a 320px screen, the tightest there is.)
 
      One tap still wipes, with no confirm, and it still takes the WHOLE ROOM's
      bands: the four players are in one living room, so a clear nobody wanted is
@@ -141,7 +145,7 @@
              background: none; border: 1.5px solid transparent;
              pointer-events: none; cursor: default;
              transition: background-color .18s, border-color .18s, transform .12s; }
-  #bandbar::after { content: "clear bands"; font-size: 11px; font-weight: 700;
+  #bandbar::after { content: "clear all bands"; font-size: 11px; font-weight: 700;
                     color: var(--plate-ink); line-height: 1; letter-spacing: .02em;
                     visibility: hidden; }
   /* `.laying` is the EDIT phase — the phase a band can be LAID in. It is not

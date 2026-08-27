@@ -423,8 +423,7 @@ export function refreshUpgrades() {
     // While a purchase burst is in flight, hold the shop's scroll position
     // against the BOTTOM of its content across this rebuild, so the building
     // rows never move under a tapping thumb. ONLY during a tap burst — an
-    // always-on hold walks the scroller to the end on idle reveals. (See the
-    // prototype's long note for the full reasoning.)
+    // always-on hold walks the scroller to the end on idle reveals.
     const hold = performance.now() - lastShopTapAt < SHOP_HOLD_MS;
     const fromBottom = hold
       ? shopScrollEl.scrollHeight - shopScrollEl.scrollTop
@@ -579,7 +578,7 @@ export function initShopSkin() {
   // Mark upgrade rows seen: the row's MIDPOINT is inside the visible box, AND
   // the player has SCROLLED the shop in the last second. A row that scrolls
   // into view has been looked at; a row that appears under your eyes while
-  // they are on the cat has not. (See the prototype's long note.)
+  // they are on the cat has not.
   function updSeen() {
     // A shop that fits needs no scrolling — every row is in front of you.
     const fits = shopScrollEl.scrollHeight <= shopScrollEl.clientHeight + 1;

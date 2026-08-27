@@ -308,8 +308,9 @@ export function decodeLevel(input: string): GoombaLevel | null {
     return null;
 
   // `frame` is attached only when there was one, rather than left sitting as an
-  // explicit `undefined`: a decoded level is compared against a literal in both
-  // benches, and a key that exists holding nothing is not equal to no key.
+  // explicit `undefined`: a decoded level is compared against a literal in the
+  // tests (test-codec.mjs, figma/test-real-copy.mjs), and a key that exists
+  // holding nothing is not equal to no key.
   const L: GoombaLevel = { name, start, goal, terrain, cans, cushions, pops, bumpers };
   if (frame) L.frame = frame;
   return L;

@@ -101,10 +101,11 @@ async function fetchPath(pathname, host) {
 /** Every reference a page makes, resolved against the URL it is served at.
  *
  * Markup refs AND stylesheet refs. It was href/src only, which meant an asset
- * named solely from CSS — `background: url(...)`, the hex page's wallpaper —
- * was invisible to this check: rename or move one and the build stayed green
- * while the page shipped with a 404 behind it. Both apps inline their whole
- * stylesheet into index.html, so one regex over the served HTML sees them. */
+ * named solely from CSS — `background: url(...)` — was invisible to this
+ * check: rename or move one and the build stayed green while the page shipped
+ * with a 404 behind it. The stylesheets are separate hashed files now (each
+ * app's src/styles.css), so the crawl below descends into every .css file a
+ * page links and checks its url() refs too. */
 function refsOf(html, pageUrl) {
   const out = [];
   const patterns = [/(?:href|src)="([^"]+)"/g, /url\(\s*["']?([^"')]+)["']?\s*\)/g];
@@ -168,8 +169,21 @@ for (const [entry, host, expect] of ENTRIES) {
     if (sub.status !== 200) {
       console.log(`  FAIL  ${ref}  -> HTTP ${sub.status}`);
       failures++;
-    } else {
-      console.log(`  ok    ${ref}`);
+      continue;
+    }
+    console.log(`  ok    ${ref}`);
+    // A linked stylesheet is a page of refs in its own right — url() assets
+    // stopped being visible from the HTML when the styles moved out of it.
+    if (extname(sub.file) !== ".css") continue;
+    const css = await readFile(sub.file, "utf8");
+    for (const cssRef of refsOf(css, sub.pathname)) {
+      const asset = await fetchPath(cssRef, "cat-games-tau.vercel.app");
+      if (asset.status !== 200) {
+        console.log(`    FAIL  ${cssRef}  -> HTTP ${asset.status}`);
+        failures++;
+      } else {
+        console.log(`    ok    ${cssRef}`);
+      }
     }
   }
 }

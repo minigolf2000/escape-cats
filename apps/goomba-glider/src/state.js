@@ -46,7 +46,7 @@ export const now = () => Date.now() + S.serverOffset; // the room's shared clock
  * null checks through the renderer.
  */
 const NO_LEVELS = initLevel({
-  name: "no levels yet — press \ and paste one from Figma",
+  name: "no levels yet — press \\ and paste one from Figma",
   start: [20, 20],
   goal: [80, 20],
   terrain: [[[0, 30], [100, 30]]],

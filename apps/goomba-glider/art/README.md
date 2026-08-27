@@ -1,6 +1,6 @@
 # Goomba Glider prop art — SVG exports
 
-Design copies of the two props, for Figma and anything else that wants vectors.
+Design copies of the props, for Figma and anything else that wants vectors.
 
 | file | what |
 | --- | --- |

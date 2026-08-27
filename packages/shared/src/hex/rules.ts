@@ -165,7 +165,7 @@ export function foldMods(
     for (const e of effectsOf(u)) {
       // A DAY upgrade contributes no income at night: the twist is a hard reset
       // and a separate economy, so day globalPct/buildingMult must not keep
-      // multiplying night's buildings (see the prototype's foldMods note).
+      // multiplying night's buildings.
       const dayRowAtNight = night && !NIGHT_ROW_KEYS.has(u.key);
       if (e.type === "buildingMult") {
         if (!dayRowAtNight) m.building[e.building] *= e.mult;
@@ -255,7 +255,8 @@ export function isRevealed(b: HexBuilding, s: HexCore): boolean {
 export const GOLD_MIN_S = 40,
   GOLD_MAX_S = 90; // spawn window
 // The FIRST golden of a run waits longer, landing ~1:50–2:40 — late in the
-// opening era, "a taste". See the prototype's note on why.
+// opening on purpose: the opening is for learning the pet-and-buy loop, so the
+// first golden arrives as "a taste" once there is a pet worth multiplying.
 export const GOLD_FIRST_MIN_S = 90,
   GOLD_FIRST_MAX_S = 130;
 /** Seconds a golden stays on screen before escaping. */
@@ -520,9 +521,9 @@ export const WORD_INK_EST = 1067;
 // word's ink RATE is a constant and coverage is a pure function of the purchases:
 // trail length, plus persistence. Nothing here reads lifetime total.
 //
-// wallSpeed is halved before Paper Lantern, so this reads half rate during the
-// unlit opening — which changes NOTHING, because trail is 0 until Lucid Dreaming
-// I and that row is gated behind the lantern. See WALL.unlitSpeed.
+// wallSpeed is quartered before Paper Lantern, so this reads a reduced rate
+// during the unlit opening — which changes NOTHING, because trail is 0 until
+// Lucid Dreaming I and that row is gated behind the lantern. See WALL.unlitSpeed.
 export function wallCoverage(m: HexMods): number {
   if (!m.night) return 0;
   const visibleMs =

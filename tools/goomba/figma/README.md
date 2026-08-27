@@ -212,10 +212,11 @@ four are things a synthetic fixture happily got wrong:
 
 `node test-clipboard.mjs` covers the wrapper and field handling on synthetic
 payloads. `node test-real-copy.mjs` runs the real thing —
-`fixtures/real-figma-copy.b64`, an actual Ctrl+C of the level 1 frame — and
-asserts it reproduces `levels.ts[0]` exactly, segment for segment, up to that
-uniform translation. That fixture is the only test here made of real data, and
-it is the one that caught all four.
+`fixtures/real-figma-copy.b64`, an actual Ctrl+C of a real level frame — and
+asserts it decodes to a FROZEN expectation, segment for segment (frozen rather
+than read from anywhere live, so a level redesign cannot fail a decoder test).
+That fixture is the only test here made of real data, and it is the one that
+caught all four.
 
 Also accepted: paste one of our own level links.
 `fixtures/sample-figma-clipboard.html` is a synthetic-but-valid copy you can
@@ -415,7 +416,7 @@ outright.
   launch rise, her 2.2 u radius and the 5 u snap ring.
 
 Every number comes from [`../DESIGNING.md`](../DESIGNING.md), which stays the
-source of truth for *why* a level works. Note two facts that moved recently and
-are already reflected here: collectibles are **watering cans** (`cans`, not
-`plants`), and terrain restitution is now normal-dependent — floors stay dead at
-0.02 while a vertical wall hands back 0.15.
+source of truth for *why* a level works. Two facts worth restating here:
+collectibles are **watering cans** (`cans`, not `plants`), and terrain
+restitution is normal-dependent — floors stay dead at 0.02 while a vertical
+wall hands back 0.15.

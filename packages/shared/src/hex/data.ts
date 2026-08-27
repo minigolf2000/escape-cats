@@ -60,10 +60,11 @@ export interface HexUpgrade {
 }
 
 // ---------------------------------------------------------------------------
-// BALANCE — the whole economy lives here. Base cost & mps mirror Cookie
-// Clicker's first five buildings (Cursor/Grandma/Farm/Mine/Factory) so the
-// pacing is a known-good starting point. All OPEN for tuning (see design doc).
-// cost(n owned) = baseCost * 1.15^n   |   income = mps * count
+// BALANCE — the whole economy lives here. The day column STARTED as a mirror
+// of Cookie Clicker's first buildings (a known-good pacing) and has since been
+// retuned rung by rung — the per-row notes carry the measurements. All OPEN
+// for tuning (see DESIGN.md).
+// cost(n owned) = baseCost * growth^n   |   income = mps * count
 // ---------------------------------------------------------------------------
 export const GROWTH = 1.15;
 export const BUILDINGS: HexBuilding[] = [
@@ -86,25 +87,23 @@ export const BUILDINGS: HexBuilding[] = [
   { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 10,     mps: 0.4,
     blurb: "A mouse every {every}" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1   },
-  // base 10000 and 85 mps, both tuned against the same failure. The mps column
-  // mirrors Cookie Clicker's first
-  // buildings, but the COST column doesn't: CC steps 15 → 100 → 1,100 → 12,000,
-  // roughly ten-fold each, and ours steps 10 → 100 → 12,000 because the rung
-  // between Farm and Factory (the old Quarry) was cut. That leaves the Farm a
-  // hundred times cheaper than CC's at the same mps, so a Farm stays a better
-  // buy than a Factory essentially forever: at CC's 47 the sim's bot bought 35
+  // base 10000 and mps 120, both tuned against the same failure: with the rung
+  // between Farm and Factory (the old Quarry) cut, the cost column steps
+  // 10 → 100 → 10,000 while Cookie Clicker's steps roughly ten-fold each — so
+  // at CC-shaped mps the Farm was a hundred times cheaper per mouse and stayed
+  // the better buy essentially forever (at CC's 47 mps the sim's bot bought 35
   // farms and ZERO factories, taking the whole Factory ladder and the Cardboard
-  // line down with it. 85 restores the intended shape — cost-per-mps 141 against
-  // the Farm's 100, close enough that the Factory is what you graduate TO once
-  // farms get expensive, which is the job the missing rung used to do. It is a
-  // The BASE came down from 12000 for the same reason, once the Factory ladder
-  // lost two of its five rungs: a shorter ladder tops out lower, so the building
-  // has to be cheaper to stock or the bot goes back to buying farms forever. At
-  // 8000 it overshot the other way — factories crowded farms out and the Farm's
-  // top rungs went unreachable instead. 10000 is the measured middle.
+  // line down with it). The mps had to rise until cost-per-mps sat close enough
+  // to the Farm's that the Factory is what you graduate TO once farms get
+  // expensive — the job the missing rung used to do — and the BASE had to come
+  // down from 12000 once the Factory ladder lost two of its five rungs: a
+  // shorter ladder tops out lower, so the building must be cheaper to stock or
+  // the bot goes back to farms forever. At 8000 it overshot the other way
+  // (factories crowded farms out and the Farm's top rungs went unreachable);
+  // 10000 is the measured middle.
   //
-  // It is a NARROW band, so re-measure if it moves: at 70 the bot still bought zero
-  // factories, at 130 it bought almost nothing else.
+  // It is a NARROW band on both dials, so re-measure if either moves: at 70 mps
+  // the bot still bought zero factories, at 130 it bought almost nothing else.
   { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 10000,  mps: 120 },
   // The one day building that keeps producing after the night reset (see
   // baseCpsWith) — the design's "the Lab is still present" in the dream.
@@ -234,12 +233,12 @@ export const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps 
 // runtime reads mods.zoomMult / mods.zoomTime, never these two directly.
 export const ZOOM_MULT = 6;            // Zoomies: pets x6...
 export const ZOOM_S = 7;               // ...for 7s
-// Global income compression. The BUILDINGS mps column mirrors Cookie Clicker's
-// first buildings, whose pacing targets a weeks-long IDLE game; this is a
-// frantic ~7-min co-op for a team of 4. INCOME_SCALE multiplies all passive
-// income (and, via clickShare, the pet-share term with it — so the click/idle
-// balance is preserved). One dial, tune against playtests. Applied in
-// baseCpsWith so the pacing simulator sees it for free.
+// Global income compression. The BUILDINGS mps column began as a mirror of
+// Cookie Clicker's first buildings, whose pacing targets a weeks-long IDLE
+// game; this is a frantic ~7-min co-op for a team of 4. INCOME_SCALE
+// multiplies all passive income (and, via clickShare, the pet-share term with
+// it — so the click/idle balance is preserved). One dial, tune against
+// playtests. Applied in baseCpsWith so the pacing simulator sees it for free.
 //
 // 2.5 rather than 2.7 for a reason that is about READING, not pacing: it makes
 // the Mouse Subscription earn exactly 1.00/s (0.4 x 2.5), so the first thing on
@@ -277,7 +276,10 @@ export const HEX_CODEWORD = "TO THE MOON";
 //   effect: what it does. Folded into `mods` by recalc():
 //     buildingMult  building, mult   — that building only
 //     globalPct     pct              — all buildings, additive with each other
+//     globalMult    mult             — all buildings, multiplicative (Lucky 6)
+//     crossBuilding building, per, pct — +pct% to `building` per `per` owned
 //     clickFlat     add              — flat mice per pet
+//     clickPerBuilding add, per      — flat mice per pet, per `per` owned
 //     clickShare    pct              — + % of your /s per pet
 //     clickMult     mult             — multiplies the whole pet
 //     goldenFreq    mult             — golden mice spawn this much sooner
@@ -285,6 +287,12 @@ export const HEX_CODEWORD = "TO THE MOON";
 //     zoomMult      add              — Zoomies multiplies pets by this much more
 //     zoomTime      add              — Zoomies lasts this many more seconds
 //     trail         add              — night wall trail segments (the reveal ink)
+//     persist       add              — night ink half-life (Scent Trail)
+//     neon          (no fields)      — the specks resolve into mice
+//     lantern       (no fields)      — the night is LIT (Paper Lantern)
+//     pace          add              — instalments of the wall's speed paid back
+//     speed         add              — adds to the wall's base speed (no row
+//                                      sells it; kept for the machinery)
 //     night         (no fields)      — THE phase flip; handled in buyUpgrade
 //
 // There is NO flavor-text field, by design. Every description is derived from
@@ -713,8 +721,8 @@ export const UPGRADES: HexUpgrade[] = [
 
   // --- THE TWIST + night chain ---
   // Catnap Hypnalysis is the END OF PHASE 1, and it is priced to say so: at 1M
-  // it costs more than three times the dearest thing under it (the Lab tier's
-  // Observer Effect at 300k), so no day ladder can be mistaken for the capstone
+  // it costs more than five times the dearest thing under it (A Breath of
+  // Fresh Air at 189k), so no day ladder can be mistaken for the capstone
   // and none of them is left stranded behind it. Every other day upgrade —
   // building AND petting — is tuned to be affordable well before this one, which
   // matters most for the petting ladder: pets earn nothing at night, so a
@@ -851,9 +859,9 @@ export const UPGRADES: HexUpgrade[] = [
   // resolving the sprites. None of these rows say what they do in any case; see
   // WALL_EFFECTS by oneEffectText.
   //
-  // Costs are large because night's income is: the shallow 1.05 building curve means a
-  // player owns ~60 Holes rather than ~40, so the whole curve sits far higher than it
-  // did.
+  // Costs are large because night's income is: the shallow 1.035 building curve
+  // means a player ends the night owning ~96 Holes, so the whole curve sits far
+  // higher than a day-shaped one would.
   //
   // The first six rungs are HALVED from the pass before this one — the other half of
   // running the night twice as fast, since doubling mps alone brings every rung forward

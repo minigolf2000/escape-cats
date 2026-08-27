@@ -14,9 +14,6 @@ export interface PlayerInfo {
 // Hex Clicker
 // ---------------------------------------------------------------------------
 
-/** Full authoritative snapshot, broadcast on every tick (~4Hz) and after every
- * intent. Clients extrapolate income between snapshots with the same shared
- * rules, so the counter stays smooth. */
 /** One teammate tap, stamped in server time so every phone can replay it at
  * the same offset on its own synced clock. Slot (0..3) rather than pid: it is
  * smaller, and it is already what decides a player's colour. */
@@ -33,6 +30,9 @@ export interface TapEvent {
   y?: number;
 }
 
+/** Full authoritative snapshot, broadcast on every tick (~4Hz) and after every
+ * intent. Clients extrapolate income between snapshots with the same shared
+ * rules, so the counter stays smooth. */
 export interface HexSnapshot extends HexSimState {
   /** Taps applied since the previous snapshot. Presentation only — the sim
    * never reads these; the bank already counted them. */

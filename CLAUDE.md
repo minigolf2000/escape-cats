@@ -51,7 +51,7 @@ Figma, paste it in, and PLAY it — alone with `?solo`, then with four people.
   reads the box (a `ResizeObserver` for its size, `resize()` for the notch moving
   its position), because a constant is wrong twice: `env(safe-area-inset-top)`
   moves the bar, and the strings ride HIGHEST at the left and right edges, which
-  is exactly where the plates are. Under the bar there are 25px before `#hint`'s
+  is exactly where the plates are. Under the bar there are 24px before `#hint`'s
   win banner and the first string needs 22 of them, so that gap is a corridor,
   not slack. One tap still wipes the ROOM's bands with no confirm; if strays turn
   up the answer is UNDO, never a confirm step.

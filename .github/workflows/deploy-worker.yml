@@ -1,11 +1,10 @@
 # Deploy the Cloudflare Worker (the four Durable Objects: game rooms, lobby,
-# chat, goomba). This is the "deploying the Worker on push" gap the README's
-# next-steps list has carried since the move off the PartyKit platform.
+# chat, goomba).
 #
-# Wrangler has no git integration, so before this workflow the Worker only went
-# out when someone ran `npm run deploy:server` from a laptop — while Vercel
-# deployed itself on every push. That asymmetry is exactly how a client can end
-# up speaking a protocol the live Worker doesn't know.
+# Wrangler has no git integration, so without this workflow the Worker only
+# goes out when someone runs `npm run deploy:server` from a laptop — while
+# Vercel deploys itself on every push. That asymmetry is exactly how a client
+# can end up speaking a protocol the live Worker doesn't know.
 #
 # ORDER STILL MATTERS. The repo invariant is Worker BEFORE the Vercel deploy
 # that depends on it, and a push to main starts both at once — this job is much

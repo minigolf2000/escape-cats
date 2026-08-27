@@ -17,9 +17,8 @@
  * NOT applied to apps/proctor or tools/. Those run on a
  * laptop, in front of one operator who does have a cursor: the proctor drags
  * teams between boxes (`grab`/`grabbing` is the affordance doing real work
- * there), qr-studio is a canvas editor (`crosshair`, `text`), and the level
- * editor drags level geometry (`crosshair` to place, `move` to drag a vertex,
- * `grabbing` to pan). The rule is about what players touch, not about banning a
+ * there) and qr-studio is a canvas editor (`crosshair`, `text`). The rule is
+ * about what players touch, not about banning a
  * CSS property — so ROOTS below is a list of the PLAYER-FACING apps, and a new
  * app belongs in it only if players open it.
  *

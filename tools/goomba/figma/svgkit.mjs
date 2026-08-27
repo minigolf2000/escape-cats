@@ -1,5 +1,5 @@
 // Shared SVG emitters for the Figma bridge — used by make-pack.mjs (the design
-// kit you paste in) and levels-to-svg.mjs (the shipped levels, as frames).
+// kit you paste in) and levels-to-svg.mjs (a pack's levels, as frames).
 //
 // THE ONE INVARIANT, and the reason this file exists: every terrain segment is
 // emitted as a ZERO-HEIGHT horizontal <line> carrying its slope in a rotate()

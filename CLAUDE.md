@@ -157,6 +157,12 @@ position in a pack.
 - **Vite `base` is absolute** per app and must match its `dist/` subdirectory
   (`/hexxygon/`, `/g00mBa/` — casing is load-bearing). `npm run build:vercel` runs
   `check-routing.mjs`; keep its expectations current.
+- **Goomba never says `visibility: visible`**: hide with `hidden`, re-show with
+  `inherit`. Visibility inherits, so an explicit `visible` on a descendant
+  re-opens it under EVERY hidden ancestor — it is a veto over every screen owner
+  (`.lab`, `.splash`, the rotate rule), held by a leaf, and it was collected on
+  twice in one day. `check-visibility.mjs` enforces it; its header has both
+  bugs. Goomba only — hex's pose-frame sprite legitimately works the other way.
 - **Two cursors in the games, ever**: `pointer` if a tap does something, `default`
   if it does not. Almost nobody playing has a cursor, so a third value cannot be
   telling players anything. `check-cursors.mjs` enforces it over

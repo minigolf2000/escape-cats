@@ -23,9 +23,12 @@ Figma, paste it in, and PLAY it — alone with `?solo`, then with four people.
   its own event rather than editing over a party in progress.
 - **The level SELECTOR is the editor, and `\` is the door.** Full behaviour in the
   README ("Goomba's level selector"). The parts that surprise people:
-  - The grid **diverges by surface** (`DESKTOP` in `state.js` — read live, not
-    latched at boot). A phone gets a menu and no editing controls at all, because
-    it has no Ctrl+V to follow them up with.
+  - The grid **diverges by surface, and by NOTHING else** (`editorOn` in
+    `state.js`, read live, not latched at boot). A phone gets a menu and no
+    editing controls at all, because it has no Ctrl+V to follow them up with; a
+    laptop always gets the ⌫ and the drag, however the grid was opened. `\` is
+    only the door — it once carried an editing MODE too, which meant a laptop
+    could sit on a grid with the controls missing and read as broken.
   - **Ctrl+V lands wherever you were looking** — the selection on the grid, the
     level on screen while playing. Only an EMPTY pack opens the grid, having
     nowhere else to land.

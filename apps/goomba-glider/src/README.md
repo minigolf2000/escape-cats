@@ -29,5 +29,6 @@ never here. A level is a Figma frame and a pack is a list of links; there are no
 levels in this repo.
 
 Debug: `window.__goomba` exposes the mirror + `send()`. `?solo` runs with no
-server, `?debug` unlocks the selector on a real room, and `\` opens the grid with
-editing on. `/proctor` + `?debug` is how to test a real room.
+server, `?debug` unlocks the selector on a real room, and `\` opens the grid —
+whose editing controls are the SURFACE's business, not the key's (`editorOn`).
+`/proctor` + `?debug` is how to test a real room.

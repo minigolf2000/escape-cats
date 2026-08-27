@@ -1,8 +1,9 @@
 /* goomba-glider — the whole stylesheet. Imported from main.js, so Vite
  * hashes it like every other app's. The game itself is a canvas; this is the
- * HUD around it (the dot strip, the select-level plate, the band slots,
- * PLAY/CLEAR, the toast) and the how-to-play sheet that doubles as the join
- * gate, including the zoop that flies it into the `?` button.
+ * HUD around it (the two plates in the top corners — the dot strip that opens
+ * the level grid, the band slots that empty themselves — PLAY, the toast) and
+ * the how-to-play sheet that doubles as the join gate, including the zoop that
+ * flies it into the `?` button.
  */
 
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #150a2a; }
@@ -15,9 +16,28 @@
             it, and main.js reads it back off this element rather than keeping
             a second copy of it — the two halves are one gesture and cannot be
             allowed to drift. */
-         --zoop-ms: 460ms; }
+         --zoop-ms: 460ms;
+         /* THE PLATE. One skin for both top corners and for `#figma`, which
+            borrows the same corner. Dark rather than the old 8%-white lift:
+            these are buttons now, and a control you can read the party through
+            reads as a label. Not fully opaque — during edit there is a LEVEL
+            behind them, and a plate that hid terrain in the top corners would
+            be answering the wrong question. */
+         --plate: rgba(28,16,52,.72);
+         --plate-edge: rgba(201,189,240,.35);
+         --plate-ink: #c9bdf0; }
+  /* Two plates, and they are NOT the same height: the dots are 11px tall and the
+     band slots are 27, so the left plate is 40 and the right one 56. `center`
+     would hang the short one halfway down the tall one; `flex-start` gives them
+     one top line, which is what makes the pair read as a bar rather than as two
+     unrelated chips. The 14px side padding is load-bearing too — it is the
+     gutter a thumb arriving from the screen edge lands in, on CANVAS, instead
+     of on the button that empties the room's bands.
+     `#top`'s own bottom edge is where the bunting hangs from (drawBackground in
+     render.js MEASURES it), so every plate below keeps its box in every phase:
+     a plate that collapsed would drag the party decorations up with it. */
   #top { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
-         display: flex; align-items: center; justify-content: space-between; padding: 0 14px; gap: 8px; }
+         display: flex; align-items: flex-start; justify-content: space-between; padding: 0 14px; gap: 8px; }
   /* The level dots — and, once the team has CLEARED the game (or on a ?debug
      phone, which overrides that gate), the level grid's button: the strip the
      dots already sit on IS the selector, so the grid opens from the thing it
@@ -29,8 +49,8 @@
   #lab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0;
          background: none; pointer-events: none; cursor: default; }
   #hud.cleared #lab { padding: 5px 10px; border-radius: 13px; gap: 5px;
-                      background: rgba(255,255,255,.08);
-                      border: 1.5px solid rgba(201,189,240,.35);
+                      background: var(--plate);
+                      border: 1.5px solid var(--plate-edge);
                       pointer-events: auto; cursor: pointer; }
   /* The words, not a glyph: "▦" had to be learned, and there was nowhere to
      learn it from — this is the one control the clear unlocks, so it says what
@@ -39,7 +59,7 @@
      the way in. Only in `.cleared` — before that the same element is an
      indicator, and a label on it would be an offer the gate refuses. */
   #hud.cleared #lab::after { content: "select level"; font-size: 11px; font-weight: 700;
-                             color: #c9bdf0; line-height: 1; letter-spacing: .02em; }
+                             color: var(--plate-ink); line-height: 1; letter-spacing: .02em; }
   #dots { display: flex; gap: 4px; }
   .dot { box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%;
          border: 2px solid #6b5a98; background: transparent; }
@@ -55,12 +75,12 @@
      the edit phase they keep the faded rule above, so the row says "not now"
      without ever changing size — this is presentation, never layout. */
   #inv .band.open { box-shadow: 0 0 10px rgba(255,255,255,.18); }
-  /* #lvl (the level's name) is gone, so #hint is the first prose line under
-     the dots/slots row. It sits below the clear-bands chip's line (30px row +
-     6px gap + 30px chip = 66px) with the same ~14px clearance every other gap
-     here keeps, even though the two never show text at once today (#clear is
-     edit-phase only, #hint's only text is the win banner) — a phase that isn't
-     mutually exclusive later shouldn't have to rediscover this collision. */
+  /* #lvl (the level's name) is gone, so #hint is the first prose line under the
+     top bar. 80px clears the tall plate (56) with the same ~14px the rest of
+     this layout keeps — and the 24px between them is not spare room, it is the
+     CORRIDOR the first bunting string lives in: 22px of string (y0 to y0+sag)
+     into 24px of gap. Move either number and the party decorations have
+     nowhere to hang, so check drawBackground before you do. */
   #hint { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 80px); left: 0; right: 0;
           text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
   /* There is no roster line. Player NAMES are never drawn in this game — the
@@ -75,33 +95,67 @@
           box-shadow: 0 6px 18px rgba(87,230,201,.35), inset 0 -3px 0 rgba(0,0,0,.15); letter-spacing: .03em; }
   #play.stop { background: linear-gradient(180deg, #ff7ec1, #ff5db1); box-shadow: 0 6px 18px rgba(255,93,177,.35), inset 0 -3px 0 rgba(0,0,0,.15); }
   #play.next { background: linear-gradient(180deg, #ffe08a, #ffd166); box-shadow: 0 6px 18px rgba(255,209,102,.4), inset 0 -3px 0 rgba(0,0,0,.15); }
-  /* CLEAR sits on its own line, centred under the slots it empties. Being out
-     of #top's row is what lets it say "clear bands" at every width: in the row
-     it competed with the dot strip, which grows by a dot every time a level
-     ships and by ~40px again when the team earns the selector's plate, and the
-     words lost that fight below 390px.
-     It is ABSOLUTE inside #bandbar, so the row's right-hand group is exactly
-     the four slots wide no matter what the label says — the slots stay flush
-     to the edge, and a longer word can never push them off centre. The title
-     stack below is parked 36px lower to leave this line clear whether the chip
-     is showing or not; nothing here is in flow, so nothing moves when it
-     hides. 30px tall keeps the 44px touch target in a ::before pad rather than
-     in padding.
-     One tap wipes, with no confirm, even though it takes the WHOLE ROOM's
+  /* THE OTHER PLATE: the band slots ARE the button that empties them, the same
+     way the dot strip is the button that opens the grid. Same skin, same 11px
+     label on a line underneath, same reason — this is the one control the
+     slots are about, so it says what it does rather than wearing a glyph.
+     It replaced a chip parked on its own line below the slots, which had to be
+     absolutely positioned to keep the row exactly four slots wide.
+
+     Two things here are NOT copied from `#lab`, and both are the point.
+
+     1. THE BOX IS ALWAYS RESERVED. `#lab` grows its plate exactly once, when
+        the team clears the game, during a phase change that redraws the screen
+        anyway. This one's condition is the EDIT phase, which comes and goes
+        every time somebody hits PLAY — forty-odd times a session. So the
+        padding, the border and the label's whole line are always here and only
+        their INK changes: chrome fades in on `.laying`, the words hide with
+        `visibility` (never `display`), and nothing in this row ever moves.
+        The row has been burned by this before; the band slots keep the same
+        discipline two rules up, and so does the bunting hanging off #top's
+        bottom edge.
+     2. IT USES THE REAL `disabled`. `#lab` fakes it with pointer-events, which
+        leaves an enabled button in the accessibility tree offering a level
+        grid the gate refuses. Here the attribute does the pointer blocking AND
+        tells a screen reader the truth, so `aria-label` on the element is safe
+        — the visible label is a `::after` and generated content is not
+        something to rely on being announced.
+
+     The label can never widen the plate: the slots are 120px (4 x 27 + 3 x 4)
+     and "clear bands" at 11px/700 is about 68. That is what the old chip's
+     absolute positioning was buying, and here it comes for free — which is why
+     this corner is a better home for the idiom than the left one, where
+     "select level" is wider than a short pack's dots and DOES drive the width.
+
+     One tap still wipes, with no confirm, and it still takes the WHOLE ROOM's
      bands: the four players are in one living room, so a clear nobody wanted is
-     answered out loud in a second and the bands go back down. */
-  #bandbar { position: relative; }
-  #clear { position: absolute; top: calc(100% + 6px); left: 50%;
-           transform: translateX(-50%); box-sizing: border-box;
-           height: 30px; padding: 0 12px; border-radius: 15px;
-           display: flex; align-items: center; font-size: 11px; font-weight: 700;
-           letter-spacing: .02em; white-space: nowrap; line-height: 1;
-           color: #c9bdf0; background: rgba(255,255,255,.08);
-           border: 1.5px solid rgba(201,189,240,.35);
-           transition: opacity .18s, transform .12s; }
-  #clear::before { content: ""; position: absolute; inset: -9px; border-radius: 24px; }
-  #clear:active { transform: translateX(-50%) scale(.94); }
-  #clear.hide { visibility: hidden; opacity: 0; pointer-events: none; }
+     answered out loud in a second and the bands go back down. That trade was
+     written for a 30px chip and now covers a 56px plate, which is more surface
+     to hit by accident — hence `disabled` everywhere except edit-with-bands,
+     and hence the 14px gutter #top keeps on the right. If strays turn up in a
+     real room the answer is UNDO, not a confirm step: a bigger target earns a
+     cheap reversal, where a confirm would tax every deliberate tap to insure
+     against the rare stray one. */
+  #bandbar { display: flex; flex-direction: column; align-items: center; gap: 5px;
+             padding: 5px 10px; border-radius: 13px;
+             background: none; border: 1.5px solid transparent;
+             pointer-events: none; cursor: default;
+             transition: background-color .18s, border-color .18s, transform .12s; }
+  #bandbar::after { content: "clear bands"; font-size: 11px; font-weight: 700;
+                    color: var(--plate-ink); line-height: 1; letter-spacing: .02em;
+                    visibility: hidden; }
+  /* `.laying` is the EDIT phase — the phase a band can be LAID in. It is not
+     `.editing`, which is the Figma level editor and lives on the same element;
+     the two are unrelated, and the names being one letter apart is the whole
+     reason this note is here. */
+  #hud.laying #bandbar { background: var(--plate); border-color: var(--plate-edge); }
+  #hud.laying #bandbar::after { visibility: visible; }
+  /* Nothing to clear yet: the words go quiet and the button goes dead, without
+     the box changing by a pixel. Exactly what an empty band slot does one rule
+     up when it says "not now". */
+  #bandbar:disabled::after { color: rgba(201,189,240,.36); }
+  #bandbar:enabled { pointer-events: auto; cursor: pointer; }
+  #bandbar:enabled:active { transform: scale(.96); }
   /* levels open: the grid is the whole screen; tap a card to leave */
   #hud.lab > * { visibility: hidden; }
   /* ...except the way back to where levels come from. The grid is drawn on the
@@ -112,9 +166,9 @@
   #figma { position: absolute; top: max(10px, env(safe-area-inset-top)); right: 14px;
            display: none; padding: 5px 10px; border-radius: 13px;
            font-size: 12px; font-weight: 700; letter-spacing: .02em;
-           color: #c9bdf0; text-decoration: none; pointer-events: auto;
-           background: rgba(255,255,255,.08);
-           border: 1.5px solid rgba(201,189,240,.35); }
+           color: var(--plate-ink); text-decoration: none; pointer-events: auto;
+           background: var(--plate);
+           border: 1.5px solid var(--plate-edge); }
   #hud.lab.editing #figma { display: block; visibility: visible; }
   /* The splash a cleared room lands on (phase "splash", see goomba/sim.ts):
      the congratulations screen, whose ONLY control is the level selector the
@@ -127,7 +181,11 @@
      :not(.lab) keeps the grid a whole screen when it opens from here. */
   #hud.splash > * { visibility: hidden; }
   #hud.splash:not(.lab) #top, #hud.splash:not(.lab) #lab { visibility: visible; }
-  #hud.splash #inv { visibility: hidden; }
+  /* ...and the band slots go with the rest, plate and all — on the
+     congratulations screen the only control is the selector. Hidden by
+     VISIBILITY, so #top keeps its full height and the bunting measured off its
+     bottom edge does not jump on the way in. */
+  #hud.splash #bandbar { visibility: hidden; }
   #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.9);
            background: rgba(20,10,45,.92); border: 2px solid #ffd166; color: #ffe9b3;
            padding: 14px 26px; border-radius: 18px; font-size: 20px; font-weight: 800; text-align: center;

@@ -9,9 +9,13 @@ export const hintEl = $("hint");
 export const dotsEl = $("dots");
 export const invEl = $("inv");
 export const playBtn = $("play");
-export const clearBtn = $("clear");
+// The band strip IS the button that empties it — see `#bandbar` in styles.css.
+// `#inv` above is the row of slots inside it.
+export const bandbarEl = $("bandbar");
 export const toastEl = $("toast");
 export const labEl = $("lab");
+// The top bar itself, measured (never copied) for where the bunting hangs from.
+export const topEl = $("top");
 export const connEl = $("conn");
 
 // The how-to-play sheet, which is also the join gate.

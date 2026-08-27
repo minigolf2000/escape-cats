@@ -14,7 +14,7 @@ import {
   BAND_MAX,
   bandPoints,
 } from "@escape-cats/shared";
-import { cv } from "./dom";
+import { cv, topEl } from "./dom";
 import { S, bandInk, bandInkDark, PARTY_COLORS } from "./state";
 
 /** The camera. A const alias onto the one in `S`: it is mutated in place
@@ -186,7 +186,40 @@ export function resize() {
   cv.style.width = W + "px"; cv.style.height = H + "px";
   // W/H stay in CSS px, so every sxp/syp/cam.s number downstream is unchanged.
   ctx.setTransform(s, 0, 0, s, 0, 0);
+  measureBunting();
 }
+
+/** Where the bunting hangs from: the bottom edge of the HUD's top bar.
+ *
+ * MEASURED, never copied. `#top` sits `max(10px, env(safe-area-inset-top))` down
+ * the screen and stands as tall as its tallest plate, and both of those numbers
+ * are the stylesheet's — a notch moves the first, and a second line of label
+ * would move the second. Reading them back is the discipline `zoopMs` keeps
+ * with `--zoop-ms`: the bar and the strings under it are one arrangement, and a
+ * second copy of either number is a thing to keep in sync forever.
+ *
+ * It has to be the bar's BOTTOM rather than a constant off its top, because the
+ * strings ride at their HIGHEST at the left and right edges — they sag toward
+ * the centre — so the corners, where the plates are, are the one place a string
+ * has no clearance to spare. Below the bar there is exactly 24px before
+ * `#hint`'s win banner and the first string needs 22 of it; see the note on
+ * `#hint` in styles.css before moving either.
+ *
+ * WHEN to re-measure is two questions, and guessing either one is how this
+ * broke the first time. A `ResizeObserver` answers the bar's SIZE — it fired
+ * the moment `syncHud` filled `#inv` with the four band slots, which is after
+ * boot and after the first `resize()`, so a measurement taken only at startup
+ * had the strings hanging off a plate that was still 27px short. Position is
+ * the other half and the observer cannot see it (`top:` is not a size), so
+ * `resize()` covers the rotation that swaps `env(safe-area-inset-top)` in and
+ * out. Together those are every way the bar's bottom edge can move; the
+ * fallback below is what a laptop with no inset measures anyway. */
+let buntingTop = 66;
+function measureBunting() {
+  const r = topEl.getBoundingClientRect();
+  if (r.height > 0) buntingTop = r.bottom;
+}
+new ResizeObserver(measureBunting).observe(topEl);
 
 /** The self-heal, called on a slow timer from frame().
  *
@@ -305,7 +338,7 @@ export function drawBackground(dt) {
   g.addColorStop(0, "#241245"); g.addColorStop(0.6, "#170b30"); g.addColorStop(1, "#12081f");
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   for (let row = 0; row < 2; row++) {
-    const y0 = 26 + row * 34, sagg = 22 + row * 8, x0 = -20, x1 = W + 20;
+    const y0 = buntingTop + row * 34, sagg = 22 + row * 8, x0 = -20, x1 = W + 20;
     ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(x0, y0);
     ctx.quadraticCurveTo(W / 2, y0 + sagg * 2, x1, y0); ctx.stroke();

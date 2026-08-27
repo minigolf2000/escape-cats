@@ -36,7 +36,7 @@ import { connectRoom, watchTeam, transport, playerId } from "./net";
 import { adoptHashLevel, startDebug } from "./debug";
 import { levelFromPaste } from "./figma/paste.js";
 import {
-  cv, hudEl, hintEl, dotsEl, invEl, playBtn, clearBtn, labEl, connEl,
+  cv, hudEl, hintEl, dotsEl, invEl, playBtn, bandbarEl, labEl, connEl,
   gateEl, gateStatusEl, gateErrEl,
 } from "./dom";
 import {
@@ -208,6 +208,11 @@ function syncHud() {
   // the splash is a phase like any other.
   hudEl.classList.toggle("cleared", levelSelect());
   hudEl.classList.toggle("splash", s.phase === "splash");
+  // The band plate's CHROME rides the phase, never the band count: keyed on the
+  // count it would grow and collapse every time the count crossed 0 (see the
+  // `#bandbar` comment in styles.css). At zero bands the plate stays exactly
+  // where it is and only goes quiet — `disabled`, below.
+  hudEl.classList.toggle("laying", s.phase === "edit");
   // `editing` is the SURFACE (editorOn), not room state, so no snapshot ever
   // carries it and it needs its own sync point rather than riding this
   // function's `s`-driven toggles above — this is just the one place already
@@ -249,11 +254,10 @@ function syncHud() {
     s.phase === "run" ? "■ STOP" :
     s.phase === "win" ? (nextLeadsToSplash(s) ? "FINISH ▸" : "NEXT ▸") : "▶ PLAY";
   playBtn.className = s.phase === "run" ? "stop" : s.phase === "win" ? "next" : "";
-  // CLEAR only turns invisible, never `display:none` — the same discipline the
-  // band slots keep. Nothing depends on its box (it is absolute, on its own
-  // line under the slots), but a control that flickered in and out of the flow
-  // is the kind of thing this row has been burned by.
-  clearBtn.classList.toggle("hide", !(s.phase === "edit" && s.bands.length));
+  // The one thing that changes with the band count. `disabled` rather than a
+  // class: it blocks the pointer, greys the words through `:disabled`, and is
+  // the only one of the three a screen reader can hear.
+  bandbarEl.disabled = !(s.phase === "edit" && s.bands.length);
 }
 
 playBtn.onclick = () => {
@@ -270,7 +274,12 @@ playBtn.onclick = () => {
 // tap to insure against the rare stray one. No toast either: four bands
 // vanishing off the board IS the feedback, and the only phone a local toast
 // could reach is the one that already knows.
-clearBtn.onclick = () => { resetInput(); transport.send({ type: "clear" }); };
+//
+// The whole plate is the target, slots included — tapping the four bands is
+// what takes the four bands away. It only accepts a tap during edit with at
+// least one band down (`disabled` in syncHud); every other moment this corner
+// belongs to the canvas underneath, where a band may legally be anchored.
+bandbarEl.onclick = () => { resetInput(); transport.send({ type: "clear" }); };
 labEl.onclick = openSelector;
 // THE KEYBOARD, AND HOW LITTLE OF IT IS OURS.
 //

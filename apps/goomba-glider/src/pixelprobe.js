@@ -199,6 +199,53 @@ function stripesIntoMain(cv, panel) {
   requestAnimationFrame(paint);
 }
 
+/** The round-trip self-test: paint stripes into #c, read them straight back.
+ *
+ * This exists because the two ways a canvas can go soft SPLIT on it, and no
+ * number in the readout can tell them apart:
+ *
+ *   backing itself shrunk — Safari silently backs the 2D context with a
+ *     smaller buffer than the width/height we set (its canvas-memory pressure
+ *     behaviour). Every draw is downsampled INTO the buffer, so stripes die on
+ *     the way in and getImageData returns the corpse: the test FAILS. The fix
+ *     would be ours to make — ask for less (smaller backing) so Safari stops
+ *     cutting it for us.
+ *
+ *   compositor sampling low — the buffer is full size and holds our pixels
+ *     perfectly; only the layer's trip to the glass loses resolution. Readback
+ *     is flawless while the screen is mush: the test PASSES on a blurry load.
+ *     The fix would be layer-level, and no readback can measure it — only the
+ *     magenta rack, by eye.
+ *
+ * Ascending periods, first that survives wins: 2px round-tripping intact means
+ * the backing is true. Painted at the top-left corner, which sits UNDER the
+ * opaque readout panel — the game repaints it next frame anyway, so nothing is
+ * visible; the answer is a line of DOM text, which this bug leaves crisp. */
+function selfTest(cv) {
+  const g = cv.getContext("2d");
+  const W = 120, H = 6;
+  let finest = 0;
+  g.save();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  for (const n of [2, 4, 8, 16, 32]) {
+    g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#fff";
+    for (let x = 0; x < W; x += n * 2) g.fillRect(x, 0, n, H);
+    const d = g.getImageData(0, Math.floor(H / 2), W, 1).data;
+    let mn = 255, mx = 0, flips = 0, prev = null;
+    for (let i = 0; i < W; i++) {
+      const v = d[i * 4 + 1];
+      mn = Math.min(mn, v); mx = Math.max(mx, v);
+      const bit = v > 127;
+      if (prev !== null && bit !== prev) flips++;
+      prev = bit;
+    }
+    if (mx - mn >= 200 && flips >= Math.round(W / n) - 3) { finest = n; break; }
+  }
+  g.restore();
+  return finest;
+}
+
 let worst = 1, peakScale = 1;
 
 export function startPixelProbe(cv) {
@@ -298,6 +345,11 @@ export function startPixelProbe(cv) {
       // off-screen. `n` climbing means it is painting; `y` says where to look,
       // in DEVICE px down the backing store, against `backing` two lines up.
       `#c rack     y ${rackY}  of ${cv.height}   painted ${rackN}`,
+      // Read this line FIRST on a blurry load. "2px round-trips" with a soft
+      // screen convicts the COMPOSITOR (our buffer is fine, the loss is on the
+      // way to the glass); a bigger number, or FAIL, convicts the BACKING
+      // (Safari shrank the buffer under us, and every draw dies on the way in).
+      (() => { const st = selfTest(cv); return `selftest    ${st ? st + "px round-trips  (2 = backing true)" : "FAIL — nothing round-trips"}`; })(),
       ...others,
     ].join("\n");
   };

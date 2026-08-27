@@ -16,8 +16,8 @@ minutes.
 ## Layout
 
 ```
-apps/hex-clicker/    Player client, 15 modules — see its src/README.md
-apps/goomba-glider/  Player client, 10 modules — see its src/README.md
+apps/hex-clicker/    Player client, 16 modules — see its src/README.md
+apps/goomba-glider/  Player client, 11 modules — see its src/README.md
 apps/lobby/          Landing page: name entry, then the team the proctor put
                      you on (and its chat) — no links into the games
 apps/chat/           Per-team chat: one channel per team, roomed by team id
@@ -598,7 +598,7 @@ bottom-left re-opens the same element mid-party, which is the half that was
 actually missing: the old four-sentence gate was read once, by whoever was
 looking, and nothing ever brought it back.
 
-The scenes are drawn by the RENDERER, not by hand: `GOAL_SCENE` / `BAND_SCENE` in
+The scenes are drawn by the RENDERER, not by hand: `GOAL_SCENE` / `GESTURE_SCENE` in
 `sheet.js` are level-shaped literals, and `drawScene` points the renderer's
 surface at the sheet's little canvases and back — the same trick the level cards
 play, and the reason a can in the picture cannot drift from a can in the game.

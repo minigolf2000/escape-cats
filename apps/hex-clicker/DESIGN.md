@@ -29,25 +29,25 @@ The game ships in this directory; its balance is `packages/shared/src/hex/`.
   layouts, one scene) and the game inks nothing else. The early **SIX SIDED** and
   **ENIGMA** concept panels are retired; they live in git history only.
 
-- **Mouse accumulator — lifetime neon mice.** Wall-mouse _k_ climbs on when
-  cumulative neon mice ever earned crosses a geometric threshold
-  (`mouseBase × mouseR^(k-1)`). Mice are **never purchased**. Monotonic on
-  lifetime earnings, so spending never stalls the reveal and hoarding can't
-  game it. Server-trivial: `onWall = f(lifetimeEarned)`.
+- **Mouse accumulator — superseded in the shipped game.** The wall's whole cast
+  walks from the first frame of night (see `WALL` in `shared/hex/rules.ts`): the
+  lifetime-earnings arrival ramp shipped and was then deleted, because a mouse
+  with no trail behind it is an anonymous moving dot — a full cast leaks
+  nothing — and it keeps the night's rule that every visible change is a
+  purchase. What the night buys is what the mice LOOK like (Counting Mice) and
+  what they LEAVE BEHIND (the trail ladder), never whether they exist.
 
-- **Clicking never goes vestigial.** Two click-upgrade shapes: a flat
-  multiplier (Sharpened Claws, ×2/level — carries the early game) and a
-  percent-of-income bonus (Static Whiskers, +N% of mice/s per pet — keeps
-  petting meaningful at endgame because it scales with the economy).
+- **Clicking never goes vestigial.** Two click-upgrade shapes: flat multipliers
+  (the ×2 rungs — carry the early game) and a percent-of-income bonus
+  (`clickShare`, +N% of mice/s per pet — keeps petting meaningful at endgame
+  because it scales with the economy). The shipped ladder and its reasoning
+  live in the petting section of `shared/hex/data.ts`.
 
-- **Golden mouse — the coordination mechanic.** A golden mouse crosses every
-  phone at once (seeded from the room clock — free with the deterministic-
-  animation architecture). It carries **one slot per player seat**; each player
-  must tap their **own** slot. Team Zoomies multiplier scales with how many
-  seats tapped: **×2 → ×3 → ×4 → ×6** for one → all four, lasting **7s**. You
-  still benefit from a partial catch, but max requires everyone, and the
-  all-four step is deliberately a cliff (+2 where the others are +1) — so the
-  pressure is "don't be the cat who missed it."
+- **Golden mouse — the coordination mechanic.** A golden mouse is up for the
+  whole room at once (the server owns WHEN; each phone bounces it inside its own
+  layout), and **any phone's tap catches it for the whole team** — the shipped
+  simplification of the per-seat-slots scheme, which never left the concept
+  phase. The catch triggers team-wide Zoomies **×6 for 7s**.
 
   **Zoomies multiplies PETS, never mice/s.** This is the load-bearing part. A
   multiplier on idle income pays out the same whether the four of them tap like
@@ -61,16 +61,18 @@ The game ships in this directory; its balance is `packages/shared/src/hex/`.
   coop should feel like solo at its best, not like a different economy — so the
   ceiling is the anchor and the ramp below it is what coop adds. Retune together.
 
-- **Player identity — shape + color.** Four seats, assigned across the whole
-  Escape Cats series: **Triangle/blue, Square/pink, Circle/green,
-  Diamond/purple**. Yellow is reserved for the word. Your shape shows in a
-  persistent HUD badge and rides your golden-mouse slot (shape + color = double
-  encoding, colorblind-safe).
+- **Player identity — a colour per roster slot.** A teammate's replayed taps
+  pop in their slot's colour (`MOUSE_COLOR_LIST`), which is the one place hex
+  draws identity; the concept-phase shape+colour badge scheme never shipped
+  (with any-tap golden catches there is no slot to badge). Yellow stays
+  reserved for the word on the wall.
 
 - **No in-game end state.** The word is read off the wall and delivered to a
-  human **proctor in person**. No guess box, no win screen, no timer. When the
-  wall turns legible the game gives a gentle one-time shimmer + a nudge to tell
-  the proctor, then just keeps running until the proctor resets the room.
+  human **proctor in person**. No guess box, no self-scored win, no timer. When
+  the wall turns legible the game just keeps running (the "gentle one-time
+  shimmer" is designed but unbuilt — see the note at the end of `wall.js`); the
+  proctor witnesses the read-out and presses **🏆 Mark won**, which unlocks the
+  win splash on every phone (see "The win splash" in the root README).
 
 - **10 minutes is the hard constraint.** A completion target reached through
   balance, not a clock. This is the top constraint every other number bends to.
@@ -79,11 +81,12 @@ The game ships in this directory; its balance is `packages/shared/src/hex/`.
 
 ## 🔓 OPEN (tuning / brainstorming)
 
-- **All economy constants** — building costs & mps, upgrade costs, accumulator
-  `mouseBase`/`mouseR`, trail segment counts, golden-mouse cadence. Everything
-  in `BAL` in the prototype is a first guess; tune against the 10-minute target
-  with the TUNE panel's time-scale. (Zoomies is the exception — its ceiling is
-  pinned to the solo build, see below.)
+- **All economy constants** — building costs & mps, upgrade costs, trail
+  budgets, golden-mouse cadence. They live in
+  `packages/shared/src/hex/data.ts`, whose tuning comments carry the
+  measurements; tune against the 10-minute target with `?debug&speed=N`.
+  (Zoomies is the exception — its ceiling is pinned to the solo build, see
+  below.)
 - **Era structure & count** — leaning **3 eras** (launch narrative — see
   brainstorm below); exact timings/gates pending a paced playtest.
 - **Final upgrade set** — which handful of upgrades actually ship (10 minutes
@@ -122,7 +125,7 @@ the **two transitions become the signature group moments.**
 
 _Design principle for this venue:_ no-failure means coordination **rewards**
 syncing, never **punishes** desync — bonuses for tapping together, never
-penalties for tapping apart (consistent with Angry Goomba's "no failure, no
+penalties for tapping apart (consistent with Goomba Glider's "no failure, no
 limits").
 
 | # | Era | ~time | Dominant verb | Unlocks | Reveal wall | Coordination hook |

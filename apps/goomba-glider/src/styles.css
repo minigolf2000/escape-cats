@@ -192,7 +192,7 @@
      the congratulations screen, whose ONLY control is the level selector the
      clear just unlocked — so the strip stays up and the rest of the HUD goes.
      The congratulations themselves are drawn on the CANVAS (drawSplashWords in
-     main.js), with the rest of that screen, because they sit over the art and
+     render.js), with the rest of that screen, because they sit over the art and
      have to be measured against the picture rather than against this layout —
      and because a tap anywhere on that canvas is the second way into the grid.
      Same visibility idiom as .lab above, so nothing here moves any layout; the
@@ -229,7 +229,7 @@
      on purpose. The four sentences that used to fill it were read once, by
      whoever happened to be looking while they waited, and nothing ever brought
      them back; what is here instead is PICTURES, drawn by the game itself
-     (`drawSheet` in main.js) out of the same code that draws the level — so a
+     (`drawSheet` in sheet.js) out of the same code that draws the level — so a
      player is shown the exact art they are about to touch, and a can in the
      picture cannot drift from a can in the game. Goomba glides across the
      TITLE out of the same renderer (drawTitleScene) — the one drawing here
@@ -267,7 +267,7 @@
      canvas is transparent everywhere she is not, and being the positioned
      element after the h1 puts every pixel of her in front of the text.
      Where the cap line falls inside this box is NOT written down here —
-     capLine() in main.js measures it off the h1's own font.
+     capLine() in sheet.js measures it off the h1's own font.
      Its height is SET, never left to `top` + `bottom`: a canvas is a replaced
      element, so an auto height there resolves to the intrinsic one — the
      backing store this renderer rewrites every frame — and the box grows itself
@@ -413,8 +413,8 @@
   #help:active { transform: scale(.94); }
   #hud.sheet #help { visibility: hidden; }
 
-  /* ---- PORTRAIT GATE — same rule as the prototype and hex clicker, kept in
-     sync BY HAND (see the prototype's comment for the breakpoint math). ---- */
+  /* ---- PORTRAIT GATE — same rule as hex clicker's, kept in sync BY HAND
+     (hex's styles.css carries the breakpoint math). ---- */
   #rotate { display: none; }
   @media (orientation: landscape) and (max-height: 520px) {
     #rotate {

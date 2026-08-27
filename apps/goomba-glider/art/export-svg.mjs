@@ -1,9 +1,9 @@
-// Export the two Goomba Glider props as standalone SVGs for design work.
+// Export the Goomba Glider props as standalone SVGs for design work.
 //
-// The GAME never loads these: render.js draws the can and the plant procedurally
-// on canvas, and that is still the only copy the game runs. These are exports
-// for Figma, and this script is the export — the geometry below mirrors
-// `drawCan` and `drawGoalPlant` in ../src/render.js, so if you retune the art
+// The GAME never loads these: render.js draws every prop procedurally on
+// canvas, and that is still the only copy the game runs. These are exports
+// for Figma, and this script is the export — the geometry below mirrors the
+// draw functions in ../src/render.js, so if you retune the art
 // there, re-run `node export-svg.mjs` here and commit the result.
 //
 // Everything is emitted at u = 10 (one canvas unit = 10 SVG units) with named

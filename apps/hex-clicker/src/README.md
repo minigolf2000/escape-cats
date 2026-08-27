@@ -16,6 +16,7 @@ verbatim where possible; the typed seams are TS.
 | `cat.js`    | Hex herself — blink, gaze, lean, purr, yawn, dream twitches, squash   |
 | `golden.js` | the golden mouse (server decides WHEN; each phone decides WHERE)      |
 | `pet.js`    | tap handling, streaks, night pokes                                    |
+| `mates.js`  | teammates' taps, replayed with their real rhythm and spot             |
 | `fx.js`     | "+N" floats and mouse-pop particles                                   |
 | `phase.js`  | day/night projection, starfield, the night cutscene                   |
 | `art.js`    | the one mouse silhouette + palette every renderer builds from         |

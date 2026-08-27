@@ -188,7 +188,7 @@ function onSnapshot(s) {
     toast(FAIL_MSG[s.runResult] || "try again!");
     anim = null;
   }
-  if (s.phase !== "run" && s.phase !== "win") anim = anim && null;
+  if (s.phase !== "run" && s.phase !== "win") anim = null;
   shownPhase = s.phase;
   syncHud();
 }
@@ -507,7 +507,6 @@ function frameBody(nowMs) {
   // them off its local run.
   if (st) {
     if (riding && st.onBand >= 0 && Math.random() < 0.5) {
-      const bd = bands()[st.onBand];
       parts.push({ x: st.p.x, y: st.p.y + R, vx: -st.v.x * 0.15, vy: -12,
                    c: bandInk(), life: 0.5 });
     }

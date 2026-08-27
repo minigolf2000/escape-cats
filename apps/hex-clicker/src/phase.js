@@ -71,9 +71,8 @@ function makeStars() {
 // at the picture has no business yanking a teammate's screen.
 let splashOpen = false;
 
-/** Point the splash at its picture and take the sky colours FROM that picture —
- * the same trick Goomba's canvas splash uses (drawSplash in its main.js), which
- * is why neither game hardcodes a sky: replace the file, get a new one.
+/** Point the splash at its picture and take the sky colours FROM that picture,
+ * which is why nothing here hardcodes a sky: replace the file, get a new one.
  *
  * BASE_URL rather than a literal /hexxygon/: this is a public/ asset referenced
  * from JS, and Vite's base is the one string that is right in dev and in the
@@ -108,11 +107,7 @@ export function initSplashArt() {
  * horizon band low down) rather than just its ends.
  *
  * Each stop is one exact row squeezed to a pixel, so sky[0] and the last stop
- * are the picture's true first and last rows and the flat bands can share them.
- *
- * (Goomba's main.js has the twin of this for its canvas splash; a dozen lines of
- * pixel plumbing is not worth a shared module that the WORKER would then be
- * importing canvas code through.) */
+ * are the picture's true first and last rows and the flat bands can share them. */
 const SKY_STOPS = 24;
 function skyStops(img, n) {
   const c = document.createElement("canvas");
@@ -176,8 +171,7 @@ export function runNightCutscene() {
   // gets it, so it has no choreography to wait through.
   dockEl.classList.add("cutscene-hidden"); // shut the whole static shop for the reveal
   cutsceneVeilEl.classList.add("on"); // nothing selectable while the beat plays
-  // Duration read here (not a top-level const) so it can reference YAWN_MS, which
-  // is declared further down. Kept in sync with the CSS, and it is now a sum of
+  // Kept in sync with the CSS, and it is a sum of
   // three beats rather than two: YAWN_MS (1300) + ZZZ_HOLD_MS (2000, she holds
   // still at full size while the first zzz drift off) + the #catPose zoom
   // (1800ms) = the moment the camera settles. The veil has to outlast all three,

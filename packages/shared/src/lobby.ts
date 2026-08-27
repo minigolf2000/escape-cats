@@ -35,7 +35,7 @@ export const TEAM_IDS: string[] = TEAMS.map((t) => t.id);
  * targets from that list, and the lobby validates assignments against it, so
  * keeping it out means nobody can be sorted INTO the testing room by accident
  * and it never becomes a fifth seat on the board. The proctor watches it from
- * its own box instead (`apps/proctor/src/App.tsx`).
+ * its own box instead (`apps/proctor/src/TestRoom.tsx`).
  */
 export const OPEN_TEAM: Team = { id: "t0", name: "Testing Room" };
 

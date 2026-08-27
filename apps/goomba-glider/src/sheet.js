@@ -440,7 +440,7 @@ export function armSheet() {
 // and it is the only moment `#help` and the thing `#help` reopens are ever on
 // screen together — so that is where the sheet is told to say where it went.
 // It ZOOPS: the whole screen shrinks into the button's corner while the button
-// pops up to catch it (the keyframes are in index.html, under "THE ZOOP").
+// pops up to catch it (the keyframes are in styles.css, under "THE ZOOP").
 //
 // Both boxes are MEASURED here rather than written into the CSS, because
 // `#help` sits on a safe-area inset and a rotation moves it — an animation
@@ -499,7 +499,7 @@ export function closeSheet(animate = true) {
   zoopTimers.push(setTimeout(cancelZoop, ms * 2));
 }
 helpEl.onclick = () => armSheet();
-// POINTERDOWN, not click: the kiosk lockdown at the top of this file
+// POINTERDOWN, not click: the kiosk lockdown at the top of main.js
 // preventDefault()s touchstart on anything that is not a button or a link, and
 // that is exactly what cancels the synthesised `click` a finger would otherwise
 // produce — so an `onclick` here is a desktop-only dismiss. pointerdown is the

@@ -263,7 +263,9 @@ export function drawLab() {
   const savedCam = { ...cam };
 
   /** The per-card editor controls. Drawn last so they sit over the level, and
-   * hit-tested BEFORE the card, so pressing ⌫ never also selects it.
+   * hit-tested BEFORE the card, so pressing ⌫ never also selects it. It acts
+   * on the card it sits on whatever is selected — a button on a card is a
+   * sentence about that card.
    *
    * ONE button, down from four: ◀ ▶ went to the drag, and `⧉` copy went too.
    * Copy existed to get a level back OUT as a link — to duplicate it, to send
@@ -271,8 +273,7 @@ export function drawLab() {
    * (the frame is the source, and Ctrl+C there is the way in), and grading is
    * nobody's — the bench is deleted, and a level is judged by being played.
    * `seed.mjs --pull` reads a live event's whole pack off the lobby, which beat
-   * copying one card at a time even when there was something to grade with. It acts on the card it sits on whatever is
-   * selected — a button on a card is a sentence about that card. */
+   * copying one card at a time even when there was something to grade with. */
   const cardButtons = (i, x, y) => {
     if (!editorOn()) return;
     const B = 22, G = 4;

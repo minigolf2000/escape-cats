@@ -68,10 +68,10 @@ export interface HexSimState extends HexCore {
    */
   wonAt: number | null;
   /** The wall's odometer: scene units walked as of `wallAt`, re-banked by the
-   * authority whenever wallSpeed changes (Paper Lantern is the one row that
-   * does). Every phone reads position off this pair rather than integrating
-   * locally, so a phone that joins mid-night lands on the same frame as the
-   * rest of the room. See HexWallClock in rules.ts. */
+   * authority whenever wallSpeed changes (the two pace rows — Paper Lantern
+   * and Lucid Dreaming I). Every phone reads position off this pair rather
+   * than integrating locally, so a phone that joins mid-night lands on the
+   * same frame as the rest of the room. See HexWallClock in rules.ts. */
   wallBase: number;
   wallAt: number | null;
   /** The rate walked, and the glow drawn, UP TO wallAt — what the hand-over

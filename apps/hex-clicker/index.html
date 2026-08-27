@@ -4,39 +4,17 @@
 <title>Hex Clicker</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❓</text></svg>">
 <!--
-  Hex Clicker — v1 single-player prototype.
+  Hex Clicker — the multiplayer client's markup. A Cookie Clicker homage: pet
+  Hex the cat, collect MICE, spend them on buildings and upgrades. The room
+  server owns the economy (packages/shared/src/hex/); this page is the DOM the
+  client modules in src/ drive, and src/README.md is the module map.
 
-  A deliberately faithful Cookie Clicker clone reskinned as the Escape Cats
-  neon line-art world: pet Hex the cat, she bats a neon mouse toy, you collect
-  MICE (the currency). Spend them on buildings that auto-generate
-  mice. Classic mechanics: geometric cost curve (x1.15 per copy), per-building
-  mice-per-second, big-number formatting, golden mouse bonuses, one-off
-  UPGRADES with declarative unlock/effect, localStorage autosave.
-
-  THE TWIST: buying the Catnap Hypnalysis upgrade (gated on the lab's reveal) puts
-  Hex to sleep and flips the game into a NIGHT PHASE. The reveal wall from
-  reveal-lab.html renders behind her: the mice are already patrolling the TO THE
-  MOON scene as anonymous points of light (their count is a pure function of
-  lifetime mice earned), Counting Mice resolves them into creatures, and the
-  sleep-stage upgrades (Lucid Dreaming I-IV) grow the glowing
-  dream-trails that ink the word — Hex's imagination getting more vivid. Word% is
-  a hardcoded constant, noise is locked to zero. The flip is a HARD RESET: the day
-  economy is wiped and night runs its own three buildings, with petting earning
-  nothing and purchasing as the only action. Buying the last upgrade on the rail
-  closes the shop for good (shopSoldOut / runShopClose): the wall's cast is capped
-  and every trail is bought by then, so the tray shuts, shows a SOLD OUT sign and
-  slides off the screen rather than going on taking money for nothing. End state per
-  the design doc: the word is read off the wall to a human proctor — no win screen.
-
-  Why raw HTML: this is a prototype (see prototypes/README.md). Zero deps, zero
-  build, edit-and-refresh. The economy lives in one plain `game` object and the
-  balance in one `BUILDINGS` table, so the tuned result lifts cleanly into the
-  multiplayer app (apps/hex-clicker) + packages/shared/balance.ts later.
-
-  Design decisions this honors (see hex-clicker-design.md): neon line-art skin,
-  currency = mice, clicking stays relevant, golden mouse = the fun spike.
-  Multiplayer / reveal-wall / eras are intentionally NOT here yet — v1 is about
-  finding the core clicker fun.
+  THE TWIST: buying Catnap Hypnalysis puts Hex to sleep and flips the game into
+  the NIGHT PHASE — a hard reset into the dream economy, where purchasing is the
+  action and the reveal wall inks TO THE MOON behind her (src/wall.js). Buying
+  the last upgrade closes the shop for good, and the end state is the word read
+  off the wall to a human proctor: hex has no win screen of its own — the win is
+  the proctor's press (see DESIGN.md, and "The win splash" in the root README).
 -->
 <body class="booting">
 
@@ -62,7 +40,8 @@
   <div id="stars"></div>
   <!-- night-phase reveal wall (ported from reveal-lab.html); sits under everything -->
   <canvas id="wall"></canvas>
-  <!-- Inlined from hex-cat.svg — keep in sync with that file (see its header comment). -->
+  <!-- Hex herself. The art comes from the Figma file "Hexxxygon" (see
+       src/README.md): PNG heads in public/art/, plus the traced eye rig below. -->
   <div id="catWrap">
    <div id="catMotion"><div id="catPose"><div id="catBreath">
     <!-- Idle sleep sign. aria-hidden: the night phase is announced elsewhere, and
@@ -91,11 +70,9 @@
      <g id="catFace">
       <!-- HEAD: the artist's drawing, five poses, all exported onto ONE 828x652
            canvas and registered to each other by eye position.
-           NOTE the href form: "/art/..." here, but "/hexxygon/art/..." in the
-           CSS above. Not a typo — Vite rewrites asset URLs in HTML ATTRIBUTES
-           through `base` and leaves url() in a <style> block alone, so writing
-           the same string in both places gets one of them wrong (an attribute
-           written with the prefix comes out as /hexxygon/hexxygon/art/...). That shared
+           NOTE the href form: a bare "/art/...". Vite rewrites asset URLs in
+           HTML ATTRIBUTES through `base`, so an attribute written with the
+           /hexxygon/ prefix would come out as /hexxygon/hexxygon/art/... That shared
            registration is the whole trick — she squashes around her eyes exactly
            as drawn, so swapping frames needs no per-frame offset table and the
            eye overlay below never has to chase the head.
@@ -295,7 +272,7 @@
 
 <!-- The win splash and its toggle. Ordered after the shell so they paint over
      the game without a stacking fight, and before the gate/rotate covers, which
-     outrank them (see the z-index note in the CSS above). -->
+     outrank them (see the z-index note on #splash in styles.css). -->
 <div id="splash" aria-hidden="true">
   <div class="sky top"></div><img id="splashArt" alt=""><div class="sky bottom"></div>
 </div>

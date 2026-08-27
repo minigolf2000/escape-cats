@@ -355,7 +355,7 @@ export async function levelFromFigmaClipboard(html) {
       "Terrain must be Lines named `t`; toys are instances of the kit.",
     );
   if (!start) throw new Error("no layer named `start` — the level has no spawn");
-  if (!goal) throw new Error("no layer named `goal` — the level has no cake");
+  if (!goal) throw new Error("no layer named `goal` — the level has no plant");
   if (!terrain.length) warnings.push("no terrain: nothing named `t`. She will just fall.");
 
   const level = {

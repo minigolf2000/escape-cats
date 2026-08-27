@@ -43,12 +43,7 @@ import { petState } from "./pet.js";
 // So it is a timed player now: an explicit [frame, ms] list, advanced against the
 // same clock the frame loop already carries, and a big reaction cannot be
 // downgraded by an ordinary tap landing on top of it.
-export const anim = { squash: 0 };
 
-// ---------------------------------------------------------------------------
-// CAT rendering — the SVG (#hexCat) is static markup; this just toggles
-// classes/state on it per frame (squash bounce, blink, Zoomies recolor).
-// ---------------------------------------------------------------------------
 // How far the PUPIL travels off-centre, in SVG user units of the drawing's
 // 828x652 box. Two numbers rather than one because the socket is not round: its
 // hole is 109x98 (left) / 105x104 (right) and the pupil is ~58x71, so there is
@@ -85,10 +80,8 @@ const PUPIL_ROUND = 1.35;
 
 // The pet squash, as the artist drew it: four registered frames, held in order.
 // This is the one animation that came out of the art file as an ANIMATION rather
-// than as a pose, so it plays as frames rather than as a CSS scale.
-// `anim.squash` decays 1 -> 0 at 0.08/frame (~12 frames, ~200ms), and these
-// thresholds cut that into three held steps plus the return to rest. Descending
-// order, because squash counts DOWN: hardest flatten first, easing back up.
+// than as a pose, so it plays as frames rather than as a CSS scale. Each entry
+// is [frame, ms held] — the timed player above walks the list on wall-clock.
 // GRADED, because the artist's squash folds the ears as part of the same drawn
 // gesture and there is no way to subtract them from it. Ear movement is supposed
 // to be an idle tell — rare, and hers rather than the player's — so the full
@@ -163,13 +156,12 @@ export function updateCat(t) {
   // The frame this pet is on, or null once it has finished. Also the .squash /
   // .big classes, which are what gives the NIGHT phase its feedback: the drawn
   // frames are painted in the day coat and cannot play over the black one, so at
-  // night the same beat is a small CSS scale instead (see index.html).
+  // night the same beat is a small CSS scale instead (see styles.css).
   // (The class was previously toggled as "anim.squash" — a token with a dot in
   // it, which no selector can ever match — so night pets moved nothing at all.)
   const squashPose = squashFrame(t);
   catEl.classList.toggle("squash", squashPose !== null);
   catEl.classList.toggle("big", squashBig && squashPose !== null);
-  anim.squash = squashPose === null ? 0 : 1;
 
   catEl.classList.toggle("zoomies", zoomBuff() > 1);
 

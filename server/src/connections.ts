@@ -82,7 +82,8 @@ export class Roster {
     return false;
   }
 
-  /** Player slot index (0..3) for slingshot placement etc. */
+  /** Player slot index (0..3), in join order — what hex stamps on teammate
+   * taps, and what picks a player's colour on every phone. */
   slot(pid: string): number {
     return Math.max(0, [...this.players.keys()].indexOf(pid));
   }

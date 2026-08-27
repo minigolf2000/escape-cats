@@ -137,17 +137,22 @@ function fullOverlay(cv) {
  * of this rack used 1/2/4 and was destroyed by the very degradation it was
  * measuring — stripes, labels and all — and went unfound in six photographs.
  *
- * Drawn at device scale with the game's transform undone, and re-drawn at the
- * END of every frame so the game cannot paint over it — `frame()` re-arms
- * itself at the top of its own callback, so re-arming at the bottom of this one
- * keeps this behind it in the queue forever. */
+ * Drawn at device scale with the game's transform undone, at the END of every
+ * frame via the `postFrame` hook main.js calls after the scene — NOT its own
+ * rAF loop. It was its own loop once, on the claim that re-arming at the bottom
+ * kept it behind frame() "forever". False: two self-re-arming rAF loops have
+ * TWO stable interleavings, and whichever callback wins the race at boot runs
+ * first every frame after. On the phone the race landed rack-then-game, and the
+ * game erased the rack every frame while `painted` climbed past 800 — the
+ * instrument reported itself healthy while never reaching the glass. A hook in
+ * the one real loop has no race to lose. */
 /** Where the rack put itself and how many times it has painted — printed in the
  * readout because five photographs of the phone came back without a visible
  * rack and there was no way to tell WHY: not running, running and painted over,
  * or running and off-screen all look identical from here. A number says which. */
 let rackY = -1, rackN = 0;
 
-function stripesIntoMain(cv, panel) {
+function stripesIntoMain(cv, panel, onFrame) {
   const paint = () => {
     const g = cv.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
@@ -194,9 +199,8 @@ function stripesIntoMain(cv, panel) {
     }
     g.restore();
     rackY = y0; rackN++;
-    requestAnimationFrame(paint);
   };
-  requestAnimationFrame(paint);
+  onFrame(paint);
 }
 
 /** The round-trip self-test: paint stripes into #c, read them straight back.
@@ -248,7 +252,7 @@ function selfTest(cv) {
 
 let worst = 1, peakScale = 1;
 
-export function startPixelProbe(cv) {
+export function startPixelProbe(cv, onFrame) {
   const dpr = window.devicePixelRatio || 1;
   const mode = new URLSearchParams(location.search).get("pixels");
   if (mode === "full") fullOverlay(cv);
@@ -291,7 +295,7 @@ export function startPixelProbe(cv) {
   // ratio, transform, all of it — so whatever differs is below JavaScript, and
   // the only way left to see it is to look at pixels we drew into the suspect
   // element itself. A diagnostic nobody remembers to switch on is not one.
-  stripesIntoMain(cv, panel);
+  stripesIntoMain(cv, panel, onFrame);
 
   const read = () => {
     const vv = window.visualViewport;

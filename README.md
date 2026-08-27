@@ -67,7 +67,7 @@ card drawn from its own geometry, under its name and **no verdict** — nothing
 grades a level. Tapping a card jumps the whole room there.
 
 **The other corner is the same object.** The band slots top-right ARE the button
-that empties them, wearing the same plate with **clear all bands** on a line
+that empties them, wearing the same plate with **clear bands** on a line
 underneath — one idiom, twice: a strip of state that, when its control is live,
 puts on a plate and says what it does. The two differ in one way, and it is the
 interesting one. `#lab` grows its plate exactly ONCE, when the team clears the

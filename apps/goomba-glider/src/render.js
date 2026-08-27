@@ -243,28 +243,42 @@ resize();
  * not re-made when the surface is replaced. Do not try this again; the block
  * below tries the LAYER instead. */
 
-/** CANDIDATE FIX, the third lever, same deal as the re-roll: comes OUT if the
- * phone stays blurry, never gets tuned.
+/** CANDIDATE FIX, the fourth lever, same deal as every one before it: comes
+ * OUT if the phone stays blurry, never gets tuned. The ledger it stands on:
  *
- * The probe's round-trip self-test settled which half of the pipeline lies:
- * stripes painted into #c read back pixel-perfect at 2 device px on the same
- * phone that shows the game soft. The buffer is true; the loss is on the
- * layer's trip to the glass — the shape of a GraphicsLayer whose contentsScale
- * WebKit picked low at creation and never revisits. The re-roll above replaced
- * the SURFACE and changed nothing, which is exactly what that shape predicts:
- * the scale lives on the layer, and the layer survived the new surface.
+ *   surface re-roll (reassign cv.width post-load)  — FAILED. The scale is not
+ *     per-surface, or is not re-made when the surface is replaced.
+ *   position flip (fixed -> absolute post-load)    — FAILED. A style change is
+ *     not enough to make WebKit rebuild the layer, or the rebuild kept the
+ *     scale. Removed like the re-roll before it.
  *
- * So replace the LAYER. Flipping `position` from fixed to absolute after first
- * composite forces WebKit to rebuild the render layer — fixed-position layers
- * are a special viewport-anchored kind, so this is a change of KIND, not a
- * repaint — and the rebuilt layer re-decides its scale with the page settled
- * rather than mid-boot. The flip is one-way and the steady state is identical
- * geometry: nothing here ever scrolls, so absolute inset:0 and fixed inset:0
- * are the same box, and #hud (a later sibling) keeps painting above either
- * way. */
+ * And what the instruments finally measured, on the phone, on one blurry load:
+ * the round-trip self-test reads 2px — the buffer is TRUE — while the in-canvas
+ * eye chart shows its 4px block collapsed and 8px surviving, with the inline
+ * 4px block crisp centimetres away in the same photograph. Together: the
+ * 1179-wide buffer is reaching the glass through a texture roughly a THIRD its
+ * width. That is the signature of the layer's contentsScale having been decided
+ * as ~1 (CSS resolution) from some transient mid-boot state — page scale still
+ * settling, dpr not yet applied — and never revisited. Decided per LOAD, which
+ * is the observed nondeterminism; held until reload, which is the observed
+ * stickiness; invisible to script, which is eleven identical readouts.
+ *
+ * So force the one rebuild nothing can optimise away: detach the element and
+ * put it back. A removed node has no renderer at all; reattaching builds
+ * renderer, RenderLayer and backing from scratch, with the page long settled —
+ * and unlike the levers above, there is no path where this reuses the old
+ * layer, because the old layer is GONE. The canvas element keeps its pixel
+ * buffer across a reparent (the bitmap belongs to the element, not the
+ * document), both operations run in one task so no frame is presented between
+ * them, and it goes back exactly where it was so #hud, a later sibling, keeps
+ * painting above. Two rAFs after `load`, past the first settled composite. */
 window.addEventListener("load", () => {
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    cv.style.position = "absolute";
+    const parent = cv.parentNode;
+    if (!parent) return;
+    const next = cv.nextSibling;
+    cv.remove();
+    parent.insertBefore(cv, next);
   }));
 });
 

@@ -153,7 +153,13 @@
      the two are unrelated, and the names being one letter apart is the whole
      reason this note is here. */
   #hud.laying #bandbar { background: var(--plate); border-color: var(--plate-edge); }
-  #hud.laying #bandbar::after { visibility: visible; }
+  /* `inherit`, NEVER `visible`. Visibility inherits, and an explicit `visible`
+     on a descendant re-opens it under a hidden ancestor — which is exactly how
+     the label floated alone over the level grid (`.lab` hides all of #top) and
+     would float over the rotate screen (the landscape media rule hides #hud).
+     `inherit` says only "stop forcing hidden": the label shows when the plate
+     shows and follows every ancestor that hides it, current and future. */
+  #hud.laying #bandbar::after { visibility: inherit; }
   /* Nothing to clear yet: the words go quiet and the button goes dead, without
      the box changing by a pixel. Exactly what an empty band slot does one rule
      up when it says "not now". */

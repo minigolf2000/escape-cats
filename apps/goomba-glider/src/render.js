@@ -240,12 +240,44 @@ resize();
  *
  * So reallocating the surface after the page is composited does NOT re-roll
  * whatever is being decided. Either the decision is not per-surface, or it is
- * not re-made when the surface is replaced. Do not try this again; the next
- * thing untested is taking `#c` off `position:fixed` so it is not a layer of its
- * own at all. */
+ * not re-made when the surface is replaced. Do not try this again; the block
+ * below tries the LAYER instead. */
+
+/** CANDIDATE FIX, the third lever, same deal as the re-roll: comes OUT if the
+ * phone stays blurry, never gets tuned.
+ *
+ * The probe's round-trip self-test settled which half of the pipeline lies:
+ * stripes painted into #c read back pixel-perfect at 2 device px on the same
+ * phone that shows the game soft. The buffer is true; the loss is on the
+ * layer's trip to the glass — the shape of a GraphicsLayer whose contentsScale
+ * WebKit picked low at creation and never revisits. The re-roll above replaced
+ * the SURFACE and changed nothing, which is exactly what that shape predicts:
+ * the scale lives on the layer, and the layer survived the new surface.
+ *
+ * So replace the LAYER. Flipping `position` from fixed to absolute after first
+ * composite forces WebKit to rebuild the render layer — fixed-position layers
+ * are a special viewport-anchored kind, so this is a change of KIND, not a
+ * repaint — and the rebuilt layer re-decides its scale with the page settled
+ * rather than mid-boot. The flip is one-way and the steady state is identical
+ * geometry: nothing here ever scrolls, so absolute inset:0 and fixed inset:0
+ * are the same box, and #hud (a later sibling) keeps painting above either
+ * way. */
+window.addEventListener("load", () => {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    cv.style.position = "absolute";
+  }));
+});
+
+/** Called by main.js at the END of every frame(), after the scene is drawn.
+ * The probe's rack hangs off this rather than its own rAF loop, because two
+ * self-re-arming rAF loops have TWO stable interleavings — whichever callback
+ * runs first at boot runs first forever — and on the phone the race landed
+ * rack-then-game: the game erased the rack every frame while its paint counter
+ * climbed past 800. A hook in the one real loop cannot lose that race. */
+export let postFrame = null;
 
 if (new URLSearchParams(location.search).has("pixels")) {
-  import("./pixelprobe.js").then((m) => m.startPixelProbe(cv));
+  import("./pixelprobe.js").then((m) => m.startPixelProbe(cv, (f) => { postFrame = f; }));
 }
 
 if (!ctx.roundRect) {

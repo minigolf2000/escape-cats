@@ -45,6 +45,7 @@ import {
 } from "./state";
 import {
   ctx, cam, sxp, syp, fitScale, clampCam, advanceClock, tGlobal, checkFit,
+  postFrame,
   drawBackground, drawTerrain, drawBand, drawTeammatePreview, drawAnchor,
   drawTeammateAnchor, drawCushion, drawPopper, drawCan, drawBumper,
   drawGoalPlant, drawGoomba, drawStartPad, drawSplash,
@@ -464,6 +465,16 @@ let lastFitCheck = 0;
 
 function frame(nowMs) {
   requestAnimationFrame(frame);
+  frameBody(nowMs);
+  // AFTER the body, unconditionally — frameBody's early returns must not skip
+  // it. The probe's rack used to be its own rAF loop, and both interleavings of
+  // two self-re-arming rAF loops are self-perpetuating: whichever ran first at
+  // boot ran first forever. On the phone the race landed rack-then-game, so the
+  // game erased the rack every frame while its paint counter climbed past 800.
+  // A hook called from the one real loop cannot lose that race.
+  if (postFrame) postFrame();
+}
+function frameBody(nowMs) {
   const dt = Math.min(0.05, (nowMs - (frame.last || nowMs)) / 1000); frame.last = nowMs;
   advanceClock(dt);
   if (tGlobal - lastFitCheck > 1) { lastFitCheck = tGlobal; checkFit(); }

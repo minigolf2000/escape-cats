@@ -259,8 +259,72 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener("scroll", resize);
 }
 resize();
+
+/** The post-load backing-store re-roll that used to live here is GONE, and the
+ * negative result is worth more than the code was.
+ *
+ * The theory: WebKit picks a rasterisation scale for a compositing layer once,
+ * at layer-creation time, `#c` is `position:fixed; inset:0` and therefore a
+ * layer of its own, and re-assigning `cv.width` two frames after `load` would
+ * throw that surface away and force a new one under better conditions. It was
+ * verified to do exactly what it claimed — a mutation observer caught precisely
+ * one width/height reassignment after `load` in both WebKit and Chromium — and
+ * the phone came back blurry anyway, on the build that contained it.
+ *
+ * So reallocating the surface after the page is composited does NOT re-roll
+ * whatever is being decided. Either the decision is not per-surface, or it is
+ * not re-made when the surface is replaced. Do not try this again; the block
+ * below tries the LAYER instead. */
+
+/** CANDIDATE FIX, the fourth lever, same deal as every one before it: comes
+ * OUT if the phone stays blurry, never gets tuned. The ledger it stands on:
+ *
+ *   surface re-roll (reassign cv.width post-load)  — FAILED. The scale is not
+ *     per-surface, or is not re-made when the surface is replaced.
+ *   position flip (fixed -> absolute post-load)    — FAILED. A style change is
+ *     not enough to make WebKit rebuild the layer, or the rebuild kept the
+ *     scale. Removed like the re-roll before it.
+ *
+ * And what the instruments finally measured, on the phone, on one blurry load:
+ * the round-trip self-test reads 2px — the buffer is TRUE — while the in-canvas
+ * eye chart shows its 4px block collapsed and 8px surviving, with the inline
+ * 4px block crisp centimetres away in the same photograph. Together: the
+ * 1179-wide buffer is reaching the glass through a texture roughly a THIRD its
+ * width. That is the signature of the layer's contentsScale having been decided
+ * as ~1 (CSS resolution) from some transient mid-boot state — page scale still
+ * settling, dpr not yet applied — and never revisited. Decided per LOAD, which
+ * is the observed nondeterminism; held until reload, which is the observed
+ * stickiness; invisible to script, which is eleven identical readouts.
+ *
+ * So force the one rebuild nothing can optimise away: detach the element and
+ * put it back. A removed node has no renderer at all; reattaching builds
+ * renderer, RenderLayer and backing from scratch, with the page long settled —
+ * and unlike the levers above, there is no path where this reuses the old
+ * layer, because the old layer is GONE. The canvas element keeps its pixel
+ * buffer across a reparent (the bitmap belongs to the element, not the
+ * document), both operations run in one task so no frame is presented between
+ * them, and it goes back exactly where it was so #hud, a later sibling, keeps
+ * painting above. Two rAFs after `load`, past the first settled composite. */
+window.addEventListener("load", () => {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const parent = cv.parentNode;
+    if (!parent) return;
+    const next = cv.nextSibling;
+    cv.remove();
+    parent.insertBefore(cv, next);
+  }));
+});
+
+/** Called by main.js at the END of every frame(), after the scene is drawn.
+ * The probe's rack hangs off this rather than its own rAF loop, because two
+ * self-re-arming rAF loops have TWO stable interleavings — whichever callback
+ * runs first at boot runs first forever — and on the phone the race landed
+ * rack-then-game: the game erased the rack every frame while its paint counter
+ * climbed past 800. A hook in the one real loop cannot lose that race. */
+export let postFrame = null;
+
 if (new URLSearchParams(location.search).has("pixels")) {
-  import("./pixelprobe.js").then((m) => m.startPixelProbe(cv));
+  import("./pixelprobe.js").then((m) => m.startPixelProbe(cv, (f) => { postFrame = f; }));
 }
 
 if (!ctx.roundRect) {

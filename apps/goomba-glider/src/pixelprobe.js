@@ -12,7 +12,7 @@
  * phone is in the cleared-room state) and CLAUDE.md is explicit that nothing
  * else may hide behind it.
  *
- * Two halves, because they answer two different questions:
+ * Three parts, because they answer three different questions:
  *
  *   STRIPES — blocks of alternating columns 1, 2 and 4 DEVICE pixels wide,
  *     drawn into a canvas built so one backing pixel is one device pixel (no
@@ -20,6 +20,16 @@
  *     lines. Anything resampling the canvas on its way to the glass collapses
  *     them into flat grey or a moire, narrowest block first. This is the
  *     answer in a photograph, with nothing to read.
+ *
+ *   #c STRIPES — the same three widths, painted into the suspect canvas
+ *     ITSELF, just under the panel so ONE photograph catches both racks. The
+ *     blocks above are their own little canvases; this is the element being
+ *     called blurry. A camera undersamples a 3x panel and mushes a 1px block by
+ *     itself, so one rack proves nothing — but two racks in one frame are
+ *     sampled identically, and a difference BETWEEN them cannot be the camera.
+ *     Measured on an iPhone 15: a sharp load and a blurry one print the same
+ *     numbers to the last digit, so this is the only part still able to see a
+ *     difference at all.
  *
  *   NUMBERS — every quantity sitting between a world unit and a device pixel.
  *     The line that matters is `backing/box`: backing pixels per CSS pixel,
@@ -46,6 +56,11 @@
 
 const STRIPE_W = 168;   // CSS px per block
 const STRIPE_H = 26;
+
+/** Stamped in by `vite.config.ts` — commit and build time. `typeof` rather than
+ * a bare read so this file stays safe outside a Vite build, where the define
+ * never happens: `typeof` on an undeclared name is "undefined", not a throw. */
+const BUILD = typeof __BUILD__ === "string" ? __BUILD__ : "unstamped";
 
 
 /** One block of `n`-device-pixel columns, as a canvas that is 1:1 by
@@ -100,11 +115,147 @@ function fullOverlay(cv) {
   return paint;
 }
 
+/** `?pixels=c` — the same three blocks, painted into #c ITSELF.
+ *
+ * The blocks in the rack are little canvases of their own, and `full` makes a
+ * COPY of #c's box. Neither one IS #c, and #c is the element being called
+ * blurry — so if Safari hands it a smaller surface than the size we asked for
+ * and scales up on composite, nothing above can tell: `SHARPNESS` divides
+ * `cv.width` by the box, and `cv.width` is the number we ASSIGNED. It reads 1
+ * whatever the hardware did with it. This is the blind spot, and this is the
+ * instrument for it.
+ *
+ * It is a RELATIVE test: the inline rack above is small canvases of the same
+ * make, a few centimetres away in the same frame, so anything that touches both
+ * equally (a camera, a screenshot pipeline) cancels out, and a difference
+ * between the racks belongs to #c. Measured on the iPhone 15 that prompted all
+ * this: the inline canvases stay crisp on a blurry load while #c goes soft —
+ * whatever Safari does, it does to the one BIG canvas, which reads like the
+ * compositor downsampling a large layer under memory pressure, decided at
+ * layer creation and held until reload. The 4px width is shared with the
+ * inline rack for the head-to-head; 8 and 16 exist because the first version
+ * of this rack used 1/2/4 and was destroyed by the very degradation it was
+ * measuring — stripes, labels and all — and went unfound in six photographs.
+ *
+ * Drawn at device scale with the game's transform undone, at the END of every
+ * frame via the `postFrame` hook main.js calls after the scene — NOT its own
+ * rAF loop. It was its own loop once, on the claim that re-arming at the bottom
+ * kept it behind frame() "forever". False: two self-re-arming rAF loops have
+ * TWO stable interleavings, and whichever callback wins the race at boot runs
+ * first every frame after. On the phone the race landed rack-then-game, and the
+ * game erased the rack every frame while `painted` climbed past 800 — the
+ * instrument reported itself healthy while never reaching the glass. A hook in
+ * the one real loop has no race to lose. */
+/** Where the rack put itself and how many times it has painted — printed in the
+ * readout because five photographs of the phone came back without a visible
+ * rack and there was no way to tell WHY: not running, running and painted over,
+ * or running and off-screen all look identical from here. A number says which. */
+let rackY = -1, rackN = 0;
+
+function stripesIntoMain(cv, panel, onFrame) {
+  const paint = () => {
+    const g = cv.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.round(STRIPE_W * dpr), h = Math.round(STRIPE_H * dpr);
+    const x = Math.round(14 * dpr);
+    // MEASURED off the panel, never a fraction of the screen. The panel is
+    // opaque and taller than it looks — on a phone it covers well over half the
+    // viewport — so a guessed 42% painted this whole rack underneath it and the
+    // one comparison it exists for was invisible. Ask the element.
+    const step = h + Math.round(20 * dpr);
+    let y = Math.round((panel.getBoundingClientRect().bottom + 14) * dpr);
+    // Still has to fit. If the panel has eaten the screen, sit on the bottom
+    // edge rather than off it — clipped stripes answer nothing.
+    y = Math.min(y, Math.max(0, cv.height - 3 * step));
+    const y0 = y;   // the loop below walks `y` down; the readout wants the top
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = "#0a0418";
+    g.fillRect(0, y - Math.round(22 * dpr), cv.width, 3 * step + Math.round(14 * dpr));
+    // The magenta frame is the "did you find it at all" signal. On the phone
+    // this rack rendered as three featureless grey smudges — the degradation it
+    // exists to measure ate its own stripes AND its own labels, and it went
+    // unrecognised in six photographs. An instrument has to survive the fault
+    // it measures; a border with no fine detail survives any blur.
+    g.strokeStyle = "#ff5db1"; g.lineWidth = 3 * dpr;
+    g.strokeRect(x - 6 * dpr, y - Math.round(20 * dpr) - 6 * dpr,
+                 w + 12 * dpr, 3 * step + 12 * dpr);
+    // 4 / 8 / 16, not 1 / 2 / 4 — an eye chart for the COMPOSITOR, so the
+    // failure grades itself instead of vanishing. The small inline canvases
+    // above stay crisp on the same blurry screen, so whatever Safari does, it
+    // does to the one big canvas: if its layer is composited at half scale a
+    // 4px block goes grey, 8px barely survives, 16px always survives. The first
+    // striped block from the top IS the effective scale, readable by eye:
+    // all three striped = healthy; only 8 and 16 = ~1.5x of 3x; only 16 =
+    // ~0.75x or worse. 1 and 2px blocks graded the camera, not the layer.
+    for (const n of [4, 8, 16]) {
+      g.fillStyle = "#f2ecff";
+      g.font = `700 ${Math.round(12 * dpr)}px ui-monospace,Menlo,monospace`;
+      g.fillText(`#c — ${n}px columns`, x, y - Math.round(5 * dpr));
+      g.fillStyle = "#000"; g.fillRect(x, y, w, h);
+      g.fillStyle = "#fff";
+      for (let i = 0; i < w; i += n * 2) g.fillRect(x + i, y, n, h);
+      y += step;
+    }
+    g.restore();
+    rackY = y0; rackN++;
+  };
+  onFrame(paint);
+}
+
+/** The round-trip self-test: paint stripes into #c, read them straight back.
+ *
+ * This exists because the two ways a canvas can go soft SPLIT on it, and no
+ * number in the readout can tell them apart:
+ *
+ *   backing itself shrunk — Safari silently backs the 2D context with a
+ *     smaller buffer than the width/height we set (its canvas-memory pressure
+ *     behaviour). Every draw is downsampled INTO the buffer, so stripes die on
+ *     the way in and getImageData returns the corpse: the test FAILS. The fix
+ *     would be ours to make — ask for less (smaller backing) so Safari stops
+ *     cutting it for us.
+ *
+ *   compositor sampling low — the buffer is full size and holds our pixels
+ *     perfectly; only the layer's trip to the glass loses resolution. Readback
+ *     is flawless while the screen is mush: the test PASSES on a blurry load.
+ *     The fix would be layer-level, and no readback can measure it — only the
+ *     magenta rack, by eye.
+ *
+ * Ascending periods, first that survives wins: 2px round-tripping intact means
+ * the backing is true. Painted at the top-left corner, which sits UNDER the
+ * opaque readout panel — the game repaints it next frame anyway, so nothing is
+ * visible; the answer is a line of DOM text, which this bug leaves crisp. */
+function selfTest(cv) {
+  const g = cv.getContext("2d");
+  const W = 120, H = 6;
+  let finest = 0;
+  g.save();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  for (const n of [2, 4, 8, 16, 32]) {
+    g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#fff";
+    for (let x = 0; x < W; x += n * 2) g.fillRect(x, 0, n, H);
+    const d = g.getImageData(0, Math.floor(H / 2), W, 1).data;
+    let mn = 255, mx = 0, flips = 0, prev = null;
+    for (let i = 0; i < W; i++) {
+      const v = d[i * 4 + 1];
+      mn = Math.min(mn, v); mx = Math.max(mx, v);
+      const bit = v > 127;
+      if (prev !== null && bit !== prev) flips++;
+      prev = bit;
+    }
+    if (mx - mn >= 200 && flips >= Math.round(W / n) - 3) { finest = n; break; }
+  }
+  g.restore();
+  return finest;
+}
+
 let worst = 1, peakScale = 1;
 
-export function startPixelProbe(cv) {
+export function startPixelProbe(cv, onFrame) {
   const dpr = window.devicePixelRatio || 1;
-  if (new URLSearchParams(location.search).get("pixels") === "full") fullOverlay(cv);
+  const mode = new URLSearchParams(location.search).get("pixels");
+  if (mode === "full") fullOverlay(cv);
 
   const panel = document.createElement("div");
   // pointer-events:none and no cursor of its own — the two-cursor rule counts
@@ -132,6 +283,19 @@ export function startPixelProbe(cv) {
   }
   panel.appendChild(rack);
   document.body.appendChild(panel);
+  // After the panel is in the document, because it places itself by MEASURING
+  // it — the whole point of this rack is to sit beside the one above, visible.
+  //
+  // ALWAYS, not behind `pixels=c`. It was a mode for two rounds and four
+  // photographs of the phone came back without it, because the query string is
+  // the part of a URL a phone hides and a person retypes. The rack costs three
+  // blocks of screen on a page that is already nothing but instrumentation, and
+  // it answers the question the numbers above cannot: a sharp load and a blurry
+  // one on the same phone print IDENTICAL readouts — dpr, inner, backing, box,
+  // ratio, transform, all of it — so whatever differs is below JavaScript, and
+  // the only way left to see it is to look at pixels we drew into the suspect
+  // element itself. A diagnostic nobody remembers to switch on is not one.
+  stripesIntoMain(cv, panel, onFrame);
 
   const read = () => {
     const vv = window.visualViewport;
@@ -161,6 +325,12 @@ export function startPixelProbe(cv) {
                ` = ${fmt(el.width / b.width)}, ${fmt(el.height / b.height)}`;
       });
     out.textContent = [
+      // FIRST, because it is the line that says whether the rest is worth
+      // reading. A phone caches the HTML shell and hides the query string, so
+      // two rounds of this investigation were spent photographing a build that
+      // did not contain the instrument being asked about. Stamped by
+      // vite.config.ts; `local` outside a checkout.
+      `build       ${BUILD}`,
       `dpr         ${live}`,
       `inner       ${window.innerWidth} x ${window.innerHeight}`,
       `vviewport   ${vv ? `${fmt(vv.width)} x ${fmt(vv.height)}  scale ${fmt(vv.scale)}` : "unsupported"}`,
@@ -174,6 +344,16 @@ export function startPixelProbe(cv) {
       // backing store was always dpr per CSS px, so the deficit WAS 1/scale.
       `was        ${fmt(1 / scale)}   worst ${fmt(1 / peakScale)}`,
       `transform   ${tf}`,
+      // Not cosmetic. Five photographs came back with no visible rack and no
+      // way to tell whether it never ran, ran and was painted over, or ran
+      // off-screen. `n` climbing means it is painting; `y` says where to look,
+      // in DEVICE px down the backing store, against `backing` two lines up.
+      `#c rack     y ${rackY}  of ${cv.height}   painted ${rackN}`,
+      // Read this line FIRST on a blurry load. "2px round-trips" with a soft
+      // screen convicts the COMPOSITOR (our buffer is fine, the loss is on the
+      // way to the glass); a bigger number, or FAIL, convicts the BACKING
+      // (Safari shrank the buffer under us, and every draw dies on the way in).
+      (() => { const st = selfTest(cv); return `selftest    ${st ? st + "px round-trips  (2 = backing true)" : "FAIL — nothing round-trips"}`; })(),
       ...others,
     ].join("\n");
   };

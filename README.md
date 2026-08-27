@@ -66,6 +66,18 @@ Tapping anywhere on that plate, dots included, opens the grid. Every level is a
 card drawn from its own geometry, under its name and **no verdict** — nothing
 grades a level. Tapping a card jumps the whole room there.
 
+**The other corner is the same object.** The band slots top-right ARE the button
+that empties them, wearing the same plate with **clear all bands** on a line
+underneath — one idiom, twice: a strip of state that, when its control is live,
+puts on a plate and says what it does. The two differ in one way, and it is the
+interesting one. `#lab` grows its plate exactly ONCE, when the team clears the
+game; the band plate's condition is the edit phase, which comes and goes every
+time somebody hits PLAY, so its box is always reserved and only the INK changes
+— chrome on the phase, words dimmed and the button `disabled` at zero bands.
+Nothing in that row ever moves, which is also what lets the **bunting hang off
+`#top`'s measured bottom edge** (`drawBackground`) instead of off a constant
+copied out of the stylesheet.
+
 **The selector IS the editor** (`apps/goomba-glider/src/figma/`), and `\` is the
 door — it opens the grid with editing on, and `\` again goes back to playing.
 The grid diverges by surface:

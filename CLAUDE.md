@@ -34,6 +34,25 @@ Figma, paste it in, and PLAY it — alone with `?solo`, then with four people.
     the frame it came from — the tweak-copy-paste loop — so it goes straight
     through. Native rather than canvas-drawn precisely because a paste can land
     with the grid shut.
+- **Both top corners are ONE idiom** (README, "Goomba's level selector"): a strip
+  of state that, when its control is live, wears a plate and says what it does on
+  a line underneath — dots + **select level**, band slots + **clear all bands**.
+  They differ in exactly one way, and reversing it is the bug: `#lab` grows its
+  plate ONCE, on the clear; the band plate's condition is the EDIT PHASE, which
+  comes and goes on every PLAY, so **its box is always reserved and only the ink
+  changes** — chrome on `.laying`, words dimmed and the button `disabled` at zero
+  bands. Key its chrome on the band COUNT and the slots jump forty times a
+  session. It uses the real `disabled` (pointer, `:disabled` ink and the a11y
+  tree in one); `#lab`'s `pointer-events` fake is the older, worse half.
+  **The bunting hangs off `#top`'s MEASURED bottom edge** — `drawBackground`
+  reads the box (a `ResizeObserver` for its size, `resize()` for the notch moving
+  its position), because a constant is wrong twice: `env(safe-area-inset-top)`
+  moves the bar, and the strings ride HIGHEST at the left and right edges, which
+  is exactly where the plates are. Under the bar there are 25px before `#hint`'s
+  win banner and the first string needs 22 of them, so that gap is a corridor,
+  not slack. One tap still wipes the ROOM's bands with no confirm; if strays turn
+  up the answer is UNDO, never a confirm step.
+
 - **`src/figma/stitch.js` is the one non-obvious step.** Figma stores terrain as
   one Line per segment and the game strokes each polyline with round caps, so
   unstitched chains grow half-stroke stubs at every shared vertex. It chains from

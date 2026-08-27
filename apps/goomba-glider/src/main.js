@@ -208,10 +208,11 @@ function syncHud() {
   // the splash is a phase like any other.
   hudEl.classList.toggle("cleared", levelSelect());
   hudEl.classList.toggle("splash", s.phase === "splash");
-  // `editing` is JS-only state (set by the `\` key, the paste handler, and an
-  // empty pack via editorOn) with no snapshot behind it, so it needs its own
-  // sync point rather than riding this function's `s`-driven toggles above —
-  // this is just the one place already re-run on every UI-relevant change.
+  // `editing` is the SURFACE (editorOn), not room state, so no snapshot ever
+  // carries it and it needs its own sync point rather than riding this
+  // function's `s`-driven toggles above — this is just the one place already
+  // re-run on every UI-relevant change, and the surface can still change under
+  // a live room (a tablet that gains a trackpad mid-party).
   hudEl.classList.toggle("editing", editorOn());
 
   dotsEl.innerHTML = "";
@@ -300,19 +301,27 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault(); closeSheet(); return;
   }
   if (e.key === " ") { e.preventDefault(); playBtn.onclick(); }
-  // `\` — the whole editor, on one key. Swapping between the game and the
-  // level pack has to be instant or nobody uses it mid-party: this is the same
-  // screen either way, so there is nothing to load and nothing to leave.
+  // `\` — the door to the level pack, on one key. Swapping between the game
+  // and the pack has to be instant or nobody uses it mid-party: this is the
+  // same screen either way, so there is nothing to load and nothing to leave.
+  // What the grid then LOOKS like is not this key's business — the surface
+  // decides that (editorOn), so a laptop's grid always arrives with its
+  // editing controls on however it was opened.
   if (e.key === "\\") {
     e.preventDefault();
-    if (S.labOpen && S.editing) { S.editing = false; setLab(false); syncHud(); return; }
-    S.editing = true;
+    // A plain toggle, whoever opened it: the way out is the way in. Closing
+    // locks the door behind you, so a room that has not earned the selector
+    // goes back to not having it.
+    if (S.labOpen) { S.unlocked = false; setLab(false); syncHud(); return; }
+    S.unlocked = true;
     if (S.snap && S.snap.phase === "run") transport.send({ type: "stop" });
     setLab(true);
     syncHud();
   }
-  if (e.key === "Escape" && S.labOpen && S.editing) {
-    S.editing = false; setLab(false); syncHud();
+  // Escape only takes back the door `\` opened. A team that CLEARED the game
+  // owns the selector, and this key is not how they hand it back.
+  if (e.key === "Escape" && S.labOpen && S.unlocked) {
+    S.unlocked = false; setLab(false); syncHud();
   }
 });
 
@@ -361,12 +370,10 @@ window.addEventListener("paste", (e) => {
   const onGrid = S.labOpen;
   const toGrid = !onGrid && GOOMBA_LEVELS.length === 0;
   if (onGrid || toGrid) {
-    // Always `editing`, not just when the grid was shut: pasting IS editing,
-    // and the first paste into an EMPTY pack used to hand the controls back
-    // the moment it succeeded — editorOn() had been true only because there
-    // were no levels, so landing one turned the buttons off under the person
-    // using them.
-    S.editing = true;
+    // A paste earns the door as surely as `\` does. Without this, the grid a
+    // paste just opened on an un-cleared room is one the dot strip cannot open
+    // again — closing it would be the last look at the level that went in.
+    S.unlocked = true;
     if (!S.labOpen) { S.selected = null; setLab(true); }
     syncHud();
   }

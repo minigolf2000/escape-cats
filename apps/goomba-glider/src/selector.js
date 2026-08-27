@@ -226,7 +226,9 @@ export function labPointerUp(px, py) {
 /**
  * The one line under the title. It has to describe a DIFFERENT screen on each
  * surface, because the gestures are different: on a phone a tap plays, on a
- * laptop a tap selects and the second one plays.
+ * laptop a tap selects and the second one plays. Two lines, not three — a
+ * laptop has exactly one grid (editorOn is the surface), so there is no
+ * controls-off wording left to write for it.
  */
 function labHelp() {
   if (editorOn() && editMsgT > 0 && editMsg) return editMsg;
@@ -236,7 +238,6 @@ function labHelp() {
       : "no levels yet — a laptop pastes them in from Figma";
   const play = SOLO ? "plays it locally — no server, no room" : "jumps the whole room there";
   if (!DESKTOP()) return `tap a card — it ${play}`;
-  if (!editorOn()) return `click selects · double-click ${play}`;
   return "click selects · double-click plays · drag reorders · Ctrl+V lands on the selection";
 }
 export function drawLab() {
@@ -249,7 +250,7 @@ export function drawLab() {
   ctx.fillStyle = editorOn() && editMsgT > 0 ? "#ffd166" : "#8a80b0";
   ctx.fillText(fitText(labHelp(), W - 32), 16, 48);
 
-  // One extra slot while editing: the dashed "paste a new level here" card,
+  // One extra slot on a laptop: the dashed "paste a new level here" card,
   // which is what `selected === null` looks like on screen.
   const slots = GOOMBA_LEVELS.length + (editorOn() ? 1 : 0);
   const cols = W > H ? 3 : 2;

@@ -28,7 +28,7 @@ export const S = {
   anchor: null,        // first tap of a tap-tap placement, awaiting its end
   cam: { x: 0, y: 0, s: 10 },
   labOpen: false,      // levels grid showing?
-  editing: false,      // `\` turned the editing controls on
+  unlocked: false,     // `\` opened the door to the selector this session
   selected: null,      // the selected card; null = the trailing dashed slot
 };
 
@@ -78,20 +78,28 @@ export const REDUCED = () => calmMotion.matches;
  * WHO GETS THE LEVEL SELECTOR: a team that has CLEARED the game. That is room
  * state off the snapshot, so all four phones unlock on the same message and a
  * proctor reset takes it back. `?debug` is nothing more than a local override of
- * this one gate, and `editing` is in here because that is what "\ turns on debug
- * mode" MEANS — one override, not a second switch beside it.
+ * this one gate, and `unlocked` is the other one — that is the whole of what
+ * `\` does. It is a DOOR, not a mode: it decides whether you are looking at the
+ * selector, never what the selector looks like once you are.
  */
 export const levelSelect = () =>
-  DEBUG || S.editing || (S.snap !== null && goombaCleared(S.snap));
+  DEBUG || S.unlocked || (S.snap !== null && goombaCleared(S.snap));
 
 /**
  * Are the editing CONTROLS showing? (Not `canEdit` in input.js, which is about
- * the run phase.) `\` turns them on — and so does an EMPTY pack, because a grid
- * with no levels and no way to add one is a dead end. Both clauses are under
- * DESKTOP, the empty one included: that dead end is a dead end for the machine
- * that can actually paste.
+ * the run phase.) The SURFACE answers, and nothing else does: a laptop always
+ * has them, a phone never does. There is no mode here to be in the wrong one
+ * of, which is the point — the grid a machine shows is the only grid it shows,
+ * so the person who typed `\` and the person who cleared the game are looking
+ * at the same screen, and neither can end up on a laptop grid with the ⌫ and
+ * the drag quietly missing.
+ *
+ * A phone is out because the controls are unusable there, not because it is
+ * untrusted: a delete wants a Ctrl+V to follow it up with, and a phone has no
+ * Ctrl+V. Read LIVE, like DESKTOP itself, so a tablet that gains a trackpad
+ * mid-party gets them with no reload.
  */
-export const editorOn = () => DESKTOP() && (S.editing || GOOMBA_LEVELS.length === 0);
+export const editorOn = () => DESKTOP();
 
 // ---------- the team's colour ----------
 // A band belongs to the ROOM, not to whoever laid it, so every band wears one

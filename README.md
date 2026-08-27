@@ -67,13 +67,23 @@ card drawn from its own geometry, under its name and **no verdict** — nothing
 grades a level. Tapping a card jumps the whole room there.
 
 **The selector IS the editor** (`apps/goomba-glider/src/figma/`), and `\` is the
-door — it opens the grid with editing on, and `\` again goes back to playing.
-The grid diverges by surface:
+door — it opens the grid, and `\` again goes back to playing. That is ALL the
+key does. There is no editing mode to be in or out of: **the surface decides,
+every time** (`editorOn` in `state.js`, read live rather than latched at boot),
+so a laptop's grid always has the controls on it and a phone's never does. The
+key used to carry the mode as well, which made two laptop grids — the one `\`
+opened and the lesser one the clear unlocked — and the lesser one looked exactly
+like the ⌫ and the drag having been deleted.
 
 - **A phone** taps a card and the room jumps there. That is the whole screen: no
   editing controls at all, since a phone has no Ctrl+V to follow them up with.
 - **A laptop** gets a file browser — click selects, double-click plays, drag
   reorders with a bar in the gap the drop lands in, and `⌫` deletes.
+
+Closing with `\` (or Escape) locks the door behind you, so a room that has not
+cleared the game goes back to not having the selector. A team that HAS cleared it
+owns it: their plate is room state off the snapshot, and neither key takes it
+away.
 
 **Ctrl+V lands wherever you were looking.** On the grid that is the selection: a
 card replaces that level, the trailing dashed slot appends. Playing, it is the

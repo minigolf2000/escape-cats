@@ -31,7 +31,14 @@
             which is four places for a notch fix to miss three of. The canvas
             side never reads this variable: render.js measures #top's actual
             box (measureBunting), which is this number plus the bar's height. */
-         --hud-top: max(10px, env(safe-area-inset-top)); }
+         --hud-top: max(10px, env(safe-area-inset-top));
+         /* The same fix at the other end. #play and #help each carried their
+            own copy of this max(), and #team standing on PLAY's line would have
+            made three — so it becomes one number, exactly as --hud-top did.
+            --play-h is here for #team's sake alone: it has to clear the button
+            without keeping a second copy of how tall the button is. */
+         --hud-bottom: max(16px, env(safe-area-inset-bottom));
+         --play-h: 56px; }
   /* Two plates, and they are NOT the same height: the dots are 11px tall and the
      band slots are 27, so the left plate is 40 and the right one 56. `center`
      would hang the short one halfway down the tall one; `flex-start` gives them
@@ -89,14 +96,42 @@
      nowhere to hang, so check drawBackground before you do. */
   #hint { position: absolute; top: calc(var(--hud-top) + 80px); left: 0; right: 0;
           text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
-  /* There is no roster line. Player NAMES are never drawn in this game — the
-     four of them are in one living room, so who is here is answered by looking
-     up, and a name on the HUD (or on a teammate's anchor) only ever said what
-     the room already knew. The lobby still keeps names for the proctor's
-     board; nothing on this screen renders one. */
+  /* WHO IS HERE. One name per line, right-aligned, standing on PLAY's line —
+     the one corner of this screen nothing else is in.
+
+     This game HAD a roster line, centred under the top bar, and deleting it was
+     right: it sat at a hardcoded offset in the CORRIDOR the first bunting string
+     lives in, so the party lights ran straight through the names. The argument
+     that replaced it — four people in one living room already know who is here —
+     holds for a full room mid-level and not for the minute before that, which is
+     when anyone actually asks. So the names come back, somewhere the decorations
+     are not.
+
+     A COLUMN rather than a line, which is what makes the corner viable at all:
+     four names in a row measure ~250px and the widest gap on this HUD is 196px,
+     but stacked they are as wide as the LONGEST SINGLE NAME (~70px) and nothing
+     truncates. And no plate — this is #hint's own colour and shadow, because
+     #hint is already how this game floats a line of prose over the canvas, so
+     the roster reads as the same kind of thing the win banner is rather than as
+     a panel laid on the level.
+
+     Off --hud-bottom and --play-h, so it clears the button without a second copy
+     of where the button is or how tall it is. It is a direct child of #hud, so
+     `#hud.lab > *` takes it away with everything else when the levels grid opens
+     and `#hud.splash > *` does the same on the congratulations screen — a
+     roster belongs to neither. */
+  #team { position: absolute; right: 18px;
+          bottom: calc(var(--hud-bottom) + var(--play-h) + 14px);
+          display: flex; flex-direction: column; align-items: flex-end;
+          font-size: 13px; font-weight: 700; line-height: 1.45;
+          color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
+  #team span { white-space: nowrap; }
+  /* A phone that dropped, in the colour an unearned level dot wears — it falls
+     out of the foreground without adding a mark to read. */
+  #team .off { color: #6b5a98; }
   button { pointer-events: auto; font: inherit; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  #play { position: absolute; right: 16px; bottom: max(16px, env(safe-area-inset-bottom));
-          min-width: 118px; height: 56px; border-radius: 28px; font-size: 19px; font-weight: 800;
+  #play { position: absolute; right: 16px; bottom: var(--hud-bottom);
+          min-width: 118px; height: var(--play-h); border-radius: 28px; font-size: 19px; font-weight: 800;
           color: #1b0f38; background: linear-gradient(180deg, #67f2d4, #3fd4b4);
           box-shadow: 0 6px 18px rgba(87,230,201,.35), inset 0 -3px 0 rgba(0,0,0,.15); letter-spacing: .03em; }
   #play.stop { background: linear-gradient(180deg, #ff7ec1, #ff5db1); box-shadow: 0 6px 18px rgba(255,93,177,.35), inset 0 -3px 0 rgba(0,0,0,.15); }
@@ -406,7 +441,7 @@
      PLAY: it is only ever the second thing anyone on this screen wants.
      It hides while the sheet is up (nothing to open) and goes with the rest
      of the HUD under .lab and .splash, which hide their children wholesale. */
-  #help { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom));
+  #help { position: absolute; left: 16px; bottom: var(--hud-bottom);
           width: 44px; height: 44px; border-radius: 22px; font-size: 20px; font-weight: 800;
           color: #c9bdf0; background: rgba(255,255,255,.08);
           border: 1.5px solid rgba(201,189,240,.35); line-height: 1; }

@@ -579,15 +579,18 @@ Mechanics worth knowing before changing any of it:
   identity.
 - **A Durable Object handles one message at a time**, so the last band needs no
   locking: two players racing for it are serialized and the loser is refused.
-- **Presence is not a game rule and is not drawn.** The `onConnect`/`onClose`
-  broadcasts keep `players` current on the snapshot, but nothing on Goomba's HUD
-  renders it.
-- **Goomba draws no player NAMES** — not a roster line, not a label on a
-  teammate's anchor. Four people playing one board are in one living room, so a
-  name on screen only repeated what everyone could see by looking up. Names still
-  travel the wire because the LOBBY and the proctor's board are where a name does
-  real work. Hex still shows its roster line; this is Goomba's call, not a house
-  rule.
+- **Presence is not a game rule.** The `onConnect`/`onClose` broadcasts keep
+  `players` current on the snapshot; nothing on either board reads it as a rule.
+- **Both games draw the ROOM's names, and nothing else does.** A column above
+  PLAY in Goomba, a column above the shop tray in Hex — one name per line, the
+  dropped ones dimmed. Never a label on a teammate's anchor or a band: a name
+  attached to a THING says whose it is, and neither game has an owner for
+  anything. Goomba's earlier roster was deleted for a good reason and it was not
+  this one — it was a centred line at a hardcoded offset, sitting in the corridor
+  the bunting hangs in, so the party lights ran through the names. The argument
+  that replaced it (four people in one living room already know who is here)
+  holds mid-level and not for the minute before, which is when anyone asks. See
+  `#team` in each app's `styles.css` for why a column and why no plate.
 
 ### Goomba's waiting screen is its how-to-play sheet
 

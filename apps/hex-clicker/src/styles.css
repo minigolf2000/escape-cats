@@ -1420,12 +1420,44 @@
   #gate h1 { font-size: 28px; letter-spacing: .08em; margin: 0 0 6px; }
   #gate p { margin: 0; opacity: .75; font-size: 14px; max-width: 34ch; }
   #gate .err { color: #ff6fa5; font-size: 13px; min-height: 1.2em; margin: 0; }
+  /* WHO IS HERE. One name per line, right-aligned, riding the top edge of the
+     shop tray — the other end of the band the SHOP rail already owns, and the
+     one corner of this screen nothing else is in.
+
+     A COLUMN, not a line. Four names in a row measure ~250px and this screen is
+     390 wide, so the row this replaced capped itself at 40vw and ellipsised the
+     fourth player away — which is the one thing a roster may not do. Stacked,
+     the width is the WIDEST SINGLE NAME (~70px) and nothing ever truncates.
+
+     No plate, no panel: --title-color/--title-shadow are the page's pair for a
+     readout floating ON the stage — #cps wears the same two — so these names
+     sit in the bank's register rather than reading as a widget bolted over the
+     art, and the night phase costs nothing. Both tokens flip on body.night, so
+     the ink goes gold and the white halo becomes a gold bloom with no second
+     rule here.
+
+     --dock-up is the tray's own measured height, published by the ResizeObserver
+     in main.js. Reading it back is what glues the names to the tray's top edge
+     through all three of its heights — open, collapsed to the bare rail, and
+     retired for good once the shop sells out — with no copy of any of them in
+     this file. The 0px fallback is deliberate rather than defensive: a tray that
+     is display:none measures 0, which drops the names to the screen's own bottom
+     inset, and that is exactly where they belong both before the shop first
+     appears and after it is gone. */
   #team {
-    position: fixed; top: 4px; right: 8px; z-index: 6;
-    font-size: 11px; opacity: .6; letter-spacing: .04em; text-align: right;
-    pointer-events: none; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    position: fixed; z-index: 6;
+    right: 14px;
+    bottom: calc(max(var(--dock-up, 0px), env(safe-area-inset-bottom)) + 10px);
+    display: flex; flex-direction: column; align-items: flex-end;
+    pointer-events: none;
+    font: 400 13px var(--ui-font); line-height: 1.42;
+    color: var(--title-color); text-shadow: var(--title-shadow);
   }
-  #team .off { opacity: .45; text-decoration: line-through; }
+  #team span { white-space: nowrap; }
+  /* A phone that dropped. Dimmed, not struck through: a strike is a MARK, and
+     this readout has none — it was also invisible at the size the old strip
+     rendered at, which is how a disconnect went unnoticed. */
+  #team .off { opacity: .42; }
   #connToast {
     position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 70;
     padding: 6px 14px; border-radius: 999px; font-size: 13px;
@@ -1493,9 +1525,10 @@
   /* THE TOGGLE — the only control the win adds, and the only one on the splash.
      Hidden until the proctor marks the team won, then it ping-pongs: over the
      game it opens the splash, over the splash it goes back. Top-left because
-     that is the corner nothing else uses (#bank centres, #team sits right), and
-     because Goomba's level selector opens from the same corner — one habit
-     across both games. */
+     that is the corner nothing else uses (#bank centres, and the whole top
+     right is empty now that #team has moved down to the tray), and because
+     Goomba's level selector opens from the same corner — one habit across both
+     games. */
   #wonPill {
     position: fixed; z-index: 36; display: none;
     top: max(10px, env(safe-area-inset-top)); left: 10px;

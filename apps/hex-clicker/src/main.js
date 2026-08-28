@@ -10,6 +10,8 @@ import {
   buffEl,
   countIconEl,
   teamEl,
+  dockEl,
+  shopToggleEl,
   connToastEl,
   gateEl,
   gateStatusEl,
@@ -173,23 +175,57 @@ function initGame() {
   requestAnimationFrame(frame);
 }
 
-let teamHtml = "";
+/** How far up the screen the shop tray reaches, published to CSS as `--dock-up`
+ * so the roster can ride its top edge (see `#team` in styles.css).
+ *
+ * MEASURED, never copied. The tray has three heights — open, collapsed to the
+ * bare SHOP rail, and gone once the shop retires — and every one of them is a
+ * number in the stylesheet; a constant here would be wrong in two of the three.
+ *
+ * Two boxes, not one, because the RAIL is `position: absolute; bottom: 100%` —
+ * it hangs above the tray, OUTSIDE its box, so the tray's own height is not
+ * where the tray visually ends. Collapsed that gap is the whole control: the
+ * scroller goes to zero, `#dock` measures ~3px, and the rail everyone can still
+ * see and tap is the other ~50. Summing them is what keeps the names above the
+ * rail instead of landing on top of it.
+ *
+ * HEIGHTS rather than a top edge, because the tray arrives and leaves on a
+ * transform (`dockIn`, and `.cutscene-hidden` on the way to night). A transform
+ * moves a box without resizing it, so a measured position would be wrong for
+ * the whole half-second of each slide with no resize to correct it; the heights
+ * are right throughout, and the names simply stay put while the tray travels.
+ * A hidden tray measures 0 and takes the rail with it, which is the answer
+ * `#team` wants: it falls to the screen's own bottom inset and stays on screen,
+ * both before the shop first appears and after it has retired for good. */
+function measureDock() {
+  const tray = dockEl.getBoundingClientRect().height;
+  const rail = tray > 0 ? shopToggleEl.getBoundingClientRect().height : 0;
+  document.documentElement.style.setProperty("--dock-up", `${tray + rail}px`);
+}
+const dockRO = new ResizeObserver(measureDock);
+dockRO.observe(dockEl);
+dockRO.observe(shopToggleEl);
+
+let teamKey = "";
 function updateTeam() {
   // Rebuilt per snapshot but written only on change — the roster shifts a
   // handful of times per session, not 4x/second.
-  const html = players
-    .map(
-      (p) =>
-        `<span class="${p.connected ? "" : "off"}">${escapeHtml(p.name)}</span>`,
-    )
-    .join(" · ");
-  if (html !== teamHtml) {
-    teamHtml = html;
-    teamEl.innerHTML = html;
-  }
+  const key = players.map((p) => `${p.connected ? 1 : 0}\u0000${p.name}`).join("\u0001");
+  if (key === teamKey) return;
+  teamKey = key;
+  // One element per player and no separator: the names are a COLUMN now, so the
+  // dot that used to join them would hang off the end of every line. Built as
+  // nodes with textContent rather than a joined HTML string, so a name typed in
+  // the lobby is text here by construction and there is no escaper to get wrong.
+  teamEl.replaceChildren(
+    ...players.map((p) => {
+      const el = document.createElement("span");
+      if (!p.connected) el.className = "off";
+      el.textContent = p.name;
+      return el;
+    }),
+  );
 }
-const escapeHtml = (s) =>
-  s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 // ---------------------------------------------------------------------------
 // MAIN LOOP

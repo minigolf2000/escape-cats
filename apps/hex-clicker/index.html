@@ -263,10 +263,17 @@
 
 <!-- ======================================================================
      MULTIPLAYER SHELL — everything below is new relative to the prototype.
-     The join gate covers the stage until the player is in a room; the team
-     strip and reconnect toast are the only other additions to the page.
+     The join gate covers the stage until the player is in a room; the roster
+     and reconnect toast are the only other additions to the page.
      ====================================================================== -->
 
+<!-- WHO IS HERE: one name per line, stacked above the shop tray (see #team in
+     styles.css for why a column rather than a line, and why no plate). A
+     sibling of #dock rather than a child, so it survives the tray being hidden
+     before the shop unlocks and gone after it retires; it rides the tray's top
+     edge by measurement instead — see the ResizeObserver in main.js.
+     aria-live off: four names that change a handful of times a session are not
+     an announcement, and the roster is not what a screen reader is here for. -->
 <div id="team" aria-live="off"></div>
 <div id="connToast">reconnecting…</div>
 

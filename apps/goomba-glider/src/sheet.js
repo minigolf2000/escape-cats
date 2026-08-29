@@ -217,7 +217,12 @@ let capMemo = { key: "", px: 0 };
 function capLine(h1) {
   const cs = getComputedStyle(h1);
   const font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  const key = font + "|" + cs.lineHeight;
+  // The title's face is a WEBFONT now (Titan One), and this can run before the
+  // woff2 lands: those first frames measure the fallback, and a key built only
+  // of the font string never moves again to shake them out. fonts.check flips
+  // false→true when the download arrives, so the load state rides the key and
+  // the memo re-measures exactly once, on the face it will keep.
+  const key = font + "|" + cs.lineHeight + "|" + document.fonts.check(font);
   if (key === capMemo.key) return capMemo.px;
   const g = capLine.g || (capLine.g = document.createElement("canvas").getContext("2d"));
   g.font = font;

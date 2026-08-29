@@ -314,8 +314,14 @@
      no stroke keeping two letters apart, so the moment a heavy pair (OO, MB)
      actually touches, their fills fuse into one blob. Tight enough to read as
      one solid word, held just short of that. */
-  #gate h1 { margin: 0; font-size: 1em; font-weight: 900;
-             letter-spacing: -.035em; line-height: 1.04; }
+  /* Titan One is a single-weight face and already as heavy as type gets, so
+     the weight is 400 ON PURPOSE: at 900 the browser would synthesize extra
+     bold on top of it and smear the letters. The cost is a thinner title for
+     the frame or two before the woff2 lands — capLine in sheet.js keys its
+     memo on the load state for exactly that window. */
+  #gate h1 { margin: 0; font-size: 1em;
+             font-family: "Titan One", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+             font-weight: 400; letter-spacing: -.035em; line-height: 1.04; }
   #gate h1 span { display: block;
                   background: linear-gradient(90deg, #ff5db1, #ff7057 55%, #ff9445);
                   -webkit-background-clip: text; background-clip: text;

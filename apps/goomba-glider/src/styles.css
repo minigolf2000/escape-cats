@@ -322,18 +322,19 @@
   #gate h1 { margin: 0; font-size: 1em;
              font-family: "Titan One", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
              font-weight: 400; letter-spacing: -.035em; line-height: 1.04; }
+  /* BOTH rows run the whole rainbow, red on the left — the spectrum is per
+     WORD, not split across the line break, so GOOMBA and GLIDER each show the
+     entire run at once. On the span rather than the h1 because the clip box
+     is the gradient's ruler: each word is a hair different in width, and a
+     span's own box lands red exactly on its first letter and blue exactly on
+     its last, both rows, for free. Two of the game's colours (#ffd166,
+     #57e6c9) ride in the run; the red and blue bookends are the mark's. */
   #gate h1 span { display: block;
-                  background: linear-gradient(90deg, #ff5db1, #ff7057 55%, #ff9445);
+                  background: linear-gradient(90deg,
+                    #ff4d4d, #ff9445 20%, #ffd166 40%,
+                    #9fdd55 60%, #57e6c9 80%, #5aa9ff);
                   -webkit-background-clip: text; background-clip: text;
                   color: transparent; }
-  /* GOOMBA takes the spectrum's warm half and GLIDER the cool one, the hue
-     break riding the line break — one run of colour read top-left to
-     bottom-right, exactly as the mark does it, with the game's own three
-     (#ff5db1, #ffd166, #57e6c9) as its anchors. `background:` is a shorthand
-     and RESETS background-clip, so the clip is said again behind it. */
-  #gate h1 span + span {
-    background: linear-gradient(90deg, #ffd166, #9fdd55 38%, #57e6c9 72%, #5aa9ff);
-    -webkit-background-clip: text; background-clip: text; }
   /* Her canvas covers the WORDS as well as the air over them — down to the
      bottom of the line box, not down to the letter tops. A canvas clips what it
      draws to its own box, so one that stopped at the cap line cut her off at the

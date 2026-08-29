@@ -222,10 +222,11 @@ function capLine(h1) {
   const g = capLine.g || (capLine.g = document.createElement("canvas").getContext("2d"));
   g.font = font;
   const m = g.measureText("H");
-  // The LINE box, never the element's height: this title wraps to two lines on
-  // a 320px phone, and an element measured there is two line boxes tall, which
-  // buries her half a line into the letters. `normal` resolves to the font's
-  // own ascent + descent with no leading either side of it.
+  // The LINE box, never the element's height: this title is two stacked words
+  // (GOOMBA over GLIDER, one span each), so the element is two line boxes tall,
+  // and measuring it buries her half a line into the letters — she rides the
+  // FIRST line. `normal` resolves to the font's own ascent + descent with no
+  // leading either side of it.
   const line = parseFloat(cs.lineHeight)
     || m.fontBoundingBoxAscent + m.fontBoundingBoxDescent;
   // half-leading + the font's own ascent = the baseline; back off the height of

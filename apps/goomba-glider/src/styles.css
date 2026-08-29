@@ -290,59 +290,42 @@
      per-WORD fit: 11vw runs out of width — one word plus the plate's side
      padding against the gate's 24s — well before 54px does. */
   #title { position: relative; font-size: clamp(26px, 11vw, 54px);
-           /* The plate the logo wears — a black rounded panel behind a light
-              keyline, after the old ColecoVision box mark. Still no image
-              asset: the panel, the keylines and the spectrum below are all
-              CSS. The top padding is a NAMED number because #scTitle's two
-              calc()s subtract it — the cat's canvas has to keep starting
-              .72em above the H1, wherever the padding puts the H1, or her
-              scale (air ÷ TITLE_AIR in sheet.js) grows with the plate. It is
-              also what keeps her INSIDE the panel: at .42em her glide tops
-              out just under the border. */
+           /* The plate the logo wears — a bare black rounded panel, after the
+              old ColecoVision box mark (no border and no keylines: the mark
+              is gradient letters and black, nothing else). Still no image
+              asset: the panel and the spectrum below are all CSS. The top
+              padding is a NAMED number because #scTitle's two calc()s
+              subtract it — the cat's canvas has to keep starting .72em above
+              the H1, wherever the padding puts the H1, or her scale
+              (air ÷ TITLE_AIR in sheet.js) grows with the plate. It is also
+              what keeps her INSIDE the panel: at .42em her glide tops out
+              just under the panel's top edge. */
            --logo-pad-top: .42em;
-           background: #000; border: .07em solid #dfe3ea; border-radius: .5em;
+           background: #000; border-radius: .5em;
            padding: var(--logo-pad-top) .5em .28em;
            /* Air under the words. The gate's own 12px gap put the title on top
               of the first picture, so the whole sheet read as one column of
               four things instead of a name and then what to do about it. */
            margin-bottom: 40px; }
   /* The words, in the ColecoVision manner: each row wears its half of one
-     spectrum inside a light keyline, with the panel's black showing through as
-     a gap between fill and line. Each span is the same word three times,
-     stacked: the span's own ink is the KEYLINE (white, with a white stroke
-     around it), ::before over it is the glyph grown in black (the gap),
-     ::after on top is the FILL — a gradient clipped to the text. A text-stroke
-     straddles the glyph edge, so each layer pokes out half its stroke past the
-     one above. The fill is the one layer that cannot go under the others:
-     background-clip puts a gradient in the element's BACKGROUND, which paints
-     beneath every text layer in the same box — build this fill-first with the
-     outlines sunk to negative z and the gap layer sits squarely on the
-     gradient (it shipped that way for one screenshot: hollow letters).
-     -webkit-text-stroke INHERITS, so both pseudos state their own.
-     `z-index: 0` on the span is load-bearing twice: it is what the pseudos'
-     1 and 2 are relative to, and it holds all three copies under #scTitle's
-     z-index 1, so she stays in front of the letters she rides.
-     The `/ ""` on content is its alt text: pseudo text joins the accessible
-     name, so without it a screen reader says each word three times. A browser
-     too old for the syntax drops the declaration, which drops the whole
-     pseudo — the fallback is plain white words on the plate, never a broken
-     layer. */
-  #gate h1 { margin: 0; font-size: 1em; font-weight: 900; letter-spacing: .04em;
-             line-height: 1.06; }
-  #gate h1 span { display: block; position: relative; z-index: 0;
-                  color: #fff; -webkit-text-stroke: .13em #fff; }
-  #gate h1 span::before, #gate h1 span::after {
-    content: attr(data-text) / ""; position: absolute; inset: 0; }
-  #gate h1 span::before { z-index: 1; color: #000; -webkit-text-stroke: .05em #000; }
-  #gate h1 span::after  { z-index: 2; color: transparent; -webkit-text-stroke-width: 0;
-                          background: linear-gradient(90deg, #ff5db1, #ff7057 55%, #ff9445);
-                          -webkit-background-clip: text; background-clip: text; }
+     spectrum, and the panel's black is the only thing between the letters —
+     the mark is bare gradient shapes packed tight, no keylines. The packing
+     is the tracking below, and its floor is a hard one: background-clip has
+     no stroke keeping two letters apart, so the moment a heavy pair (OO, MB)
+     actually touches, their fills fuse into one blob. Tight enough to read as
+     one solid word, held just short of that. */
+  #gate h1 { margin: 0; font-size: 1em; font-weight: 900;
+             letter-spacing: -.035em; line-height: 1.04; }
+  #gate h1 span { display: block;
+                  background: linear-gradient(90deg, #ff5db1, #ff7057 55%, #ff9445);
+                  -webkit-background-clip: text; background-clip: text;
+                  color: transparent; }
   /* GOOMBA takes the spectrum's warm half and GLIDER the cool one, the hue
      break riding the line break — one run of colour read top-left to
      bottom-right, exactly as the mark does it, with the game's own three
      (#ff5db1, #ffd166, #57e6c9) as its anchors. `background:` is a shorthand
      and RESETS background-clip, so the clip is said again behind it. */
-  #gate h1 span + span::after {
+  #gate h1 span + span {
     background: linear-gradient(90deg, #ffd166, #9fdd55 38%, #57e6c9 72%, #5aa9ff);
     -webkit-background-clip: text; background-clip: text; }
   /* Her canvas covers the WORDS as well as the air over them — down to the

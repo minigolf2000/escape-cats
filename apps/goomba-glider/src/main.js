@@ -36,7 +36,7 @@ import { connectRoom, watchTeam, transport, playerId } from "./net";
 import { adoptHashLevel, startDebug } from "./debug";
 import { levelFromPaste } from "./figma/paste.js";
 import {
-  cv, hudEl, hintEl, dotsEl, invEl, playBtn, bandbarEl, labEl, connEl,
+  cv, hudEl, hintEl, teamEl, dotsEl, invEl, playBtn, bandbarEl, labEl, connEl,
   gateEl, gateStatusEl, gateErrEl,
 } from "./dom";
 import {
@@ -101,6 +101,8 @@ for (const ev of ["gesturestart", "gesturechange", "gestureend"]) {
 const RZ = 1.9;
 
 let shownPhase = "edit", shownLevel = -1, shownRunId = 0;
+// The roster last written to #team, so it is rebuilt only when it changes.
+let shownRoster = "";
 let anim = null;            // { key, st } — the local replay of the scored run
 let winFx = false;          // confetti fired for the current win
 // The locked-goal flare: when she reaches the plant with cans still out, the
@@ -226,6 +228,26 @@ function syncHud() {
     d.className = "dot" + (i === s.level ? " cur" : c ? " done" : "");
     dotsEl.appendChild(d);
   });
+
+  // WHO IS HERE — one name per line (see #team in styles.css). Unlike the two
+  // strips either side of this, it is rewritten only when it CHANGES: those are
+  // cheap and genuinely move every snapshot, a roster is neither, and rebuilding
+  // four text nodes 4x/second would be the one thing on this screen churning for
+  // nothing.
+  const roster = s.players.map((p) => `${p.connected ? 1 : 0}\u0000${p.name}`).join("\u0001");
+  if (roster !== shownRoster) {
+    shownRoster = roster;
+    // Nodes with textContent rather than an HTML string: a name is typed into
+    // the lobby by a player, so it stays text here by construction.
+    teamEl.replaceChildren(
+      ...s.players.map((p) => {
+        const el = document.createElement("span");
+        if (!p.connected) el.className = "off";
+        el.textContent = p.name;
+        return el;
+      }),
+    );
+  }
 
   // The 4 band slots — the room's whole budget, in the team's colour. Every
   // one of them is the same colour now, because every one of them is anybody's

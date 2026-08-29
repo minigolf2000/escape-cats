@@ -6,6 +6,8 @@ const $ = (id) => document.getElementById(id);
 export const cv = $("c");
 export const hudEl = $("hud");
 export const hintEl = $("hint");
+// The roster: who is in this room, one name per line. See #team in styles.css.
+export const teamEl = $("team");
 export const dotsEl = $("dots");
 export const invEl = $("inv");
 export const playBtn = $("play");

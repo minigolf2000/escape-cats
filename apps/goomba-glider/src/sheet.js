@@ -217,15 +217,21 @@ let capMemo = { key: "", px: 0 };
 function capLine(h1) {
   const cs = getComputedStyle(h1);
   const font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  const key = font + "|" + cs.lineHeight;
+  // The title's face is a WEBFONT now (Titan One), and this can run before the
+  // woff2 lands: those first frames measure the fallback, and a key built only
+  // of the font string never moves again to shake them out. fonts.check flips
+  // false→true when the download arrives, so the load state rides the key and
+  // the memo re-measures exactly once, on the face it will keep.
+  const key = font + "|" + cs.lineHeight + "|" + document.fonts.check(font);
   if (key === capMemo.key) return capMemo.px;
   const g = capLine.g || (capLine.g = document.createElement("canvas").getContext("2d"));
   g.font = font;
   const m = g.measureText("H");
-  // The LINE box, never the element's height: this title wraps to two lines on
-  // a 320px phone, and an element measured there is two line boxes tall, which
-  // buries her half a line into the letters. `normal` resolves to the font's
-  // own ascent + descent with no leading either side of it.
+  // The LINE box, never the element's height: this title is two stacked words
+  // (GOOMBA over GLIDER, one span each), so the element is two line boxes tall,
+  // and measuring it buries her half a line into the letters — she rides the
+  // FIRST line. `normal` resolves to the font's own ascent + descent with no
+  // leading either side of it.
   const line = parseFloat(cs.lineHeight)
     || m.fontBoundingBoxAscent + m.fontBoundingBoxDescent;
   // half-leading + the font's own ascent = the baseline; back off the height of

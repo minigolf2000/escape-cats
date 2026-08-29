@@ -281,19 +281,53 @@
   /* The title, and Goomba gliding along the top of it. The words' SIZE lives
      on the wrapper rather than on the h1 so that one `em` means the same thing
      to both of them: her little canvas is parked off the cap line in em, so she
-     rides the letters at 30px and at 48px without a second breakpoint. */
-  /* The floor is 24, not 30: at 320px 8vw is 25.6, and a 30px floor there put
-     GLIDER on its own second line — which halves the title and strands the cat
-     on the line above (she rides the FIRST line's cap line, wherever the words
-     break). Every width from 320 up now keeps it on one line, and the size only
-     stops shrinking below a screen narrower than any phone. */
-  #title { position: relative; font-size: clamp(24px, 8vw, 48px);
+     rides the letters at 30px and at 54px without a second breakpoint. */
+  /* TWO ROWS now, on purpose — the wrap this rule used to spend its floor
+     preventing became the layout: GOOMBA over GLIDER is the same two-deck
+     stack as the ColecoVision mark this borrows from, both words are six
+     letters, and she rides the FIRST line's cap line either way (capLine
+     measures the line box, never the element). The size is therefore a
+     per-WORD fit: 11vw runs out of width — one word plus the plate's side
+     padding against the gate's 24s — well before 54px does. */
+  #title { position: relative; font-size: clamp(26px, 11vw, 54px);
+           /* No plate: the logo had a black rounded panel for a while, but
+              the gate's own dark is background enough — the mark's letters,
+              straight on the night. Removing it is also what un-padded this
+              box; #scTitle's offsets below assume the H1 sits AT the top of
+              it, so a padding here has to be subtracted back out of them
+              (that is how it worked when the panel existed — git has it). */
            /* Air under the words. The gate's own 12px gap put the title on top
               of the first picture, so the whole sheet read as one column of
               four things instead of a name and then what to do about it. */
            margin-bottom: 40px; }
-  #gate h1 { margin: 0; font-size: 1em; letter-spacing: .01em;
-             background: linear-gradient(90deg, #ff5db1, #ffd166, #57e6c9); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  /* The words, in the ColecoVision manner: bare gradient shapes with the
+     gate's own dark as the only thing between the letters —
+     the mark is gradient letters packed tight, no keylines. The packing
+     is the tracking below, and its floor is a hard one: background-clip has
+     no stroke keeping two letters apart, so the moment a heavy pair (OO, MB)
+     actually touches, their fills fuse into one blob. Tight enough to read as
+     one solid word, held just short of that. */
+  /* Titan One is a single-weight face and already as heavy as type gets, so
+     the weight is 400 ON PURPOSE: at 900 the browser would synthesize extra
+     bold on top of it and smear the letters. The cost is a thinner title for
+     the frame or two before the woff2 lands — capLine in sheet.js keys its
+     memo on the load state for exactly that window. */
+  #gate h1 { margin: 0; font-size: 1em;
+             font-family: "Titan One", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+             font-weight: 400; letter-spacing: -.035em; line-height: 1.04; }
+  /* BOTH rows run the whole rainbow, red on the left — the spectrum is per
+     WORD, not split across the line break, so GOOMBA and GLIDER each show the
+     entire run at once. On the span rather than the h1 because the clip box
+     is the gradient's ruler: each word is a hair different in width, and a
+     span's own box lands red exactly on its first letter and blue exactly on
+     its last, both rows, for free. Two of the game's colours (#ffd166,
+     #57e6c9) ride in the run; the red and blue bookends are the mark's. */
+  #gate h1 span { display: block;
+                  background: linear-gradient(90deg,
+                    #ff4d4d, #ff9445 20%, #ffd166 40%,
+                    #9fdd55 60%, #57e6c9 80%, #5aa9ff);
+                  -webkit-background-clip: text; background-clip: text;
+                  color: transparent; }
   /* Her canvas covers the WORDS as well as the air over them — down to the
      bottom of the line box, not down to the letter tops. A canvas clips what it
      draws to its own box, so one that stopped at the cap line cut her off at the

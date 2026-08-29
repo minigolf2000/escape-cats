@@ -274,9 +274,28 @@
      and is born as when `?` opens it. It never dismisses itself: the sheet
      waits for a tap, because a screen that vanishes the instant the proctor
      sorts a phone in is a screen nobody read. */
+  /* THE SURPLUS, and where it goes. The pictures cannot spend it: `drawScene`
+     fits a scene with `min(w/dx, h/dy)` and GOAL_SCENE's frame is 80x18.8
+     against a column that is 340 at its widest, so the picture is WIDTH-bound
+     at about (column / 4.26) on every phone made — a taller box only letterboxes
+     it. So this screen has 400-odd px it can never draw into on a modern phone,
+     and the only question is where the air sits.
+     It sits in the GAPS, not in the two outer margins: they are `vh`-scaled and
+     the padding is anchored, so a 932px phone spends its extra height inside the
+     composition instead of on two dead bands that grow with the screen. The one
+     number that is not proportional is the safe area, which is a real object.
+     The 6vh added UNDER the group is the optical lift, and it is deliberate
+     where it used to be a residue: the connection lines used to stand in this
+     column, reserving 56px of invisible box that pushed everything up by 28.
+     They hang off the bottom now (#gateLines), so the lift is stated here
+     instead of falling out of two lines nobody sees — and it holds the ink's
+     centre at a steady 45.4% of the screen at every size, where the old constant
+     drifted from 6.7% of a short screen to 4% of a tall one. */
   #gate { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
-          justify-content: center; gap: 12px; background: rgba(13,6,30,.86); pointer-events: auto;
-          text-align: center; padding: 24px; }
+          justify-content: center; gap: clamp(12px, 2.2vh, 24px);
+          background: rgba(13,6,30,.86); pointer-events: auto; text-align: center;
+          padding: max(24px, env(safe-area-inset-top)) 24px
+                   calc(max(24px, env(safe-area-inset-bottom)) + 6vh); }
   #gate.hidden { display: none; }
   /* The title, and Goomba gliding along the top of it. The words' SIZE lives
      on the wrapper rather than on the h1 so that one `em` means the same thing
@@ -287,19 +306,33 @@
      stack as the ColecoVision mark this borrows from, both words are six
      letters, and she rides the FIRST line's cap line either way (capLine
      measures the line box, never the element). The size is therefore a
-     per-WORD fit: 11vw runs out of width — one word plus the plate's side
-     padding against the gate's 24s — well before 54px does. */
-  #title { position: relative; font-size: clamp(26px, 11vw, 54px);
+     per-WORD fit — one word against the gate's 24s, never the pair.
+
+     Which is why it is not 11vw ALONE any more: that was a width fit on a
+     screen that runs out of height last. Measured, one word at a time: the
+     wider of the two sets 232px at the 54px ceiling, and the narrowest phone
+     there is leaves 272 between the paddings — so width has 40px spare at the
+     TOP of the clamp on every phone, while 11vw was holding the mark at 43px on
+     an 844-tall screen with 400px of air on it. `max()` lets height have the say
+     when there is height to spend, and the clamp still has the last word on
+     both: 5.6vh passes 11vw at about 780px tall, so a short phone is untouched
+     (35.2 at 320x568, 41.3 at 375x667) and a tall one finally reaches the size
+     this was drawn for. Her canvas is parked in `em`, so she grows with the
+     letters and still rides them. */
+  #title { position: relative; font-size: clamp(26px, max(11vw, 5.6vh), 54px);
            /* No plate: the logo had a black rounded panel for a while, but
               the gate's own dark is background enough — the mark's letters,
               straight on the night. Removing it is also what un-padded this
               box; #scTitle's offsets below assume the H1 sits AT the top of
               it, so a padding here has to be subtracted back out of them
               (that is how it worked when the panel existed — git has it). */
-           /* Air under the words. The gate's own 12px gap put the title on top
-              of the first picture, so the whole sheet read as one column of
-              four things instead of a name and then what to do about it. */
-           margin-bottom: 40px; }
+           /* Air under the words. The gate's own gap put the title on top of
+              the first picture, so the whole sheet read as one column of four
+              things instead of a name and then what to do about it. It scales
+              now, for the reason the gate's own gap does: this is the seam the
+              surplus should open at, and a constant 40 held the title exactly
+              52px off the pictures on a 568 screen and on a 932 one alike. */
+           margin-bottom: clamp(30px, 5.2vh, 58px); }
   /* The words, in the ColecoVision manner: bare gradient shapes with the
      gate's own dark as the only thing between the letters —
      the mark is gradient letters packed tight, no keylines. The packing
@@ -344,13 +377,28 @@
   #title #scTitle { position: absolute; left: 0; width: 100%;
                     top: -.72em; height: calc(100% + .72em);
                     z-index: 1; pointer-events: none; }
-  #gate .how { display: flex; flex-direction: column; align-items: center; gap: 6px;
+  #gate .how { display: flex; flex-direction: column; align-items: center; gap: 12px;
                width: 100%; max-width: 340px; }
   /* The pictures. Their SIZE lives here and nowhere else — main.js reads
      clientWidth/clientHeight and matches the backing store to it at device
      pixel ratio, so a phone, a laptop and a rotation all draw sharp without a
-     second copy of these numbers in the renderer. */
-  #gate .scene { display: block; width: 100%; height: 104px; }
+     second copy of these numbers in the renderer.
+     The box is the scene's OWN frame, not a height picked to hold it: 400/94 is
+     GOAL_SCENE's bounds (80 x 18.8), so `drawScene`'s `min(w/dx, h/dy)` has
+     nothing left to letterbox and the gap under this element is the whole gap a
+     reader sees. A 104px box left 12px of empty canvas at the top and 5 at the
+     bottom on a 390 phone, and 20 and 15 on a 320 one — which put the caption
+     11px under one picture and 21px under the next, on the two rows whose whole
+     job is to look like a picture and its caption. Proximity was being set by
+     leftover box.
+     `aspect-ratio` and not a px height, so the frame stays the frame at every
+     column width. It is safe on a canvas here for one reason worth writing down:
+     a bare ratio REPLACES a replaced element's intrinsic one, so the box is
+     width x ratio and never reads the backing store this renderer rewrites every
+     frame. (Measured across frames at three sizes: the box does not move. The
+     `auto` height #scTitle is warned off in render.js is the other case — no
+     ratio, so the intrinsic size wins and the box grows off its own drawing.) */
+  #gate .scene { display: block; width: 100%; height: auto; aspect-ratio: 400 / 94; }
   /* The two gesture panels: half the width each, and shorter than the pictures
      above them — they hold one band and a fingertip, not a level, and this
      sheet's tightest screen (320x568) has about 96px to spare before the bottom
@@ -359,8 +407,11 @@
      the height this sheet does not have. */
   #gate .pair { display: flex; gap: 12px; width: 100%; }
   #gate .pair > div { flex: 1 1 0; min-width: 0;
-                      display: flex; flex-direction: column; gap: 6px; }
-  #gate .scene.gesture { height: 74px; }
+                      display: flex; flex-direction: column; gap: 12px; }
+  /* Same rule, same reason: 43/13 is GESTURE_SCENE's bounds. A 74px box drew
+     50 of it and banked 12 at each end, which is the 21px the caption below was
+     really sitting at while the CSS said 6. */
+  #gate .scene.gesture { aspect-ratio: 43 / 13; }
   /* The words. They are the only words on this sheet, so they are sized to be
      READ across a table rather than to be the smallest thing that fits: at 13px
      they were three points under the connection line nobody is meant to notice.
@@ -371,7 +422,7 @@
      guessed: `help Goomba water the plant` wants 15.5x its font size, so 17px
      needs 263 of the column's 340 and cannot wrap at any width. */
   #gate .cap { color: #c9bdf0; font-size: clamp(15px, 4.4vw, 17px);
-               line-height: 1.4; margin-bottom: 6px; }
+               line-height: 1.4; margin-bottom: 10px; }
   /* The pair's two captions wrap onto TWO LINES, and that is the point rather
      than a cost. Half a 320px phone is 130px and "drag to place a band" wants
      10.7x its font size, so one line caps these at 12px — smaller than the
@@ -396,7 +447,18 @@
      every state. Dropping them out of the flow would shunt the pictures up the
      screen the moment a slow join finally said something — and again when it
      stopped — on a sheet whose whole job is to be looked at. The min-heights
-     are what make that box exist while the line is empty. */
+     are what make that box exist while the line is empty.
+
+     And the box is reserved at the BOTTOM of the gate, not at the end of the
+     centred column. Reserving it is right; reserving it in the flow was what
+     made the pictures centre on 56px of nothing, and it put "Can't reach the
+     server" halfway up the screen tucked under a caption instead of where a
+     phone puts a status line. Absolute, so it still never moves the pictures —
+     it just no longer counts as one of them. The gate's own side padding is
+     repeated here because an absolute box is out of that padding's reach, and
+     both lines wrap rather than truncate. */
+  #gateLines { position: absolute; left: 24px; right: 24px;
+               bottom: max(20px, env(safe-area-inset-bottom) + 6px); }
   #gateStatus { color: #c9bdf0; font-size: 14px; min-height: 1.2em; }
   #gateErr { color: #ff8f8f; font-size: 13px; min-height: 1.2em; }
   #gateStatus, #gateErr { transition: opacity .3s; }
@@ -474,13 +536,24 @@
      button, not a tutorial nobody can replay. Quiet chrome, not a second
      PLAY: it is only ever the second thing anyone on this screen wants.
      It hides while the sheet is up (nothing to open) and goes with the rest
-     of the HUD under .lab and .splash, which hide their children wholesale. */
+     of the HUD under .lab and .splash, which hide their children wholesale.
+     So does PLAY, one rule down, on this same argument — see there. */
   #help { position: absolute; left: 16px; bottom: var(--hud-bottom);
           width: 44px; height: 44px; border-radius: 22px; font-size: 20px; font-weight: 800;
           color: #c9bdf0; background: rgba(255,255,255,.08);
           border: 1.5px solid rgba(201,189,240,.35); line-height: 1; }
   #help:active { transform: scale(.94); }
-  #hud.sheet #help { visibility: hidden; }
+  /* BOTH buttons, and PLAY was the one that had been left out. The gate is 86%
+     opaque, not 100 — which is right, there is a LEVEL behind it during a `?` —
+     so a button under it does not disappear, it ghosts. PLAY's teal pill came
+     through as the one control-shaped thing on the screen, in the bottom third
+     that has nothing else in it, and `elementFromPoint` at its middle answers
+     `#gate`: it read as the way in and a tap on it dismissed the sheet instead.
+     Same sentence as `#help`'s — while the sheet is up there is nothing to
+     press — and it wants the same answer. `visibility`, never `display`: PLAY
+     is measured (--play-h, #team's line) and a box that stops existing under
+     the sheet is a box that moves when the sheet goes. */
+  #hud.sheet #help, #hud.sheet #play { visibility: hidden; }
 
   /* ---- PORTRAIT GATE — same rule as hex clicker's, kept in sync BY HAND
      (hex's styles.css carries the breakpoint math). ---- */

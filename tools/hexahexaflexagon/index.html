@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Folding a Hexahexaflexagon</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  :root{
+    --paper:#fbfaf7; --stage:#f2efe8; --card:#f1efe9; --ink:#23252b; --muted:#6b6e79;
+    --line:#dcd9d0; --accent:#3e63dd; --bar:#23252b; --bar-ink:#f4f3ef; --bar-muted:#b9bac2;
+    --btn:#ffffff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#16171b; --stage:#1d1f24; --card:#1f2126; --ink:#e9e9ee; --muted:#9a9da9;
+      --line:#33363e; --accent:#8ea6f5; --bar:#0e0f12; --bar-ink:#eceded; --bar-muted:#8f919c;
+      --btn:#24262c;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#16171b; --stage:#1d1f24; --card:#1f2126; --ink:#e9e9ee; --muted:#9a9da9;
+    --line:#33363e; --accent:#8ea6f5; --bar:#0e0f12; --bar-ink:#eceded; --bar-muted:#8f919c;
+    --btn:#24262c;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--paper); color:var(--ink);
+        font:16px/1.65 "Source Serif 4", Georgia, "Times New Roman", serif; }
+  main{ max-width:1100px; margin:0 auto; padding:26px 18px 70px; }
+  .eyebrow{ font:500 12px/1 "IBM Plex Mono", ui-monospace, monospace;
+            letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 10px; }
+  header h1{ font:800 clamp(30px,4.6vw,46px)/1.05 Archivo, system-ui, sans-serif;
+             letter-spacing:-0.015em; margin:0 0 8px; text-wrap:balance; }
+  header .dek{ margin:0 0 18px; color:var(--muted); font-size:17px; max-width:58ch; }
+
+  #wrap{ position:relative; width:100%; aspect-ratio:16/9; background:var(--stage);
+         border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  #stage, #stage canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  .overlay{ position:absolute; inset:0; display:flex; flex-direction:column;
+            align-items:center; justify-content:flex-start; padding-top:6%;
+            text-align:center; pointer-events:none; opacity:0; }
+  .overlay h2{ font:800 clamp(24px,4.2vw,46px)/1.1 Archivo, system-ui, sans-serif;
+               letter-spacing:-0.01em; margin:0; color:var(--ink); }
+  .overlay p{ font-size:clamp(13px,1.9vw,19px); margin:8px 0 0; color:var(--muted); }
+  #endCard{ justify-content:center; padding-top:0; background:rgba(20,20,24,.25); }
+  #endCard .panel{ background:rgba(20,21,26,.93); color:#f4f3ef; border-radius:14px;
+                   padding:24px 32px; max-width:82%; }
+  #endCard h2{ color:#f4f3ef; font-size:clamp(20px,3.4vw,34px); }
+  #endCard p{ color:#b9bac2; }
+  #endCard .trav{ font:500 clamp(13px,2vw,19px)/1.5 "IBM Plex Mono", ui-monospace, monospace;
+                  color:#fff; margin-top:10px; }
+
+  #capBar{ position:absolute; left:0; right:0; bottom:0; padding:12px 16px 13px;
+           background:linear-gradient(transparent, rgba(14,15,18,.9) 42%);
+           color:var(--bar-ink); text-align:center; pointer-events:none; }
+  #cap{ font-size:clamp(14px,2vw,20px); min-height:1.55em; opacity:0; color:#f4f3ef; }
+  #capSub{ font:500 clamp(10px,1.4vw,13px)/1.5 "IBM Plex Mono", ui-monospace, monospace;
+           letter-spacing:.06em; color:#b9bac2; min-height:1.4em; opacity:0; }
+
+  #controls{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:14px; }
+  #controls button, #controls select{
+    font:500 13.5px/1.2 "IBM Plex Mono", ui-monospace, monospace;
+    padding:8px 13px; border-radius:9px; border:1px solid var(--line);
+    background:var(--btn); color:var(--ink); cursor:pointer; }
+  #controls button:hover{ border-color:var(--accent); }
+  #controls :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  #scrub{ flex:1 1 220px; min-width:160px; accent-color:var(--accent); cursor:pointer; }
+  #clock{ font:500 13px/1 "IBM Plex Mono", ui-monospace, monospace;
+          font-variant-numeric:tabular-nums; color:var(--muted); min-width:60px; text-align:right; }
+
+  #legend{ display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:12px; }
+  .chip{ display:inline-flex; align-items:center; gap:7px;
+         font:500 12px/1 "IBM Plex Mono", ui-monospace, monospace; color:var(--muted); }
+  .chip i{ width:13px; height:13px; border-radius:4px; display:inline-block;
+           border:1px solid rgba(0,0,0,.25); }
+
+  section#about{ margin-top:46px; }
+  section#about h2{ font:800 24px/1.2 Archivo, system-ui, sans-serif;
+                    letter-spacing:-0.01em; margin:34px 0 10px; }
+  section#about p, section#about li{ max-width:66ch; }
+  section#about li{ margin-bottom:6px; }
+  .stripSvg{ width:100%; max-width:980px; display:block; margin:10px 0 2px; }
+  .svgCapt{ font:500 12px/1.5 "IBM Plex Mono", ui-monospace, monospace;
+            color:var(--muted); margin:2px 0 12px; }
+  #travSvg{ width:100%; max-width:500px; display:block; margin:12px 0; }
+  a{ color:var(--accent); }
+  strong{ font-weight:600; }
+  footer{ margin-top:48px; font:500 12px/1.6 "IBM Plex Mono", ui-monospace, monospace;
+          color:var(--muted); }
+
+  @media (prefers-reduced-motion: reduce){ *{ scroll-behavior:auto; } }
+
+  body.video main{ max-width:none; padding:0; }
+  body.video #wrap{ border:none; border-radius:0; aspect-ratio:auto; }
+  body.video header, body.video #controls, body.video #legend,
+  body.video section#about, body.video footer{ display:none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Paper mathematics · Arthur H. Stone, 1939</p>
+    <h1>Folding a Hexahexaflexagon</h1>
+    <p class="dek">Nineteen triangles, twelve folds, six hidden faces — animated step by step.</p>
+  </header>
+
+  <div id="wrap">
+    <div id="stage"></div>
+    <div class="overlay" id="titleCard">
+      <h2>Folding a Hexahexaflexagon</h2>
+      <p>six faces from a strip of nineteen triangles</p>
+    </div>
+    <div class="overlay" id="endCard">
+      <div class="panel">
+        <h2>Now flex it</h2>
+        <p>Pinch two neighbouring triangles together, push the opposite corner in,
+           and open the hexagon from its centre. New faces appear.</p>
+        <p class="trav">1 → 3 → 6 → 1 → 3 → 2 → 4 → 3 → 2 → 1 → 5 → 2 → …</p>
+        <p>The Tuckerman traverse: the shortest tour of all six faces.
+           Faces 1, 2 and 3 turn up three times as often as 4, 5 and 6.</p>
+      </div>
+    </div>
+    <div id="capBar"><div id="cap"></div><div id="capSub"></div></div>
+  </div>
+
+  <div id="controls">
+    <button id="btnPrev" title="previous step">⏮ step</button>
+    <button id="btnPlay">▶ play</button>
+    <button id="btnNext" title="next step">step ⏭</button>
+    <input id="scrub" type="range" min="0" max="1000" value="0" step="1">
+    <span id="clock">0.0s</span>
+    <select id="speed" title="playback speed">
+      <option value="0.5">0.5×</option>
+      <option value="1" selected>1×</option>
+      <option value="1.5">1.5×</option>
+      <option value="2">2×</option>
+    </select>
+  </div>
+  <div id="legend"></div>
+
+  <section id="about">
+    <h2>What is this thing?</h2>
+    <p>A <strong>hexahexaflexagon</strong> is a flat paper hexagon that hides six different
+       faces, discovered in 1939 by Arthur H. Stone and studied by the Princeton
+       “Flexagon Committee” (Stone, Bryant Tuckerman, Richard Feynman and John Tukey).
+       Martin Gardner’s December 1956 <em>Scientific American</em> column about it launched
+       his famous Mathematical Games series. The first “hexa” is the number of faces,
+       the second is the number of sides of the polygon.</p>
+
+    <h2>The template</h2>
+    <p>Mark a straight strip of 19 equilateral triangles like this
+       (the animation uses the same colours):</p>
+    <div id="tmplFront"></div>
+    <div id="tmplBack"></div>
+    <p class="svgCapt">The back is what you see when you flip the strip over left-to-right,
+       so it reads right-to-left here. One triangle on each side stays blank —
+       those two ends get glued to each other at the very end.</p>
+
+    <h2>The folds</h2>
+    <ol>
+      <li><strong>Roll it up (9 folds):</strong> working along the strip, fold each pair of equal
+          numbers on the back onto each other — 6 onto 6, 5 onto 5, 4 onto 4. Every 4, 5
+          and 6 disappears inside, and you are left with a shorter straight strip that looks
+          exactly like the template of the simpler trihexaflexagon.</li>
+      <li><strong>Wrap the hexagon (3 folds):</strong> fold the rolled strip back on itself twice,
+          so it wraps around into a hexagon, then fold the last little flap over.</li>
+      <li><strong>Glue:</strong> the two blank triangles now touch. Glue them and the loop is closed —
+          one face shows all 1s, the other all 2s, and faces 3–6 wait inside.</li>
+    </ol>
+
+    <h2>Flexing, and the Tuckerman traverse</h2>
+    <p>To flex: pinch a pair of adjacent triangles together (mountain fold), push the
+       opposite corner inward, then open the hexagon from the middle. It blooms open
+       showing a face that was hidden. Not every corner will open — if one refuses, try
+       the next corner over.</p>
+    <p>Bryant Tuckerman found the fastest way to see every face: keep flexing at the
+       same corner until it jams, then move one corner over. This <em>Tuckerman
+       traverse</em> cycles through twelve flexes:</p>
+    <div id="travWrap"></div>
+    <p>Faces 1, 2 and 3 appear three times per cycle; faces 4, 5 and 6 only once —
+       the “rare” faces are genuinely three times harder to find.</p>
+
+    <h2>Sources &amp; further reading</h2>
+    <ul>
+      <li><a href="https://en.wikipedia.org/wiki/Flexagon">Flexagon — Wikipedia</a> (history, Tuckerman traverse)</li>
+      <li><a href="https://www.auntannie.com/Geometric/HexaHexaFlexagon/">Aunt Annie’s Crafts — How to make a hexa-hexaflexagon</a> (printable template)</li>
+      <li><a href="https://www.futurelearn.com/info/courses/further-explorations-of-flexagons/0/steps/194235">FutureLearn — The hexa-hexaflexagon</a> (numbering and folding)</li>
+      <li>Martin Gardner, “Flexagons”, <em>Scientific American</em>, Dec 1956.</li>
+    </ul>
+  </section>
+
+  <footer>Drag the animation to orbit, scroll to zoom, double-click to reset the view.</footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+if (typeof THREE === 'undefined'){
+  document.getElementById('cap').textContent = 'Could not load the three.js library (network blocked?)';
+  return;
+}
+
+/* ---------------- strip data ---------------- */
+const N = 19;                       // triangles; index 18 is the tab end
+const RT3 = Math.sqrt(3), H = RT3/2;
+const TH = 0.0035;                  // half paper thickness
+
+// Canonical hexahexaflexagon template:
+// front: 1,2,3 repeating, last triangle blank (glue)
+// back:  first triangle blank (glue), then 4,4,5,5,6,6 repeating
+const FRONT = Array.from({length:N}, (_,i)=> i<18 ? (i%3)+1 : 0);
+const BACK  = Array.from({length:N}, (_,i)=> i===0 ? 0 : [4,4,5,5,6,6][(i-1)%6]);
+
+const FACE_COLORS = {0:'#efe6d0',1:'#e5484d',2:'#f76b15',3:'#ffc53d',4:'#46a758',5:'#3e63dd',6:'#8e4ec6'};
+const FACE_INK    = {0:'#a3937a',1:'#fff',2:'#fff',3:'#4a3d16',4:'#fff',5:'#fff',6:'#fff'};
+
+function triVerts(i){                        // flat layout, unit sides, y in [0,H]
+  if (i%2===0){ const x=i/2;     return [[x,0],[x+1,0],[x+0.5,H]]; }
+  const x=(i-1)/2;               return [[x+1,0],[x+0.5,H],[x+1.5,H]];
+}
+function hingePts(j){                        // hinge j joins T(j-1) and T(j); [base, apex]
+  if (j%2===1){ const x=(j-1)/2; return [[x+1,0],[x+0.5,H]]; }
+  const x=(j-2)/2;               return [[x+1,0],[x+1.5,H]];
+}
+function centroid(i){ const v=triVerts(i);
+  return [(v[0][0]+v[1][0]+v[2][0])/3,(v[0][1]+v[1][1]+v[2][1])/3]; }
+
+/* ---------------- fold plan ----------------
+   Phase 1 "roll": fold every pair of equal back numbers together, tail end first.
+   Phase 2 "wrap": three trihexaflexagon-style folds close the hexagon.
+   +1 folds the moving tail behind the strip (backs meet); -1 folds it in front. */
+const CONFIG = {
+  rollDir: 1,
+  roll: [18,16,14,12,10,8,6,4,2],
+  wrap: [{j:13,dir:1},{j:7,dir:1},{j:1,dir:1}],
+  tuck: {j:17, angle:0.35},
+  gaps: { roll0:0.006, rollStep:0.0009, wrap:[0.018, 0.030, 0.065] },
+};
+
+/* ---------------- three.js scene ---------------- */
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+function syncStageColor(){
+  const c = getComputedStyle(document.documentElement).getPropertyValue('--stage').trim();
+  renderer.setClearColor(new THREE.Color(c || '#f2efe8'));
+}
+syncStageColor();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncStageColor);
+new MutationObserver(syncStageColor).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(36, 16/9, 0.05, 100);
+scene.add(new THREE.AmbientLight(0xffffff, 0.78));
+const key = new THREE.DirectionalLight(0xffffff, 0.55); key.position.set(2,3,5); scene.add(key);
+const rim = new THREE.DirectionalLight(0xfff2dd, 0.28); rim.position.set(-3,-2,-5); scene.add(rim);
+
+const root = new THREE.Group(); root.matrixAutoUpdate=false; scene.add(root);
+
+function faceTexture(k, side){
+  const S=256, c=document.createElement('canvas'); c.width=c.height=S;
+  const ctx=c.getContext('2d');
+  const label = side==='F' ? FRONT[k] : BACK[k];
+  ctx.fillStyle = FACE_COLORS[label]; ctx.fillRect(0,0,S,S);
+  ctx.save();
+  if (side==='B'){ ctx.translate(S,0); ctx.scale(-1,1); }        // reads correctly from behind
+  const up = k%2===0;
+  ctx.beginPath();
+  if (up){ ctx.moveTo(4,S-4); ctx.lineTo(S-4,S-4); ctx.lineTo(S/2,4); }
+  else   { ctx.moveTo(S/2,S-4); ctx.lineTo(4,4); ctx.lineTo(S-4,4); }
+  ctx.closePath();
+  ctx.strokeStyle='rgba(40,30,10,0.30)'; ctx.lineWidth=9; ctx.stroke();
+  ctx.fillStyle = FACE_INK[label];
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const cy = up ? S*0.655 : S*0.375;
+  if (label===0){ ctx.font='italic 600 34px system-ui, sans-serif'; ctx.fillText('glue', S/2, cy); }
+  else { ctx.font='700 118px system-ui, sans-serif'; ctx.fillText(String(label), S/2, cy); }
+  ctx.restore();
+  const tex=new THREE.CanvasTexture(c); tex.anisotropy=4; return tex;
+}
+
+const meshes=[];   // meshes[k] = {F,B}
+for (let k=0;k<N;k++){
+  const v=triVerts(k);
+  const ax=v[1][0]-v[0][0], ay=v[1][1]-v[0][1], bx=v[2][0]-v[0][0], by=v[2][1]-v[0][1];
+  const ccw = (ax*by-ay*bx)>0 ? [0,1,2] : [0,2,1];
+  const rec={};
+  for (const side of ['F','B']){
+    const ord = side==='F' ? ccw : [ccw[0],ccw[2],ccw[1]];
+    const z = side==='F' ? TH : -TH;
+    const pos=new Float32Array(9), uv=new Float32Array(6);
+    const minX=Math.min(v[0][0],v[1][0],v[2][0]);
+    ord.forEach((vi,n)=>{ pos.set([v[vi][0],v[vi][1],z], n*3);
+                          uv.set([(v[vi][0]-minX), v[vi][1]/H], n*2); });
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv,2));
+    g.computeVertexNormals();
+    const m=new THREE.Mesh(g, new THREE.MeshLambertMaterial({map:faceTexture(k,side)}));
+    m.matrixAutoUpdate=false; root.add(m); rec[side]=m;
+  }
+  meshes.push(rec);
+}
+
+/* ---------------- kinematics ---------------- */
+const theta = new Float64Array(N);           // hinge angles; theta[j] for hinge j>=1
+const mats  = Array.from({length:N}, ()=>new THREE.Matrix4());
+const _m4=new THREE.Matrix4(), _pre=new THREE.Matrix4(), _post=new THREE.Matrix4(), _ax=new THREE.Vector3();
+
+function hingeMatrix(j, ang, out){
+  const [p,q]=hingePts(j);
+  _ax.set(q[0]-p[0], q[1]-p[1], 0).normalize();
+  out.makeRotationAxis(_ax, ang);
+  _pre.makeTranslation(-p[0],-p[1],0); _post.makeTranslation(p[0],p[1],0);
+  return out.premultiply(_post).multiply(_pre);
+}
+const _comp=new THREE.Matrix4();
+function computeMats(th){
+  mats[0].identity();
+  for (let j=1;j<N;j++){
+    mats[j].copy(mats[j-1]);
+    if (Math.abs(th[j])>1e-9) mats[j].multiply(hingeMatrix(j, th[j], _m4));
+  }
+  // The last fold ("fold the 1 back") reads physically as the small head triangle
+  // flipping over the big stationary stack: compensate hinge 1 with its inverse
+  // so the stack holds still and T0 does the moving.
+  if (Math.abs(th[1])>1e-9){
+    hingeMatrix(1, -th[1], _comp);
+    for (let k=0;k<N;k++) mats[k].premultiply(_comp);
+  }
+  return mats;
+}
+function applyMats(){
+  for (let k=0;k<N;k++){ meshes[k].F.matrix.copy(mats[k]); meshes[k].B.matrix.copy(mats[k]); }
+}
+
+/* ---------------- timeline ---------------- */
+const easeIO = p => p<0.5 ? 4*p*p*p : 1-Math.pow(-2*p+2,3)/2;
+const clamp01 = p => Math.max(0,Math.min(1,p));
+const FOLD_FRAC = 0.78;                       // portion of a fold step spent moving
+
+let steps=[], marks={}, DUR=0;
+
+/* The finished flexagon's true layer order per hexagon slot (top → bottom),
+   verified against the fold kinematics; used to settle the model into an
+   idealized flat stack for the "press it flat" step. */
+const IDEAL_ORDER = {
+  1:[5,0], 2:[5,1], 17:[5,2], 18:[5,3], 0:[5,4],
+  4:[2,0], 3:[2,1],
+  7:[4,0], 8:[4,1], 5:[4,2], 6:[4,3],
+  10:[2,0], 9:[2,1],
+  13:[4,0], 14:[4,1], 11:[4,2], 12:[4,3],
+  16:[2,0], 15:[2,1],
+};
+const LAYER_T = 0.0048;
+const PRESS = { fkPos:[], fkQuat:[], idPos:[], idQuat:[], ready:false };
+function computePress(){
+  const lastFold = steps.reduce((a,s,i)=>s.fold?i:a, 0);
+  computeMats(thetaAtEndOf(lastFold));
+  const s0=new THREE.Vector3();
+  for (let k=0;k<N;k++){
+    PRESS.fkPos[k]=new THREE.Vector3(); PRESS.fkQuat[k]=new THREE.Quaternion();
+    mats[k].decompose(PRESS.fkPos[k], PRESS.fkQuat[k], s0);
+  }
+  const th=new Float64Array(N);
+  for (const s of steps){ const f=s.fold; if (!f) continue;
+    th[f.j] = f.target!==undefined ? 0 : f.dir*Math.PI; }
+  computeMats(th);
+  for (let k=0;k<N;k++){
+    const [cnt,rank]=IDEAL_ORDER[k];
+    mats[k].elements[14] = (cnt-1-rank)*LAYER_T;
+    PRESS.idPos[k]=new THREE.Vector3(); PRESS.idQuat[k]=new THREE.Quaternion();
+    mats[k].decompose(PRESS.idPos[k], PRESS.idQuat[k], s0);
+  }
+  PRESS.ready=true;
+}
+
+function buildTimeline(){
+  steps=[];
+  const fold = (j,dir,gap,dur,cap,sub) => steps.push({
+    id:'fold'+j, dur, cap, sub, fold:{j, dir, gap},
+  });
+
+  steps.push({id:'title', dur:5.0, cap:'A strip of nineteen equilateral triangles.',
+              sub:'', cam:{az:-0.12, el:0.10, margin:1.34}, overlay:'title'});
+  steps.push({id:'front', dur:4.2, cap:'The front: 1 · 2 · 3, repeating — the last triangle stays blank.',
+              sub:'that blank triangle is the glue tab', cam:{az:0, el:0.06, margin:1.16}});
+  steps.push({id:'back', dur:5.4, cap:'The back: pairs of 4 · 4 · 5 · 5 · 6 · 6 — and the first triangle stays blank.',
+              sub:'every fold in the roll will bring two equal numbers face to face',
+              flip:Math.PI, cam:{az:0, el:0.06, margin:1.16}});
+  steps.push({id:'unflip', dur:2.6, cap:'Nine folds roll the strip up, starting from the far end.',
+              sub:'', flip:0, cam:{az:0.10, el:0.14, margin:1.2}});
+
+  CONFIG.roll.forEach((j,i)=>{
+    const n=BACK[j];
+    fold(j, CONFIG.rollDir, CONFIG.gaps.roll0+CONFIG.gaps.rollStep*i, 2.7-0.06*i,
+      `Fold ${n} onto ${n} — the pair vanishes into the roll.`,
+      `fold ${i+1} of 12`);
+    steps[steps.length-1].cam={az:(i%2? -0.14:0.16), el:0.17, margin:1.28};
+  });
+  steps.push({id:'rolled', dur:5.2,
+      cap:'Rolled up: every 4, 5 and 6 is hidden inside.',
+      sub:'a straight strip of ten positions — exactly the template of the simpler trihexaflexagon',
+      cam:{az:0.30, el:0.26, margin:1.5}});
+  steps.push({id:'rolledBack', dur:4.4,
+      cap:'Both sides now show only 1s, 2s, 3s — and the two blank glue triangles.',
+      sub:'', flip:Math.PI, cam:{az:0, el:0.12, margin:1.5}});
+  steps.push({id:'rolledFront', dur:2.4, cap:'Three more folds wrap it into a hexagon.',
+      sub:'', flip:0, cam:{az:-0.18, el:0.3, margin:1.6}});
+
+  const wrapMeta=[
+    ['Fold the far end up and over the front…','fold 10 of 12'],
+    ['…and over again — the strip wraps around a hexagon.','fold 11 of 12'],
+    ['Only the head triangle sticks out. Fold it back behind everything.','fold 12 of 12'],
+  ];
+  CONFIG.wrap.forEach((w,i)=>{
+    fold(w.j, w.dir, CONFIG.gaps.wrap[i], 3.6-0.3*i, wrapMeta[i][0], wrapMeta[i][1]);
+    steps[steps.length-1].cam = i===2 ? {az:-0.24, el:-0.28, margin:1.6}
+                                      : {az:(i%2? 0.24:-0.22), el:0.38, margin:1.55};
+  });
+  steps.push({id:'tuck', dur:2.8,
+      cap:'Tuck the blank tab into the pocket, so blank meets blank.',
+      sub:'the tab slides between the head triangle and the stack',
+      fold:{j:CONFIG.tuck.j, target:CONFIG.tuck.angle},
+      cam:{az:0.3, el:-0.35, margin:1.6}});
+
+  steps.push({id:'glue', dur:2.4, cap:'Glue the two blank triangles together. The loop is closed.',
+      sub:'19 triangles · 12 folds · 6 faces', glow:'glue', cam:{az:0.1, el:-0.4, margin:1.6}});
+  steps.push({id:'press', dur:1.8, cap:'Press it flat.', sub:'', press:true,
+      cam:{az:0.05, el:0.22, margin:1.5}});
+  steps.push({id:'revealA', dur:3.4, cap:'Fresh from folding, the hexagon shows nothing but 2s…', sub:'',
+      cam:{az:0, el:0.10, margin:1.42}});
+  steps.push({id:'revealB', dur:4.2, cap:'…and underneath, nothing but 1s.',
+      sub:'faces 3, 4, 5 and 6 are folded away inside, waiting for a flex', flip:Math.PI,
+      cam:{az:0, el:0.10, margin:1.42}});
+  steps.push({id:'end', dur:5.6, cap:'', sub:'', overlay:'end', flip:Math.PI,
+      cam:{az:0.26, el:0.30, margin:2.1}});
+
+  // cumulative times + carried flip targets
+  let t=0;
+  steps.forEach(s=>{ s.t0=t; t+=s.dur; });
+  DUR=t;
+  let f=0; steps.forEach(s=>{ s.flipFrom=f; if (s.flip!==undefined) f=s.flip; s.flipTo=f; });
+
+  marks={ flat:2.5,
+    back: byId('back').t0 + byId('back').dur*0.7,
+    rolled: byId('rolled').t0 + 1.2,
+    folded: byId('glue').t0 + 1.2,
+    final: byId('revealA').t0 + 2.0,
+    end: DUR-1.5 };
+
+  computePress();
+  precomputePoses();
+}
+function byId(id){ return steps.find(s=>s.id===id); }
+
+const foldAngle = f => f.target!==undefined ? f.target : f.dir*(Math.PI-f.gap);
+function thetaAtEndOf(i){
+  const th=new Float64Array(N);
+  for (let s=0;s<=i;s++){ const f=steps[s].fold; if (f) th[f.j]=foldAngle(f); }
+  return th;
+}
+
+/* camera pose per step, fitted to the step's end state */
+let poses=[];
+const _v=new THREE.Vector3();
+function fitPose(th, cam){
+  computeMats(th);
+  const box=new THREE.Box3();
+  for (let k=0;k<N;k++){ const v=triVerts(k);
+    for (const p of v){ _v.set(p[0],p[1],0).applyMatrix4(mats[k]); box.expandByPoint(_v); } }
+  const c=box.getCenter(new THREE.Vector3()), sz=box.getSize(new THREE.Vector3());
+  const fov=camera.fov*Math.PI/180, asp=camera.aspect||16/9;
+  const dz = Math.max(
+      (sz.y/2)/Math.tan(fov/2),
+      (sz.x/2)/(Math.tan(fov/2)*asp)) * (cam.margin||1.3) + sz.z;
+  return {c, dist:Math.max(dz,1.4), az:cam.az||0, el:cam.el||0};
+}
+function precomputePoses(){
+  poses = steps.map((s,i)=>fitPose(thetaAtEndOf(i), s.cam||{az:0,el:0.12,margin:1.4}));
+}
+
+/* ---------------- setTime ---------------- */
+const cap=document.getElementById('cap'), capSub=document.getElementById('capSub');
+const titleCard=document.getElementById('titleCard'), endCard=document.getElementById('endCard');
+let simT=0, playing=false, speed=1;
+let orbAz=0, orbEl=0, orbZoom=1;             // user view offsets
+const _q=new THREE.Quaternion(), _dir=new THREE.Vector3();
+const _pq=new THREE.Quaternion(), _pv=new THREE.Vector3(), _ps=new THREE.Vector3(1,1,1);
+
+function stepAt(t){
+  for (let i=0;i<steps.length;i++){ const s=steps[i];
+    if (t < s.t0+s.dur || i===steps.length-1) return [s,i]; }
+  return [steps[steps.length-1], steps.length-1];
+}
+
+function setTime(t){
+  simT=Math.max(0,Math.min(DUR,t));
+  const [s,i]=stepAt(simT), local=simT-s.t0, p=clamp01(local/s.dur);
+
+  // hinge angles
+  theta.fill(0);
+  for (let k=0;k<i;k++){ const f=steps[k].fold; if (f) theta[f.j]=foldAngle(f); }
+  if (s.fold){
+    const pf=easeIO(clamp01(local/(s.dur*FOLD_FRAC)));
+    theta[s.fold.j]=foldAngle(s.fold)*pf;
+  }
+  computeMats(theta); applyMats();
+
+  // settle into the idealized flat stack during/after the press step
+  if (PRESS.ready){
+    let pf = 0;
+    if (s.press) pf = easeIO(p);
+    else if (steps.slice(0,i).some(st=>st.press)) pf = 1;
+    if (pf>0){
+      for (let k=0;k<N;k++){
+        _pq.slerpQuaternions(PRESS.fkQuat[k], PRESS.idQuat[k], pf);
+        _pv.lerpVectors(PRESS.fkPos[k], PRESS.idPos[k], pf);
+        _m4.compose(_pv, _pq, _ps);
+        meshes[k].F.matrix.copy(_m4); meshes[k].B.matrix.copy(_m4);
+      }
+    }
+  }
+
+  // glow: kissing pair during a fold, glue faces during glue step
+  const pulse=0.5+0.5*Math.sin(simT*7);
+  for (let k=0;k<N;k++){ meshes[k].F.material.emissive.setScalar(0);
+                         meshes[k].B.material.emissive.setScalar(0); }
+  if (s.fold){ const j=s.fold.j, e=0.16*pulse;
+    meshes[j-1].B.material.emissive.setScalar(e); meshes[j].B.material.emissive.setScalar(e); }
+  if (s.glow==='glue'){ const e=0.22*pulse;
+    meshes[0].B.material.emissive.setScalar(e); meshes[18].F.material.emissive.setScalar(e); }
+
+  // whole-model flip about a vertical axis (blend over first 55% of the step)
+  const fv = s.flipFrom + (s.flipTo-s.flipFrom)*easeIO(clamp01(p/0.55));
+  const pose=poses[i], prev=poses[Math.max(0,i-1)];
+  const bl=easeIO(clamp01(local/Math.min(1.4, s.dur*0.5)));
+  const cx=prev.c.x+(pose.c.x-prev.c.x)*bl, cy=prev.c.y+(pose.c.y-prev.c.y)*bl,
+        cz=prev.c.z+(pose.c.z-prev.c.z)*bl,
+        dist=(prev.dist+(pose.dist-prev.dist)*bl)*orbZoom,
+        az=prev.az+(pose.az-prev.az)*bl+orbAz,
+        el=prev.el+(pose.el-prev.el)*bl+orbEl;
+  root.matrix.makeTranslation(cx,cy,cz)
+      .multiply(_m4.makeRotationY(fv))
+      .multiply(_pre.makeTranslation(-cx,-cy,-cz));
+
+  _dir.set(Math.sin(az)*Math.cos(el), Math.sin(el), Math.cos(az)*Math.cos(el));
+  camera.position.set(cx+_dir.x*dist, cy+_dir.y*dist, cz+_dir.z*dist);
+  camera.up.set(0,1,0); camera.lookAt(cx,cy,cz);
+
+  // captions + overlays (all driven from t, so video frames are deterministic)
+  cap.textContent=s.cap||''; capSub.textContent=s.sub||'';
+  const fade=Math.min(1, local/0.45);
+  cap.style.opacity=s.cap?fade:0; capSub.style.opacity=s.sub?fade:0;
+  titleCard.style.opacity = s.overlay==='title' ? Math.min(1,(s.dur-local)/0.8, local/0.001+1) : 0;
+  if (s.overlay==='title' && local>s.dur-0.8) titleCard.style.opacity=(s.dur-local)/0.8;
+  else if (s.overlay==='title') titleCard.style.opacity=1;
+  endCard.style.opacity = s.overlay==='end' ? Math.min(1, local/0.7) : 0;
+
+  scrub.value=String(Math.round(simT/DUR*1000));
+  clock.textContent=simT.toFixed(1)+'s';
+}
+
+/* ---------------- interaction ---------------- */
+const scrub=document.getElementById('scrub'), clock=document.getElementById('clock');
+const btnPlay=document.getElementById('btnPlay');
+let last=performance.now();
+function tick(now){
+  const dt=(now-last)/1000; last=now;
+  if (playing){
+    setTime(simT+dt*speed);
+    if (simT>=DUR){ playing=false; btnPlay.textContent='↺ replay'; }
+  }
+  renderer.render(scene,camera);
+  requestAnimationFrame(tick);
+}
+btnPlay.addEventListener('click',()=>{
+  if (simT>=DUR){ setTime(0); }
+  playing=!playing; btnPlay.textContent=playing?'⏸ pause':'▶ play';
+});
+document.getElementById('btnNext').addEventListener('click',()=>{
+  const [s,i]=stepAt(simT); const n=steps[Math.min(i+1,steps.length-1)];
+  playing=false; btnPlay.textContent='▶ play'; setTime(n.t0+0.001);
+});
+document.getElementById('btnPrev').addEventListener('click',()=>{
+  const [s,i]=stepAt(simT);
+  const target = (simT-s.t0>0.6) ? s.t0 : steps[Math.max(0,i-1)].t0;
+  playing=false; btnPlay.textContent='▶ play'; setTime(target+0.001);
+});
+scrub.addEventListener('input',()=>{ playing=false; btnPlay.textContent='▶ play';
+  setTime(Number(scrub.value)/1000*DUR); });
+document.getElementById('speed').addEventListener('change',e=>{ speed=Number(e.target.value); });
+window.addEventListener('keydown',e=>{
+  if (e.target.tagName==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
+  if (e.code==='Space'){ e.preventDefault(); btnPlay.click(); }
+  if (e.code==='ArrowRight') document.getElementById('btnNext').click();
+  if (e.code==='ArrowLeft') document.getElementById('btnPrev').click();
+});
+
+let dragging=false, px=0, py=0;
+renderer.domElement.addEventListener('pointerdown',e=>{ dragging=true; px=e.clientX; py=e.clientY;
+  renderer.domElement.setPointerCapture(e.pointerId); });
+window.addEventListener('pointermove',e=>{ if(!dragging) return;
+  orbAz=Math.max(-1.3,Math.min(1.3, orbAz+(e.clientX-px)*0.005));
+  orbEl=Math.max(-1.1,Math.min(1.1, orbEl+(e.clientY-py)*0.005));
+  px=e.clientX; py=e.clientY; if(!playing) setTime(simT); });
+window.addEventListener('pointerup',()=>dragging=false);
+renderer.domElement.addEventListener('wheel',e=>{ e.preventDefault();
+  orbZoom=Math.max(0.45,Math.min(2.4, orbZoom*Math.exp(e.deltaY*0.001)));
+  if(!playing) setTime(simT); },{passive:false});
+renderer.domElement.addEventListener('dblclick',()=>{ orbAz=orbEl=0; orbZoom=1; if(!playing) setTime(simT); });
+
+function resize(){
+  const w=stage.clientWidth||1280, h=stage.clientHeight||720;
+  renderer.setPixelRatio(window.devicePixelRatio||1);
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h; camera.updateProjectionMatrix();
+  precomputePoses(); if(!playing) setTime(simT);
+}
+new ResizeObserver(resize).observe(stage);
+
+/* ---------------- info-section graphics ---------------- */
+function stripSvg(side){
+  const w=980, sc=w/10, hh=H*sc, pad=6;
+  let tris='';
+  for (let k=0;k<N;k++){
+    const v=triVerts(k), lab= side==='F'?FRONT[k]:BACK[k];
+    const pts=v.map(p=>{
+      let x=p[0]; if (side==='B') x=10-x;                // flipped left-to-right
+      return `${(x*sc+pad).toFixed(1)},${(hh-p[1]*sc+pad).toFixed(1)}`;
+    }).join(' ');
+    const c=centroid(k); let cx=c[0]; if(side==='B') cx=10-cx;
+    const up=k%2===0, ty=hh-(c[1]*sc)+pad+(up?6:2);
+    tris+=`<polygon points="${pts}" fill="${FACE_COLORS[lab]}" stroke="rgba(40,30,10,.4)" stroke-width="1"/>`+
+      (lab===0?`<text x="${cx*sc+pad}" y="${ty}" font-size="11" font-style="italic" fill="${FACE_INK[0]}" text-anchor="middle">glue</text>`
+              :`<text x="${cx*sc+pad}" y="${ty+4}" font-size="20" font-weight="700" fill="${FACE_INK[lab]}" text-anchor="middle">${lab}</text>`);
+  }
+  return `<svg class="stripSvg" viewBox="0 0 ${w+2*pad} ${hh+2*pad}" role="img"
+    aria-label="hexahexaflexagon strip, ${side==='F'?'front':'back'}">${tris}</svg>
+    <p class="svgCapt">${side==='F'?'Front of the strip':'Back of the strip (strip flipped over)'}</p>`;
+}
+document.getElementById('tmplFront').innerHTML=stripSvg('F');
+document.getElementById('tmplBack').innerHTML=stripSvg('B');
+
+(function travSvg(){
+  const seq=[1,3,6,1,3,2,4,3,2,1,5,2], R=200, r=170, cx=230, cy=210;
+  let g='';
+  seq.forEach((f,i)=>{
+    const a=-Math.PI/2+i/12*2*Math.PI, x=cx+r*Math.cos(a), y=cy+r*Math.sin(a);
+    const a2=-Math.PI/2+((i+0.5)/12)*2*Math.PI;
+    g+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="17" fill="${FACE_COLORS[f]}"/>`+
+       `<text x="${x.toFixed(1)}" y="${(y+5).toFixed(1)}" text-anchor="middle" font-weight="700" font-size="16" fill="${FACE_INK[f]}">${f}</text>`+
+       `<text x="${(cx+(r+0)*Math.cos(a2)*1.0).toFixed(1)}" y="${(cy+r*Math.sin(a2)+4).toFixed(1)}" text-anchor="middle" font-size="12" fill="var(--muted)">→</text>`;
+  });
+  document.getElementById('travWrap').innerHTML=
+    `<svg id="travSvg" viewBox="0 0 460 420" role="img" aria-label="Tuckerman traverse cycle">
+       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--line)" stroke-width="1.5"/>${g}
+       <text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="13" fill="var(--muted)">one full Tuckerman</text>
+       <text x="${cx}" y="${cy+12}" text-anchor="middle" font-size="13" fill="var(--muted)">traverse — 12 flexes</text>
+     </svg>`;
+})();
+
+/* ---------------- legend ---------------- */
+document.getElementById('legend').innerHTML =
+  [1,2,3,4,5,6].map(n=>`<span class="chip"><i style="background:${FACE_COLORS[n]}"></i>face ${n}</span>`).join('')+
+  `<span class="chip"><i style="background:${FACE_COLORS[0]}"></i>blank / glue</span>`;
+
+/* ---------------- debug + video API ---------------- */
+window.__anim = {
+  get duration(){ return DUR; },
+  get marks(){ return marks; },
+  stepTable(){ return steps.map(s=>({id:s.id, t0:s.t0, dur:s.dur})); },
+  renderAt(t){ setTime(t); renderer.render(scene,camera); },
+  prepareForVideo(w,h){
+    playing=false; document.body.classList.add('video');
+    document.getElementById('wrap').style.width=w+'px';
+    document.getElementById('wrap').style.height=h+'px';
+    resize();
+  },
+  setConfig(cfg){
+    if (cfg.rollDir!==undefined) CONFIG.rollDir=cfg.rollDir;
+    if (cfg.wrap) CONFIG.wrap=cfg.wrap;
+    if (cfg.tuck) CONFIG.tuck=cfg.tuck;
+    if (cfg.gaps) CONFIG.gaps=cfg.gaps;
+    buildTimeline(); setTime(simT);
+  },
+  getConfig(){ return JSON.parse(JSON.stringify(CONFIG)); },
+  analyze(t){
+    const saved=simT; setTime(t===undefined?marks.folded:t);
+    const rows=[]; const n0=new THREE.Vector3(), c0=new THREE.Vector3();
+    for (let k=0;k<N;k++){
+      const c=centroid(k);
+      c0.set(c[0],c[1],0).applyMatrix4(mats[k]);
+      n0.set(0,0,1).transformDirection(mats[k]);
+      rows.push({k, x:c0.x, y:c0.y, z:c0.z, nz:n0.z});
+    }
+    const clusters=[];
+    for (const r of rows){
+      let cl=clusters.find(c=>Math.hypot(c.x-r.x,c.y-r.y)<0.33);
+      if (!cl){ cl={x:r.x,y:r.y,members:[]}; clusters.push(cl); }
+      cl.members.push(r);
+    }
+    for (const cl of clusters){
+      cl.members.sort((a,b)=>b.z-a.z);
+      const t_=cl.members[0], b_=cl.members[cl.members.length-1];
+      cl.top    = t_.nz>0 ? FRONT[t_.k] : BACK[t_.k];
+      cl.bottom = b_.nz>0 ? BACK[b_.k]  : FRONT[b_.k];
+    }
+    const r0=rows[0], r18=rows[18];
+    const glueCl=clusters.find(c=>c.members.some(m=>m.k===0));
+    let adjacent=false;
+    if (glueCl && glueCl.members.some(m=>m.k===18)){
+      const i0=glueCl.members.findIndex(m=>m.k===0), i18=glueCl.members.findIndex(m=>m.k===18);
+      adjacent=Math.abs(i0-i18)===1;
+    }
+    const res={
+      clusters: clusters.map(c=>({x:+c.x.toFixed(2), y:+c.y.toFixed(2), n:c.members.length,
+        top:c.top, bottom:c.bottom, ks:c.members.map(m=>m.k).join(',') ,
+        zs:c.members.map(m=>+m.z.toFixed(3)).join(',')})),
+      glue:{ dist:+Math.hypot(r0.x-r18.x, r0.y-r18.y, r0.z-r18.z).toFixed(3),
+             nDot:+(r0.nz*r18.nz).toFixed(2), adjacent },
+    };
+    setTime(saved);
+    return res;
+  },
+};
+
+/* exhaustive search over flat-folded states of the nine leaf boundaries (debug) */
+window.__anim.sweepStates = function(){
+  const oddH=[1,3,5,7,9,11,13,15,17], evenH=[2,4,6,8,10,12,14,16,18];
+  const th=new Float64Array(N), out=[];
+  const cent=Array.from({length:N},(_,k)=>centroid(k));
+  const M=new THREE.Matrix4(), tmp=new THREE.Matrix4();
+  const stack=Array.from({length:N},()=>new THREE.Matrix4());
+  const v=new THREE.Vector3(), nrm=new THREE.Vector3();
+  const total=Math.pow(3,oddH.length);
+  for (let s=0;s<total;s++){
+    th.fill(0);
+    for (const j of evenH) th[j]=Math.PI-0.02;
+    let w=s; const assign=[];
+    for (const j of oddH){ const d=w%3; w=(w-d)/3; assign.push(d);
+      if (d) th[j]=(d===1?1:-1)*(Math.PI-0.03); }
+    stack[0].identity();
+    for (let j=1;j<N;j++){ stack[j].copy(stack[j-1]);
+      if (Math.abs(th[j])>1e-9) stack[j].multiply(hingeMatrix(j, th[j], tmp)); }
+    const rows=[];
+    for (let k=0;k<N;k++){
+      v.set(cent[k][0],cent[k][1],0).applyMatrix4(stack[k]);
+      nrm.set(0,0,1).transformDirection(stack[k]);
+      rows.push({k,x:v.x,y:v.y,z:v.z,nz:nrm.z});
+    }
+    const cl=[];
+    let ok=true;
+    for (const r of rows){
+      let c=cl.find(c=>Math.hypot(c.x-r.x,c.y-r.y)<0.33);
+      if (!c){ c={x:r.x,y:r.y,m:[]}; cl.push(c); if (cl.length>6){ ok=false; break; } }
+      c.m.push(r);
+    }
+    if (!ok || cl.length!==6) continue;
+    const occ=cl.map(c=>c.m.length).sort((a,b)=>a-b).join(',');
+    if (occ!=='2,2,2,4,4,5') continue;
+    // per-slot sets of up-side / down-side labels (layer order not assumed)
+    let ups=null, downs=null;
+    for (const c of cl){
+      const u=new Set(), d=new Set();
+      for (const r of c.m){ u.add(r.nz>0?FRONT[r.k]:BACK[r.k]); d.add(r.nz>0?BACK[r.k]:FRONT[r.k]); }
+      ups = ups? new Set([...ups].filter(x=>u.has(x))) : u;
+      downs = downs? new Set([...downs].filter(x=>d.has(x))) : d;
+    }
+    const us=[...ups].filter(x=>x>0), ds=[...downs].filter(x=>x>0);
+    if (!us.length || !ds.length) continue;
+    const r0=rows[0], r18=rows[18];
+    const sameCl=cl.find(c=>c.m.some(m=>m.k===0) && c.m.some(m=>m.k===18));
+    if (!sameCl) continue;
+    if (r0.nz*r18.nz<0.8) continue;
+    out.push({assign:assign.join(''), ups:us.join(''), downs:ds.join(''),
+      slots: cl.map(c=>c.m.map(m=>m.k).join('.')).join(' | ')});
+  }
+  return out;
+};
+
+/* ---------------- go ---------------- */
+buildTimeline();
+resize();
+setTime(0);
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

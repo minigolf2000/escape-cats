@@ -28,9 +28,23 @@ body {
     Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
-  display: grid;
-  place-items: center;
+  /* Flex + auto margins rather than `place-items: center`, because the page is
+     no longer always shorter than the phone: the card now has the room's four
+     team boxes under it. A centred grid item that outgrows its container
+     overflows in BOTH directions and takes the top of the page past the
+     scrollable edge with it; `margin: auto` on a flex child centres the short
+     case and leaves the tall one scrollable from the top. */
+  display: flex;
+  flex-direction: column;
   padding: 24px;
+}
+
+#app {
+  margin: auto;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
 }
 
 .card {
@@ -178,6 +192,13 @@ input:focus {
   margin: 22px 0 18px;
 }
 
+/* The waiting card is a header now, with the room under it — so the spinner
+   line is its last child and its own bottom margin became a gap nothing sat
+   in. It keeps the margin everywhere else, where a card still owns the page. */
+.card .waiting:last-child {
+  margin-bottom: 2px;
+}
+
 .spinner {
   width: 16px;
   height: 16px;
@@ -198,4 +219,209 @@ input:focus {
     animation: none;
     border-top-color: var(--line);
   }
+}
+
+/* ---------------------------------------------------------------------------
+   THE ROOM — the four teams, as the proctor currently has them.
+
+   The proctor's board, read-only: same eared boxes, same four fixed seats, and
+   nothing else. Sorting is the proctor's job (`assign` is proctor-only on the
+   wire), so nothing here is tappable and nothing here declares a cursor — see
+   check-cursors.mjs, and the rule it enforces: `pointer` if a tap does
+   something, `default` if it does not.
+   --------------------------------------------------------------------------- */
+.room {
+  margin-top: 26px;
+}
+
+.room-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.room-head h2 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* .muted carries a bottom margin for its use inside a card; on a head row it
+   is a baseline-aligned label and must not push the row around. */
+.room-head .muted,
+.tbox-head .muted {
+  margin: 0;
+}
+
+/* Two up, always. Four boxes in one column is a page of scrolling on a phone,
+   and `auto-fit` would give exactly that at the width a phone actually has. */
+.board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+/* THE EARED BOX, the smaller sibling of .card.eared: the border is the headband
+   and the ears grow out of it, so the box needs position: relative and
+   earsHeight() of room above it. The border width must equal the strokeWidth
+   passed to teamEarsSvg (BOARD_BORDER), or the ear's base meets it at a step. */
+.tbox {
+  position: relative;
+  background: #12141b;
+  /* Kept in step with the background below — an ear filled with the wrong one
+     reads as a sticker sitting on the box rather than part of it. */
+  --ear-fill: #12141b;
+  border: 2px solid var(--tc, var(--line));
+  border-radius: 12px;
+  padding: 9px;
+  margin-top: var(--ear-h);
+  text-align: left;
+}
+
+/* Your own team, the one box on the board this phone is in. A lift rather than
+   a second colour: the ears already say which team it is, and the board's whole
+   job is that the four colours mean the four headbands. */
+.tbox.mine {
+  background: #191c25;
+  --ear-fill: #191c25;
+}
+
+.tbox-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.tbox-head strong {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.tbox-head .muted {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Fixed, and the SAME for a name and an empty seat: the proctor is dragging
+   people between boxes while this is on screen, and a box that changed height
+   every time would make the whole board twitch under a player's eyes. */
+.seats li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 27px;
+  padding: 0 3px;
+  font-size: 13px;
+  border-bottom: 1px solid #1e2230;
+}
+
+.seats li.slot {
+  justify-content: center;
+  color: #4c5162;
+  font-size: 11px;
+  font-style: italic;
+  border-bottom: 1px dashed #23283a;
+}
+
+/* Clipped, never wrapped — a 24-character name must not become two rows. */
+.seats .pname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seats li.me .pname {
+  color: var(--tc);
+  font-weight: 700;
+}
+
+.youpill {
+  margin-left: auto;
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0b0c10;
+  background: var(--tc);
+  border-radius: 999px;
+  padding: 1px 5px;
+}
+
+/* ---------------------------------------------------------------------------
+   THE NAME CHIP — rename from wherever you are, on every screen but the first.
+   --------------------------------------------------------------------------- */
+.chiprow {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.namechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.namechip .chip-name {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.namechip .pen {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* The chip, opened. It replaces the chip in place — renaming is not starting
+   over, so it never takes the screen away from you. */
+.rename {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.rename input {
+  /* The shared `input` rule is sized for a card's one big field. */
+  margin-bottom: 0;
+  padding: 10px 13px;
+  font-size: 16px; /* >=16px so iOS doesn't zoom the viewport on focus */
+}
+
+.chip-go {
+  flex: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #06231d;
+  background: var(--neon);
+  border: 0;
+  border-radius: 11px;
+  padding: 11px 15px;
+  cursor: pointer;
 }

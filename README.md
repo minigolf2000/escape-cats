@@ -19,7 +19,10 @@ minutes.
 apps/hex-clicker/    Player client, 16 modules — see its src/README.md
 apps/goomba-glider/  Player client, 11 modules — see its src/README.md
 apps/lobby/          Landing page: name entry, then the team the proctor put
-                     you on (and its chat) — no links into the games
+                     you on (and its chat) — no links into the games. Under
+                     that, THE ROOM: all four teams and who is on them, the
+                     proctor's board read-only. Your name is a chip you can
+                     edit from any screen
 apps/chat/           Per-team chat: one channel per team, roomed by team id
 apps/proctor/        Hidden dashboard, one flat page: five boxes, where a box is
                      a drop target, its room's live game status (+ reset) and
@@ -467,13 +470,14 @@ Four teams, `t1`–`t4`, of `TEAM_SIZE` (4) players each. **A team id is also th
 room id the game runs in**, so once the proctor puts someone on `t2`, their game
 room is `t2` and nothing else has to agree on anything.
 
-The flow: a player opens `/`, types a name, and waits. The proctor's dashboard
-lists everyone on that page as **five boxes** — Unassigned, then one per team —
-and sorting is **drag and drop between them**, the only assignment gesture there
-is. Once assigned, the player's page turns into their team name and who else is
-on it — no game links. The games are reached by their own URLs, and because no
-surface ever carried the team in a link, dropping those buttons changed nothing:
-a phone finds its room by asking the lobby for this pid.
+The flow: a player opens `/`, types a name, and waits — watching the room fill up
+while they do (see below). The proctor's dashboard lists everyone on that page as
+**five boxes** — Unassigned, then one per team — and sorting is **drag and drop
+between them**, the only assignment gesture there is. Once assigned, the player's
+page turns into their team name and the headband to grab — no game links. The
+games are reached by their own URLs, and because no surface ever carried the team
+in a link, dropping those buttons changed nothing: a phone finds its room by
+asking the lobby for this pid.
 
 Sorting is deliberately all manual. Who sits with whom is a judgement call made
 in the room (friends, kids, one group of six), and the auto-assign button that
@@ -488,6 +492,43 @@ this pid's room and slots straight in. Opening a game page also registers the
 phone in the lobby roster, so it appears on the proctor's list either way. The
 room is never written into the URL, so a refresh re-asks the lobby and a re-sort
 takes effect on reload.
+
+### The room, on a player's phone
+
+Under whichever card owns the screen — the waiting card or the "you're on Team 3"
+card — every phone shows **the room**: the four teams, their colours, and who is
+on each of them, with your own row marked. It is the proctor's board with the
+drag, the buttons, the game readouts and the chat taken out, and it exists
+because the lobby already knew all of it: **every phone's snapshot carries the
+whole roster** (`LobbySnapshot.players`), so this cost one render and not one
+byte of protocol.
+
+It is **read-only, and that is the design**. Sorting is a judgement call made in
+the room and `assign` is proctor-only on the wire, so nothing on the board is
+tappable and nothing on it declares a cursor — `pointer` would promise a tap that
+the server would refuse. What it is for is the thing a waiting player actually
+wants to know: which teams are still short, and which one their friends went to.
+
+Two details are load-bearing and easy to tidy away:
+
+- **A team's box is four seats whether or not they are filled**, exactly as on
+  the proctor's board and for a sharper reason: the proctor is dragging names
+  between boxes *while this is on somebody's phone*, and boxes that resized on
+  every drop would make the whole board twitch under a player's eyes.
+- **Team rosters are NOT filtered by `connected`.** That flag means "holding a
+  socket to the lobby", which a sorted phone drops the moment it moves on to the
+  game — so filtering on it would empty all four teams the instant they started
+  playing. It is only trustworthy for an unsorted phone, which is exactly what
+  the "3 waiting" count uses it for.
+
+**Your name is a chip under the board, on every screen but the first.** Renaming
+happens in place: the chip becomes an input, `rename` goes down the socket the
+lobby has always accepted it on, and you keep your team and your place. It
+replaced a "Not Kelly?" link that *deleted the stored name* and threw the phone
+back to the blank first-run screen, which is a different thing entirely. The
+half-typed draft lives in module state rather than in the DOM, because a lobby
+broadcast rebuilds this page — and the proctor is sorting people the whole time
+somebody is renaming themselves.
 
 ### The proctor's board
 

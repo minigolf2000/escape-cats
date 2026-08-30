@@ -44,6 +44,10 @@ const GENES = {
   halo: INT(1, 3),
   outline: INT(0, 2), outlineGap: INT(0, 3),
   ring: INT(0, 2),
+  slope: CHOICE(1.5, 1.667, 1.75, 2),
+  spokeWidth: INT(1, 2),
+  cellRings: CHOICE(1, 2),
+  cellGap: REAL(1, 5, 0.5),
   ground: CHOICE("dense", "rings", "halo"),
   ringPeriod: INT(3, 6), haloBand: INT(2, 8),
   spokes: CHOICE(0, 1),
@@ -65,6 +69,12 @@ const ACTIVE = {
   shapes: ["version", "level", "urlCase", "cx", "cy", "R", "squash", "pointy", "outline",
     "outlineGap", "ring", "spokes", "innerR", "ground", "ringPeriod", "haloBand",
     "margin", "marginCap", "flipSeed"],
+  // the wordless modes: crisp integer geometry, so squash and pointy do not
+  // apply — the slope IS the orientation and the proportion
+  flexface: ["version", "level", "urlCase", "cx", "cy", "R", "slope", "spokeWidth",
+    "ground", "ringPeriod", "haloBand", "margin", "marginCap", "flipSeed"],
+  cluster: ["version", "level", "urlCase", "cx", "cy", "R", "slope", "cellRings",
+    "cellGap", "ground", "ringPeriod", "haloBand", "margin", "marginCap", "flipSeed"],
   text: ["version", "level", "urlCase", "font", "words", "letterSpace", "lineSpace",
     "cx", "cy", "tx", "ty", "halo", "margin", "marginCap", "flipSeed"],
 };
@@ -96,6 +106,8 @@ function seedGenome(mode) {
   if (mode === "shapes") g.words = "";
   if (mode === "text") { g.R = 0; g.ring = 0; g.outline = 0; }
   if (mode === "banner") { g.R = 12; g.squash = 1; g.cy = 16; g.halo = 1; g.invert = 1; }
+  if (mode === "flexface") { g.R = 12; g.slope = 2; g.spokeWidth = 1; g.ground = "halo"; g.haloBand = 2; }
+  if (mode === "cluster") { g.R = 3; g.cellRings = 1; g.cellGap = 2; g.slope = 2; g.ground = "halo"; g.haloBand = 2; }
   return g;
 }
 
@@ -120,6 +132,16 @@ function cross(rng, a, b, mode) {
 // text block and grow it until the words actually fit inside the shape.
 function repair(g) {
   if (g.mode === "text") return g;
+  if (g.mode === "flexface" || g.mode === "cluster") {
+    const size = QR.sizeOf(g.version);
+    g.cx = (size - 1) / 2 + 0.5;
+    g.cy = (size - 1) / 2 + 0.5;
+    for (let i = 0; i < 24 && g.R > 2; i++) {
+      if (renderDesign(g).intrusionHard === 0) break;
+      g.R = +(g.R - 0.5).toFixed(1);
+    }
+    return g;
+  }
   if (g.mode === "banner") {
     // centre the whole group — hexagon stacked over its banner — in the symbol,
     // so neither half runs off the edge as the other one grows

@@ -149,8 +149,72 @@ export function hexRadiusAt(g, r, c) {
   return f(c + 0.5 - g.cx, (r + 0.5 - g.cy) / (g.squash || 1));
 }
 
+/*
+ * A hexagon built for a module grid rather than sampled onto one.
+ *
+ * The continuous hexagon is defined by an inequality and whatever falls out
+ * of rounding it is the edge — at 41 modules that is a ragged staircase with
+ * a different rhythm on every side, and the six-triangle face made out of it
+ * read as a bowtie. This one is defined by its SLOPE: half-width W, and
+ * slanted sides that rise `slope` for every 1 they run. Pick slope 2 and
+ * every side, and every long diagonal, is the same clean 1:2 staircase — a
+ * regular hexagon's slope is sqrt(3), so 2 is barely taller and rasterises
+ * exactly. Height follows from the slope; it is not a free parameter.
+ *
+ * The long diagonals are the point. In any hexagon each one runs vertex to
+ * opposite vertex through the centre and is PARALLEL to two of the sides —
+ * which is why fixing the side slope fixes the spokes for free, and why the
+ * face comes out as six equal triangles instead of a knot.
+ */
+export function crispHex(g) {
+  const W = g.R;                       // half-width: the left and right points
+  const s = g.slope || 2;
+  const H = (s * W) / 2;               // half-height, forced by the slope
+  return {
+    W, H, s,
+    inside: (dx, dy) => Math.abs(dy) <= H + 1e-9 && Math.abs(dy) <= s * (W - Math.abs(dx)) + 1e-9,
+    // 1.0 on the boundary, for the ground sculptor's priority order
+    norm: (dx, dy) => Math.max(Math.abs(dy) / H, (Math.abs(dy) / s + Math.abs(dx)) / W),
+    // three diameters: flat, and the two parallel to the slanted sides. The
+    // threshold is measured ACROSS the line's fast axis, so each one is
+    // exactly `t` modules wide however steep it is, and they meet in a single
+    // module at the centre instead of a blob.
+    onSpoke: (dx, dy, t) =>
+      Math.abs(dy) <= t / 2 ||
+      Math.abs(dx - dy / s) <= t / 2 ||
+      Math.abs(dx + dy / s) <= t / 2,
+  };
+}
+
+// A honeycomb of small hexagons. Neighbours of a flat-top cell sit at
+// (0, +/-2H) across the flat edges and (+/-1.5W, +/-H) across the slanted
+// ones; `gap` pushes them apart so the dark ground shows between.
+export function honeycomb(g) {
+  const { W, H } = crispHex(g);
+  const k = 1 + (g.cellGap || 0) / Math.max(1, W);
+  const steps = [[0, 2 * H], [1.5 * W, H], [1.5 * W, -H], [0, -2 * H], [-1.5 * W, -H], [-1.5 * W, H]];
+  const cells = [[0, 0]];
+  const seen = new Set(["0,0"]);
+  for (let ring = 0; ring < (g.cellRings || 1); ring++) {
+    for (const [x, y] of [...cells]) {
+      for (const [sx, sy] of steps) {
+        const nx = +(x + sx * k).toFixed(3), ny = +(y + sy * k).toFixed(3);
+        const key = `${nx},${ny}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        cells.push([nx, ny]);
+      }
+    }
+  }
+  return cells;
+}
+
 export const DEFAULT_GENOME = {
-  mode: "both",           // both | shapes | text | banner
+  mode: "both",           // both | shapes | text | banner | flexface | cluster
+  slope: 2,               // slanted-side rise per run; 2 rasterises exactly
+  spokeWidth: 1,          // flexface: thickness of the six crease lines
+  cellRings: 1,           // cluster: 1 ring = 7 cells, 2 = 19
+  cellGap: 2,             // cluster: dark modules between neighbours
   invert: 0,              // 1 = letters knocked WHITE out of a dark halo
   version: 6,
   level: "L",
@@ -210,8 +274,38 @@ export function renderDesign(g) {
   const norm = g.pointy ? hexNormPointy : hexNorm;
   const inHex = (r, c, rad) => norm((c + 0.5 - g.cx), (r + 0.5 - g.cy) / g.squash) <= rad;
 
+  // How far out a module sits from the shape, 1.0 on its boundary. The ground
+  // sculptor works outward from this, so each mode has to answer for its own
+  // geometry — a cluster's boundary is the nearest cell's, not the group's.
+  const cell = crispHex(g);
+  const cells = g.mode === "cluster" ? honeycomb(g) : null;
+  let shapeNorm;
+  if (g.mode === "flexface") {
+    shapeNorm = (r, c) => cell.norm(c + 0.5 - g.cx, r + 0.5 - g.cy);
+  } else if (g.mode === "cluster") {
+    shapeNorm = (r, c) => Math.min(...cells.map(([x, y]) =>
+      cell.norm(c + 0.5 - g.cx - x, r + 0.5 - g.cy - y)));
+  } else {
+    shapeNorm = (r, c) => norm(c + 0.5 - g.cx, (r + 0.5 - g.cy) / g.squash) / (g.R || 1);
+  }
+
+  // ---- the crisp-geometry modes ----
+  if (g.mode === "flexface" || g.mode === "cluster") {
+    for (let r = 0; r < size; r++)
+      for (let c = 0; c < size; c++) {
+        const dy = r + 0.5 - g.cy, dx = c + 0.5 - g.cx;
+        if (g.mode === "cluster") {
+          for (const [x, y] of cells) if (cell.inside(dx - x, dy - y)) { put(r, c, 0, 1); break; }
+        } else if (cell.inside(dx, dy)) {
+          // white paper, then the six creases folded across it
+          put(r, c, 0, 1);
+          if (cell.onSpoke(dx, dy, g.spokeWidth || 1)) put(r, c, 1, 2);
+        }
+      }
+  }
+
   // ---- field ----
-  if (g.mode !== "text") {
+  if (g.mode !== "text" && g.mode !== "flexface" && g.mode !== "cluster") {
     for (let r = 0; r < size; r++)
       for (let c = 0; c < size; c++)
         if (inHex(r, c, g.R)) put(r, c, 0, 1);
@@ -265,7 +359,8 @@ export function renderDesign(g) {
   }
 
   // ---- text ----
-  const lines = g.words.split("|").filter(Boolean);
+  const lines = g.mode === "flexface" || g.mode === "cluster"
+    ? [] : g.words.split("|").filter(Boolean);
   const F = FONTS[g.font];
   const blockH = lines.length * F.height + (lines.length - 1) * g.lineSpace;
   // banner: the words sit BELOW the shape on the ground, knocked out of it,
@@ -334,6 +429,6 @@ export function renderDesign(g) {
 
   return {
     size, target, weight, tier, func, order, seq,
-    glyphInk, glyphCells, blockH, intrusionTiming, intrusionHard, font: F,
+    glyphInk, glyphCells, blockH, intrusionTiming, intrusionHard, font: F, shapeNorm,
   };
 }

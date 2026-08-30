@@ -86,7 +86,10 @@ export function evaluate(g, url, opts = {}) {
 
   const capArea = AREA_CAP_FRAC * size * size;
   // Ink is the message, so it is worth six times its area in shape.
-  const ambition = Math.min(met.fieldArea, capArea) + 6 * met.inkArea;
+  // Ink is the message. In the wordless modes the DRAWN LINES are the
+  // message, so they are worth more than the paper they sit on — otherwise a
+  // flexagon face scores exactly the same as the blank hexagon it is drawn on.
+  const ambition = Math.min(met.fieldArea, capArea) + 6 * met.inkArea + 4 * met.ruleArea;
   // A code whose readback still spells the URL the way a human typed it is
   // worth a hair more than one that spent the host's case bits, all else equal.
   const caseBonus = (g.urlCase || "schemehost") === "none" ? 1.04 : 1;
@@ -154,10 +157,11 @@ function insideField(d, g, r, c) {
 
 function measure(d, res) {
   const counts = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  let fieldArea = 0, inkArea = 0;
+  let fieldArea = 0, inkArea = 0, ruleArea = 0;
   for (let i = 0; i < d.size * d.size; i++) {
     if (d.tier[i] >= 1) fieldArea++;
     if (d.tier[i] === 4) inkArea++;
+    if (d.tier[i] === 2) ruleArea++;
   }
   const { intrusionTiming, intrusionHard } = d;
   for (const mi of res.unsatisfied) counts[d.tier[mi]]++;
@@ -165,7 +169,8 @@ function measure(d, res) {
     counts[2] * TIER_COST[2] + counts[1] * TIER_COST[1];
   return {
     glyphMiss: counts[4], haloMiss: counts[3], ruleMiss: counts[2], fieldMiss: counts[1],
-    cost, fieldArea, inkArea, intrusionTiming, intrusionHard, misses: res.unsatisfied.length,
+    cost, fieldArea, inkArea, ruleArea, intrusionTiming, intrusionHard,
+    misses: res.unsatisfied.length,
   };
 }
 
@@ -187,11 +192,8 @@ export function groundWant(d, g) {
   const w = new Float64Array(size * size);
   const style = g.ground || "dense";
   if (style === "free") return { want, w };
-  const norm = (r, c) => {
-    const dx = Math.abs(c + 0.5 - g.cx), dy = Math.abs((r + 0.5 - g.cy) / (g.squash || 1));
-    const [X, Y] = g.pointy ? [dy, dx] : [dx, dy];
-    return Math.max(Y / (Math.sqrt(3) / 2), X + Y / Math.sqrt(3));
-  };
+  // the design knows its own geometry; ask it rather than re-deriving it here
+  const norm = (r, c) => d.shapeNorm(r, c) * (g.R || 1);
   for (let r = 0; r < size; r++)
     for (let c = 0; c < size; c++) {
       const i = r * size + c;
@@ -246,12 +248,7 @@ export function sculptGroundExact(d, g, matrix, basis) {
     target[i] = want[i] > 0 ? 1 : 0;
     order.push(i);
   }
-  const dist = (i) => {
-    const r = (i / size) | 0, c = i % size;
-    const dx = Math.abs(c + 0.5 - g.cx), dy = Math.abs((r + 0.5 - g.cy) / (g.squash || 1));
-    const [X, Y] = g.pointy ? [dy, dx] : [dx, dy];
-    return Math.max(Y / (Math.sqrt(3) / 2), X + Y / Math.sqrt(3));
-  };
+  const dist = (i) => d.shapeNorm((i / size) | 0, i % size);
   // Order matters more than anything else here. Sorting the whole ground by
   // distance spends every dimension of rank near the shape and leaves the far
   // corners as raw 50% noise — which is exactly the sparse quadrant that keeps

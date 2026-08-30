@@ -37,18 +37,28 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`${link.live ? "live" : "DEAD"} ${url}${link.title ? ` — ${link.title}` : ""} ${JSON.stringify(link.checks)}`);
   if (!link.live && !process.env.QR_SKIP_LINK_CHECK)
     throw new Error(`${url} does not resolve — set QR_SKIP_LINK_CHECK=1 to export anyway`);
+  // Each target's genome comes from the artwork already committed beside it,
+  // so `node export.mjs` reproduces every piece from a clean checkout — the
+  // working directories the search writes into are not in the repository.
+  // `--adopt <name> <path>` takes a new genome from one of them.
+  const adopt = {};
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i++)
+    if (args[i] === "--adopt") { adopt[args[i + 1]] = args[i + 2]; i += 2; }
+
   const jobs = [
-    ["final-jdo/final.json", "../hexflex-qr",
-      "HEX HEX FLEX inside a flat-top hexagon — the shipped design."],
-    ["polish-A/final.json", "../hexflex-qr-dense",
-      "Same design with the whole ground pushed dark instead of a band."],
-    ["polish-S/final.json", "../hexflex-hexagon",
-      "Shape only: the hexagon with no words in it."],
+    ["hexflex-qr", "HEX HEX FLEX inside a flat-top hexagon — the shipped design."],
+    ["hexflex-qr-dense", "Same design with the whole ground pushed dark instead of a band."],
+    ["hexflex-hexagon", "Shape only: the hexagon with no words in it."],
+    ["hexflex-face", "The hexahexaflexagon's own face: a hexagon creased vertex to vertex."],
+    ["hexflex-cluster", "A honeycomb of small hexagons punched out of the noise."],
   ];
-  for (const [src, out, note] of jobs) {
+  for (const [name, note] of jobs) {
+    const out = `../${name}`;
+    const src = adopt[name] || `${out}.json`;
     let genome;
     try { genome = JSON.parse(readFileSync(src, "utf8")).genome; }
-    catch { console.log(`skip ${out} (no ${src})`); continue; }
+    catch { console.log(`skip ${name} (no ${src})`); continue; }
     const { e, check } = exportDesign(genome, url, out, { note });
     console.log(`${out.padEnd(24)} v${genome.version}${genome.level} ` +
       `miss ${e.metrics.misses} edge ${e.metrics.edgeMiss}/run ${e.metrics.edgeRun} ` +

@@ -1,5 +1,9 @@
-# GA output: thousands of candidate renders, regenerable from the seed in the
-# manifest. The chosen artwork is committed in tools/qr-art/, not here.
-runs/
+# Working output: candidate renders and intermediate picks, thousands of them,
+# every one regenerable from the seed recorded in its manifest. The artwork
+# that got CHOSEN is committed in tools/qr-art/ next to the genome that made
+# it — that is the thing worth keeping.
+runs*/
+review*/
+polish*/
 preview/
-review/
+final*/

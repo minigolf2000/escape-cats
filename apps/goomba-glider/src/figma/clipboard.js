@@ -157,9 +157,14 @@ function mul(m, t) {
 const apply = (m, x, y) => ({ x: m[0] * x + m[1] * y + m[2], y: m[3] * x + m[4] * y + m[5] });
 const degOf = (m) => (Math.atan2(m[3], m[0]) * 180) / Math.PI;
 
-const stripDup = (s) => String(s || "").replace(/_\d+$/, "").trim();
-const KINDS = /^(watering-can|party-popper|start|goal|bumper|cushion|band|can|pop|t)\s*-?\s*(\d+)?$/i;
-function classify(name) {
+// The name contract, exported rather than private because `tools/goomba/figma/
+// read-frame.mjs` reads the same names out of a different carrier (the Figma
+// MCP's metadata XML). One copy or two is the whole question: a second regex
+// that agreed with this one on the day it was written is a fork that goes
+// quietly wrong the first time either moves.
+export const stripDup = (s) => String(s || "").replace(/_\d+$/, "").trim();
+export const KINDS = /^(watering-can|party-popper|start|goal|bumper|cushion|band|can|pop|t)\s*-?\s*(\d+)?$/i;
+export function classify(name) {
   const n = stripDup(name);
   if (!n || n.startsWith("_") || n.startsWith("//")) return null;
   const m = KINDS.exec(n);
@@ -169,7 +174,7 @@ function classify(name) {
   if (kind === "party-popper") kind = "pop";
   return { kind, num: m[2] ? Number(m[2]) : null };
 }
-function levelName(name) {
+export function levelName(name) {
   const m = /^L\s*(?::|--)\s*(.+)$/.exec(String(name || "").trim());
   if (!m) return null;
   const t = m[1].trim();

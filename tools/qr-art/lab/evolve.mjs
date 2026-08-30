@@ -45,7 +45,7 @@ const GENES = {
   outline: INT(0, 2), outlineGap: INT(0, 3),
   ring: INT(0, 2),
   slope: CHOICE(1.5, 1.667, 1.75, 2),
-  spokeWidth: INT(1, 2),
+  spokeWidth: CHOICE(1, 3),   // a symmetric line about a centre row is odd
   cellRings: CHOICE(1, 2),
   cellGap: REAL(1, 5, 0.5),
   ground: CHOICE("dense", "rings", "halo"),

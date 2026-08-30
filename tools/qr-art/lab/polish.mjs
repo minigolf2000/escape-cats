@@ -30,7 +30,21 @@ const around = (v, lo, hi, step) => {
   return s;
 };
 
-const axes = {
+// Only sweep what the mode actually draws: a font axis on a wordless design
+// is thousands of evaluations that all render the same picture.
+const WORDLESS = base.mode === "flexface" || base.mode === "cluster" || base.mode === "shapes";
+const axes = WORDLESS ? {
+  R: around(base.R, base.mode === "cluster" ? 2 : 8, base.mode === "cluster" ? 8 : 20, 0.5),
+  slope: [1.5, 1.667, 1.75, 2],
+  spokeWidth: base.mode === "flexface" ? [1, 3] : [base.spokeWidth],
+  cellRings: base.mode === "cluster" ? [1, 2] : [base.cellRings],
+  cellGap: base.mode === "cluster" ? [1, 1.5, 2, 2.5, 3, 4] : [base.cellGap],
+  ground: ["dense", "rings", "halo"],
+  haloBand: [2, 3, 4],
+  margin: around(base.margin, 0.2, 0.95, 0.05),
+  marginCap: around(base.marginCap, 0.3, 1.0, 0.05),
+  flipSeed: [0, 17, 101, 523, 1229, 4001, 9173],
+} : {
   R: around(base.R, 8, 21, 0.5),
   squash: around(base.squash, 0.85, 1.5, 0.05),
   cx: around(base.cx, 17, 24, 0.5),

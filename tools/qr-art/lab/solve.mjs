@@ -79,6 +79,13 @@ export function evaluate(g, url, opts = {}) {
   // white under it. That is invisible to every other term here, so it gets
   // its own: white above the block versus white below it.
   met.balance = textBalance(d, g);
+  // A hexahexaflexagon's face is six EQUILATERAL triangles, so on the creased
+  // face the wedges have to come out equal. Nothing else in this score can
+  // see that, and the geometry quietly pays a steeper slope to say it: R is
+  // half-WIDTH, so raising the slope raises the height and buys area. Left
+  // alone the search takes the area every time and hands back a bowtie.
+  met.wedgeSpread = g.mode === "flexface" || g.mode === "cluster"
+    ? wedgeSpread(g.slope || 2) : 0;
   // A letterform that falls apart at this resolution is not a cheaper letter,
   // it is a broken one — and every other term in this score is blind to it,
   // because each module lands exactly where the design asked.
@@ -104,7 +111,8 @@ export function evaluate(g, url, opts = {}) {
     // an uneven ground is a field the shape is only half cut out of
     70 * Math.max(0, met.spread - 0.22) +
     9 * met.balance +
-    25 * met.brokenGlyphs) / K);
+    25 * met.brokenGlyphs +
+    3 * met.wedgeSpread) / K);
   let fitness = ambition * quality * caseBonus;
 
   // Hard gates: it has to scan, and it has to scan as the right URL.
@@ -346,6 +354,18 @@ export function edgeMiss(d, matrix) {
  * boundary. One nick is texture; five in a row is a hole, and a mean edge
  * count cannot tell the two apart.
  */
+// Degrees between the wedge at a point and the wedge at a flat edge. Zero for
+// a regular hexagon, which is what both wordless modes are actually drawing —
+// a creased flexagon face and a honeycomb are both made of regular hexagons,
+// and left unscored the search buys area with slope every time (R is
+// half-WIDTH, so a steeper slope is a taller cell for free). Zero for a
+// regular hexagon, whose slope is sqrt(3) and rasterises cleanly at no size
+// at all — 7/4 gets within 0.8 degrees and is a rational staircase.
+export function wedgeSpread(slope) {
+  const point = (Math.atan(slope) * 180) / Math.PI;
+  return +Math.abs(point - (180 - 2 * point)).toFixed(2);
+}
+
 export function textBalance(d, g) {
   if (!d.glyphCells.length || g.mode === "text" || g.mode === "banner") return 0;
   let top = Infinity, bot = -Infinity;

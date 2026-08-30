@@ -179,10 +179,15 @@ export function crispHex(g) {
     // threshold is measured ACROSS the line's fast axis, so each one is
     // exactly `t` modules wide however steep it is, and they meet in a single
     // module at the centre instead of a blob.
+    // The flat crease runs along an axis where dy takes whole values, so a
+    // <= t/2 window catches one row too many and the bar comes out three
+    // modules against the diagonals' one — which is the whole reason the face
+    // read as four triangles and a rule. Thickness is counted in modules on
+    // each line's own fast axis, so all three come out the same weight.
     onSpoke: (dx, dy, t) =>
-      Math.abs(dy) <= t / 2 ||
-      Math.abs(dx - dy / s) <= t / 2 ||
-      Math.abs(dx + dy / s) <= t / 2,
+      Math.abs(dy) <= (t - 1) / 2 + 1e-9 ||
+      Math.abs(dx - dy / s) < t / 2 ||
+      Math.abs(dx + dy / s) < t / 2,
   };
 }
 

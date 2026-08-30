@@ -54,6 +54,7 @@
     "spread": 0.286,
     "ground": 0.683,
     "balance": 5,
+    "wedgeSpread": 0,
     "brokenGlyphs": 0,
     "strayInk": 0,
     "ambition": 1432,

@@ -61,6 +61,28 @@ an 85% top. A count of edge defects cannot tell one nick from a five-module
 hole. Both had to become their own metrics (`groundSpread`, `edgeRun`) before
 the search could see the defect a person sees first.
 
+**Geometry meant for a module grid is not the same shape sampled onto one.**
+The continuous hexagon is an inequality, and whatever falls out of rounding it
+is the edge — a ragged staircase with a different rhythm on every side.
+`crispHex` is defined by its SLOPE instead, so every side and every long
+diagonal is the same clean staircase. The diagonals come free: in any hexagon
+each one is parallel to two of the sides, which is why fixing the side slope
+fixes the creases and the flexagon face comes out as six triangles instead of
+a knot.
+
+**Where the geometry can pay for area, it will.** `R` is half-WIDTH, so a
+steeper slope is a taller hexagon at no cost in the score — the search took
+that trade every time and handed back a bowtie. Slope 2 is an exact 1:2
+staircase and leaves the point wedges 10 degrees fatter than the flat ones;
+7/4 gets every wedge within 0.8 degrees of a regular hexagon and is still
+rational. `wedgeSpread` prices the difference, because "six EQUAL triangles"
+is the entire subject and nothing else in the score could see it.
+
+**Count thickness on each line''s own fast axis.** The flat crease runs where
+`dy` takes whole values, so a `<= t/2` window catches one row too many: the
+bar came out three modules against the diagonals'' one, and the face read as
+four triangles and a rule rather than six triangles.
+
 **A letterform is not a free parameter.** The search happily swapped in a
 narrower X to buy two modules of hexagon, and the narrow X is a one-module
 diagonal: at 41 modules it renders as five *disconnected* squares, so the word

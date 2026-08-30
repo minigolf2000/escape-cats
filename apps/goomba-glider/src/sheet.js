@@ -239,11 +239,13 @@ let capMemo = { key: "", px: 0 };
 function capLine(h1) {
   const cs = getComputedStyle(h1);
   const font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  // The title's face is a WEBFONT now (Titan One), and this can run before the
-  // woff2 lands: those first frames measure the fallback, and a key built only
-  // of the font string never moves again to shake them out. fonts.check flips
-  // false→true when the download arrives, so the load state rides the key and
-  // the memo re-measures exactly once, on the face it will keep.
+  // The load state rides the key, and it is a BELT on top of braces. Titan One
+  // is base64 in styles.css with `font-display: block`, so there is no download
+  // to lose a race to and these frames should always measure the real face —
+  // but a face is still not "loaded" until something uses it, and a key built
+  // only of the font string never moves again to shake out a bad first read.
+  // fonts.check flips false→true at most once, so this costs one boolean a
+  // frame and cannot cache the fallback's cap line for the session.
   const key = font + "|" + cs.lineHeight + "|" + document.fonts.check(font);
   if (key === capMemo.key) return capMemo.px;
   const g = capLine.g || (capLine.g = document.createElement("canvas").getContext("2d"));

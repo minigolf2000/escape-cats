@@ -17,12 +17,6 @@
 //   sheet.js     the how-to-play pictures, which are also the join gate
 
 import "./styles.css";
-// The title's letterface — the closest free face to Frankfurter, which is the
-// letterface of the ColecoVision mark the logo dresses as. Self-hosted through
-// the bundle (latin woff2, ~25KB) rather than fetched from a font CDN: the
-// party's phones talk to one origin. Only "#gate h1" wears it; the HUD stays
-// on the system stack.
-import "@fontsource/titan-one";
 import {
   GOOMBA_LEVELS,
   MAX_BANDS,

@@ -356,6 +356,47 @@
               this, so the seam is 6.8vh + 2.2vh — 51px on a 568 screen, 84 on
               a 932 one, against 24px of gutter inside the pictures. */
            margin-bottom: clamp(38px, 6.8vh, 76px); }
+  /* THE TITLE'S FACE, carried in this stylesheet AS BYTES rather than fetched.
+     Titan One is the closest free face to Frankfurter, the letterface of the
+     ColecoVision mark this logo dresses as, and `#gate h1` is the only thing in
+     this app that wears it — the HUD stays on the system stack above.
+
+     A data: URI, and that is the whole point. The gate is the FIRST screen and
+     its h1 is in index.html, so the words paint before any script runs; a face
+     that arrives over the network arrives after that paint. `font-display:
+     swap` — what @fontsource ships, and what this used to be — is precisely the
+     promise to paint the FALLBACK and restyle when the file lands, and on this
+     title that swap is loud: the weight is 400 (below), so the fallback flashes
+     a normal-weight rounded face where an ultra-heavy one belongs, each word's
+     gradient re-stretches to its new width, and the cat riding the cap line
+     jumps when the line moves under her. A stylesheet is render-blocking and
+     these bytes cost no request, so the face is there for the first paint that
+     could have shown the fallback. `block` says the same thing from the other
+     side: if it ever were late, the letters are INVISIBLE, never wrong.
+
+     SUBSET TO A-Z + space — 2.0KB of woff2, 2.6KB as base64. The whole alphabet
+     rather than the eleven letters actually in GOOMBA GLIDER because capLine()
+     in sheet.js sizes the cat off a capital that is in NEITHER word ("H"): cut
+     to the logo, that measurement silently comes off a fallback glyph and seats
+     her wrong, which is the bug this face was already caught in once. The
+     vertical metrics capLine reads survive subsetting untouched (hhea 970/-175,
+     cap height 710 per 1000 em). To regenerate — say the title takes a
+     character outside A-Z — from @fontsource/titan-one@5.3.0 (Titan One v17,
+     sha256 2f15f138…7a53 on titan-one-latin-400-normal.woff2):
+
+       pyftsubset titan-one-latin-400-normal.woff2 --text="ABCDEFGHIJKLMNOPQRSTUVWXYZ " \
+         --flavor=woff2 --layout-features='' --no-hinting --desubroutinize \
+         --name-IDs='' --drop-tables+=GSUB,GPOS && base64 -w0 <out>
+
+     OFL-1.1, Copyright (c) 2011 Rodrigo Fuenzalida, with Reserved Font Name
+     "Titan One". The licence travels with the bytes: ../OFL-titan-one.txt. */
+  @font-face {
+    font-family: "Titan One";
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+    src: url(data:font/woff2;base64,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) format("woff2");
+  }
   /* The words, in the ColecoVision manner: bare gradient shapes with the
      gate's own dark as the only thing between the letters —
      the mark is gradient letters packed tight, no keylines. The packing
@@ -365,9 +406,9 @@
      one solid word, held just short of that. */
   /* Titan One is a single-weight face and already as heavy as type gets, so
      the weight is 400 ON PURPOSE: at 900 the browser would synthesize extra
-     bold on top of it and smear the letters. The cost is a thinner title for
-     the frame or two before the woff2 lands — capLine in sheet.js keys its
-     memo on the load state for exactly that window. */
+     bold on top of it and smear the letters. The stack keeps the rounded
+     fallbacks for a browser that refuses the face outright, not for a loading
+     window — there isn't one. */
   #gate h1 { margin: 0; font-size: 1em;
              font-family: "Titan One", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
              font-weight: 400; letter-spacing: -.035em; line-height: 1.04; }

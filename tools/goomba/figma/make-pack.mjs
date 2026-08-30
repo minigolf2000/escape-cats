@@ -10,7 +10,7 @@
 import { writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { newDoc, arc, hill, S, BG, GUIDE, PINK, R_GOOMBA } from "./svgkit.mjs";
+import { newDoc, arc, hill, loop, S, BG, GUIDE, PINK, R_GOOMBA } from "./svgkit.mjs";
 
 const d = newDoc();
 const W = 3600, H = 2440;
@@ -85,6 +85,25 @@ d.label(900, 1322, "short of a wall or she wedges in the notch.", { size: 11 });
 d.poly(1160, 1360, [[0, 0], [0, 28]]);
 d.poly(1160, 1360, [[-0.6, 31], [-32, 41]]);
 
+// The loop-the-loop, drawn from the same generator a level would use, so the
+// numbers under it are computed rather than remembered.
+const LOOP_R = 18;
+const K = loop(LOOP_R, { gap: 50, gapAt: 275 });
+const LX = 1800, LY = 1140, LT = 1420;
+const LSPD = Math.round(K.minSpd * 1.3);
+d.label(LT, 830, "loop-the-loop \u00b7 " + K.arms.reduce((n, a) => n + a.length - 1, 0) + " lines. She rides the INSIDE, where the wall\u2019s push IS the centripetal force \u2014", { size: 11 });
+d.label(LT, 846, "so it holds her exactly as long as she is fast enough to need holding, and drops her through the middle when she is not.", { size: 11 });
+d.label(LT, 862, "A ring is a solid wall from outside, so a loop is always a \u0186: in at the mouth\u2019s top lip, round, out at the bottom lip going", { size: 11 });
+d.label(LT, 878, "the other way. The exit clears the entry lip by a whole radius, so the two never have to be aimed apart.", { size: 11 });
+d.label(LT, 894, "The entry popper sits ON her riding circle (r \u2212 2.2), aimed along the ride. At r " + LOOP_R + " she needs spd " + K.minSpd.toFixed(0) + "; fire " + LSPD + ", because the fan is a brake.", { size: 11, fill: PINK });
+K.arms.forEach((a) => d.poly(LX, LY, a));
+d.popper(LX + K.popper[0] * S, LY + K.popper[1] * S, LSPD, K.deg);
+d.band(LX + K.gapTips[0][0] * S, LY + K.gapTips[0][1] * S,
+       LX + K.gapTips[1][0] * S, LY + K.gapTips[1][1] * S);
+d.label(LT, 1370, "The gap in the ROOF is the band\u2019s job \u2014 she flies out of an open roof at any speed worth riding for. Give each lip ONE long", { size: 11 });
+d.label(LT, 1386, "chord (30\u00b0 here, ~9 u) so the band\u2019s ends snap to the LIPS and not to their neighbours: 300/300 at \u00b13 u of finger slop,", { size: 11 });
+d.label(LT, 1402, "against 272/300 on an evenly fine fan. A 10\u00b0 tip chord scores 239 \u2014 half-measures are worse than either end.", { size: 11 });
+
 d.label(40, 1600, "popper lane · 16 u apart against an ~8 u trigger radius, so crossing the lane always gets her grabbed and re-flung. Poppers erase state, which is what makes stages independent — the structural tool for a 4-band level.", { size: 11 });
 for (let i = 0; i < 6; i++) d.popper(140 + i * 160, 1680, 76, 0);
 
@@ -106,6 +125,9 @@ TOYS.forEach(([cap, draw], i) => {
   d.label(x - 95, 2030, cap, { size: 11 });
 });
 d.label(140 + 4 * 260 - 95, 2046, "Rename pop150 for a faster one.", { size: 11 });
+d.label(140 + 4 * 260 - 95, 2062, "The dashed ring is the REAL 8.2 u reach, and it is a\u00a0sphere:", { size: 11 });
+d.label(140 + 4 * 260 - 95, 2078, "the trigger is a distance test with no line of sight, so she", { size: 11 });
+d.label(140 + 4 * 260 - 95, 2094, "is grabbed THROUGH a floor. Keep terrain out of the ring.", { size: 11, fill: PINK });
 d.cushion(1440, 1920, 24);
 d.label(1440, 2030, "cushion · a rect, not a line. Horizontal only,", { size: 11 });
 d.label(1440, 2046, "so rotation is ignored. Width = its span.", { size: 11 });

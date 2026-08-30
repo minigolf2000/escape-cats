@@ -21,6 +21,19 @@ Figma, paste it in, and PLAY it — alone with `?solo`, then with four people.
   what an event is running. Parallel level threads share nothing but the EVENT —
   a paste is live on all four phones a second later, so point a second thread at
   its own event rather than editing over a party in progress.
+- **The Figma file is `vRN6Q44ReIaESP5wv8M2dI`, and the Levels page is `47:2`**
+  (`Components` is `45:55`, `Scratchpad` is `0:1`). Go straight to the node id:
+  `get_metadata` with no `nodeId` is supposed to list the pages and on this file
+  it answers `Components` alone, so a thread that trusts it concludes the levels
+  are gone. One did. Then read the frame in the units the physics uses rather
+  than converting px by hand — `figma/read-frame.mjs`, which is a READER and not
+  the deleted gate. **Never take a POSITION out of `get_metadata`**: it prints a
+  node's x/y as its ORIGIN but its width/height as its BOUNDING BOX, and carries
+  no rotation, so `x + w/2` is the centre only when the node is unrotated and
+  nothing says which are. A popper turned 90° reads 14 units off; ten of
+  Fireworks' fifteen did, under a green test whose fixture shared the same
+  assumption. The tool takes a read-only `use_figma` dump (`--nodes`, which
+  carries the transform) or a saved Ctrl+C (`--clipboard`, the shipped reader).
 - **The level SELECTOR is the editor, and `\` is the door.** Full behaviour in the
   README ("Goomba's level selector"). The parts that surprise people:
   - The grid **diverges by surface, and by NOTHING else** (`editorOn` in
@@ -248,6 +261,7 @@ npm run build:vercel   # full build + assemble + routing & cursor checks
 cd tools/goomba && node bands.mjs        # the room's band budget
 cd tools/goomba && node test-codec.mjs   # the save format
 cd tools/goomba && node seed.mjs --pull  # what is this event running?
+cd tools/goomba/figma && node read-frame.mjs --xml m.xml   # a frame in world units
 ```
 
 **There is no command that evaluates a level.** `?solo` for the in-page sim,

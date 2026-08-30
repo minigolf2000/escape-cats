@@ -1,0 +1,33 @@
+{
+  "frame": { "name": "L: Fireworks", "x": 16546, "y": 400, "w": 1205, "h": 1640 },
+  "kids": [
+    { "name": "t", "type": "LINE", "x": 7, "y": 1163, "w": 113.53, "h": 0, "rot": -17.96 },
+    { "name": "party-popper 110", "type": "INSTANCE", "x": 101, "y": 1346, "w": 140, "h": 140, "rot": 45 },
+    { "name": "party-popper 110", "type": "INSTANCE", "x": 595.28, "y": 1304.16, "w": 140, "h": 140, "rot": 20 },
+    { "name": "party-popper 130", "type": "INSTANCE", "x": 815, "y": 1596, "w": 140, "h": 140, "rot": 90 },
+    { "name": "party-popper 134", "type": "INSTANCE", "x": 1006, "y": 1596, "w": 140, "h": 140, "rot": 90 },
+    { "name": "party-popper 130", "type": "INSTANCE", "x": 815, "y": 1236, "w": 140, "h": 140, "rot": 90 },
+    { "name": "party-popper 135", "type": "INSTANCE", "x": 1006, "y": 1236, "w": 140, "h": 140, "rot": 90 },
+    { "name": "party-popper 130", "type": "INSTANCE", "x": 815, "y": 876, "w": 140, "h": 140, "rot": 90 },
+    { "name": "party-popper 136", "type": "INSTANCE", "x": 1006, "y": 876, "w": 140, "h": 140, "rot": 90 },
+    { "name": "party-popper 130", "type": "INSTANCE", "x": 815, "y": 516, "w": 140, "h": 140, "rot": 90 },
+    { "name": "party-popper 137", "type": "INSTANCE", "x": 1006, "y": 516, "w": 140, "h": 140, "rot": 90 },
+    { "name": "party-popper 138", "type": "INSTANCE", "x": 1076, "y": 204.99, "w": 140, "h": 140, "rot": 135 },
+    { "name": "party-popper 110", "type": "INSTANCE", "x": 723.99, "y": 452, "w": 140, "h": 140, "rot": -135 },
+    { "name": "party-popper 131", "type": "INSTANCE", "x": 593, "y": 343.99, "w": 140, "h": 140, "rot": 180 },
+    { "name": "party-popper 132", "type": "INSTANCE", "x": 249, "y": 203.99, "w": 140, "h": 140, "rot": -90 },
+    { "name": "party-popper 133", "type": "INSTANCE", "x": 179, "y": 714.99, "w": 140, "h": 140, "rot": 135 },
+    { "name": "bumper", "type": "INSTANCE", "x": 595, "y": 536, "w": 180, "h": 180, "rot": 0 },
+    { "name": "bumper", "type": "INSTANCE", "x": 595, "y": 716, "w": 180, "h": 180, "rot": 0 },
+    { "name": "bumper", "type": "INSTANCE", "x": 595, "y": 896, "w": 180, "h": 180, "rot": 0 },
+    { "name": "bumper", "type": "INSTANCE", "x": 595, "y": 1436, "w": 180, "h": 180, "rot": 0 },
+    { "name": "watering-can", "type": "INSTANCE", "x": 269, "y": 205, "w": 180, "h": 140, "rot": 0 },
+    { "name": "watering-can", "type": "INSTANCE", "x": 370, "y": 378, "w": 180, "h": 140, "rot": 0 },
+    { "name": "watering-can", "type": "INSTANCE", "x": 795, "y": 916, "w": 180, "h": 140, "rot": 0 },
+    { "name": "watering-can", "type": "INSTANCE", "x": 986, "y": 198, "w": 180, "h": 140, "rot": 0 },
+    { "name": "watering-can", "type": "INSTANCE", "x": 995, "y": 1276, "w": 180, "h": 140, "rot": 0 },
+    { "name": "watering-can", "type": "INSTANCE", "x": 297, "y": 757, "w": 180, "h": 140, "rot": 0 },
+    { "name": "goal", "type": "INSTANCE", "x": 785, "y": 521, "w": 200, "h": 210, "rot": 0 },
+    { "name": "start", "type": "INSTANCE", "x": 5, "y": 1066, "w": 110, "h": 110, "rot": 0 }
+  ]
+}

@@ -8,18 +8,35 @@ Figma, and the naming contract that makes them mean something.
 node make-pack.mjs        # -> figma-pack.svg     (the kit you design with)
 node levels-to-svg.mjs    # -> figma-levels.svg   (a pack, one artboard per level)
 node levels-to-svg.mjs 1 3   # just those two
+node read-frame.mjs --nodes frame.json      # a frame in the game's units
+node read-frame.mjs --clipboard copy.html   # ...from a Ctrl+C instead
 ```
 
 ## What already exists in Figma
 
-Built via the Figma MCP server into `vRN6Q44ReIaESP5wv8M2dI`, on two pages of
-its own so the existing sketch page is untouched. Both sit on the game's page
-purple, `#150a2a` — the same value as `html, body` in the app.
+File key **`vRN6Q44ReIaESP5wv8M2dI`**, three pages. The two built via the Figma
+MCP server sit on the game's page purple, `#150a2a` — the same value as
+`html, body` in the app — and were given pages of their own so the existing
+sketch page stayed untouched.
 
-- **Goomba Kit** — six components at true world scale carrying **the game's own
+| Page | Node id | What it holds |
+| --- | --- | --- |
+| **Levels** | `47:2` | one Frame per level, named `L: <title>` |
+| **Components** | `45:55` | the kit: six components at true world scale |
+| **Scratchpad** | `0:1` | loose sketches and reference. Nothing here is a level |
+
+**Ask for a page by its node id.** `get_metadata` with no `nodeId` is meant to
+list the document's pages, and on this file it under-reports: it answers
+`Components` and nothing else. A thread that trusts that answer concludes the
+levels have been deleted — one did, and it cost an afternoon and a round trip
+to ask where they had gone. `get_metadata(fileKey, "47:2")` returns every level
+frame with all of its children in one call. That is the door; the page list is
+not.
+
+- **Components** — six components at true world scale carrying **the game's own
   art**: `start` (the goomba on her dashed pad), `goal` (the thirsty spider
   plant), `watering-can`, `bumper`, `party-popper`, `cushion`.
-- **Goomba Levels** — one real **Frame** per shipped level, named
+- **Levels** — one real **Frame** per shipped level, named
   `L: <title>` — **the title alone, never a number.** The frames used to read
   `L: 2 · The Long Way Up`, which stored a level's place in the pack inside a
   string in another application; `levelLabel` makes the number from the pack
@@ -133,6 +150,57 @@ Rules that keep it forgiving:
   `toy` component set with a `kind=can` variant would name every instance
   `toy` and push the meaning into variant properties the clipboard path can't
   read. Six components keep the contract legible in the layers panel.
+
+## Reading a frame back
+
+`read-frame.mjs` prints a frame in the units the physics uses: every toy's world
+position, each popper's aim and speed, the frame box, and the `bounds` the game
+will actually derive from it — which is the pair worth having side by side,
+because they are not the same box and only one of them is the world.
+
+It is a READER. There is no verdict in it, no simulation, no pass and no fail.
+`verify.mjs` and the gate it served are deleted on purpose (see
+[../DESIGNING.md](../DESIGNING.md)) and this is not them coming back — it is
+Figma's Design panel, read in game units, which is the thing that section
+already tells you to go and do by hand.
+
+Two carriers. `--clipboard <file>` takes a Ctrl+C saved to a file and runs it
+through the SHIPPED reader, so what comes out is what pasting into the game
+would produce; it needs a person, because a Figma copy only reaches the
+clipboard from a genuine user gesture. `--nodes <file>` takes the JSON from a
+read-only `use_figma` script, which an agent can run on its own:
+
+```js
+const page = await figma.getNodeByIdAsync("47:2");   // the Levels page
+await figma.setCurrentPageAsync(page);
+const f = await figma.getNodeByIdAsync("<the L: frame's id>");
+return { frame: { name: f.name, w: f.width, h: f.height },
+  kids: f.children.map((c) => ({ name: c.name, type: c.type,
+    x: c.x, y: c.y, w: c.width, h: c.height, rot: c.rotation ?? 0 })) };
+```
+
+### Do not read positions out of `get_metadata`
+
+There is an obvious third carrier — the XML from the MCP's `get_metadata`, which
+needs no script at all — and it is a trap worth naming, because it looks exactly
+like the data you want. **It reports a node's `x`/`y` as the node's ORIGIN and
+its `width`/`height` as the BOUNDING BOX.** Those are two different rectangles
+the moment anything is rotated, and the XML does not carry rotation at all. So
+`x + width/2` is the centre only for an unrotated node, and nothing in the XML
+tells you which nodes those are: a popper turned 90° reports the same 140x140
+box as one turned 0°, with its centre fourteen units from where that arithmetic
+puts it.
+
+This was written the wrong way round first, with a fixture and a green test
+agreeing with it, because the fixture was captured under the same assumption as
+the code. Ten of Fireworks' fifteen poppers are turned 90°, and all ten read
+fourteen units into the floor. Use the XML to find frames and read names — that
+much it is good for, and it is still the fastest way to see what is on the
+Levels page. Come here for numbers.
+
+`test-read-frame.mjs` covers the `--nodes` path against a real `use_figma` dump;
+the clipboard path rides on the shipped reader, which `test-real-copy.mjs`
+covers against a real Ctrl+C.
 
 ## The frame is the world
 

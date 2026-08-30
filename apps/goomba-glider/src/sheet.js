@@ -226,45 +226,22 @@ const TITLE_CROSS = 9;     // seconds, one end of the words to the other
 const TITLE_RUNWAY = 6;    // ...starting and ending this far outside the canvas
 
 /** The title's CAP LINE, in css px below the top of the h1's own box: the line
- * she rides, and the one number the stylesheet deliberately does not hold.
+ * she rides, and the one number the stylesheet holds ABOUT the mark rather than
+ * about its box.
  *
- * MEASURED off the h1's computed font, because this sheet's font stack resolves
- * to a different face on every platform — SF Pro Rounded on a phone, Roboto,
- * whatever a laptop has — and each one seats its capitals somewhere else inside
- * the line box. An em that is right on the machine it was measured on is a cat
- * sunk into the letters on the next one. Memoised on the font and the line
- * height, which is all it depends on: this is read every frame the sheet is
- * up, and the answer only moves when one of those two does. */
-let capMemo = { key: "", px: 0 };
+ * This used to MEASURE — a canvas, measureText("H"), font metrics, a memo keyed
+ * on the resolved font and, once the face became a webfont, on whether it had
+ * landed yet. All of that was paying for one uncertainty: the title was text,
+ * so the face under it was whatever the platform had, seating its capitals
+ * somewhere this code could not know in advance. The mark is OUTLINES now (see
+ * index.html), which have exactly one geometry everywhere, so the answer is a
+ * constant — and it is `--cap-em` in styles.css rather than a literal here,
+ * because logo-outline.py prints it in the same breath as the svg's size and
+ * the two must agree. One em-relative number, scaled by whatever #title's clamp
+ * came out at on this screen. */
 function capLine(h1) {
   const cs = getComputedStyle(h1);
-  const font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  // The title's face is a WEBFONT now (Titan One), and this can run before the
-  // woff2 lands: those first frames measure the fallback, and a key built only
-  // of the font string never moves again to shake them out. fonts.check flips
-  // false→true when the download arrives, so the load state rides the key and
-  // the memo re-measures exactly once, on the face it will keep.
-  const key = font + "|" + cs.lineHeight + "|" + document.fonts.check(font);
-  if (key === capMemo.key) return capMemo.px;
-  const g = capLine.g || (capLine.g = document.createElement("canvas").getContext("2d"));
-  g.font = font;
-  const m = g.measureText("H");
-  // The LINE box, never the element's height: this title is two stacked words
-  // (GOOMBA over GLIDER, one span each), so the element is two line boxes tall,
-  // and measuring it buries her half a line into the letters — she rides the
-  // FIRST line. `normal` resolves to the font's own ascent + descent with no
-  // leading either side of it.
-  const line = parseFloat(cs.lineHeight)
-    || m.fontBoundingBoxAscent + m.fontBoundingBoxDescent;
-  // half-leading + the font's own ascent = the baseline; back off the height of
-  // an actual capital to reach its top. Fall back to the .19em this measured on
-  // a laptop if the metrics are missing rather than drawing her at the baseline.
-  const px = m.fontBoundingBoxAscent
-    ? (line - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2
-      + m.fontBoundingBoxAscent - m.actualBoundingBoxAscent
-    : parseFloat(cs.fontSize) * 0.19;
-  capMemo = { key, px };
-  return px;
+  return parseFloat(cs.fontSize) * (parseFloat(cs.getPropertyValue("--cap-em")) || 0);
 }
 
 /** The scale the GOAL picture is drawn at, css px per world unit — taken off

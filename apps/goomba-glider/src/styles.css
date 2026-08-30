@@ -356,34 +356,26 @@
               this, so the seam is 6.8vh + 2.2vh — 51px on a 568 screen, 84 on
               a 932 one, against 24px of gutter inside the pictures. */
            margin-bottom: clamp(38px, 6.8vh, 76px); }
-  /* The words, in the ColecoVision manner: bare gradient shapes with the
-     gate's own dark as the only thing between the letters —
-     the mark is gradient letters packed tight, no keylines. The packing
-     is the tracking below, and its floor is a hard one: background-clip has
-     no stroke keeping two letters apart, so the moment a heavy pair (OO, MB)
-     actually touches, their fills fuse into one blob. Tight enough to read as
-     one solid word, held just short of that. */
-  /* Titan One is a single-weight face and already as heavy as type gets, so
-     the weight is 400 ON PURPOSE: at 900 the browser would synthesize extra
-     bold on top of it and smear the letters. The cost is a thinner title for
-     the frame or two before the woff2 lands — capLine in sheet.js keys its
-     memo on the load state for exactly that window. */
-  #gate h1 { margin: 0; font-size: 1em;
-             font-family: "Titan One", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
-             font-weight: 400; letter-spacing: -.035em; line-height: 1.04; }
-  /* BOTH rows run the whole rainbow, red on the left — the spectrum is per
-     WORD, not split across the line break, so GOOMBA and GLIDER each show the
-     entire run at once. On the span rather than the h1 because the clip box
-     is the gradient's ruler: each word is a hair different in width, and a
-     span's own box lands red exactly on its first letter and blue exactly on
-     its last, both rows, for free. Two of the game's colours (#ffd166,
-     #57e6c9) ride in the run; the red and blue bookends are the mark's. */
-  #gate h1 span { display: block;
-                  background: linear-gradient(90deg,
-                    #ff4d4d, #ff9445 20%, #ffd166 40%,
-                    #9fdd55 60%, #57e6c9 80%, #5aa9ff);
-                  -webkit-background-clip: text; background-clip: text;
-                  color: transparent; }
+  /* THE MARK's box. It is an <svg> of outlines now, not text in a face — the
+     whole argument, and the generator that re-derives it, are in index.html
+     beside it. What is left here is SIZE, and it stays in em so the one master
+     scale is still #title's clamp above: the viewBox is em/1000, so 4.294em
+     wide by 2.08em tall reproduces exactly the box two 1.04em line boxes of
+     Titan One occupied, and every em-sized thing measured against it — the
+     margins, #scTitle's -.72em — keeps meaning what it meant. The width is the
+     widest word's INK rather than its advance (4.294 against 4.297): a picture
+     is centred by what you can see, and the mark has stopped being type.
+
+     --cap-em is the one number this mark owes the rest of the app: the line the
+     cat rides, in em below the top of the box, which as type was measured off
+     the font every frame because the face resolved differently on every
+     platform. Outlines have one geometry, so it is a constant — a GENERATED
+     one (logo-outline.py prints it with the svg, from the same baseline and
+     cap-height it laid the letters out on), which is why it lives here against
+     the size it must agree with rather than as a literal in sheet.js. Read
+     back off the element there, the way main.js reads --zoop-ms. */
+  #gate h1 { margin: 0; font-size: 1em; --cap-em: .2075; }
+  #gate h1 #mark { display: block; width: 4.294em; height: 2.08em; }
   /* Her canvas covers the WORDS as well as the air over them — down to the
      bottom of the line box, not down to the letter tops. A canvas clips what it
      draws to its own box, so one that stopped at the cap line cut her off at the

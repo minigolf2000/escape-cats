@@ -1520,6 +1520,11 @@
       capacity: lay.blocks.map((b) => b.ecLen >> 1),
       unsatisfied, headroom, mask, level: prep.level, lay,
       freeDim: pool.length, // noise degrees of freedom (2^freeDim variations)
+      // The basis itself, for a caller that wants to CHOOSE its noise rather
+      // than roll it: every vector touches only unpainted modules, so XOR any
+      // subset into `matrix` after the fact and the drawing, the pins and the
+      // decode all survive. (`noiseRng` above is the roll-it shortcut.)
+      noiseBasis: pool,
     };
   }
 
@@ -1577,7 +1582,7 @@
     EC_BLOCKS, ALIGN, LEVELS, MASKS, sizeOf,
     functionPatterns, layout, buildData, encodeFromData, encodeStandard,
     minVersionFor, penalty, validate, readFormat,
-    optimize, prepareArt, solveArt, FRAGMENT_ALPHABET,
+    optimize, prepareArt, solveArt, solveExact, FRAGMENT_ALPHABET,
     toSVG, toRGBA, ascii,
     mulberry32,
   };

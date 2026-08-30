@@ -1,0 +1,5 @@
+# GA output: thousands of candidate renders, regenerable from the seed in the
+# manifest. The chosen artwork is committed in tools/qr-art/, not here.
+runs/
+preview/
+review/

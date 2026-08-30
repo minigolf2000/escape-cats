@@ -38,6 +38,9 @@ export function evaluate(g, url, opts = {}) {
 
   // Ink the design asked for but that lands outside its own white field is a
   // letter sitting on the noise — always a defect, never a solver problem.
+  // A letter's protected white puncturing the silhouette is the same defect as
+  // the letter itself hanging out: it rounds the chamfers off and the hexagon
+  // starts reading as a lozenge.
   let strayInk = 0;
   if (g.mode !== "text") {
     for (const [r, c] of d.glyphCells) {
@@ -66,6 +69,8 @@ export function evaluate(g, url, opts = {}) {
   // design, and a design the GA cannot see it cannot select for.
   sculptGroundExact(d, g, res.matrix, res.noiseBasis);
   met.edgeMiss = edgeMiss(d, res.matrix);
+  met.edgeRun = g.mode === "text" ? 0 : edgeRun(d, g, res.matrix);
+  met.spread = groundSpread(d, res.matrix);
   met.ground = +darkFraction(d, res.matrix).toFixed(3);
 
   const capArea = AREA_CAP_FRAC * size * size;
@@ -79,7 +84,11 @@ export function evaluate(g, url, opts = {}) {
   const centre = (size - 1) / 2;
   const offCentre = g.mode === "text" ? 0 : Math.abs(g.cx - centre - 0.5) + Math.abs(g.cy - centre - 0.5);
   const quality = Math.exp(-(met.cost + 20 * strayInk + 1.5 * met.intrusionTiming + 12 * met.intrusionHard +
-    2.5 * offCentre + 2.2 * met.edgeMiss) / K);
+    2.5 * offCentre + 1.4 * met.edgeMiss +
+    // a gap in the silhouette costs by its LENGTH, quadratically
+    2.0 * met.edgeRun * met.edgeRun +
+    // an uneven ground is a field the shape is only half cut out of
+    70 * Math.max(0, met.spread - 0.22)) / K);
   let fitness = ambition * quality * caseBonus;
 
   // Hard gates: it has to scan, and it has to scan as the right URL.
@@ -230,7 +239,31 @@ export function sculptGroundExact(d, g, matrix, basis) {
     const [X, Y] = g.pointy ? [dy, dx] : [dx, dy];
     return Math.max(Y / (Math.sqrt(3) / 2), X + Y / Math.sqrt(3));
   };
-  order.sort((a, b) => w[b] - w[a] || dist(a) - dist(b));
+  // Order matters more than anything else here. Sorting the whole ground by
+  // distance spends every dimension of rank near the shape and leaves the far
+  // corners as raw 50% noise — which is exactly the sparse quadrant that keeps
+  // showing up in the lower left. Boundary ring first (that edge IS the
+  // silhouette), then round-robin across an 8x8 grid of tiles so rank is spent
+  // evenly over the whole field instead of radially.
+  const TILE = Math.max(4, Math.round(size / 5));
+  const tileOf = (i) => {
+    const r = (i / size) | 0, c = i % size;
+    return ((r / TILE) | 0) * 64 + ((c / TILE) | 0);
+  };
+  const rim = order.filter((i) => w[i] > 1).sort((a, b) => dist(a) - dist(b));
+  const rest = order.filter((i) => w[i] <= 1);
+  const buckets = new Map();
+  for (const i of rest.sort((a, b) => dist(a) - dist(b))) {
+    const t = tileOf(i);
+    if (!buckets.has(t)) buckets.set(t, []);
+    buckets.get(t).push(i);
+  }
+  const lists = [...buckets.values()];
+  const interleaved = [];
+  for (let k = 0; lists.some((l) => k < l.length); k++)
+    for (const l of lists) if (k < l.length) interleaved.push(l[k]);
+  order.length = 0;
+  order.push(...rim, ...interleaved);
   const solVars = new Uint32Array(basis[0].vars.length);
   const { pinned, pool } = QR.solveExact(size, matrix, basis, target, order, solVars);
   sculptGround(matrix, pool, want, w);
@@ -290,6 +323,64 @@ export function edgeMiss(d, matrix) {
       }
     }
   return bad;
+}
+
+/*
+ * Two shape metrics the first round was blind to.
+ *
+ * groundSpread: darkness measured per TILE, not per image. A mean of 68% hides
+ * a field that is 85% dark along the top and 45% in the bottom-left corner,
+ * and it is the corner that decides whether the silhouette closes.
+ *
+ * edgeRun: the LONGEST unbroken run of light modules along the shape's
+ * boundary. One nick is texture; five in a row is a hole, and a mean edge
+ * count cannot tell the two apart.
+ */
+export function groundSpread(d, matrix, tile = 8) {
+  const size = d.size;
+  let lo = 1, hi = 0;
+  for (let tr = 0; tr < size; tr += tile)
+    for (let tc = 0; tc < size; tc += tile) {
+      let n = 0, dark = 0;
+      for (let r = tr; r < Math.min(size, tr + tile); r++)
+        for (let c = tc; c < Math.min(size, tc + tile); c++) {
+          const i = r * size + c;
+          if (d.tier[i] !== 0 || d.func[i]) continue;
+          n++; dark += matrix[i];
+        }
+      if (n < tile * 2) continue;
+      const f = dark / n;
+      lo = Math.min(lo, f); hi = Math.max(hi, f);
+    }
+  return hi > lo ? +(hi - lo).toFixed(3) : 0;
+}
+
+export function edgeRun(d, g, matrix) {
+  const size = d.size;
+  const rim = [];
+  for (let r = 0; r < size; r++)
+    for (let c = 0; c < size; c++) {
+      const i = r * size + c;
+      if (d.tier[i] !== 0 || d.func[i]) continue;
+      let touches = false;
+      for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        const rr = r + dr, cc = c + dc;
+        if (rr < 0 || cc < 0 || rr >= size || cc >= size) continue;
+        if (d.tier[rr * size + cc] >= 1) touches = true;
+      }
+      if (touches) rim.push(i);
+    }
+  if (!rim.length) return 0;
+  // walk the rim in angular order so "consecutive" means "next along the edge"
+  rim.sort((a, b) =>
+    Math.atan2(((a / size) | 0) - g.cy, (a % size) - g.cx) -
+    Math.atan2(((b / size) | 0) - g.cy, (b % size) - g.cx));
+  let run = 0, worst = 0;
+  for (let k = 0; k < rim.length * 2; k++) {
+    const i = rim[k % rim.length];
+    if (matrix[i]) run = 0; else { run++; worst = Math.max(worst, run); }
+  }
+  return Math.min(worst, rim.length);
 }
 
 export function darkFraction(d, matrix) {

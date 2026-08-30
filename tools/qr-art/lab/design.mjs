@@ -25,6 +25,7 @@ export const FONTS = {
       X: ["#   #", " # # ", "  #  ", " # # ", "#   #"],
       F: ["####", "#   ", "####", "#   ", "#   "],
       L: ["#   ", "#   ", "#   ", "#   ", "####"],
+      " ": ["  ", "  ", "  ", "  ", "  "],
     },
   },
   // 5 tall, narrow — the tightest legible cut, buys two modules per word.
@@ -36,6 +37,7 @@ export const FONTS = {
       X: ["# #", "# #", " # ", "# #", "# #"],
       F: ["###", "#  ", "###", "#  ", "#  "],
       L: ["#  ", "#  ", "#  ", "#  ", "###"],
+      " ": ["  ", "  ", "  ", "  ", "  "],
     },
   },
   // 5 tall with a squared X — the X that reads as a letter, not a bowtie.
@@ -47,6 +49,7 @@ export const FONTS = {
       X: ["##  ##", " #### ", "  ##  ", " #### ", "##  ##"],
       F: ["####", "#   ", "####", "#   ", "#   "],
       L: ["#   ", "#   ", "#   ", "#   ", "####"],
+      " ": ["  ", "  ", "  ", "  ", "  "],
     },
   },
   // 7 tall, two-module stems — poster stencil. Costs rows, buys presence.
@@ -58,6 +61,7 @@ export const FONTS = {
       X: ["##   ##", " ## ## ", "  ###  ", "   #   ", "  ###  ", " ## ## ", "##   ##"],
       F: ["#######", "#######", "##     ", "###### ", "###### ", "##     ", "##     "],
       L: ["##     ", "##     ", "##     ", "##     ", "##     ", "#######", "#######"],
+      " ": ["   ", "   ", "   ", "   ", "   ", "   ", "   "],
     },
   },
   // 6 tall, two-module stems — the compromise cut.
@@ -69,6 +73,7 @@ export const FONTS = {
       X: ["## ##", "## ##", " ### ", " ### ", "## ##", "## ##"],
       F: ["#####", "##   ", "#### ", "#### ", "##   ", "##   "],
       L: ["##   ", "##   ", "##   ", "##   ", "##   ", "#####"],
+      " ": ["   ", "   ", "   ", "   ", "   ", "   "],
     },
   },
 };
@@ -104,7 +109,8 @@ export function hexRadiusAt(g, r, c) {
 }
 
 export const DEFAULT_GENOME = {
-  mode: "both",           // both | shapes | text
+  mode: "both",           // both | shapes | text | banner
+  invert: 0,              // 1 = letters knocked WHITE out of a dark halo
   version: 6,
   level: "L",
   font: "t5",
@@ -180,13 +186,18 @@ export function renderDesign(g) {
         }
     }
     if (g.spokes) {
-      for (let k = 0; k < 6; k++) {
+      // THREE diameters, vertex to opposite vertex — not six rays out of the
+      // middle, which meet in a four-module knot exactly where the star point
+      // has to be crisp. In pointy-top orientation these cut the hexagon into
+      // six EQUAL triangles: a flexagon's own crease pattern.
+      for (let k = 0; k < 3; k++) {
         const a = (Math.PI / 3) * k + (g.pointy ? Math.PI / 6 : 0);
-        for (let t = 0; t <= g.R * 12; t++) {
-          const d = (t / 12);
-          const x = g.cx + Math.cos(a) * d;
-          const y = g.cy + Math.sin(a) * d * g.squash;
-          const r = Math.floor(y), c = Math.floor(x);
+        const dx = Math.cos(a), dy = Math.sin(a) * g.squash;
+        const steps = Math.ceil(g.R * 3);
+        for (let t = -steps; t <= steps; t++) {
+          const d = (t / steps) * g.R;
+          const r = Math.round(g.cy + dy * d - 0.5);
+          const c = Math.round(g.cx + dx * d - 0.5);
           if (inHex(r, c, g.R)) put(r, c, 1, 2);
         }
       }
@@ -216,12 +227,19 @@ export function renderDesign(g) {
   const lines = g.words.split("|").filter(Boolean);
   const F = FONTS[g.font];
   const blockH = lines.length * F.height + (lines.length - 1) * g.lineSpace;
-  const top = Math.round(g.cy + g.ty - blockH / 2);
+  // banner: the words sit BELOW the shape on the ground, knocked out of it,
+  // so the hexagon gets to be as clean as a shape-only design and the type
+  // gets to be as bold as a text-only one. Neither has to shrink for the other.
+  const hexHalf = (g.R || 0) * (Math.sqrt(3) / 2) * (g.squash || 1);
+  const anchor = g.mode === "banner" ? g.cy + hexHalf + 1 + blockH / 2 : g.cy;
+  const top = Math.round(anchor + g.ty - blockH / 2);
   const glyphCells = [];
   if (g.mode !== "shapes") {
     lines.forEach((word, li) => {
       const w = textWidth(g.font, word, g.letterSpace);
-      let x = Math.round(g.cx + g.tx - w / 2);
+      // every line rounds the SAME way, so stems on different lines land on
+      // the same sub-module phase and the block reads as one centred column
+      let x = Math.round(g.cx + g.tx) - (w >> 1);
       const y = top + li * (F.height + g.lineSpace);
       for (const ch of word) {
         const rows = F.glyphs[ch];
@@ -233,7 +251,7 @@ export function renderDesign(g) {
     });
   }
   // text mode paints its own white plate: the block plus padding.
-  if (g.mode === "text" && glyphCells.length) {
+  if ((g.mode === "text" || (g.mode === "banner" && !g.invert)) && glyphCells.length) {
     let r0 = Infinity, r1 = -Infinity, c0 = Infinity, c1 = -Infinity;
     for (const [r, c] of glyphCells) {
       r0 = Math.min(r0, r); r1 = Math.max(r1, r);
@@ -243,8 +261,9 @@ export function renderDesign(g) {
     for (let r = r0 - p; r <= r1 + p; r++)
       for (let c = c0 - p; c <= c1 + p; c++) put(r, c, 0, 1);
   }
+  const inkDark = g.invert ? 0 : 1;
   for (const [r, c] of glyphCells) {
-    put(r, c, 1, 4);
+    put(r, c, inkDark, 4);
     if (r >= 0 && c >= 0 && r < size && c < size) glyphInk[r * size + c] = 1;
   }
   // halo: white modules within `halo` of ink, promoted above plain field
@@ -257,8 +276,8 @@ export function renderDesign(g) {
           if (rr < 0 || cc < 0 || rr >= size || cc >= size) continue;
           const i = rr * size + cc;
           if (tier[i] === 4) continue;
-          if (tier[i] === 0 && g.mode !== "text") continue; // don't paint the ground
-          put(rr, cc, 0, 3);
+          if (tier[i] === 0 && !g.haloOutside && g.mode !== "text" && g.mode !== "banner") continue;
+          put(rr, cc, 1 - inkDark, 3);
         }
   }
 

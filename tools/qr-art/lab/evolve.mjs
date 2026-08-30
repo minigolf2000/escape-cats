@@ -29,6 +29,11 @@ const GENES = {
   level: CHOICE("L", "M", "Q"),
   urlCase: CHOICE("schemehost", "none"),
   font: CHOICE("t5", "s5", "b6", "b7"),
+  // the canonical three lines, plus the two-line settings that free the top
+  // and bottom of the hexagon for shape and ground
+  words: CHOICE("HEX|HEX|FLEX", "HEX HEX|FLEX", "HEX|FLEX"),
+  invert: CHOICE(0, 1),
+  haloOutside: CHOICE(0, 1),
   letterSpace: INT(1, 2),
   lineSpace: INT(1, 3),
   cx: HALF(16, 25), cy: HALF(16, 25),
@@ -36,7 +41,7 @@ const GENES = {
   squash: REAL(0.85, 1.7, 0.05),
   pointy: CHOICE(0, 1),
   tx: INT(-4, 4), ty: INT(-4, 4),
-  halo: INT(0, 2),
+  halo: INT(1, 3),
   outline: INT(0, 2), outlineGap: INT(0, 3),
   ring: INT(0, 2),
   ground: CHOICE("dense", "rings", "halo"),
@@ -50,14 +55,18 @@ const GENES = {
 
 // Genes each mode is allowed to move. A gene left out keeps its seed value.
 const ACTIVE = {
-  both: ["version", "level", "urlCase", "font", "letterSpace", "lineSpace", "cx", "cy", "R",
-    "squash", "pointy", "tx", "ty", "halo", "outline", "outlineGap", "ring",
-    "ground", "ringPeriod", "haloBand", "margin", "marginCap", "flipSeed"],
+  both: ["version", "level", "urlCase", "font", "words", "letterSpace", "lineSpace",
+    "cx", "cy", "R", "squash", "pointy", "tx", "ty", "halo", "haloOutside",
+    "outline", "outlineGap", "ring", "ground", "ringPeriod", "haloBand",
+    "margin", "marginCap", "flipSeed"],
+  banner: ["version", "level", "urlCase", "font", "words", "letterSpace", "lineSpace",
+    "cx", "cy", "R", "squash", "pointy", "tx", "ty", "halo", "invert",
+    "outline", "outlineGap", "spokes", "ground", "margin", "marginCap", "flipSeed"],
   shapes: ["version", "level", "urlCase", "cx", "cy", "R", "squash", "pointy", "outline",
     "outlineGap", "ring", "spokes", "innerR", "ground", "ringPeriod", "haloBand",
     "margin", "marginCap", "flipSeed"],
-  text: ["version", "level", "urlCase", "font", "letterSpace", "lineSpace", "cx", "cy",
-    "tx", "ty", "halo", "margin", "marginCap", "flipSeed"],
+  text: ["version", "level", "urlCase", "font", "words", "letterSpace", "lineSpace",
+    "cx", "cy", "tx", "ty", "halo", "margin", "marginCap", "flipSeed"],
 };
 
 function rnd(rng, gene) {
@@ -86,6 +95,7 @@ function seedGenome(mode) {
   const g = { ...DEFAULT_GENOME, mode };
   if (mode === "shapes") g.words = "";
   if (mode === "text") { g.R = 0; g.ring = 0; g.outline = 0; }
+  if (mode === "banner") { g.R = 12; g.squash = 1; g.cy = 16; g.halo = 1; g.invert = 1; }
   return g;
 }
 
@@ -110,6 +120,23 @@ function cross(rng, a, b, mode) {
 // text block and grow it until the words actually fit inside the shape.
 function repair(g) {
   if (g.mode === "text") return g;
+  if (g.mode === "banner") {
+    // centre the whole group — hexagon stacked over its banner — in the symbol,
+    // so neither half runs off the edge as the other one grows
+    const F = FONTS[g.font];
+    const n = (g.words || "").split("|").filter(Boolean).length;
+    const blockH = n * F.height + (n - 1) * g.lineSpace;
+    const hexHalf = g.R * (Math.sqrt(3) / 2) * g.squash;
+    const groupH = 2 * hexHalf + 1 + blockH;
+    const size = QR.sizeOf(g.version);
+    g.cy = +(Math.max(hexHalf + 1, (size - groupH) / 2 + hexHalf)).toFixed(1);
+    g.cx = (size - 1) / 2 + 0.5;
+    for (let i = 0; i < 16 && g.R > 5; i++) {
+      if (renderDesign(g).intrusionHard === 0) break;
+      g.R = +(g.R - 0.5).toFixed(1);
+    }
+    return g;
+  }
   const lines = (g.words || "").split("|").filter(Boolean);
   if (!lines.length) return g;
   // Grow the hexagon until every letter — and the white halo each letter needs

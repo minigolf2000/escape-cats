@@ -3,6 +3,11 @@
      Self-contained (engine inlined below) — zero dependencies, zero build.
      The <!doctype> keeps standards mode on static hosts; wrapper tags are
      omitted because the artifact host injects its own document skeleton. -->
+<!-- first thing in the document on purpose: the encoding sniff only reads the
+     first 1024 bytes, and this page has no server contract — it is opened off
+     a static host, off disk, and inside an artifact frame. Without this the
+     ⌘/⌃ key glyphs and the ❓ favicon land as mojibake. -->
+<meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>QR Studio</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❓</text></svg>">
@@ -205,7 +210,7 @@
       <button class="sizebtn" data-size="3" aria-label="3 by 3"><i style="width:12px;height:12px"></i>3×3 <span class="key">(3)</span></button>
     </div>
     <div class="toolrow">
-      <button id="undo">undo <span class="key">(⌃Z)</span></button>
+      <button id="undo">undo <span class="key" id="undoKey">(Ctrl+Z)</span></button>
     </div>
     <span class="hint">arrow keys nudge the whole drawing</span>
   </aside>
@@ -2134,6 +2139,12 @@ window.QR_PRESET_IMGS = {
     capStack(state.undoStack);
   }
   $("undo").addEventListener("click", undo);
+  // The GLYPH is the one thing in this feature that genuinely differs by
+  // platform. The binding below doesn't: it takes ctrl and meta on every OS
+  // without asking which one it is on. But a label is a promise about which
+  // chord works, and ⌃Z printed on a Mac names a chord that doesn't.
+  const isMac = /mac/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "");
+  if (isMac) $("undoKey").textContent = "(⌘Z)";
   // Ctrl/Cmd+Z is the DRAWING's undo — except with the caret in a text field,
   // where the browser's own undo owns the keystroke. Without this the link box
   // ate strokes off the canvas while you retyped the URL. Sliders, checkboxes

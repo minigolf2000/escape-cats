@@ -208,6 +208,20 @@ in the link field is the *field's* undo — the browser owns that keystroke —
 while sliders and checkboxes, which have no native undo to defer to, keep
 the drawing's.
 
+The **binding** is platform-blind on purpose: `ctrlKey || metaKey` covers
+both without asking which OS it is on, so there is no `navigator.platform`
+branch anywhere in the handler. The **label** is the one thing that can't
+dodge the question — printing ⌃Z on a Mac names a chord that doesn't work —
+so that single glyph, and only that, is swapped at boot. (The tempting
+alternative, letting the browser deliver the intent as a `beforeinput` with
+`inputType: "historyUndo"`/`"historyRedo"`, does exist and does normalise ⌃Y
+for you. It's a dead end here: those events only fire on an *editable* host
+whose native undo stack is non-empty, so a canvas needs a hidden
+contenteditable decoy kept permanently primed — and `preventDefault`-ing the
+undo means the browser never advances its own cursor, so the redo event never
+arrives at all. More platform-specific machinery than the three keys it
+would replace.)
+
 ## Answering the workflow question
 
 Yes — codes like the posters are an *iterative, human process*, and the tool

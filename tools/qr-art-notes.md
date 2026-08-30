@@ -159,6 +159,55 @@ feasibility depends only on the current pixels (never the path taken),
 lazier policies lose nothing permanently — the policy only tunes meter
 rhythm versus noise-field stability.
 
+## The URL is the save file
+
+The studio has no server, so a shareable drawing was always going to be the
+whole state in a hash. What changed is *when* it gets written: the hash now
+tracks the canvas continuously (debounced) instead of being minted by a
+button, which makes the address bar itself the share affordance.
+
+Three things about that were decided rather than defaulted:
+
+- **`replaceState`, never `pushState`.** A history entry per edit turns Back
+  into a stroke-level undo and traps you in the page — you press Back to
+  leave and get your own drawing again, forty times.
+- **Debounced, not per-pixel.** Two independent reasons, either sufficient:
+  browsers rate-limit the history API (Safari throws past ~100 writes/30s,
+  Firefox past its own), and an address bar re-rendering under the brush is
+  motion in the corner of your eye while you're trying to draw. The natural
+  unit isn't a time slice anyway — it's the *action*, the same one the undo
+  stack records. Reusing the existing 250ms autosave timer gets that for
+  free: it only fires once the pointer stops, so a drag of 200 paint events
+  is one write. `HASH_MIN_MS` is the floor under anything that could still
+  oscillate.
+- **A blank canvas keeps a bare address.** Growing a 300-character hash on
+  a page you just opened is startling and buys nothing. Once the URL carries
+  the drawing it keeps tracking it, so *clearing* the canvas updates the
+  link — the one case where laziness would leave stale art in something
+  copyable.
+
+The copy button stays. The URL bar holds the same string, but the button is
+one click instead of ⌘L ⌘C Esc, and it is the only thing on screen that says
+the drawing is a link at all — a silently mutating address bar teaches
+nobody what it's for. The `saveNote` under it now says so out loud.
+
+Real wins beyond convenience: two studio tabs stop fighting over one
+localStorage key (each restores its own hash), and the drawing survives in
+browser history, a bookmark, and Reopen Closed Tab. Real cost: those
+monster URLs land in omnibox autocomplete, and they're in any screen share.
+
+Undo/redo is the classical two-stack pair, and the trick that keeps it small
+is that an undo record is symmetric — a record is the cell values that were
+there *before* an action, so capturing what you're about to overwrite gives
+you the record that puts it back. `applyRec` returns its own inverse, undo
+and redo are that one function pointed at opposite stacks, and neither has
+to know which action it's walking over (a canvas resize is a whole-grid
+snapshot and rides the same path). Redo is unbound from any button on
+purpose but answers both platform conventions, ⇧⌃Z and ⌃Y. ⌃Z with the caret
+in the link field is the *field's* undo — the browser owns that keystroke —
+while sliders and checkboxes, which have no native undo to defer to, keep
+the drawing's.
+
 ## Answering the workflow question
 
 Yes — codes like the posters are an *iterative, human process*, and the tool

@@ -8,7 +8,7 @@
  * boring design; this form makes a broken letter cost more than a small one.
  */
 import { QR } from "./engine.mjs";
-import { renderDesign } from "./design.mjs";
+import { glyphPieces, renderDesign } from "./design.mjs";
 
 const prepCache = new Map();
 export function prepFor(text, version, level, urlCase = "schemehost") {
@@ -79,6 +79,10 @@ export function evaluate(g, url, opts = {}) {
   // white under it. That is invisible to every other term here, so it gets
   // its own: white above the block versus white below it.
   met.balance = textBalance(d, g);
+  // A letterform that falls apart at this resolution is not a cheaper letter,
+  // it is a broken one — and every other term in this score is blind to it,
+  // because each module lands exactly where the design asked.
+  met.brokenGlyphs = d.glyphCells.length ? glyphPieces(g.font, g.words || "") : 0;
 
   const capArea = AREA_CAP_FRAC * size * size;
   // Ink is the message, so it is worth six times its area in shape.
@@ -96,7 +100,8 @@ export function evaluate(g, url, opts = {}) {
     2.0 * met.edgeRun * met.edgeRun +
     // an uneven ground is a field the shape is only half cut out of
     70 * Math.max(0, met.spread - 0.22) +
-    9 * met.balance) / K);
+    9 * met.balance +
+    25 * met.brokenGlyphs) / K);
   let fitness = ambition * quality * caseBonus;
 
   // Hard gates: it has to scan, and it has to scan as the right URL.

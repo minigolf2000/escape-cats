@@ -1,5 +1,4 @@
 {
-  "note": "HEX HEX FLEX inside a flat-top hexagon — the shipped design.",
   "url": "https://youtu.be/JDO-JIjoIlk",
   "genome": {
     "mode": "both",
@@ -34,9 +33,6 @@
     "noiseSeed": 0,
     "haloOutside": 0
   },
-  "mask": 0,
-  "modules": 41,
-  "quiet": 4,
   "metrics": {
     "glyphMiss": 0,
     "haloMiss": 0,
@@ -60,20 +56,5 @@
     "headroom": 3,
     "scans": true,
     "decoded": "https://youtu.be/JDO-JIjoIlk"
-  },
-  "verified": {
-    "validate": true,
-    "decoded": "https://youtu.be/JDO-JIjoIlk",
-    "jsqr": {
-      "q4x1": "ok",
-      "q4x2": "ok",
-      "q4x3": "ok",
-      "q4x8": "ok",
-      "q2x1": "ok",
-      "q2x2": "ok",
-      "q2x3": "ok",
-      "q2x8": "ok"
-    },
-    "headroom": 3
   }
 }

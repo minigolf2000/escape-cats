@@ -1,6 +1,6 @@
 {
   "note": "Shape only: the hexagon with no words in it.",
-  "url": "https://youtu.be/VIVIegSt81k",
+  "url": "https://youtu.be/JDO-JIjoIlk",
   "genome": {
     "mode": "shapes",
     "invert": 0,
@@ -33,35 +33,36 @@
     "flipSeed": 7345,
     "noiseSeed": 0
   },
-  "mask": 4,
+  "mask": 0,
   "modules": 41,
   "quiet": 4,
   "metrics": {
     "glyphMiss": 0,
     "haloMiss": 0,
     "ruleMiss": 1,
-    "fieldMiss": 0,
-    "cost": 6,
+    "fieldMiss": 1,
+    "cost": 8.2,
     "fieldArea": 595,
     "inkArea": 0,
     "intrusionTiming": 0,
     "intrusionHard": 0,
-    "misses": 1,
+    "misses": 2,
     "edgeMiss": 4,
     "edgeRun": 1,
-    "spread": 0.22,
-    "ground": 0.523,
+    "spread": 0.351,
+    "ground": 0.504,
     "balance": 0,
+    "brokenGlyphs": 0,
     "strayInk": 0,
     "ambition": 595,
-    "quality": 0.7046880897187134,
+    "quality": 0.5503648191818695,
     "headroom": 2,
     "scans": true,
-    "decoded": "https://youtu.be/VIVIegSt81k"
+    "decoded": "https://youtu.be/JDO-JIjoIlk"
   },
   "verified": {
     "validate": true,
-    "decoded": "https://youtu.be/VIVIegSt81k",
+    "decoded": "https://youtu.be/JDO-JIjoIlk",
     "jsqr": {
       "q4x1": "ok",
       "q4x2": "ok",

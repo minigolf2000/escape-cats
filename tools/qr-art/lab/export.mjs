@@ -8,8 +8,9 @@ import { QR } from "./engine.mjs";
 import { evaluate } from "./solve.mjs";
 import { writeMatrixPNG } from "./evolve.mjs";
 import { scanCheck } from "./scan-check.mjs";
+import { checkLink } from "./check-link.mjs";
 
-const URL_DEFAULT = "https://youtu.be/VIVIegSt81k";
+const URL_DEFAULT = "https://youtu.be/JDO-JIjoIlk";
 
 export function exportDesign(genome, url, path, { scale = 20, quiet = 4, note = "" } = {}) {
   const e = evaluate(genome, url);
@@ -30,8 +31,14 @@ export function exportDesign(genome, url, path, { scale = 20, quiet = 4, note = 
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const url = process.env.QR_URL || URL_DEFAULT;
+  // A code that scans perfectly and points at a 404 is still broken, and that
+  // is the one thing none of the other checks here was looking at.
+  const link = await checkLink(url);
+  console.log(`${link.live ? "live" : "DEAD"} ${url}${link.title ? ` — ${link.title}` : ""} ${JSON.stringify(link.checks)}`);
+  if (!link.live && !process.env.QR_SKIP_LINK_CHECK)
+    throw new Error(`${url} does not resolve — set QR_SKIP_LINK_CHECK=1 to export anyway`);
   const jobs = [
-    ["final/final.json", "../hexflex-qr",
+    ["final-jdo/final.json", "../hexflex-qr",
       "HEX HEX FLEX inside a flat-top hexagon — the shipped design."],
     ["polish-A/final.json", "../hexflex-qr-dense",
       "Same design with the whole ground pushed dark instead of a band."],

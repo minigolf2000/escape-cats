@@ -11,7 +11,7 @@ import { DEFAULT_GENOME, FONTS, hexRadiusAt, renderDesign, textWidth } from "./d
 import { evaluate, sameURL } from "./solve.mjs";
 import { writePNG } from "./png.mjs";
 
-export const URL_DEFAULT = "https://youtu.be/VIVIegSt81k";
+export const URL_DEFAULT = "https://youtu.be/JDO-JIjoIlk";
 
 const argv = Object.fromEntries(
   process.argv.slice(2).join(" ").split("--").filter(Boolean)

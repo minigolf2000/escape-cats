@@ -78,6 +78,47 @@ export const FONTS = {
   },
 };
 
+/*
+ * How many separate pieces a word breaks into under 4-connectivity.
+ *
+ * This is the one thing about a letterform that module resolution decides for
+ * you. A one-module diagonal X is a perfectly good X on paper and five loose
+ * squares at 41 modules — the word reads "HE.", and the squares look like
+ * noise that leaked into the white field. Diagonal contact is not contact
+ * here, so 4-connectivity is the test, and a glyph that fails it is not a
+ * narrower letter, it is a broken one.
+ */
+export function glyphPieces(font, words) {
+  const F = FONTS[font];
+  let extra = 0;
+  for (const ch of new Set(words.replace(/\|/g, ""))) {
+    const rows = F.glyphs[ch];
+    if (!rows) continue;
+    const h = rows.length, w = rows[0].length;
+    const seen = new Uint8Array(h * w);
+    let pieces = 0;
+    for (let r = 0; r < h; r++)
+      for (let c = 0; c < w; c++) {
+        if (rows[r][c] !== "#" || seen[r * w + c]) continue;
+        pieces++;
+        const stack = [[r, c]];
+        seen[r * w + c] = 1;
+        while (stack.length) {
+          const [y, x] = stack.pop();
+          for (const [dy, dx] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+            const yy = y + dy, xx = x + dx;
+            if (yy < 0 || xx < 0 || yy >= h || xx >= w) continue;
+            if (rows[yy][xx] !== "#" || seen[yy * w + xx]) continue;
+            seen[yy * w + xx] = 1;
+            stack.push([yy, xx]);
+          }
+        }
+      }
+    if (pieces > 1) extra += pieces - 1;
+  }
+  return extra;
+}
+
 export function glyphWidth(font, ch) {
   return FONTS[font].glyphs[ch][0].length;
 }

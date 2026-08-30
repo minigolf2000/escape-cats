@@ -25,6 +25,9 @@ JSQR_PATH=/tmp/qrverify/node_modules/jsqr node scan-check.mjs runs/both-11
 | `evolve.mjs` | The GA: tournament selection, uniform crossover, per-gene mutation, a repair pass. |
 | `review.mjs` | Best-of-every-lineage into one folder, re-rendered and re-verified. |
 | `scan-check.mjs` | Second opinion from jsQR over the rendered pixels. |
+| `check-link.mjs` | Does the URL in the code actually resolve? |
+| `polish.mjs` | Coordinate descent on how a finished design is *drawn*. |
+| `export.mjs` | Chosen designs out to `../` as artwork plus the recipe that made them. |
 | `png.mjs` | A PNG writer, because node has zlib and that is the whole dependency list. |
 
 `runs/` and `review/` are gitignored: thousands of candidate renders,
@@ -89,6 +92,15 @@ deliberately not in `package.json`:
 ```sh
 mkdir -p /tmp/qrverify && cd /tmp/qrverify && npm i jsqr
 ```
+
+**And neither of them checks the thing that actually broke.** A wrong video id
+sailed through both decoders, an adversarial review and a commit, because
+every check in this lab was asking "does it decode to the string we meant?"
+and none was asking "does that string go anywhere?" `check-link.mjs` asks the
+second question, and `export.mjs` refuses to write artwork for a URL that does
+not resolve (`QR_SKIP_LINK_CHECK=1` to override). A code that scans perfectly
+and lands on a 404 is a broken code, and it is the cheapest failure here to
+test for.
 
 **Neither is a substitute for a phone.** Print adds its own damage; the notes'
 advice to keep ≥2 codewords of headroom and test on real hardware before

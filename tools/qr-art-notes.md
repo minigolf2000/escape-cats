@@ -188,6 +188,12 @@ learned the hard way:
   gray, not black. The white cutout reads because it is large and clean
   against texture, not because it is surrounded by ink.
 
+The other thing the bench learned, the expensive way: **verify that the URL
+resolves.** A wrong YouTube id went all the way to a commit inside a code that
+decoded perfectly, because every check asked whether the code decoded to the
+string we meant and none asked whether that string went anywhere. `lab/`'s
+export step now gates on it.
+
 [`lab/`](qr-art/lab/) is the bench where this was found: the studio's own
 engine loaded headless out of the HTML, a genetic algorithm over design
 genomes, and two decoders gating every candidate. It has its own README.

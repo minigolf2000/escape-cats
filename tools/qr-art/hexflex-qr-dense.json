@@ -1,6 +1,6 @@
 {
   "note": "Same design with the whole ground pushed dark instead of a band.",
-  "url": "https://youtu.be/VIVIegSt81k",
+  "url": "https://youtu.be/JDO-JIjoIlk",
   "genome": {
     "mode": "both",
     "invert": 0,
@@ -34,7 +34,7 @@
     "noiseSeed": 0,
     "haloOutside": 0
   },
-  "mask": 1,
+  "mask": 0,
   "modules": 41,
   "quiet": 4,
   "metrics": {
@@ -49,20 +49,21 @@
     "intrusionHard": 0,
     "misses": 0,
     "edgeMiss": 4,
-    "edgeRun": 1,
-    "spread": 0.287,
-    "ground": 0.666,
+    "edgeRun": 2,
+    "spread": 0.286,
+    "ground": 0.683,
     "balance": 5,
+    "brokenGlyphs": 0,
     "strayInk": 0,
     "ambition": 1432,
-    "quality": 0.18633346436126513,
+    "quality": 0.1637965066387076,
     "headroom": 2,
     "scans": true,
-    "decoded": "https://youtu.be/VIVIegSt81k"
+    "decoded": "https://youtu.be/JDO-JIjoIlk"
   },
   "verified": {
     "validate": true,
-    "decoded": "https://youtu.be/VIVIegSt81k",
+    "decoded": "https://youtu.be/JDO-JIjoIlk",
     "jsqr": {
       "q4x1": "ok",
       "q4x2": "ok",

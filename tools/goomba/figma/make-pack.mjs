@@ -125,6 +125,9 @@ TOYS.forEach(([cap, draw], i) => {
   d.label(x - 95, 2030, cap, { size: 11 });
 });
 d.label(140 + 4 * 260 - 95, 2046, "Rename pop150 for a faster one.", { size: 11 });
+d.label(140 + 4 * 260 - 95, 2062, "The dashed ring is the REAL 8.2 u reach, and it is a\u00a0sphere:", { size: 11 });
+d.label(140 + 4 * 260 - 95, 2078, "the trigger is a distance test with no line of sight, so she", { size: 11 });
+d.label(140 + 4 * 260 - 95, 2094, "is grabbed THROUGH a floor. Keep terrain out of the ring.", { size: 11, fill: PINK });
 d.cushion(1440, 1920, 24);
 d.label(1440, 2030, "cushion · a rect, not a line. Horizontal only,", { size: 11 });
 d.label(1440, 2046, "so rotation is ignored. Width = its span.", { size: 11 });

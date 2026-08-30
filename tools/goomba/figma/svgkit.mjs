@@ -196,6 +196,45 @@ export function arc(rad, sweepDeg, n, convex) {
 }
 
 /**
+ * A banked piece of track tangent to a point and a HEADING — the general case
+ * `loop` is a 270° instance of, and the piece to reach for when chaining a
+ * coaster: give it where she is and which way she is going, and it hands back
+ * terrain she meets flush.
+ *
+ * `dir` +1 banks her clockwise on screen, -1 anticlockwise; `degrees` is how
+ * far you want her turned, so a bowl that stands a 70° dive up into a 45°
+ * climb is `bank(x, y, 70, rad, 115, -1)`. Points are the WALL; she rides
+ * `rad - R` inside it, which is why the centre is offset by that and not by
+ * `rad`.
+ *
+ * Two things about chaining that are geometry, not taste, and both cost a run
+ * if you get them wrong:
+ *
+ * - **Reversing the curvature needs AIR between the pieces.** A bowl holds her
+ *   from below and a loop holds her from above; where they meet, both surfaces
+ *   are R from her at once, which is the 4.4 u wedge exactly. End the first
+ *   piece, let her fly, and hang the second on where she has actually got to.
+ * - **A piece she flies into carries no material BEHIND its entry.** Her
+ *   approach is a parabola and the circle curves toward its own centre, so
+ *   anything upstream of the tangent point is inside her arc and she hits it.
+ *   (`loop`'s `back` is for a POPPER entry, which teleports her past it.)
+ */
+export function bank(x, y, headingDeg, rad, degrees, dir = 1, n) {
+  const h = (headingDeg * Math.PI) / 180;
+  const u = [Math.cos(h), Math.sin(h)];
+  const nrm = dir > 0 ? [-u[1], u[0]] : [u[1], -u[0]];
+  const c = [x + (rad - R_GOOMBA) * nrm[0], y + (rad - R_GOOMBA) * nrm[1]];
+  const a0 = (Math.atan2(y - c[1], x - c[0]) * 180) / Math.PI;
+  const k = n || Math.max(2, Math.round(Math.abs(degrees) / 7.2));
+  const pts = [];
+  for (let i = 0; i <= k; i++) {
+    const a = ((a0 + (dir * degrees * i) / k) * Math.PI) / 180;
+    pts.push([c[0] + rad * Math.cos(a), c[1] + rad * Math.sin(a)]);
+  }
+  return { pts, c, rad, end: pts[pts.length - 1], endHeading: headingDeg + dir * degrees };
+}
+
+/**
  * A LOOP-THE-LOOP — the inside of a circle, ridden the whole way round.
  *
  * Nothing in the game knows what a loop is. This returns plain terrain: a fan

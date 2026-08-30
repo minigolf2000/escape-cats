@@ -425,6 +425,56 @@ so she crosses x=13 at y≈60, and a can at (13,54) is inside the 9.7 pickup
 radius. Expect to pay slop for it (29/30 → 22/30 on this board): the can turns
 a leg the solution could route around into one it must hit exactly.
 
+**A popper's reach is a SPHERE, and it has no line of sight.** `stepRun` tests
+`dx² + dy² < POP_R2` and nothing else, so a popper grabs her through a floor,
+through a wall, through the side of a loop — she gets scooped off a platform by
+a popper on the other side of it, which reads as a bug and is really a level
+telling on itself. The trigger is `POP_R + R` = **8.2 u**, which is exactly the
+dashed ring the kit draws, so the rule is one you can see: **keep terrain out of
+the ring.** Two consequences worth holding. A popper that has to sit near a
+surface belongs in the open air BEFORE it, with the surface hung on the arc it
+throws rather than wrapped around the barrel. And a band cannot shield a popper
+— there is nothing to shield, the test is a distance — so "wall it off" is never
+the fix for a popper she keeps falling into. (Cans reach the same way, and there
+it is a feature the kit already documents: a can on a one-segment ledge is
+grabbable from directly beneath it.)
+
+**A popper is only a brake if you tune it like one.** `spd × 0.82` is a flat
+assignment, not a cap, so a popper set to `arrival ÷ 0.82` hands back what she
+brought and reads as a redirect rather than a reset — measured on one board, in
+at 101 and out at 110 with `spd` 135. The state erasure that makes stages
+independent is about DIRECTION and VARIANCE, and it survives intact: every
+arrival still leaves identically. What you give up by firing fast is the floor,
+not the erasure. So "poppers kill the momentum" is a tuning choice; if a level
+wants to feel like one long ride, fire every popper near what it receives.
+
+**What each surface actually costs her**, over a 100-unit flat run entering at
+120: terrain **−15%** (120 → 102), a band **−4%** (→ 115), a cushion **−2%**
+(→ 118). The friction constants say the same thing (0.18 / 0.06 / 0.02) but the
+consequence is easy to miss: **a band is the fastest floor in the game.** A band
+laid across a gap is not just a bridge, it is a lane, and a level that wants
+speed should be asking players to lay track rather than to plug holes.
+
+**Momentum alone will carry a whole board, and a loop is what it is for.** With
+no popper anywhere: a steepening drop, a bowl that stands her up, and a loop
+hung on the arc she is already flying gave 77–99 u/s through the loop and never
+put her below 72. Three rules make chaining work, and each cost a run to find.
+
+- **A 270° loop is a −90° turn**, so loops compose like turns and a coaster
+  cannot come back on itself: chain them in alternating hands if you want her to
+  advance. A loop whose mouth sits ON her incoming track is an infinite orbit —
+  she comes back round to the same lip going the same way and does it again,
+  which is the popper-elevator trap wearing a better costume, and just as good a
+  puzzle. (Measured: a 270–310° loop fed by a popper on her return path fired 15
+  times in 15 seconds and held 81–112 u/s the whole way. 250° lets her out.)
+- **Reversing the curvature needs AIR.** A bowl holds her from below, a loop
+  from above; where they meet both surfaces are R away at once, which is the
+  4.4 u wedge exactly. End the first piece, let her fly, hang the next on where
+  she has got to — `bank()` in `figma/svgkit.mjs` is that piece.
+- **At the speed cap she flies nearly straight.** Pinned at 145 she went from a
+  72° dive to 85° over 140 units of fall, because the cap rescales away most of
+  what gravity just added. Don't plan on a fast arc bending; plan on it not.
+
 **A loop-the-loop is legal, and the wall does the holding.** Terrain is
 two-sided, so the inside of a circle pushes at its centre: ride it and that push
 IS the centripetal force. She holds the ceiling while `v² ≥ G·(r − R)`, and she

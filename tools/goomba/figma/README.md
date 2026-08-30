@@ -89,9 +89,16 @@ And it costs nothing:
 
 Which also answers "how do I make a smooth surface": you don't need one. A
 curve is a fan of lines, and to her that fan **is** smooth. The pack ships
-computed arcs (crest, quarter-pipe, hill) as worked examples. The only rule is
-the one in the gauges: never let two segments come closer than 4.4 u (2 × her
-radius) or she wedges in the corner and the run stalls.
+computed arcs (crest, quarter-pipe, hill, loop-the-loop) as worked examples. The
+only rule is the one in the gauges: never let two segments come closer than
+4.4 u (2 × her radius) or she wedges in the corner and the run stalls.
+
+Which is also why the curves are GENERATED rather than drawn. Nobody places
+twenty-seven Lines around a circle by hand, and the loop is the shape that makes
+that obvious: `loop()` in `svgkit.mjs` returns its arms, its entry popper's
+position and aim, and the slowest `spd` that still holds her at the top. Copy
+the piece out of the pack and stretch it; the numbers under it in the sheet were
+computed by the same call that drew it.
 
 ## The contract
 

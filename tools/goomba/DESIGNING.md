@@ -425,6 +425,51 @@ so she crosses x=13 at y≈60, and a can at (13,54) is inside the 9.7 pickup
 radius. Expect to pay slop for it (29/30 → 22/30 on this board): the can turns
 a leg the solution could route around into one it must hit exactly.
 
+**A loop-the-loop is legal, and the wall does the holding.** Terrain is
+two-sided, so the inside of a circle pushes at its centre: ride it and that push
+IS the centripetal force. She holds the ceiling while `v² ≥ G·(r − R)`, and she
+has to climb to the ceiling to get there, so the whole loop is settled at the
+entry — `loop()` in `figma/svgkit.mjs` solves that over the arc she actually
+rides and hands back the popper `spd`. At r 18 it says 72, and she rides at 95%
+of it and falls off at 85%. The failure is a good one: she peels off the ceiling
+and cuts a chord through the middle, which reads as "not fast enough" rather
+than as a bug. Five things fell out of building one.
+
+- **A ring is a solid wall from outside, so a loop is always a `Ɔ`.** In at the
+  mouth's top lip going up-and-across, 270° round, out at the bottom lip going
+  back the other way — one popper in, and nothing at all at the exit. The exit
+  tangent clears the entry lip by exactly one radius, so the two never have to
+  be aimed apart; that is geometry, not tuning.
+- **Put the entry popper ON her riding circle** (r − 2.2 from the centre, aimed
+  along the ride), with ~20° of material carried BEHIND it so it fires along a
+  surface instead of off a tip. A loop is the one stage in this game with a hard
+  MINIMUM speed, and a popper is the only toy that promises one — this is the
+  state erasure of "poppers are the antidote" being used for its other half.
+- **The fan is a brake**, and how coarse it is, is a tuning knob rather than a
+  drawing detail. Every chord junction is a collision into terrain's dead
+  restitution. Over 270° at r 18, in at 95: out at 87 on 40 chords, 72 on 20, 48
+  on 10 — against 123 for the frictionless ride. Budget ~30% over `minSpd`.
+- **She comes out FASTER than she went in**, because the mouth's bottom lip sits
+  below its top: 270° of an r-18 loop is 22 units of net drop. A loop is a
+  slingshot, not a lap, and what it hands the next stage is a fast diagonal.
+- **A gap in the ROOF is a band's job, and its lips must be COARSE.** She flies
+  out of an open roof at any speed worth riding for (measured: a 40°+ gap is
+  escaped, a 30° one she bridges on her own), so the band is honestly
+  load-bearing — and its ends want the two lips, which are terrain vertices, so
+  snap should make it free. It does not, by default: on an evenly fine fan the
+  lips' neighbours are ~2 u away, inside the 5 u snap, so a jittered end takes
+  one of them and the lip it missed becomes the kerb from the note above. Give
+  each lip ONE long chord (30° at r 18, ~9 u) and the nearest rival is 9 u off:
+  **300/300 at ±3 u, against 272/300 fine.** A 10° tip chord scores 239 —
+  half-measures are worse than either end. Do NOT reach for posts instead: stubs
+  standing proud of the loop wedge her, and the same board scored 4/300.
+
+These numbers came off a throwaway probe against `physics.ts` in a scratch
+directory, not off the deleted bench and not off a table — they say the SHIPPED
+sim allows this, which is the only part a simulator can answer. Whether a loop
+is fun, and whether the roof band is the job four people want, is still four
+people playing it.
+
 **Anti-shortcut devices that do work:**
 - **Roofed pocket** — the goal plant in a pocket with a ceiling, so falling
   arrivals are blocked and the only entry is horizontally through the mouth.

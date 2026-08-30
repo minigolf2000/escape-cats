@@ -273,7 +273,18 @@
      swapped for the way out — which the sheet becomes once the room is live
      and is born as when `?` opens it. It never dismisses itself: the sheet
      waits for a tap, because a screen that vanishes the instant the proctor
-     sorts a phone in is a screen nobody read. */
+     sorts a phone in is a screen nobody read.
+
+     OPAQUE, and that is what buys the line at the bottom. At 86% there was a
+     level showing faintly through the pictures — noise across the one screen
+     whose whole job is to be looked at, and terrain running under a drawing OF
+     terrain is the worst place to put it. But that ghost was also the only
+     thing saying this was a layer over something: 86% is a sheet ON the game,
+     100% is the whole phone, and a phone with nothing on it that moves and no
+     way out is a phone that is broken. So `#gateTap` says the way out in
+     words, and only while there IS one (`.ready`). The old argument for
+     silence — a tap is what a phone answers to anyway, and the zoop says where
+     the sheet went — held while you could still see the game underneath. */
   /* THE SURPLUS, and where it goes. The pictures cannot spend it: `drawScene`
      fits a scene with `min(w/dx, h/dy)` and GOAL_SCENE's frame is 80x18.8
      against a column that is 340 at its widest, so the picture is WIDTH-bound
@@ -293,7 +304,7 @@
      drifted from 6.7% of a short screen to 4% of a tall one. */
   #gate { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
           justify-content: center; gap: clamp(12px, 2.2vh, 24px);
-          background: rgba(13,6,30,.86); pointer-events: auto; text-align: center;
+          background: #0d061e; pointer-events: auto; text-align: center;
           padding: max(24px, env(safe-area-inset-top)) 24px
                    calc(max(24px, env(safe-area-inset-bottom)) + 6vh); }
   #gate.hidden { display: none; }
@@ -308,18 +319,25 @@
      measures the line box, never the element). The size is therefore a
      per-WORD fit — one word against the gate's 24s, never the pair.
 
-     Which is why it is not 11vw ALONE any more: that was a width fit on a
-     screen that runs out of height last. Measured, one word at a time: the
-     wider of the two sets 232px at the 54px ceiling, and the narrowest phone
-     there is leaves 272 between the paddings — so width has 40px spare at the
-     TOP of the clamp on every phone, while 11vw was holding the mark at 43px on
-     an 844-tall screen with 400px of air on it. `max()` lets height have the say
-     when there is height to spend, and the clamp still has the last word on
-     both: 5.6vh passes 11vw at about 780px tall, so a short phone is untouched
-     (35.2 at 320x568, 41.3 at 375x667) and a tall one finally reaches the size
-     this was drawn for. Her canvas is parked in `em`, so she grows with the
-     letters and still rides them. */
-  #title { position: relative; font-size: clamp(26px, max(11vw, 5.6vh), 54px);
+     Which is why it is not vw ALONE any more: that was a width fit on a screen
+     that runs out of height last. Measured, one word at a time (and the two
+     come out the same width to the pixel): a word runs 4.27x its font size, so
+     it sets 256px at the 60px ceiling while the narrowest phone there is
+     leaves 272 between the paddings — width keeps 16px spare at the TOP of the
+     clamp on every phone. `max()` lets height have the say when there is
+     height to spend, and the clamp still has the last word on both: 6.6vh
+     passes 12.6vw at about 1.91:1, so a short phone is set by its width (40.3
+     at 320x568, 47.3 at 375x667) and a tall one by its height (55.7 at
+     390x844, the ceiling at 430x932).
+
+     A SECOND deck is what paid for the last bump — 14% on a short phone, 18%
+     on a tall one. Two rows of six letters is a much narrower mark than one
+     row of thirteen, so the width fit that used to hold the ceiling down
+     stopped binding, and the sheet's own budget never did: the title, its seam
+     and the three pictures come to 345 of the 486 a 320x568 screen has between
+     its paddings, and 454 of 808 on a 430x932 one. Her canvas is parked in
+     `em`, so she grows with the letters and still rides them. */
+  #title { position: relative; font-size: clamp(30px, max(12.6vw, 6.6vh), 60px);
            /* No plate: the logo had a black rounded panel for a while, but
               the gate's own dark is background enough — the mark's letters,
               straight on the night. Removing it is also what un-padded this
@@ -331,8 +349,13 @@
               things instead of a name and then what to do about it. It scales
               now, for the reason the gate's own gap does: this is the seam the
               surplus should open at, and a constant 40 held the title exactly
-              52px off the pictures on a 568 screen and on a 932 one alike. */
-           margin-bottom: clamp(30px, 5.2vh, 58px); }
+              52px off the pictures on a 568 screen and on a 932 one alike.
+              Widened with the mark: a two-deck logo is a BLOCK rather than a
+              line, and at 5.2vh the gap under it read as line spacing inside
+              one four-row column again. The gate's own gap rides on top of
+              this, so the seam is 6.8vh + 2.2vh — 51px on a 568 screen, 84 on
+              a 932 one, against 24px of gutter inside the pictures. */
+           margin-bottom: clamp(38px, 6.8vh, 76px); }
   /* The words, in the ColecoVision manner: bare gradient shapes with the
      gate's own dark as the only thing between the letters —
      the mark is gradient letters packed tight, no keylines. The packing
@@ -464,6 +487,22 @@
   #gateStatus, #gateErr { transition: opacity .3s; }
   #gate.quiet #gateStatus, #gate.quiet #gateErr,
   #gate.ready #gateStatus, #gate.ready #gateErr { opacity: 0; }
+  /* The way out. It shares the bottom slot with the two connection lines and
+     cannot collide with them: those show only before the room is live, this
+     one only after (`.ready` is exactly "a tap will now do something"), and
+     the sheet is never both. Absolute for the same reason they are — the
+     pictures are centred on the column, and a line that joined it would shunt
+     them up the screen the moment the room came live.
+     TINY on purpose: it is the only chrome on the sheet, it is a reminder and
+     not an instruction, and at full size it would be the loudest thing under
+     four pictures it is not part of. `pointer` on the gate itself is the same
+     sentence for the laptop that has a cursor to say it to. */
+  #gateTap { position: absolute; left: 24px; right: 24px;
+             bottom: max(20px, env(safe-area-inset-bottom) + 6px);
+             color: #c9bdf0; font-size: 13px; letter-spacing: .04em;
+             opacity: 0; transition: opacity .3s; }
+  #gate.ready #gateTap { opacity: .5; }
+  #gate.ready { cursor: pointer; }
 
   /* ---- THE ZOOP: the sheet shrinks into the `?` --------------------------
      Dismissing the how-to-play sheet is the one moment every player is looking

@@ -428,12 +428,16 @@ export const sheetIsOpen = () => sheetOpen;
 /** May a key or a tap dismiss it? Armed by the first snapshot, never by it. */
 export const sheetIsArmed = () => sheetTap;
 
-/** Make the sheet dismissible. It says NOTHING about how — not on the first
- * showing and not on any showing after it. A player looking at this sheet is
- * reading the pictures, and a line of chrome under them is the only thing on
- * the screen that is not the game. What is left is what a phone answers to
- * anyway — a tap — and the zoop out says where the sheet went, which is the
- * one thing a second showing could not have taught itself. */
+/** Make the sheet dismissible — and, because `.ready` is also what raises
+ * `#gateTap`, this is the moment the sheet starts saying how to leave.
+ *
+ * It said nothing for a long time, on the argument that a tap is what a phone
+ * answers to anyway and the zoop out says where the sheet went. That held while
+ * the gate was 86% and the game showed faintly through it: the ghost underneath
+ * was the sentence "this is a layer". The gate is opaque now, so the sheet is
+ * the whole phone, and one small line at the bottom is what replaces it — never
+ * before this call, because before it a tap does nothing and the line would be
+ * a lie. */
 export function armSheet() {
   sheetOpen = true; sheetTap = true;
   cancelZoop();   // re-opened mid-flight: the sheet is back, not still leaving

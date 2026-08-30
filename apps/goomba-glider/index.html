@@ -61,6 +61,11 @@
       <div id="gateStatus">Connecting…</div>
       <div id="gateErr"></div>
     </div>
+    <!-- THE WAY OUT, in the slot the connection lines vacate the moment the
+         room is live. The sheet is opaque now, so nothing else on the screen
+         says it is a layer over a game — see #gateTap in styles.css. It is
+         invisible until a tap actually does something. -->
+    <div id="gateTap">tap to continue</div>
   </div>
 </div>
 <script type="module" src="/src/main.js"></script>

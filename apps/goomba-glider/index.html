@@ -51,8 +51,16 @@
         </div>
       </div>
     </div>
-    <div id="gateStatus">Connecting…</div>
-    <div id="gateErr"></div>
+    <!-- THE CONNECTION LINES, pinned to the bottom of the gate rather than
+         standing at the end of the centred column. Their box is still reserved
+         in every state (see #gateStatus in styles.css) — but reserved DOWN
+         HERE, so the two lines nobody normally sees stop counting toward what
+         the pictures are centred on, and a phone that cannot reach the room
+         says so where a phone puts its status. -->
+    <div id="gateLines">
+      <div id="gateStatus">Connecting…</div>
+      <div id="gateErr"></div>
+    </div>
   </div>
 </div>
 <script type="module" src="/src/main.js"></script>

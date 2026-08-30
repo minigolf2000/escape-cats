@@ -3,6 +3,11 @@
      Self-contained (engine inlined below) — zero dependencies, zero build.
      The <!doctype> keeps standards mode on static hosts; wrapper tags are
      omitted because the artifact host injects its own document skeleton. -->
+<!-- first thing in the document on purpose: the encoding sniff only reads the
+     first 1024 bytes, and this page has no server contract — it is opened off
+     a static host, off disk, and inside an artifact frame. Without this the
+     ⌘/⌃ key glyphs and the ❓ favicon land as mojibake. -->
+<meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>QR Studio</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❓</text></svg>">
@@ -205,7 +210,7 @@
       <button class="sizebtn" data-size="3" aria-label="3 by 3"><i style="width:12px;height:12px"></i>3×3 <span class="key">(3)</span></button>
     </div>
     <div class="toolrow">
-      <button id="undo">undo <span class="key">(⌃Z)</span></button>
+      <button id="undo">undo <span class="key" id="undoKey">(Ctrl+Z)</span></button>
     </div>
     <span class="hint">arrow keys nudge the whole drawing</span>
   </aside>
@@ -250,7 +255,7 @@
       </div>
       <button id="copyLink">🔗 copy share link</button>
     </section>
-    <span class="savenote" id="saveNote" hidden>saved changes to localStorage</span>
+    <span class="savenote" id="saveNote" hidden>saved — this page's URL is the drawing</span>
   </div>
 </div>
 <script>
@@ -1620,6 +1625,7 @@ window.QR_PRESET_IMGS = {
     uploadImg: null,
     cropRect: [0, 0, 1, 1],
     undoStack: [],
+    redoStack: [],
     strokeRec: null,
     fp: null,
     focusMode: false,   // true while cursor is over the canvas (drawing view)
@@ -1638,6 +1644,7 @@ window.QR_PRESET_IMGS = {
     state.seq = new Int32Array(S * S).fill(-1);
     state.counter = 0;
     state.undoStack = [];
+    state.redoStack = [];
   }
 
   // ---------- preps ----------
@@ -1698,8 +1705,7 @@ window.QR_PRESET_IMGS = {
     if (!rec.length) return;
     state.tone = nt;
     state.seq = ns;
-    state.undoStack.push(rec);
-    if (state.undoStack.length > 64) state.undoStack.shift();
+    pushUndo(rec);
     requestSolve();
   }
 
@@ -2069,10 +2075,7 @@ window.QR_PRESET_IMGS = {
   const endStroke = (ev) => {
     painting = false;
     lastCell = null;
-    if (state.strokeRec && state.strokeRec.length > 0) {
-      state.undoStack.push(state.strokeRec);
-      if (state.undoStack.length > 64) state.undoStack.shift();
-    }
+    if (state.strokeRec && state.strokeRec.length > 0) pushUndo(state.strokeRec);
     state.strokeRec = null;
     // if the pen lifted outside the canvas, drop back to the holistic view
     if (ev) {
@@ -2084,10 +2087,21 @@ window.QR_PRESET_IMGS = {
   can.addEventListener("pointerup", endStroke);
   can.addEventListener("pointercancel", endStroke);
 
-  function undo() {
-    const rec = state.undoStack.pop();
-    if (!rec) return;
+  // A record is what was on the grid BEFORE an action: a list of cell values,
+  // or a whole-grid snapshot for a canvas resize. Applying one is symmetric —
+  // capture what it is about to overwrite and you have the record that puts it
+  // back — so undo and redo are the SAME function pointed at opposite stacks,
+  // and neither has to know which action it is walking over.
+  const UNDO_CAP = 64;
+  const capStack = (st) => { if (st.length > UNDO_CAP) st.shift(); };
+  function pushUndo(rec) {
+    state.undoStack.push(rec);
+    capStack(state.undoStack);
+    state.redoStack.length = 0; // classical stack: a new action forks the timeline
+  }
+  function applyRec(rec) {
     if (rec.resize) { // whole-grid snapshot from a canvas-size change
+      const inv = { resize: true, version: state.version, tone: state.tone, seq: state.seq };
       state.version = rec.version;
       $("version").value = String(rec.version);
       state.fp = E.functionPatterns(rec.version);
@@ -2096,27 +2110,64 @@ window.QR_PRESET_IMGS = {
       invalidatePreps();
       requestSolve(true);
       primePreps();
-      return;
+      return inv;
     }
+    // backwards, so a cell a stroke touched twice ends on its earliest value —
+    // and the inverse, built in the same order, replays them the same way
+    const inv = [];
     for (let k = rec.length - 1; k >= 0; k--) {
       const { i, t, s } = rec[k];
+      inv.push({ i, t: state.tone[i], s: state.seq[i] });
       state.tone[i] = t;
       state.seq[i] = s;
     }
     requestSolve();
+    return inv;
+  }
+  function undo() {
+    const rec = state.undoStack.pop();
+    if (!rec) return;
+    state.redoStack.push(applyRec(rec));
+    capStack(state.redoStack);
+  }
+  function redo() {
+    const rec = state.redoStack.pop();
+    if (!rec) return;
+    // straight onto the undo stack, NOT via pushUndo: a redo continues the
+    // timeline it is walking back up, it doesn't fork a new one
+    state.undoStack.push(applyRec(rec));
+    capStack(state.undoStack);
   }
   $("undo").addEventListener("click", undo);
+  // The GLYPH is the one thing in this feature that genuinely differs by
+  // platform. The binding below doesn't: it takes ctrl and meta on every OS
+  // without asking which one it is on. But a label is a promise about which
+  // chord works, and ⌃Z printed on a Mac names a chord that doesn't.
+  const isMac = /mac/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "");
+  if (isMac) $("undoKey").textContent = "(⌘Z)";
+  // Ctrl/Cmd+Z is the DRAWING's undo — except with the caret in a text field,
+  // where the browser's own undo owns the keystroke. Without this the link box
+  // ate strokes off the canvas while you retyped the URL. Sliders, checkboxes
+  // and selects have no native undo to defer to, so they keep the drawing's.
+  const isTextField = (el) =>
+    !!el && (el.isContentEditable || el.tagName === "TEXTAREA" ||
+      (el.tagName === "INPUT" && /^(text|search|url|email|password|tel|number)$/i.test(el.type)));
   window.addEventListener("keydown", (ev) => {
-    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z") {
-      ev.preventDefault();
-      undo();
-    }
+    if (!(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
+    if (isTextField(ev.target)) return;
+    const k = ev.key.toLowerCase();
+    // redo carries no button on purpose — both platform conventions are bound
+    // so the muscle memory you brought works either way
+    if (k === "z") { ev.preventDefault(); if (ev.shiftKey) redo(); else undo(); }
+    else if (k === "y" && !ev.shiftKey) { ev.preventDefault(); redo(); }
   });
   function clearAll() {
     const S = size();
     state.strokeRec = [];
     for (let i = 0; i < S * S; i++) if (state.tone[i] !== 0) paintCell(i, 0);
-    state.undoStack.push(state.strokeRec);
+    // an already-blank canvas is a no-op, not an action: an empty record would
+    // cost a press of undo to walk back over and would fork away a live redo
+    if (state.strokeRec.length) pushUndo(state.strokeRec);
     state.strokeRec = null;
     $("threshRow").hidden = true;
     requestSolve();
@@ -2134,7 +2185,7 @@ window.QR_PRESET_IMGS = {
     for (let i = 0; i < S * S; i++) if (weight[i] > 0) idx.push(i);
     idx.sort((a, b) => weight[b] - weight[a]);
     for (const i of idx) paintCell(i, target[i] ? 1 : 2);
-    state.undoStack.push(state.strokeRec);
+    pushUndo(state.strokeRec);
     state.strokeRec = null;
     requestSolve(true); // wholesale change — find the best config immediately
   }
@@ -2622,8 +2673,7 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     // snapshot the whole grid so a canvas-size change is undoable like any
     // other action (undo() restores this version + art wholesale)
     if (oldTone) {
-      state.undoStack.push({ resize: true, version: oldV, tone: oldTone.slice(), seq: oldSeq.slice() });
-      if (state.undoStack.length > 64) state.undoStack.shift();
+      pushUndo({ resize: true, version: oldV, tone: oldTone.slice(), seq: oldSeq.slice() });
     }
     state.version = v;
     $("version").value = String(v);
@@ -2785,7 +2835,7 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
           const i = r * size() + c;
           if (!state.fp.func[i]) paintCell(i, tone);
         }
-      state.undoStack.push(state.strokeRec);
+      pushUndo(state.strokeRec);
       state.strokeRec = null;
       requestSolve();
     },
@@ -2877,20 +2927,54 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     state.seq = seq;
     state.counter = cnt;
     state.undoStack = [];
+    state.redoStack = [];
     return true;
   }
-  // Autosave to localStorage (survives reload without polluting the URL bar
-  // with a ~300-char hash). The full state only becomes a URL on demand, via
-  // the Copy-link button — there's no server to trade for a short id, so a
-  // shareable link must carry the whole drawing.
+  // Autosave, two places at once: localStorage (survives a reload at a bare
+  // address) and the address bar itself, so the page's own URL is always a
+  // link to what is on screen and ⌘L ⌘C is the share gesture. There's no
+  // server to trade for a short id, so that link carries the whole drawing.
+  //
+  // replaceState, never pushState: Back means "leave the studio", not "undo
+  // one stroke" — a per-edit history entry is a trap you can't walk out of.
+  //
+  // Debounced, never per-pixel, for two independent reasons. Browsers
+  // rate-limit the history API (Safari throws past ~100 writes/30s, Firefox
+  // past its own), and an address bar re-rendering under the brush is motion
+  // in the corner of your eye while you draw. The 250ms save timer already
+  // only fires once the pointer stops, so writes land on finished strokes;
+  // HASH_MIN_MS is the floor under anything that could still oscillate — a
+  // held arrow key, the idle config search adopting a new mask.
   const SAVE_KEY = "qr-studio-drawing";
-  let saveTimer = null;
+  const HASH_MIN_MS = 1000;
+  let saveTimer = null, hashTimer = null, hashPending = null, hashAt = 0;
+  function writeHash(enc) {
+    // an untouched canvas at a bare address stays bare — but once the URL
+    // carries the drawing it keeps tracking it, so clearing the canvas can
+    // never leave the old art sitting in a copyable link
+    if (!location.hash && !state.tone.some((t) => t > 0)) return;
+    hashPending = "#" + enc;
+    if (hashTimer) return;
+    hashTimer = setTimeout(() => {
+      hashTimer = null;
+      hashAt = Date.now();
+      if (hashPending === location.hash) return;
+      try { history.replaceState(null, "", hashPending); } catch (e) { /* rate-limited; the next edit retries */ }
+    }, Math.max(0, HASH_MIN_MS - (Date.now() - hashAt)));
+  }
   function scheduleSave() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      try { localStorage.setItem(SAVE_KEY, encodeState()); } catch (e) { /* best-effort */ }
+      let enc;
+      try { enc = encodeState(); } catch (e) { return; }
+      try { localStorage.setItem(SAVE_KEY, enc); } catch (e) { /* best-effort */ }
+      writeHash(enc);
     }, 250);
   }
+  // The button stays even though the URL bar now holds the same string: it is
+  // one click instead of ⌘L ⌘C Esc, and it is the only thing on screen that
+  // SAYS the drawing is a link. An address bar that quietly grows a 300-char
+  // hash teaches nobody what it is for.
   $("copyLink").addEventListener("click", async () => {
     let url;
     try { url = location.origin + location.pathname + "#" + encodeState(); } catch (e) { return; }
@@ -2899,14 +2983,18 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
       await navigator.clipboard.writeText(url);
       btn.textContent = "✓ copied";
     } catch (e) {
-      // clipboard API blocked — drop it into the URL bar to copy manually
-      try { history.replaceState(null, "", "#" + encodeState()); } catch (e2) {}
+      // clipboard API blocked — put it in the URL bar to copy by hand (a live
+      // hash is usually already there; an untouched canvas has none yet)
+      try { history.replaceState(null, "", url.slice(url.indexOf("#"))); } catch (e2) {}
       btn.textContent = "in URL bar";
     }
     setTimeout(() => (btn.textContent = label), 1600);
   });
 
   // ---------- boot ----------
+  // hash first: it is both the shared link and this tab's own live save, so a
+  // second studio tab restores ITS drawing rather than whichever tab wrote
+  // localStorage last
   let restored = false;
   try {
     if (location.hash.length > 1) restored = decodeState(location.hash.slice(1));

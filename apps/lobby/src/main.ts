@@ -133,6 +133,21 @@ function teamScreen(team: string) {
   const mates = players.filter((p) => p.team === team);
   // A team always has ears (see TEAM_EARS); the testing room does not, and then
   // the card is simply the card it always was.
+  //
+  // NO GAME LINKS below, and this note is a JS comment ON PURPOSE. The games
+  // are reached by their own URLs (the vanity domains, which REDIRECT onto this
+  // origin — see the README's origin constraint), so the lobby's job ends at
+  // "here is your team". A link here never carried the team anyway: every
+  // surface asks the lobby for this phone's pid, which is what makes a proctor
+  // re-sort take effect on reload. Putting the buttons back is a one-line
+  // change; they used VITE_HEX_URL / VITE_GOOMBA_URL.
+  //
+  // This used to be an HTML comment inside the template literal, which made it
+  // string CONTENT: the minifier cannot touch it, so it shipped to prod and
+  // rendered as a comment node on the one screen every player reaches. Inspect
+  // element on the team card and it told them hidden games exist and roughly
+  // where to look — a treasure map on the surface whose whole job is to hide
+  // them. Anything explaining the hiding belongs OUTSIDE the markup.
   const ears = earsFor(team);
   const skin = ears
     ? `class="card eared" style="--tc:${ears.ink};--ear-h:${earsHeight(CARD_EAR_W)}px"`
@@ -158,13 +173,6 @@ function teamScreen(team: string) {
           ? `<p class="wear">Grab the ${ears.hue.toLowerCase()} ears \u{1F43E}</p>`
           : ``
       }
-      <!-- No game links. The games are reached by their own URLs (the vanity
-           domains, which REDIRECT onto this origin — see the README's origin
-           constraint), so the lobby's job ends at "here is your team". A link
-           here never carried the team anyway: every surface asks the lobby for
-           this phone's pid, which is what makes a proctor re-sort take effect
-           on reload. Putting the buttons back is a one-line change; they used
-           VITE_HEX_URL / VITE_GOOMBA_URL. -->
       <a class="secondary" href="/chat/">Team chat</a>
       <button id="rename" class="link">Not ${escapeHtml(myName())}?</button>
     </div>

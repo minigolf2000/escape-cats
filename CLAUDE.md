@@ -193,8 +193,14 @@ position in a pack.
     licence the dashed ride-line takes: a gesture cannot be drawn out of the
     things it acts on.
 
-  The sheet **never dismisses itself** (the first snapshot only ARMS it) and says
-  nothing about how to on the first showing. The connection lines stay invisible
+  The sheet **never dismisses itself** (the first snapshot only ARMS it), and it
+  is OPAQUE. The game showing faintly through it at 86% was noise across the one
+  screen whose job is to be looked at — but that ghost was also the only thing
+  saying this was a layer over something, so `#gateTap` ("tap to continue")
+  replaces it in words. It rides `.ready`, the same class that arms the tap:
+  before that a tap does nothing and the line would be a lie. This is the one
+  piece of chrome on the sheet, and it is small because the pictures are the
+  screen. The connection lines stay invisible
   until the phone has been unreachable for `STALL_MS` (1.5s) unbroken — an
   unsorted phone is connected and waiting indefinitely, so time since boot is the
   wrong clock — and they keep their box (opacity, never display) so the pictures

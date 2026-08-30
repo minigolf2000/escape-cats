@@ -1,0 +1,80 @@
+#!/usr/bin/env node
+// Proof for read-frame.mjs's `--nodes` path.
+//
+//   node test-read-frame.mjs
+//
+// The fixture is REAL: `fixtures/fireworks-nodes.json` is what a read-only
+// `use_figma` script returned for the Fireworks frame, saved untouched. That
+// matters more here than it usually does, and there is a scar to show for it.
+//
+// The first version of this tool read the MCP's `get_metadata` XML instead, and
+// had a fixture and a test that agreed with it perfectly. Both were wrong the
+// same way: that XML reports a node's x/y as its ORIGIN and its width/height as
+// its BOUNDING BOX, and carries no rotation, so `x + width/2` is the centre
+// only for an unrotated node — and nothing in the XML says which those are. Ten
+// of Fireworks' fifteen poppers are turned 90°, and every one of them was read
+// 14 units from where it actually sits. A fixture generated under the same
+// assumption as the code cannot catch that; the transform can, so the fixture
+// is now a carrier that has one.
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const fixture = join(here, "fixtures", "fireworks-nodes.json");
+const run = (...args) =>
+  JSON.parse(execFileSync("node", [join(here, "read-frame.mjs"), ...args], { encoding: "utf8" }));
+
+let fail = 0;
+const eq = (what, got, want) => {
+  const ok = JSON.stringify(got) === JSON.stringify(want);
+  if (!ok) fail++;
+  console.log(`${ok ? "ok  " : "FAIL"} ${what}${ok ? "" : `\n       got  ${JSON.stringify(got)}\n       want ${JSON.stringify(want)}`}`);
+};
+
+const L = run("--nodes", fixture, "--json");
+
+eq("the frame name is the level name, with no number", L.name, "Fireworks");
+
+// 1205 x 1640 px at 10 px per unit, origin at the frame's top-left.
+eq("frame box in world units", L.frame, { x0: 0, y0: 0, x1: 120.5, y1: 164 });
+
+// And the world is NOT that box: poppers reach past three of its four edges,
+// and `initLevel` eats a popper as its centre ±6 before unioning the frame in.
+// Printing both lines side by side is most of why this tool exists.
+eq("world bounds from the shipped initLevel", L.bounds, { x0: -7.3, y0: -11.4, x1: 121.6, y1: 166.6 });
+
+// THE ONE THAT BIT. This popper's node is at (815, 1596), 140x140, rotated 90°.
+// Rotation is about the node's own origin, so its centre lands ABOVE its y:
+// (815 + 70, 1596 - 70) -> 88.5, 152.6. Reading the box instead — 815 + 70,
+// 1596 + 70 — puts it at 166.6, fourteen units into the floor.
+const col = L.pops.filter((p) => p.deg === -90 && p.x === 88.5).map((p) => p.y);
+eq("a rotated instance anchors through its TRANSFORM, not its box", col, [152.6, 116.6, 80.6, 44.6]);
+
+// deg is MINUS Figma's rotation: Figma counts counter-clockwise, the game's deg
+// feeds cos/sin in a y-down world. rot 90 -> deg -90 -> uy = -1 -> aims UP,
+// which is what the column is for.
+eq("deg is minus the Figma rotation", L.pops[2].deg, -90);
+eq("...and that aim points up", [Math.round(Math.cos(L.pops[2].deg * Math.PI / 180)), Math.round(Math.sin(L.pops[2].deg * Math.PI / 180))], [0, -1]);
+
+// An unrotated instance: 180 px of bumper art around a 5.5 u collision radius,
+// and the anchor is still the centre.
+eq("all four bumpers", L.bumpers, [
+  { x: 68.5, y: 62.6 }, { x: 68.5, y: 80.6 }, { x: 68.5, y: 98.6 }, { x: 68.5, y: 152.6 }]);
+
+// Trailing digits in the layer name are the popper's speed. These are the
+// numbers Figma's duplicate-naming left behind, and reading them back is how
+// anyone finds out.
+eq("speed rides in the layer name", L.pops.map((p) => p.spd),
+  [110, 110, 130, 134, 130, 135, 130, 136, 130, 137, 138, 110, 131, 132, 133]);
+
+eq("cans", L.cans.length, 6);
+eq("start", L.start, [6, 112.1]);
+eq("goal", L.goal, [88.5, 62.6]);
+
+// A Line is zero-height, so its transform IS its two endpoints — this one
+// slopes down to the right, which the box alone could not have told you.
+eq("terrain comes back as stitched polylines", L.terrain, [[[0.7, 116.3], [11.5, 119.8]]]);
+
+console.log(fail ? `\n${fail} failed` : "\nall good");
+process.exit(fail ? 1 : 0);

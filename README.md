@@ -206,6 +206,7 @@ npm run build:vercel                       # full build + assemble + routing & c
 cd tools/goomba && node test-codec.mjs     # the save format
 cd tools/goomba && node bands.mjs          # the room's band budget
 cd tools/goomba && node seed.mjs --pull    # what is this event running?
+cd tools/goomba/figma && node read-frame.mjs --nodes f.json  # a Figma frame, in world units
 ```
 
 ## Configuration
@@ -459,7 +460,7 @@ LAST index.
 
 - Per-session code words configured from the proctor dashboard.
 - CI beyond the deploy guard: nothing runs `npm run typecheck` across the whole
-  repo, or the tests (`tools/goomba/bands.mjs`, `test-codec.mjs`, the three in
+  repo, or the tests (`tools/goomba/bands.mjs`, `test-codec.mjs`, the four in
   `tools/goomba/figma/`) on a pull request. The Worker deploy typechecks only the
   workspace it ships, deliberately — a broken proctor page shouldn't block a
   room-server deploy — so a PR check is a separate job worth adding.

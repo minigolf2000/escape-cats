@@ -1,6 +1,7 @@
 # `tools/goomba/`
 
-Three commands and a bridge. **None of them evaluate a level** — that is what
+Three commands and a bridge, plus a reader in `figma/`. **None of them evaluate
+a level** — that is what
 playing it is for, and [`DESIGNING.md`](./DESIGNING.md) is the design guidance
 that came out of doing so.
 
@@ -10,6 +11,7 @@ node seed.mjs --pull > pack.json       # …save it (gitignored; some tools read
 node seed.mjs --push --file pack.json  # move a pack into another event
 node test-codec.mjs                    # the save format: a link round-trips, old links still decode
 node bands.mjs                         # the room hands out 4 bands and rations nobody
+node figma/read-frame.mjs --nodes f.json  # a Figma frame in the units the physics uses
 ```
 
 `lib.mjs` is the bridge the three share: it bundles
@@ -17,8 +19,9 @@ node bands.mjs                         # the room hands out 4 bands and rations 
 second copy of the codec, the pack rules or the room sim.
 
 `figma/` is the way IN — the design kit, the naming contract, the clipboard
-reader's tests, and `levels-to-svg.mjs`, which draws a pack as one artboard per
-level. It has [its own README](./figma/README.md) and that is where a level
+reader's tests, `levels-to-svg.mjs`, which draws a pack as one artboard per
+level, and `read-frame.mjs`, which goes the other way and prints a frame in
+world units (a reader, not a grader). It has [its own README](./figma/README.md) and that is where a level
 actually starts.
 
 ## Two things the deleted bench took with it

@@ -42,6 +42,12 @@ const sim = await import(pathToFileURL(outfile).href);
 
 export const {
   GOOMBA_LEVELS: LEVELS,
+  // Collision radii, for tools that MEASURE a drawing rather than run it:
+  // read-frame.mjs reports a bumper's reach against a popper's, and both
+  // numbers have to be the game's own.
+  R,
+  BUMP_R,
+  POP_R,
   GoombaSim,
   canPlaceBand,
   MAX_BANDS,

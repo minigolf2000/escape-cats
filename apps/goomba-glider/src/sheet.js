@@ -191,15 +191,37 @@ function drawGoalScene() {
  * (#title #scTitle), so she is never sliced off at the line she is riding, and
  * she is drawn OVER the letters wherever the two meet. Nothing else is drawn
  * into it — the title is already three colours and a dashed ride-line across it
- * would be noise — so the strip is sized off HER: TITLE_AIR world units of air
- * above the cap line against a sprite ~6.4 units tall from her board up, which
- * lands her at about the cap height of the words beside her.
+ * would be noise.
+ *
+ * HER SIZE IS THE GOAL PICTURE'S, to the pixel — `goalScale` below, read off
+ * that canvas rather than written down. There are two drawings of this cat on
+ * this screen, a few hundred pixels apart, and a player reads them as one
+ * animal: two sizes is the same drift as a watering can in the picture that is
+ * not the watering can in the game, and it is the reason nothing in this file
+ * writes down a number another box already holds.
+ *
+ * That is a change of MASTER, not just of value. The strip used to size her —
+ * a constant of world units crammed into the air over the cap line — so she
+ * came out a fixed fraction of the TITLE, about .74 of its em, and grew 14-18%
+ * with it the day the mark grew. She is decoration on somebody else's letters;
+ * the letters are not what she should be measured against. Now the scale comes
+ * in from the picture below and `ground` is what falls out of it: the measured
+ * air, in those units, so she still rides the cap line exactly.
+ *
+ * She lands a good bit smaller than she has ever been here — 27.3px against
+ * 35.0 on a 390x844 phone — because she was always over the picture's cat and
+ * nothing in the old arrangement could see it. Measured, that gap ran 18% on a
+ * 320 phone and 40% on a 430 one, and it WIDENED with the screen for a reason
+ * worth keeping: the title scales all the way up while `.how` stops at its 340
+ * max-width, so the two cats were diverging exactly where there was most room
+ * to notice. She now stops growing at a 388px viewport, where the picture
+ * does, and holds 27.3px above it.
  *
  * She crosses and comes round again rather than parking mid-word, because a cat
  * sitting on the O is a decal and a cat travelling is the game's verb; the wrap
- * happens with her clear of both ends (TITLE_RUNWAY ≥ her half-width), so the
- * jump is never on screen and the bob's phase at the seam does not matter. */
-const TITLE_AIR = 8;       // world units of air over the cap line — her size
+ * happens with her clear of both ends (TITLE_RUNWAY ≥ her half-width, both in
+ * WORLD units, so a change of scale cannot reach it), so the jump is never on
+ * screen and the bob's phase at the seam does not matter. */
 const TITLE_CROSS = 9;     // seconds, one end of the words to the other
 const TITLE_RUNWAY = 6;    // ...starting and ending this far outside the canvas
 
@@ -245,16 +267,41 @@ function capLine(h1) {
   return px;
 }
 
-/** The world the title canvas frames: exactly the canvas, at the scale that
- * makes the air above the cap line TITLE_AIR units. Both axes are handed the
- * same scale, so drawScene's min() cannot letterbox it and `ground` is the one
- * line in world coordinates she has to sit on. */
+/** The scale the GOAL picture is drawn at, css px per world unit — taken off
+ * its canvas with drawScene's own formula rather than written down here. It is
+ * the column width over 80 in practice (`#gate .scene`'s aspect-ratio IS
+ * GOAL_SCENE's frame, so the min() has nothing left to letterbox), and it is
+ * written as the min() anyway: the day that ratio and that frame drift apart
+ * is exactly the day a hardcoded column width would put two different cats on
+ * one screen. */
+function goalScale() {
+  const r = scGoalEl.getBoundingClientRect(), b = GOAL_SCENE.bounds;
+  return Math.min(r.width / (b.x1 - b.x0), r.height / (b.y1 - b.y0));
+}
+
+/** The world the title canvas frames: exactly the canvas, at the GOAL
+ * picture's scale. Both axes are handed that same scale, so drawScene's min()
+ * cannot letterbox it, and `ground` — the one line in world coordinates she
+ * has to sit on — is the measured air converted into those units.
+ *
+ * This is the inversion worth holding on to. It used to run the other way: a
+ * constant said how many world units the air was worth and the scale fell out
+ * of it, which made her size a property of the TITLE. Now the scale is given
+ * and the cap line is what falls out, which makes her size a property of the
+ * CAT in the picture below. She rides the letters either way, at whatever size
+ * the letters happen to be.
+ *
+ * The `|| 1` is for the frame where the gate has no box at all: `goalScale`
+ * comes back 0, and drawScene bails on the title canvas before it ever calls
+ * the body, so these numbers have to be finite and do not have to be right.
+ * `Math.max(air, 1)` is the older guard for a face whose metrics have not
+ * landed — it keeps her ON the strip rather than above it. */
 function titleFrame(el, h1) {
   const w = el.clientWidth, h = el.clientHeight;
-  const air = h1.getBoundingClientRect().top - el.getBoundingClientRect().top
-    + capLine(h1);
-  const s = Math.max(air, 1) / TITLE_AIR;      // css px per world unit
-  return { x0: 0, x1: w / s, y0: 0, y1: h / s, ground: TITLE_AIR };
+  const air = Math.max(h1.getBoundingClientRect().top
+    - el.getBoundingClientRect().top + capLine(h1), 1);
+  const s = goalScale() || 1;                  // css px per world unit
+  return { x0: 0, x1: w / s, y0: 0, y1: h / s, ground: air / s };
 }
 
 function drawTitleScene(b) {

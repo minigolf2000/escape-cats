@@ -58,6 +58,15 @@ an 85% top. A count of edge defects cannot tell one nick from a five-module
 hole. Both had to become their own metrics (`groundSpread`, `edgeRun`) before
 the search could see the defect a person sees first.
 
+**A letterform is not a free parameter.** The search happily swapped in a
+narrower X to buy two modules of hexagon, and the narrow X is a one-module
+diagonal: at 41 modules it renders as five *disconnected* squares, so the word
+reads "HE·" and, worse, the loose squares look like QR noise that leaked into
+the white field. The score could not see it — every module was exactly where
+it was asked to be. Glyphs whose strokes touch are the ones that survive
+module resolution; that is the same lesson as bold ink translating and
+engraving not, one level further down.
+
 **Fitness has to be multiplicative.** Ambition (how much shape and how much
 letter a design dares to ask for) times quality (how much of it the code
 actually granted). Additive scoring converges on a small perfect boring

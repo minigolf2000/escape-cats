@@ -159,6 +159,39 @@ feasibility depends only on the current pixels (never the path taken),
 lazier policies lose nothing permanently — the policy only tunes meter
 rhythm versus noise-field stability.
 
+## v3: the noise is a surface, not a byproduct
+
+The studio always treated the free noise as *surrendered* — paint what you
+care about, accept whatever texture falls out. That is half the story. A
+finished solve leaves a **null space** of several hundred dimensions, and
+every vector in it touches only *unpainted* modules: XOR any subset into the
+matrix and the drawing, every pin and the decode all survive. `solveArt`
+returns that basis as `noiseBasis`, and `solveExact` is exported, so a caller
+can spend it exactly the way it spends paint — a second exact pass, in a
+priority order of its own, pinning whatever rank is left after the picture has
+taken what it needs. It costs no pins and no error budget.
+
+This is what actually makes a silhouette read, and it is the third tone from
+the top of this file, drawn deliberately instead of hopefully. Two things
+learned the hard way:
+
+- **Order is the whole game.** Pinning the ground in distance-from-the-shape
+  order spends every dimension near the shape and leaves the far corners as
+  raw 50% noise — which shows up as a quadrant where the silhouette simply
+  stops. Rim first (that edge *is* the silhouette), then round-robin across a
+  grid of tiles, and the field comes out even. Same objective, different walk.
+- **Dark is not the goal; even is.** Pushing the whole ground to ~67% makes
+  blotchy black masses and a tonal spread of ~0.29 between tiles. A fixed
+  two-module dark band hugging the shape with the far field left at honest
+  ~50% noise gives a crisp closed outline at a spread of ~0.18. That is the
+  Disney posters' balance too — look again at Mickey: the ground around him is
+  gray, not black. The white cutout reads because it is large and clean
+  against texture, not because it is surrounded by ink.
+
+[`lab/`](qr-art/lab/) is the bench where this was found: the studio's own
+engine loaded headless out of the HTML, a genetic algorithm over design
+genomes, and two decoders gating every candidate. It has its own README.
+
 ## Answering the workflow question
 
 Yes — codes like the posters are an *iterative, human process*, and the tool

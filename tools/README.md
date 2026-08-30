@@ -13,6 +13,13 @@ rides along on the same Vercel deploy.
 | `qr-studio.html` | `/qr-studio/` | QR Art Studio — live QR pixel painter. Paint black/white/noise directly on a working code; a GF(2) solver honors your pixels in paint order (~4ms/solve), an error-correction budget absorbs stragglers, and a background pass retries every EC level × mask to keep more of your paint legal. Over-budget pixels are annotated, never blocked; the code always scans. Drawings save into the URL hash. Notes in [`qr-art-notes.md`](./qr-art-notes.md), source art in [`qr-art/`](./qr-art/). |
 | `reveal-lab.html` | `/reveal-lab/` | The tuning instrument for the night reveal wall's mice/word-legibility sim. The shipped wall is `apps/hex-clicker/src/wall.js`, ported from here; the lab is where the ramp gets eyeballed before it lands there. |
 
+[`qr-art/lab/`](./qr-art/lab/) is a headless bench for the studio — it loads
+the studio's own engine straight out of `qr-studio.html`, so there is no second
+engine to keep in sync — plus a genetic algorithm that searches design genomes
+and two decoders that gate every candidate. It has its own README. The artwork
+it produced lives in [`qr-art/`](./qr-art/) next to its recipe, so any of it can
+be regenerated exactly.
+
 Both land at their own pretty URL through `scripts/assemble.mjs`, which copies a
 single-file surface to `<name>/index.html`. **That is why there are no rewrites
 for these paths in `vercel.json`** — the URL is a real directory on disk, so

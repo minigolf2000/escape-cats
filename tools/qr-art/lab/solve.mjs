@@ -73,6 +73,13 @@ export function evaluate(g, url, opts = {}) {
   met.spread = groundSpread(d, res.matrix);
   met.ground = +darkFraction(d, res.matrix).toFixed(3);
 
+  // Vertical balance. The widest word is the LAST one, and a flat-top hexagon
+  // is widest across its middle, so the solver will happily slide the whole
+  // block up until FLEX sits on the wide row — leaving a crescent of dead
+  // white under it. That is invisible to every other term here, so it gets
+  // its own: white above the block versus white below it.
+  met.balance = textBalance(d, g);
+
   const capArea = AREA_CAP_FRAC * size * size;
   // Ink is the message, so it is worth six times its area in shape.
   const ambition = Math.min(met.fieldArea, capArea) + 6 * met.inkArea;
@@ -88,7 +95,8 @@ export function evaluate(g, url, opts = {}) {
     // a gap in the silhouette costs by its LENGTH, quadratically
     2.0 * met.edgeRun * met.edgeRun +
     // an uneven ground is a field the shape is only half cut out of
-    70 * Math.max(0, met.spread - 0.22)) / K);
+    70 * Math.max(0, met.spread - 0.22) +
+    9 * met.balance) / K);
   let fitness = ambition * quality * caseBonus;
 
   // Hard gates: it has to scan, and it has to scan as the right URL.
@@ -336,6 +344,16 @@ export function edgeMiss(d, matrix) {
  * boundary. One nick is texture; five in a row is a hole, and a mean edge
  * count cannot tell the two apart.
  */
+export function textBalance(d, g) {
+  if (!d.glyphCells.length || g.mode === "text" || g.mode === "banner") return 0;
+  let top = Infinity, bot = -Infinity;
+  for (const [r] of d.glyphCells) { top = Math.min(top, r); bot = Math.max(bot, r); }
+  const half = g.R * (Math.sqrt(3) / 2) * (g.squash || 1);
+  const above = top - (g.cy - 0.5 - half);
+  const below = (g.cy - 0.5 + half) - bot;
+  return +Math.abs(above - below).toFixed(2);
+}
+
 export function groundSpread(d, matrix, tile = 8) {
   const size = d.size;
   let lo = 1, hi = 0;

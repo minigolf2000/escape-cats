@@ -178,7 +178,7 @@ position in a pack.
   gestures that put the band there — **drag** to place, **tap** to take back.
   `GOAL_SCENE` / `GESTURE_SCENE` in `sheet.js` are level-shaped literals drawn by
   the RENDERER, so a can in the picture cannot drift from a can in the game.
-  Four things here are load-bearing:
+  Five things here are load-bearing:
   - **The gap is what a band is FOR.** A band drawn over solid ground is
     decoration. It is at the END of the run, one platform short of the plant,
     because a gap in the middle has to be crossed ON the band, which drags her
@@ -192,6 +192,14 @@ position in a pack.
   - **The FINGERTIP is the one mark with no counterpart in the game**, on the same
     licence the dashed ride-line takes: a gesture cannot be drawn out of the
     things it acts on.
+  - **The cat on the TITLE is sized by the GOAL PICTURE, not by the title**
+    (`goalScale` → `titleFrame`), so the two drawings of her on one screen are
+    the same animal at the same size. The dependency runs scale-in,
+    `ground`-out: the goal canvas's scale is given and the cap line is whatever
+    the measured air comes to in those units. Reverse it — a constant of world
+    units over the cap line, which is how it worked for a long time — and her
+    size becomes a fraction of the LOGO, so she grew 14-18% the day the mark
+    did and had drifted 18-40% over the picture's cat before anyone measured.
 
   The sheet **never dismisses itself** (the first snapshot only ARMS it), and it
   is OPAQUE. The game showing faintly through it at 86% was noise across the one

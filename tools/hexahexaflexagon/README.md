@@ -1,31 +1,38 @@
-# Hexahexaflexagon folding animation
+# Hexahexaflexagon animations
 
-An educational 3D animation of folding a hexahexaflexagon — the six-faced
-hexagonal paper toy — from a flat strip of nineteen triangles to the finished
-hexagon. One self-contained page, and a script that renders the same timeline
-to an mp4.
+Educational 3D animations of the hexagonal paper toy, and a script that
+renders either page to an mp4 or a looping GIF.
+
+- **`index.html`** — folding a hexahexaflexagon (six faces) from a flat strip
+  of nineteen triangles to the finished hexagon.
+- **`flex.html`** — the pinch flex: how you interact with a flexagon once it's
+  made. Pinch to a three-bladed star, bloom open, a hidden face appears; three
+  flexes loop through faces 1 · 2 · 3 seamlessly.
 
 Standalone: nothing here touches the games, the Worker, or the build.
 
-## The page
+## The pages
 
-Open `index.html` in a browser (double-click works; three.js loads from
-cdnjs). Play/pause, step through the twelve folds, scrub, change speed. Drag
-to orbit, scroll to zoom, double-click to reset the view. Below the canvas:
-the printable numbering, how to flex, and the Tuckerman traverse.
+Open either file in a browser (double-click works; three.js loads from
+cdnjs). Play/pause, scrub, change speed; drag to orbit, scroll to zoom,
+double-click to reset the view. Below the folding page's canvas: the
+printable numbering, how to flex, and the Tuckerman traverse.
 
-## The video
+## The video / GIF
 
 ```sh
 npm i playwright ffmpeg-static   # once, anywhere; or have ffmpeg on PATH
 node render-video.mjs --out hexahexaflexagon.mp4
+node render-video.mjs --page flex.html --out flex.gif --w 640 --h 400 --fps 18
 ```
 
-Renders ~82s of 720p24 H.264 by stepping the page's timeline frame by frame
-in headless Chromium — deterministic, no realtime capture. Useful flags:
-`--fps`, `--w`/`--h`, `--dsf` (supersampling), `--three path/to/three.min.js`
-(inline a local copy and render offline), `--chromium path` (use a
-pre-installed browser), `--page path` (run the script from another directory).
+Renders the page's timeline frame by frame in headless Chromium —
+deterministic, no realtime capture. An `--out` ending in `.gif` produces a
+palette-optimized infinite-loop GIF (the flex page is written so its last
+frame hands off to its first). Useful flags: `--fps`, `--w`/`--h`, `--dsf`
+(supersampling), `--three path/to/three.min.js` (inline a local copy and
+render offline), `--chromium path` (use a pre-installed browser), `--page
+path` (choose the page; relative to the script).
 
 ## What the animation asserts, and why it's true
 
@@ -60,3 +67,29 @@ one animated. If you change the fold data, run both before believing it.
 
 The Tuckerman traverse shown (1→3→6→1→3→2→4→3→2→1→5→2) is the article's;
 faces 1–3 recur three times per cycle, 4–6 once.
+
+## What the flex page asserts, and why it's true
+
+`flex.html` is a real kinematic simulation, not a canned morph. The band is a
+trihexaflexagon's (nine rigid triangles in a closed loop — the minimum that
+flexes; a hexahexaflexagon runs its main 1·2·3 cycle the same way with
+thicker pats). Every frame solves the loop-closure equations, so the band
+stays a genuine closed loop to machine precision (`__anim.pathInfo()` reports
+the residuals, ~1e-17).
+
+The flex path is two solved halves. Closing: the three pinch creases are
+driven together into the three-bladed star, the shared valley angle solved
+for closure. Opening: solved *backward* from the landed state a paper flex is
+known to reach — the pinch creases finish fully folded (they become the new
+pairs' folds), the old pairs' rim folds finish opened flat — then reversed.
+That landing puts the old top face face-down on the bottom and brings the
+hidden face up, the physical signature of a pinch flex. Marching forward from
+the star instead finds a different branch: a valid plate-linkage eversion
+that keeps the old *bottom* face — which paper doesn't do; `__anim.pathTable()`
+lists every branch and its landed faces, and the landing check rejects it.
+`__anim.allFlatStates()` enumerates all 512 flat-folded states of the band
+(the landed state is one of exactly two flat uniform-face hexagons reachable
+by subsets of full folds). `__anim.debugMaps()` shows the per-flex face maps
+and the seam: after three flexes the landing permutation composes to the
+band's own 3-fold symmetry (`leaf k → k+3`, no flips), so the loop closes
+seamlessly — which is why the GIF can loop forever.

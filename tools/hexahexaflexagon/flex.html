@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Pinch Flex</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  :root{
+    --paper:#fbfaf7; --stage:#f2efe8; --ink:#23252b; --muted:#6b6e79;
+    --line:#dcd9d0; --accent:#3e63dd; --bar-ink:#f4f3ef; --bar-muted:#b9bac2;
+    --btn:#ffffff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#16171b; --stage:#1d1f24; --ink:#e9e9ee; --muted:#9a9da9;
+      --line:#33363e; --accent:#8ea6f5; --bar-ink:#eceded; --bar-muted:#8f919c;
+      --btn:#24262c;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#16171b; --stage:#1d1f24; --ink:#e9e9ee; --muted:#9a9da9;
+    --line:#33363e; --accent:#8ea6f5; --bar-ink:#eceded; --bar-muted:#8f919c;
+    --btn:#24262c;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--paper); color:var(--ink);
+        font:16px/1.65 "Source Serif 4", Georgia, "Times New Roman", serif; }
+  main{ max-width:1000px; margin:0 auto; padding:26px 18px 60px; }
+  .eyebrow{ font:500 12px/1 "IBM Plex Mono", ui-monospace, monospace;
+            letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 10px; }
+  header h1{ font:800 clamp(30px,4.6vw,44px)/1.05 Archivo, system-ui, sans-serif;
+             letter-spacing:-0.015em; margin:0 0 8px; text-wrap:balance; }
+  header .dek{ margin:0 0 18px; color:var(--muted); font-size:17px; max-width:60ch; }
+  #wrap{ position:relative; width:100%; aspect-ratio:16/10; background:var(--stage);
+         border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  #stage, #stage canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  #capBar{ position:absolute; left:0; right:0; bottom:0; padding:12px 16px 13px;
+           background:linear-gradient(transparent, rgba(14,15,18,.9) 46%);
+           text-align:center; pointer-events:none; }
+  #cap{ font-size:clamp(14px,2vw,19px); min-height:1.55em; color:#f4f3ef; opacity:0; }
+  #capSub{ font:500 clamp(10px,1.4vw,13px)/1.5 "IBM Plex Mono", ui-monospace, monospace;
+           letter-spacing:.06em; color:#b9bac2; min-height:1.4em; opacity:0; }
+  #controls{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:14px; }
+  #controls button, #controls select{
+    font:500 13.5px/1.2 "IBM Plex Mono", ui-monospace, monospace;
+    padding:8px 13px; border-radius:9px; border:1px solid var(--line);
+    background:var(--btn); color:var(--ink); cursor:pointer; }
+  #controls button:hover{ border-color:var(--accent); }
+  #controls :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  #scrub{ flex:1 1 220px; min-width:160px; accent-color:var(--accent); cursor:pointer; }
+  #clock{ font:500 13px/1 "IBM Plex Mono", ui-monospace, monospace;
+          font-variant-numeric:tabular-nums; color:var(--muted); min-width:60px; text-align:right; }
+  section{ margin-top:34px; }
+  section h2{ font:800 22px/1.2 Archivo, system-ui, sans-serif; margin:0 0 8px; }
+  section p{ max-width:66ch; }
+  a{ color:var(--accent); }
+  footer{ margin-top:40px; font:500 12px/1.6 "IBM Plex Mono", ui-monospace, monospace;
+          color:var(--muted); }
+  body.video main{ max-width:none; padding:0; }
+  body.video #wrap{ border:none; border-radius:0; aspect-ratio:auto; }
+  body.video header, body.video #controls, body.video section, body.video footer{ display:none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Paper mathematics · the pinch flex</p>
+    <h1>The Pinch Flex</h1>
+    <p class="dek">Pinch three corners, push the other three in, open from the middle —
+       the hexagon turns partly inside out and a hidden face appears. Looping through
+       the main cycle 1 · 2 · 3.</p>
+  </header>
+
+  <div id="wrap">
+    <div id="stage"></div>
+    <div id="capBar"><div id="cap"></div><div id="capSub"></div></div>
+  </div>
+
+  <div id="controls">
+    <button id="btnPlay">⏸ pause</button>
+    <input id="scrub" type="range" min="0" max="1000" value="0" step="1">
+    <span id="clock">0.0s</span>
+    <select id="speed" title="playback speed">
+      <option value="0.5">0.5×</option>
+      <option value="1" selected>1×</option>
+      <option value="1.5">1.5×</option>
+    </select>
+  </div>
+
+  <section>
+    <h2>What the animation is doing</h2>
+    <p>This is a real simulation, not a canned morph: the flexagon's closed band of
+       triangles is folded by rotating its hinges, and at every frame the loop-closure
+       is solved so the band stays a genuine closed loop. Each flex closes the hexagon
+       into a three-bladed star along one set of creases, the layers regroup, and it
+       blooms open along a different set — that regrouping is what exposes a new face.
+       Watch the underside: the face you were just looking at ends up face-down there,
+       which is exactly what a paper flexagon does. Shown with the minimum layers (a
+       trihexaflexagon's band); a hexahexaflexagon
+       flexes its main 1·2·3 cycle exactly like this, with thicker stacks and three
+       more faces hiding deeper.</p>
+    <p>See also: <a href="./index.html">folding a hexahexaflexagon, step by step</a>.</p>
+  </section>
+
+  <footer>Drag to orbit · scroll to zoom · double-click to reset</footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+if (typeof THREE === 'undefined'){
+  document.getElementById('cap').textContent='Could not load the three.js library';
+  return;
+}
+
+/* ---------- the ideal trihexa band, built directly in the hexagon frame ----------
+   Nine rigid triangles in a closed loop. In the flat start state, pairs sit
+   stacked at alternate slots (their rim creases folded) and singles fill the
+   rest. All hinge angles are measured as deviations from this state, so the
+   flat hexagon is theta = 0 and the loop closes there by construction. */
+const N=9, TH=0.004;
+const V=[...Array(7)].map((_,k)=>[Math.cos(Math.PI/3*k), Math.sin(Math.PI/3*k)]);
+const SLOT_OF=[0,1,2,2,3,4,4,5,0];            // unit i -> slot; u8 tops S0, u0 under it
+const PAIR_BOTTOM=new Set([0,3,6]);           // lower ply of each two-leaf pat
+function triVerts(i){ const s=SLOT_OF[i]; return [[0,0], V[s], V[s+1]]; }
+function centroid(i){ const v=triVerts(i);
+  return [(v[0][0]+v[1][0]+v[2][0])/3,(v[0][1]+v[1][1]+v[2][1])/3]; }
+/* hinge j joins u_{j-1} and u_j (h9 closes u8 back to u0):
+   radials at the slot boundaries, rims where the pairs fold */
+function hingePts(j){
+  switch(j){
+    case 1: return [[0,0], V[1]];   // S0|S1
+    case 2: return [[0,0], V[2]];   // S1|S2
+    case 3: return [V[2], V[3]];    // rim of S2
+    case 4: return [[0,0], V[3]];   // S2|S3
+    case 5: return [[0,0], V[4]];   // S3|S4
+    case 6: return [V[4], V[5]];    // rim of S4
+    case 7: return [[0,0], V[5]];   // S4|S5
+    case 8: return [[0,0], V[0]];   // S5|S0
+    case 9: return [V[0], V[1]];    // rim of S0 (the loop-closing crease)
+  }
+}
+const RIMS=[3,6,9], PINCH=[1,4,7], VALLEY=[2,5,8];
+
+/* faces by construction: tops of the flat state are face 1, undersides face 3,
+   the sides buried inside the pairs are face 2 */
+const FACE_OF={};
+[8,1,2,4,5,7].forEach(u=>FACE_OF[u+'F']=1);
+[0,3,6].forEach(u=>FACE_OF[u+'F']=2);
+[8,2,5].forEach(u=>FACE_OF[u+'B']=2);
+[0,1,3,4,6,7].forEach(u=>FACE_OF[u+'B']=3);
+const FACE_COLORS={1:'#e5484d',2:'#f76b15',3:'#ffc53d'};
+const FACE_INK={1:'#fff',2:'#fff',3:'#4a3d16'};
+
+/* ---------- FK ---------- */
+const mats=Array.from({length:N},()=>new THREE.Matrix4());
+const _m4=new THREE.Matrix4(), _pre=new THREE.Matrix4(), _post=new THREE.Matrix4(),
+      _ax=new THREE.Vector3(), _v=new THREE.Vector3(), _v2=new THREE.Vector3(), _v3=new THREE.Vector3();
+function hingeMatrix(j, ang, out){
+  const [p,q]=hingePts(j);
+  _ax.set(q[0]-p[0],q[1]-p[1],0).normalize();
+  out.makeRotationAxis(_ax,ang);
+  _pre.makeTranslation(-p[0],-p[1],0); _post.makeTranslation(p[0],p[1],0);
+  return out.premultiply(_post).multiply(_pre);
+}
+function computeMats(th){
+  mats[0].identity();
+  for (let j=1;j<N;j++){ mats[j].copy(mats[j-1]);
+    if (Math.abs(th[j])>1e-12) mats[j].multiply(hingeMatrix(j,th[j],_m4)); }
+  return mats;
+}
+function residual(th, out){                    // loop closure through hinge 9
+  computeMats(th);
+  _m4.copy(mats[8]);
+  if (Math.abs(th[9]||0)>1e-12) _m4.multiply(hingeMatrix(9,th[9],_h9));
+  const e=_m4.elements;
+  out[0]=e[0]-1; out[1]=e[1];   out[2]=e[2];
+  out[3]=e[4];   out[4]=e[5]-1; out[5]=e[6];
+  out[6]=e[8];   out[7]=e[9];   out[8]=e[10]-1;
+  out[9]=e[12];  out[10]=e[13]; out[11]=e[14];
+  let s=0; for (let i=0;i<12;i++) s+=out[i]*out[i];
+  return s;
+}
+const _r0=new Float64Array(12), _r1=new Float64Array(12), _h9=new THREE.Matrix4();
+function solveN(A,b,n){
+  const m=A.map((row,i)=>[...row,b[i]]);
+  for (let c=0;c<n;c++){
+    let p=c; for (let r=c+1;r<n;r++) if (Math.abs(m[r][c])>Math.abs(m[p][c])) p=r;
+    [m[c],m[p]]=[m[p],m[c]];
+    if (Math.abs(m[c][c])<1e-13) m[c][c]=1e-13;
+    for (let r=0;r<n;r++){ if (r===c) continue;
+      const f=m[r][c]/m[c][c];
+      for (let cc=c;cc<=n;cc++) m[r][cc]-=f*m[c][cc]; }
+  }
+  return m.map((row,i)=>row[n]/row[i]);
+}
+function solveFree(th, groups, w){
+  const n=groups.length;
+  const setW=()=>groups.forEach((g,i)=>g.forEach(j=>th[j]=w[i]));
+  for (let it=0; it<26; it++){
+    setW();
+    const e0=residual(th,_r0);
+    if (e0<1e-20) break;
+    const J=[];
+    for (let i=0;i<n;i++){
+      groups[i].forEach(j=>th[j]=w[i]+1e-6);
+      residual(th,_r1);
+      groups[i].forEach(j=>th[j]=w[i]);
+      J.push(Array.from({length:12},(_,r)=>(_r1[r]-_r0[r])/1e-6));
+    }
+    const A=Array.from({length:n},()=>new Array(n).fill(0)), g=new Array(n).fill(0);
+    let tr=0;
+    for (let a=0;a<n;a++){
+      for (let b=0;b<n;b++){ let s2=0;
+        for (let r=0;r<12;r++) s2+=J[a][r]*J[b][r]; A[a][b]=s2; }
+      let s2=0; for (let r=0;r<12;r++) s2+=J[a][r]*_r0[r];
+      g[a]=-s2; tr+=A[a][a];
+    }
+    const lam=1e-6*tr/n+1e-12;
+    for (let a=0;a<n;a++) A[a][a]+=lam;
+    const d=solveN(A,g,n);
+    if (d.some(x=>!isFinite(x))) break;
+    let mx=0;
+    for (let i=0;i<n;i++){ const st=Math.max(-0.15,Math.min(0.15,d[i]));
+      w[i]+=st; mx=Math.max(mx,Math.abs(st)); }
+    if (mx<1e-12) break;
+  }
+  setW();
+  return residual(th,_r0);
+}
+const SAMPLES=120;
+function marchHalf(drivenSet, fromVec, toVec, groups, wSeed){
+  const th=new Float64Array(N+1), path=[];
+  const w=[...wSeed];
+  for (let s=0;s<=SAMPLES;s++){
+    const u=s/SAMPLES;
+    th.fill(0);
+    drivenSet.forEach((j,i)=>th[j]=fromVec[i]+(toVec[i]-fromVec[i])*u);
+    const e=solveFree(th, groups, w);
+    path.push({drv:drivenSet.map((j)=>th[j]), w:[...w], e});
+  }
+  return path;
+}
+function zExtent(th){
+  computeMats(th);
+  let zmin=1e9, zmax=-1e9;
+  for (let i=0;i<N;i++){ const c0=centroid(i);
+    _v.set(c0[0],c0[1],0).applyMatrix4(mats[i]);
+    zmin=Math.min(zmin,_v.z); zmax=Math.max(zmax,_v.z); }
+  return zmax-zmin;
+}
+
+/* ---------- solve the one flex (the other two are its 120-degree images) ----
+   Close half: the pinch — all three pinch creases driven together into the
+   three-bladed star, one shared valley angle solved for loop closure.
+   Open half: the bloom — solved BACKWARD, from the real landed state down to
+   the star, then reversed. The landed state of a paper flex is known exactly:
+   the pinch creases finish fully folded (they become the new pairs' folds),
+   the old pairs' rim folds finish opened flat, the valleys return to zero —
+   so the old top face goes to the bottom and the hidden face comes up.
+   Marching forward from the star cannot find this branch: the solver latches
+   onto the eversion that keeps the old bottom face, a valid rigid-plate
+   motion but not what paper does. */
+let PATH={close:null, open:null, pinchSigns:null, rimSigns:null, diag:{}};
+let PATH_TABLE=[];
+function buildPath(){
+  let best=null;
+  for (const ps of [1,-1]){
+    const close=marchHalf(PINCH,
+      [ps*1e-3,ps*1e-3,ps*1e-3], [ps*(Math.PI-1e-4),ps*(Math.PI-1e-4),ps*(Math.PI-1e-4)],
+      [VALLEY], [0]);
+    let closeErr=0; for (const p of close) closeErr+=p.e;
+    const wStar=close[SAMPLES].w[0];
+    const thStar=new Float64Array(N+1);
+    PINCH.forEach(j=>thStar[j]=ps*(Math.PI-1e-4));
+    VALLEY.forEach(j=>thStar[j]=wStar);
+    const ext=zExtent(thStar);
+    if (ext<0.35 || closeErr>1e-6) continue;
+    for (const rs of [1,-1]) for (const pls of [1,-1]){
+      const back=marchHalf(RIMS,
+        [rs*(Math.PI-1e-4),rs*(Math.PI-1e-4),rs*(Math.PI-1e-4)], [0,0,0],
+        [PINCH,VALLEY], [pls*(Math.PI-1e-4), 0]);
+      let openErr=0; for (const p of back) openErr+=p.e;
+      // the backward march must arrive at this close half's star
+      const aP=back[SAMPLES].w[0], aV=back[SAMPLES].w[1];
+      const starMiss=Math.abs(aP-ps*(Math.PI-1e-4))+Math.abs(aV-wStar);
+      const open=[...back].reverse();
+      // probe the landing near the (forward) end of the path
+      const smp=open[Math.round(0.97*SAMPLES)];
+      const th2=new Float64Array(N+1);
+      RIMS.forEach((j,i)=>th2[j]=smp.drv[i]);
+      PINCH.forEach(j=>th2[j]=smp.w[0]);
+      VALLEY.forEach(j=>th2[j]=smp.w[1]);
+      computeMats(th2);
+      const rows=[];
+      for (let i=0;i<N;i++){ const c0=centroid(i);
+        _v.set(c0[0],c0[1],0).applyMatrix4(mats[i]);
+        _v3.set(0,0,1).transformDirection(mats[i]);
+        rows.push({u:i,x:_v.x,y:_v.y,z:_v.z,nz:_v3.z}); }
+      const cl=[];
+      for (const r of rows){
+        let c=cl.find(c=>Math.hypot(c.x-r.x,c.y-r.y)<0.33);
+        if(!c){c={x:r.x,y:r.y,m:[]};cl.push(c);} c.m.push(r); }
+      // the real flex: hidden face 2 comes up, the old top 1 goes to the bottom
+      let mismatch=0, landedTops='', landedBots='';
+      for (const c of cl){
+        c.m.sort((a,b)=>b.z-a.z);
+        const ft=FACE_OF[c.m[0].u+(c.m[0].nz>0?'F':'B')];
+        const fb=FACE_OF[c.m[c.m.length-1].u+(c.m[c.m.length-1].nz>0?'B':'F')];
+        landedTops+=ft; landedBots+=fb;
+        if (ft!==2) mismatch++;
+        if (fb!==1) mismatch++;
+      }
+      if (cl.length!==6) mismatch+=12;
+      const score=(closeErr+openErr)*1e6+starMiss*40+mismatch*10;
+      PATH_TABLE.push({pinch:ps, rims:rs, land:pls, landedTops, landedBots,
+        starMiss:+starMiss.toFixed(5), mismatch});
+      if (!best || score<best.score)
+        best={score, close, open, ps, rs, closeErr, openErr, ext,
+              starMiss, mismatch, wStar};
+    }
+  }
+  PATH={close:best.close, open:best.open,
+        pinchSigns:[best.ps,best.ps,best.ps], rimSigns:[best.rs,best.rs,best.rs],
+        diag:{closeErr:best.closeErr, ext:best.ext, openErr:best.openErr,
+              starMiss:best.starMiss,
+              mismatch:best.mismatch, wStar:+best.wStar.toFixed(4)}};
+}
+function thetaAt(half, u){
+  const path = half===0 ? PATH.close : PATH.open;
+  const x=Math.max(0,Math.min(1,u))*SAMPLES;
+  const i=Math.min(SAMPLES-1,Math.floor(x)), f=x-i;
+  const a=path[i], b=path[i+1];
+  const th=new Float64Array(N+1);
+  const driven = half===0 ? PINCH : RIMS;
+  driven.forEach((j,i2)=>{ th[j]=a.drv[i2]+(b.drv[i2]-a.drv[i2])*f; });
+  if (half===0){
+    const v=a.w[0]+(b.w[0]-a.w[0])*f;
+    VALLEY.forEach(j=>th[j]=v);
+  } else {
+    const p=a.w[0]+(b.w[0]-a.w[0])*f, v=a.w[1]+(b.w[1]-a.w[1])*f;
+    PINCH.forEach(j=>th[j]=p);
+    VALLEY.forEach(j=>th[j]=v);
+  }
+  return th;
+}
+
+/* ---------- the landing permutation ----------
+   Each flex runs the identical solved path; what changes is which printed side
+   rides which plate. The permutation is read off the landed stacking: the
+   (leaf, side) that comes down on top at each slot supplies that plate's next
+   texture. Applying it three times returns to the start, closing the loop. */
+let PERM=null;          // flat position p -> {q: leaf landing there, flip: side swapped}
+let LANDSLOT={}, LANDOFF=null, LANDNZ={}, REVEAL_ANG={};
+let FACEMAP=[];         // FACEMAP[k][position+side] -> face number shown there in flex k
+let SEAM_OK=false, PERM3=null;
+function computeLanding(){
+  // landed configuration, just before fully flat
+  const th=thetaAt(1,0.97);
+  computeMats(th);
+  const rows=[];
+  for (let i=0;i<N;i++){ const c0=centroid(i);
+    _v.set(c0[0],c0[1],0).applyMatrix4(mats[i]);
+    _v3.set(0,0,1).transformDirection(mats[i]);
+    rows.push({u:i,x:_v.x,y:_v.y,z:_v.z,nz:_v3.z}); }
+  const cl=[];
+  for (const r of rows){
+    let c=cl.find(c=>Math.hypot(c.x-r.x,c.y-r.y)<0.33);
+    if(!c){c={x:r.x,y:r.y,m:[]};cl.push(c);} c.m.push(r); }
+  for (const c of cl) c.m.sort((a,b)=>b.z-a.z);
+  // hexagon centre of the landed state
+  const hx=cl.reduce((a,c)=>a+c.x,0)/6, hy=cl.reduce((a,c)=>a+c.y,0)/6;
+  // flat positions by slot: pair tops, pair bottoms, singles
+  const flatSlots=[...Array(6)].map((_,s2)=>({
+    az:Math.atan2(Math.sin(Math.PI/3*s2+Math.PI/6),Math.cos(Math.PI/3*s2+Math.PI/6)),
+    stack:[[8,0],[1],[2,3],[4],[5,6],[7]][s2] }));
+  // the landed hexagon sits rotated; align landed slots to flat slots by
+  // matching stack sizes around the ring with a rigid rotation offset
+  const landed=cl.map(c=>({az:Math.atan2(c.y-hy,c.x-hx), m:c.m}));
+  let bestOff=null;
+  for (let k=0;k<6;k++){
+    const rot=k*Math.PI/3;
+    let ok=true, sum=0;
+    for (const L of landed){
+      const az=((L.az+rot)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+      const f=flatSlots.reduce((b2,fs)=>{
+        let d=Math.abs(((az-((fs.az%(2*Math.PI))+2*Math.PI)%(2*Math.PI))+Math.PI)%(2*Math.PI)-Math.PI);
+        return (!b2||d<b2.d)?{fs,d}:b2; },null);
+      if (f.fs.stack.length!==L.m.length){ ok=false; break; }
+      sum+=f.d; L.match=f.fs;
+    }
+    if (ok && (!bestOff||sum<bestOff.sum)) bestOff={k,sum,assign:landed.map(L=>({L,fs:L.match}))};
+  }
+  PERM={};
+  LANDSLOT={}; LANDOFF=new Float64Array(N); LANDNZ={}; REVEAL_ANG={};
+  for (const {L,fs} of bestOff.assign){
+    const azIdx=Math.round((((Math.atan2(Math.sin(fs.az),Math.cos(fs.az))-Math.PI/6)/(Math.PI/3))+6))%6;
+    fs.stack.forEach((p,rank)=>{
+      const m=L.m[rank];
+      PERM[p]={q:m.u, flip:m.nz<0};
+      LANDSLOT[m.u]=azIdx;
+      LANDNZ[m.u]=m.nz>0;
+      const worldOff = L.m.length===1 ? 0 : (rank===0? +LT/2 : -LT/2);
+      LANDOFF[m.u]=worldOff/(m.nz>0?1:-1);
+      // pull the outward direction at the landing back into the leaf's layout
+      _v2.set(m.x-hx, m.y-hy, 0).normalize();
+      _m4.copy(mats[m.u]).invert();
+      const dl=_v2.clone().transformDirection(_m4);
+      REVEAL_ANG[m.u]=Math.atan2(dl.y, dl.x);
+    });
+  }
+  // face carried by each mesh position per flex (composition of the permutation)
+  FACEMAP=[];
+  let cur={}; for (let p=0;p<N;p++) cur[p]={q:p, flip:false};
+  for (let k=0;k<3;k++){
+    const fm={};
+    for (let p=0;p<N;p++){
+      const {q,flip}=cur[p];
+      fm[p+'F']=FACE_OF[q+(flip?'B':'F')];
+      fm[p+'B']=FACE_OF[q+(flip?'F':'B')];
+    }
+    FACEMAP.push(fm);
+    const nxt={};
+    for (let p=0;p<N;p++){ const st=PERM[p], inner=cur[st.q];
+      nxt[p]={q:inner.q, flip:st.flip!==inner.flip}; }
+    cur=nxt;
+  }
+  // the loop seam: after three flexes the permutation must give back the
+  // starting face map (leaf ids may shift by the band's own 3-fold symmetry)
+  PERM3=cur;
+  SEAM_OK=true;
+  for (let p=0;p<N;p++){
+    const {q,flip}=cur[p];
+    if (FACE_OF[q+(flip?'B':'F')]!==FACEMAP[0][p+'F'] ||
+        FACE_OF[q+(flip?'F':'B')]!==FACEMAP[0][p+'B']) SEAM_OK=false;
+  }
+}
+
+/* render offsets: known stacking of the flat state (pairs over their lower ply) */
+const LT=0.0065;
+const OFFSET0=new Float64Array(N);
+[8,2,5].forEach(u=>OFFSET0[u]=+LT/2);
+[0,3,6].forEach(u=>OFFSET0[u]=-LT/2);
+
+/* ---------- scene ---------- */
+const stage=document.getElementById('stage');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+function syncStageColor(){
+  const c=getComputedStyle(document.documentElement).getPropertyValue('--stage').trim();
+  renderer.setClearColor(new THREE.Color(c||'#f2efe8'));
+}
+syncStageColor();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',syncStageColor);
+new MutationObserver(syncStageColor).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+stage.appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(34,16/10,0.1,60);
+scene.add(new THREE.AmbientLight(0xffffff,0.74));
+const key=new THREE.DirectionalLight(0xffffff,0.6); key.position.set(1.5,-2.5,4); scene.add(key);
+const rim=new THREE.DirectionalLight(0xfff2dd,0.35); rim.position.set(-2,3,-4); scene.add(rim);
+const root=new THREE.Group(); root.matrixAutoUpdate=false; scene.add(root);
+
+/* numerals oriented to read outward from the slot where the surface shows:
+   a position's F side is on show at its own slot when the flex starts; the side
+   that gets revealed by the bloom reads outward at the slot where it lands */
+function slotAz(sl){ return Math.PI/3*sl+Math.PI/6; }
+function texFor(k, p, side){
+  const S=256, c=document.createElement('canvas'); c.width=c.height=S;
+  const ctx=c.getContext('2d');
+  const face=FACEMAP[k][p+side];
+  ctx.fillStyle=FACE_COLORS[face]; ctx.fillRect(0,0,S,S);
+  ctx.save();
+  if (side==='B'){ ctx.translate(S,0); ctx.scale(-1,1); }
+  ctx.strokeStyle='rgba(40,30,10,0.30)'; ctx.lineWidth=9;
+  ctx.strokeRect(4,4,S-8,S-8);
+  /* orientation: a surface that is visible when the flex starts reads outward at
+     its own slot; one that the bloom reveals reads outward where it lands */
+  const isPairBottom=PAIR_BOTTOM.has(p);
+  const startVisible = (side==='F' && !isPairBottom) || (side==='B' && isPairBottom) ||
+                       (side==='B' && SLOT_OF.indexOf(SLOT_OF[p])===SLOT_OF.lastIndexOf(SLOT_OF[p]));
+  const revealedSide = LANDNZ[p] ? 'F' : 'B';
+  const useReveal = !startVisible && side===revealedSide && REVEAL_ANG[p]!==undefined;
+  const outAng = useReveal ? REVEAL_ANG[p] : slotAz(SLOT_OF[p]);
+  const delta = outAng - Math.PI/2;
+  ctx.translate(S/2,S/2);
+  ctx.rotate(side==='F' ? delta : -delta);
+  ctx.fillStyle=FACE_INK[face];
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font='700 96px system-ui, sans-serif';
+  ctx.fillText(String(face),0,6);
+  ctx.restore();
+  const tex=new THREE.CanvasTexture(c); tex.anisotropy=4; return tex;
+}
+const TEXCACHE={};
+function texKey(k,p,side){ return k+':'+p+side; }
+function texOf(k,p,side){ const key=texKey(k,p,side);
+  if(!TEXCACHE[key]) TEXCACHE[key]=texFor(k,p,side); return TEXCACHE[key]; }
+let appliedFlex=-1;
+function applyFlexTextures(k){
+  if (k===appliedFlex) return;
+  appliedFlex=k;
+  for (let p=0;p<N;p++){
+    meshes[p].F.material.map=texOf(k,p,'F');
+    meshes[p].B.material.map=texOf(k,p,'B');
+    meshes[p].F.material.needsUpdate=true;
+    meshes[p].B.material.needsUpdate=true;
+  }
+}
+const meshes=[];
+function buildMeshes(){
+  for (let u=0;u<N;u++){
+    const v=triVerts(u);
+    const ax=v[1][0]-v[0][0], ay=v[1][1]-v[0][1], bx=v[2][0]-v[0][0], by=v[2][1]-v[0][1];
+    const ccw=(ax*by-ay*bx)>0?[0,1,2]:[0,2,1];
+    const rec={};
+    // planar uv over the triangle's own bounding box
+    const xs=v.map(p=>p[0]), ys=v.map(p=>p[1]);
+    const mnx=Math.min(...xs), mny=Math.min(...ys),
+          w=Math.max(...xs)-mnx||1, h=Math.max(...ys)-mny||1;
+    for (const side of ['F','B']){
+      const ord= side==='F'?ccw:[ccw[0],ccw[2],ccw[1]];
+      const z= side==='F'?TH:-TH;
+      const pos=new Float32Array(9), uv=new Float32Array(6);
+      ord.forEach((vi,n)=>{ pos.set([v[vi][0],v[vi][1],z],n*3);
+                            uv.set([(v[vi][0]-mnx)/w,(v[vi][1]-mny)/h],n*2); });
+      const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+      g.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+      g.computeVertexNormals();
+      const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial());
+      m.matrixAutoUpdate=false; root.add(m); rec[side]=m;
+    }
+    meshes.push(rec);
+  }
+}
+
+/* ---------- canonical framing ---------- */
+const _q=new THREE.Quaternion(), _up=new THREE.Vector3(0,0,1);
+let spinRef=null;
+function canonicalize(half){
+  let cx=0,cy=0,cz=0;
+  for (let i=0;i<N;i++){ const c0=centroid(i);
+    _v.set(c0[0],c0[1],0).applyMatrix4(mats[i]);
+    cx+=_v.x; cy+=_v.y; cz+=_v.z; }
+  cx/=N; cy/=N; cz/=N;
+  const tips=PINCH.map(j=>{
+    const [p,q]=hingePts(j);
+    const P=new THREE.Vector3(p[0],p[1],0).applyMatrix4(mats[j-1]);
+    const Q=new THREE.Vector3(q[0],q[1],0).applyMatrix4(mats[j-1]);
+    const dP=(P.x-cx)**2+(P.y-cy)**2+(P.z-cz)**2, dQ=(Q.x-cx)**2+(Q.y-cy)**2+(Q.z-cz)**2;
+    return dP>dQ?P:Q;
+  });
+  const n=new THREE.Vector3().subVectors(tips[1],tips[0])
+    .cross(new THREE.Vector3().subVectors(tips[2],tips[0])).normalize();
+  if (n.z<0) n.negate();
+  _q.setFromUnitVectors(n,_up);
+  const M=new THREE.Matrix4().makeRotationFromQuaternion(_q)
+    .multiply(_m4.makeTranslation(-cx,-cy,-cz));
+  const t0=tips[0].clone().applyMatrix4(M);
+  const az=Math.atan2(t0.y,t0.x);
+  if (spinRef===null) spinRef=az;
+  let d=az-spinRef;
+  while(d>Math.PI)d-=2*Math.PI; while(d<-Math.PI)d+=2*Math.PI;
+  spinRef=az-d;
+  return new THREE.Matrix4().makeRotationZ(-spinRef+Math.PI/6).multiply(M);
+}
+
+/* ---------- timeline: three identical flexes, faces relabelled by symmetry ----
+   One flex is solved; each repeat renders the same motion with the leaves'
+   printed sides advanced by the landing permutation — which is exactly what
+   the flex does to the band. Face 1 gives way to face 2, then 3; the third
+   landing is the band's own 3-fold symmetry (SEAM_OK), so the loop closes. */
+const HOLD=1.0, CLOSE=1.7, STARP=0.35, OPEN=1.7;
+const FLEXDUR=HOLD+CLOSE+STARP+OPEN;
+const DUR=3*FLEXDUR;
+const easeIO=p=>p<0.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;
+const cap=document.getElementById('cap'), capSub=document.getElementById('capSub');
+const _off=new THREE.Matrix4(), _fin=new THREE.Matrix4();
+
+function setTime(t){
+  simT=((t%DUR)+DUR)%DUR;
+  const k=Math.floor(simT/FLEXDUR), lt=simT-k*FLEXDUR;
+  applyFlexTextures(k);
+  let th, phase, pf;
+  if (lt<HOLD){ phase='hold'; pf=0; th=thetaAt(0,0); }
+  else if (lt<HOLD+CLOSE){ phase='close'; pf=easeIO((lt-HOLD)/CLOSE); th=thetaAt(0,pf); }
+  else if (lt<HOLD+CLOSE+STARP){ phase='star'; pf=1; th=thetaAt(0,1); }
+  else { phase='open'; pf=easeIO((lt-HOLD-CLOSE-STARP)/OPEN); th=thetaAt(1,pf); }
+  computeMats(th);
+  const canon=canonicalize(phase==='open'?1:0);
+  const closed = phase==='close'?pf : phase==='star'?1 : phase==='open'?1-pf : 0;
+  const squeeze=1-0.4*closed;
+  let mix=0;
+  if (phase==='star') mix=0.5*((lt-HOLD-CLOSE)/STARP);
+  else if (phase==='open') mix=0.5+0.5*Math.min(1,pf*1.8);
+  for (let i=0;i<N;i++){
+    const o=(OFFSET0[i]+(LANDOFF[i]-OFFSET0[i])*mix)*squeeze;
+    _off.makeTranslation(0,0,o);
+    _fin.copy(canon).multiply(mats[i]).multiply(_off);
+    meshes[i].F.matrix.copy(_fin); meshes[i].B.matrix.copy(_fin);
+  }
+  const dist=4.3*orbZoom, el=0.60+orbEl, az=0.0+orbAz;
+  camera.position.set(Math.sin(az)*Math.cos(el)*dist, -Math.cos(az)*Math.cos(el)*dist, Math.sin(el)*dist);
+  camera.up.set(0,0,1); camera.lookAt(0,0,0);
+  const face=['1','2','3'][k], next=['2','3','1'][k];
+  const caps={
+    hold:[`Face ${face}.`, k===0?'pinch three corners to flex':''],
+    close:['Pinch three corners together, push the other three in.','the hexagon closes into a three-bladed star'],
+    star:['Closed. The layers regroup…',''],
+    open:[`…and it blooms open from the middle — face ${next}.`,`face ${face} is going face-down onto the underside`],
+  };
+  cap.textContent=caps[phase][0]; capSub.textContent=caps[phase][1];
+  cap.style.opacity=1; capSub.style.opacity=1;
+  scrub.value=String(Math.round(simT/DUR*1000));
+  clock.textContent=simT.toFixed(1)+'s';
+}
+
+/* ---------- interaction ---------- */
+let simT=0, playing=true, speed=1;
+let orbAz=0, orbEl=0, orbZoom=1;
+const scrub=document.getElementById('scrub'), clock=document.getElementById('clock');
+const btnPlay=document.getElementById('btnPlay');
+let last=performance.now();
+function tick(now){
+  const dt=(now-last)/1000; last=now;
+  if (playing) setTime(simT+dt*speed);
+  renderer.render(scene,camera);
+  requestAnimationFrame(tick);
+}
+btnPlay.addEventListener('click',()=>{ playing=!playing;
+  btnPlay.textContent=playing?'⏸ pause':'▶ play'; });
+scrub.addEventListener('input',()=>{ playing=false; btnPlay.textContent='▶ play';
+  setTime(Number(scrub.value)/1000*DUR); });
+document.getElementById('speed').addEventListener('change',e=>{ speed=Number(e.target.value); });
+window.addEventListener('keydown',e=>{
+  if (e.target.tagName==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
+  if (e.code==='Space'){ e.preventDefault(); btnPlay.click(); }
+});
+let dragging=false,px=0,py=0;
+renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;px=e.clientX;py=e.clientY;
+  renderer.domElement.setPointerCapture(e.pointerId);});
+window.addEventListener('pointermove',e=>{ if(!dragging)return;
+  orbAz=Math.max(-1.2,Math.min(1.2,orbAz+(e.clientX-px)*0.005));
+  orbEl=Math.max(-0.5,Math.min(0.8,orbEl+(e.clientY-py)*0.005));
+  px=e.clientX;py=e.clientY; if(!playing)setTime(simT); });
+window.addEventListener('pointerup',()=>dragging=false);
+renderer.domElement.addEventListener('wheel',e=>{ e.preventDefault();
+  orbZoom=Math.max(0.5,Math.min(2.2,orbZoom*Math.exp(e.deltaY*0.001)));
+  if(!playing)setTime(simT); },{passive:false});
+renderer.domElement.addEventListener('dblclick',()=>{orbAz=orbEl=0;orbZoom=1;if(!playing)setTime(simT);});
+function resize(){
+  const w=stage.clientWidth||1280, h=stage.clientHeight||800;
+  renderer.setPixelRatio(window.devicePixelRatio||1);
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h; camera.updateProjectionMatrix();
+  if(!playing)setTime(simT);
+}
+new ResizeObserver(resize).observe(stage);
+
+/* ---------- debug + video API ---------- */
+window.__anim={
+  get duration(){ return DUR; },
+  renderAt(t){ playing=false; setTime(t); renderer.render(scene,camera); },
+  prepareForVideo(w,h){
+    playing=false; document.body.classList.add('video');
+    document.getElementById('wrap').style.width=w+'px';
+    document.getElementById('wrap').style.height=h+'px';
+    resize();
+  },
+  pathTable(){ return PATH_TABLE; },
+  debugMaps(){
+    const out=[];
+    for (let k=0;k<3;k++){
+      const tops=[], bots=[], reveal=[];
+      for (let p=0;p<N;p++){
+        const isPB=PAIR_BOTTOM.has(p);
+        if (!isPB) tops.push(p+':'+FACEMAP[k][p+'F']);
+        const revSide=LANDNZ[p]?'F':'B';
+        reveal.push(p+revSide+':'+FACEMAP[k][p+revSide]);
+      }
+      out.push({flex:k, startTops:tops.join(' '), revealed:reveal.join(' ')});
+    }
+    return {flexes:out, seamOk:SEAM_OK,
+      perm3:Object.keys(PERM3).map(p=>p+'>'+PERM3[p].q+(PERM3[p].flip?'~':'')).join(' ')};
+  },
+  pathInfo(){ return {pinchSigns:PATH.pinchSigns.join(','), rimSigns:PATH.rimSigns.join(','),
+    closeErr:+PATH.diag.closeErr.toExponential(2), ext:+PATH.diag.ext.toFixed(2),
+    openErr:+PATH.diag.openErr.toExponential(2),
+    starMiss:+PATH.diag.starMiss.toExponential(2),
+    mismatch:PATH.diag.mismatch, wStar:PATH.diag.wStar}; },
+  allFlatStates(){
+    const out=[], th=new Float64Array(N+1), r=new Float64Array(12);
+    for (let mask=0; mask<512; mask++){
+      th.fill(0);
+      for (let j=1;j<=9;j++) if (mask&(1<<(j-1))) th[j]=Math.PI;
+      const e=residual(th,r);
+      if (e>1e-12) continue;
+      if (zExtent(th)>1e-9) continue;
+      const folded=[]; for (let j=1;j<=9;j++) if (mask&(1<<(j-1))) folded.push(j);
+      // asymptotic stacking: back each fold off flat by a distinct hair
+      const tg=new Float64Array(N+1);
+      folded.forEach((j,i)=>tg[j]=Math.PI-(6e-4+3e-4*i));
+      computeMats(tg);
+      const rows=[];
+      for (let i=0;i<N;i++){ const c0=centroid(i);
+        _v.set(c0[0],c0[1],0).applyMatrix4(mats[i]);
+        _v3.set(0,0,1).transformDirection(mats[i]);
+        rows.push({u:i,x:_v.x,y:_v.y,z:_v.z,nz:_v3.z}); }
+      const cl=[];
+      for (const rr of rows){
+        let c=cl.find(c=>Math.hypot(c.x-rr.x,c.y-rr.y)<0.33);
+        if(!c){c={x:rr.x,y:rr.y,m:[]};cl.push(c);} c.m.push(rr); }
+      for (const c of cl) c.m.sort((a,b)=>b.z-a.z);
+      const tops=cl.map(c=>FACE_OF[c.m[0].u+(c.m[0].nz>0?'F':'B')]).join('');
+      const bots=cl.map(c=>FACE_OF[c.m[c.m.length-1].u+(c.m[c.m.length-1].nz>0?'B':'F')]).join('');
+      out.push({folded:folded.join(','), nCl:cl.length,
+        occ:cl.map(c=>c.m.length).join(''), tops, bots});
+    }
+    return out;
+  },
+  endStateScan(){
+    const out=[], th=new Float64Array(N+1), r=new Float64Array(12);
+    const V3=[0, 2*Math.PI, -2*Math.PI];
+    for (const p1 of [1,-1]) for (const p2 of [1,-1]) for (const p3 of [1,-1])
+    for (const r1 of [1,-1]) for (const r2 of [1,-1]) for (const r3 of [1,-1])
+    for (const v1 of V3) for (const v2 of V3) for (const v3 of V3){
+      th.fill(0);
+      PINCH.forEach((j,i)=>th[j]=[p1,p2,p3][i]*Math.PI);
+      RIMS.forEach((j,i)=>th[j]=[r1,r2,r3][i]*Math.PI);
+      VALLEY.forEach((j,i)=>th[j]=[v1,v2,v3][i]);
+      const e=residual(th,r);
+      if (e<1e-12) out.push({pinch:`${p1},${p2},${p3}`, rims:`${r1},${r2},${r3}`,
+        valleys:`${(v1/Math.PI).toFixed(0)},${(v2/Math.PI).toFixed(0)},${(v3/Math.PI).toFixed(0)}`});
+    }
+    return out;
+  },
+  analyzeAt(half, u){
+    computeMats(thetaAt(half,u));
+    const rows=[];
+    for (let i=0;i<N;i++){ const c0=centroid(i);
+      _v.set(c0[0],c0[1],0).applyMatrix4(mats[i]);
+      _v3.set(0,0,1).transformDirection(mats[i]);
+      rows.push({u:i,x:_v.x,y:_v.y,z:_v.z,nz:_v3.z}); }
+    const cl=[];
+    for (const r of rows){
+      let c=cl.find(c=>Math.hypot(c.x-r.x,c.y-r.y)<0.33);
+      if(!c){c={x:r.x,y:r.y,m:[]};cl.push(c);} c.m.push(r); }
+    for (const c of cl) c.m.sort((a,b)=>b.z-a.z);
+    return cl.map(c=>({ n:c.m.length,
+      top:FACE_OF[c.m[0].u+(c.m[0].nz>0?'F':'B')],
+      bottom:FACE_OF[c.m[c.m.length-1].u+(c.m[c.m.length-1].nz>0?'B':'F')],
+      ks:c.m.map(m=>m.u+(m.nz>0?'F':'B')).join(','),
+      zs:c.m.map(m=>+m.z.toFixed(4)).join(',') }));
+  },
+};
+
+/* ---------- go ---------- */
+buildPath();
+computeLanding();
+buildMeshes();
+applyFlexTextures(0);
+resize();
+setTime(0);
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

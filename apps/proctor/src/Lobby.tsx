@@ -32,6 +32,17 @@ const ZONES: Team[] = [{ id: UNSORTED, name: "Unassigned" }, ...TEAMS];
 const zoneOf = (team: string | null) => team ?? UNSORTED;
 const teamOf = (zone: string) => (zone === UNSORTED ? null : zone);
 
+/** Who is MEANT to be on each team, typed in by hand. Purely a reading aid for
+ * the proctor doing the sorting — nothing reads it but the line at the bottom
+ * of a team's box, and it is not checked against the actual roster, because a
+ * name on a phone is whatever that player typed. Edit it per event. */
+const INTENDED: Record<string, string[]> = {
+  t1: ["Deepa", "Emi", "Gia Hoa", "Zerah"],
+  t2: ["Amanda", "John", "Kyle"],
+  t3: ["Ashley", "Bill", "Krithi", "Vanessa"],
+  t4: ["Alyssa", "Anamaria", "Patrin", "Will"],
+};
+
 /** Ear width on a zone box, in px. Small — the board is five boxes at once and
  * the ears are here to be matched against heads across the room, not admired. */
 const ZONE_EAR_W = 64;
@@ -416,6 +427,12 @@ export function Lobby() {
                   room={isTeam ? z.id : OPEN_TEAM.id}
                   label={isTeam ? z.name : OPEN_TEAM.name}
                 />
+              )}
+              {/* Last line in the box: the roster this team is supposed to end
+                  up with. A reference while dragging, nothing more — see
+                  INTENDED. */}
+              {isTeam && INTENDED[z.id] && (
+                <p className="zone-intended">{INTENDED[z.id].join(" · ")}</p>
               )}
             </div>
           );

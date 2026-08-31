@@ -532,3 +532,13 @@ button.small.danger:disabled {
 .adhoc-url span {
   display: block;
 }
+
+/* The hand-typed roster at the foot of a team's box (INTENDED in Lobby.tsx):
+ * a reference for the proctor sorting, so it sits quieter than anything the
+ * board actually knows. */
+.zone-intended {
+  margin: 8px 0 0;
+  color: #6b7183;
+  font-size: 11px;
+  line-height: 1.4;
+}

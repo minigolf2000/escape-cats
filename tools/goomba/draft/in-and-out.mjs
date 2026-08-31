@@ -18,6 +18,12 @@ export const P = {
   rIn: 36.5, rOut: 49.5,
   gap: 4.65,                   // half-width of the cross bars, exactly as drawn
                                // (93px). The chute is what buys this back.
+  // The SOUTH doorway on its own. At the bottom of a ring the flow is
+  // HORIZONTAL and the doorway is vertical, so she has to convert her direction
+  // inside a 9.3-unit window — twice, 13 units apart. Measured, only 3.6% of
+  // single-band placements get her out of the annulus that way. `gapS` widens
+  // just that one door; null means "same as the others".
+  gapS: null,
   chute: 4.0,                  // half-width of the start chute
   chuteLo: -3, chuteHi: 7,     // ...and its extent, relative to start y
   seg: 3.2,                    // target arc-chord length for the ring facets
@@ -35,8 +41,55 @@ export const P = {
   // (over the bottom half, "above the chord" points at the centre). That clips
   // the inner ring and the station becomes an up-column trap. 30 deg dips 1.5.
   rA: 44.5, aN: 12, aPhase: 15, aSpd: 145,
+  // Degrees of arc around the BOTTOM (+90) left with no station. The trough at
+  // the foot of the annulus is already a bowl whose lowest point is the south
+  // doorway, so anything landing there wants to drain out of it — but the two
+  // stations flanking the bottom sit 11.5 units either side of the shaft and
+  // re-grab her before she can. Widen this and the conveyor stops being a
+  // closed loop and becomes a one-way ride that ENDS at the exit.
+  aGapS: 0,
+  // ...or keep them and make them WEAK. A popper is a flat assignment, so a
+  // station firing at 40 puts her back in the trough barely moving, where the
+  // bowl's own lowest point is the doorway. The loop stays closed; the exit
+  // stops being a needle. `aSlowS` is the arc it applies over.
+  aSlowS: 0, aSpdS: 40,
+
+  // THE DRAIN. One popper at the dead centre of the board, aimed straight down.
+  // A popper grabs her to its OWN centre before firing, so whatever reaches it
+  // leaves from exactly (cx, cy) travelling exactly down — which is the middle
+  // of both south doorways. It turns "thread two 9.3-unit holes while moving
+  // sideways at 119" into "touch the middle". Neither ring goes near it (the
+  // carousel rides at r 28.5, the conveyor at 44.5, against an 8.2 reach), so
+  // reaching it stays a job; it is the EXIT, not a shortcut.
+  midPop: true, midSpd: 100,
+  // A SHELF for the drain, off by default until it is measured. The drain works
+  // perfectly once she touches it, but its target is only the 8.2 popper reach —
+  // a 16-unit disc in a 73-unit room — and a band aimed at a bare popper is the
+  // worst-scoring job there is (~3% on finger slop; a shelf that SLIDES her into
+  // one scores 65%). So: two arms sloping down to the drain, with a gap at the
+  // throat wide enough that the straight drop still falls through.
+  midFunnel: 0, funW: 18, funH: 8, funGap: 5,
   // inner carousel: 4 stations on the diagonals, tangential CW
-  rI: 28.5, iSpd: 145,   // 90-deg legs are 41.3 long; below spd 131 the
+  // Inner carousel. `iMode` is the whole character of the inner room:
+  //   'chord' — each station aims at the NEXT one, so she flies the diagonals
+  //             of a square and the circle is just where the stations sit.
+  //   'wall'  — each station aims TANGENTIALLY, plus `iOut` degrees outward, so
+  //             she is thrown at the wall and rides the inside of it.
+  rI: 28.5, iSpd: 145, iN: 8, iMode: 'wall', iOut: 0,
+  // `iPhase` is what decides whether a station sits in the fall shaft, and it
+  // matters more than the COUNT does. A station must stay ~10 units clear of
+  // the shaft laterally (its 8.2 reach plus her radius), and lateral is
+  // rI*|cos(theta)| — so no station may come within 20.5 degrees of +/-90.
+  // That is a 41-degree forbidden band at the top and another at the bottom.
+  // Six stations sit 60 apart, which straddles a 41-degree band comfortably;
+  // eight sit 45 apart, which only just does.
+  // 22.5 is the middle of the only window that works at eight stations. SIX is
+  // not available, and not for want of a phase: at 60 apart the shaft window is
+  // twice as wide (20 degrees against 10), but six stations cannot pay back
+  // what riding terrain costs — she bleeds 127 -> 45 u/s in a quarter lap and
+  // drops out at 1.17s. Seven sustains it and is odd; eight is the first even
+  // count that both laps and clears the shaft.
+  iPhase: 22.5,   // 90-deg legs are 41.3 long; below spd 131 the
                          // vertical leg cannot reach the next station and the
                          // carousel becomes an up-column trap (loop).
 
@@ -53,26 +106,31 @@ export const P = {
   cans: [
     [28.5, 47.3],   // annulus, NW leg  — free, and unavoidably so
     [86.3, 33.3],   // annulus, NE leg  — ditto
-    [96.5, 62],     // inside, HARD AGAINST the east wall (drawn 93.7,58.5, which
-                    // sat 8.8 off the carousel and came along for the ride).
-                    // 11.6 clear of everything; r 32.7 against a 34.3 ceiling.
-    [74.5, 67],     // inside, the sliver east of the fall shaft (drawn 52,92,
-                    // which was 3.3 off the carousel's bottom leg). The nearest
-                    // legal spot up-and-right of there, and it is 25 up and 22
-                    // right, because everything closer is inside something's
-                    // reach. 10.5 clear — only 0.8 of margin, the thinnest
-                    // number on this board.
+    [50, 70],       // inside, the WEST band. It was at (96.5,62), hard against
+                    // the east wall, which was the only pocket there was while
+                    // the carousel flew chords. Riding the wall makes the WALL
+                    // the free ride, so the pockets moved inboard: two vertical
+                    // bands either side of the fall shaft, x 48-52 and 76-80,
+                    // 10-14 clear. Put the two inner cans on OPPOSITE sides of
+                    // the shaft so no single chord can sweep both.
+    [76, 70.2],     // inside, level with the centre and just east of the drain.
+                    // It was at 74.5, which the popper at the middle moved to
+                    // EXACTLY 9.7 from the bare fall line — the pickup radius to
+                    // the digit. 76 is 11.2, the 1.5 of margin everything else
+                    // on this board keeps, and still the closest a can gets to
+                    // the middle now that the middle is the way out.
   ],
 };
 
 const D = Math.PI / 180;
 
 /** One ring, cut into four quadrant arcs by the cross. */
-function ringArcs(cx, cy, R, gap, seg) {
+function ringArcs(cx, cy, R, gap, seg, gapS) {
   const a = Math.asin(Math.min(1, gap / R)) / D;   // half-angle of an E/W cut
-  const b = Math.acos(Math.min(1, gap / R)) / D;   // start of the arc off N/S
+  const b = Math.acos(Math.min(1, gap / R)) / D;   // start of the arc off N
+  const bS = Math.acos(Math.min(1, (gapS ?? gap) / R)) / D;  // ...and off S
   // quadrant arcs, in degrees (y-down): NE, SE, SW, NW
-  const spans = [[-b, -a], [a, b], [180 - b, 180 - a], [-(180 - a), -(180 - b)]];
+  const spans = [[-b, -a], [a, bS], [180 - bS, 180 - a], [-(180 - a), -(180 - b)]];
   const step = (seg / R) / D;
   return spans.map(([t0, t1]) => {
     const n = Math.max(2, Math.ceil(Math.abs(t1 - t0) / step));
@@ -134,18 +192,49 @@ export function buildLevel(p = P, extra = {}) {
     [[p.cx - p.chute, p.start[1] + p.chuteLo], [p.cx - p.chute, p.start[1] + p.chuteHi]],
     [[p.cx + p.chute, p.start[1] + p.chuteLo], [p.cx + p.chute, p.start[1] + p.chuteHi]],
   ] : [];
+  const funnel = p.midFunnel ? [
+    [[p.cx - p.funW, p.cy - p.funH], [p.cx - p.funGap, p.cy]],
+    [[p.cx + p.funW, p.cy - p.funH], [p.cx + p.funGap, p.cy]],
+  ] : [];
   const terrain = [
     ...chute,
-    ...ringArcs(p.cx, p.cy, p.rIn, p.gap, p.seg),
-    ...ringArcs(p.cx, p.cy, p.rOut, p.gap, p.seg),
+    ...funnel,
+    ...ringArcs(p.cx, p.cy, p.rIn, p.gap, p.seg, p.gapS),
+    ...ringArcs(p.cx, p.cy, p.rOut, p.gap, p.seg, p.gapS),
     ...(extra.terrain || []),
   ];
   // stations in flow order: the annulus runs CCW (theta decreasing), the inner
   // carousel runs CW (theta increasing) -- two counter-rotating loops.
   const aDeg = [];                                   // descending = CCW
-  for (let i = 0; i < p.aN; i++) aDeg.push(p.aPhase + 180 - (i * 360) / p.aN);
+  for (let i = 0; i < p.aN; i++) {
+    const d = p.aPhase + 180 - (i * 360) / p.aN;
+    const off = Math.abs(((d - 90) % 360 + 540) % 360 - 180);  // distance to +90
+    if (off > (p.aGapS || 0) / 2) aDeg.push(d);
+  }
   const annulus = ring(p.cx, p.cy, p.rA, aDeg, p.aSpd);
-  const inner = ring(p.cx, p.cy, p.rI, [-135, -45, 45, 135], p.iSpd);
+  if (p.aSlowS) for (let i = 0; i < aDeg.length; i++) {
+    const off = Math.abs(((aDeg[i] - 90) % 360 + 540) % 360 - 180);
+    if (off <= p.aSlowS / 2) annulus[i].spd = p.aSpdS;
+  }
+  // The carousel runs CW (theta increasing).
+  const iDeg = [];
+  for (let i = 0; i < (p.iN || 4); i++) iDeg.push((p.iPhase ?? -135) + (i * 360) / (p.iN || 4));
+  const mid = p.midPop
+    ? [{ x: p.cx, y: p.cy, deg: 90, spd: p.midSpd }]   // deg 90 is straight down
+    : [];
+  const inner = p.iMode === 'wall'
+    // RIDING THE WALL rather than crossing the room. From inside a circle a
+    // tangential throw drifts OUTWARD — the tangent to r_I lies outside it — so
+    // she meets the wall a little downrange at a shallow angle and is then held
+    // against it, because at 118.9 u/s her arc is far flatter than the circle
+    // (v^2/r = 412 against gravity's 140, so the wall pushes her inward and she
+    // follows it). The stations stop being waypoints and become the thing that
+    // pays back what friction takes, ~25% a lap.
+    ? iDeg.map((d) => {
+        const [x, y] = at(p.cx, p.cy, p.rI, d);
+        return { x, y, deg: +(d + 90 - (p.iOut || 0)).toFixed(2), spd: p.iSpd };
+      })
+    : ring(p.cx, p.cy, p.rI, iDeg, p.iSpd);
   return {
     name: extra.name || 'In and Out',
     budget: 4,
@@ -153,7 +242,7 @@ export function buildLevel(p = P, extra = {}) {
     goal: [...p.goal],
     terrain,
     cans: p.cans.map((c) => [...c]),
-    pops: [...annulus, ...inner],
+    pops: [...annulus, ...inner, ...mid],
     solution: extra.solution || [],
   };
 }

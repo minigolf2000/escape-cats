@@ -11,15 +11,23 @@
 //   node draft.mjs run [bands]         the run, as a POLAR route (r / theta)
 //   node draft.mjs audit               the draft's own geometry invariants
 //   node draft.mjs from <x,y,vx,vy>    ...starting mid-level, one stage alone
-//   node draft.mjs sweep <key> <a..b>  one param across a range, bare outcome
+//   node draft.mjs sweep <key> <a..b>  one param across a range (add --from to
+//                                      sweep an injected stage, not the bare run)
 //   node draft.mjs card [bands]        an SVG ride card you can look at
 //   node draft.mjs link                a ?solo#hash URL — play the draft for
 //                                      real, on prod, on a phone
+//   node draft.mjs figma [--copy]      a TRACING TEMPLATE as SVG (names and
+//                                      positions right, node types lost)
+//   node draft.mjs figma --kiwi        the real thing: Figma's own clipboard
+//                                      format, pasting as Lines and INSTANCES
 //   node draft.mjs install [bands]     splice into SEED_LEVELS so the
 //                                      index-only tools can see it
 //   node draft.mjs off                 take it back out again
 //
 // `--draft <name>` picks the module (default: the only one, or `draft/lvl.mjs`).
+// `--set key=value` overrides one of the draft's params for this run only, so a
+// candidate can be inspected without editing the file and forgetting to put it
+// back.
 // `bands` is JSON: '[[[ax,ay],[bx,by]], ...]', or `sol` for the draft's own.
 //
 // WHY THIS EXISTS, in the order the pain arrives:
@@ -41,7 +49,8 @@
 //      straight into a PR.
 //
 // See DESIGNING.md for what the numbers MEAN; this is only the loop.
-import { readdirSync, writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
+import { readdirSync, writeFileSync, readFileSync, existsSync, mkdirSync, unlinkSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { makeRun, stepRun, snapBand, SUB, RUN_MAX, initLevel, encodeLevel, decodeLevel } from "./draft/_sim.mjs";
@@ -69,6 +78,33 @@ const cmd = argv[0] || "run";
 const rest = argv.slice(1);
 
 const die = (msg) => { console.error(msg); process.exit(2); };
+
+/**
+ * Put text on the system clipboard.
+ *
+ * The KIWI payload has to land as **text/html**, because it is HTML — the
+ * buffer lives in a `data-buffer` attribute and Figma looks for it there. On
+ * Windows `clip` only does plain text, so this goes through PowerShell's
+ * `Set-Clipboard -AsHtml`, which writes the CF_HTML flavour Figma reads.
+ */
+function copyToClipboard(text, mime) {
+  const tmp = join(HERE, ".clip.tmp");
+  try {
+    writeFileSync(tmp, text, "utf8");
+    if (process.platform === "win32") {
+      const ps = mime === "text/html"
+        ? `Set-Clipboard -AsHtml -Value (Get-Content -Raw -Encoding UTF8 '${tmp}')`
+        : `Set-Clipboard -Value (Get-Content -Raw -Encoding UTF8 '${tmp}')`;
+      execFileSync("powershell", ["-NoProfile", "-Command", ps]);
+    } else if (process.platform === "darwin") {
+      execFileSync("pbcopy", [], { input: text });
+    } else {
+      execFileSync("xclip", ["-selection", "clipboard", "-t", mime], { input: text });
+    }
+    return true;
+  } catch { return false; }
+  finally { try { unlinkSync(tmp); } catch {} }
+}
 const modules = () =>
   existsSync(DRAFTS)
     ? readdirSync(DRAFTS).filter((f) => f.endsWith(".mjs") && !f.startsWith("_"))
@@ -87,6 +123,24 @@ function pick() {
   return die(all.length
     ? `several drafts — pass --draft <name>: ${all.join(", ")}`
     : `no drafts yet. \`node draft.mjs new <name>\` writes one.`);
+}
+
+/**
+ * `--set key=value`, pulled out of the argv before anything else reads it.
+ * Shared by run/from and sweep: a mode is as sweepable as a number, and the
+ * point of both is to try a candidate without editing the file and then
+ * forgetting to put it back.
+ */
+function overrides(mod) {
+  const over = {};
+  for (let i = rest.indexOf("--set"); i >= 0; i = rest.indexOf("--set")) {
+    const [k, v] = String(rest[i + 1] || "").split("=");
+    if (!(k in (mod.P || {}))) die(`no param "${k}" to --set`);
+    // A param can be a MODE as well as a number, so only coerce what coerces.
+    over[k] = v !== "" && Number.isFinite(Number(v)) ? Number(v) : v;
+    rest.splice(i, 2);
+  }
+  return over;
 }
 
 const load = async () => {
@@ -265,8 +319,9 @@ switch (cmd) {
   case "run":
   case "from": {
     const { mod } = await load();
-    const L = initLevel(mod.buildLevel());
     const fromArg = cmd === "from" ? (rest.shift() || die("node draft.mjs from <x,y,vx,vy>")) : null;
+    const over = overrides(mod);
+    const L = initLevel(mod.buildLevel({ ...mod.P, ...over }));
     let trace = 0;
     const ti = rest.indexOf("--trace");
     if (ti >= 0) { trace = Number(rest[ti + 1]) || 0.2; rest.splice(ti, 2); }
@@ -287,11 +342,19 @@ switch (cmd) {
     const [lo, hi] = [Number(rest[1]), Number(rest[2])];
     const step = Number(rest[3]) || (hi - lo) / 10 || 1;
     if (!(mod.P && key in mod.P)) die(`draft has no param "${key}" (have: ${Object.keys(mod.P || {}).join(", ")})`);
+    // `--from` sweeps ONE STAGE instead of the whole run. A parameter that only
+    // governs, say, the conveyor tells you nothing through a bare drop that
+    // never touches it — the bare outcome sits flat while the thing you are
+    // tuning breaks silently underneath.
+    const over = overrides(mod);
+    let from = null;
+    const fi = rest.indexOf("--from");
+    if (fi >= 0) { from = rest[fi + 1].split(",").map(Number); rest.splice(fi, 2); }
     const bandsArg = rest[4];
     console.log(`${key.padEnd(10)} outcome`);
     for (let v = lo; v <= hi + 1e-9; v += step) {
-      const L = initLevel(mod.buildLevel({ ...mod.P, [key]: +v.toFixed(4) }));
-      const { st } = simulate(L, bandsFrom(bandsArg, L));
+      const L = initLevel(mod.buildLevel({ ...mod.P, ...over, [key]: +v.toFixed(4) }));
+      const { st } = simulate(L, bandsFrom(bandsArg, L), { from });
       const pops = st.events.filter((e) => e[0] === "pop").length;
       console.log(`${String(+v.toFixed(4)).padEnd(10)} ${(st.result ?? "t/o").padEnd(8)}` +
         `${st.t.toFixed(2)}s  cans ${st.gotN}/${L.cans.length}  pops ${String(pops).padStart(2)}  ` +
@@ -306,7 +369,9 @@ switch (cmd) {
     // `adoptHashLevel` reads the fragment ONCE, at boot: navigating from
     // `#A` to `#B` changes nothing on screen, so always open a fresh tab.
     const { mod } = await load();
-    const L = mod.buildLevel(undefined, { solution: bandsFrom(rest[0], initLevel(mod.buildLevel())).map((b) => [[b.ax, b.ay], [b.bx, b.by]]) });
+    const over = overrides(mod);
+    const P = { ...mod.P, ...over };
+    const L = mod.buildLevel(P, { solution: bandsFrom(rest[0], initLevel(mod.buildLevel(P))).map((b) => [[b.ax, b.ay], [b.bx, b.by]]) });
     const hash = encodeLevel(L);
     if (!decodeLevel(hash)) die("the level encoded to something the codec will not read back");
     const pts = L.terrain.reduce((n, p) => n + p.length, 0);
@@ -319,9 +384,56 @@ switch (cmd) {
       `  nothing grades this — the link IS the verdict. Play it.`);
     break;
   }
+  case "figma": {
+    // OUT to Figma, which is the direction the bridge did not have.
+    //
+    // A level's source is supposed to be a Figma frame — but a draft's geometry
+    // is COMPUTED (a ring of stations, an arc), which is the one kind nobody
+    // wants to draw by hand. So compute it here, hand it over as a frame, and
+    // let Figma own it from then on. `figma/levels-to-svg.mjs` already renders a
+    // pack as one artboard each in the naming vocabulary the reader expects, and
+    // a PACK IS A LIST OF LINKS — so one link is a one-level pack and this
+    // shells out to that generator rather than growing a second renderer that
+    // would agree with it only on the day it was written.
+    const { mod } = await load();
+    const over = overrides(mod);
+    const P = { ...mod.P, ...over };
+    const hash = encodeLevel(mod.buildLevel(P));
+    if (!decodeLevel(hash)) die("the level encoded to something the codec will not read back");
+    const figDir = join(HERE, "figma");
+    if (rest.includes("--kiwi")) {
+      // Figma's OWN clipboard format, so terrain arrives as LINE nodes and toys
+      // as INSTANCES of the kit — the thing SVG cannot do, because its import
+      // flattens every shape to a VECTOR and the reader refuses those.
+      const { figmaClipboardHtml, FILE_KEY } = await import(pathToFileURL(join(figDir, "kiwi.mjs")).href);
+      const { html, nodes, bytes } = figmaClipboardHtml(initLevel(mod.buildLevel(P)));
+      const ok = copyToClipboard(html, "text/html");
+      console.log(`  ${nodes} nodes, ${bytes} base64 chars, for file ${FILE_KEY}`);
+      console.log(ok
+        ? "  on the clipboard — Ctrl+V in THAT Figma file (and no other)"
+        : "  could not reach the clipboard");
+      break;
+    }
+    const tmp = join(figDir, ".draft-pack.json");
+    writeFileSync(tmp, JSON.stringify([hash]), "utf8");
+    try {
+      execFileSync("node", [join(figDir, "levels-to-svg.mjs"), "--pack", tmp], { stdio: "inherit" });
+    } finally { unlinkSync(tmp); }
+    const svgPath = join(figDir, "figma-levels.svg");
+    if (rest.includes("--copy")) {
+      const svg = readFileSync(svgPath, "utf8");
+      const ok = copyToClipboard(svg, "text/plain");
+      console.log(ok ? `  ${svg.length} chars on the clipboard — Ctrl+V in Figma`
+                     : "  could not reach the clipboard; open the file instead");
+    }
+    console.log(`  ${svgPath}
+  drag it onto a Figma canvas, or --copy and paste`);
+    break;
+  }
   case "card": {
     const { file, mod } = await load();
-    const L = initLevel(mod.buildLevel());
+    const over = overrides(mod);
+    const L = initLevel(mod.buildLevel({ ...mod.P, ...over }));
     const bands = bandsFrom(rest[0], L);
     const out = rest[1] || join(DRAFTS, `${file.replace(/\.mjs$/, "")}.svg`);
     const { st, path } = simulate(L, bands);

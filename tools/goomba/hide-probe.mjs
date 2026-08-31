@@ -1,6 +1,14 @@
 import { makeRun, stepRun, SUB, RUN_MAX, initLevel } from "./draft/_sim.mjs";
 import { P, buildLevel } from "./draft/in-and-out.mjs";
-const L = initLevel(buildLevel());
+// `key=value` on the command line overrides a param, so the map can be drawn
+// for a CANDIDATE geometry — the hiding places move when the free ride does.
+const over = {};
+for (const a of process.argv.slice(2)) {
+  const [k, v] = a.split("=");
+  if (k in P) over[k] = v !== "" && Number.isFinite(Number(v)) ? Number(v) : v;
+}
+if (Object.keys(over).length) { console.log("  overrides:", JSON.stringify(over)); console.log(""); }
+const L = initLevel(buildLevel({ ...P, ...over }));
 const orbit = (f) => {
   const st = makeRun(L, []);
   st.p.x = f[0]; st.p.y = f[1]; st.v.x = f[2]; st.v.y = f[3];
@@ -31,20 +39,14 @@ for (let y = 38; y <= 104; y += 4) {
   console.log(row);
 }
 console.log("\n   · = outside the inner wall   . = on a free orbit\n");
-// Candidates: every spot at least 9.7 from all three free rides, clustered.
-const found = [];
-for (let x = 28; x <= 102; x += 0.5) for (let y = 34; y <= 106; y += 0.5) {
-  if (Math.hypot(x - P.cx, y - P.cy) > RMAX) continue;
-  const s = safe(x, y);
-  if (s >= 9.7) found.push([+x.toFixed(1), +y.toFixed(1), +s.toFixed(1)]);
+// How close to the EXACT middle can a can legally get? The middle itself is on
+// the bare drop line, so the answer is a ring around it, not the point.
+let best = 1e9, at = null;
+for (let x = 55; x <= 78; x += 0.1) for (let y = 58; y <= 84; y += 0.1) {
+  if (safe(x, y) < 9.7) continue;
+  const d = Math.hypot(x - P.cx, y - P.cy);
+  if (d < best) { best = d; at = [+x.toFixed(1), +y.toFixed(1)]; }
 }
-const seen = [];
-for (const f of found.sort((a, b) => b[2] - a[2]))
-  if (!seen.some((g) => Math.hypot(g[0] - f[0], g[1] - f[1]) < 12)) seen.push(f);
-console.log("  every distinct hiding place in the inner circle, best first:");
-for (const [x, y, c] of seen) {
-  const dir = `${y < 92 ? "up" : "down"}-${x > 52 ? "right" : "left"} of can 4`;
-  console.log(`    (${x},${y})  clear ${c}   r${Math.hypot(x-P.cx,y-P.cy).toFixed(1)}  ${dir}`);
-}
-for (const c of [[93.7, 58.5], [52, 92]])
-  console.log(`  today  (${c[0]},${c[1]})  conveyor ${near(ann,c[0],c[1]).toFixed(1)}  carousel ${near(car,c[0],c[1]).toFixed(1)}  bare ${near(bare,c[0],c[1]).toFixed(1)}`);
+console.log(`  closest legal point to the exact middle: (${at[0]},${at[1]})  ${best.toFixed(1)} from it`);
+for (const c of [[74.5,70.2],[76,70.2],[78,70.2],[80,70.2],[78,66],[50,70]])
+  console.log(`    (${c[0]},${c[1]})  r${Math.hypot(c[0]-P.cx,c[1]-P.cy).toFixed(1)} from middle   conveyor ${near(ann,c[0],c[1]).toFixed(1)}  carousel ${near(car,c[0],c[1]).toFixed(1)}  bare ${near(bare,c[0],c[1]).toFixed(1)}`);

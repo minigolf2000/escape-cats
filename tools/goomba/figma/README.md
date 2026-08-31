@@ -509,6 +509,35 @@ bug someone can SEE; a wrong one that decodes cleanly is not, which is why a `t`
 that is not a Line is skipped loudly and a frame with no `start` is refused
 outright.
 
+## Going the other way: SVG paste is one-way
+
+`levels-to-svg.mjs` renders a pack as artboards and you can paste it into Figma.
+What comes back is a **tracing template, not a level**, and the reason is worth
+knowing before anyone builds a "Copy as Figma" button on it.
+
+Measured with `figma.createNodeFromSvg`, which is the same path a paste runs:
+
+| drawn as | arrives as |
+| --- | --- |
+| `<line id="t-1">` | **VECTOR** |
+| `<rect id="t-3">` | **VECTOR** |
+| `<ellipse id="cut-1">` | **VECTOR** |
+| `<g id="party-popper-7">` | GROUP (name kept) |
+
+Figma's SVG import keeps the NAME, off the `id`, and throws the node type away.
+Every terrain shape lands as a vector, and the reader refuses a vector `t` on
+purpose — its bounding-box top edge is a plausible straight segment that can be
+nowhere near what was drawn, and a wrong level is worse than a missing one. A
+pasted pack therefore has to have its terrain redrawn with the Line, Rectangle
+or Ellipse tool, and its toys swapped for kit instances, before it reads back.
+
+The names and positions being right already is most of the work, so this is
+tracing rather than transcribing. But a true round trip needs node types, and
+the only two carriers that can set them are the **plugin API** (what the Figma
+MCP drives, and how this kit was built) and a hand-encoded **fig-kiwi**
+clipboard payload — undocumented, and it would ship a snapshot of one Figma
+version's schema.
+
 ## Three ways to read a Figma design back out
 
 1. **Figma MCP** — confirmed working in this repo's workflow; it wrote the kit

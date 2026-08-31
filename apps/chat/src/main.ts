@@ -1,4 +1,4 @@
-// Per-team chat, served at /c/ on the lobby's origin (/chat/ redirects here).
+// Per-team chat, served at /chat/ on the lobby's origin.
 //
 // This surface asks the LOBBY which team this phone is on and uses that as its
 // room, exactly as the game client does — so there is no team picker here, no
@@ -183,7 +183,7 @@ function say(text: string) {
 // Screens
 // ---------------------------------------------------------------------------
 
-/** Only reached by someone who opened /c/ directly — anyone arriving from
+/** Only reached by someone who opened /chat/ directly — anyone arriving from
  * the lobby already named themselves there. */
 function nameScreen() {
   app.innerHTML = `

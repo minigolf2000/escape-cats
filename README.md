@@ -299,7 +299,7 @@ collects every surface into one `dist/`:
 | `/` | `apps/lobby` | Team lobby (landing page) |
 | `/hexxygon/` | `apps/hex-clicker` | Hex Clicker (coop) |
 | `/g00mBa/` | `apps/goomba-glider` | Goomba Glider (coop) |
-| `/c/` | `apps/chat` | Per-team chat (`/chat/` redirects here) |
+| `/chat/` | `apps/chat` | Per-team chat |
 | `/proctor/` | `apps/proctor` | Proctor dashboard |
 | `/qr-studio/` | `tools/qr-studio.html` | QR Art Studio |
 | `/reveal-lab/` | `tools/reveal-lab.html` | Night reveal wall lab |
@@ -815,26 +815,16 @@ Both parties persist to `room.storage`, tuned to what each can afford to lose:
 
 ## Team chat
 
-`/c/` is one channel per team, and **the room id is the team id** — the same
+`/chat/` is one channel per team, and **the room id is the team id** — the same
 convention the game rooms use, so the proctor sorting someone onto `t2` is also
 what puts them in t2's channel. There is no team picker and no way to end up in
 another team's chat. Like the game, chat has no menu: it asks the lobby for this
 pid's room, and opening it registers the phone in the lobby roster.
 
-The path is one letter because this is the surface people TYPE, and now the only
-way in: **the lobby has no chat link at all**. The "Team chat" button went with
-the team card when the landing page was stripped back to the board (see "The
-room, on a player's phone"), so until chat is ready to be shown, `/c/` is
-reached by typing it or off a QR. `/chat/` redirects to it, so anything printed
-with the old path still lands.
-
-That redirect takes TWO rules in `vercel.json`, for the same reason the vanity
-domains do: a literal `/chat/` and a `/chat/:path*`. `trailingSlash: true`
-rewrites a bare `/chat` to `/chat/` before redirects run, and `:path*` will not
-match an empty tail — so the `:path*` rule alone catches every deep path and
-misses the only URL anyone actually types. It shipped that way once, 404ing in
-production while `check:routing` was green, because the checker's matcher made
-the same wrong assumption.
+This is the surface people TYPE, and the only way in: **the lobby has no chat
+link at all**. The "Team chat" button went with the team card when the landing
+page was stripped back to the board (see "The room, on a player's phone"), so
+until chat is ready to be shown, `/chat/` is reached by typing it or off a QR.
 
 What the chat server enforces (`server/src/chat.ts`, tunables in
 `packages/shared/src/chat.ts`):

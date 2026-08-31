@@ -33,9 +33,8 @@ const SURFACES = [
   ["apps/proctor/dist", "proctor", "Proctor dashboard"],
   // Chat must live on THIS origin, not behind a vanity domain: it reads the
   // same localStorage pid the lobby wrote, and localStorage is per-origin.
-  // Short because it is the one surface players type from a card rather than
-  // tap: /chat/ still works, as a redirect (see vercel.json).
-  ["apps/chat/dist", "c", "Per-team chat"],
+  // This is the one surface players type from a card rather than tap.
+  ["apps/chat/dist", "chat", "Per-team chat"],
   // (There is no /editor surface any more. The Figma paste target was folded
   // into the game itself: the level SELECTOR is the editor now, so pasting a
   // frame, reordering the pack and playing it are all one screen behind `\`.)

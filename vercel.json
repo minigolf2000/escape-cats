@@ -103,16 +103,6 @@
       ],
       "permanent": false,
       "destination": "https://escape-cats.vercel.app/g00mBa/:path*"
-    },
-    {
-      "source": "/chat/",
-      "permanent": false,
-      "destination": "/c/"
-    },
-    {
-      "source": "/chat/:path*",
-      "permanent": false,
-      "destination": "/c/:path*"
     }
   ],
   "rewrites": [

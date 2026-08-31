@@ -229,7 +229,6 @@ function chatScreen() {
         <header class="chat-head">
           <h1 id="team"></h1>
           <p class="muted" id="who"></p>
-          <a class="back" href="/">&larr; Lobby</a>
         </header>
         <ol class="log" id="log"></ol>
         <form class="composer" id="composer">

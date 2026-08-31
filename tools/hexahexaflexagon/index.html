@@ -235,7 +235,7 @@ const CONFIG = {
   rollDir: 1,
   roll: [18,16,14,12,10,8,6,4,2],
   wrap: [{j:13,dir:1},{j:7,dir:1},{j:1,dir:1}],
-  tuck: {j:17, angle:0.35},
+  tuck: {j:17, lift:-0.9, target:0.30, bend:-0.26},
   gaps: { roll0:0.006, rollStep:0.0009, wrap:[0.018, 0.030, 0.065] },
 };
 
@@ -280,27 +280,68 @@ function faceTexture(k, side){
   const tex=new THREE.CanvasTexture(c); tex.anisotropy=4; return tex;
 }
 
-const meshes=[];   // meshes[k] = {F,B}
+/* The glue tab (the folded pair T17+T18) gets split along a bend line so it can
+   flex while sliding into its pocket, the way real paper does. Both plies share
+   one world-space bend line: T17 carries it directly, T18 carries its mirror
+   image across their pair crease, so the halves stay mated through the bend. */
+const TUCK_F=0.42;                 // bend line, as a fraction from the tab's hinge
+function reflectPt(p, a, b){
+  const ux=b[0]-a[0], uy=b[1]-a[1], L=Math.hypot(ux,uy), nx=ux/L, ny=uy/L;
+  const vx=p[0]-a[0], vy=p[1]-a[1], d=vx*nx+vy*ny;
+  return [2*(a[0]+d*nx)-p[0], 2*(a[1]+d*ny)-p[1]];
+}
+function clipPoly(poly, p, q, keepSign){
+  const s = v => (q[0]-p[0])*(v[1]-p[1]) - (q[1]-p[1])*(v[0]-p[0]);
+  const out=[];
+  for (let i=0;i<poly.length;i++){
+    const a=poly[i], b=poly[(i+1)%poly.length], sa=s(a)*keepSign, sb=s(b)*keepSign;
+    if (sa>=-1e-9) out.push(a);
+    if ((sa>1e-9&&sb<-1e-9)||(sa<-1e-9&&sb>1e-9)){
+      const t=sa/(sa-sb); out.push([a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t]);
+    }
+  }
+  return out;
+}
+function buildFaceMesh(k, side, poly){
+  const v=triVerts(k), minX=Math.min(v[0][0],v[1][0],v[2][0]);
+  let area=0;
+  for (let i=0;i<poly.length;i++){ const a=poly[i], b=poly[(i+1)%poly.length]; area+=a[0]*b[1]-b[0]*a[1]; }
+  let pts = area<0 ? [...poly].reverse() : poly.slice();
+  if (side==='B') pts.reverse();
+  const z = side==='F' ? TH : -TH;
+  const tris=[];
+  for (let i=1;i<pts.length-1;i++) tris.push(pts[0],pts[i],pts[i+1]);
+  const pos=new Float32Array(tris.length*3), uv=new Float32Array(tris.length*2);
+  tris.forEach((pt,n)=>{ pos.set([pt[0],pt[1],z], n*3); uv.set([pt[0]-minX, pt[1]/H], n*2); });
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv,2));
+  g.computeVertexNormals();
+  const m=new THREE.Mesh(g, new THREE.MeshLambertMaterial({map:faceTexture(k,side)}));
+  m.matrixAutoUpdate=false; root.add(m); return m;
+}
+const T17A=hingePts(17), T17FAR=[9.5,H];
+const BL17=[0,1].map(i=>[ T17A[i][0]+(T17FAR[0]-T17A[i][0])*TUCK_F,
+                          T17A[i][1]+(T17FAR[1]-T17A[i][1])*TUCK_F ]);
+const H18E=hingePts(18);
+const BL18=[reflectPt(BL17[0],H18E[0],H18E[1]), reflectPt(BL17[1],H18E[0],H18E[1])];
+const TIP18REF=reflectPt(T17FAR,H18E[0],H18E[1]);
+
+const meshes=[];                   // meshes[k] = {F,B} (the whole plate, or the tab's root)
+const tipMeshes={};                // tab tips for k=17,18
 for (let k=0;k<N;k++){
   const v=triVerts(k);
-  const ax=v[1][0]-v[0][0], ay=v[1][1]-v[0][1], bx=v[2][0]-v[0][0], by=v[2][1]-v[0][1];
-  const ccw = (ax*by-ay*bx)>0 ? [0,1,2] : [0,2,1];
-  const rec={};
-  for (const side of ['F','B']){
-    const ord = side==='F' ? ccw : [ccw[0],ccw[2],ccw[1]];
-    const z = side==='F' ? TH : -TH;
-    const pos=new Float32Array(9), uv=new Float32Array(6);
-    const minX=Math.min(v[0][0],v[1][0],v[2][0]);
-    ord.forEach((vi,n)=>{ pos.set([v[vi][0],v[vi][1],z], n*3);
-                          uv.set([(v[vi][0]-minX), v[vi][1]/H], n*2); });
-    const g=new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos,3));
-    g.setAttribute('uv', new THREE.BufferAttribute(uv,2));
-    g.computeVertexNormals();
-    const m=new THREE.Mesh(g, new THREE.MeshLambertMaterial({map:faceTexture(k,side)}));
-    m.matrixAutoUpdate=false; root.add(m); rec[side]=m;
+  if (k===17||k===18){
+    const bl = k===17?BL17:BL18, tipPt = k===17?T17FAR:TIP18REF;
+    const sgn = p => Math.sign((bl[1][0]-bl[0][0])*(p[1]-bl[0][1]) - (bl[1][1]-bl[0][1])*(p[0]-bl[0][0]));
+    const tipSign = sgn(tipPt);
+    meshes.push({F:buildFaceMesh(k,'F',clipPoly(v,bl[0],bl[1],-tipSign)),
+                 B:buildFaceMesh(k,'B',clipPoly(v,bl[0],bl[1],-tipSign))});
+    tipMeshes[k]={F:buildFaceMesh(k,'F',clipPoly(v,bl[0],bl[1],tipSign)),
+                  B:buildFaceMesh(k,'B',clipPoly(v,bl[0],bl[1],tipSign))};
+  } else {
+    meshes.push({F:buildFaceMesh(k,'F',v), B:buildFaceMesh(k,'B',v)});
   }
-  meshes.push(rec);
 }
 
 /* ---------------- kinematics ---------------- */
@@ -331,8 +372,31 @@ function computeMats(th){
   }
   return mats;
 }
+let bendVal=0;                     // tab flex angle, driven by the tuck step
+const _bp=new THREE.Vector3(), _bq=new THREE.Vector3(), _ba=new THREE.Vector3();
+const _bR=new THREE.Matrix4(), _bT=new THREE.Matrix4(), _bW=new THREE.Matrix4();
+function bendMatrix(out){          // world rotation about the tab's bend line
+  _bp.set(BL17[0][0],BL17[0][1],0).applyMatrix4(mats[17]);
+  _bq.set(BL17[1][0],BL17[1][1],0).applyMatrix4(mats[17]);
+  _ba.subVectors(_bq,_bp).normalize();
+  _bR.makeRotationAxis(_ba,bendVal);
+  out.makeTranslation(_bp.x,_bp.y,_bp.z).multiply(_bR)
+     .multiply(_bT.makeTranslation(-_bp.x,-_bp.y,-_bp.z));
+  return out;
+}
 function applyMats(){
   for (let k=0;k<N;k++){ meshes[k].F.matrix.copy(mats[k]); meshes[k].B.matrix.copy(mats[k]); }
+  if (Math.abs(bendVal)>1e-6){
+    bendMatrix(_bW);
+    for (const k of [17,18]){
+      tipMeshes[k].F.matrix.copy(_bW).multiply(mats[k]);
+      tipMeshes[k].B.matrix.copy(_bW).multiply(mats[k]);
+    }
+  } else {
+    for (const k of [17,18]){
+      tipMeshes[k].F.matrix.copy(mats[k]); tipMeshes[k].B.matrix.copy(mats[k]);
+    }
+  }
 }
 
 /* ---------------- timeline ---------------- */
@@ -340,7 +404,7 @@ const easeIO = p => p<0.5 ? 4*p*p*p : 1-Math.pow(-2*p+2,3)/2;
 const clamp01 = p => Math.max(0,Math.min(1,p));
 const FOLD_FRAC = 0.78;                       // portion of a fold step spent moving
 
-let steps=[], marks={}, DUR=0;
+let steps=[], marks={}, DUR=0, tuckIdx=-1;
 
 /* The finished flexagon's true layer order per hexagon slot (top → bottom),
    verified against the fold kinematics; used to settle the model into an
@@ -354,7 +418,7 @@ const IDEAL_ORDER = {
   16:[2,0], 15:[2,1],
 };
 const LAYER_T = 0.0048;
-const PRESS = { fkPos:[], fkQuat:[], idPos:[], idQuat:[], ready:false };
+const PRESS = { fkPos:[], fkQuat:[], idPos:[], idQuat:[], tipFkPos:{}, tipFkQuat:{}, ready:false };
 function computePress(){
   const lastFold = steps.reduce((a,s,i)=>s.fold?i:a, 0);
   computeMats(thetaAtEndOf(lastFold));
@@ -363,6 +427,13 @@ function computePress(){
     PRESS.fkPos[k]=new THREE.Vector3(); PRESS.fkQuat[k]=new THREE.Quaternion();
     mats[k].decompose(PRESS.fkPos[k], PRESS.fkQuat[k], s0);
   }
+  const savedBend=bendVal; bendVal=CONFIG.tuck.bend;
+  bendMatrix(_bW);
+  for (const k of [17,18]){
+    PRESS.tipFkPos[k]=new THREE.Vector3(); PRESS.tipFkQuat[k]=new THREE.Quaternion();
+    _m4.copy(_bW).multiply(mats[k]).decompose(PRESS.tipFkPos[k], PRESS.tipFkQuat[k], s0);
+  }
+  bendVal=savedBend;
   const th=new Float64Array(N);
   for (const s of steps){ const f=s.fold; if (!f) continue;
     th[f.j] = f.target!==undefined ? 0 : f.dir*Math.PI; }
@@ -414,16 +485,24 @@ function buildTimeline(){
     ['…and over again — the strip wraps around a hexagon.','fold 11 of 12'],
     ['Only the head triangle sticks out. Fold it back behind everything.','fold 12 of 12'],
   ];
-  CONFIG.wrap.forEach((w,i)=>{
-    fold(w.j, w.dir, CONFIG.gaps.wrap[i], 3.6-0.3*i, wrapMeta[i][0], wrapMeta[i][1]);
-    steps[steps.length-1].cam = i===2 ? {az:-0.24, el:-0.28, margin:1.6}
-                                      : {az:(i%2? 0.24:-0.22), el:0.38, margin:1.55};
+  [0,1].forEach(i=>{
+    fold(CONFIG.wrap[i].j, CONFIG.wrap[i].dir, CONFIG.gaps.wrap[i], 3.6-0.3*i,
+      wrapMeta[i][0], wrapMeta[i][1]);
+    steps[steps.length-1].cam={az:(i%2? 0.24:-0.22), el:0.38, margin:1.55};
   });
-  steps.push({id:'tuck', dur:2.8,
-      cap:'Tuck the blank tab into the pocket, so blank meets blank.',
-      sub:'the tab slides between the head triangle and the stack',
-      fold:{j:CONFIG.tuck.j, target:CONFIG.tuck.angle},
-      cam:{az:0.3, el:-0.35, margin:1.6}});
+  fold(CONFIG.wrap[2].j, CONFIG.wrap[2].dir, CONFIG.gaps.wrap[2], 3.2,
+    wrapMeta[2][0], wrapMeta[2][1]);
+  steps[steps.length-1].cam={az:-0.24, el:-0.28, margin:1.6};
+  steps.push({id:'lift', dur:1.8,
+      cap:'The blank tab lies across the top. Lift it…',
+      sub:'the last loose end',
+      fold:{j:CONFIG.tuck.j, target:CONFIG.tuck.lift},
+      cam:{az:0.35, el:0.30, margin:1.55}});
+  steps.push({id:'tuck', dur:3.2,
+      cap:'…and slide it into the pocket, under the top face — blank meets blank.',
+      sub:'the tab flexes a little as it slides in, just like real paper',
+      fold:{j:CONFIG.tuck.j, from:CONFIG.tuck.lift, target:CONFIG.tuck.target},
+      cam:{az:0.35, el:0.30, margin:1.55}});
 
   steps.push({id:'glue', dur:2.4, cap:'Glue the two blank triangles together. The loop is closed.',
       sub:'19 triangles · 12 folds · 6 faces', glow:'glue', cam:{az:0.1, el:-0.4, margin:1.6}});
@@ -441,6 +520,7 @@ function buildTimeline(){
   let t=0;
   steps.forEach(s=>{ s.t0=t; t+=s.dur; });
   DUR=t;
+  tuckIdx=steps.findIndex(s=>s.id==='tuck');
   let f=0; steps.forEach(s=>{ s.flipFrom=f; if (s.flip!==undefined) f=s.flip; s.flipTo=f; });
 
   marks={ flat:2.5,
@@ -504,7 +584,14 @@ function setTime(t){
   for (let k=0;k<i;k++){ const f=steps[k].fold; if (f) theta[f.j]=foldAngle(f); }
   if (s.fold){
     const pf=easeIO(clamp01(local/(s.dur*FOLD_FRAC)));
-    theta[s.fold.j]=foldAngle(s.fold)*pf;
+    const base=s.fold.from||0;
+    theta[s.fold.j]=base+(foldAngle(s.fold)-base)*pf;
+  }
+  // the tab flexes while it slides into its pocket, and stays flexed until pressed
+  bendVal=0;
+  if (tuckIdx>=0){
+    if (i>tuckIdx) bendVal=CONFIG.tuck.bend;
+    else if (i===tuckIdx) bendVal=CONFIG.tuck.bend*easeIO(clamp01(local/(s.dur*FOLD_FRAC*0.8)));
   }
   computeMats(theta); applyMats();
 
@@ -520,17 +607,24 @@ function setTime(t){
         _m4.compose(_pv, _pq, _ps);
         meshes[k].F.matrix.copy(_m4); meshes[k].B.matrix.copy(_m4);
       }
+      for (const k of [17,18]){         // the flexed tab straightens as it's pressed
+        _pq.slerpQuaternions(PRESS.tipFkQuat[k], PRESS.idQuat[k], pf);
+        _pv.lerpVectors(PRESS.tipFkPos[k], PRESS.idPos[k], pf);
+        _m4.compose(_pv, _pq, _ps);
+        tipMeshes[k].F.matrix.copy(_m4); tipMeshes[k].B.matrix.copy(_m4);
+      }
     }
   }
 
   // glow: kissing pair during a fold, glue faces during glue step
   const pulse=0.5+0.5*Math.sin(simT*7);
-  for (let k=0;k<N;k++){ meshes[k].F.material.emissive.setScalar(0);
-                         meshes[k].B.material.emissive.setScalar(0); }
+  const emis=(k,side,e)=>{ meshes[k][side].material.emissive.setScalar(e);
+    if (tipMeshes[k]) tipMeshes[k][side].material.emissive.setScalar(e); };
+  for (let k=0;k<N;k++){ emis(k,'F',0); emis(k,'B',0); }
   if (s.fold){ const j=s.fold.j, e=0.16*pulse;
-    meshes[j-1].B.material.emissive.setScalar(e); meshes[j].B.material.emissive.setScalar(e); }
+    emis(j-1,'B',e); emis(j,'B',e); }
   if (s.glow==='glue'){ const e=0.22*pulse;
-    meshes[0].B.material.emissive.setScalar(e); meshes[18].F.material.emissive.setScalar(e); }
+    emis(0,'B',e); emis(18,'F',e); }
 
   // whole-model flip about a vertical axis (blend over first 55% of the step)
   const fv = s.flipFrom + (s.flipTo-s.flipFrom)*easeIO(clamp01(p/0.55));

@@ -39,8 +39,11 @@ thinkzone.wlonk.com): front `1,2,3` ×6 then a blank tab; back blank then
 - **Wrap, 3 folds** — at hinges 13, 7 and 1 (counting from the strip head):
   two folds wrap the roll around a hexagon, the third folds the head triangle
   back. The hinge between the tab pair and the rest stays *unfolded* — that
-  flat continuation is the tuck, animated as a small lift that slides the tab
-  into the pocket under the head triangle, blank meeting blank.
+  flat continuation is the tuck. The tab is split along a soft bend line
+  (`TUCK_F`) so it can flex like real paper: after the head fold it lies
+  across the top face, lifts, then slides into the pocket under the top
+  face — flexing slightly on the way in — until blank meets blank. Rigid
+  plates can't thread a pocket; the flex is what real paper does there.
 - **Press** — the plates settle from the hinged approximation (small gap
   angles keep layers apart) into an idealized flat stack, using the true
   per-slot layer order in `IDEAL_ORDER`.

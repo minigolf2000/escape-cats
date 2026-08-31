@@ -811,14 +811,20 @@ what puts them in t2's channel. There is no team picker and no way to end up in
 another team's chat. Like the game, chat has no menu: it asks the lobby for this
 pid's room, and opening it registers the phone in the lobby roster.
 
-The path is one letter because this is the surface people TYPE, and now the
-only way in: **the lobby has no chat link at all**. The "Team chat" button went
-with the team card when the landing page was stripped back to the board (see
-"The room, on a player's phone"), so until chat is ready to be shown, `/c/` is
-reached by typing it or by a QR. `/chat/` redirects to it (one `/chat/:path*`
-rule in `vercel.json`, which catches the bare `/chat` too, since trailing-slash
-normalisation runs before redirects), so anything printed with the old path
-still lands.
+The path is one letter because this is the surface people TYPE, and now the only
+way in: **the lobby has no chat link at all**. The "Team chat" button went with
+the team card when the landing page was stripped back to the board (see "The
+room, on a player's phone"), so until chat is ready to be shown, `/c/` is
+reached by typing it or off a QR. `/chat/` redirects to it, so anything printed
+with the old path still lands.
+
+That redirect takes TWO rules in `vercel.json`, for the same reason the vanity
+domains do: a literal `/chat/` and a `/chat/:path*`. `trailingSlash: true`
+rewrites a bare `/chat` to `/chat/` before redirects run, and `:path*` will not
+match an empty tail — so the `:path*` rule alone catches every deep path and
+misses the only URL anyone actually types. It shipped that way once, 404ing in
+production while `check:routing` was green, because the checker's matcher made
+the same wrong assumption.
 
 What the chat server enforces (`server/src/chat.ts`, tunables in
 `packages/shared/src/chat.ts`):

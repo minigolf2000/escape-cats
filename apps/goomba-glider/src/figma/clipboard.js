@@ -29,6 +29,7 @@
 // guessing — a level that decodes wrong is a level nobody can see is wrong.
 import { decodeBinarySchema, compileSchema } from "kiwi-schema";
 import { stitchTerrain } from "./stitch.js";
+import { rectPoly, ellipsePoly, cutTester, applyCuts } from "./shapes.js";
 
 const S = 10; // px per world unit
 const ROUND = (v) => Math.round(v * 10) / 10; // tenths: the codec's precision
@@ -157,13 +158,43 @@ function mul(m, t) {
 const apply = (m, x, y) => ({ x: m[0] * x + m[1] * y + m[2], y: m[3] * x + m[4] * y + m[5] });
 const degOf = (m) => (Math.atan2(m[3], m[0]) * 180) / Math.PI;
 
-// The name contract, exported rather than private because `tools/goomba/figma/
-// read-frame.mjs` reads the same names out of a different carrier (the Figma
-// MCP's metadata XML). One copy or two is the whole question: a second regex
-// that agreed with this one on the day it was written is a fork that goes
-// quietly wrong the first time either moves.
-export const stripDup = (s) => String(s || "").replace(/_\d+$/, "").trim();
-export const KINDS = /^(watering-can|party-popper|start|goal|bumper|cushion|band|can|pop|t)\s*-?\s*(\d+)?$/i;
+/**
+ * One popper speed for every level drawn in Figma.
+ *
+ * It used to ride in the layer name as trailing digits — `party-popper 150`.
+ * That made a NAME carry meaning, which is the thing this reader has just
+ * stopped doing everywhere else, and it had a failure mode nobody could see
+ * coming: Figma numbers duplicates, so twelve poppers copy-pasted around a
+ * sketch arrive named `party-popper 138` through `party-popper 149` and land as
+ * twelve speeds no one chose. A frame is GEOMETRY; per-popper tuning belongs
+ * beside the level, where the bench can sweep it.
+ */
+export const FIGMA_POP_SPD = 130;
+
+/**
+ * What KIND of thing is this node?
+ *
+ * Names no longer decide, and that is the point. A toy is an INSTANCE, and the
+ * component it is an instance of is what it is — so identity comes from the
+ * SYMBOL the instance points at (`symbolData.symbolID`), and the instance may
+ * be called anything at all. Figma's own duplicate numbering, a designer's
+ * "popper (do not move)", a translated layer panel: all fine now.
+ *
+ * Names still carry the two things that are not components — `t` for terrain,
+ * `cut` for a shape that takes terrain away — because there is nothing to be an
+ * instance OF. Those two are matched loosely: trailing digits, a `-42` suffix
+ * and surrounding space are all ignored.
+ *
+ * Exported rather than private because `tools/goomba/figma/read-frame.mjs`
+ * reads the same names out of a different carrier (the Figma MCP's metadata
+ * XML). One copy or two is the whole question: a second regex that agreed with
+ * this one on the day it was written is a fork that goes quietly wrong the
+ * first time either moves. Note that a node's `name` is only the whole answer
+ * for `t` and `cut`; a caller holding INSTANCE nodes must resolve the symbol
+ * itself before calling this.
+ */
+export const stripDup = (s) => String(s || "").replace(/[\s-]*\d+$/, "").replace(/_\d+$/, "").trim();
+export const KINDS = /^(watering-can|party-popper|start|goal|bumper|cushion|band|can|pop|cut|t)$/i;
 export function classify(name) {
   const n = stripDup(name);
   if (!n || n.startsWith("_") || n.startsWith("//")) return null;
@@ -172,7 +203,7 @@ export function classify(name) {
   let kind = m[1].toLowerCase();
   if (kind === "watering-can") kind = "can";
   if (kind === "party-popper") kind = "pop";
-  return { kind, num: m[2] ? Number(m[2]) : null };
+  return { kind };
 }
 export function levelName(name) {
   const m = /^L\s*(?::|--)\s*(.+)$/.exec(String(name || "").trim());
@@ -235,6 +266,7 @@ export async function levelFromFigmaClipboard(html) {
   // are consumed and counted rather than silently read as something else.
   let droppedBands = 0;
   let start = null, goal = null, name = null;
+  const shapes = [], cuts = [];
 
   // Children by parent, in sibling order, so repeated toys land in the order
   // they sit on the canvas.
@@ -277,12 +309,43 @@ export async function levelFromFigmaClipboard(html) {
   if (!roots.length) throw new Error("could not find a level frame or any pasted nodes");
 
   const W = (v) => ROUND(v / S);
+  /**
+   * The name to classify a node BY. For an instance that is its component's
+   * name, looked up through `symbolData.symbolID` — the instance's own name is
+   * never consulted, so renaming one in the layers panel cannot break a level.
+   * Everything else answers to its own name, which is only `t` and `cut`.
+   */
+  const identity = (n) => {
+    if (n.type === "INSTANCE") {
+      const sym = n.symbolData && byGuid.get(gid(n.symbolData.symbolID));
+      // Fall back to the instance's own name only when the component is not in
+      // the payload at all — a detached copy, or a synthetic fixture. A real
+      // Ctrl+C always ships the definitions, so this is the rare path.
+      if (sym) return sym.name;
+    }
+    return n.name;
+  };
   const emit = (n, m) => {
-    const hit = classify(n.name);
+    const hit = classify(identity(n));
     if (!hit) return false;
-    const { kind, num } = hit;
+    const { kind } = hit;
     const w = n.size?.x ?? 0, h = n.size?.y ?? 0;
+    const radius = n.cornerRadius ?? n.rectangleTopLeftCornerRadius ?? 0;
     if (kind === "band") { droppedBands++; return true; }
+    if (kind === "cut") {
+      // A shape that SUBTRACTS. Recorded now, applied to the finished terrain
+      // once every polyline exists — a cut through the middle of a chain has to
+      // split the chain, so it cannot run before stitching.
+      const isEllipse = n.type === "ELLIPSE";
+      const t = (isEllipse || /RECT/.test(n.type || ""))
+        ? cutTester(isEllipse ? "ellipse" : "rect", m, w, h, radius)
+        : null;
+      if (t) cuts.push(t);
+      else warnings.push(
+        `"${n.name}" is a ${n.type || "shape"} — a \`cut\` must be a Rectangle or ` +
+        `an Ellipse, so nothing was taken away.`);
+      return true;
+    }
     if (kind === "t") {
       // A Figma line is a zero-height node: local (0,0)-(width,0) IS the
       // segment, so its stored geometry needs no correction of any kind.
@@ -293,10 +356,12 @@ export async function levelFromFigmaClipboard(html) {
       // drew — and it would arrive as a perfectly plausible straight segment
       // that silently changes whether the level is winnable. A named layer that
       // goes missing is a bug someone can SEE; a wrong one is not.
+      if (n.type === "ELLIPSE") { shapes.push(ellipsePoly(m, w, h)); return true; }
+      if (/RECT/.test(n.type || "")) { shapes.push(rectPoly(m, w, h, radius)); return true; }
       if (n.type !== "LINE" || Math.abs(h) > 0.01) {
         warnings.push(
-          `"${n.name}" is a ${n.type || "shape"}, not a Line — skipped. ` +
-          `Draw terrain with the Line tool (L), never the pen.`,
+          `"${n.name}" is a ${n.type || "shape"} — skipped. Terrain is a Line, a ` +
+          `Rectangle or an Ellipse; a pen path has no readable outline.`,
         );
         return true;
       }
@@ -309,7 +374,7 @@ export async function levelFromFigmaClipboard(html) {
     else if (kind === "goal") goal = [W(c.x), W(c.y)];
     else if (kind === "can") cans.push([W(c.x), W(c.y)]);
     else if (kind === "bumper") bumpers.push({ x: W(c.x), y: W(c.y) });
-    else if (kind === "pop") pops.push({ x: W(c.x), y: W(c.y), deg: ROUND(degOf(m)), spd: num ?? 76 });
+    else if (kind === "pop") pops.push({ x: W(c.x), y: W(c.y), deg: ROUND(degOf(m)), spd: FIGMA_POP_SPD });
     else if (kind === "cushion") {
       const left = apply(m, 0, h / 2);
       cushions.push({ x: W(left.x), y: W(left.y), w: ROUND(w / S) });
@@ -352,23 +417,27 @@ export async function levelFromFigmaClipboard(html) {
     }
   }
 
-  const found = terrain.length + cans.length + bumpers.length +
+  const found = terrain.length + shapes.length + cans.length + bumpers.length +
     cushions.length + pops.length + (start ? 1 : 0) + (goal ? 1 : 0);
   if (!found)
     throw new Error(
       "read the Figma clipboard, but nothing in it is named for a level. " +
-      "Terrain must be Lines named `t`; toys are instances of the kit.",
+      "Terrain is Lines, Rectangles or Ellipses named `t`; toys are instances " +
+      "of the kit, whatever their layers are called.",
     );
   if (!start) throw new Error("no layer named `start` — the level has no spawn");
   if (!goal) throw new Error("no layer named `goal` — the level has no plant");
-  if (!terrain.length) warnings.push("no terrain: nothing named `t`. She will just fall.");
+  if (!terrain.length && !shapes.length)
+    warnings.push("no terrain: nothing named `t`. She will just fall.");
 
   const level = {
     name: name || "pasted from Figma",
     start, goal,
     ...(frame ? { frame } : {}),
-    // One Figma Line per segment; chains of them are one surface. See stitch.js.
-    terrain: stitchTerrain(terrain),
+    // One Figma Line per segment; chains of them are one surface (stitch.js).
+    // Rect and ellipse outlines arrive whole and skip stitching. Then every
+    // `cut` shape is subtracted from the lot (shapes.js).
+    terrain: applyCuts([...stitchTerrain(terrain), ...shapes], cuts),
     cans, cushions, pops, bumpers,
   };
   if (droppedBands)

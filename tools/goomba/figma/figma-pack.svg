@@ -116,7 +116,7 @@
   <line id="t-73" x1="0" y1="0" x2="22.52" y2="0" transform="translate(1728.29 1305.1) rotate(-152.93)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
   <line id="t-74" x1="0" y1="0" x2="22.52" y2="0" transform="translate(1708.23 1294.85) rotate(-145.76)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
   <line id="t-75" x1="0" y1="0" x2="22.52" y2="0" transform="translate(1689.61 1282.18) rotate(-138.59)" stroke="#f3e9d6" stroke-width="3" stroke-linecap="round"/>
-  <g id="pop94-1">
+  <g id="pop-1">
   <circle cx="1688.28" cy="1028.28" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="1688.28" cy="1028.28" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="1688.28" y1="1028.28" x2="1733.53" y2="983.02" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
@@ -128,42 +128,42 @@
   <text id="_lbl-33" x="1420" y="1386" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">chord (30° here, ~9 u) so the band’s ends snap to the LIPS and not to their neighbours: 300/300 at ±3 u of finger slop,</text>
   <text id="_lbl-34" x="1420" y="1402" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">against 272/300 on an evenly fine fan. A 10° tip chord scores 239 — half-measures are worse than either end.</text>
   <text id="_lbl-35" x="40" y="1600" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">popper lane · 16 u apart against an ~8 u trigger radius, so crossing the lane always gets her grabbed and re-flung. Poppers erase state, which is what makes stages independent — the structural tool for a 4-band level.</text>
-  <g id="pop76-1">
+  <g id="pop-2">
   <circle cx="140" cy="1680" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="140" cy="1680" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="140" y1="1680" x2="204" y2="1680" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="204" y1="1680" x2="186.37" y2="1693.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="204" y1="1680" x2="186.37" y2="1666.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop76-2">
+  <g id="pop-3">
   <circle cx="300" cy="1680" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="300" cy="1680" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="300" y1="1680" x2="364" y2="1680" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="364" y1="1680" x2="346.37" y2="1693.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="364" y1="1680" x2="346.37" y2="1666.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop76-3">
+  <g id="pop-4">
   <circle cx="460" cy="1680" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="460" cy="1680" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="460" y1="1680" x2="524" y2="1680" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="524" y1="1680" x2="506.37" y2="1693.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="524" y1="1680" x2="506.37" y2="1666.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop76-4">
+  <g id="pop-5">
   <circle cx="620" cy="1680" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="620" cy="1680" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="620" y1="1680" x2="684" y2="1680" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="684" y1="1680" x2="666.37" y2="1693.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="684" y1="1680" x2="666.37" y2="1666.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop76-5">
+  <g id="pop-6">
   <circle cx="780" cy="1680" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="780" cy="1680" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="780" y1="1680" x2="844" y2="1680" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="844" y1="1680" x2="826.37" y2="1693.17" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   <line x1="844" y1="1680" x2="826.37" y2="1666.83" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
   </g>
-  <g id="pop76-6">
+  <g id="pop-7">
   <circle cx="940" cy="1680" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="940" cy="1680" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="940" y1="1680" x2="1004" y2="1680" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
@@ -192,7 +192,7 @@
   <circle cx="920" cy="1920" r="12" fill="#ff5db1" stroke="none" stroke-width="2"/>
   </g>
   <text id="_lbl-40" x="825" y="2030" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c9bdf0">bumper · piñata, radial kick</text>
-  <g id="pop76-7">
+  <g id="pop-8">
   <circle cx="1180" cy="1920" r="82" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5 5"/>
   <circle cx="1180" cy="1920" r="20" fill="none" stroke="#ffd166" stroke-width="3"/>
   <line x1="1180" y1="1920" x2="1244" y2="1920" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>

@@ -151,7 +151,9 @@ function roomHtml(myTeam: string | null): string {
   const boxes = teams
     .map((t) => {
       const members = byTeam.get(t.id) ?? [];
-      const ears = earsFor(t.id);
+      // Non-null for the same reason as the card above: `teams` is TEAMS off
+      // the snapshot, and all four have a pair.
+      const ears = earsFor(t.id)!;
       const mine = t.id === myTeam;
       const seats = members
         .map(
@@ -169,9 +171,7 @@ function roomHtml(myTeam: string | null): string {
         () => `<li class="slot">empty seat</li>`,
       ).join("");
       return `
-        <div class="tbox${mine ? " mine" : ""}"${
-          ears ? ` style="--tc:${ears.ink}"` : ``
-        }>
+        <div class="tbox${mine ? " mine" : ""}" style="--tc:${ears.ink}">
           ${teamEarsSvg(t.id, {
             width: BOARD_EAR_W,
             strokeWidth: BOARD_BORDER,
@@ -312,8 +312,18 @@ const CARD_EAR_W = 96;
 const CARD_BORDER = 2;
 
 function teamScreen(team: string) {
-  // A team always has ears (see TEAM_EARS); the testing room does not, and then
-  // the card is simply the card it always was.
+  // EARS ARE NOT OPTIONAL HERE. `earsFor` is nullable because the testing room
+  // (t0) is not a team and wears nothing — but t0 can never reach this screen:
+  // the lobby refuses any `assign` outside TEAM_IDS (server/src/lobby.ts), and
+  // every one of those four has a pair in TEAM_EARS. So the earless card, the
+  // earless title colour and the missing "grab the ears" line were three
+  // branches for a state the server cannot produce. A fifth team added to TEAMS
+  // without a pair in TEAM_EARS is what would break this — add the colour in
+  // the same commit, which you have to do anyway for the proctor's board.
+  //
+  // The `wear` line below is the one that turns a colour into an instruction.
+  // Without it the card is a nice shade of pink and the headbands are a pile on
+  // a table.
   //
   // NO GAME LINKS below, and this note is a JS comment ON PURPOSE. The games
   // are reached by their own URLs (the vanity domains, which REDIRECT onto this
@@ -333,13 +343,10 @@ function teamScreen(team: string) {
   // listed on the card any more. The room below names all four of them, in the
   // box wearing your colour, and printing the same three names twice on one
   // screen made the card and the board look like two answers to one question.
-  const ears = earsFor(team);
-  const skin = ears
-    ? `class="card eared" style="--tc:${ears.ink};--ear-h:${earsHeight(CARD_EAR_W)}px"`
-    : `class="card"`;
+  const ears = earsFor(team)!;
   page(
     `
-    <div ${skin}>
+    <div class="card eared" style="--tc:${ears.ink};--ear-h:${earsHeight(CARD_EAR_W)}px">
       ${teamEarsSvg(team, {
         width: CARD_EAR_W,
         strokeWidth: CARD_BORDER,
@@ -348,13 +355,7 @@ function teamScreen(team: string) {
       })}
       <p class="sub">You're on</p>
       <h1 class="team">${escapeHtml(teamName(team))}</h1>
-      ${
-        // The one line that turns a colour into an instruction. Without it the
-        // card is a nice shade of pink and the headbands are a pile on a table.
-        ears
-          ? `<p class="wear">Grab the ${ears.hue.toLowerCase()} ears \u{1F43E}</p>`
-          : ``
-      }
+      <p class="wear">Grab the ${ears.hue.toLowerCase()} ears \u{1F43E}</p>
       <a class="secondary" href="/chat/">Team chat</a>
     </div>
   `,

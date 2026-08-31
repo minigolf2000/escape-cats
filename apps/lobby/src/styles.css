@@ -66,10 +66,10 @@ h1 {
 
 h1.team {
   font-size: 40px;
-  /* The team's own colour when it has one (an eared card sets --tc), the house
-     neon otherwise — the testing room, which is not a team and wears nothing. */
-  color: var(--tc, var(--neon));
-  text-shadow: 0 0 22px color-mix(in srgb, var(--tc, var(--neon)) 40%, transparent);
+  /* The team's own colour, no fallback: this element only exists on the eared
+     card, which only renders for t1-t4 — every one of which sets --tc. */
+  color: var(--tc);
+  text-shadow: 0 0 22px color-mix(in srgb, var(--tc) 40%, transparent);
   margin: 4px 0 10px;
 }
 
@@ -158,7 +158,7 @@ input:focus {
   font-size: 16px;
   font-family: inherit;
   font-weight: 600;
-  color: var(--tc, var(--neon));
+  color: var(--tc);
   background: transparent;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -277,7 +277,7 @@ input:focus {
   /* Kept in step with the background below — an ear filled with the wrong one
      reads as a sticker sitting on the box rather than part of it. */
   --ear-fill: #12141b;
-  border: 2px solid var(--tc, var(--line));
+  border: 2px solid var(--tc);
   border-radius: 12px;
   padding: 9px;
   margin-top: var(--ear-h);

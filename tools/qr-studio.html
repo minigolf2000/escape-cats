@@ -213,6 +213,7 @@
       <button id="undo">undo <span class="key" id="undoKey">(Ctrl+Z)</span></button>
     </div>
     <span class="hint">arrow keys nudge the whole drawing</span>
+    <span class="hint">shift locks to H, V or 45° — drag or click</span>
   </aside>
 
   <section id="center">
@@ -2009,6 +2010,9 @@ window.QR_PRESET_IMGS = {
 
   // ---------- pointer painting ----------
   let painting = false, lastCell = null;
+  // lastPaint outlives a stroke (lastCell does not) so Shift+click has an
+  // endpoint to draw FROM; lockAnchor/lockDir are the live axis constraint.
+  let lastPaint = null, lockAnchor = null, lockDir = null;
   function cellFromEvent(ev) {
     const rect = can.getBoundingClientRect();
     const S = size();
@@ -2033,6 +2037,77 @@ window.QR_PRESET_IMGS = {
       }
     return any;
   }
+  // Stamp the brush along the run from `from` (exclusive) to `to` (inclusive),
+  // so a fast drag leaves a solid line rather than a dotted one — and so
+  // Shift+click can lay a whole straight run through the same code path.
+  function strokeTo(from, to) {
+    if (!from) return applyBrush(to.r, to.c);
+    const steps = Math.max(Math.abs(to.r - from.r), Math.abs(to.c - from.c), 1);
+    let any = false;
+    for (let s = 1; s <= steps; s++)
+      if (applyBrush(
+        Math.round(from.r + ((to.r - from.r) * s) / steps),
+        Math.round(from.c + ((to.c - from.c) * s) / steps)
+      )) any = true;
+    return any;
+  }
+  // ---------- the eight-way constraint ----------
+  // Shift snaps a run to the nearest of eight compass directions — H, V and
+  // both 45° diagonals. Both gestures take it and differ only in how the far
+  // end is NAMED, never in where it may land. Stricter here than in a photo
+  // painter because paint order is pin priority: a module wobbled off an edge
+  // spends a pin on a cell that reads as nothing (qr-art-notes.md).
+
+  // Which of the eight rays (dr, dc) points down, as a unit step in grid cells.
+  function axisFrom(dr, dc) {
+    const k = Math.round(Math.atan2(dr, dc) / (Math.PI / 4)); // -4..4
+    return { ur: Math.round(Math.sin(k * Math.PI / 4)), uc: Math.round(Math.cos(k * Math.PI / 4)) };
+  }
+  // Project (dr, dc) onto that ray and clip to the board. A diagonal's (±1, ±1)
+  // has squared length 2, so dividing the dot product by it converts back into
+  // whole grid steps — one step being one row AND one column. The clip runs
+  // ALONG the ray; clamping r and c apart would shove a diagonal off its axis
+  // at the board edge.
+  function alongAxis(anchor, dr, dc, { ur, uc }) {
+    const S = size();
+    let len = Math.round((dc * uc + dr * ur) / (ur * ur + uc * uc));
+    if (ur) len = Math.min(len, ur > 0 ? S - 1 - anchor.r : anchor.r);
+    if (uc) len = Math.min(len, uc > 0 ? S - 1 - anchor.c : anchor.c);
+    len = Math.max(0, len); // a backwards projection retracts to the anchor
+    return { r: anchor.r + ur * len, c: anchor.c + uc * len };
+  }
+  // A click names its far end outright, in one event: snap once and run. No
+  // aiming zone and no latch — both exist only because a drag re-asks.
+  function axisRunTo(anchor, cell) {
+    const dr = cell.r - anchor.r, dc = cell.c - anchor.c;
+    return alongAxis(anchor, dr, dc, axisFrom(dr, dc));
+  }
+  // A drag names its far end only by where the wrist is, and re-asks every move,
+  // so it adds two things a click has no use for.
+  //
+  // AIMING: nothing is painted and no direction chosen until the pen is
+  // LOCK_MIN modules out. Two modules out, (2,1) and (2,2) are a few degrees of
+  // wrist apart yet fall in different sectors, so a direction picked there is a
+  // coin flip. At LOCK_MIN a two-module wobble is 21.8°, inside the 22.5°
+  // sector boundary.
+  //
+  // LATCHING: the direction holds for the rest of the drag. It must NOT be
+  // re-read per move — the run between two successive answers gets stroked, and
+  // that spur is what this mechanism exists to prevent. Re-aim by coming back
+  // inside LOCK_MIN, where nothing has been laid down.
+  const LOCK_MIN = 5;
+  function snapToAxis(anchor, cell) {
+    const dr = cell.r - anchor.r, dc = cell.c - anchor.c;
+    if (Math.max(Math.abs(dr), Math.abs(dc)) < LOCK_MIN) {
+      lockDir = null; // still aiming: nothing committed, nothing drawn
+      return { r: anchor.r, c: anchor.c };
+    }
+    if (!lockDir) lockDir = axisFrom(dr, dc);
+    return alongAxis(anchor, dr, dc, lockDir);
+  }
+  // A canvas resize swaps the whole grid without touching the pointer state, so
+  // an anchor kept across one can sit outside the smaller board.
+  const onGrid = (cell) => !!cell && cell.r >= 0 && cell.c >= 0 && cell.r < size() && cell.c < size();
   function setFocusMode(on) {
     if (state.focusMode === on) return;
     state.focusMode = on;
@@ -2049,36 +2124,50 @@ window.QR_PRESET_IMGS = {
     can.setPointerCapture(ev.pointerId);
     const cell = cellFromEvent(ev);
     if (cell) {
-      if (applyBrush(cell.r, cell.c)) requestSolve();
+      // Shift+click runs from the last painted cell to here, snapped to the
+      // same eight directions as a drag — so it lands on the nearest ray, not
+      // on the clicked cell.
+      const from = ev.shiftKey && onGrid(lastPaint) ? lastPaint : null;
+      const end = from ? axisRunTo(from, cell) : cell;
+      if (strokeTo(from, end)) requestSolve();
+      // A press that becomes a drag anchors where the POINTER went down, not
+      // where the join landed, so the drag's direction never depends on whether
+      // a join ran. lastPaint tracks where paint ENDED — what the next join
+      // runs from.
       lastCell = cell;
+      lastPaint = end;
+      lockAnchor = ev.shiftKey ? cell : null;
+      lockDir = null;
     }
     ev.preventDefault();
   });
   can.addEventListener("pointermove", (ev) => {
-    const cell = cellFromEvent(ev);
-    // brush preview follows the cursor whether or not a stroke is in progress
+    const raw = cellFromEvent(ev);
+    // Shift is read live off the event rather than latched at pointerdown, so
+    // it can be taken up or dropped WITHIN one drag: pressing it re-anchors
+    // the constraint at the pen's current cell, which is how you lay a
+    // staircase of locked segments without ever lifting.
+    if (painting) {
+      if (!ev.shiftKey) lockAnchor = lockDir = null;
+      else if (!lockAnchor) { lockAnchor = lastCell || raw; lockDir = null; }
+    }
+    const cell = painting && lockAnchor && raw ? snapToAxis(lockAnchor, raw) : raw;
+    // the preview follows the PAINT, not the pointer — under a lock the two
+    // part company, and the cell about to change color is the honest one
     const hv = cell ? cell.r * size() + cell.c : -1;
     if (hv !== state.hover) {
       state.hover = hv;
       if (!painting) render();
     }
     if (!painting || !cell) return;
-    let any = false;
-    if (lastCell) {
-      const steps = Math.max(Math.abs(cell.r - lastCell.r), Math.abs(cell.c - lastCell.c), 1);
-      for (let s = 1; s <= steps; s++)
-        if (applyBrush(
-          Math.round(lastCell.r + ((cell.r - lastCell.r) * s) / steps),
-          Math.round(lastCell.c + ((cell.c - lastCell.c) * s) / steps)
-        )) any = true;
-    } else any = applyBrush(cell.r, cell.c);
-    lastCell = cell;
+    const any = strokeTo(lastCell, cell);
+    lastCell = lastPaint = cell;
     if (any) requestSolve();
     else render(); // keep preview in sync even when nothing changed
   });
   const endStroke = (ev) => {
     painting = false;
-    lastCell = null;
+    lastCell = lockAnchor = lockDir = null; // lastPaint SURVIVES: Shift+click needs it
     if (state.strokeRec && state.strokeRec.length > 0) pushUndo(state.strokeRec);
     state.strokeRec = null;
     // if the pen lifted outside the canvas, drop back to the holistic view

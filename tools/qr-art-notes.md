@@ -159,6 +159,59 @@ feasibility depends only on the current pixels (never the path taken),
 lazier policies lose nothing permanently — the policy only tunes meter
 rhythm versus noise-field stability.
 
+## Shift: the straight runs the art is made of
+
+Everything above is one long argument that what survives 41 modules is flat,
+bold, iconic shapes — so the painter borrows the constraint every pixel editor
+has. **Hold Shift and the run snaps to the nearest of eight compass directions**
+— H, V and both 45° diagonals. Two gestures reach it: **drag** one out from
+where Shift went down, or **click** to run there from the last cell painted.
+
+It buys more here than tidiness. Paint order is pin priority, so a module
+wobbled off an edge doesn't merely read wrong: it spends a pin on a cell that
+reads as nothing, and the budget meter is what pays for it.
+
+**The click snaps too, and that is the point of it.** A gesture naming BOTH of
+its endpoints looks like it has nothing to infer — but that confuses inference
+with intent. What an artist wants from it is an *aligned* run: the click
+chooses a direction and a length, not an arbitrary landing cell. Snapped, eight
+sloppy clicks close a clean octagon; free-angle, the same eight give eight
+subtly wrong edges. The cost is that two arbitrary points can no longer be
+joined with Shift — draw that freehand.
+
+### One rule, two ways to name the far end
+
+The gestures differ in exactly one thing: how the far end arrives. That is the
+seam the code is cut on — `axisFrom` picks the ray, `alongAxis` projects onto
+it and clips to the board, and both gestures are those two calls.
+
+A **click** names its far end outright, in one event, so it snaps once and runs:
+no aiming phase to sit through, nothing to latch against a second guess.
+
+A **drag** names its far end only by where the wrist happens to be, and re-asks
+on every move, so it adds the two things only a continuous gesture needs:
+
+- **It aims before it commits.** Nothing is painted, and no direction is
+  chosen, until the pen is `LOCK_MIN` (5) modules from the anchor. Two modules
+  out, (2,1) and (2,2) are a few degrees of wrist apart yet land in different
+  sectors, so a direction picked there is a coin flip. At 5 modules a
+  two-module wobble is 21.8°, inside the 22.5° sector boundary.
+- **Then it latches.** The direction holds for the rest of the drag, so no
+  wobble can flip it, and it must not be re-read per move: the run between two
+  successive answers gets STROKED, and that spur is the thing the lock exists
+  to prevent. Re-aim by bringing the pen back inside `LOCK_MIN`, where nothing
+  was laid down, so changing your mind is free.
+
+Shift is read live off each event instead of being latched at pointerdown, so
+it can be taken up and dropped WITHIN one drag: pressing it re-anchors the
+constraint at the pen's current cell, which is how you lay a staircase of
+locked segments without ever lifting. A press that becomes a drag anchors where
+the POINTER went down, not where its join happened to land — the join is a
+finished action, and the drag's direction shouldn't depend on whether one ran.
+The brush preview follows the PAINT rather than the pointer, because under a
+lock the two part company and the cell about to change colour is the honest one
+to outline.
+
 ## The URL is the save file
 
 The studio has no server, so a shareable drawing was always going to be the

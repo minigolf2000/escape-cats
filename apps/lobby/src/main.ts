@@ -284,7 +284,7 @@ function page(cardHtml: string, myTeam: string | null) {
  * keeps spinning after the socket has dropped (it has no idea).
  */
 function waitingLine(): string {
-  return `<p class="await">Waiting for the proctor to put you on a team\u2026</p>`;
+  return `<p class="await">Waiting to be sorted\u2026</p>`;
 }
 
 function escapeHtml(s: string): string {

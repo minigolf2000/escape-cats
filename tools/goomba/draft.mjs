@@ -24,11 +24,11 @@
 //
 // WHY THIS EXISTS, in the order the pain arrives:
 //
-//   1. Only `route.mjs`, `slack.mjs` and `verify.mjs` take `--hash`. `scan.mjs`,
-//      `solve.mjs` and `minbands.mjs` are index-only, so a draft has to be IN
-//      `levels.ts` to be graded — and hand-editing it back and forth is how a
-//      thread loses a good version. `install` / `off` is idempotent, between
-//      markers, and leaves the file's CRLF alone.
+//   1. NOTHING here grades a level (see DESIGNING.md), so the only real verdict
+//      is playing it — which is what `link` is for, and why it is the command
+//      you should be reaching for most. `install` / `off` put a draft into
+//      `SEED_LEVELS` so `seed.mjs --push` can put it in front of real players;
+//      it is idempotent, sits between markers, and leaves the file's CRLF alone.
 //   2. Every placement question is answered by SWEEPING, and every
 //      hand-derived answer has been wrong. `sweep` is one line instead of a
 //      throwaway script.
@@ -36,14 +36,15 @@
 //      the middle of the level with a velocity, so one leg can be judged alone
 //      — that is what caught a 4-popper carousel that was really an up-column
 //      trap.
-//   4. `ridecards.mjs` shells out to a Playwright install at a hardcoded Linux
-//      path. `card` writes the same picture as plain SVG, everywhere.
+//   4. A traced picture is worth more than any table of numbers, and `card`
+//      writes one as plain SVG — no rasteriser, so it runs anywhere and drops
+//      straight into a PR.
 //
 // See DESIGNING.md for what the numbers MEAN; this is only the loop.
 import { readdirSync, writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { makeRun, stepRun, snapBand, SUB, RUN_MAX, initLevel, encodeLevel, decodeLevel } from "./lib.mjs";
+import { makeRun, stepRun, snapBand, SUB, RUN_MAX, initLevel, encodeLevel, decodeLevel } from "./draft/_sim.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DRAFTS = join(HERE, "draft");
@@ -69,7 +70,9 @@ const rest = argv.slice(1);
 
 const die = (msg) => { console.error(msg); process.exit(2); };
 const modules = () =>
-  existsSync(DRAFTS) ? readdirSync(DRAFTS).filter((f) => f.endsWith(".mjs")) : [];
+  existsSync(DRAFTS)
+    ? readdirSync(DRAFTS).filter((f) => f.endsWith(".mjs") && !f.startsWith("_"))
+    : [];
 
 function pick() {
   const all = modules();
@@ -239,7 +242,7 @@ switch (cmd) {
     const idx = readFileSync(LEVELS_TS, "utf8").split(OPEN)[0].split(/^\s*\{ name:/m).length - 1;
     console.log(`installed draft/${file} as "${L.name}" at index ${idx} — ` +
       `${L.terrain.length} polylines, ${(L.pops || []).length} poppers, ${(L.solution || []).length} bands\n` +
-      `  node verify.mjs ${idx}   node solve.mjs ${idx} 4   node minbands.mjs ${idx}`);
+      `  node seed.mjs --push   puts the whole pack in front of a live event`);
     break;
   }
   case "audit": {
@@ -313,7 +316,7 @@ switch (cmd) {
   "${L.name}" — ${L.terrain.length} polylines / ${pts} points, ` +
       `${(L.pops || []).length} poppers, ${hash.length} chars
 ` +
-      `  node verify.mjs --hash <the link above>  grades it without a diff`);
+      `  nothing grades this — the link IS the verdict. Play it.`);
     break;
   }
   case "card": {
@@ -334,10 +337,9 @@ switch (cmd) {
 /**
  * The ride card, as plain SVG.
  *
- * `ridecards.mjs` renders the same picture through Playwright's Chromium from a
- * hardcoded `/opt/node22` path, which is one machine's install. Nothing here
- * needs a rasteriser: an SVG opens in a browser, drops into a PR, and is what
- * gets reviewed.
+ * Nothing here needs a rasteriser: an SVG opens in a browser, drops into a PR,
+ * and is what gets reviewed. It is also the only thing in this file that shows
+ * you the SHAPE of a ride rather than a number about it.
  */
 function card(L, bands, path, st) {
   const b = L.bounds, S = 5, PAD = 10;

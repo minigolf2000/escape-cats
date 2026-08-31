@@ -16,6 +16,7 @@
 // 14 units from where it actually sits. A fixture generated under the same
 // assumption as the code cannot catch that; the transform can, so the fixture
 // is now a carrier that has one.
+import { FIGMA_POP_SPD } from "../../../apps/goomba-glider/src/figma/clipboard.js";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -62,11 +63,16 @@ eq("...and that aim points up", [Math.round(Math.cos(L.pops[2].deg * Math.PI / 1
 eq("all four bumpers", L.bumpers, [
   { x: 68.5, y: 62.6 }, { x: 68.5, y: 80.6 }, { x: 68.5, y: 98.6 }, { x: 68.5, y: 152.6 }]);
 
-// Trailing digits in the layer name are the popper's speed. These are the
-// numbers Figma's duplicate-naming left behind, and reading them back is how
-// anyone finds out.
-eq("speed rides in the layer name", L.pops.map((p) => p.spd),
-  [110, 110, 130, 134, 130, 135, 130, 136, 130, 137, 138, 110, 131, 132, 133]);
+// SPEED NO LONGER RIDES IN THE NAME, and this fixture is the argument for the
+// change: its fifteen poppers are named with trailing digits reading 110, 110,
+// 130, 134, 130, 135, 130, 136, 130, 137, 138, 110, 131, 132, 133 — a spread
+// nobody designed. Figma increments a trailing number every time you duplicate,
+// so copying one popper around a sketch retunes the level as a side effect of
+// drawing it. One constant for every popper any frame can produce.
+eq("every popper gets the one constant speed",
+  L.pops.map((p) => p.spd), L.pops.map(() => FIGMA_POP_SPD));
+eq("...and the digits in the names are ignored",
+  new Set(L.pops.map((p) => p.spd)).size, 1);
 
 eq("cans", L.cans.length, 6);
 eq("start", L.start, [6, 112.1]);

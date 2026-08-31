@@ -17,7 +17,7 @@
 // hold a constraint.
 //
 //   node orbit-probe.mjs
-import { makeRun, stepRun, SUB, RUN_MAX, initLevel } from "./lib.mjs";
+import { makeRun, stepRun, SUB, RUN_MAX, initLevel } from "./draft/_sim.mjs";
 import { P, buildLevel } from "./draft/in-and-out.mjs";
 const L = initLevel(buildLevel());
 const orbit = (from) => {

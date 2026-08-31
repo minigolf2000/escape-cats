@@ -274,7 +274,27 @@ cd tools/goomba && node bands.mjs        # the room's band budget
 cd tools/goomba && node test-codec.mjs   # the save format
 cd tools/goomba && node seed.mjs --pull  # what is this event running?
 cd tools/goomba/figma && node read-frame.mjs --xml m.xml   # a frame in world units
+cd tools/goomba && node draft.mjs link   # a level still being tuned (below)
 ```
 
 **There is no command that evaluates a level.** `?solo` for the in-page sim,
 `/proctor` + `?debug` for a real room.
+
+**A level being TUNED lives in `tools/goomba/draft/<name>.mjs`, not in
+`levels.ts`** — a params object `P` plus a `buildLevel(P)`, because a question
+like "where does this popper go" is answered by SWEEPING and a hand-typed array
+cannot be swept. `draft.mjs` drives it: `run [bands]` prints the route (in POLAR
+terms when the draft names a centre, which is the only readable form on a ring),
+`from <x,y,vx,vy>` drops her mid-level so one stage can be judged without a
+broken earlier stage hiding it, `sweep <key> <lo> <hi>` walks one param, `card`
+writes an SVG ride card, `link` prints a `?solo#hash` URL, and `install` / `off`
+splice the draft into `SEED_LEVELS` between `// >>> DRAFT` markers so
+`seed.mjs --push` can put it in front of real players. Take it back OUT before
+committing anything that is not the finished level.
+
+None of that grades anything, and `audit` is the one to understand why it
+cannot: a draft may export `audit(p)` for the geometry facts a RUN can never
+demonstrate, because they are about what must be impossible. A popper's 8.2
+reach ignores terrain, so "these two rings are separate rooms" is arithmetic —
+and a run that never happens to be in the wrong place looks exactly like a level
+where it could not be.

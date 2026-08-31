@@ -45,9 +45,11 @@
 // puts it. Every popper in Fireworks is rotated. Do not read positions out of
 // that XML; use it to find frames and names, and come here for numbers.
 import { readFile } from "node:fs/promises";
-import { classify, levelName, hasFigmaBuffer, levelFromFigmaClipboard }
+import { classify, levelName, hasFigmaBuffer, levelFromFigmaClipboard, FIGMA_POP_SPD }
   from "../../../apps/goomba-glider/src/figma/clipboard.js";
 import { stitchTerrain } from "../../../apps/goomba-glider/src/figma/stitch.js";
+import { rectPoly, ellipsePoly, cutTester, applyCuts }
+  from "../../../apps/goomba-glider/src/figma/shapes.js";
 import { initLevel, R, BUMP_R, POP_R } from "../lib.mjs";
 
 const S = 10; // px per world unit — the kit's scale, and the contract's
@@ -100,6 +102,7 @@ function fromNodes(doc) {
     frame: { x0: 0, y0: 0, x1: W(doc.frame.w), y1: W(doc.frame.h) },
   };
   const warnings = [];
+  const shapes = [], cuts = [];
   let bands = 0;
 
   for (const k of doc.kids) {
@@ -110,14 +113,27 @@ function fromNodes(doc) {
           `if it holds toys, ungroup it or read it as its own frame.`);
       continue;
     }
-    const { kind, num } = hit;
+    const { kind } = hit;
     const m = matrix(k.x, k.y, k.rot || 0);
     if (kind === "band") { bands++; continue; }
+    if (kind === "cut") {
+      const isEllipse = k.type === "ELLIPSE";
+      const t = (isEllipse || /RECT/.test(k.type || ""))
+        ? cutTester(isEllipse ? "ellipse" : "rect", m, k.w, k.h, k.radius || 0)
+        : null;
+      if (t) cuts.push(t);
+      else warnings.push(`"${k.name}" is a ${k.type || "shape"} — a \`cut\` must be a ` +
+        `Rectangle or an Ellipse, so nothing was taken away.`);
+      continue;
+    }
     if (kind === "t") {
-      // A Figma Line is zero-height: local (0,0)-(w,0) IS the segment.
+      // A Figma Line is zero-height: local (0,0)-(w,0) IS the segment. A rect
+      // or an ellipse is read as its outline instead; only the pen is refused.
+      if (k.type === "ELLIPSE") { shapes.push(ellipsePoly(m, k.w, k.h)); continue; }
+      if (/RECT/.test(k.type || "")) { shapes.push(rectPoly(m, k.w, k.h, k.radius || 0)); continue; }
       if (k.type && k.type !== "LINE") {
-        warnings.push(`"${k.name}" is a ${k.type}, not a Line — skipped. ` +
-          `Draw terrain with the Line tool (L), never the pen.`);
+        warnings.push(`"${k.name}" is a ${k.type} — skipped. Terrain is a Line, a ` +
+          `Rectangle or an Ellipse; a pen path has no readable outline.`);
         continue;
       }
       const a = apply(m, 0, 0), b = apply(m, k.w, 0);
@@ -132,7 +148,7 @@ function fromNodes(doc) {
     else if (kind === "bumper") level.bumpers.push({ x: pt[0], y: pt[1] });
     // `deg = -rotation`: Figma's rotation is counter-clockwise positive and the
     // game's deg feeds cos/sin in a y-down world, so it is clockwise positive.
-    else if (kind === "pop") level.pops.push({ x: pt[0], y: pt[1], deg: ROUND(-(k.rot || 0)), spd: num ?? 76 });
+    else if (kind === "pop") level.pops.push({ x: pt[0], y: pt[1], deg: ROUND(-(k.rot || 0)), spd: FIGMA_POP_SPD });
     else if (kind === "cushion") {
       const left = apply(m, 0, k.h / 2);
       level.cushions.push({ x: W(left.x), y: W(left.y), w: W(k.w) });
@@ -140,7 +156,7 @@ function fromNodes(doc) {
   }
   // Figma holds one Line per segment; the game strokes polylines with round
   // caps, so unstitched chains grow half-stroke stubs at every shared vertex.
-  level.terrain = stitchTerrain(level.terrain);
+  level.terrain = applyCuts([...stitchTerrain(level.terrain), ...shapes], cuts);
   if (bands) warnings.push(`${bands} \`band\` layer${bands > 1 ? "s" : ""} ignored — a level has no solution field.`);
   return { level, warnings };
 }
@@ -189,13 +205,13 @@ function report(level, warnings, carrier) {
   // Mechanical facts, not judgements. Each one is a distance the game already
   // computes; none of them says whether a level is any good.
   const notes = [];
-  const speeds = [...new Set(level.pops.map((p) => p.spd))].sort((a, b) => a - b);
-  if (speeds.length > 1) {
-    const near = speeds.some((s, i) => i && s - speeds[i - 1] <= 2);
-    notes.push(`popper speeds: ${speeds.join(", ")}` +
-      (near ? `  <- some differ by 1-2. Figma increments a trailing number on ` +
-              `duplicate, and the contract reads it as spd.` : ""));
-  }
+  // Speed used to ride in the layer name as trailing digits, and Figma
+  // increments a trailing number on duplicate — so a sketch full of copies
+  // arrived carrying speeds nobody chose. One constant now, for every popper
+  // any frame can produce; the note is what that constant IS.
+  if (level.pops.length)
+    notes.push(`popper speed: ${FIGMA_POP_SPD} for every one of them ` +
+      `(FIGMA_POP_SPD) -> ${ROUND(FIGMA_POP_SPD * 0.82)} u/s off the muzzle`);
   // A popper OVERWRITES velocity in the same step, after the bumper block. So
   // wherever their discs overlap the popper simply wins, and that part of the
   // ball cannot be bounced off.

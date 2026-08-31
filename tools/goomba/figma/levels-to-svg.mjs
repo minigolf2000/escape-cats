@@ -1,8 +1,20 @@
 #!/usr/bin/env node
 // Builds figma-levels.svg — a PACK, laid out side by side as one artboard each,
-// in the same vocabulary as the design pack. Paste it into Figma and you can
-// edit an event's real levels instead of starting from a blank page; it also
-// doubles as the worked example of the naming convention.
+// in the same vocabulary as the design pack. It is a TRACING TEMPLATE, and the
+// word is chosen: paste it into Figma and every shape arrives as a VECTOR.
+//
+// Measured, not assumed (`figma.createNodeFromSvg`, which is what a paste runs):
+// a `<line>` becomes a VECTOR, and so do `<rect>` and `<ellipse>`. Figma's SVG
+// import keeps the NAME off the `id` and throws the node type away. The reader
+// refuses a vector `t` on purpose — `(0,0)-(width,0)` on one is the top edge of
+// a bounding box that can be nowhere near the shape drawn — so a level pasted
+// from here does not read back until its terrain is redrawn with the Line,
+// Rectangle or Ellipse tool and its toys swapped for kit instances.
+//
+// Which is still worth a great deal: the names and the positions are already
+// right, so redrawing is tracing rather than transcribing. Just do not expect a
+// round trip out of it. For that, build the nodes through the plugin API (the
+// Figma MCP does this) where the types are yours to choose.
 //
 // There are no levels in this repo, so point it at a pack: --pack <file>,
 // GOOMBA_PACK=<file>, or a pack.json in tools/goomba/ (gitignored). The output
@@ -11,8 +23,8 @@
 //   node levels-to-svg.mjs            # all levels
 //   node levels-to-svg.mjs 1 2 9      # just these
 //
-// Round trip: this is the *out* direction. The *in* direction reads the same
-// names back off a Figma selection — see README.md.
+// This is the *out* direction, and it is one-way. The *in* direction reads the
+// same names back off a Figma selection — see README.md.
 
 import { writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";

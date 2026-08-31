@@ -134,7 +134,10 @@ export function newDoc() {
     circle(x, y, 1.2 * S, { fill: RUST });
   });
 
-  const popper = (x, y, spd, deg = 0) => group("pop" + Math.round(spd), () => {
+  // Just `pop`. The trailing number used to set the popper's speed; speed is one
+  // constant for every Figma-drawn level now (FIGMA_POP_SPD), and a name that
+  // carried meaning was exactly what Figma's duplicate numbering broke.
+  const popper = (x, y, spd, deg = 0) => group("pop", () => {
     circle(x, y, R_POP * S, { stroke: AMBER, sw: 1.5, dash: "5 5" });
     circle(x, y, 2 * S, { stroke: AMBER, sw: 3 });
     const a = (deg * Math.PI) / 180, tip = 6.4 * S;

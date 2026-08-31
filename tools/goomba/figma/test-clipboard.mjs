@@ -16,7 +16,7 @@
 // written to fail loudly rather than silently mis-read if they ever differ.
 import { deflateRawSync } from "node:zlib";
 import { parseSchema, encodeBinarySchema, compileSchema } from "kiwi-schema";
-import { levelFromFigmaClipboard } from "../../../apps/goomba-glider/src/figma/clipboard.js";
+import { levelFromFigmaClipboard, FIGMA_POP_SPD } from "../../../apps/goomba-glider/src/figma/clipboard.js";
 
 // Figma's schema is far larger than this; these are exactly the fields the game
 // needs, in the shapes Figma uses for them.
@@ -45,7 +45,7 @@ const FRAME = { sessionID: 1, localID: 1 };
 let next = 2;
 const nodes = [];
 /** A node parented to the copied frame, at 10 px per world unit. */
-function node(name, type, x, y, w, h, degrees = 0, pos = "!") {
+function node(name, type, x, y, w, h, degrees = 0, pos = "!", extra = {}) {
   const a = (degrees * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
   nodes.push({
     guid: { sessionID: 1, localID: next++ },
@@ -57,8 +57,11 @@ function node(name, type, x, y, w, h, degrees = 0, pos = "!") {
       m10: si, m11: co, m12: y - (si * w / 2 + co * h / 2),
     },
     size: { x: w, y: h },
+    ...extra,
   });
 }
+const POPPER_SYM = { sessionID: 9, localID: 1 };
+
 /** A Line: zero height, local (0,0)-(width,0) is the segment itself. */
 function line(name, x1, y1, x2, y2, pos) {
   const len = Math.hypot(x2 - x1, y2 - y1);
@@ -88,7 +91,19 @@ node("start", "INSTANCE", 120, 80, 110, 110, 0, "d");
 node("goal", "INSTANCE", 650, 500, 200, 210, 0, "e");
 node("watering-can", "INSTANCE", 300, 250, 180, 140, 0, "f");
 node("bumper", "INSTANCE", 500, 400, 180, 180, 0, "g");
-node("party-popper 137", "INSTANCE", 200, 450, 140, 140, -37, "h");
+// The popper proves the naming contract: its LAYER is called nonsense (Figma
+// numbers duplicates, so a sketch full of copies really does look like this)
+// and it still reads as a popper, because identity comes from the component it
+// is an instance of.
+nodes.push({
+  guid: POPPER_SYM,
+  parentIndex: { guid: { sessionID: 0, localID: 0 }, position: "@" },
+  name: "party-popper", type: "SYMBOL",
+  transform: { m00: 1, m01: 0, m02: 9000, m10: 0, m11: 1, m12: 9000 },
+  size: { x: 140, y: 140 },
+});
+node("party-popper 137", "INSTANCE", 200, 450, 140, 140, -37, "h",
+     { symbolData: { symbolID: POPPER_SYM } });
 node("cushion", "INSTANCE", 350 + 100, 520, 200, 56, 0, "i"); // x is its CENTRE
 node("_gauge", "INSTANCE", 10, 10, 20, 20, 0, "j"); // must be ignored
 
@@ -142,7 +157,7 @@ const TRUTH = {
   goal: [65, 50],
   cans: [[30, 25]],
   bumpers: [{ x: 50, y: 40 }],
-  pops: [{ x: 20, y: 45, deg: -37, spd: 137 }],
+  pops: [{ x: 20, y: 45, deg: -37, spd: FIGMA_POP_SPD }],
   cushions: [{ x: 35, y: 52, w: 20 }],
   // The frame's SIZE (800×600 px = 80×60 units), and none of its POSITION: the
   // frame node sits at canvas x 20000, which must leave no trace. This is the

@@ -88,9 +88,10 @@ Two deliberate departures from a pixel-exact copy:
   dashed ring is the real 6 u trigger. That mismatch is information, and it is
   the reason the rings are drawn at all.
 
-## Why everything is a Line
+## Lines, rectangles, ellipses — and never the pen
 
-**Draw terrain with the Line tool (L). Never the pen.**
+**Draw terrain with the Line tool (L), the Rectangle tool (R) or the Ellipse
+tool (O). Never the pen.**
 
 A Figma line is a zero-height node: its geometry is entirely position + width +
 rotation, all sitting in the plain node record where any reader can get at it.
@@ -121,19 +122,37 @@ computed by the same call that drew it.
 
 Layer **names** carry all the meaning. Position comes from the node.
 
-| Layer name | Node type | Becomes |
+**A toy is identified by the COMPONENT it is an instance of, not by what its
+layer is called.** Rename an instance to anything you like — Figma's own
+duplicate numbering included — and it still reads as what it is. That numbering
+is exactly why the rule changed: twelve poppers copy-pasted round a sketch
+arrive named `party-popper 138` through `party-popper 149`, and the reader used
+to take those digits as twelve different SPEEDS nobody chose.
+
+Only the two things that are not components answer to their names, because
+there is nothing for them to be instances OF: `t` and `cut`. Both ignore
+trailing digits and a `-42` suffix, so Figma duplicates land on the same word.
+
+| Layer / component | Node type | Becomes |
 | --- | --- | --- |
 | `L: <title>` or `L--<title>` | Frame | one level; the frame's origin is world (0,0) **and its size is the world** (see "The frame is the world"). The title IS the level name — nothing else is folded into it, and **no number**: the game numbers a level by its place in the pack (`levelLabel`), so a typed-in "3 · " shows up twice |
-| `t` | Line | one `terrain` segment |
-| `start` | anything | `start` — bbox centre |
-| `goal` | anything | `goal` — bbox centre |
-| `watering-can` / `can` | anything | a `cans[]` entry — bbox centre |
-| `bumper` | anything | a `bumpers[]` entry — bbox centre |
-| `cushion` | **Rect** | `{x: left, y: centre, w: width}` — horizontal only, rotation ignored |
-| `party-popper` / `pop` | anything | a popper at bbox centre; `deg` from rotation |
+| `t` *(name)* | **Line** | one `terrain` segment |
+| `t` *(name)* | **Rectangle** | its outline as a closed polyline, corner radius honoured |
+| `t` *(name)* | **Ellipse** | its outline as a closed polyline |
+| `cut` *(name)* | Rectangle / Ellipse | **subtracts**: every terrain polyline is clipped against it, splitting where it enters and rejoining where it leaves |
+| `start` | instance | `start` — bbox centre |
+| `goal` | instance | `goal` — bbox centre |
+| `watering-can` | instance | a `cans[]` entry — bbox centre |
+| `bumper` | instance | a `bumpers[]` entry — bbox centre |
+| `cushion` | instance of the **Rect** component | `{x: left, y: centre, w: width}` — horizontal only, rotation ignored |
+| `party-popper` | instance | a popper at bbox centre; `deg` from rotation, `spd` from `FIGMA_POP_SPD` |
 | `band` | Line | **ignored** — one warning per paste. A level has no field for a solution; delete these |
 | `_…` or `//…` | anything | **ignored** (gauges, guides, notes) |
 | any Text | text | **ignored**, always |
+
+An instance whose component is not in the payload — a detached copy, or a
+synthetic test fixture — falls back to its own layer name. A real Ctrl+C always
+ships the component definitions, so that path is the rare one.
 
 Rules that keep it forgiving:
 
@@ -141,8 +160,11 @@ Rules that keep it forgiving:
   stamp. Verified exact on the generated frames: a can at world (80, 57) lands
   at frame-local (923, 490) with the level's padded bounds offset.
 - **y is DOWN** in this game, same as Figma. No flipping, no surprises.
-- **Popper speed** rides in the name as trailing digits: `party-popper 150`,
-  `pop150`. A bare `party-popper` means 76.
+- **Popper speed is one constant**, `FIGMA_POP_SPD` in `clipboard.js`. It used
+  to ride in the layer name as trailing digits, which made a name carry meaning
+  and handed Figma's duplicate numbering a way to retune a level by accident.
+  A frame is GEOMETRY; per-popper tuning belongs beside the level, where the
+  bench can sweep it.
 - **Rotation:** `deg = -rotation`. Figma's `rotation` is counter-clockwise
   positive; the game's `deg` feeds `cos`/`sin` in a y-down world, so it is
   clockwise positive. Measured, not assumed — poppers placed at game deg
@@ -373,15 +395,38 @@ is just three times wider, and what was invisible at design time is not
 invisible at play time. So a loose end within `WELD` of another polyline's body
 is pulled onto it. This does NOT chain the two — a T is not a chain.
 
-Terrain must still be a **Line**. A `t` that is a pen path or a rect is skipped
-with a warning, because `(0,0)-(width,0)` on one of those is the top edge of its
-bounding box — which can be nowhere near the shape drawn, and
-would arrive as a plausible straight segment that silently changes whether the
-level is winnable. A named layer that goes missing is a bug someone can see; a
-wrong one is not.
+A `t` that is a **pen path** is still skipped with a warning, and the reason is
+the original one: `(0,0)-(width,0)` on a pen path is the top edge of its
+bounding box, which can be nowhere near the shape drawn, and would arrive as a
+plausible straight segment that silently changes whether the level is winnable.
+A named layer that goes missing is a bug someone can see; a wrong one is not.
+
+That argument never applied to a **Rectangle** or an **Ellipse**, whose outlines
+ARE their box, so those two are read exactly (`shapes.js`) and arrive as closed
+polylines that skip stitching. A rounded rectangle keeps its radius, because a
+rounded corner is a physically different object from a square one — nothing
+closer than 4.4 u may meet, or she wedges in it and the run stalls.
+
+## `cut`: the shape that takes terrain away
+
+A doorway in a wall is not two shapes. It is one shape with a hole punched
+through it, and that is what a layer named **`cut`** is: a Rectangle or an
+Ellipse that SUBTRACTS from every terrain polyline, splitting a surface where it
+enters and rejoining it where it leaves. Rotation and flips come free, because
+the test runs in the cut's own local box through its inverse transform.
+
+It is what makes a *ring* level drawable at all. Two concentric Ellipses named
+`t`, two crossed Rectangles named `cut`, and what arrives is eight arcs with
+four doorways in each ring — geometry with no expression as Lines whatsoever.
+`node test-shapes.mjs` asserts exactly that, on the sketch's own radii.
+
+Cuts are applied AFTER stitching, because a cut through the middle of a chain
+has to split the chain. Only the two crossing points are added; every authored
+vertex survives untouched, so a cut never re-facets an arc.
 
 `node test-stitch.mjs` covers the chain, the gap that must survive, the
-backwards-drawn segment and the closed loop. The real-copy fixture now decodes
+backwards-drawn segment and the closed loop. `node test-shapes.mjs` covers the
+rect/ellipse outlines and every way a `cut` can meet a surface. The real-copy fixture now decodes
 its seven Lines into five polylines.
 
 ## Testing this bridge (read this before debugging it)
@@ -463,6 +508,35 @@ Everything in the contract fails that way. A named layer that goes missing is a
 bug someone can SEE; a wrong one that decodes cleanly is not, which is why a `t`
 that is not a Line is skipped loudly and a frame with no `start` is refused
 outright.
+
+## Going the other way: SVG paste is one-way
+
+`levels-to-svg.mjs` renders a pack as artboards and you can paste it into Figma.
+What comes back is a **tracing template, not a level**, and the reason is worth
+knowing before anyone builds a "Copy as Figma" button on it.
+
+Measured with `figma.createNodeFromSvg`, which is the same path a paste runs:
+
+| drawn as | arrives as |
+| --- | --- |
+| `<line id="t-1">` | **VECTOR** |
+| `<rect id="t-3">` | **VECTOR** |
+| `<ellipse id="cut-1">` | **VECTOR** |
+| `<g id="party-popper-7">` | GROUP (name kept) |
+
+Figma's SVG import keeps the NAME, off the `id`, and throws the node type away.
+Every terrain shape lands as a vector, and the reader refuses a vector `t` on
+purpose — its bounding-box top edge is a plausible straight segment that can be
+nowhere near what was drawn, and a wrong level is worse than a missing one. A
+pasted pack therefore has to have its terrain redrawn with the Line, Rectangle
+or Ellipse tool, and its toys swapped for kit instances, before it reads back.
+
+The names and positions being right already is most of the work, so this is
+tracing rather than transcribing. But a true round trip needs node types, and
+the only two carriers that can set them are the **plugin API** (what the Figma
+MCP drives, and how this kit was built) and a hand-encoded **fig-kiwi**
+clipboard payload — undocumented, and it would ship a snapshot of one Figma
+version's schema.
 
 ## Three ways to read a Figma design back out
 

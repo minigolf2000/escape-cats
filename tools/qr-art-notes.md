@@ -159,6 +159,44 @@ feasibility depends only on the current pixels (never the path taken),
 lazier policies lose nothing permanently — the policy only tunes meter
 rhythm versus noise-field stability.
 
+## Shift: the straight runs the art is made of
+
+Everything above is one long argument that what survives 41 modules is flat,
+bold, iconic shapes — so the painter borrows the constraint every pixel editor
+has. **Hold Shift and a drag locks to horizontal, vertical or 45°**, measured
+from wherever Shift went down. **Shift+click** is the other half of the same
+idiom: a straight run from the last cell painted to the one clicked. That one
+is free-angle on purpose — a gesture that names BOTH of its endpoints has
+nothing to guess, while a drag names only one and has to infer the other from
+the wrist.
+
+It buys more here than tidiness. Paint order is pin priority, so a module
+wobbled off an edge doesn't merely read wrong: it spends a pin on a cell that
+reads as nothing, and the budget meter is what pays for it.
+
+Two decisions inside it are worth keeping:
+
+- **It aims before it commits.** Nothing is painted, and no direction is
+  chosen, until the pen is `LOCK_MIN` (5) modules from the anchor. Two modules
+  out, (2,1) and (2,2) are a few degrees of wrist apart yet land in different
+  sectors, so a direction picked there is a coin flip. Re-deciding it every
+  move is *worse* than committing early, which is the part that had to be
+  caught by testing rather than reasoning: the run between two successive
+  guesses gets STROKED, so a flipping direction manufactures exactly the spurs
+  the lock exists to prevent. At 5 modules a two-module wobble is 21.8°, inside
+  the 22.5° sector boundary.
+- **Then it latches.** Once chosen, the direction holds for the rest of the
+  drag and no wobble can flip it. Re-aim by bringing the pen back inside
+  `LOCK_MIN` — nothing was laid down out there, so changing your mind is free.
+  A run shorter than `LOCK_MIN` is quicker to click than to shift-drag anyway.
+
+Shift is read live off each event instead of being latched at pointerdown, so
+it can be taken up and dropped WITHIN one drag: pressing it re-anchors the
+constraint at the pen's current cell, which is how you lay a staircase of
+locked segments without ever lifting. The brush preview follows the PAINT
+rather than the pointer, because under a lock the two part company and the
+cell about to change colour is the honest one to outline.
+
 ## The URL is the save file
 
 The studio has no server, so a shareable drawing was always going to be the

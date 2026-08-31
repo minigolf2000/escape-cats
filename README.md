@@ -799,9 +799,15 @@ pid's room, and opening it registers the phone in the lobby roster.
 
 The path is one letter because this is the surface people TYPE — the games are
 tapped through from the lobby, chat gets read off a card. `/chat/` redirects to
-it (one `/chat/:path*` rule in `vercel.json`, which catches the bare `/chat`
-too, since trailing-slash normalisation runs before redirects), so anything
-printed with the old path still lands.
+it, so anything printed with the old path still lands.
+
+That redirect takes TWO rules in `vercel.json`, for the same reason the vanity
+domains do: a literal `/chat/` and a `/chat/:path*`. `trailingSlash: true`
+rewrites a bare `/chat` to `/chat/` before redirects run, and `:path*` will not
+match an empty tail — so the `:path*` rule alone catches every deep path and
+misses the only URL anyone actually types. It shipped that way once, 404ing in
+production while `check:routing` was green, because the checker's matcher made
+the same wrong assumption.
 
 What the chat server enforces (`server/src/chat.ts`, tunables in
 `packages/shared/src/chat.ts`):

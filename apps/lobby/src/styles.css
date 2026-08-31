@@ -283,7 +283,8 @@ input:focus {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 8px 14px;
+  height: 40px;
+  padding: 0 14px;
   cursor: pointer;
 }
 
@@ -300,18 +301,23 @@ input:focus {
 }
 
 /* The chip, opened. It replaces the chip in place — renaming is not starting
-   over, so it never takes the screen away from you. */
+   over, so it never takes the screen away from you. Both states share the
+   namechip's 40px height so opening/closing it never resizes `.chiprow`,
+   which would shift every element above it (`#app` is centred with
+   `margin: auto`, so any height change here moves the whole page). */
 .rename {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
+  height: 40px;
 }
 
 .rename input {
   /* The shared `input` rule is sized for a card's one big field. */
+  height: 100%;
   margin-bottom: 0;
-  padding: 10px 13px;
+  padding: 0 13px;
   font-size: 16px; /* >=16px so iOS doesn't zoom the viewport on focus */
 }
 
@@ -324,6 +330,7 @@ input:focus {
   background: var(--neon);
   border: 0;
   border-radius: 11px;
-  padding: 11px 15px;
+  height: 100%;
+  padding: 0 15px;
   cursor: pointer;
 }

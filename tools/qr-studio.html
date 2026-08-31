@@ -2938,8 +2938,40 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   // ---------- save / restore in the URL hash ----------
   // The whole drawing is (version, url, case, seeds, solved config, tone
   // grid). The grid is run-length encoded — art is mostly long noise runs —
-  // then base64url'd into location.hash, so the page's own address is the
-  // save file.
+  // then DEFLATED and base64url'd into location.hash, so the page's own
+  // address is the save file.
+  //
+  // **Why deflate on top of the runs (fmt 3).** RLE only ever sees 63 cells of
+  // context, and the drawings that produce long links are exactly the ones it
+  // reads worst: a textured field alternates the same handful of run bytes for
+  // hundreds of runs, which RLE spends a byte on every time and LZ77 quotes
+  // once. Measured on the committed cat art: 646 bytes of runs → 303, and a
+  // noise field 475 → 175. Nothing hand-designed came close — a shape list
+  // (maximal rectangles, the obvious "store the drawing, not the pixels" move)
+  // was 2-8x WORSE than the runs at every density, because a rectangle costs
+  // 26 bits and a run costs 8.
+  //
+  // fmt 2 is still written when `CompressionStream` is missing, and whenever
+  // deflate comes back BIGGER (a nearly-blank canvas, where the zlib header
+  // outweighs a dozen runs) — so this is never a longer link than before, and
+  // an old link keeps opening. It stays a two-tone choice made at save time
+  // rather than a capability flag, because the format byte already says which
+  // one you are holding.
+  const deflateRaw = async (u8) =>
+    new Uint8Array(await new Response(
+      new Blob([u8]).stream().pipeThrough(new CompressionStream("deflate-raw")),
+    ).arrayBuffer());
+  const inflateRaw = async (u8) =>
+    new Uint8Array(await new Response(
+      new Blob([u8]).stream().pipeThrough(new DecompressionStream("deflate-raw")),
+    ).arrayBuffer());
+  /** Body bytes behind their format byte. */
+  const withFmt = (fmt, body) => {
+    const u8 = new Uint8Array(body.length + 1);
+    u8[0] = fmt;
+    u8.set(body, 1);
+    return u8;
+  };
   const b64urlEnc = (u8) => {
     let s = "";
     for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
@@ -2953,10 +2985,13 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   };
   const pushU32 = (a, x) => a.push(x & 255, (x >> 8) & 255, (x >> 16) & 255, (x >> 24) & 255);
   const readU32 = (b, o) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
-  function encodeState() {
+  // Everything after the format byte. fmt 2 and fmt 3 carry it IDENTICALLY —
+  // 3 is 2 deflated — so one writer and one parser serve both, and the only
+  // thing a version means here is whether the bytes are packed.
+  function encodeBody() {
     const S = size();
     const urlBytes = new TextEncoder().encode(state.url);
-    const out = [2, state.version, state.urlCase === "none" ? 0 : 1];
+    const out = [state.version, state.urlCase === "none" ? 0 : 1];
     pushU32(out, state.noiseSeed);
     // fmt 2: also carry the solved config + flip seed so a restored page
     // paints the saver's exact pixels on its very first frame — without
@@ -2974,10 +3009,28 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
       out.push((v << 6) | run);
       i += run;
     }
-    return b64urlEnc(Uint8Array.from(out));
+    return Uint8Array.from(out);
   }
-  function decodeState(str) {
-    const b = b64urlDec(str);
+  async function encodeState() {
+    const body = encodeBody();
+    if (typeof CompressionStream === "function") {
+      try {
+        const z = await deflateRaw(body);
+        if (z.length < body.length) return b64urlEnc(withFmt(3, z));
+      } catch (e) { /* no deflate here — fall through and write fmt 2 */ }
+    }
+    return b64urlEnc(withFmt(2, body));
+  }
+  async function decodeState(str) {
+    let b = b64urlDec(str);
+    // fmt 3 unwraps INTO fmt 2 and falls through to the same parser below. A
+    // browser without DecompressionStream is one that never wrote a fmt 3
+    // link, but it can still be handed one — `false` boots an empty canvas,
+    // which is the same answer this gives any link it cannot read.
+    if (b[0] === 3) {
+      if (typeof DecompressionStream !== "function") return false;
+      try { b = withFmt(2, await inflateRaw(b.slice(1))); } catch (e) { return false; }
+    }
     const fmt = b[0];
     if (fmt !== 1 && fmt !== 2) return false;
     let o = 1;
@@ -3041,6 +3094,11 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   const SAVE_KEY = "qr-studio-drawing";
   const HASH_MIN_MS = 1000;
   let saveTimer = null, hashTimer = null, hashPending = null, hashAt = 0;
+  // The last string written, and whether an edit has landed since. Encoding is
+  // asynchronous now (deflate is), and the copy button must not await inside
+  // the click if it can help it: Safari drops the clipboard grant across an
+  // await, and this string is already what the address bar holds.
+  let lastEnc = null, encDirty = true;
   function writeHash(enc) {
     // an untouched canvas at a bare address stays bare — but once the URL
     // carries the drawing it keeps tracking it, so clearing the canvas can
@@ -3056,10 +3114,13 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     }, Math.max(0, HASH_MIN_MS - (Date.now() - hashAt)));
   }
   function scheduleSave() {
+    encDirty = true;
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
+    saveTimer = setTimeout(async () => {
       let enc;
-      try { enc = encodeState(); } catch (e) { return; }
+      try { enc = await encodeState(); } catch (e) { return; }
+      lastEnc = enc;
+      encDirty = false;
       try { localStorage.setItem(SAVE_KEY, enc); } catch (e) { /* best-effort */ }
       writeHash(enc);
     }, 250);
@@ -3070,7 +3131,15 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   // hash teaches nobody what it is for.
   $("copyLink").addEventListener("click", async () => {
     let url;
-    try { url = location.origin + location.pathname + "#" + encodeState(); } catch (e) { return; }
+    // The 250ms save timer has almost always fired by the time a hand has
+    // crossed the page to this button, so the common click copies the cached
+    // string with no await in front of it. A click inside that window encodes
+    // on the spot and accepts the cost: worst case the clipboard grant lapses
+    // and the "in URL bar" fallback below catches it.
+    try {
+      const enc = encDirty || !lastEnc ? await encodeState() : lastEnc;
+      url = location.origin + location.pathname + "#" + enc;
+    } catch (e) { return; }
     const btn = $("copyLink"), label = btn.textContent;
     try {
       await navigator.clipboard.writeText(url);
@@ -3088,13 +3157,19 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   // hash first: it is both the shared link and this tab's own live save, so a
   // second studio tab restores ITS drawing rather than whichever tab wrote
   // localStorage last
-  let restored = false;
-  try {
-    if (location.hash.length > 1) restored = decodeState(location.hash.slice(1));
-    else { const saved = localStorage.getItem(SAVE_KEY); if (saved) restored = decodeState(saved); }
-  } catch (e) { restored = false; }
-  if (!restored) initCanvasState();
-  requestSolve();
-  primePreps();
+  // One microtask later than it used to be, because inflating a fmt 3 link is
+  // asynchronous. Nothing can run in between — this is the last statement in
+  // the file and no input has been possible yet — so the canvas is still
+  // initialised exactly once, before the first solve.
+  (async () => {
+    let restored = false;
+    try {
+      if (location.hash.length > 1) restored = await decodeState(location.hash.slice(1));
+      else { const saved = localStorage.getItem(SAVE_KEY); if (saved) restored = await decodeState(saved); }
+    } catch (e) { restored = false; }
+    if (!restored) initCanvasState();
+    requestSolve();
+    primePreps();
+  })();
 })();
 </script>

@@ -36,6 +36,10 @@ around a table found what mattered faster, and said *why*. Git history has it.
   (fmt 2) because `nSolution` sat unconditionally in the MIDDLE of the layout —
   see the header of `codec.ts`. Old links still decode; a new link is ~10%
   shorter and an older bundle refuses it outright rather than misreading it.
+- **fmt 3 made links shorter** by spelling every coordinate as the STEP from the
+  last point instead of an absolute position (zigzag varints). Same fields, same
+  order, same tenths — 20-30% off a vertex-heavy level, and every fmt 1 and fmt 2
+  link still decodes. `test-codec.mjs` holds a frozen real link from each.
 - **`bands.mjs` is not part of that.** It tests SHIPPED code: that the room hands
   out exactly `MAX_BANDS` and puts no conditions on who lays or lifts them, which
   is a product decision ("A may lay all four while B, C and D watch") that should

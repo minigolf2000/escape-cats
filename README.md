@@ -406,24 +406,40 @@ and a drawing tool.
 
 So a level IS a link. `encodeLevel` (`packages/shared/src/goomba/codec.ts`) packs
 a whole level — name, terrain, cans, poppers, cushions, bumpers, start, goal, the
-frame it was drawn in — into 100–450 base64url characters, which fits in a URL, a
+frame it was drawn in — into 100–350 base64url characters, which fits in a URL, a
 chat message, a sticky note or a QR code. It round-trips byte-identical
-(coordinates are stored in tenths of a world unit, exactly the precision the
-design tools emit). `tools/goomba/test-codec.mjs` is the proof, against a real
-link frozen from before the format last moved.
+(coordinates are quantised to tenths of a world unit, exactly the precision the
+design tools emit, and then written as the STEP from the last point — a level is
+a walk, and a step of a few units fits in a byte where a position never does).
+`tools/goomba/test-codec.mjs` is the proof, against real links frozen from before
+each time the format moved.
 
 The codec lives in `shared/` because the browser, the Worker and the node tools
 must agree on it byte for byte. Never fork it.
 
-**The format has moved twice, in opposite directions, and the two cases are the
-rule for changing it again.** Adding `frame` was free: it rides at the TAIL
-behind a flag bit, so every offset before it is untouched and an older bundle
-reads a new link right up to the frame and stops. Removing `solution` was not:
-`nSolution` sat unconditionally in the MIDDLE, so dropping it moved every byte
-after it and no flag could have said otherwise. That cost a version (fmt 2). Old
-links still decode; new links are ~10% shorter; and an older bundle now REFUSES a
-new link rather than misreading it, which is deliberate — a level that goes
-missing is a bug someone can see. **A new field rides at the tail behind a flag.**
+**The format has moved three times, and the cases are the rule for changing it
+again.** Adding `frame` was free: it rides at the TAIL behind a flag bit, so
+every offset before it is untouched and an older bundle reads a new link right up
+to the frame and stops. Removing `solution` was not: `nSolution` sat
+unconditionally in the MIDDLE, so dropping it moved every byte after it and no
+flag could have said otherwise. That cost a version (fmt 2). Making links shorter
+(fmt 3) moved every coordinate in the file, so it cost one too. Old links still
+decode; an older bundle REFUSES a new one rather than misreading it, which is
+deliberate — a level that goes missing is a bug someone can see. **A new field
+rides at the tail behind a flag; anything that moves an existing byte costs a
+version, and the Worker goes out first.**
+
+What fmt 3 buys is 20–30% off the levels that were actually long. Coordinates
+stop being positions and become STEPS from the last point, spelled as zigzag
+varints, so a vertex two units along a polyline costs one byte instead of four.
+The saving tracks chain length — `The Long Way Up` (46 vertices in 3 polylines)
+went 355 characters to 263, the 12-vertex teaching level 143 to 139 — which is
+the right way round, since the long links are the vertex-heavy ones. Three
+tempting alternatives were measured and lost: general compression (deflate,
+brotli) bought 1–10% on bytes this dense, a wider fragment alphabet bought 5% and
+would have made links fragile in chat clients, and re-fitting terrain
+semantically — arcs, repeats — is a lossy geometry rewrite for no gain, since not
+one interior vertex of a real level is redundant even at 0.3u of tolerance.
 
 ### Levels live in the lobby
 

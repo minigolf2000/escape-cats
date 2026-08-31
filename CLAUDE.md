@@ -103,7 +103,12 @@ Figma, paste it in, and PLAY it — alone with `?solo`, then with four people.
   the node tools agree on it byte for byte. A new field rides at the TAIL behind a
   flag; `test-codec.mjs` is the proof. Removing `solution` cost a version bump
   (fmt 2) because it sat in the middle, and a fmt-2 link is unreadable by an older
-  bundle — so that kind of change needs the Worker out first.
+  bundle — so that kind of change needs the Worker out first. **fmt 3 is the same
+  kind of change and carries the same rule**: coordinates are STEPS from the last
+  point now (zigzag varints), which moved every byte after the name to buy 20-30%
+  off a long link. If links ever need to get shorter again, read that header
+  first — compression, a denser alphabet and re-fitting terrain into arcs were
+  all measured, all lost, and the reasons are written down.
 - **Four bands for the ROOM, and no rule about whose.** The per-player quota is
   reverted on purpose (README, "The four bands"). `bands.mjs` tests that, and it
   is a test of SHIPPED code, not of a level.

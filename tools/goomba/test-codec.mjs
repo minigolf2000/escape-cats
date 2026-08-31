@@ -34,7 +34,31 @@ const FIXTURE = {
   pops: [{ x: 50, y: 50, deg: -45, spd: 110 }],
   bumpers: [{ x: 60, y: 20 }],
 };
-const LEVELS = [FIXTURE];
+/**
+ * The same fixture, pushed to the edges the varint spelling cares about:
+ * coordinates at both ends of the clamped range, steps that need two and three
+ * bytes, steps that go BACKWARDS, and a repeated aim (fmt 3 prices a popper
+ * lane by its differences, so identical poppers are the cheap case and have to
+ * be exercised alongside the wildly-different ones).
+ */
+const STRESS = {
+  name: "Every Step Size",
+  start: [-3276.8, 3276.7],
+  goal: [0.1, -0.1],
+  terrain: [
+    [[-3276.8, -3276.8], [3276.7, 3276.7], [-3276.8, 3276.7], [0, 0]],
+    [[100, 100], [100.1, 100.1], [112.7, 100.2], [112.8, 100.3], [-500.4, 99]],
+  ],
+  cans: [[3276.7, -3276.8], [0, 0]],
+  cushions: [{ x: 1, y: 2, w: 3 }, { x: 1, y: 2, w: 3 }],
+  pops: [
+    { x: 0, y: 0, deg: -180, spd: 110 },
+    { x: 1000, y: -1000, deg: -180, spd: 110 },
+    { x: 0.1, y: 0.2, deg: 179.9, spd: 3276.7 },
+  ],
+  bumpers: [{ x: -0.1, y: -0.2 }],
+};
+const LEVELS = [FIXTURE, STRESS];
 
 let bad = 0;
 const check = (what, got, want) => {
@@ -66,6 +90,11 @@ console.log("\nfmt 1: a link written before the solution field was removed");
 // after it — there is no flag an old link could have failed to set. fmt 1 reads
 // it and throws it away; fmt 2 does not write it at all.
 const FMT1 = "AQAPVGhlIExvbmcgV2F5IFVwKADgBpYANgYDKAAACAdkAPkGkQBOB8gAOge-ACEHDgESBwQB_gZUAeoGRQHWBpABuAaBAaQGwgGGBpABOwbgAeEFMAIJBlMC4QU_AtIFewKlBWcClgWjAmkFjwJaBcsCKAW3Ah4F7gLsBNoC3QQCA84EvAKSBPgCHwRXAz0EZgMVBE0DCwSEA94DZgPUA50DpwN_A50DtgNwA5gDZgPAA1wDcAMlA5gDxgIDfgQYAZIE9AGIBNACAzIA3AWWAEAG8ADcBQMgAzoC9AHQAvAA1AMEOQDuBsT_3AWoAQAGNP7cBccCTwSy_dwFmAPGApr8FAUAARoEWAIEZAD5BpABOwbgAeEFvAKSBPgCHwRwAyUDKAAQBCgAUAU";
+// The same level again, frozen as fmt 2 wrote it — this is the shape sitting in
+// every lobby pack today, so "still decodes" has to be tested against the real
+// string rather than one this bundle could have produced.
+const FMT2 = "AgAPVGhlIExvbmcgV2F5IFVwKADgBpYANgYDKAAACAdkAPkGkQBOB8gAOge-ACEHDgESBwQB_gZUAeoGRQHWBpABuAaBAaQGwgGGBpABOwbgAeEFMAIJBlMC4QU_AtIFewKlBWcClgWjAmkFjwJaBcsCKAW3Ah4F7gLsBNoC3QQCA84EvAKSBPgCHwRXAz0EZgMVBE0DCwSEA94DZgPUA50DpwN_A50DtgNwA5gDZgPAA1wDcAMlA5gDxgIDfgQYAZIE9AGIBNACAzIA3AWWAEAG8ADcBQMgAzoC9AHQAvAA1AMEOQDuBsT_3AWoAQAGNP7cBccCTwSy_dwFmAPGApr8FAUAARoEWAI";
+
 {
   const L = decodeLevel(FMT1);
   check("decodes at all", !!L, true);
@@ -75,10 +104,24 @@ const FMT1 = "AQAPVGhlIExvbmcgV2F5IFVwKADgBpYANgYDKAAACAdkAPkGkQBOB8gAOge-ACEHDg
   // Re-encoding is where the version shows: same level, fmt 2, shorter by the
   // whole solution block plus its count byte.
   const again = encodeLevel(L);
-  check("re-encodes as fmt 2", atob(again.replace(/-/g, "+").replace(/_/g, "/")).charCodeAt(0), 2);
+  check("re-encodes as fmt 3", atob(again.replace(/-/g, "+").replace(/_/g, "/")).charCodeAt(0), 3);
   check("and is shorter by the solution it dropped", again.length < FMT1.length, true);
-  check("fmt 2 round-trips from there", encodeLevel(decodeLevel(again)), again);
-  console.log(`       (${FMT1.length} chars at fmt 1 -> ${again.length} at fmt 2)`);
+  check("fmt 3 round-trips from there", encodeLevel(decodeLevel(again)), again);
+  console.log(`       (${FMT1.length} chars at fmt 1 -> ${FMT2.length} at fmt 2 -> ${again.length} at fmt 3)`);
+}
+
+console.log("\nfmt 2: a link written before coordinates became steps");
+{
+  const one = decodeLevel(FMT1);
+  const two = decodeLevel(FMT2);
+  check("decodes at all", !!two, true);
+  // Not "looks similar": a fmt-1 link and a fmt-2 link of the same level differ
+  // only by the field fmt 1 throws away, so they must come back EQUAL.
+  check("identical to the fmt 1 link of the same level", two, one);
+  const three = encodeLevel(two);
+  check("and re-encodes as a shorter fmt 3", three.length < FMT2.length, true);
+  check("with nothing lost on the way", decodeLevel(three), two);
+  console.log(`       (${FMT2.length} chars at fmt 2 -> ${three.length} at fmt 3, ${(100 * (1 - three.length / FMT2.length)).toFixed(0)}% shorter)`);
 }
 
 console.log("\nthe frame a level was drawn in");
@@ -88,7 +131,12 @@ framed.frame = { x0: -12.5, y0: 0, x1: 140, y1: 210.3 };
 const after = encodeLevel(framed);
 check("survives the round trip", decodeLevel(after).frame, framed.frame);
 check("re-encodes byte-identical", encodeLevel(decodeLevel(after)), after);
-check("costs 4 coordinates and nothing else", after.length - before.length, 11);
+// Four coordinates and no flag byte — the flags field was already there. It
+// still comes to the same 11 characters it did at fmt 2, which is a coincidence
+// worth naming: a frame is drawn AROUND the level, so its corners are the
+// longest steps in the file and cost two bytes each, exactly what an absolute
+// i16 cost. The saving is in the vertices, not here.
+check("costs its four coordinates and nothing else", after.length - before.length, 11);
 check("a link written before it decodes with no frame", "frame" in decodeLevel(before), false);
 
 // Truncate the tail: the flag says a frame follows and it does not.
@@ -119,7 +167,7 @@ check("initLevel twice cannot drift", initLevel(once).bounds, once.bounds);
 // An old reader meeting a fmt-2 link refuses it, which is the property the
 // version bump was bought for: a dropped level is visible, a misparsed one is
 // not. The same test from this side — an unknown version is null, never a guess.
-check("an unknown format version is refused", decodeLevel("Aw" + FMT1.slice(2)), null);
+check("an unknown format version is refused", decodeLevel("BA" + FMT1.slice(2)), null);
 
-console.log(bad ? `\n→ FAIL ✗  ${bad} check(s)` : "\n→ PASS ✓  fmt 2 is clean and every fmt 1 link still decodes");
+console.log(bad ? `\n→ FAIL ✗  ${bad} check(s)` : "\n→ PASS ✓  fmt 3 is clean and every older link still decodes");
 process.exit(bad ? 1 : 0);

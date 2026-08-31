@@ -1,6 +1,6 @@
 // The level PACK: the game's levels as a list of base64url links.
 //
-// A level already knows how to be a URL — `encodeLevel` packs one into ~100-450
+// A level already knows how to be a URL — `encodeLevel` packs one into ~100-350
 // base64url chars, and that is how a design travels between Figma and the
 // game. A pack is just an ordered
 // list of those strings, which makes the whole thing storable as text in a

@@ -2053,22 +2053,21 @@ window.QR_PRESET_IMGS = {
   }
   // ---------- the eight-way constraint ----------
   // Shift snaps a run to the nearest of eight compass directions — H, V and
-  // both 45° diagonals. At 33-45 modules the art IS straight runs (see
-  // qr-art-notes.md: flat, iconic, bold), and a module wobbled off an edge does
-  // not merely read wrong: paint order is pin priority, so it spends a pin on a
-  // cell that reads as nothing. BOTH Shift gestures take the constraint — they
-  // differ in how the far end is NAMED, never in where it may land.
+  // both 45° diagonals. Both gestures take it and differ only in how the far
+  // end is NAMED, never in where it may land. Stricter here than in a photo
+  // painter because paint order is pin priority: a module wobbled off an edge
+  // spends a pin on a cell that reads as nothing (qr-art-notes.md).
 
   // Which of the eight rays (dr, dc) points down, as a unit step in grid cells.
   function axisFrom(dr, dc) {
     const k = Math.round(Math.atan2(dr, dc) / (Math.PI / 4)); // -4..4
     return { ur: Math.round(Math.sin(k * Math.PI / 4)), uc: Math.round(Math.cos(k * Math.PI / 4)) };
   }
-  // Project (dr, dc) onto that ray and clip it to the board. A diagonal's
-  // (±1, ±1) has squared length 2, so dividing the dot product by it converts
-  // back into whole grid steps — one step being one row AND one column. The
-  // clip runs ALONG the ray rather than clamping r and c apart, which would
-  // shove a diagonal off its own axis at the edge of the board.
+  // Project (dr, dc) onto that ray and clip to the board. A diagonal's (±1, ±1)
+  // has squared length 2, so dividing the dot product by it converts back into
+  // whole grid steps — one step being one row AND one column. The clip runs
+  // ALONG the ray; clamping r and c apart would shove a diagonal off its axis
+  // at the board edge.
   function alongAxis(anchor, dr, dc, { ur, uc }) {
     const S = size();
     let len = Math.round((dc * uc + dr * ur) / (ur * ur + uc * uc));
@@ -2077,28 +2076,25 @@ window.QR_PRESET_IMGS = {
     len = Math.max(0, len); // a backwards projection retracts to the anchor
     return { r: anchor.r + ur * len, c: anchor.c + uc * len };
   }
-  // A CLICK has already committed: it names its far end outright, in one event,
-  // so there is no aiming phase to sit through and nothing to latch against a
-  // second guess. Snap once and run.
+  // A click names its far end outright, in one event: snap once and run. No
+  // aiming zone and no latch — both exist only because a drag re-asks.
   function axisRunTo(anchor, cell) {
     const dr = cell.r - anchor.r, dc = cell.c - anchor.c;
     return alongAxis(anchor, dr, dc, axisFrom(dr, dc));
   }
-  // A DRAG names its far end only by where the wrist happens to be, and re-asks
-  // on every move, so it needs the two things a click does not:
+  // A drag names its far end only by where the wrist is, and re-asks every move,
+  // so it adds two things a click has no use for.
   //
-  // It AIMS before it commits — nothing is painted, and no direction is chosen,
-  // until the pen is LOCK_MIN modules out. Two modules out, (2,1) and (2,2) are
-  // a few degrees of wrist apart yet land in different sectors, so a direction
-  // picked there is a coin flip — and re-deciding it every move is WORSE than
-  // committing early, because the run between two successive guesses gets
-  // stroked, manufacturing exactly the spurs this exists to prevent. At
-  // LOCK_MIN a two-module wobble is 21.8°, inside the 22.5° sector boundary.
+  // AIMING: nothing is painted and no direction chosen until the pen is
+  // LOCK_MIN modules out. Two modules out, (2,1) and (2,2) are a few degrees of
+  // wrist apart yet fall in different sectors, so a direction picked there is a
+  // coin flip. At LOCK_MIN a two-module wobble is 21.8°, inside the 22.5°
+  // sector boundary.
   //
-  // Then it LATCHES — the direction holds for the rest of the drag, so no wobble
-  // can flip it and paint already laid never strands. Re-aim by bringing the pen
-  // back inside LOCK_MIN, where nothing was laid down, so changing your mind is
-  // free. A run shorter than LOCK_MIN is quicker to click than to drag.
+  // LATCHING: the direction holds for the rest of the drag. It must NOT be
+  // re-read per move — the run between two successive answers gets stroked, and
+  // that spur is what this mechanism exists to prevent. Re-aim by coming back
+  // inside LOCK_MIN, where nothing has been laid down.
   const LOCK_MIN = 5;
   function snapToAxis(anchor, cell) {
     const dr = cell.r - anchor.r, dc = cell.c - anchor.c;
@@ -2128,18 +2124,16 @@ window.QR_PRESET_IMGS = {
     can.setPointerCapture(ev.pointerId);
     const cell = cellFromEvent(ev);
     if (cell) {
-      // Shift+CLICK runs from where the last stroke ended to here, snapped to
-      // the same eight directions as a drag. It names both endpoints, but what
-      // the gesture is FOR is an aligned run: the click picks the direction and
-      // how far, not an arbitrary landing cell.
+      // Shift+click runs from the last painted cell to here, snapped to the
+      // same eight directions as a drag — so it lands on the nearest ray, not
+      // on the clicked cell.
       const from = ev.shiftKey && onGrid(lastPaint) ? lastPaint : null;
       const end = from ? axisRunTo(from, cell) : cell;
       if (strokeTo(from, end)) requestSolve();
-      // A press that turns into a drag anchors where the POINTER went down, not
-      // where the join happened to land: the join is a finished action, and the
-      // drag's direction should not depend on whether one ran. lastPaint is the
-      // other half — it tracks where paint actually ENDED, since that is what
-      // the next join runs from.
+      // A press that becomes a drag anchors where the POINTER went down, not
+      // where the join landed, so the drag's direction never depends on whether
+      // a join ran. lastPaint tracks where paint ENDED — what the next join
+      // runs from.
       lastCell = cell;
       lastPaint = end;
       lockAnchor = ev.shiftKey ? cell : null;

@@ -171,14 +171,13 @@ It buys more here than tidiness. Paint order is pin priority, so a module
 wobbled off an edge doesn't merely read wrong: it spends a pin on a cell that
 reads as nothing, and the budget meter is what pays for it.
 
-**The click snaps too, and that is the whole point of it.** The first version
-left it free-angle, reasoning that a gesture naming BOTH of its endpoints has
-nothing to infer. That confuses inference with intent: what an artist wants
-from the gesture is an *aligned* run, and the click is choosing a direction and
-a length, not an arbitrary landing cell. Snapped, eight sloppy clicks close a
-clean octagon; free-angle, the same eight give you eight subtly wrong edges.
-The cost is that two arbitrary points can no longer be joined with Shift — draw
-that freehand.
+**The click snaps too, and that is the point of it.** A gesture naming BOTH of
+its endpoints looks like it has nothing to infer — but that confuses inference
+with intent. What an artist wants from it is an *aligned* run: the click
+chooses a direction and a length, not an arbitrary landing cell. Snapped, eight
+sloppy clicks close a clean octagon; free-angle, the same eight give eight
+subtly wrong edges. The cost is that two arbitrary points can no longer be
+joined with Shift — draw that freehand.
 
 ### One rule, two ways to name the far end
 
@@ -195,16 +194,13 @@ on every move, so it adds the two things only a continuous gesture needs:
 - **It aims before it commits.** Nothing is painted, and no direction is
   chosen, until the pen is `LOCK_MIN` (5) modules from the anchor. Two modules
   out, (2,1) and (2,2) are a few degrees of wrist apart yet land in different
-  sectors, so a direction picked there is a coin flip. Re-deciding it every
-  move is *worse* than committing early — the part that had to be caught by
-  testing rather than reasoning: the run between two successive guesses gets
-  STROKED, so a flipping direction manufactures exactly the spurs the lock
-  exists to prevent. At 5 modules a two-module wobble is 21.8°, inside the
-  22.5° sector boundary.
+  sectors, so a direction picked there is a coin flip. At 5 modules a
+  two-module wobble is 21.8°, inside the 22.5° sector boundary.
 - **Then it latches.** The direction holds for the rest of the drag, so no
-  wobble can flip it. Re-aim by bringing the pen back inside `LOCK_MIN`, where
-  nothing was laid down, so changing your mind is free. A run shorter than
-  `LOCK_MIN` is quicker to click than to drag anyway.
+  wobble can flip it, and it must not be re-read per move: the run between two
+  successive answers gets STROKED, and that spur is the thing the lock exists
+  to prevent. Re-aim by bringing the pen back inside `LOCK_MIN`, where nothing
+  was laid down, so changing your mind is free.
 
 Shift is read live off each event instead of being latched at pointerdown, so
 it can be taken up and dropped WITHIN one drag: pressing it re-anchors the

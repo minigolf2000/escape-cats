@@ -355,7 +355,7 @@ function teamScreen(team: string) {
           ? `<p class="wear">Grab the ${ears.hue.toLowerCase()} ears \u{1F43E}</p>`
           : ``
       }
-      <a class="secondary" href="/chat/">Team chat</a>
+      <a class="secondary" href="/c/">Team chat</a>
     </div>
   `,
     team,

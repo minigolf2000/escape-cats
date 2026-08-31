@@ -105,28 +105,6 @@
       "destination": "https://escape-cats.vercel.app/g00mBa/:path*"
     },
     {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "cat-games-tau.vercel.app"
-        }
-      ],
-      "permanent": false,
-      "destination": "https://escape-cats.vercel.app/"
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "cat-games-tau.vercel.app"
-        }
-      ],
-      "permanent": false,
-      "destination": "https://escape-cats.vercel.app/:path*"
-    },
-    {
       "source": "/chat/:path*",
       "permanent": false,
       "destination": "/c/:path*"

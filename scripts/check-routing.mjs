@@ -144,10 +144,11 @@ const ENTRIES = [
   ["/g00mBa", ORIGIN_HOST, "/g00mBa/"],
   ["/qr-studio", ORIGIN_HOST, "/qr-studio/"],
   ["/reveal-lab", ORIGIN_HOST, "/reveal-lab/"],
-  // The retired origin, redirected like a vanity domain so that links and
-  // printed QR codes predating the rename still land on the lobby. Only lives
-  // as long as Vercel keeps the old name pointed at this project.
-  ["/", "cat-games-tau.vercel.app", "/"],
+  // A retired host gets no row here, and the reason is worth keeping: this
+  // checker models vercel.json against dist/, so a `has: host` rule for a host
+  // that is no longer ATTACHED to the project would pass here while 404ing in
+  // production — Vercel rejects an unattached host at the edge, before any of
+  // this config is consulted. A green row would be a simulation artifact.
   // The vanity roots. Each MUST land in its game's subdirectory, never at the
   // dist root.
   ["/", "hexxygon.com", "/hexxygon/"],

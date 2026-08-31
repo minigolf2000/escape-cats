@@ -46,6 +46,18 @@ server scores runs with and every phone animates.
    this loop tight. Scriptable via `window.__goomba`: `state() /
    send({type:'place',...}) / send({type:'play'}) / send({type:'goto',level:i})`.
 
+2b. **A level whose geometry is COMPUTED — a ring of stations, an arc, a
+   lattice — is easier to keep in `tools/goomba/draft/<name>.mjs` than in a
+   frame**: a params object `P` and a `buildLevel(P)`, driven by `draft.mjs`
+   (`run`, `from`, `sweep`, `audit`, `card`, `link`). Figma is still where the
+   shape is decided; this is for the numbers under it, because "where does this
+   popper go" is answered by sweeping and a hand-drawn frame cannot be swept.
+   `draft.mjs link` hands the result straight back to step 2. It grades nothing
+   either — but `audit` covers the facts a run can never show you, the ones
+   about what must be IMPOSSIBLE: a popper's 8.2 reach ignores terrain, so two
+   popper rings being separate rooms is arithmetic, and a run that never happens
+   to be in the wrong place looks just like a level where it could not be.
+
 3. **Then play it with four people**, which is the only thing that has ever
    really told us whether a level works. `/proctor`, assign yourself to a team,
    open the game with `?debug`; tapping a level card jumps the whole room there,
@@ -534,6 +546,17 @@ people playing it.
   rims are snap points, which makes the chord across it forgiving (see the
   jitter note above). Keep the notch long: a short one gets flown over from a
   band laid steeper than the surface.
+- **A start chute** — two short vertical bars either side of the start dot,
+  ten units long, above everything else. `START_VX` is 20, it is unconditional,
+  and it is never spent, so a bare drop moves **24.6 units sideways** over a
+  105-unit fall — which is why a straight shaft down the middle of a level has
+  never worked and every drop has arrived somewhere to the right of where it
+  was drawn. She crosses to the right bar in 0.14 s, leaves it at `E_WALL`
+  0.15 doing −3, and the whole rest of the fall drifts her 3.6 back the other
+  way: total excursion 2.2 units. That turns "she must not touch the sides" into
+  a doorway you can draw at 9 units instead of 30. (In and Out is the level it
+  was built for: the same board reads `pops 0, cans 0` bare with the chute and
+  is unbuildable without it.)
 - **Posts with nothing between them** — a pair of downward stubs where a floor
   ought to be. There is no surface until the players make one, so the stage
   cannot be skipped by arriving faster, and the stub tops are snap points that

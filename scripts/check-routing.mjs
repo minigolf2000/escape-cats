@@ -28,12 +28,22 @@ const exists = async (p) => access(p).then(() => true, () => false);
 function matchSource(source, pathname) {
   if (source.endsWith("/:path*")) {
     const prefix = source.slice(0, -"/:path*".length);
-    // `/:path*` does NOT match the bare root on Vercel, however much it looks
-    // like it should. This checker used to claim it did, which is exactly why
-    // it passed while hexxygon.com/ served the wrong app and rendered white.
-    // The root needs its own `source: "/"` rule, listed first.
-    if (prefix === "" && pathname === "/") return null;
-    if (pathname === prefix || pathname === prefix + "/") return { path: "" };
+    // `/:path*` does NOT match a bare directory on Vercel — the tail has to be
+    // non-empty — however much it looks like it should. That directory needs
+    // its own literal rule, listed first.
+    //
+    // This bit the repo twice, and the second time is why the rule below is
+    // stated for ANY prefix rather than just the root. The checker first
+    // claimed `/:path*` matched `/`, which is why it passed while
+    // hexxygon.com/ served the wrong app and rendered white. It then claimed
+    // `/chat/:path*` matched `/chat/` — on the reasoning that the root was a
+    // special case and a real path segment was not — so `/chat` shipped
+    // 404ing, green the whole way. `trailingSlash: true` turns every bare
+    // `/chat` into `/chat/` BEFORE redirects run, so the empty-tail form is
+    // the only form these rules are ever asked about.
+    if (pathname === prefix + "/" || (prefix === "" && pathname === "/"))
+      return null;
+    if (pathname === prefix) return { path: "" };
     if (pathname.startsWith(prefix + "/"))
       return { path: pathname.slice(prefix.length + 1) };
     return null;
@@ -135,11 +145,11 @@ const ENTRIES = [
   ["/hexxygon", ORIGIN_HOST, "/hexxygon/"],
   ["/proctor", ORIGIN_HOST, "/proctor/"],
   ["/c", ORIGIN_HOST, "/c/"],
-  // The old chat path, which must land on the new one rather than 404. One
-  // `/chat/:path*` rule covers the bare `/chat` too: trailing-slash
-  // normalisation runs first and turns it into `/chat/`, which that source
-  // matches with an empty tail. (The empty-prefix `/:path*` gotcha the vanity
-  // rules work around does not apply once the prefix is a real segment.)
+  // The old chat path, which must land on the new one rather than 404. This
+  // row is the regression test for the two-rule shape in vercel.json: drop the
+  // literal `/chat/` rule and leave only `/chat/:path*`, and this fails —
+  // which is what production did while an earlier version of matchSource said
+  // otherwise.
   ["/chat", ORIGIN_HOST, "/c/"],
   ["/g00mBa", ORIGIN_HOST, "/g00mBa/"],
   ["/qr-studio", ORIGIN_HOST, "/qr-studio/"],

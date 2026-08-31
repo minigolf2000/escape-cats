@@ -155,10 +155,14 @@ position in a pack.
   than ordering it — for a breaking change, run the workflow manually on the
   branch first, confirm it's live, then merge. `wrangler.jsonc` migrations are
   APPEND-ONLY. Renaming a Worker or DO class orphans its storage.
-- **One origin**: vanity domains REDIRECT to cat-games-tau.vercel.app — never turn
+- **One origin**: vanity domains REDIRECT to escape-cats.vercel.app — never turn
   them into rewrites; the localStorage pid (team identity) only follows players on
   one origin, and `check:routing` would not catch the regression. No `?room=`
-  params, ever.
+  params, ever. The old origin, cat-games-tau.vercel.app, is now a vanity domain
+  like any other and redirects here; it survives only while Vercel keeps that name
+  pointed at the project, so it is a grace period for printed QR codes, not a
+  second door. **Changing the origin costs every player their pid** — localStorage
+  is per-origin, so the whole room comes back as new teams. Do it between events.
 - **`?r=<slug>` is the one room a URL may name, and it is never a team.** Three
   things keep it clear and all three are load-bearing: the `r-` prefix is a
   namespace a team id can never enter, `roomFor` answers the TEAM first, and

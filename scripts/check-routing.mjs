@@ -19,7 +19,8 @@ const DIST = join(repoRoot, "dist");
 const config = JSON.parse(
   await readFile(join(repoRoot, "vercel.json"), "utf8"),
 );
-const ORIGIN = "https://cat-games-tau.vercel.app";
+const ORIGIN_HOST = "escape-cats.vercel.app";
+const ORIGIN = `https://${ORIGIN_HOST}`;
 
 const exists = async (p) => access(p).then(() => true, () => false);
 
@@ -45,7 +46,7 @@ function matchSource(source, pathname) {
  * then redirects, then rewrites, then the filesystem.
  * Returns { status, file, location }.
  */
-function route(pathname, host = "cat-games-tau.vercel.app") {
+function route(pathname, host = ORIGIN_HOST) {
   // trailingSlash, which skips paths carrying a file extension.
   if (!extname(pathname)) {
     const want = config.trailingSlash === true;
@@ -82,7 +83,7 @@ async function fetchPath(pathname, host) {
         : res.location;
       if (!loc.startsWith("/")) return { status: 0, external: res.location };
       pathname = loc;
-      host = "cat-games-tau.vercel.app";
+      host = ORIGIN_HOST;
       continue;
     }
     for (const cand of [
@@ -130,13 +131,17 @@ function refsOf(html, pageUrl) {
  */
 const ENTRIES = [
   // The origin root legitimately serves the lobby from the dist root.
+  ["/", ORIGIN_HOST, "/"],
+  ["/hexxygon", ORIGIN_HOST, "/hexxygon/"],
+  ["/proctor", ORIGIN_HOST, "/proctor/"],
+  ["/chat", ORIGIN_HOST, "/chat/"],
+  ["/g00mBa", ORIGIN_HOST, "/g00mBa/"],
+  ["/qr-studio", ORIGIN_HOST, "/qr-studio/"],
+  ["/reveal-lab", ORIGIN_HOST, "/reveal-lab/"],
+  // The retired origin, redirected like a vanity domain so that links and
+  // printed QR codes predating the rename still land on the lobby. Only lives
+  // as long as Vercel keeps the old name pointed at this project.
   ["/", "cat-games-tau.vercel.app", "/"],
-  ["/hexxygon", "cat-games-tau.vercel.app", "/hexxygon/"],
-  ["/proctor", "cat-games-tau.vercel.app", "/proctor/"],
-  ["/chat", "cat-games-tau.vercel.app", "/chat/"],
-  ["/g00mBa", "cat-games-tau.vercel.app", "/g00mBa/"],
-  ["/qr-studio", "cat-games-tau.vercel.app", "/qr-studio/"],
-  ["/reveal-lab", "cat-games-tau.vercel.app", "/reveal-lab/"],
   // The vanity roots. Each MUST land in its game's subdirectory, never at the
   // dist root.
   ["/", "hexxygon.com", "/hexxygon/"],
@@ -165,7 +170,7 @@ for (const [entry, host, expect] of ENTRIES) {
   if (extname(page.file) !== ".html") continue;
   const html = await readFile(page.file, "utf8");
   for (const ref of refsOf(html, page.pathname)) {
-    const sub = await fetchPath(ref, "cat-games-tau.vercel.app");
+    const sub = await fetchPath(ref, ORIGIN_HOST);
     if (sub.status !== 200) {
       console.log(`  FAIL  ${ref}  -> HTTP ${sub.status}`);
       failures++;
@@ -177,7 +182,7 @@ for (const [entry, host, expect] of ENTRIES) {
     if (extname(sub.file) !== ".css") continue;
     const css = await readFile(sub.file, "utf8");
     for (const cssRef of refsOf(css, sub.pathname)) {
-      const asset = await fetchPath(cssRef, "cat-games-tau.vercel.app");
+      const asset = await fetchPath(cssRef, ORIGIN_HOST);
       if (asset.status !== 200) {
         console.log(`    FAIL  ${cssRef}  -> HTTP ${asset.status}`);
         failures++;

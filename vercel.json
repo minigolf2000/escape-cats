@@ -125,6 +125,11 @@
       ],
       "permanent": false,
       "destination": "https://escape-cats.vercel.app/:path*"
+    },
+    {
+      "source": "/chat/:path*",
+      "permanent": false,
+      "destination": "/c/:path*"
     }
   ],
   "rewrites": [

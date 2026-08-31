@@ -134,7 +134,13 @@ const ENTRIES = [
   ["/", ORIGIN_HOST, "/"],
   ["/hexxygon", ORIGIN_HOST, "/hexxygon/"],
   ["/proctor", ORIGIN_HOST, "/proctor/"],
-  ["/chat", ORIGIN_HOST, "/chat/"],
+  ["/c", ORIGIN_HOST, "/c/"],
+  // The old chat path, which must land on the new one rather than 404. One
+  // `/chat/:path*` rule covers the bare `/chat` too: trailing-slash
+  // normalisation runs first and turns it into `/chat/`, which that source
+  // matches with an empty tail. (The empty-prefix `/:path*` gotcha the vanity
+  // rules work around does not apply once the prefix is a real segment.)
+  ["/chat", ORIGIN_HOST, "/c/"],
   ["/g00mBa", ORIGIN_HOST, "/g00mBa/"],
   ["/qr-studio", ORIGIN_HOST, "/qr-studio/"],
   ["/reveal-lab", ORIGIN_HOST, "/reveal-lab/"],

@@ -299,7 +299,7 @@ collects every surface into one `dist/`:
 | `/` | `apps/lobby` | Team lobby (landing page) |
 | `/hexxygon/` | `apps/hex-clicker` | Hex Clicker (coop) |
 | `/g00mBa/` | `apps/goomba-glider` | Goomba Glider (coop) |
-| `/chat/` | `apps/chat` | Per-team chat |
+| `/c/` | `apps/chat` | Per-team chat (`/chat/` redirects here) |
 | `/proctor/` | `apps/proctor` | Proctor dashboard |
 | `/qr-studio/` | `tools/qr-studio.html` | QR Art Studio |
 | `/reveal-lab/` | `tools/reveal-lab.html` | Night reveal wall lab |
@@ -791,11 +791,17 @@ Both parties persist to `room.storage`, tuned to what each can afford to lose:
 
 ## Team chat
 
-`/chat/` is one channel per team, and **the room id is the team id** — the same
+`/c/` is one channel per team, and **the room id is the team id** — the same
 convention the game rooms use, so the proctor sorting someone onto `t2` is also
 what puts them in t2's channel. There is no team picker and no way to end up in
 another team's chat. Like the game, chat has no menu: it asks the lobby for this
 pid's room, and opening it registers the phone in the lobby roster.
+
+The path is one letter because this is the surface people TYPE — the games are
+tapped through from the lobby, chat gets read off a card. `/chat/` redirects to
+it (one `/chat/:path*` rule in `vercel.json`, which catches the bare `/chat`
+too, since trailing-slash normalisation runs before redirects), so anything
+printed with the old path still lands.
 
 What the chat server enforces (`server/src/chat.ts`, tunables in
 `packages/shared/src/chat.ts`):

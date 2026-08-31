@@ -5,6 +5,6 @@ export default defineConfig({
   // It must NOT be relative — see apps/hex-clicker/vite.config.ts for the
   // white-screen this causes when the served URL's directory depth differs from
   // what a "./assets/" reference assumes.
-  base: "/c/",
+  base: "/chat/",
   server: { host: true },
 });

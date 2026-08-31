@@ -413,14 +413,12 @@ button.small:disabled {
   margin: 6px 0 2px;
 }
 
-/* A box's own destructive controls — Clear team under the roster, Clear chat
- * under the log. Red, and it must not lose that red to button.small's
- * background; a DISABLED one drops back to the neutral pill, because an empty
- * team and an empty log have nothing to warn anybody about. Both are always
- * drawn — see the box-height rule. */
-/* Sized like a game block's Reset, not like a page-level pill: both of these
- * live INSIDE a box now, and a box's buttons should all be one size. */
-.zone > button.small,
+/* A box's own destructive control — Clear chat under the log. Red, and it
+ * must not lose that red to button.small's background; a DISABLED one drops
+ * back to the neutral pill, because an empty log has nothing to warn anybody
+ * about. Always drawn — see the box-height rule. */
+/* Sized like a game block's Reset, not like a page-level pill: it lives
+ * INSIDE a box, and a box's buttons should all be one size. */
 .chat-col button.small {
   padding: 6px 11px;
   font-size: 12px;

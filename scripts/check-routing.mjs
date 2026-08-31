@@ -144,13 +144,7 @@ const ENTRIES = [
   ["/", ORIGIN_HOST, "/"],
   ["/hexxygon", ORIGIN_HOST, "/hexxygon/"],
   ["/proctor", ORIGIN_HOST, "/proctor/"],
-  ["/c", ORIGIN_HOST, "/c/"],
-  // The old chat path, which must land on the new one rather than 404. This
-  // row is the regression test for the two-rule shape in vercel.json: drop the
-  // literal `/chat/` rule and leave only `/chat/:path*`, and this fails —
-  // which is what production did while an earlier version of matchSource said
-  // otherwise.
-  ["/chat", ORIGIN_HOST, "/c/"],
+  ["/chat", ORIGIN_HOST, "/chat/"],
   ["/g00mBa", ORIGIN_HOST, "/g00mBa/"],
   ["/qr-studio", ORIGIN_HOST, "/qr-studio/"],
   ["/reveal-lab", ORIGIN_HOST, "/reveal-lab/"],

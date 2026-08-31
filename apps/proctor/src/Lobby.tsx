@@ -286,13 +286,6 @@ export function Lobby() {
     send({ type: "forget", pid: p.pid });
   };
 
-  // This one DOES confirm: it unsorts up to four phones at once, and the phones
-  // find out by being thrown back to the waiting screen mid-game.
-  const clearTeam = (z: Team) => {
-    if (!confirm(`Send ${z.name}'s players back to Unassigned?`)) return;
-    send({ type: "clearTeam", team: z.id });
-  };
-
   return (
     <div className="lobby">
       <div className="lobby-head">
@@ -392,19 +385,6 @@ export function Lobby() {
                     ),
                   )}
               </ul>
-              {/* Under the roster, because it is about the roster: it empties
-                  THIS box, and only this box. Always drawn on a team, disabled
-                  at zero — a box is a drop target and must not change height.
-                  The pen has none: its players are already unassigned. */}
-              {isTeam && (
-                <button
-                  className="small danger"
-                  disabled={members.length === 0}
-                  onClick={() => clearTeam(z)}
-                >
-                  Clear team
-                </button>
-              )}
               {isTeam ? (
                 <TeamGame team={z} assigned={members} />
               ) : (

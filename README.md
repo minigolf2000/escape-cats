@@ -507,9 +507,19 @@ lobby already knew all of it: **every phone's snapshot carries the whole roster*
 over it any more, and no heading or counts above it: your box is the one wearing
 your colour, lifted, with your name in it under a `you` pill — the same fact the
 card used to state, drawn once, in the place that also answers where everybody
-else went. A card only appears when the board cannot answer the question, which
-is exactly one case: an **unsorted** phone is in none of the four boxes, so it
-keeps the waiting card saying what it is waiting for.
+else went. Anything appears over the board only when the board cannot answer the
+question, which is exactly one case: an **unsorted** phone is in none of the four
+boxes, so it gets one muted line saying what it is waiting for.
+
+**A status is a sentence, not a panel.** That line, and the "Connecting…" that
+precedes the first snapshot, are the whole of it — no card, no title, no spinner.
+Each part of the card they replaced was already on screen somewhere better: the
+title named the app to somebody who had just typed their name into it, the
+greeting named you (which the chip does, editably), and the spinner promised the
+page was live — which the board does better and more honestly, since names appear
+in boxes as the proctor sorts people, while a spinner keeps spinning after the
+socket has dropped. There is now no animation anywhere on this page, which is why
+there is no `prefers-reduced-motion` rule in its stylesheet either.
 
 The cost of that trade is written down here because it was deliberate: the line
 **"Grab the pink ears 🐾"** went with the card, and it was the one thing turning

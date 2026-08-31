@@ -271,19 +271,20 @@ function page(cardHtml: string, myTeam: string | null) {
   wireNameChip();
 }
 
-/** The one card left on this page: what an unsorted phone is waiting for.
- * A phone that HAS a team gets no card at all — see render(). */
-function waitingCard(): string {
-  return `
-    <div class="card">
-      <h1>🐾 Escape Cats</h1>
-      <p class="sub">Hi ${escapeHtml(myName())} - you're in.</p>
-      <div class="waiting">
-        <span class="spinner"></span>
-        Waiting for the proctor to put you on a team...
-      </div>
-    </div>
-  `;
+/**
+ * The one thing an unsorted phone needs told, and now the only chrome on this
+ * page: one line over the board.
+ *
+ * It used to be a whole card — a title, a greeting, a spinner. Every part of it
+ * was already on screen somewhere better. The TITLE said the name of the app to
+ * somebody who just typed their name into it. The GREETING ("Hi dog - you're
+ * in") named you, which the chip under the board does, editably. And the SPINNER
+ * promised the page was live, which the board itself does far better and more
+ * honestly: names appear in boxes as the proctor sorts people, and a spinner
+ * keeps spinning after the socket has dropped (it has no idea).
+ */
+function waitingLine(): string {
+  return `<p class="await">Waiting to be sorted\u2026</p>`;
 }
 
 function escapeHtml(s: string): string {
@@ -301,12 +302,8 @@ function render() {
     connect();
   }
   if (!connected && players.length === 0) {
-    app.innerHTML = `
-      <div class="card">
-        <h1>🐾 Escape Cats</h1>
-        <div class="waiting"><span class="spinner"></span> Connecting...</div>
-      </div>
-    `;
+    // Same idiom as the waiting line: a status is a sentence, not a panel.
+    app.innerHTML = `<p class="await">Connecting\u2026</p>`;
     return;
   }
   // ON A TEAM, THE BOARD IS THE WHOLE SCREEN. There is no "you're on Team 3"
@@ -316,7 +313,7 @@ function render() {
   // the board says what you are waiting for, because nothing on the board can:
   // an unsorted phone appears in none of the four boxes.
   const mine = me();
-  page(mine?.team ? "" : waitingCard(), mine?.team ?? null);
+  page(mine?.team ? "" : waitingLine(), mine?.team ?? null);
 }
 
 render();

@@ -124,43 +124,21 @@ input:focus {
   padding: 6px;
 }
 
-.waiting {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: var(--ink);
+/* A STATUS IS A SENTENCE. Both of the states that are only waiting for
+   something — unsorted, and the first connect — are one muted line and nothing
+   else: no panel, no title, no spinner. The board under it is the liveness
+   indicator a spinner was pretending to be, and it is an honest one, because it
+   moves when something actually happens rather than while nothing does.
+
+   There is no animation anywhere on this page now, which is why there is no
+   prefers-reduced-motion block below any more either. */
+.await {
+  color: var(--muted);
   font-size: 15px;
-  margin: 22px 0 18px;
-}
-
-/* The waiting card is a header now, with the room under it — so the spinner
-   line is its last child and its own bottom margin became a gap nothing sat
-   in. It keeps the margin everywhere else, where a card still owns the page. */
-.card .waiting:last-child {
-  margin-bottom: 2px;
-}
-
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--line);
-  border-top-color: var(--neon);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .spinner {
-    animation: none;
-    border-top-color: var(--line);
-  }
+  line-height: 1.35;
+  text-align: center;
+  margin: 0;
+  text-wrap: balance;
 }
 
 /* ---------------------------------------------------------------------------

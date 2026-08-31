@@ -64,42 +64,6 @@ h1 {
   letter-spacing: -0.01em;
 }
 
-h1.team {
-  font-size: 40px;
-  /* The team's own colour when it has one (an eared card sets --tc), the house
-     neon otherwise — the testing room, which is not a team and wears nothing. */
-  color: var(--tc, var(--neon));
-  text-shadow: 0 0 22px color-mix(in srgb, var(--tc, var(--neon)) 40%, transparent);
-  margin: 4px 0 10px;
-}
-
-/* THE EARED CARD. The card is the cat: its border is the headband and the two
-   ears (injected by teamEarsSvg) grow straight out of it — the ear's fill hides
-   the border under its base and its stroke is open at the base, so the outlines
-   are one continuous line. Which means:
-     - position: relative, because the ears are absolutely positioned to it;
-     - margin-top: --ear-h, because they stand ABOVE it and would otherwise be
-       clipped off the top of the screen on a phone;
-     - border-width must equal the strokeWidth passed to teamEarsSvg (3px), or
-       the ear's base and the border meet at a visible step. */
-.card.eared {
-  position: relative;
-  border: 2px solid var(--tc);
-  margin-top: var(--ear-h);
-}
-
-/* "Grab the pink ears" — the line that turns the colour into an instruction. */
-.wear {
-  display: inline-block;
-  font-size: 13px;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--tc) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--tc) 40%, transparent);
-  border-radius: 999px;
-  padding: 8px 13px;
-  margin: 0 0 18px;
-}
-
 .sub {
   color: var(--muted);
   font-size: 15px;
@@ -146,28 +110,6 @@ input:focus {
 }
 
 .primary:active {
-  transform: translateY(1px);
-}
-
-/* Same shape as .primary, outlined rather than filled — the game is the thing
-   you came here to do, chat is beside it. */
-.secondary {
-  display: block;
-  width: 100%;
-  padding: 15px 18px;
-  font-size: 16px;
-  font-family: inherit;
-  font-weight: 600;
-  color: var(--tc, var(--neon));
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  cursor: pointer;
-  text-decoration: none;
-  margin-bottom: 10px;
-}
-
-.secondary:active {
   transform: translateY(1px);
 }
 
@@ -230,54 +172,36 @@ input:focus {
    check-cursors.mjs, and the rule it enforces: `pointer` if a tap does
    something, `default` if it does not.
    --------------------------------------------------------------------------- */
-.room {
-  margin-top: 26px;
-}
-
-.room-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.room-head h2 {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  margin: 0;
-}
-
-/* .muted carries a bottom margin for its use inside a card; on a head row it
-   is a baseline-aligned label and must not push the row around. */
-.room-head .muted,
+/* .muted carries a bottom margin for its use inside a card; on a box's head row
+   it is a baseline-aligned label and must not push the row around. */
 .tbox-head .muted {
   margin: 0;
 }
 
 /* Two up, always. Four boxes in one column is a page of scrolling on a phone,
-   and `auto-fit` would give exactly that at the width a phone actually has. */
+   and `auto-fit` would give exactly that at the width a phone actually has.
+   Carries its own top margin now that no heading sits above it. */
 .board {
+  margin-top: 26px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   align-items: start;
 }
 
-/* THE EARED BOX, the smaller sibling of .card.eared: the border is the headband
-   and the ears grow out of it, so the box needs position: relative and
-   earsHeight() of room above it. The border width must equal the strokeWidth
-   passed to teamEarsSvg (BOARD_BORDER), or the ear's base meets it at a step. */
+/* THE EARED BOX, and now the only eared thing on this page: the border is the
+   headband and the ears grow out of it — the ear's fill hides the border under
+   its base and its stroke runs open into it, so box and ears are one outline.
+   Hence position: relative, and earsHeight() of room above it. The border width
+   must equal the strokeWidth passed to teamEarsSvg (BOARD_BORDER), or the ear's
+   base meets it at a step. */
 .tbox {
   position: relative;
   background: #12141b;
   /* Kept in step with the background below — an ear filled with the wrong one
      reads as a sticker sitting on the box rather than part of it. */
   --ear-fill: #12141b;
-  border: 2px solid var(--tc, var(--line));
+  border: 2px solid var(--tc);
   border-radius: 12px;
   padding: 9px;
   margin-top: var(--ear-h);

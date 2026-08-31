@@ -106,10 +106,6 @@ function nameScreen() {
   };
 }
 
-function teamName(id: string): string {
-  return teams.find((t) => t.id === id)?.name ?? id;
-}
-
 // ---------------------------------------------------------------------------
 // The room — the four teams as the proctor currently has them
 // ---------------------------------------------------------------------------
@@ -140,18 +136,12 @@ function roomHtml(myTeam: string | null): string {
   const byTeam = new Map<string, LobbyPlayer[]>(teams.map((t) => [t.id, []]));
   for (const p of players) byTeam.get(p.team ?? "")?.push(p);
 
-  // Sorted players are counted whatever their socket says. `connected` means
-  // "holding a socket to the LOBBY", which a sorted phone drops the moment it
-  // moves on to the game — so filtering on it here would empty every team the
-  // instant they started playing. It is only trustworthy for an unsorted phone,
-  // which is exactly what the waiting count uses it for.
-  const sorted = players.filter((p) => p.team).length;
-  const waiting = players.filter((p) => !p.team && p.connected).length;
-
   const boxes = teams
     .map((t) => {
       const members = byTeam.get(t.id) ?? [];
-      const ears = earsFor(t.id);
+      // Non-null for the same reason as the card above: `teams` is TEAMS off
+      // the snapshot, and all four have a pair.
+      const ears = earsFor(t.id)!;
       const mine = t.id === myTeam;
       const seats = members
         .map(
@@ -169,9 +159,7 @@ function roomHtml(myTeam: string | null): string {
         () => `<li class="slot">empty seat</li>`,
       ).join("");
       return `
-        <div class="tbox${mine ? " mine" : ""}"${
-          ears ? ` style="--tc:${ears.ink}"` : ``
-        }>
+        <div class="tbox${mine ? " mine" : ""}" style="--tc:${ears.ink}">
           ${teamEarsSvg(t.id, {
             width: BOARD_EAR_W,
             strokeWidth: BOARD_BORDER,
@@ -189,15 +177,10 @@ function roomHtml(myTeam: string | null): string {
     })
     .join("");
 
-  return `
-    <section class="room">
-      <div class="room-head">
-        <h2>The room</h2>
-        <span class="muted">${sorted} sorted · ${waiting} waiting</span>
-      </div>
-      <div class="board" style="--ear-h:${earsHeight(BOARD_EAR_W)}px">${boxes}</div>
-    </section>
-  `;
+  // No heading and no counts over it. The four boxes say which teams there are,
+  // how full each one is and where you are, and a label saying "the room" over
+  // a picture of the room is the kind of chrome this screen is now without.
+  return `<div class="board" style="--ear-h:${earsHeight(BOARD_EAR_W)}px">${boxes}</div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -280,7 +263,7 @@ function wireNameChip() {
   }
 }
 
-/** Whichever card owns the screen, then the room, then the name chip. One
+/** The card, if this state has one, then the room, then the name chip. One
  * function so the two states cannot drift into two different page shapes. */
 function page(cardHtml: string, myTeam: string | null) {
   app.innerHTML =
@@ -288,9 +271,10 @@ function page(cardHtml: string, myTeam: string | null) {
   wireNameChip();
 }
 
-function waitingScreen() {
-  page(
-    `
+/** The one card left on this page: what an unsorted phone is waiting for.
+ * A phone that HAS a team gets no card at all — see render(). */
+function waitingCard(): string {
+  return `
     <div class="card">
       <h1>🐾 Escape Cats</h1>
       <p class="sub">Hi ${escapeHtml(myName())} - you're in.</p>
@@ -299,67 +283,7 @@ function waitingScreen() {
         Waiting for the proctor to put you on a team...
       </div>
     </div>
-  `,
-    null,
-  );
-}
-
-/** Ear width on the "you're on" card, in px — the one moment this phone is
- * ABOUT the team, so the ears are the biggest they get anywhere. */
-const CARD_EAR_W = 96;
-/** Matches the card's border-width in styles.css: the ear's base overlaps the
- * border by exactly this, so the two outlines meet. */
-const CARD_BORDER = 2;
-
-function teamScreen(team: string) {
-  // A team always has ears (see TEAM_EARS); the testing room does not, and then
-  // the card is simply the card it always was.
-  //
-  // NO GAME LINKS below, and this note is a JS comment ON PURPOSE. The games
-  // are reached by their own URLs (the vanity domains, which REDIRECT onto this
-  // origin — see the README's origin constraint), so the lobby's job ends at
-  // "here is your team". A link here never carried the team anyway: every
-  // surface asks the lobby for this phone's pid, which is what makes a proctor
-  // re-sort take effect on reload. Putting the buttons back is a one-line
-  // change; they used VITE_HEX_URL / VITE_GOOMBA_URL.
-  //
-  // This used to be an HTML comment inside the template literal, which made it
-  // string CONTENT: the minifier cannot touch it, so it shipped to prod and
-  // rendered as a comment node on the one screen every player reaches. Inspect
-  // element on the team card and it told them hidden games exist and roughly
-  // where to look — a treasure map on the surface whose whole job is to hide
-  // them. Anything explaining the hiding belongs OUTSIDE the markup — which is
-  // why this next note is up here too: WHO IS WITH YOU is deliberately not
-  // listed on the card any more. The room below names all four of them, in the
-  // box wearing your colour, and printing the same three names twice on one
-  // screen made the card and the board look like two answers to one question.
-  const ears = earsFor(team);
-  const skin = ears
-    ? `class="card eared" style="--tc:${ears.ink};--ear-h:${earsHeight(CARD_EAR_W)}px"`
-    : `class="card"`;
-  page(
-    `
-    <div ${skin}>
-      ${teamEarsSvg(team, {
-        width: CARD_EAR_W,
-        strokeWidth: CARD_BORDER,
-        // --panel, as a literal: the ear is filled with the card it grows out of.
-        panel: "#14161d",
-      })}
-      <p class="sub">You're on</p>
-      <h1 class="team">${escapeHtml(teamName(team))}</h1>
-      ${
-        // The one line that turns a colour into an instruction. Without it the
-        // card is a nice shade of pink and the headbands are a pile on a table.
-        ears
-          ? `<p class="wear">Grab the ${ears.hue.toLowerCase()} ears \u{1F43E}</p>`
-          : ``
-      }
-      <a class="secondary" href="/c/">Team chat</a>
-    </div>
-  `,
-    team,
-  );
+  `;
 }
 
 function escapeHtml(s: string): string {
@@ -385,9 +309,14 @@ function render() {
     `;
     return;
   }
+  // ON A TEAM, THE BOARD IS THE WHOLE SCREEN. There is no "you're on Team 3"
+  // card any more: your box is the one wearing your colour, lifted, with your
+  // name in it under a `you` pill — which is the same fact, drawn once, in the
+  // place that also answers where everybody else went. Unsorted, the card above
+  // the board says what you are waiting for, because nothing on the board can:
+  // an unsorted phone appears in none of the four boxes.
   const mine = me();
-  if (mine?.team) teamScreen(mine.team);
-  else waitingScreen();
+  page(mine?.team ? "" : waitingCard(), mine?.team ?? null);
 }
 
 render();

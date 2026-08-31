@@ -18,11 +18,11 @@ minutes.
 ```
 apps/hex-clicker/    Player client, 16 modules — see its src/README.md
 apps/goomba-glider/  Player client, 11 modules — see its src/README.md
-apps/lobby/          Landing page: name entry, then the team the proctor put
-                     you on (and its chat) — no links into the games. Under
-                     that, THE ROOM: all four teams and who is on them, the
-                     proctor's board read-only. Your name is a chip you can
-                     edit from any screen
+apps/lobby/          Landing page: name entry, then THE ROOM — all four teams
+                     and who is on them, the proctor's board read-only, and on
+                     a sorted phone the whole screen. No links out: not to the
+                     games, and not to chat. Your name is a chip you can edit
+                     from any screen
 apps/chat/           Per-team chat: one channel per team, roomed by team id
 apps/proctor/        Hidden dashboard, one flat page: five boxes, where a box is
                      a drop target, its room's live game status (+ reset) and
@@ -474,11 +474,12 @@ room is `t2` and nothing else has to agree on anything.
 The flow: a player opens `/`, types a name, and waits — watching the room fill up
 while they do (see below). The proctor's dashboard lists everyone on that page as
 **five boxes** — Unassigned, then one per team — and sorting is **drag and drop
-between them**, the only assignment gesture there is. Once assigned, the player's
-page turns into their team name and the headband to grab — no game links. The
-games are reached by their own URLs, and because no surface ever carried the team
-in a link, dropping those buttons changed nothing: a phone finds its room by
-asking the lobby for this pid.
+between them**, the only assignment gesture there is. Once assigned, the waiting
+card goes away and the room IS the page — your box is the one wearing your
+colour, with your name in it. No links out: the games are reached by their own
+URLs, and because no surface ever carried the team in a link, dropping those
+buttons changed nothing (a phone finds its room by asking the lobby for this
+pid); chat has no link either, until it is ready to be shown.
 
 Sorting is deliberately all manual. Who sits with whom is a judgement call made
 in the room (friends, kids, one group of six), and the auto-assign button that
@@ -496,13 +497,26 @@ takes effect on reload.
 
 ### The room, on a player's phone
 
-Under whichever card owns the screen — the waiting card or the "you're on Team 3"
-card — every phone shows **the room**: the four teams, their colours, and who is
-on each of them, with your own row marked. It is the proctor's board with the
-drag, the buttons, the game readouts and the chat taken out, and it exists
-because the lobby already knew all of it: **every phone's snapshot carries the
-whole roster** (`LobbySnapshot.players`), so this cost one render and not one
-byte of protocol.
+Every phone shows **the room**: the four teams, their colours, and who is on
+each of them, with your own row marked. It is the proctor's board with the drag,
+the buttons, the game readouts and the chat taken out, and it exists because the
+lobby already knew all of it: **every phone's snapshot carries the whole roster**
+(`LobbySnapshot.players`), so this cost one render and not one byte of protocol.
+
+**On a sorted phone it is the WHOLE screen.** There is no "you're on Team 3" card
+over it any more, and no heading or counts above it: your box is the one wearing
+your colour, lifted, with your name in it under a `you` pill — the same fact the
+card used to state, drawn once, in the place that also answers where everybody
+else went. A card only appears when the board cannot answer the question, which
+is exactly one case: an **unsorted** phone is in none of the four boxes, so it
+keeps the waiting card saying what it is waiting for.
+
+The cost of that trade is written down here because it was deliberate: the line
+**"Grab the pink ears 🐾"** went with the card, and it was the one thing turning
+a colour into an instruction — the headbands are on a table and somebody has to
+pick one up. The colours are still on screen; the sentence telling you to go and
+wear one is not. If people stop reaching for the headbands, that line is what to
+put back, and the smallest place for it is the box that is already yours.
 
 It is **read-only, and that is the design**. Sorting is a judgement call made in
 the room and `assign` is proctor-only on the wire, so nothing on the board is
@@ -519,8 +533,8 @@ Two details are load-bearing and easy to tidy away:
 - **Team rosters are NOT filtered by `connected`.** That flag means "holding a
   socket to the lobby", which a sorted phone drops the moment it moves on to the
   game — so filtering on it would empty all four teams the instant they started
-  playing. It is only trustworthy for an unsorted phone, which is exactly what
-  the "3 waiting" count uses it for.
+  playing. It is only trustworthy for an unsorted phone — which is what the
+  proctor's board uses it for, and the reason nothing here counts on it.
 
 **Your name is a chip under the board, on every screen but the first.** Renaming
 happens in place: the chip becomes an input, `rename` goes down the socket the
@@ -797,9 +811,12 @@ what puts them in t2's channel. There is no team picker and no way to end up in
 another team's chat. Like the game, chat has no menu: it asks the lobby for this
 pid's room, and opening it registers the phone in the lobby roster.
 
-The path is one letter because this is the surface people TYPE — the games are
-tapped through from the lobby, chat gets read off a card. `/chat/` redirects to
-it, so anything printed with the old path still lands.
+The path is one letter because this is the surface people TYPE, and now the only
+way in: **the lobby has no chat link at all**. The "Team chat" button went with
+the team card when the landing page was stripped back to the board (see "The
+room, on a player's phone"), so until chat is ready to be shown, `/c/` is
+reached by typing it or off a QR. `/chat/` redirects to it, so anything printed
+with the old path still lands.
 
 That redirect takes TWO rules in `vercel.json`, for the same reason the vanity
 domains do: a literal `/chat/` and a `/chat/:path*`. `trailingSlash: true`

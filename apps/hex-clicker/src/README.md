@@ -29,8 +29,11 @@ shapes. Anything that has to be RECOLOURED or drawn to canvas is traced to
 vector — the mouse (`mouse-geom.js`, consumed by `art.js`) and the shop icon
 (inline in `index.html`) — because the mouse keeps the game's own five colours
 and the night wall draws it with canvas path calls. Anything that only has to be
-DISPLAYED ships as PNG in `public/art/`: the background and Hex's five head
-poses. The heads are exported onto one shared 828x652 canvas registered by eye
+DISPLAYED ships as lossless WebP in `public/art/`: the background and Hex's
+five head poses. Only the DAY pose is fetched before first paint — the other
+seven files park their URL in `data-href` and land one idle callback later
+(`warmPoseFrames` in `cat.js`), because an SVG `<image>` has no `loading="lazy"`
+and the browser has no way to know they are invisible. The heads are exported onto one shared 828x652 canvas registered by eye
 position, with the eyes painted out, so `#hexCat` can swap them freely under a
 single rigged pair of eyes.
 

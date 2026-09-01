@@ -396,6 +396,64 @@ implementing `vercel.json` (trailing slash, then redirects, then rewrites, then
 the filesystem) and follows each page's own links and assets. It runs as part of
 `build:vercel`.
 
+## What a phone downloads
+
+Both clients are measured the same way: the assembled `dist/` served locally to
+a headless Chromium on an emulated 4G phone — 1.6 Mbps, 70 ms RTT, 4x CPU
+throttle — with the game booting for real (`?debug` for hex, `?solo` for
+goomba) rather than sitting at the join gate. Median of three runs.
+
+| | first paint | largest paint | `load` | bytes |
+| --- | --- | --- | --- | --- |
+| Hex Clicker | 810 ms | 1.39 s | 1.34 s | 216 KB, then 400 KB after |
+| Goomba Glider | 370 ms | 370 ms | 0.72 s | 94 KB |
+
+The rules that keep those numbers, in the order they were worth:
+
+- **Nothing invisible is on the critical path.** Hex's five cat poses are all
+  in the served markup so a pose swap has nothing to wait for, but seven of the
+  eleven files cannot be on screen in the day phase — and an SVG `<image>` has
+  no `loading="lazy"` to say so. They park their URL in `data-href` and land one
+  idle callback after the page is up (`warmPoseFrames` in
+  `hex-clicker/src/cat.js`); the win splash, which needs a proctor's press to
+  appear at all, waits the same way. Before that, the LARGEST paint on the page
+  was the SLEEPING cat, on a screen with no night phase yet.
+  `check-routing.mjs` reads `data-href` like any other ref, so a deferred file
+  cannot be renamed out from under the page.
+- **A render-blocking stylesheet carries no binaries.** Baloo 2 was a base64
+  data URI inside `styles.css` — 26 KB that gzip cannot touch, sitting between
+  the browser and the first pixel. It is a real file in `public/fonts/` now,
+  with a `preload` (and `crossorigin`, which is required rather than decorative:
+  a font is always fetched in anonymous CORS mode, and a preload without it is
+  fetched twice). That one change is 300 ms of hex's first paint.
+- **Art ships as WebP.** The cat frames are lossless WebP, pixel-identical to
+  the PNGs they replaced, for 445 KB -> 262 KB.
+- **Laptop-only code loads on the laptop.** Goomba's Figma clipboard reader is
+  ~34 KB that only a `Ctrl+V` can reach, so it is a dynamic import behind the
+  paste (`figma/paste.js`) and never reaches a phone. Both clipboard reads
+  happen before that `await` and must stay there — a `DataTransfer` is only
+  readable during its own event.
+- **The socket is named in the markup.** Neither the room server's host nor
+  partysocket's chunk name appeared in the HTML, so the connection could not
+  start until the app chunk had been fetched AND parsed — partysocket was the
+  last request either game made. `scripts/vite-net-hints.mjs` adds a
+  `preconnect` and a `modulepreload` at build time, where both are known.
+  partysocket stays a *dynamic* import on purpose: `?debug` and `?solo` run the
+  whole game in-page with no socket at all, and a preload is a hint the browser
+  may decline where a static import is 12 KB nobody can.
+- **Hashed assets are cached forever.** Vercel's default for a static output
+  directory is `max-age=0, must-revalidate`, which spends a round trip per file
+  per reload asking a question a content hash has already answered — and a party
+  reloads these pages a lot. The `assets/` rules in `vercel.json` say
+  `immutable`; `art/` and `fonts/` are not hashed (they live in `public/`), so
+  they get a day plus a week of stale-while-revalidate instead.
+
+**Measured and rejected:** preloading the four day-pose images. The preload
+scanner does not read inline SVG, so they are discovered late — but the
+connection is bandwidth-bound rather than discovery-bound, and the preloads took
+bandwidth from the stylesheet for a consistent ~20 ms of first paint and no gain
+in the largest one. Don't re-add one without a measurement.
+
 ## A level is a link
 
 The level editor has no server, no database and no account, and that is the

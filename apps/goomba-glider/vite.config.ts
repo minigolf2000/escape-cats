@@ -1,5 +1,7 @@
 import { defineConfig } from "vite";
 import { execSync } from "node:child_process";
+// @ts-expect-error — a plain .mjs build plugin shared by both game clients.
+import { netHints } from "../../scripts/vite-net-hints.mjs";
 
 /** What build is this? — stamped in at build time and printed by `?pixels`.
  *
@@ -34,6 +36,9 @@ export default defineConfig({
   // (see that file's comment, or the README's "Vanity domains" section).
   // /g00mBa's casing is load-bearing: URL paths are case-sensitive.
   base: "/g00mBa/",
+  // preconnect to the room server + modulepreload the partysocket chunk;
+  // see scripts/vite-net-hints.mjs for what each one buys.
+  plugins: [netHints({ preloadModules: ["/partysocket/"] })],
   define: { __BUILD__: JSON.stringify(buildId()) },
   server: { host: true },
 });

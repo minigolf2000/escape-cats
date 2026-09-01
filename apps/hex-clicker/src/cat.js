@@ -438,3 +438,42 @@ function headTiltDeg(t, calm) {
   else a = 1 - smoothstep((e - TILT_IN - TILT_HOLD) / TILT_OUT);
   return tiltDir * TILT_MAX * a;
 }
+
+// ---------------------------------------------------------------------------
+// POSE FRAMES, OFF THE CRITICAL PATH
+//
+// Five head poses and four shadows are all in the served markup so a pose swap
+// is a `visibility` flip with nothing to wait for — but the browser does not
+// know that four heads and three shadows are invisible for the whole of the
+// day phase, and an SVG <image> has no `loading="lazy"` to tell it. It fetched
+// all eleven before first paint, and the LAST of them decided the page's LCP:
+// measured on an emulated 4G phone, the largest paint was #headNight — the
+// SLEEPING cat, on a screen that has not got a night phase yet — at 3.1s,
+// against a first paint at 1.6s.
+//
+// So the seven frames that cannot be on screen at boot park their URL in
+// `data-href` and land here instead, one idle callback after the page is up.
+// What stays eager is exactly what the day pose paints: the head, its two ears
+// and its shadow.
+//
+// The deadline is what makes this safe rather than clever. A pet is the first
+// thing a finger does, and it needs the squash frames; `requestIdleCallback`
+// with a 2s deadline fires by then on any phone (and a pet cannot land before
+// the room's first snapshot anyway, which is a network round trip away).
+// Setting `href` on an <image> that is already `visibility: hidden` decodes
+// without painting, so this costs nothing on screen.
+//
+// The paths are BASE_URL-relative, like phase.js's splash: Vite rewrites
+// `href` through `base` but has no reason to know about `data-href`.
+// ---------------------------------------------------------------------------
+export function warmPoseFrames() {
+  const land = () => {
+    for (const el of hexCatEl.querySelectorAll("[data-href]")) {
+      el.setAttribute("href", import.meta.env.BASE_URL + el.dataset.href);
+      el.removeAttribute("data-href");
+    }
+  };
+  if (typeof requestIdleCallback === "function")
+    requestIdleCallback(land, { timeout: 2000 });
+  else setTimeout(land, 200);
+}

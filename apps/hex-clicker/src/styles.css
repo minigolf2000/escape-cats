@@ -528,7 +528,7 @@
      you tap — that tie is gone with the green shop, and a brutalist tray has no
      hue to match anyway, so the eyes go back to the drawing. */
   /* The pupil is inked in the drawing's own line colour (#302B2A, sampled off
-     hex-day.png rather than guessed) on the solid yellow socket. */
+     hex-day.webp rather than guessed) on the solid yellow socket. */
   #hexCat { --hex-eye: #D0D060; --hex-pupil: #302B2A; }
   #hexCat .eye path { fill: var(--hex-eye); }
   #hexCat .eye path.pupil { fill: var(--hex-pupil); }

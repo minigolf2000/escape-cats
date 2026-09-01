@@ -26,7 +26,6 @@
 // or throws something a person standing at a laptop can act on.
 
 import { decodeLevel } from "@escape-cats/shared";
-import { hasFigmaBuffer, levelFromFigmaClipboard } from "./clipboard.js";
 
 /** Does this text look like SVG? Only to say "wrong copy", never to read it. */
 const looksLikeSvg = (s) => /^<(\?xml|svg)/i.test(s) || s.includes("<svg");
@@ -61,10 +60,27 @@ function describe(dt) {
 export async function levelFromPaste(dt) {
   if (!dt) throw new Error("that paste carried no clipboard data at all");
 
+  // BOTH reads happen before the first await, and that is a hard requirement,
+  // not a style: a DataTransfer is only guaranteed readable while its own
+  // event is being dispatched, so anything this function does asynchronously
+  // has to be done to these two strings and never to `dt`.
   const html = dt.getData("text/html") || "";
   const text = dt.getData("text/plain") || "";
+  // The "it held:" line for the error at the bottom, taken here for the same
+  // reason: it reads every type off `dt`, and by the time that error is thrown
+  // the event is long over. An error that says "(empty clipboard)" about a
+  // clipboard that was not empty is the silent version of this one.
+  const held = describe(dt);
 
-  if (hasFigmaBuffer(html)) return await levelFromFigmaClipboard(html);
+  // The Figma reader — the kiwi decoder, the shape readers and the stitcher,
+  // ~34KB of source and fzstd behind it — is loaded HERE rather than imported
+  // at the top, because the only surface that can reach it is a laptop that
+  // pressed Ctrl+V. Every player is on a phone, and a phone has no paste to
+  // make: this took the whole subtree out of the chunk each of them downloads
+  // before the game starts. It is awaited on the path that needs it, so a
+  // paste costs one extra fetch on the machine that is doing the pasting.
+  const figma = await import("./clipboard.js");
+  if (figma.hasFigmaBuffer(html)) return await figma.levelFromFigmaClipboard(html);
 
   const got = fromText(text || html);
   if (got) return got;
@@ -79,7 +95,7 @@ export async function levelFromPaste(dt) {
     );
 
   throw new Error(
-    `that is not a Figma copy or a level link — it held: ${describe(dt)}. ` +
+    `that is not a Figma copy or a level link — it held: ${held}. ` +
       `In Figma select the frame and press Ctrl+C (not Copy as SVG).`,
   );
 }

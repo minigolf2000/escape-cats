@@ -53,7 +53,7 @@ import { initPetInput } from "./pet.js";
 import { spawnGold, despawnGold, moveGold, initGoldenInput } from "./golden.js";
 import { updatePops } from "./fx.js";
 import { clearMateTaps, enqueueMateTaps, updateMateTaps } from "./mates.js";
-import { updateCat } from "./cat.js";
+import { updateCat, warmPoseFrames } from "./cat.js";
 import {
   syncPhase, runNightCutscene, isNightInited,
   initSplashArt, setSplash, syncWon, toggleSplash,
@@ -362,6 +362,12 @@ window.addEventListener("keydown", (e) => {
 });
 
 boot();
+
+// The alternate cat poses, fetched once the page is up rather than before its
+// first paint — see warmPoseFrames in cat.js. Out here rather than in
+// initGame() so the frames are on their way while the room is still
+// connecting, not after it answers.
+warmPoseFrames();
 
 // Debug handle — the multiplayer stand-in for the prototype's ?debug panel.
 // Lets a console (or a Playwright test) inspect the mirror and inject intents;

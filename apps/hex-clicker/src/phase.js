@@ -92,7 +92,18 @@ export function initSplashArt() {
         .join(",")})`,
     );
   };
-  splashArtEl.src = import.meta.env.BASE_URL + "art/hex-splash.webp";
+  // 200KB, and the splash it belongs to cannot be on screen until a proctor
+  // presses the win — so it waits for an idle moment rather than riding out
+  // with the room's first snapshot, where it was the biggest single thing the
+  // phone fetched at the exact moment the game started. The timeout is
+  // generous because nothing is watching for it: the sky vars are set by the
+  // onload above, and #wonPill is minutes away at the earliest.
+  const load = () => {
+    splashArtEl.src = import.meta.env.BASE_URL + "art/hex-splash.webp";
+  };
+  if (typeof requestIdleCallback === "function")
+    requestIdleCallback(load, { timeout: 5000 });
+  else setTimeout(load, 1000);
 }
 
 /** The art's own SIDE EDGE, sampled down its height into n colours — the sky to

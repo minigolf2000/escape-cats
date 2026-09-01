@@ -119,7 +119,14 @@ async function fetchPath(pathname, host) {
  * page links and checks its url() refs too. */
 function refsOf(html, pageUrl) {
   const out = [];
-  const patterns = [/(?:href|src)="([^"]+)"/g, /url\(\s*["']?([^"')]+)["']?\s*\)/g];
+  // `data-href` counts: hex's alternate cat poses park their URL there so the
+  // browser does not fetch seven never-visible frames before first paint (see
+  // warmPoseFrames in hex-clicker/src/cat.js). A deferred asset is still an
+  // asset this page will 404 on if it moves, so it is checked like any other.
+  const patterns = [
+    /(?:data-)?(?:href|src)="([^"]+)"/g,
+    /url\(\s*["']?([^"')]+)["']?\s*\)/g,
+  ];
   for (const re of patterns) {
     for (const m of html.matchAll(re)) {
       const raw = m[1].trim();

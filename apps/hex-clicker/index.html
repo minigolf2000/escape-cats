@@ -3,6 +3,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Hex Clicker</title>
+<!-- THE ONE FACE, started on the preload scanner's pass rather than after the
+     stylesheet has been fetched and parsed. It lived inside styles.css as a
+     data URI, which put 26KB of base64 in front of the first paint; see the
+     @font-face comment there for the measurement. `crossorigin` is not
+     optional on a font preload — a font is always fetched in anonymous CORS
+     mode, and a preload without it lands in the other pool and is fetched
+     twice. -->
+<link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/baloo2.woff2">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❓</text></svg>">
 <!--
   Hex Clicker — the multiplayer client's markup. A Cookie Clicker homage: pet

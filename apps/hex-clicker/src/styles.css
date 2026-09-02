@@ -1431,28 +1431,24 @@
   #gate h1 { font-size: 28px; letter-spacing: .08em; margin: 0 0 6px; }
   #gate p { margin: 0; opacity: .75; font-size: 14px; max-width: 34ch; }
   #gate .err { color: #ff6fa5; font-size: 13px; min-height: 1.2em; margin: 0; }
-  /* WHO IS HERE. One name per line, standing ON the SHOP tab — the same corner,
-     the same left edge, one stack.
+  /* WHO IS HERE. One name per line, right-aligned, riding the top edge of the
+     shop TRAY — the sheet of goods, not the tab hung above it.
 
-     It was right-aligned for a while, and the reason to move it is `--dock-up`.
-     That number is tray + RAIL, and the rail is a tab hung off the dock's
-     top-LEFT corner (see `.shopHead`) — so a column in the RIGHT corner was
-     clearing a tab that is nowhere near it. The names floated a tab's height
-     over the tray with the whole width of the screen between them and the only
-     thing that explained the gap, which reads as a readout that missed its
-     mark. Over the tab the same anchor is exact: the names sit on the thing
-     they clear, and Goomba's roster already does exactly this — a column
-     standing on PLAY's line, directly above the button. One habit, both games.
-
-     LEFT off the tab's own horizontal padding rather than a gutter of its own,
-     so the names and the word SHOP share a left edge at every --ss.
+     Which of those two edges it rides is the whole of this rule, and the tab is
+     a fossil in it. `--dock-up` used to be tray + RAIL, from when the rail was
+     a full-width band 48px tall (see `.shopHead`): a right-aligned column
+     genuinely did have to clear it, because it ran under the names. The rail is
+     a TAB in the dock's top-LEFT corner now, 120px of a 390px screen, and the
+     right-hand side has nothing under the names but tray — so that term was
+     buying a tab's height (50px, measured) of empty screen with nothing on the
+     names' own side of the phone to explain it. Off the tray the names sit ten
+     pixels over the goods, which is where they read as belonging to the shop's
+     top edge rather than hovering over the stage.
 
      A COLUMN, not a line. Four names in a row measure ~250px and this screen is
      390 wide, so the row this replaced capped itself at 40vw and ellipsised the
      fourth player away — which is the one thing a roster may not do. Stacked,
-     the width is the WIDEST SINGLE NAME (~70px) and nothing ever truncates —
-     and a stack is also what keeps this off the cat: it grows up a column the
-     tab already owns instead of across the play area.
+     the width is the WIDEST SINGLE NAME (~70px) and nothing ever truncates.
 
      No plate, no panel: --title-color/--title-shadow are the page's pair for a
      readout floating ON the stage — #cps wears the same two — so these names
@@ -1461,19 +1457,22 @@
      the ink goes gold and the white halo becomes a gold bloom with no second
      rule here.
 
-     --dock-up is the dock's own measured height — tray plus rail — published by
-     the ResizeObserver in main.js. Reading it back is what glues the names to
-     the tab's top edge through all three of its heights — open, collapsed to
-     the bare rail, and retired for good once the shop sells out — with no copy
-     of any of them in this file. The 0px fallback is deliberate rather than
-     defensive: a dock that is display:none measures 0, which drops the names to
-     the screen's own bottom inset, and that is exactly where they belong both
-     before the shop first appears and after it is gone. */
+     --dock-up is the tray's own measured height, published by the ResizeObserver
+     in main.js. Reading it back is what glues the names to the tray's top edge
+     through all three of its heights — open, collapsed to the bare rail, and
+     retired for good once the shop sells out — with no copy of any of them in
+     this file. Collapsed, the tray is ~3px and the names come down with it, to
+     sit level with the tab across the screen from them; that is the same rule,
+     not an exception to it, and there is nothing on this side for them to be
+     above. The 0px fallback is deliberate rather than defensive: a tray that is
+     display:none measures 0, which drops the names to the screen's own bottom
+     inset, and that is exactly where they belong both before the shop first
+     appears and after it is gone. */
   #team {
     position: fixed; z-index: 6;
-    left: calc(9px * var(--ss));
+    right: 14px;
     bottom: calc(max(var(--dock-up, 0px), env(safe-area-inset-bottom)) + 10px);
-    display: flex; flex-direction: column; align-items: flex-start;
+    display: flex; flex-direction: column; align-items: flex-end;
     pointer-events: none;
     font: 400 13px var(--ui-font); line-height: 1.42;
     color: var(--title-color); text-shadow: var(--title-shadow);
@@ -1551,7 +1550,7 @@
      Hidden until the proctor marks the team won, then it ping-pongs: over the
      game it opens the splash, over the splash it goes back. Top-left because
      that is the corner nothing else uses (#bank centres, and the whole top
-     right is empty now that #team has moved down onto the shop tab), and because
+     right is empty now that #team has moved down to the tray), and because
      Goomba's level selector opens from the same corner — one habit across both
      games. */
   #wonPill {

@@ -11,7 +11,6 @@ import {
   countIconEl,
   teamEl,
   dockEl,
-  shopToggleEl,
   connToastEl,
   gateEl,
   gateStatusEl,
@@ -176,35 +175,37 @@ function initGame() {
 }
 
 /** How far up the screen the shop tray reaches, published to CSS as `--dock-up`
- * so the roster can stand on the SHOP tab (see `#team` in styles.css).
+ * so the roster can ride its top edge (see `#team` in styles.css).
  *
  * MEASURED, never copied. The tray has three heights — open, collapsed to the
  * bare SHOP rail, and gone once the shop retires — and every one of them is a
  * number in the stylesheet; a constant here would be wrong in two of the three.
  *
- * Two boxes, not one, because the RAIL is `position: absolute; bottom: 100%` —
- * it hangs above the tray, OUTSIDE its box, so the tray's own height is not
- * where the tray visually ends. Collapsed that gap is the whole control: the
- * scroller goes to zero, `#dock` measures ~3px, and the rail everyone can still
- * see and tap is the other ~50. Summing them is what keeps the names above the
- * rail instead of landing on top of it.
+ * The TRAY alone, and the rail is deliberately not in it. The rail is
+ * `position: absolute; bottom: 100%`, so it hangs above the tray and outside
+ * its box, and this number summed the two for as long as the rail was a
+ * full-width band — under a right-aligned roster as much as anything else.
+ * It is a tab in the top-LEFT corner now (`.shopHead`), and adding its height
+ * to a measurement the names read from the RIGHT edge just pushed them a tab's
+ * height up the empty side of the screen. Whatever the roster ends up riding,
+ * it should be something actually beneath it.
  *
  * HEIGHTS rather than a top edge, because the tray arrives and leaves on a
  * transform (`dockIn`, and `.cutscene-hidden` on the way to night). A transform
  * moves a box without resizing it, so a measured position would be wrong for
- * the whole half-second of each slide with no resize to correct it; the heights
- * are right throughout, and the names simply stay put while the tray travels.
- * A hidden tray measures 0 and takes the rail with it, which is the answer
- * `#team` wants: it falls to the screen's own bottom inset and stays on screen,
- * both before the shop first appears and after it has retired for good. */
+ * the whole half-second of each slide with no resize to correct it; the height
+ * is right throughout, and the names simply stay put while the tray travels.
+ * A hidden tray measures 0, which is the answer `#team` wants: it falls to the
+ * screen's own bottom inset and stays on screen, both before the shop first
+ * appears and after it has retired for good. */
 function measureDock() {
-  const tray = dockEl.getBoundingClientRect().height;
-  const rail = tray > 0 ? shopToggleEl.getBoundingClientRect().height : 0;
-  document.documentElement.style.setProperty("--dock-up", `${tray + rail}px`);
+  document.documentElement.style.setProperty(
+    "--dock-up",
+    `${dockEl.getBoundingClientRect().height}px`,
+  );
 }
 const dockRO = new ResizeObserver(measureDock);
 dockRO.observe(dockEl);
-dockRO.observe(shopToggleEl);
 
 let teamKey = "";
 function updateTeam() {

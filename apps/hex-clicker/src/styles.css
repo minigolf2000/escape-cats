@@ -1169,7 +1169,7 @@
      green when you can afford it and red when you can't — that red/green is the
      whole readout. Affordable rows brighten rather than getting a neon glow. */
   .item {
-    display: flex; align-items: center; gap: 0; width: 100%; text-align: left;
+    display: flex; align-items: center; width: 100%; text-align: left;
     background: transparent; border: none; border-bottom: 1px solid var(--line);
     padding: 0 calc(11px * var(--ss)) 0 0; color: var(--muted); cursor: default;
     transition: background .1s, opacity .15s; opacity: .5;
@@ -1196,11 +1196,21 @@
        fixed square would leave a strip of row background above and below each
        tile and turn every row boundary into five edges. Stretched, the tint is
        one unbroken column that the row lines cross cleanly; keeping the glyphs
-       agreeing row-to-row is font-size's job, not the tile's. */
+       agreeing row-to-row is font-size's job, not the tile's.
+
+       THE GUTTER LIVES INSIDE THE WIDTH, and that is the whole of the icon
+       being centred. As a `margin: 0 11px 0 0` outside a 36px tile it centred
+       the glyph in the 36 — but the row is flush with the dock's left edge, so
+       what a player sees is 10px to the screen edge and 26.5 to the first
+       letter (the tile's own 10, plus the margin). Right centre, reads shoved
+       into the corner. Inside the width it measures 18.3/18.3 and .body still
+       starts at the same x — only the glyph moved. No other balance exists: a
+       glyph centred in a tile of width w followed by a gutter g has equal gaps
+       only when g is 0, so g has to be part of w — which is why `.item` carries
+       no `gap` and this tile no margin. */
     flex: none; align-self: stretch;
-    width: calc(36px * var(--ss));
+    width: calc((36px + 11px) * var(--ss));
     display: grid; place-items: center;
-    margin: 0 calc(11px * var(--ss)) 0 0;
     font-size: calc(18px * var(--ss)); background: var(--icon-bg);
   }
   /* Cookie Clicker's own store-row placement: name top-left, price under it in
@@ -1304,7 +1314,6 @@
   #upgradeSec { display: none; }
   #upgradeSec.show { display: block; }
   #upgrades { padding: 0; }
-  .item.up { padding: 0 calc(11px * var(--ss)) 0 0; }
   .item.up .body { padding: calc(4px * var(--ss)) 0; }
   .item.up .nm { font-size: calc(12.5px * var(--ss)); }
   /* ---- Scroll shadow (locked affordance): a soft inner shadow at whichever

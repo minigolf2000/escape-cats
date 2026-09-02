@@ -1,9 +1,5 @@
-/* goomba-glider — the whole stylesheet. Imported from main.js, so Vite
- * hashes it like every other app's. The game itself is a canvas; this is the
- * HUD around it (the two plates in the top corners — the dot strip that opens
- * the level grid, the band slots that empty themselves — PLAY, the toast) and
- * the how-to-play sheet that doubles as the join gate, including the zoop that
- * flies it into the `?` button.
+/* goomba-glider — the whole stylesheet, imported from main.js. The game is a
+ * canvas; this is the HUD around it and the how-to-play sheet / join gate.
  */
 
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #150a2a; }
@@ -11,66 +7,40 @@
   #hud { position: fixed; inset: 0; pointer-events: none;
          font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
          color: #f2ecff;
-         /* How long the sheet takes to fall into the `?` (see THE ZOOP below).
-            One number, shared by the flight and the landing that has to meet
-            it, and main.js reads it back off this element rather than keeping
-            a second copy of it — the two halves are one gesture and cannot be
-            allowed to drift. */
+         /* THE ZOOP's clock: one number for the flight and the landing;
+            sheet.js reads it back off this element (zoopMs). */
          --zoop-ms: 460ms;
-         /* THE PLATE. One skin for both top corners and for `#figma`, which
-            borrows the same corner. Dark rather than the old 8%-white lift:
-            these are buttons now, and a control you can read the party through
-            reads as a label. Not fully opaque — during edit there is a LEVEL
-            behind them, and a plate that hid terrain in the top corners would
-            be answering the wrong question. */
+         /* THE PLATE: one skin for both top corners and `#figma`. Not fully
+            opaque — during edit there is a LEVEL behind them. */
          --plate: rgba(28,16,52,.72);
          --plate-edge: rgba(201,189,240,.35);
          --plate-ink: #c9bdf0;
-         /* Where the HUD's top row begins: 10px, or the notch. FOUR rules used
-            to carry their own copy of this max() — #top, #hint, #figma, #conn —
-            which is four places for a notch fix to miss three of. The canvas
-            side never reads this variable: render.js measures #top's actual
-            box (measureBunting), which is this number plus the bar's height. */
+         /* Where the HUD's top row begins: 10px, or the notch. The canvas never
+            reads this: render.js MEASURES #top's box (measureBunting). */
          --hud-top: max(10px, env(safe-area-inset-top));
-         /* The same fix at the other end. #play and #help each carried their
-            own copy of this max(), and #team standing on PLAY's line would have
-            made three — so it becomes one number, exactly as --hud-top did.
-            --play-h is here for #team's sake alone: it has to clear the button
-            without keeping a second copy of how tall the button is. */
+         /* The same at the other end; --play-h exists so #team can clear the
+            button without a second copy of its height. */
          --hud-bottom: max(16px, env(safe-area-inset-bottom));
          --play-h: 56px; }
-  /* Two plates, and they are NOT the same height: the dots are 11px tall and the
-     band slots are 27, so the left plate is 40 and the right one 56. `center`
-     would hang the short one halfway down the tall one; `flex-start` gives them
-     one top line, which is what makes the pair read as a bar rather than as two
-     unrelated chips. The 14px side padding is load-bearing too — it is the
-     gutter a thumb arriving from the screen edge lands in, on CANVAS, instead
-     of on the button that empties the room's bands.
-     `#top`'s own bottom edge is where the bunting hangs from (drawBackground in
-     render.js MEASURES it), so every plate below keeps its box in every phase:
-     a plate that collapsed would drag the party decorations up with it. */
+  /* Two plates, NOT the same height (40 and 56): `flex-start` gives them one
+     top line. The 14px side padding is the gutter a thumb from the screen
+     edge lands in, on CANVAS, not on the button that empties the room's
+     bands. `#top`'s bottom edge is where the bunting hangs (render.js
+     MEASURES it), so every plate keeps its box in every phase. */
   #top { position: absolute; top: var(--hud-top); left: 0; right: 0;
          display: flex; align-items: flex-start; justify-content: space-between; padding: 0 14px; gap: 8px; }
-  /* The level dots — and, once the team has CLEARED the game (or on a ?debug
-     phone, which overrides that gate), the level grid's button: the strip the
-     dots already sit on IS the selector, so the grid opens from the thing it
-     is about instead of a second control parked down on PLAY's line. Before
-     the clear the same element is an indicator and nothing else, hence the
-     pointer-events and cursor reset off the global button rule — and hence
-     `.cleared` toggling per snapshot (syncHud) rather than once at boot: it is
-     room state, and a proctor reset takes it away again. */
+  /* The level dots — and once the team has CLEARED the game (or ?debug), the
+     level grid's button. Before the clear it is an indicator only, hence the
+     pointer-events and cursor reset; `.cleared` toggles per snapshot because
+     it is room state and a proctor reset takes it away. */
   #lab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0;
          background: none; pointer-events: none; cursor: default; }
   #hud.cleared #lab { padding: 5px 10px; border-radius: 13px; gap: 5px;
                       background: var(--plate);
                       border: 1.5px solid var(--plate-edge);
                       pointer-events: auto; cursor: pointer; }
-  /* The words, not a glyph: "▦" had to be learned, and there was nowhere to
-     learn it from — this is the one control the clear unlocks, so it says what
-     it does. BELOW the dots, because the dots are what it is about: the strip
-     reads "here is the pack, here is where you are" and the line under it is
-     the way in. Only in `.cleared` — before that the same element is an
-     indicator, and a label on it would be an offer the gate refuses. */
+  /* Words, not a glyph, BELOW the dots it is about. Only in `.cleared`: before
+     that a label would be an offer the gate refuses. */
   #hud.cleared #lab::after { content: "select level"; font-size: 11px; font-weight: 700;
                              color: var(--plate-ink); line-height: 1; letter-spacing: .02em; }
   #dots { display: flex; gap: 4px; }
@@ -82,44 +52,20 @@
   #inv .band { width: 27px; height: 27px; border-radius: 8px; border: 2.5px dashed rgba(201,189,240,.4);
                box-sizing: border-box; transition: opacity .25s, transform .25s; }
   #inv .band.used { border-style: solid; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
-  /* An empty slot I could fill right now — which, since the per-player quota
-     is gone, is every empty slot while the room is editing: lit, and wearing
-     the TEAM's colour, set inline because only the client knows its team. Off
-     the edit phase they keep the faded rule above, so the row says "not now"
-     without ever changing size — this is presentation, never layout. */
+  /* An empty slot I could fill (every empty slot during edit): lit, in the
+     TEAM's colour, set inline. Presentation, never layout. */
   #inv .band.open { box-shadow: 0 0 10px rgba(255,255,255,.18); }
-  /* #lvl (the level's name) is gone, so #hint is the first prose line under the
-     top bar. 80px clears the tall plate (56) with the same ~14px the rest of
-     this layout keeps — and the 24px between them is not spare room, it is the
-     CORRIDOR the first bunting string lives in: 22px of string (y0 to y0+sag)
-     into 24px of gap. Move either number and the party decorations have
-     nowhere to hang, so check drawBackground before you do. */
+  /* The first prose line under the top bar. The 24px between the tall plate
+     (56) and it is the CORRIDOR the first bunting string lives in (22px of
+     string); check drawBackground before moving either number. */
   #hint { position: absolute; top: calc(var(--hud-top) + 80px); left: 0; right: 0;
           text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
-  /* WHO IS HERE. One name per line, right-aligned, standing on PLAY's line —
-     the one corner of this screen nothing else is in.
-
-     This game HAD a roster line, centred under the top bar, and deleting it was
-     right: it sat at a hardcoded offset in the CORRIDOR the first bunting string
-     lives in, so the party lights ran straight through the names. The argument
-     that replaced it — four people in one living room already know who is here —
-     holds for a full room mid-level and not for the minute before that, which is
-     when anyone actually asks. So the names come back, somewhere the decorations
-     are not.
-
-     A COLUMN rather than a line, which is what makes the corner viable at all:
-     four names in a row measure ~250px and the widest gap on this HUD is 196px,
-     but stacked they are as wide as the LONGEST SINGLE NAME (~70px) and nothing
-     truncates. And no plate — this is #hint's own colour and shadow, because
-     #hint is already how this game floats a line of prose over the canvas, so
-     the roster reads as the same kind of thing the win banner is rather than as
-     a panel laid on the level.
-
-     Off --hud-bottom and --play-h, so it clears the button without a second copy
-     of where the button is or how tall it is. It is a direct child of #hud, so
-     `#hud.lab > *` takes it away with everything else when the levels grid opens
-     and `#hud.splash > *` does the same on the congratulations screen — a
-     roster belongs to neither. */
+  /* WHO IS HERE: one name per line, right-aligned, on PLAY's line — the one
+     corner nothing else is in and no bunting string crosses. A COLUMN, because
+     four names in a row (~250px) do not fit and stacked they are as wide as
+     the longest name. No plate: #hint's own prose colour and shadow. Off
+     --hud-bottom and --play-h. A direct child of #hud, so .lab and .splash
+     hide it with everything else. */
   #team { position: absolute; right: 18px;
           bottom: calc(var(--hud-bottom) + var(--play-h) + 14px);
           display: flex; flex-direction: column; align-items: flex-end;
@@ -136,51 +82,22 @@
           box-shadow: 0 6px 18px rgba(87,230,201,.35), inset 0 -3px 0 rgba(0,0,0,.15); letter-spacing: .03em; }
   #play.stop { background: linear-gradient(180deg, #ff7ec1, #ff5db1); box-shadow: 0 6px 18px rgba(255,93,177,.35), inset 0 -3px 0 rgba(0,0,0,.15); }
   #play.next { background: linear-gradient(180deg, #ffe08a, #ffd166); box-shadow: 0 6px 18px rgba(255,209,102,.4), inset 0 -3px 0 rgba(0,0,0,.15); }
-  /* THE OTHER PLATE: the band slots ARE the button that empties them, the same
-     way the dot strip is the button that opens the grid. Same skin, same 11px
-     label on a line underneath, same reason — this is the one control the
-     slots are about, so it says what it does rather than wearing a glyph.
-     It replaced a chip parked on its own line below the slots, which had to be
-     absolutely positioned to keep the row exactly four slots wide.
-
-     Two things here are NOT copied from `#lab`, and both are the point.
-
-     1. THE BOX IS ALWAYS RESERVED. `#lab` grows its plate exactly once, when
-        the team clears the game, during a phase change that redraws the screen
-        anyway. This one's condition is the EDIT phase, which comes and goes
-        every time somebody hits PLAY — forty-odd times a session. So the
-        padding, the border and the label's whole line are always here and only
-        their INK changes: chrome fades in on `.laying`, the words hide with
-        `visibility` (never `display`), and nothing in this row ever moves.
-        The row has been burned by this before; the band slots keep the same
-        discipline two rules up, and so does the bunting hanging off #top's
-        bottom edge.
-     2. IT USES THE REAL `disabled`. `#lab` fakes it with pointer-events, which
-        leaves an enabled button in the accessibility tree offering a level
-        grid the gate refuses. Here the attribute does the pointer blocking AND
-        tells a screen reader the truth, so `aria-label` on the element is safe
-        — the visible label is a `::after` and generated content is not
-        something to rely on being announced.
-
-     The label can never widen the plate: the slots are 120px (4 x 27 + 3 x 4)
-     and "clear bands" at 11px/700 measures 72. That is what the old chip's
-     absolute positioning was buying, and here it comes for free — which is why
-     this corner is a better home for the idiom than the left one, where
-     "select level" is wider than a short pack's dots and DOES drive the width.
-     The 48px of headroom left is not licence to keep adding words: past 120 the
-     label starts driving the plate instead, and the row is back in the fight
-     that moved the old chip out of it in the first place. (Measured: the pair
-     still clears by 55px on a 320px screen, the tightest there is.)
-
-     One tap still wipes, with no confirm, and it still takes the WHOLE ROOM's
-     bands: the four players are in one living room, so a clear nobody wanted is
-     answered out loud in a second and the bands go back down. That trade was
-     written for a 30px chip and now covers a 56px plate, which is more surface
-     to hit by accident — hence `disabled` everywhere except edit-with-bands,
-     and hence the 14px gutter #top keeps on the right. If strays turn up in a
-     real room the answer is UNDO, not a confirm step: a bigger target earns a
-     cheap reversal, where a confirm would tax every deliberate tap to insure
-     against the rare stray one. */
+  /* THE OTHER PLATE: the band slots ARE the button that empties them — the
+     same idiom as `#lab` (plate, 11px label underneath), with two differences
+     that are the point.
+     1. THE BOX IS ALWAYS RESERVED. `#lab` grows its plate once, on the clear;
+        this one's condition is the EDIT phase, which comes and goes on every
+        PLAY. So padding, border and the label's line are always here and only
+        the INK changes: chrome on `.laying`, words hidden by `visibility`
+        (never `display`). Key its chrome on the band COUNT and the row jumps
+        forty times a session.
+     2. THE REAL `disabled`, not `#lab`'s pointer-events fake: it blocks the
+        pointer AND tells a screen reader the truth (the visible label is
+        generated content, so `aria-label` carries it).
+     The label cannot widen the plate: the slots are 120px and "clear bands" at
+     11px/700 is 72. Past 120 the label would drive the width — no more words.
+     One tap wipes the WHOLE ROOM's bands with no confirm; if strays turn up
+     the answer is UNDO, never a confirm step. */
   #bandbar { display: flex; flex-direction: column; align-items: center; gap: 5px;
              padding: 5px 10px; border-radius: 13px;
              background: none; border: 1.5px solid transparent;
@@ -189,97 +106,52 @@
   #bandbar::after { content: "clear bands"; font-size: 11px; font-weight: 700;
                     color: var(--plate-ink); line-height: 1; letter-spacing: .02em;
                     visibility: hidden; }
-  /* `.laying` is the EDIT phase — the phase a band can be LAID in. It is not
-     `.editing`, which is the Figma level editor and lives on the same element;
-     the two are unrelated, and the names being one letter apart is the whole
-     reason this note is here. */
+  /* `.laying` is the EDIT phase (a band can be LAID). NOT `.editing`, which
+     is the Figma level editor on the same element — unrelated. */
   #hud.laying #bandbar { background: var(--plate); border-color: var(--plate-edge); }
-  /* `inherit`, NEVER `visible`. Visibility inherits, and an explicit `visible`
-     on a descendant re-opens it under a hidden ancestor — which is exactly how
-     the label floated alone over the level grid (`.lab` hides all of #top) and
-     would float over the rotate screen (the landscape media rule hides #hud).
-     `inherit` says only "stop forcing hidden": the label shows when the plate
-     shows and follows every ancestor that hides it, current and future. */
+  /* `inherit`, NEVER `visible`: an explicit `visible` on a descendant
+     re-opens it under EVERY hidden ancestor (.lab, the rotate rule). `inherit`
+     only stops forcing hidden. check-visibility.mjs enforces it. */
   #hud.laying #bandbar::after { visibility: inherit; }
-  /* Nothing to clear yet: the words go quiet and the button goes dead, without
-     the box changing by a pixel. Exactly what an empty band slot does one rule
-     up when it says "not now". */
+  /* Nothing to clear yet: words quiet, button dead, box unchanged. */
   #bandbar:disabled::after { color: rgba(201,189,240,.36); }
   #bandbar:enabled { pointer-events: auto; cursor: pointer; }
   #bandbar:enabled:active { transform: scale(.96); }
   /* levels open: the grid is the whole screen; tap a card to leave */
   #hud.lab > * { visibility: hidden; }
-  /* ...except the way back to where levels come from. The grid is drawn on the
-     canvas, but this is a real <a>: middle-click, open-in-new-tab and the
-     browser's own popup rules all work, which a canvas hit-target would have to
-     reimplement badly. Only while EDITING — a team using the grid as its
-     free-play menu has no use for the design file. */
+  /* ...except the link to the Figma file: a real <a> (middle-click and
+     open-in-new-tab work), and only while EDITING. */
   #figma { position: absolute; top: var(--hud-top); right: 14px;
            display: none; padding: 5px 10px; border-radius: 13px;
            font-size: 12px; font-weight: 700; letter-spacing: .02em;
            color: var(--plate-ink); text-decoration: none; pointer-events: auto;
            background: var(--plate);
            border: 1.5px solid var(--plate-edge); }
-  /* `inherit`, not `visible`, like every re-show in this file: it cancels
-     .lab's `> *` hidden and still follows #hud if anything hides IT. */
+  /* `inherit`, not `visible`, like every re-show in this file. */
   #hud.lab.editing #figma { display: block; visibility: inherit; }
-  /* The splash a cleared room lands on (phase "splash", see goomba/sim.ts):
-     the congratulations screen, whose ONLY control is the level selector the
-     clear just unlocked — so the strip stays up and the rest of the HUD goes.
-     The congratulations themselves are drawn on the CANVAS (drawSplashWords in
-     render.js), with the rest of that screen, because they sit over the art and
-     have to be measured against the picture rather than against this layout —
-     and because a tap anywhere on that canvas is the second way into the grid.
-     Same visibility idiom as .lab above, so nothing here moves any layout; the
-     :not(.lab) keeps the grid a whole screen when it opens from here. */
+  /* The splash (phase "splash", goomba/sim.ts): its ONLY control is the level
+     selector, so the strip stays and the rest of the HUD goes. The words are on
+     the CANVAS (drawSplashWords). The :not(.lab) keeps the grid a whole screen
+     when it opens from here. */
   #hud.splash > * { visibility: hidden; }
-  /* Re-shown with `inherit`, NOT `visible`: the strip should follow #hud, and
-     `visible` would re-open it over anything that hides #hud itself — the
-     landscape rotate rule at the bottom of this file, concretely: a cleared
-     room's phone turned sideways had the plate floating over "Turn your phone
-     upright". `inherit` only cancels the `> *` hidden above. (#lab needs no
-     rule of its own — it sits inside #top and inherits whatever #top says.) */
+  /* `inherit`, NOT `visible`: `visible` would float the plate over the rotate
+     screen. (#lab sits inside #top and needs no rule of its own.) */
   #hud.splash:not(.lab) #top { visibility: inherit; }
-  /* ...and the band slots go with the rest, plate and all — on the
-     congratulations screen the only control is the selector. Hidden by
-     VISIBILITY, so #top keeps its full height and the bunting measured off its
-     bottom edge does not jump on the way in. */
+  /* ...and the band slots go, by VISIBILITY so #top keeps its height and the
+     bunting measured off its bottom edge does not jump. */
   #hud.splash #bandbar { visibility: hidden; }
   #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.9);
            background: rgba(20,10,45,.92); border: 2px solid #ffd166; color: #ffe9b3;
            padding: 14px 26px; border-radius: 18px; font-size: 20px; font-weight: 800; text-align: center;
            opacity: 0; transition: opacity .18s, transform .18s; white-space: nowrap; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
   #toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
-  /* THIS PHONE DROPPED. It is on #hint's LINE, one row under it, and not on the
-     top bar it used to share with the two plates — that row is the one place on
-     this HUD with no spare width. The plates are pinned to the corners and the
-     pill was centred between them, so it printed straight over the band slots:
-     measured at 375px the pill runs 123-252 and #bandbar starts at 219, and at
-     320px it buried 26px of the dots and 60px of the slots. Worse, the left
-     plate GROWS with the pack (PACK_MAX is 64), so the collision is a function
-     of how many levels the event is running and gets quietly worse all night.
-
-     Down here nothing can squeeze it: the box is FULL WIDTH and the pill is
-     centred inside it (`fit-content` + `margin-inline: auto` rather than a
-     translate, so the pill can never be pushed past either edge), and the whole
-     bottom row — #play, #help, the #team roster — is 600px away. The 104px is
-     #hint's own 80 plus its line (13px at the default height, ~18) plus 6: one
-     line below the win banner, so the two can be up together, which is exactly
-     the moment a socket drop is worth reading about.
-
-     It DOES land on the second bunting string, which at the centre sags to
-     buntingTop + 34 + 30 (drawBackground, render.js) — and that is the accepted
-     trade, not an oversight. The deleted roster line's crime was being PLAIN
-     PROSE in the strings' corridor, so the party lights ran through the letters;
-     this wears a plate and is opaque, so it occludes two bunting dots cleanly
-     rather than becoming unreadable, and only while the socket is actually down.
-     The clear band between the two strings is 94-129 at the centre, which is
-     #hint's own line — taking it would put this pill on top of the win banner,
-     and text over text is the failure being fixed here, not one to move.
-
-     Still a plate rather than #hint's plain prose, unlike #team: this is the one
-     line on the screen that says the game in front of you is no longer live, and
-     it is the only thing here allowed to be loud. */
+  /* THIS PHONE DROPPED: one row under #hint's line, never on the top bar
+     (no spare width there, and the left plate GROWS with the pack). Full-width
+     box with the pill centred by `fit-content` + `margin-inline: auto`, so it
+     can never be pushed off an edge. 104 = #hint's 80 + its line + 6, one line
+     below the win banner so both can be up. It lands on the second bunting
+     string; accepted — it wears an opaque plate, and only while the socket is
+     down. A plate, unlike #team: the one line allowed to be loud. */
   #conn { position: absolute; top: calc(var(--hud-top) + 104px);
           left: 0; right: 0; width: fit-content; margin-inline: auto;
           background: rgba(255,93,177,.92); color: #fff;
@@ -287,52 +159,15 @@
           display: none; }
   #conn.on { display: block; }
 
-  /* The waiting-room gate — the same contract as hex-clicker's: a phone the
-     proctor hasn't sorted yet waits here (and is already on the proctor's
-     board, because watching the lobby registers it).
-
-     It is also the HOW-TO-PLAY sheet, and those are one screen rather than two
-     on purpose. The four sentences that used to fill it were read once, by
-     whoever happened to be looking while they waited, and nothing ever brought
-     them back; what is here instead is PICTURES, drawn by the game itself
-     (`drawSheet` in sheet.js) out of the same code that draws the level — so a
-     player is shown the exact art they are about to touch, and a can in the
-     picture cannot drift from a can in the game. Goomba glides across the
-     TITLE out of the same renderer (drawTitleScene) — the one drawing here
-     with no caption under it, because it says nothing the words don't.
-     `?` bottom-left re-opens the same sheet mid-party. `.ready` is DISMISSIBLE — the connection lines
-     swapped for the way out — which the sheet becomes once the room is live
-     and is born as when `?` opens it. It never dismisses itself: the sheet
-     waits for a tap, because a screen that vanishes the instant the proctor
-     sorts a phone in is a screen nobody read.
-
-     OPAQUE, and that is what buys the line at the bottom. At 86% there was a
-     level showing faintly through the pictures — noise across the one screen
-     whose whole job is to be looked at, and terrain running under a drawing OF
-     terrain is the worst place to put it. But that ghost was also the only
-     thing saying this was a layer over something: 86% is a sheet ON the game,
-     100% is the whole phone, and a phone with nothing on it that moves and no
-     way out is a phone that is broken. So `#gateTap` says the way out in
-     words, and only while there IS one (`.ready`). The old argument for
-     silence — a tap is what a phone answers to anyway, and the zoop says where
-     the sheet went — held while you could still see the game underneath. */
-  /* THE SURPLUS, and where it goes. The pictures cannot spend it: `drawScene`
-     fits a scene with `min(w/dx, h/dy)` and GOAL_SCENE's frame is 80x18.8
-     against a column that is 340 at its widest, so the picture is WIDTH-bound
-     at about (column / 4.26) on every phone made — a taller box only letterboxes
-     it. So this screen has 400-odd px it can never draw into on a modern phone,
-     and the only question is where the air sits.
-     It sits in the GAPS, not in the two outer margins: they are `vh`-scaled and
-     the padding is anchored, so a 932px phone spends its extra height inside the
-     composition instead of on two dead bands that grow with the screen. The one
-     number that is not proportional is the safe area, which is a real object.
-     The 6vh added UNDER the group is the optical lift, and it is deliberate
-     where it used to be a residue: the connection lines used to stand in this
-     column, reserving 56px of invisible box that pushed everything up by 28.
-     They hang off the bottom now (#gateLines), so the lift is stated here
-     instead of falling out of two lines nobody sees — and it holds the ink's
-     centre at a steady 45.4% of the screen at every size, where the old constant
-     drifted from 6.7% of a short screen to 4% of a tall one. */
+  /* The waiting-room gate, same contract as hex-clicker's: an unsorted phone
+     waits here (already on the proctor's board). It is also the HOW-TO-PLAY
+     sheet: PICTURES drawn by sheet.js from the level renderer. `?` reopens it
+     mid-party. `.ready` = dismissible; it NEVER dismisses itself. OPAQUE, which
+     is why `#gateTap` says the way out in words, only while there is one.
+     THE SURPLUS: the pictures are WIDTH-bound (GOAL_SCENE is 80x18.8 in a
+     column of at most 340), so extra height sits in the vh-scaled GAPS, not in
+     the outer margins. The 6vh under the group is the optical lift: it holds
+     the ink's centre at ~45% of the screen at every size. */
   #gate { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
           justify-content: center; gap: clamp(12px, 2.2vh, 24px);
           background: #0d061e; pointer-events: auto; text-align: center;
@@ -340,169 +175,72 @@
                    calc(max(24px, env(safe-area-inset-bottom)) + 6vh); }
   #gate.hidden { display: none; }
   /* The title, and Goomba gliding along the top of it. The words' SIZE lives
-     on the wrapper rather than on the h1 so that one `em` means the same thing
-     to both of them: her little canvas is parked off the cap line in em, so she
-     rides the letters at 30px and at 54px without a second breakpoint. */
-  /* TWO ROWS now, on purpose — the wrap this rule used to spend its floor
-     preventing became the layout: GOOMBA over GLIDER is the same two-deck
-     stack as the ColecoVision mark this borrows from, both words are six
-     letters, and she rides the FIRST line's cap line either way (capLine
-     measures the line box, never the element). The size is therefore a
-     per-WORD fit — one word against the gate's 24s, never the pair.
-
-     Which is why it is not vw ALONE any more: that was a width fit on a screen
-     that runs out of height last. Measured, one word at a time (and the two
-     come out the same width to the pixel): a word runs 4.27x its font size, so
-     it sets 256px at the 60px ceiling while the narrowest phone there is
-     leaves 272 between the paddings — width keeps 16px spare at the TOP of the
-     clamp on every phone. `max()` lets height have the say when there is
-     height to spend, and the clamp still has the last word on both: 6.6vh
-     passes 12.6vw at about 1.91:1, so a short phone is set by its width (40.3
-     at 320x568, 47.3 at 375x667) and a tall one by its height (55.7 at
-     390x844, the ceiling at 430x932).
-
-     A SECOND deck is what paid for the last bump — 14% on a short phone, 18%
-     on a tall one. Two rows of six letters is a much narrower mark than one
-     row of thirteen, so the width fit that used to hold the ceiling down
-     stopped binding, and the sheet's own budget never did: the title, its seam
-     and the three pictures come to 345 of the 486 a 320x568 screen has between
-     its paddings, and 454 of 808 on a 430x932 one. Her canvas is parked in
-     `em`, so she grows with the letters and still rides them. */
+     on the wrapper so one `em` means the same to the h1 and to her canvas,
+     which is parked off the cap line in em. TWO ROWS (GOOMBA over GLIDER);
+     she rides the FIRST line's cap line. The clamp is a per-WORD fit: a word
+     runs 4.27x its font size, so 60px sets 256 against the 272 the narrowest
+     phone leaves; `max(vw, vh)` lets height have the say on a tall phone (6.6vh
+     passes 12.6vw at ~1.91:1). */
   #title { position: relative; font-size: clamp(30px, max(12.6vw, 6.6vh), 60px);
-           /* No plate: the logo had a black rounded panel for a while, but
-              the gate's own dark is background enough — the mark's letters,
-              straight on the night. Removing it is also what un-padded this
-              box; #scTitle's offsets below assume the H1 sits AT the top of
-              it, so a padding here has to be subtracted back out of them
-              (that is how it worked when the panel existed — git has it). */
-           /* Air under the words. The gate's own gap put the title on top of
-              the first picture, so the whole sheet read as one column of four
-              things instead of a name and then what to do about it. It scales
-              now, for the reason the gate's own gap does: this is the seam the
-              surplus should open at, and a constant 40 held the title exactly
-              52px off the pictures on a 568 screen and on a 932 one alike.
-              Widened with the mark: a two-deck logo is a BLOCK rather than a
-              line, and at 5.2vh the gap under it read as line spacing inside
-              one four-row column again. The gate's own gap rides on top of
-              this, so the seam is 6.8vh + 2.2vh — 51px on a 568 screen, 84 on
-              a 932 one, against 24px of gutter inside the pictures. */
+           /* No padding: #scTitle's offsets assume the h1 sits AT the top
+              of this box, so any padding here must be subtracted from them.
+              Air under the words, vh-scaled so the seam opens with the
+              surplus; the gate's own gap rides on top (6.8vh + 2.2vh). */
            margin-bottom: clamp(38px, 6.8vh, 76px); }
-  /* THE MARK's box. It is an <svg> of outlines now, not text in a face — the
-     whole argument, and the generator that re-derives it, are in index.html
-     beside it. What is left here is SIZE, and it stays in em so the one master
-     scale is still #title's clamp above: the viewBox is em/1000, so 4.294em
-     wide by 2.08em tall reproduces exactly the box two 1.04em line boxes of
-     Titan One occupied, and every em-sized thing measured against it — the
-     margins, #scTitle's -.72em — keeps meaning what it meant. The width is the
-     widest word's INK rather than its advance (4.294 against 4.297): a picture
-     is centred by what you can see, and the mark has stopped being type.
-
-     --cap-em is the one number this mark owes the rest of the app: the line the
-     cat rides, in em below the top of the box, which as type was measured off
-     the font every frame because the face resolved differently on every
-     platform. Outlines have one geometry, so it is a constant — a GENERATED
-     one (logo-outline.py prints it with the svg, from the same baseline and
-     cap-height it laid the letters out on), which is why it lives here against
-     the size it must agree with rather than as a literal in sheet.js. Read
-     back off the element there, the way main.js reads --zoop-ms. */
+  /* THE MARK's box: an <svg> of outlines (generated by logo-outline.py, see
+     index.html). Sized in em so #title's clamp stays the master: the viewBox
+     is em/1000, and 4.294em x 2.08em is the box two 1.04em line boxes
+     occupied, so every em-sized thing against it (#scTitle's -.72em) keeps
+     meaning. Width is the widest word's INK, not its advance.
+     --cap-em is the line the cat rides, in em below the top of the box. A
+     GENERATED constant (logo-outline.py prints it with the svg), which is why
+     it lives here against the size it must agree with; sheet.js reads it back
+     (capLine), as it reads --zoop-ms. */
   #gate h1 { margin: 0; font-size: 1em; --cap-em: .2075; }
   #gate h1 #mark { display: block; width: 4.294em; height: 2.08em; }
-  /* Her canvas covers the WORDS as well as the air over them — down to the
-     bottom of the line box, not down to the letter tops. A canvas clips what it
-     draws to its own box, so one that stopped at the cap line cut her off at the
-     exact place she is supposed to touch, and a cat sliced along the top of the
-     letters reads as a cat BEHIND them. Overlapping them costs nothing: the
-     canvas is transparent everywhere she is not, and being the positioned
-     element after the h1 puts every pixel of her in front of the text.
-     Where the cap line falls inside this box is NOT written down here —
-     capLine() in sheet.js measures it off the h1's own font.
-     Its height is SET, never left to `top` + `bottom`: a canvas is a replaced
-     element, so an auto height there resolves to the intrinsic one — the
-     backing store this renderer rewrites every frame — and the box grows itself
-     off its own drawing. */
+  /* Her canvas covers the WORDS as well as the air, so she is never clipped
+     at the cap line (a cat sliced along the letters reads as BEHIND them);
+     positioned after the h1, so she is in front. Height is SET, never `top` +
+     `bottom`: a canvas is a replaced element, and an auto height resolves to
+     the backing store this renderer rewrites every frame. */
   #title #scTitle { position: absolute; left: 0; width: 100%;
                     top: -.72em; height: calc(100% + .72em);
                     z-index: 1; pointer-events: none; }
   #gate .how { display: flex; flex-direction: column; align-items: center; gap: 12px;
                width: 100%; max-width: 340px; }
-  /* The pictures. Their SIZE lives here and nowhere else — main.js reads
-     clientWidth/clientHeight and matches the backing store to it at device
-     pixel ratio, so a phone, a laptop and a rotation all draw sharp without a
-     second copy of these numbers in the renderer.
-     The box is the scene's OWN frame, not a height picked to hold it: 400/94 is
-     GOAL_SCENE's bounds (80 x 18.8), so `drawScene`'s `min(w/dx, h/dy)` has
-     nothing left to letterbox and the gap under this element is the whole gap a
-     reader sees. A 104px box left 12px of empty canvas at the top and 5 at the
-     bottom on a 390 phone, and 20 and 15 on a 320 one — which put the caption
-     11px under one picture and 21px under the next, on the two rows whose whole
-     job is to look like a picture and its caption. Proximity was being set by
-     leftover box.
-     `aspect-ratio` and not a px height, so the frame stays the frame at every
-     column width. It is safe on a canvas here for one reason worth writing down:
-     a bare ratio REPLACES a replaced element's intrinsic one, so the box is
-     width x ratio and never reads the backing store this renderer rewrites every
-     frame. (Measured across frames at three sizes: the box does not move. The
-     `auto` height #scTitle is warned off in render.js is the other case — no
-     ratio, so the intrinsic size wins and the box grows off its own drawing.) */
+  /* The pictures. Their SIZE lives here only; render.js measures the box and
+     matches the backing store. The aspect-ratio is the scene's OWN frame
+     (400/94 = GOAL_SCENE's 80 x 18.8), so drawScene has nothing to letterbox
+     and the gap under this element is the whole gap a reader sees. A bare
+     ratio REPLACES a replaced element's intrinsic one, so the box never reads
+     the backing store rewritten every frame. */
   #gate .scene { display: block; width: 100%; height: auto; aspect-ratio: 400 / 94; }
-  /* The two gesture panels: half the width each, and shorter than the pictures
-     above them — they hold one band and a fingertip, not a level, and this
-     sheet's tightest screen (320x568) has about 96px to spare before the bottom
-     line is cut off. Side by side rather than stacked because they are one
-     sentence with two halves, and because two more full-width rows is exactly
-     the height this sheet does not have. */
+  /* The two gesture panels: half the width each, side by side — one sentence
+     with two halves, and two more full-width rows is height this sheet does
+     not have (320x568 has ~96px to spare). */
   #gate .pair { display: flex; gap: 12px; width: 100%; }
   #gate .pair > div { flex: 1 1 0; min-width: 0;
                       display: flex; flex-direction: column; gap: 12px; }
-  /* Same rule, same reason: 43/13 is GESTURE_SCENE's bounds. A 74px box drew
-     50 of it and banked 12 at each end, which is the 21px the caption below was
-     really sitting at while the CSS said 6. */
+  /* Same rule: 43/13 is GESTURE_SCENE's bounds. */
   #gate .scene.gesture { aspect-ratio: 43 / 13; }
-  /* The words. They are the only words on this sheet, so they are sized to be
-     READ across a table rather than to be the smallest thing that fits: at 13px
-     they were three points under the connection line nobody is meant to notice.
-     What paid for it is the height #226 freed — it cut the middle picture row
-     AND the short-screen media query, and the captions kept their old size on a
-     sheet that is now 139px clear of the bottom on the tightest screen there is
-     (320x568) and 400 clear on a phone anyone actually brings. Measured, not
-     guessed: `help Goomba water the plant` wants 15.5x its font size, so 17px
-     needs 263 of the column's 340 and cannot wrap at any width. */
+  /* The only words on the sheet, sized to be READ across a table. "help Goomba
+     water the plant" wants 15.5x its font size: 17px needs 263 of the column's
+     340 and never wraps. */
   #gate .cap { color: #c9bdf0; font-size: clamp(15px, 4.4vw, 17px);
                line-height: 1.4; margin-bottom: 10px; }
-  /* The pair's two captions wrap onto TWO LINES, and that is the point rather
-     than a cost. Half a 320px phone is 130px and "drag to place a band" wants
-     10.7x its font size, so one line caps these at 12px — smaller than the
-     sheet's own words, on the half of it that teaches the gestures. Sized with
-     the rest and allowed to wrap, both of them break at every width this column
-     reaches (they need 182 and 176 at 17px against a 164px half at the 340px
-     max), so the pair is symmetric by ARITHMETIC and not by luck — which was
-     the real worry when they were shrunk: one wrapped line under one panel and
-     not the other reads as a mistake. `min-height` is the belt to that braces,
-     holding the two boxes level if a font stack ever measures narrower than
-     this one. */
+  /* Both captions wrap onto TWO LINES at every width this column reaches
+     (182 and 176 needed at 17px against a 164px half), so the pair is
+     symmetric by arithmetic; `min-height` holds the boxes level if a font
+     stack measures narrower. */
   #gate .pair .cap { min-height: 2.8em; text-wrap: balance; }
   #gate .cap b { color: #ffd166; font-weight: 700; }
-  /* The two lines about the connection, and the one rule that matters about
-     them: in the common case NOBODY EVER SEES THEM. A phone that joins in the
-     half second it normally takes has nothing to report, and "Loading…" for
-     400ms is a flash of anxiety about something that already worked. They are
-     held invisible (`.quiet`) until the join has been slow for STALL_MS, and
-     they go invisible again the moment the room is live (`.ready`).
-
-     Invisible by OPACITY, and never by display: both lines keep their box in
-     every state. Dropping them out of the flow would shunt the pictures up the
-     screen the moment a slow join finally said something — and again when it
-     stopped — on a sheet whose whole job is to be looked at. The min-heights
-     are what make that box exist while the line is empty.
-
-     And the box is reserved at the BOTTOM of the gate, not at the end of the
-     centred column. Reserving it is right; reserving it in the flow was what
-     made the pictures centre on 56px of nothing, and it put "Can't reach the
-     server" halfway up the screen tucked under a caption instead of where a
-     phone puts a status line. Absolute, so it still never moves the pictures —
-     it just no longer counts as one of them. The gate's own side padding is
-     repeated here because an absolute box is out of that padding's reach, and
-     both lines wrap rather than truncate. */
+  /* The connection lines. In the common case NOBODY SEES THEM: held invisible
+     (`.quiet`) until the join has been slow for STALL_MS, and again once the
+     room is live (`.ready`). Invisible by OPACITY, never display, and the
+     min-heights keep the box while empty, so the pictures are never shunted.
+     Absolute at the BOTTOM, so the box no longer counts toward what the
+     pictures centre on; the gate's side padding is repeated because an
+     absolute box is out of its reach. */
   #gateLines { position: absolute; left: 24px; right: 24px;
                bottom: max(20px, env(safe-area-inset-bottom) + 6px); }
   #gateStatus { color: #c9bdf0; font-size: 14px; min-height: 1.2em; }
@@ -510,16 +248,10 @@
   #gateStatus, #gateErr { transition: opacity .3s; }
   #gate.quiet #gateStatus, #gate.quiet #gateErr,
   #gate.ready #gateStatus, #gate.ready #gateErr { opacity: 0; }
-  /* The way out. It shares the bottom slot with the two connection lines and
-     cannot collide with them: those show only before the room is live, this
-     one only after (`.ready` is exactly "a tap will now do something"), and
-     the sheet is never both. Absolute for the same reason they are — the
-     pictures are centred on the column, and a line that joined it would shunt
-     them up the screen the moment the room came live.
-     TINY on purpose: it is the only chrome on the sheet, it is a reminder and
-     not an instruction, and at full size it would be the loudest thing under
-     four pictures it is not part of. `pointer` on the gate itself is the same
-     sentence for the laptop that has a cursor to say it to. */
+  /* The way out, in the connection lines' slot: those show only before
+     `.ready`, this only after, never both. Absolute for the same reason. TINY:
+     the only chrome on the sheet, a reminder, not an instruction. `pointer`
+     on the gate is the same sentence for a laptop. */
   #gateTap { position: absolute; left: 24px; right: 24px;
              bottom: max(20px, env(safe-area-inset-bottom) + 6px);
              color: #c9bdf0; font-size: 13px; letter-spacing: .04em;
@@ -527,40 +259,23 @@
   #gate.ready #gateTap { opacity: .5; }
   #gate.ready { cursor: pointer; }
 
-  /* ---- THE ZOOP: the sheet shrinks into the `?` --------------------------
-     Dismissing the how-to-play sheet is the one moment every player is looking
-     straight at it, so it is the moment to say where it went. The whole sheet
-     flies down into `#help`'s corner and the button pops as it lands: "the
-     instructions live here" is learned by watching it happen, which is the
-     only way anyone was ever going to learn it — the old dismissal cut, and a
-     button that was never on screen at the same time as the thing it reopens
-     may as well not exist.
-
-     Nothing here knows where that corner IS. main.js measures both boxes on
-     the way out and writes the four --zoop-* values, so moving `#help` moves
-     the animation with it and a rotation cannot leave it flying at yesterday's
-     corner. The scale is ANISOTROPIC on purpose — a phone screen is not square
-     and the button is — which is also what makes the 50% radius land as the
-     button's CIRCLE rather than as a small rounded rectangle.
-
-     The children fade in the first half: the title and the pictures are
-     the one part of this that must not be seen squashed, and they have said
-     everything they have to say by the time the flight starts. */
+  /* ---- THE ZOOP: the sheet shrinks into the `?` ----
+     The sheet flies into `#help`'s corner and the button pops as it lands —
+     how anyone learns where the instructions live. Nothing here knows where
+     the corner IS: sheet.js measures both boxes and writes the --zoop-*
+     values, so a rotation cannot leave it flying at yesterday's corner. The
+     scale is ANISOTROPIC on purpose (a screen is not square, the button is),
+     which is also what makes the 50% radius land as the button's CIRCLE. */
   #gate.zoop { pointer-events: none;
                transform-origin: var(--zoop-ox) var(--zoop-oy);
                animation: gateZoop var(--zoop-ms) forwards; }
-  /* The pictures hold most of the way down — the thing flying at the corner
-     has to still look like the sheet, or all anyone sees is a dark shape
-     leaving. They go in the last third, once the shape is small enough that
-     the anisotropy would start to read as squashed text. */
+  /* The pictures hold most of the way and go in the last third, before the
+     anisotropy reads as squashed text. */
   #gate.zoop > * { animation: zoopFade calc(var(--zoop-ms) * .66) ease-in forwards; }
   @keyframes gateZoop {
-    /* A beat of anticipation, then most of the SIZE spent early. Scale is
-       perceived in ratios, not in pixels: interpolated evenly, 1 → 0.1 looks
-       like nothing happening followed by a collapse, which is exactly what it
-       looked like on the first take. The 45% stop pins it at about a third of
-       full size a third of the way in, and the curves either side do the
-       gather and the settle. */
+    /* A beat of anticipation, then most of the SIZE spent early: scale is
+       perceived in ratios, so an even 1 → 0.1 reads as nothing, then a
+       collapse. The 45% stop pins a third of full size a third of the way in. */
     0%   { transform: scale(1, 1); border-radius: 0; opacity: 1;
            animation-timing-function: cubic-bezier(.3, 0, .7, 1); }
     12%  { transform: scale(1.035, 1.02); border-radius: 3%; opacity: 1;
@@ -573,48 +288,27 @@
   }
   @keyframes zoopFade { to { opacity: 0; } }
   /* The landing. `both` fill is load-bearing: the button is unhidden the
-     instant the sheet starts moving (it is no longer `#hud.sheet`), and
-     without the 0% frame held through the delay it would simply BE there,
-     already arrived, while the sheet was still on its way to it. */
+     instant the sheet starts moving, and without the 0% frame held through
+     the delay it would already BE there while the sheet was on its way. */
   #help.pop { animation: helpPop calc(var(--zoop-ms) * .62) cubic-bezier(.2,1.5,.4,1)
                          calc(var(--zoop-ms) * .62) both; }
-  /* Scale only. The peak used to go gold as well — background, border and glyph
-     all `#ffd166` for a frame — which is a RING on a round button with a border,
-     and the whole point of dropping the ping was that the landing does not want
-     announcing. The catch is the pop; the colour was the pop shouting. */
+  /* Scale only, no colour and no ring: the landing does not want announcing. */
   @keyframes helpPop {
     0%   { transform: scale(.35); opacity: 0; }
     45%  { transform: scale(1.22); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
   }
-  /* There is no ring off the landing. One was tried — a gold circle pinging
-     outward past the button — and the arrival does not need announcing twice:
-     the sheet flying into the corner is already the sentence, and the pop is
-     already the full stop. */
-
-  /* The way back to the sheet, mid-party: PLAY's own corner, mirrored. A party
-     game is joined late and handed between people, so "how does this work"
-     gets asked long after the waiting room is gone — and the answer is a
-     button, not a tutorial nobody can replay. Quiet chrome, not a second
-     PLAY: it is only ever the second thing anyone on this screen wants.
-     It hides while the sheet is up (nothing to open) and goes with the rest
-     of the HUD under .lab and .splash, which hide their children wholesale.
-     So does PLAY, one rule down, on this same argument — see there. */
+  /* The way back to the sheet, mid-party: PLAY's corner, mirrored. Quiet
+     chrome, not a second PLAY. Hidden while the sheet is up, and under .lab
+     and .splash with the rest of the HUD. */
   #help { position: absolute; left: 16px; bottom: var(--hud-bottom);
           width: 44px; height: 44px; border-radius: 22px; font-size: 20px; font-weight: 800;
           color: #c9bdf0; background: rgba(255,255,255,.08);
           border: 1.5px solid rgba(201,189,240,.35); line-height: 1; }
   #help:active { transform: scale(.94); }
-  /* BOTH buttons, and PLAY was the one that had been left out. The gate is 86%
-     opaque, not 100 — which is right, there is a LEVEL behind it during a `?` —
-     so a button under it does not disappear, it ghosts. PLAY's teal pill came
-     through as the one control-shaped thing on the screen, in the bottom third
-     that has nothing else in it, and `elementFromPoint` at its middle answers
-     `#gate`: it read as the way in and a tap on it dismissed the sheet instead.
-     Same sentence as `#help`'s — while the sheet is up there is nothing to
-     press — and it wants the same answer. `visibility`, never `display`: PLAY
-     is measured (--play-h, #team's line) and a box that stops existing under
-     the sheet is a box that moves when the sheet goes. */
+  /* BOTH buttons hidden under the sheet — while it is up there is nothing to
+     press. `visibility`, never `display`: PLAY is measured (--play-h, #team's
+     line), and a box that stops existing moves when the sheet goes. */
   #hud.sheet #help, #hud.sheet #play { visibility: hidden; }
 
   /* ---- PORTRAIT GATE — same rule as hex clicker's, kept in sync BY HAND
@@ -639,7 +333,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     #rotate .glyph { animation: none; }
-    /* closeSheet takes the same branch and hides the gate outright, so these
-       are belt-and-braces for a preference flipped mid-flight. */
+    /* closeSheet hides the gate outright on the same branch; this covers a
+       preference flipped mid-flight. */
     #gate.zoop, #gate.zoop > *, #help.pop { animation: none; }
   }

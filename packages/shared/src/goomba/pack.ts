@@ -1,16 +1,6 @@
-// The level PACK: the game's levels as a list of base64url links.
-//
-// A level already knows how to be a URL — `encodeLevel` packs one into ~100-350
-// base64url chars, and that is how a design travels between Figma and the
-// game. A pack is just an ordered
-// list of those strings, which makes the whole thing storable as text in a
-// Durable Object, diffable in a terminal, and movable between events one entry
-// at a time (`tools/goomba/seed.mjs`).
-//
-// This is the ONLY copy of that shape. The lobby DO stores it, the goomba room
-// scores against it, every phone draws from it, and the editor edits it — all
-// through the two functions below, so a pack that round-trips through storage
-// and back onto four phones is the same pack byte for byte.
+// The level PACK: an ordered list of base64url level links. Storage format in
+// the lobby DO, wire format to every phone, and what the editor edits, all
+// through the functions below — the ONLY copy of that shape.
 
 import { decodeLevel, encodeLevel } from "./codec";
 import { GOOMBA_LEVELS, setGoombaLevels, type GoombaLevel } from "./levels";
@@ -23,12 +13,8 @@ export type LevelPack = string[];
 export const PACK_MAX = 64;
 
 /**
- * Pack -> levels, dropping anything that will not decode.
- *
- * Dropping rather than throwing is deliberate: a pack is edited live by people
- * at a party, and one bad entry must not take the game down for everyone. The
- * caller gets the count it actually got, and a short pack is visible on every
- * phone immediately.
+ * Pack -> levels, DROPPING anything that will not decode: a pack is edited
+ * live at a party, and one bad entry must not take the game down.
  */
 export function packToLevels(pack: LevelPack): GoombaLevel[] {
   const out: GoombaLevel[] = [];
@@ -53,10 +39,5 @@ export const applyPack = (pack: LevelPack): number => setGoombaLevels(packToLeve
  * reorder or a delete, so an untouched level round-trips unchanged. */
 export const currentPack = (): LevelPack => levelsToPack(GOOMBA_LEVELS);
 
-// There is no seed pack. `SEED_LEVELS` — five levels as TypeScript literals,
-// which this returned for an operator to push on day one — is deleted: the
-// game never read them at play time, the Figma frame is a level's source, and
-// a transcription of a drawing maintained by hand in another language is a
-// second copy that can only go stale. A new event starts EMPTY and is filled
-// by pasting frames, or by `seed.mjs --push --file <pack.json>` from a pack
-// somebody pulled off a running event.
+// There is no seed pack: a new event starts EMPTY and is filled by pasting
+// frames, or by `seed.mjs --push --file <pack.json>` from a pulled pack.

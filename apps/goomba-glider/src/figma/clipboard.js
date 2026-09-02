@@ -1,17 +1,7 @@
 // Figma's NATIVE clipboard -> GoombaLevel. Plain Ctrl+C in Figma, Ctrl+V here.
-//
-// The ONLY reader. There was an SVG one beside it once, and the reason this is
-// what is left is that it reads the same numbers the Figma file holds rather
-// than the ones an exporter prints:
-//
-//   * layer names always survive (SVG only carries them when the `id` attribute
-//     is switched on, and that flag is unreachable from Copy as SVG — which is
-//     the copy people actually reach for, so that path was born broken);
-//   * a Line arrives as x 180, y 220, width 356.93 — its stored geometry — so
-//     the exporter's half-stroke shift is not something to undo, it is not
-//     something that happened;
-//   * an instance carries its own transform and size, so its centre is exact
-//     and the `anchor` dots the SVG path needed are not needed at all.
+// The ONLY reader: it reads the numbers the Figma file holds (layer names
+// always survive, a Line's stored geometry IS the segment, an instance carries
+// its own transform), where an exporter's SVG loses names and shifts strokes.
 //
 // HOW THE PAYLOAD IS SHAPED
 // Ctrl+C puts HTML on the clipboard holding two comment-wrapped base64 blobs:
@@ -19,13 +9,11 @@
 //   <span data-buffer="<!--(figma)…-->"></span>
 // The second decodes to a `fig-kiwi` container:
 //   "fig-kiwi" magic (8 bytes) | uint32 version | then repeated:
-//   uint32 byteLength | that many bytes of RAW DEFLATE
-// Block 0 is a binary Kiwi SCHEMA, block 1 is the message. Because the schema
-// travels with the data, `kiwi-schema` can decode the message generically —
-// there is no hand-rolled varint or float reader in here, and no private
-// schema to keep in step with Figma.
+//   uint32 byteLength | that many bytes, compressed (see `decompress`)
+// Block 0 is a binary Kiwi SCHEMA, block 1 is the message; the schema travels
+// with the data, so `kiwi-schema` decodes the message generically.
 //
-// It is still an undocumented format. Everything below fails loudly rather than
+// It is an undocumented format. Everything below fails LOUDLY rather than
 // guessing — a level that decodes wrong is a level nobody can see is wrong.
 import { decodeBinarySchema, compileSchema } from "kiwi-schema";
 import { stitchTerrain } from "./stitch.js";
@@ -39,16 +27,10 @@ export const hasFigmaBuffer = (html) =>
   typeof html === "string" && html.includes("data-buffer") && html.includes("(figma)");
 
 /**
- * Pull the base64 payload out of the clipboard HTML.
- *
- * Do NOT regex this out of the raw markup. The attribute is HTML, so how its
- * `<!--` and `-->` survive depends on who serialised it, and a real Figma copy
- * showed up with a buffer this could not read even though the marker was right
- * there. So: let a parser decode the attribute, then slice between the two
- * `(figma)` sentinels rather than trying to match the wrapper, and accept
- * base64url as well as standard base64 — `-` and `_` never appear in standard
- * base64, so translating them is safe once the `--` of the comment wrapper is
- * already gone.
+ * Pull the base64 payload out of the clipboard HTML. Do NOT regex the raw
+ * markup: how the comment wrapper is serialised varies, so let a parser decode
+ * the attribute, then slice between the `(figma)` sentinels. Accepts base64url
+ * as well as standard base64.
  */
 function extractBuffer(html) {
   let raw = null;
@@ -70,11 +52,8 @@ function extractBuffer(html) {
     throw new Error(
       `found the Figma buffer but not its opening (figma) marker — it began "${raw.slice(0, 40)}"`,
     );
-  // The payload closes with `(/figma)`, not a second `(figma)` — measured on a
-  // real copy, whose buffer began `<!--(figma)ZmlnLWtpd2l…` ("fig-kiwi") and
-  // had no second opening sentinel at all. Accept either form, and tolerate a
-  // missing one by just trimming the comment tail, since the sanitiser below
-  // would otherwise fold the letters of "figma" into the base64.
+  // The payload closes with `(/figma)`. Accept either form; with neither, trim
+  // the comment tail so the sanitiser below cannot fold "figma" into the base64.
   const rest = raw.slice(open + "(figma)".length);
   const close = rest.search(/\(\/?figma\)/);
   const inner = close >= 0 ? rest.slice(0, close) : rest.replace(/--\s*(?:>|&gt;)\s*$/, "");
@@ -90,14 +69,9 @@ function extractBuffer(html) {
 }
 
 /**
- * The two blocks are not compressed the same way, which is the thing that took
- * longest to find. Measured on a real copy (container version 106): the SCHEMA
- * block is raw deflate, and the MESSAGE block is ZSTANDARD — it begins with
- * zstd's `28 b5 2f fd` magic, which is why inflating it produced "invalid
- * stored block lengths" while the schema beside it inflated perfectly.
- *
- * So pick by magic rather than by position, and never assume both are alike.
- * Chrome has no `DecompressionStream("zstd")` (checked on 151), hence fzstd.
+ * The two blocks are NOT compressed alike: the schema is raw deflate, the
+ * message is ZSTANDARD (magic `28 b5 2f fd`). Pick by magic, never by position.
+ * Chrome has no `DecompressionStream("zstd")`, hence fzstd.
  */
 const ZSTD_MAGIC = [0x28, 0xb5, 0x2f, 0xfd];
 const isZstd = (b) => ZSTD_MAGIC.every((v, i) => b[i] === v);
@@ -159,39 +133,21 @@ const apply = (m, x, y) => ({ x: m[0] * x + m[1] * y + m[2], y: m[3] * x + m[4] 
 const degOf = (m) => (Math.atan2(m[3], m[0]) * 180) / Math.PI;
 
 /**
- * One popper speed for every level drawn in Figma.
- *
- * It used to ride in the layer name as trailing digits — `party-popper 150`.
- * That made a NAME carry meaning, which is the thing this reader has just
- * stopped doing everywhere else, and it had a failure mode nobody could see
- * coming: Figma numbers duplicates, so twelve poppers copy-pasted around a
- * sketch arrive named `party-popper 138` through `party-popper 149` and land as
- * twelve speeds no one chose. A frame is GEOMETRY; per-popper tuning belongs
- * beside the level, where the bench can sweep it.
+ * One popper speed for every level drawn in Figma. Never read it off the layer
+ * name: Figma numbers duplicates, so `party-popper 138`…`149` would be twelve
+ * speeds nobody chose.
  */
 export const FIGMA_POP_SPD = 130;
 
 /**
- * What KIND of thing is this node?
+ * What KIND of thing is this node? A toy is an INSTANCE and its identity is
+ * the SYMBOL it points at (`symbolData.symbolID`), never its own name. Only
+ * `t` (terrain) and `cut` go by name, matched loosely (trailing digits and a
+ * `-42` suffix ignored).
  *
- * Names no longer decide, and that is the point. A toy is an INSTANCE, and the
- * component it is an instance of is what it is — so identity comes from the
- * SYMBOL the instance points at (`symbolData.symbolID`), and the instance may
- * be called anything at all. Figma's own duplicate numbering, a designer's
- * "popper (do not move)", a translated layer panel: all fine now.
- *
- * Names still carry the two things that are not components — `t` for terrain,
- * `cut` for a shape that takes terrain away — because there is nothing to be an
- * instance OF. Those two are matched loosely: trailing digits, a `-42` suffix
- * and surrounding space are all ignored.
- *
- * Exported rather than private because `tools/goomba/figma/read-frame.mjs`
- * reads the same names out of a different carrier (the Figma MCP's metadata
- * XML). One copy or two is the whole question: a second regex that agreed with
- * this one on the day it was written is a fork that goes quietly wrong the
- * first time either moves. Note that a node's `name` is only the whole answer
- * for `t` and `cut`; a caller holding INSTANCE nodes must resolve the symbol
- * itself before calling this.
+ * Exported because `tools/goomba/figma/read-frame.mjs` reads the same names
+ * from a different carrier — one copy, never a second regex. A caller holding
+ * INSTANCE nodes must resolve the symbol before calling this.
  */
 export const stripDup = (s) => String(s || "").replace(/[\s-]*\d+$/, "").replace(/_\d+$/, "").trim();
 export const KINDS = /^(watering-can|party-popper|start|goal|bumper|cushion|band|can|pop|cut|t)$/i;
@@ -224,10 +180,8 @@ export async function levelFromFigmaClipboard(html) {
     throw new Error("this Figma payload's schema has no Message type");
   const msg = codec.decodeMessage(messageBytes);
   const changes = msg.nodeChanges || [];
-  // The one thing the offline test cannot cover is whether Figma still calls
-  // these fields what this reader expects. If it does not, say exactly what
-  // arrived instead — that turns a single paste into the whole bug report,
-  // rather than a level that reads as mysteriously empty.
+  // If Figma has renamed these fields, say exactly what arrived instead — one
+  // paste is then the whole bug report.
   if (!changes.length) {
     throw new Error(
       "decoded the Figma clipboard but found no `nodeChanges`. Top-level fields " +
@@ -241,9 +195,8 @@ export async function levelFromFigmaClipboard(html) {
       `The first node's fields were: ${Object.keys(changes[0] || {}).join(", ") || "(none)"}.`,
     );
   }
-  // A matrix whose components are not called m00… would compose as identity and
-  // pile every prop onto the origin — a wrong level rather than an error. Refuse
-  // instead, and name what the matrix actually holds.
+  // A matrix not called m00… would compose as identity and pile every prop on
+  // the origin — a wrong level rather than an error. Refuse.
   if (typeof shaped.transform.m00 !== "number") {
     throw new Error(
       "Figma's transform is not shaped the way this reader expects: it holds " +
@@ -259,11 +212,8 @@ export async function levelFromFigmaClipboard(html) {
 
   const warnings = [];
   const terrain = [], cans = [], bumpers = [], cushions = [], pops = [];
-  // `band` used to be a kind: a level carried its own answer key, drawn in
-  // Figma and shown back on the selector's cards. It is gone — a solution is
-  // the players' job, never the frame's, and since codec fmt 2 there is no
-  // field that could hold one — but old frames still have the layers, so they
-  // are consumed and counted rather than silently read as something else.
+  // `band` layers are consumed and counted, never read: a level carries no
+  // solution (no codec field for one), but old frames still have them.
   let droppedBands = 0;
   let start = null, goal = null, name = null;
   const shapes = [], cuts = [];
@@ -284,18 +234,10 @@ export async function levelFromFigmaClipboard(html) {
     });
   }
 
-  // A copy carries far more than the frame you selected: the Document and Page
-  // nodes, and the COMPONENT DEFINITIONS behind every instance. Those
-  // definitions are named exactly like the instances — a real copy of level 1
-  // yielded four cans instead of two, one of them at x 1076, which is the
-  // watering-can component sitting at x 10240 over on the kit page. So walk DOWN
-  // from the level frame instead of scanning every node, and stop descending at
-  // anything that matches, since a component's inner art repeats its own name.
-  // The frame's title IS the level's name, with nothing else folded into it.
-  // A trailing "@145" used to ride here too, raising that level's speed cap —
-  // the one level field Figma had nowhere else to put. Speed is one game
-  // constant now (MAX_SPEED), so the suffix is gone and a frame name and a
-  // level name are the same string.
+  // A copy carries the Document, the Page and the COMPONENT DEFINITIONS behind
+  // every instance, named exactly like the instances — so walk DOWN from the
+  // level frame instead of scanning every node, and stop at anything that
+  // matches. The frame's title IS the level's name, nothing folded into it.
   const frameNode = changes.find((n) => levelName(n.name));
   if (frameNode) name = levelName(frameNode.name);
   const roots = frameNode
@@ -318,9 +260,8 @@ export async function levelFromFigmaClipboard(html) {
   const identity = (n) => {
     if (n.type === "INSTANCE") {
       const sym = n.symbolData && byGuid.get(gid(n.symbolData.symbolID));
-      // Fall back to the instance's own name only when the component is not in
-      // the payload at all — a detached copy, or a synthetic fixture. A real
-      // Ctrl+C always ships the definitions, so this is the rare path.
+      // The instance's own name only when the component is not in the
+      // payload (a detached copy, or a synthetic fixture).
       if (sym) return sym.name;
     }
     return n.name;
@@ -333,9 +274,8 @@ export async function levelFromFigmaClipboard(html) {
     const radius = n.cornerRadius ?? n.rectangleTopLeftCornerRadius ?? 0;
     if (kind === "band") { droppedBands++; return true; }
     if (kind === "cut") {
-      // A shape that SUBTRACTS. Recorded now, applied to the finished terrain
-      // once every polyline exists — a cut through the middle of a chain has to
-      // split the chain, so it cannot run before stitching.
+      // A shape that SUBTRACTS. Applied after stitching: a cut through the
+      // middle of a chain has to split the chain.
       const isEllipse = n.type === "ELLIPSE";
       const t = (isEllipse || /RECT/.test(n.type || ""))
         ? cutTester(isEllipse ? "ellipse" : "rect", m, w, h, radius)
@@ -347,15 +287,10 @@ export async function levelFromFigmaClipboard(html) {
       return true;
     }
     if (kind === "t") {
-      // A Figma line is a zero-height node: local (0,0)-(width,0) IS the
-      // segment, so its stored geometry needs no correction of any kind.
-      //
-      // Which is exactly why anything ELSE named `t` has to be refused rather
-      // than read. For a pen path or a rect, (0,0)-(width,0) is the top edge of
-      // its bounding box, which can be nowhere near the shape the designer
-      // drew — and it would arrive as a perfectly plausible straight segment
-      // that silently changes whether the level is winnable. A named layer that
-      // goes missing is a bug someone can SEE; a wrong one is not.
+      // A Figma Line is a zero-height node: local (0,0)-(width,0) IS the
+      // segment. A pen path named `t` is REFUSED, not read: its bbox top edge
+      // would arrive as a plausible straight segment that silently changes
+      // whether the level is winnable. A missing layer is a bug someone can SEE.
       if (n.type === "ELLIPSE") { shapes.push(ellipsePoly(m, w, h)); return true; }
       if (/RECT/.test(n.type || "")) { shapes.push(rectPoly(m, w, h, radius)); return true; }
       if (n.type !== "LINE" || Math.abs(h) > 0.01) {
@@ -391,15 +326,9 @@ export async function levelFromFigmaClipboard(html) {
       if (!emit(child, cm)) walk(child, cm, depth + 1);
     }
   };
-  // The frame's own SIZE is the world the level was drawn in. Its POSITION on
-  // the Figma canvas is not part of the level (the walk below starts from
-  // identity inside it), so the box is frame-local: (0,0) to (w,h).
-  //
-  // This is the padding a designer draws on purpose — the empty run to the
-  // right of a wall that a band is meant to reach out into. Without it the
-  // level arrives cropped to its own ink, because `bounds` is derived from the
-  // geometry and the frame around it left no trace. `initLevel` unions the two,
-  // so a frame drawn smaller than its contents can only ever add nothing.
+  // The frame's own SIZE is the world (its POSITION on the Figma canvas is
+  // not part of the level, so the box is frame-local). This is padding a
+  // designer draws on purpose; `initLevel` unions it into bounds.
   let frame;
   if (frameNode && frameNode.size) {
     const fw = frameNode.size.x ?? 0, fh = frameNode.size.y ?? 0;
@@ -408,8 +337,7 @@ export async function levelFromFigmaClipboard(html) {
 
   for (const r of roots) {
     if (frameNode) {
-      // The frame IS the coordinate space, so its own placement on the Figma
-      // canvas is ignored and the walk starts from identity inside it.
+      // The frame IS the coordinate space: the walk starts from identity.
       walk(r, IDENT, 0);
     } else {
       const rm = r.transform ? mul(IDENT, r.transform) : IDENT;

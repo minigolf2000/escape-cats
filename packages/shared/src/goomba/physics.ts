@@ -1,10 +1,7 @@
-// The Goomba Glider physics — the ONLY copy. Deterministic and side-effect free:
-// the room server scores a run with it the instant PLAY lands, and every phone
-// animates the same run with it in real time. Both walk the identical 240Hz
-// substeps, so the animation ends exactly where the server said it would.
-//
-// A number changed here retunes every level in every event's pack. There is
-// nowhere else to change it and nothing to keep in sync.
+// The Goomba Glider physics — the ONLY copy. Deterministic and side-effect
+// free: the server scores a run the instant PLAY lands and every phone animates
+// it with the same 240Hz substeps, so the animation ends where the server said.
+// A number changed here retunes every level in every event's pack.
 
 import {
   GOOMBA_LEVELS,
@@ -36,28 +33,18 @@ export interface GoombaBand {
   ay: number;
   bx: number;
   by: number;
-  /** pid of whoever laid it. A note, not a claim: no rule reads it (any player
-   * may take any band back), and it no longer picks the band's colour — every
-   * band on the board wears the TEAM's colour now. */
+  /** pid of whoever laid it. A note, not a rule: any player may take any band
+   * back, and every band wears the TEAM's colour. */
   pid: string;
 }
 
 const SNAP = 5; // a dragged endpoint this close to terrain lands ON it
 
-// A snapped endpoint lands FLUSH — exactly on the vertex or the face, offset in
-// neither direction. It used to be buried 0.8 below ("slightly buried, so no
-// tip-bonk"), and that burial is what made a snapped band feel like it ends in a
-// kerb. Bury an endpoint by d and the ledge's own vertex sits d ABOVE the band's
-// riding surface; Goomba's centre rides R above that surface, so it runs into the
-// vertex's collision circle sqrt(R² - (R-d)²) EARLY, on a normal whose sine off
-// vertical is sqrt(1 - ((R-d)/R)²) — that fraction of her along-band speed drives
-// straight into the ground's near-dead restitution (0.02) and dies there. At
-// d=0.8 against R=2.2 it is 1.70 units early and 77% of her speed: on level 1's
-// bridge she rode in at 39 u/s and came off the V's lip at 10.6 horizontal,
-// launched upward. Flush is measurably free at both ends (8 junction shapes,
-// arriving and departing, plus every shipped solution). Do not "fix" a bonk by
-// lifting the endpoint instead — that just moves the same kerb to the departure
-// end, where the band's own tip becomes the thing she trips over on her way on.
+// A snapped endpoint lands FLUSH — on the vertex or the face, offset in
+// neither direction. Bury it by d and the ledge vertex sits d above the band,
+// so she hits its collision circle early on a near-dead surface and stops
+// (0.8 cost 77% of her speed); lift it and the same kerb moves to the
+// departure end. Never "fix" a bonk by offsetting an endpoint.
 function snapEnd(L: GoombaLevelInit, x: number, y: number): Pt {
   // lips and ledge corners are vertices — players aim for those, so vertices win
   let best: Pt | null = null,
@@ -260,8 +247,7 @@ export function stepRun(st: RunState, dt: number): void {
       st.p.y = qy + ny * R;
       const vn = st.v.x * nx + st.v.y * ny;
       if (vn < 0) {
-        // Terrain restitution depends on how steep the surface is — see
-        // groundE: walls give a little back, floors stay dead. Bands and
+        // Terrain restitution depends on steepness (groundE); bands and
         // cushions have one value each.
         const e = s.kind === KIND_GROUND ? groundE(nx) : E_KIND[s.kind];
         st.v.x -= (1 + e) * vn * nx;
@@ -325,26 +311,15 @@ export function stepRun(st: RunState, dt: number): void {
       dy = st.p.y - pp.y;
     if (dx * dx + dy * dy < POP_R2) {
       // A popper OVERWRITES velocity — grabbed to the centre, fired at its own
-      // aim and its own speed, whatever she arrived with. It used to carry her
-      // arrival speed through when that beat the fire speed (`max(arrive, …)`),
-      // on the argument that erasing it would erase what the players did
-      // upstream. Measured across every shipped solution, it never did that:
-      // the floor bound 15 of 25 pops, and all 10 carries were one popper
-      // feeding the next — gravity's few units on the hop between them, not a
-      // band. What the `max` did cost was the property the levels are built on
-      // (DESIGNING.md, "poppers are the antidote"): a popper erases state, so
+      // aim and speed, whatever she arrived with. That is the property the
+      // levels are built on (DESIGNING.md, "poppers are the antidote"):
       // nothing upstream changes what happens downstream, so each stage needs
-      // its own band. A speed that leaks across is a hole in exactly that, and
-      // the documented "extend the start ramp" shortcut is what fits through
-      // it. Constant is also the only version a player can aim: the speed she
-      // leaves at is a property of the POPPER, not of how she got there, so the
-      // same popper hit slow and hit fast throws the same arc.
+      // its own band, and the same popper throws the same arc however she
+      // arrives. Never carry arrival speed through.
       st.p.x = pp.x;
       st.p.y = pp.y;
-      // 0.82 is folded in here rather than into `spd` on purpose: `spd` is
-      // level DATA, encoded into every share link and every pack a lobby is
-      // already holding, so rescaling it would silently re-tune levels this
-      // repo has never seen.
+      // 0.82 lives here, not in `spd`: `spd` is level DATA in every link and
+      // pack, so rescaling it would silently retune levels.
       const sp2 = Math.min(MAX_SPEED, pp.spd * 0.82);
       st.v.x = pp.ux * sp2;
       st.v.y = pp.uy * sp2;
@@ -356,17 +331,11 @@ export function stepRun(st: RunState, dt: number): void {
   const sp = Math.hypot(st.v.x, st.v.y);
   if (Math.abs(st.v.x) > 1) st.face = st.v.x >= 0 ? 1 : -1;
   if (st.grounded && sp < 12) st.v.x += st.face * 10 * dt; // tiny snowboard pump
-  // Board angle: follow the ground, else follow the flight. `boardA` is the
-  // angle in HER OWN frame, which is mirrored when she travels left — the
-  // renderer draws her as rotate(boardA * face) then scale(face, 1), so a
-  // screen angle A costs boardA = A for face 1 and boardA = pi - A for face -1.
-  // Both branches therefore measure against `v.x * face` / `tanX * face`, the
-  // forward axis after the mirror, and never against raw +x. Feeding a screen
-  // angle straight in (what `atan2(tanY, tanX)` did) draws her UPSIDE DOWN and
-  // nose-backwards the moment she rides a slope leftward: it is off by
-  // pi - 2A, which is ~127 degrees on a 30-degree descent, and it reads as her
-  // sinking through the terrain because the rotation puts her body below the
-  // centre the sim is keeping R clear of the surface.
+  // Board angle: follow the ground, else the flight. `boardA` is in HER frame,
+  // mirrored when she travels left (the renderer draws rotate(boardA * face)
+  // then scale(face, 1)), so both branches measure against `v.x * face` /
+  // `tanX * face`, never raw +x — a screen angle fed straight in draws her
+  // upside down on a leftward slope.
   let target: number;
   if (st.grounded && (tanX || tanY)) {
     if (tanX * st.face < 0) {
@@ -396,35 +365,11 @@ export function stepRun(st: RunState, dt: number): void {
   else if (st.slowT > 1.4) st.result = "stall";
   else if (st.t > RUN_MAX) st.result = "loop";
   else if (st.t - st.snap.t > 3.5) {
-    // Trapped in a bowl/corner, or boinging in place: she is still within 8
-    // units of where she was 3.5 seconds ago. Displacement is measured in BOTH
-    // axes, because a route is not obliged to be horizontal. `Math.abs(sdx) < 6`
-    // used to be a second, SUFFICIENT condition on its own, and it read a
-    // straight drop as being stuck.
-    //
-    // First Steps is the level that found it: its plant sits 80 units directly
-    // below its start (goal x 19.5 against start x 18.8), so the last second of
-    // any solution is a fall down the left wall with sdx ~ 0. A run that had
-    // covered 46 units downward and was doing 86 u/s, 0.08s from the wall and
-    // one watering can short of a win, was killed at t=3.50 and told "she's
-    // stuck! try different bands". It also never reached the r=9 goal circle,
-    // so the flare that would have SAID "you still need a can" (#204) never
-    // fired either — the misdiagnosis hid the real diagnosis.
-    //
-    // Across 4400 sampled band sets over both packs the clause fired on its own
-    // 103 times, 49 of those with her moving faster than 20 u/s. What it caught
-    // that the radius does not, `stall` and RUN_MAX still catch: outcomes only
-    // move from `loop` to `stall`, which is the truer word for it, and the
-    // whole sample costs +3% more substeps.
-    //
-    // What the radius is measured against is `st.snap`, a ROLLING anchor rather
-    // than the launch pad: it is seeded at `L.start`, and every 3.5s check she
-    // survives moves it to wherever she is now. So the window always means "the
-    // last 3.5 seconds", never "since launch" — only the FIRST one is against
-    // the start. It is also a two-POINT sample, not a max excursion, so a round
-    // trip whose period lands near 3.5s can come back inside the radius and read
-    // as stuck. That is left standing: RUN_MAX is the real backstop, and STOP is
-    // a free abort now (#205), so under-calling this costs a player nothing.
+    // Stuck: still within 8 units of where she was 3.5s ago, in BOTH axes —
+    // an |dx| test alone reads a straight drop as stuck. `st.snap` is a
+    // ROLLING anchor (moved on every survived check) and a two-point sample,
+    // so a round trip with a ~3.5s period can read as stuck; RUN_MAX is the
+    // real backstop and STOP is a free abort, so under-calling costs nothing.
     const sdx = st.p.x - st.snap.x,
       sdy = st.p.y - st.snap.y;
     if (sdx * sdx + sdy * sdy < 64) st.result = "loop";
@@ -439,9 +384,7 @@ export function scoreRun(
   bands: readonly { ax: number; ay: number; bx: number; by: number }[],
 ): { result: RunResult; t: number } {
   const L = GOOMBA_LEVELS[levelIdx];
-  // The pack is live data now — it can be emptied or shortened by an editor
-  // mid-session — so "there is no such level" is a state this has to have an
-  // answer for rather than a crash. Nothing to run is not a win.
+  // The pack can be emptied or shortened live. Nothing to run is not a win.
   if (!L) return { result: "timeout", t: 0 };
   const st = makeRun(L, bands);
   while (!st.result && st.t < RUN_MAX + 1) stepRun(st, SUB);

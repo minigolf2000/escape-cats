@@ -1,10 +1,7 @@
 // Transport for the Goomba room. Same shape as hex-clicker's net.ts; the
-// ?debug backend lives in debug.js (the shared GoombaSim in-page, feeding the
-// LEVEL LAB) and swaps itself into `transport` exactly the way connectRoom
-// does, so the game code cannot tell which backend it is on.
-//
-// `partysocket` is imported dynamically for the same chunking reason as hex —
-// though with no serverless mode left the win is only initial paint.
+// ?solo backend (debug.js) swaps itself into `transport` the same way, so the
+// game code cannot tell which backend it is on. `partysocket` is imported
+// dynamically for initial paint.
 
 import type PartySocket from "partysocket";
 import { adhocRoomId, roomFor } from "@escape-cats/shared";
@@ -27,21 +24,19 @@ export interface Transport {
   preview(bd: { ax: number; ay: number; bx: number; by: number } | null): void;
 }
 
-/** Swapped in by connectRoom. A stable object so the game module can import it
- * once at load, before any connection exists; intents sent before the socket
- * opens are dropped — every one of them is re-derivable from the next
- * snapshot, unlike hex's pets. */
+/** Swapped in by connectRoom. A stable object so modules import it once at
+ * load; intents sent before the socket opens are dropped (all re-derivable
+ * from the next snapshot). */
 export const transport: Transport = {
   send() {},
   preview() {},
 };
 
-/** How often a drag-in-progress goes on the wire. 10Hz reads as live motion
- * on the other phones while costing a handful of tiny messages per second. */
+/** How often a drag-in-progress goes on the wire. */
 const PREVIEW_MS = 100;
 
-/** Persistent per-device player id so reconnects reclaim the same seat —
- * the same key every other surface uses, which is the whole one-origin deal. */
+/** Persistent per-device player id so reconnects reclaim the same seat — the
+ * same localStorage key every surface uses (one origin, CLAUDE.md). */
 export function playerId(): string {
   const KEY = "escape-cats-pid";
   let pid = localStorage.getItem(KEY);
@@ -56,26 +51,22 @@ export function connectRoom(opts: {
   room: string;
   name: string;
   onSnapshot: (snap: GoombaSnapshot) => void;
-  /** The event's level pack, sent by the room on connect and on every edit.
-   * The room is the authority that SCORES against these levels, so taking them
-   * from the same socket is what stops a phone drawing one level while the
-   * server grades another. */
+  /** The event's level pack, sent by the room on connect and on every edit —
+   * from the same socket that scores against it, so a phone never draws one
+   * level while the server grades another. */
   onPack: (pack: LevelPack) => void;
   onConnection: (up: boolean) => void;
 }): void {
   let socket: PartySocket | null = null;
 
-  // Throttle with a trailing send, so the ghost's final position lands even
-  // if the last move fell inside the window. The clear (null) always goes out
-  // immediately — a lingering ghost is worse than an extra message.
+  // Throttle with a trailing send, so the ghost's final position lands. The
+  // clear (null) always goes out immediately.
   let lastPreviewAt = 0;
   let previewTimer: ReturnType<typeof setTimeout> | null = null;
 
   transport.send = (msg) => {
-    // A placement retires my ghost in the room. A trailing preview firing
-    // after it would raise a new one with no gesture behind it, and it would
-    // sit on every teammate's phone until the 3s TTL swept it — so the
-    // placement takes the queued send with it.
+    // A placement retires my ghost; a trailing preview firing after it would
+    // raise a new one that sits on every phone until the 3s TTL.
     if (msg.type === "place" && previewTimer) {
       clearTimeout(previewTimer); previewTimer = null; lastPreviewAt = 0;
     }
@@ -115,8 +106,7 @@ export function connectRoom(opts: {
     socket.addEventListener("close", () => opts.onConnection(false));
     socket.addEventListener("message", (e) => {
       const msg: GoombaServerMsg = JSON.parse(e.data as string);
-      // The pack always lands before the first state, so the level a snapshot
-      // points at exists by the time anything tries to draw it.
+      // The pack always lands before the first state.
       if (msg.type === "pack") opts.onPack(msg.pack);
       else if (msg.type === "state") opts.onSnapshot(msg.state);
     });
@@ -125,21 +115,14 @@ export function connectRoom(opts: {
 
 /**
  * The ad-hoc room this URL asks for, or null. `?r=kittens` -> `r-kittens`.
- *
- * Goomba is the only surface that reads it (see ADHOC_PREFIX in shared): hex's
- * win needs a proctor and a chat channel of one is nothing, so those two keep
- * calling `roomFor` with a team and nothing else. The QUERY string, not the
- * hash — the hash is already spoken for by a pasted level under `?solo`, and
- * is read once at boot.
+ * The QUERY string, not the hash — the hash is a pasted level under `?solo`.
  */
 export function adhocRoom(): string | null {
   return adhocRoomId(new URLSearchParams(location.search).get("r"));
 }
 
 /** Watch the lobby for this phone's room — the hex-clicker contract plus
- * `?r=`, including the `roomFor` fallback into the shared testing room and the
- * socket that stays open there so a mid-session sort reloads into the real
- * team. Connecting also registers the phone in the lobby roster. */
+ * `?r=`. Connecting also registers the phone in the lobby roster. */
 export function watchTeam(opts: {
   name: string;
   onTeam: (team: string, name: string) => void;
@@ -162,16 +145,13 @@ export function watchTeam(opts: {
       const msg: LobbyServerMsg = JSON.parse(e.data as string);
       if (msg.type !== "lobby") return;
       const me = msg.snapshot.players.find((p) => p.pid === pid);
-      // A team beats `?r=` — a URL can never override the proctor, which is
-      // what lets an ad-hoc phone be reclaimed onto a real team later.
+      // A team beats `?r=`: a URL can never override the proctor.
       const room = roomFor(me?.team ?? null, adhoc);
       if (room === null) return;
       if (joined === null) {
         joined = room;
-        // Only a REAL team closes the socket. An ad-hoc room keeps it open for
-        // the same reason the testing room does: its answer can still change
-        // under us, and when the proctor sorts this phone onto a team the
-        // reload below is what moves it there.
+        // Only a REAL team closes the socket: an ad-hoc or testing room's
+        // answer can still change, and the reload below moves the phone.
         if (me?.team) socket.close();
         opts.onTeam(room, me?.name ?? opts.name);
         return;

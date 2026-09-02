@@ -1,10 +1,7 @@
-// The drawing surface, and everything drawn on it.
-//
-// Ported from the deleted prototype nearly verbatim. The surface globals
+// The drawing surface, and everything drawn on it. The surface globals
 // (`ctx`, `W`, `H`, the camera offset) are exported as LIVE BINDINGS: only this
-// file assigns them, and every importer sees the current value. That is what
-// lets `drawScene` point the whole renderer at a 340px canvas and back without
-// any draw function growing a "which canvas?" parameter.
+// file assigns them, which lets `drawScene` point the whole renderer at a
+// sheet canvas and back without a "which canvas?" parameter.
 
 import {
   R,
@@ -21,26 +18,10 @@ import { S, bandInk, bandInkDark, PARTY_COLORS } from "./state";
  * (`Object.assign`, `cam.x +=`), never rebound, so both names are one object. */
 export const cam = S.cam;
 
-/** `?flat` — draw the game with its AURAS off, and nothing else changed.
- *
- * Four shapes in this file are wide, low-alpha fills sitting under the thing
- * they belong to: the 4.4-unit cream stroke under every terrain polyline (the
- * wedge rule, 2 x her radius, made visible), and the soft discs behind a can, a
- * bumper and the goal plant. Every one has hard edges and every one is painted
- * at full resolution — but a 13%-alpha disc 9 units wide reads as a GLOW, and a
- * glow around everything reads as a blurry screen.
- *
- * So this exists to answer one question a screenshot cannot: when someone says
- * the game looks soft, do they mean the pixels or do they mean the art? `?pixels`
- * measures the first and has come back clean on every machine we have pointed it
- * at; this flips the second off so the two can be told apart by looking. It is a
- * DIAGNOSTIC, not a setting — nobody plays with it, and if the answer turns out
- * to be the art then the fix is to change the art, not to ship this.
- *
- * Its own flag, never folded into `?debug`: that one means exactly one thing
- * (this phone is in the cleared-room state) and nothing else may hide behind
- * it. Boot-time const rather than a live read, because unlike a pointer type a
- * URL cannot change without a reload. */
+/** `?flat` — the game with its AURAS off (the 4.4-unit terrain halo and the
+ * soft discs behind can, bumper and plant), nothing else changed. A DIAGNOSTIC
+ * to tell "soft pixels" from "soft art" (`?pixels` measures the first). Its
+ * own flag, never folded into `?debug`, which means one thing only. */
 const FLAT = new URLSearchParams(location.search).has("flat");
 
 export let ctx = cv.getContext("2d");
@@ -54,24 +35,12 @@ export const advanceClock = (dt) => { tGlobal += dt; };
 export const setCamOffset = (ox, oy) => { camOX = ox; camOY = oy; };
 
 
-/** The page scale the canvas is being stretched by — and never a number below 1.
- *
- * Asked for twice. `visualViewport.scale` is the direct answer and the one to
- * believe; the WIDTH ratio is the same question from the other side, since
- * `innerWidth` is the layout viewport and the visual viewport is the part of it
- * you can currently see, so their quotient IS the zoom. Width, never height — a
- * soft keyboard shortens the visual viewport without zooming anything. The
- * larger wins, for the reason in `backingScale` below.
- *
- * **The floor at 1 is not tidiness, it is the safety of the whole fix.**
- * Measured in WebKit: a page at `width=780, initial-scale=2` is RELAID OUT
- * rather than composited — innerWidth 780, devicePixelRatio 1.5, and the same
- * 1170 device pixels are still 1170 device pixels, so the canvas was already
- * exactly right while `visualViewport.scale` reads 0.5. Letting that 0.5 through
- * would halve the backing store and turn this fix into the blur it was written
- * to remove. Scaling UP is the only direction that can ever be needed: the thing
- * being corrected for is a compositor stretching a bitmap we already painted,
- * which by definition no relayout told us about. */
+/** The page scale the canvas is being stretched by, never below 1. Asked two
+ * ways (`visualViewport.scale`, and the layout/visual WIDTH ratio — width,
+ * never height, since a soft keyboard shortens the visual viewport); the
+ * larger wins. THE FLOOR AT 1 IS LOAD-BEARING: WebKit relays out a page at
+ * initial-scale=2 (scale reads 0.5 while the canvas is already right), so
+ * letting it through halves the backing store. Only scaling UP is ever needed. */
 function pageScale() {
   const vv = window.visualViewport;
   if (!vv) return 1;
@@ -79,72 +48,26 @@ function pageScale() {
   return Math.max(1, vv.scale || 1, byWidth);
 }
 
-/** Device pixels per CSS pixel — how many real pixels this canvas gets to paint
- *  each CSS pixel with, and the one number this whole section exists to get
- *  right.
- *
- * `devicePixelRatio` alone is not it. It reports how dense the panel is, and a
- * page SCALE multiplies that — a pinch (which iOS Safari allows whatever
- * `user-scalable=no` says), or an in-app browser that lands at a scale other
- * than 1. Layout does not change, so the canvas is never asked to resize; the
- * compositor just stretches the bitmap it has. DOM text re-rasterises at the
- * new scale and stays crisp while the canvas does not, which is the exact shape
- * of the report this came from: PLAY sharp, the game soft.
- *
- * The awkward part, measured rather than assumed: **engines disagree about
- * whether dpr already contains the scale.** Playwright's WebKit port at
- * `width=260, initial-scale=1.5` reports dpr 4.5 — 3 x 1.5, folded in — AND
- * `visualViewport.scale` 1.5, both at once; Chromium under a compositor page
- * scale leaves dpr alone and moves only `visualViewport`; a live iOS pinch is
- * believed to move only `visualViewport.scale` with dpr fixed, but no
- * instrument here can perform one, so that is the one unmeasured case.
- * Nothing readable from JS says which convention is in force, so the product
- * can DOUBLE-COUNT (WebKit above: 4.5 x 1.5 = 6.75 asked, 4.5 true) — the cap
- * below is what bounds that, and over-asking under a cap is the cheap failure.
- *
- * So take the product and let it over-ask. Over-asking costs memory and is
- * bounded below; under-asking is the blur. That is also why the cap moved to
- * the PRODUCT: capping dpr at 3 first threw away exactly the resolution a
- * folded-in scale had just told us about (WebKit's 4.5 became 3, a third of the
- * pixels gone) — the old cap was doing the damage it was meant to prevent. At
- * rest on every iPhone and iPad this is byte-for-byte what shipped before: dpr
- * 3 or 2, scale 1, product unchanged. It only ever rises now on a phone denser
- * than 4x or a page that is genuinely zoomed. */
+/** Device pixels per CSS pixel: dpr × page scale, capped on the PRODUCT.
+ * dpr alone misses a pinch or an in-app browser's scale — layout does not
+ * change, the compositor stretches the bitmap (PLAY sharp, game soft). Engines
+ * disagree on whether dpr already folds the scale in, so the product may
+ * double-count; over-asking under a cap is the cheap failure, under-asking is
+ * the blur. Never cap dpr first — that throws away resolution a folded-in
+ * scale reported. */
 const MAX_BACKING = 4;
-/** The ratio cap is not a memory guard, because screens are not the same size.
- * 4x on an iPhone 13 is 4.1 megapixels; 4x on an iPad Pro 12.9 is 22.4 — past
- * iOS's ~16.7-megapixel canvas ceiling, where allocation fails SILENTLY: the
- * context stays valid, every draw is a no-op, and the game is a blank screen.
- * A soft game beats no game, so the AREA binds too, with margin under the
- * ceiling.
- *
- * **That ceiling is iOS's, and it used to be charged to everyone.** One
- * constant for all platforms meant a desktop paid an iOS tax it does not owe:
- * measured in WebKit, a 6K-class viewport (3008x1692 at dpr 2 — a Pro Display
- * XDR) wants 20.4 MP, got clamped to 1.75x, and read SHARPNESS 0.875 SITTING
- * STILL, un-zoomed, on a machine with gigabytes to spare. Desktop Safari,
- * Chrome and Firefox are all documented at 2^28 px or memory-bound; none of
- * them is anywhere near 2^24. So the ceiling now asks which machine it is on.
- *
- * The question it asks is "can this thing be touched at all", not "is this a
- * phone", and it is deliberately biased: **unknown counts as touch.** Guessing
- * desktop wrong is the blank screen above — the worst thing this file can do,
- * at a party, on someone else's phone, where nobody can debug it. Guessing
- * touch wrong only costs sharpness on a display nobody carries to a party.
- * That asymmetry is the whole design, and it is why this is not the runtime
- * allocation probe that would be cleaner: nothing here can test a real iOS
- * allocation failure, and an untestable probe trades a soft game for a blank
- * one. `finePointer` in `state.js` asks a different question (is there a
- * CURSOR) for a different reason, so it is not reused here.
- *
- * On every iPhone and iPad this is byte-for-byte what shipped before. */
+/** iOS's ~16.7 MP canvas ceiling fails SILENTLY (valid context, every draw a
+ * no-op, blank screen), so the AREA binds too, with margin. Charged only to
+ * touch-capable machines, and UNKNOWN COUNTS AS TOUCH: guessing desktop wrong
+ * is a blank screen at a party, guessing touch wrong costs sharpness on a
+ * display nobody carries to one. Not a runtime allocation probe, because an
+ * iOS allocation failure cannot be tested here. `finePointer` in state.js asks
+ * a different question (a CURSOR) and is not reused. */
 const MAX_AREA_TOUCH = 14e6;
-/** Covers every real display at rest — the largest, a Pro Display XDR at dpr 2,
- * is 20.4 MP — while still refusing an absurd allocation (an 8K panel at dpr 2
- * would ask 132 MP / ~530 MB). Nothing between those two is a party game. */
+/** Covers every real display at rest (a Pro Display XDR at dpr 2 is 20.4 MP)
+ * while refusing an 8K panel's 132 MP. */
 const MAX_AREA_DESKTOP = 64e6;
-/** Read live, never latched: `maxTouchPoints` is the one signal here, and a
- * boot-time snapshot is how the pointer-type bug in the selector got written. */
+/** Read live, never latched. */
 const maxArea = () =>
   ((navigator.maxTouchPoints ?? 1) > 0 || "ontouchstart" in window)
     ? MAX_AREA_TOUCH : MAX_AREA_DESKTOP;
@@ -153,33 +76,25 @@ function backingScale() {
   const area = window.innerWidth * window.innerHeight * s * s;
   const cap = maxArea();
   if (area > cap) s *= Math.sqrt(cap / area);
-  // Quantised UP to eighths. A pinch reports its scale every frame, each
-  // fractionally different, and `resize` keys its idempotence on this number —
-  // measured unquantised, one two-finger zoom reallocated the backing store 40
-  // times. Steps make almost all of those the same answer (a real gesture now
-  // costs a handful), UP so quantisation can never be the thing that
-  // under-asks, and eighths because every real dpr (1, 1.25, 1.5, 2, 2.25, 3)
-  // is already an exact multiple: at rest this rounds nothing.
+  // Quantised UP to eighths: `resize` keys its idempotence on this number and
+  // a pinch reports a fractionally different scale every frame. UP so
+  // quantisation can never under-ask; eighths because every real dpr is
+  // already an exact multiple.
   return Math.ceil(s * 8) / 8;
 }
 
-// Idempotent, because the listeners below include visualViewport's `scroll`,
-// which fires continuously through a pinch — and reallocating the backing
-// store is the one genuinely expensive thing in this file (it also resets the
-// whole 2D context state). Same geometry in, nothing done.
+// Idempotent: visualViewport's `scroll` fires continuously through a pinch,
+// and reallocating the backing store is expensive and resets the 2D context.
 let sizeKey = "";
 export function resize() {
   const s = backingScale();
   const key = window.innerWidth + "x" + window.innerHeight + "@" + s;
   if (key === sizeKey) return;
   sizeKey = key;
-  // The backing store has to be a whole number of pixels, so let IT be the
-  // exact thing and derive the CSS box from it. Sizing the other way round —
-  // box from `innerWidth`, backing rounded off it — leaves a box that is a
-  // fraction of a pixel wider than the bitmap covering it, and the browser
-  // resamples the whole canvas to close the gap. That is a real gap on iOS,
-  // where `innerWidth` is not always an integer. The box moves by under half a
-  // device pixel, which no layout here can feel.
+  // The backing store is whole pixels, so IT is exact and the CSS box derives
+  // from it — the other way round leaves a box a fraction wider than the
+  // bitmap (iOS `innerWidth` is not always an integer) and the browser
+  // resamples the whole canvas to close the gap.
   const bw = Math.round(window.innerWidth * s), bh = Math.round(window.innerHeight * s);
   cv.width = bw; cv.height = bh;
   W = bw / s; H = bh / s;
@@ -189,31 +104,13 @@ export function resize() {
   measureBunting();
 }
 
-/** Where the bunting hangs from: the bottom edge of the HUD's top bar.
- *
- * MEASURED, never copied. `#top` sits `max(10px, env(safe-area-inset-top))` down
- * the screen and stands as tall as its tallest plate, and both of those numbers
- * are the stylesheet's — a notch moves the first, and a second line of label
- * would move the second. Reading them back is the discipline `zoopMs` keeps
- * with `--zoop-ms`: the bar and the strings under it are one arrangement, and a
- * second copy of either number is a thing to keep in sync forever.
- *
- * It has to be the bar's BOTTOM rather than a constant off its top, because the
- * strings ride at their HIGHEST at the left and right edges — they sag toward
- * the centre — so the corners, where the plates are, are the one place a string
- * has no clearance to spare. Below the bar there is exactly 24px before
- * `#hint`'s win banner and the first string needs 22 of it; see the note on
- * `#hint` in styles.css before moving either.
- *
- * WHEN to re-measure is two questions, and guessing either one is how this
- * broke the first time. A `ResizeObserver` answers the bar's SIZE — it fired
- * the moment `syncHud` filled `#inv` with the four band slots, which is after
- * boot and after the first `resize()`, so a measurement taken only at startup
- * had the strings hanging off a plate that was still 27px short. Position is
- * the other half and the observer cannot see it (`top:` is not a size), so
- * `resize()` covers the rotation that swaps `env(safe-area-inset-top)` in and
- * out. Together those are every way the bar's bottom edge can move; the
- * fallback below is what a laptop with no inset measures anyway. */
+/** Where the bunting hangs from: `#top`'s MEASURED bottom edge, never a
+ * constant — the notch moves the bar, and the strings ride HIGHEST at the
+ * edges, exactly where the plates are. Under the bar there are 24px before
+ * `#hint` and the first string needs 22 (see `#hint` in styles.css). Two
+ * triggers, both needed: the ResizeObserver for the bar's SIZE (it grows when
+ * `syncHud` fills `#inv`, after boot), `resize()` for its POSITION (the inset
+ * swapping on rotation, which an observer cannot see). */
 let buntingTop = 66;
 function measureBunting() {
   const r = topEl.getBoundingClientRect();
@@ -221,25 +118,15 @@ function measureBunting() {
 }
 new ResizeObserver(measureBunting).observe(topEl);
 
-/** The self-heal, called on a slow timer from frame().
- *
- * Every listener below is a guess about WHEN the viewport changes. This one
- * does not have to guess: it asks the canvas how big it actually is and
- * re-sizes if that disagrees with what we sized it for. A viewport change that
- * fires no event we listen to, a bfcache restore, an in-app browser settling
- * after its presentation animation — they all land here. The failure it
- * insures against is silent, and a blurry game nobody can explain is a worse
- * trade than one getBoundingClientRect a second. */
+/** The self-heal, on a slow timer from frame(): asks the canvas how big it
+ * actually is and re-sizes on disagreement, catching every viewport change
+ * that fires no event (bfcache restore, an in-app browser settling). */
 export function checkFit() {
   const r = cv.getBoundingClientRect();
   if (!r.width || !r.height) return;   // display:none — nothing to fit to
-  // Compare what the canvas HAS against what this moment's box and scale say
-  // it should have. Checking only the box misses the change where the box
-  // stays put and the scale moves under it — dragging the window to a 1x
-  // monitor, desktop zoom with the window size unchanged — which fires no
-  // event this file listens to. Tolerance is device pixels, and more than one,
-  // because layout snaps the box to the device grid and a half-pixel of snap
-  // must not re-allocate the store once a second forever.
+  // Compare against box AND scale: the scale can move under a fixed box (a
+  // window dragged to a 1x monitor). Tolerance over one device pixel, or
+  // layout's half-pixel snap re-allocates the store once a second forever.
   const s = backingScale();
   if (Math.abs(cv.width - r.width * s) > 1.5 || Math.abs(cv.height - r.height * s) > 1.5) {
     sizeKey = "";   // the world moved under us: re-apply even if inner* agrees
@@ -260,51 +147,15 @@ if (window.visualViewport) {
 }
 resize();
 
-/** The post-load backing-store re-roll that used to live here is GONE, and the
- * negative result is worth more than the code was.
- *
- * The theory: WebKit picks a rasterisation scale for a compositing layer once,
- * at layer-creation time, `#c` is `position:fixed; inset:0` and therefore a
- * layer of its own, and re-assigning `cv.width` two frames after `load` would
- * throw that surface away and force a new one under better conditions. It was
- * verified to do exactly what it claimed — a mutation observer caught precisely
- * one width/height reassignment after `load` in both WebKit and Chromium — and
- * the phone came back blurry anyway, on the build that contained it.
- *
- * So reallocating the surface after the page is composited does NOT re-roll
- * whatever is being decided. Either the decision is not per-surface, or it is
- * not re-made when the surface is replaced. Do not try this again; the block
- * below tries the LAYER instead. */
-
-/** CANDIDATE FIX, the fourth lever, same deal as every one before it: comes
- * OUT if the phone stays blurry, never gets tuned. The ledger it stands on:
- *
- *   surface re-roll (reassign cv.width post-load)  — FAILED. The scale is not
- *     per-surface, or is not re-made when the surface is replaced.
- *   position flip (fixed -> absolute post-load)    — FAILED. A style change is
- *     not enough to make WebKit rebuild the layer, or the rebuild kept the
- *     scale. Removed like the re-roll before it.
- *
- * And what the instruments finally measured, on the phone, on one blurry load:
- * the round-trip self-test reads 2px — the buffer is TRUE — while the in-canvas
- * eye chart shows its 4px block collapsed and 8px surviving, with the inline
- * 4px block crisp centimetres away in the same photograph. Together: the
- * 1179-wide buffer is reaching the glass through a texture roughly a THIRD its
- * width. That is the signature of the layer's contentsScale having been decided
- * as ~1 (CSS resolution) from some transient mid-boot state — page scale still
- * settling, dpr not yet applied — and never revisited. Decided per LOAD, which
- * is the observed nondeterminism; held until reload, which is the observed
- * stickiness; invisible to script, which is eleven identical readouts.
- *
- * So force the one rebuild nothing can optimise away: detach the element and
- * put it back. A removed node has no renderer at all; reattaching builds
- * renderer, RenderLayer and backing from scratch, with the page long settled —
- * and unlike the levers above, there is no path where this reuses the old
- * layer, because the old layer is GONE. The canvas element keeps its pixel
- * buffer across a reparent (the bitmap belongs to the element, not the
- * document), both operations run in one task so no frame is presented between
- * them, and it goes back exactly where it was so #hud, a later sibling, keeps
- * painting above. Two rAFs after `load`, past the first settled composite. */
+/** CANDIDATE FIX for the blurry-on-some-loads phone: detach `#c` and put it
+ * back, two rAFs after `load`. Comes OUT if the phone stays blurry, never gets
+ * tuned. Measured on a blurry load: the buffer round-trips TRUE (selftest 2px)
+ * while the in-canvas 4px block collapses — the layer's contentsScale is
+ * decided per LOAD from a transient mid-boot state and never revisited.
+ * Reassigning cv.width post-load and flipping position fixed→absolute both
+ * FAILED to re-roll it; do not try them again. Reattaching rebuilds renderer,
+ * layer and backing from scratch: the bitmap survives a reparent, both ops in
+ * one task, back in the same place so #hud keeps painting above. */
 window.addEventListener("load", () => {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const parent = cv.parentNode;
@@ -315,12 +166,9 @@ window.addEventListener("load", () => {
   }));
 });
 
-/** Called by main.js at the END of every frame(), after the scene is drawn.
- * The probe's rack hangs off this rather than its own rAF loop, because two
- * self-re-arming rAF loops have TWO stable interleavings — whichever callback
- * runs first at boot runs first forever — and on the phone the race landed
- * rack-then-game: the game erased the rack every frame while its paint counter
- * climbed past 800. A hook in the one real loop cannot lose that race. */
+/** Called by main.js at the END of every frame(). A hook, not its own rAF
+ * loop: two self-re-arming loops have two stable interleavings, and the rack
+ * lost that race on the phone (erased every frame, counter still climbing). */
 export let postFrame = null;
 
 if (new URLSearchParams(location.search).has("pixels")) {
@@ -352,19 +200,12 @@ export function clampCam(x, y, s, b) {
   };
 }
 
-/** Draw a scene into one of the sheet's canvases, framed to its bounds.
- *
- * The renderer's globals ARE the parameters here: point `ctx` at the little
- * canvas, tell it how big it is, put the camera on the scene, draw, and hand
- * all of it back. The restore is in a finally because a throw mid-picture that
- * left `ctx` on a 340px canvas would take the whole game's rendering with it. */
+/** Draw a scene into one of the sheet's canvases, framed to its bounds. The
+ * renderer's globals ARE the parameters; the restore is in a finally because a
+ * throw that left `ctx` on a sheet canvas would take the game's rendering. */
 export function drawScene(el, b, body) {
-  // getBoundingClientRect, not clientWidth: these boxes are laid out by CSS
-  // (a percentage width, a height in `em`) and land on fractions of a pixel,
-  // and clientWidth rounds that away. Sizing the backing store off the rounded
-  // number leaves up to a whole CSS pixel of stretch across the canvas — a
-  // resample of everything in it, on the sheet that is the first screen a
-  // phone sees. #scTitle measured 381.19 CSS px wide in Safari.
+  // getBoundingClientRect, not clientWidth: these boxes land on fractions of a
+  // pixel, and a backing store sized off the rounded number is resampled.
   const rect = el.getBoundingClientRect();
   const w = rect.width, h = rect.height;
   if (!w || !h) return;              // the sheet is hidden: nothing to draw into
@@ -372,10 +213,8 @@ export function drawScene(el, b, body) {
   const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
   if (el.width !== bw || el.height !== bh) { el.width = bw; el.height = bh; }
   const g = el.getContext("2d");
-  // The scale the bitmap ACTUALLY has against its box, not the one we asked
-  // for: `bw` was rounded to a whole pixel, so `bw / w` is a hair off `dpr`,
-  // and drawing at `dpr` would leave the last fraction of a pixel unpainted
-  // and shift everything against the box it is stretched into.
+  // The scale the bitmap ACTUALLY has against its box: `bw` was rounded, so
+  // drawing at `dpr` would shift everything against the box.
   g.setTransform(bw / w, 0, 0, bh / h, 0, 0);
   g.clearRect(0, 0, w, h);
   const savedCtx = ctx, savedW = W, savedH = H, savedCam = { ...cam },
@@ -443,17 +282,15 @@ export function drawTerrain(lv) {
     ctx.strokeStyle = "#f3e9d6"; ctx.lineWidth = 1.5 * cam.s;
     ctx.stroke();
     ctx.strokeStyle = "rgba(255,93,177,0.55)"; ctx.lineWidth = 0.5 * cam.s;
-    // The pink ticks are PAINT on the floor: they mark it, they do not travel
-    // along it. Hence the explicit offset — the marching-ants drawings below
-    // leave one on the context, and terrain that inherits it crawls.
+    // Explicit offset: the marching-ants drawings leave one on the context,
+    // and terrain that inherits it crawls.
     ctx.setLineDash([2 * cam.s, 7 * cam.s]); ctx.lineDashOffset = 0;
     ctx.stroke();
     ctx.setLineDash([]);
   }
 }
 
-/** One band, in the TEAM's colour — every band on the board is the same one,
- * because none of them belongs to a player any more. */
+/** One band, in the TEAM's colour — every band on the board is the same. */
 export function drawBand(bd, excite, ghost) {
   const pts = bandPoints(bd);
   const jig = excite * Math.sin(tGlobal * 32) * 1.2;
@@ -483,11 +320,9 @@ export function drawBand(bd, excite, ghost) {
   ctx.globalAlpha = 1;
 }
 
-/** A teammate's band-in-progress: same sagging shape as a real band, but
- * translucent with marching dashes and hollow endpoint rings — reads as
- * "being dragged", never as "placed". The team's colour like every other band;
- * what makes it theirs rather than mine is the motion — no name, here or
- * anywhere else on this screen. */
+/** A teammate's band-in-progress: translucent, marching dashes, hollow rings
+ * — reads as "being dragged", never "placed". Team colour; the motion is what
+ * makes it theirs, no name anywhere on this screen. */
 export function drawTeammatePreview(p) {
   const pts = bandPoints(p);
   const col = bandInk();
@@ -500,9 +335,7 @@ export function drawTeammatePreview(p) {
   ctx.beginPath();
   pts.forEach(([x, y], i) => (i ? ctx.lineTo(sxp(x), syp(y)) : ctx.moveTo(sxp(x), syp(y))));
   ctx.stroke();
-  // the offset goes back with the pattern: it is context state, and everything
-  // dashed drawn after this one — the terrain on the next frame included —
-  // inherits whatever is left on it
+  // the offset goes back with the pattern: it is context state
   ctx.setLineDash([]); ctx.lineDashOffset = 0;
   for (const [x, y] of [pts[0], pts[8]]) {
     ctx.strokeStyle = col;
@@ -512,17 +345,14 @@ export function drawTeammatePreview(p) {
   ctx.globalAlpha = 1;
 }
 
-/** The waiting end of a tap-tap band: a pulsing ring where the first tap
- * landed, with the instruction right under it. It fades out over its last
- * second so an anchor that times out is seen dying, not found missing. */
 /** How long an open anchor waits before it gives up. `input.js` enforces it;
- * this file draws the countdown, so the one number lives here and is imported
- * there rather than declared twice. */
+ * this file draws the countdown, so the one number lives here. */
 export const ANCHOR_TTL = 8000;
 
+/** The waiting end of a tap-tap band: a pulsing ring with the instruction
+ * under it, fading over its last second so a timeout is seen, not found. */
 export function drawAnchor(a) {
-  // Screen units, not world: the edit camera is whatever fits the level, and
-  // a fingertip is the same size on every one of them.
+  // Screen units, not world: a fingertip is the same size on every level.
   const x = sxp(a.x), y = syp(a.y);
   const col = bandInk();
   const left = ANCHOR_TTL - (performance.now() - a.at);
@@ -545,10 +375,9 @@ export function drawAnchor(a) {
   ctx.globalAlpha = 1;
 }
 
-/** The same waiting point, seen from a teammate's phone: a ring alone — no
- * instruction (it isn't your tap to finish) and no name (nothing in this game
- * draws one; the four of them are in the same room). Drawn for any preview too
- * short to be a band — see GoombaBandPreview. */
+/** The same waiting point from a teammate's phone: a ring alone, no
+ * instruction, no name. Drawn for any preview too short to be a band
+ * (GoombaBandPreview). */
 export function drawTeammateAnchor(p) {
   const x = sxp(p.ax), y = syp(p.ay);
   const col = bandInk();
@@ -605,12 +434,10 @@ export function drawPopper(pp, i) {
   ctx.restore();
 }
 
-// The collectible: a watering can, mid-pour and dripping.
-/** `ping` (0..1) is the locked-goal flare's ring: she touched the plant and
- * this is one of the cans that is why nothing happened. Gold, because that is
- * the can's own colour and the badge's number counts these — the ring, the can
- * and the 💧N are deliberately one colour saying one thing. It is drawn from
- * the can's RESTING centre, outside the bob, so a row of them reads as a set. */
+/** The watering can. `ping` (0..1) is the locked-goal flare's ring: she
+ * touched the plant and this can is why nothing happened. Gold like the can
+ * and the 💧N badge — one colour saying one thing — and drawn from the RESTING
+ * centre, outside the bob, so a row reads as a set. */
 export function drawCan(mx, my, taken, i, ping = 0) {
   if (taken) return;
   const u = Math.max(cam.s, 2.2), x = sxp(mx), y = syp(my);
@@ -669,16 +496,10 @@ export function drawBumper(bp, hot) {
   ctx.restore();
 }
 
-// The goal: the spider plant Goomba is watering. Thirsty, its blades barely
-// lift out of the crown and hang limp, dulled, and the plantlet on its runner
-// droops; with the last can in the whole fountain arches up bright and the
-// baby swings — so the badge is a second telling of a state the plant itself
-// already shows.
-//
-// [dir, reach, rise, drop, width] per blade: dir/reach set which way and how
-// far it fans, rise how hard it arches on the way out, drop where the tip
-// lands relative to the crown (+ is BELOW it — the outer blades spill over
-// the rim, which is what makes it read as a spider plant and not a spike).
+// The goal: the spider plant. Thirsty, the blades hang limp and dull; with the
+// last can in, the fountain arches up bright — the badge only re-tells that.
+// [dir, reach, rise, drop, width] per blade; drop + is BELOW the crown (the
+// outer blades spill over the rim).
 const SPIDER_BLADES = [
   [-1, 5.2, 2.4, 3.6, 0.7], [1, 5.4, 2.2, 3.9, 0.7],
   [-1, 4.4, 4.2, 1.7, 0.78], [1, 4.6, 4.0, 2.0, 0.78],
@@ -688,31 +509,22 @@ const SPIDER_BLADES = [
 ];
 const CROWN_Y = -3.4;   // the crown sits just ABOVE the pot rim, so the blades
                         // drape in front of it instead of being sliced by it
-// Where the plant hangs off `goal`, and where its ink CENTRES. `goal` is the
-// point the sim tests her against; the pot is drawn POT_DROP below it (see
-// drawGoalPlant), and the glow — an ellipse about the whole plant, pot and
-// blades together — sits GLOW_Y above the pot's origin. So `goalMid` is the
-// middle of the plant as a player sees it, a little over the rim where the
-// blades leave the crown, and nowhere near `goal` itself.
+// `goal` is the point the sim tests; the pot is drawn POT_DROP below it and
+// the glow is centred GLOW_Y above the pot's origin.
 const POT_DROP = 2, GLOW_Y = -3.5;
-/** The middle of the plant's INK, in world units. Exported because the how-to
- * sheet aims its ride-line arrow at it: a second copy of these two offsets
- * would drift the first time the pot moves inside its glow. */
+/** The middle of the plant's INK, in world units — nowhere near `goal`.
+ * Exported so the how-to sheet aims its arrow at it without a second copy. */
 export const goalMid = (lv) => [lv.goal[0], lv.goal[1] + POT_DROP + GLOW_Y];
 
-// The badge's two inks: mint at rest, the can's own gold at the top of a flare.
-// Interpolated rather than switched, because the whole point of a 0.4s accent
-// is that it goes away again and a hard swap reads as a different badge.
+// The badge's two inks: mint at rest, gold at the top of a flare. Interpolated,
+// because a hard swap reads as a different badge.
 const BADGE_MINT = [87, 230, 201], BADGE_GOLD = [255, 209, 102];
 const badgeInk = (k) =>
   `rgb(${BADGE_MINT.map((v, i) => Math.round(v + (BADGE_GOLD[i] - v) * k)).join(",")})`;
 
-/** `fx` (0..1) is the locked-goal flare — she is in the goal circle with cans
- * still out. Two of its three parts live here: the plant shivers and droops
- * that bit further (the same `lift`/`sag`/rotate knobs that already draw
- * thirsty, pushed for a moment), and the 💧N badge pops and warms to gold. Both
- * are accents of what the plant was already saying, not new vocabulary — the
- * third part, the ring off each can she still needs, is drawCan's. */
+/** `fx` (0..1) is the locked-goal flare (in the goal circle, cans still out):
+ * the plant shivers and droops further, the 💧N badge pops and warms to gold —
+ * accents of what it was already saying. The rings off the cans are drawCan's. */
 export function drawGoalPlant(lv, st, fx = 0) {
   const x = sxp(lv.goal[0]), y = syp(lv.goal[1]), u = Math.max(cam.s, 2.6);
   const left = lv.cans.length - (st ? st.gotN : 0), ready = left === 0;
@@ -849,44 +661,25 @@ export function drawStartPad(lv) {
   ctx.setLineDash([]);
 }
 // ---------- the splash (phase "splash") ----------
-// Where a cleared room lands when it takes NEXT off the finale, instead of the
-// old victory lap: the congratulations screen. BLACK, the words on it
-// (`drawSplashWords`), and the level selector's strip up top. Nothing else — no
-// HUD, no PLAY (index.html hides them on #hud.splash) — and the one way on is
-// the selector: the strip, or a tap anywhere on the screen (`splashTap`), which
-// is the same `openSelector` either way.
-//
-// There is no PICTURE here any more, and with it went the only loaded asset
-// this app had (public/art/splash.webp) and the sampler that continued its sky
-// past the ends of a tall phone. Black needs neither: it fits every screen, it
-// cannot load late, and it is the same on a phone and a laptop. hex-clicker's
-// win screen still has its own picture at art/hex-splash.webp — the two were
-// separate files precisely so either game could change without the other.
+// Where a cleared room lands off the finale: BLACK, the words, and the
+// selector strip up top (styles.css hides the rest on #hud.splash). The one
+// way on is the selector — the strip, or a tap anywhere (`splashTap`). No
+// picture: this app loads no image asset at all (CLAUDE.md).
 export function drawSplash() {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, W, H);
   drawSplashWords();
 }
 
-/** The congratulations, and the one instruction the screen carries: touching it
- * anywhere opens the levels grid (`splashTap`).
- *
- * BOILERPLATE on purpose, and now the whole screen — the picture it used to sit
- * over is gone, so the block CENTRES rather than hugging the bottom, which was
- * only ever a way of staying clear of the art's subject.
- *
- * Everything is measured off W/H — a phone is ~390 CSS px across and a laptop
- * ~1400 — so one set of numbers serves both surfaces. */
+/** The congratulations and the one instruction: tap anywhere (`splashTap`).
+ * Centred, measured off W/H so one set of numbers serves phone and laptop. */
 function drawSplashWords() {
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
 
-  /** Set the font to `px`, or to whatever smaller size makes `text` fit across
-   * the screen with a margin. Every line here goes through it: these are three
-   * centred one-liners on a canvas, which has no wrapping and no ellipsis of
-   * its own, so a phone narrower than the one this was written on would
-   * silently run the words off both sides (it did — the second line, at 390). */
+  /** Set the font to `px`, or smaller so `text` fits the screen: a canvas has
+   * no wrapping, so a narrow phone would run the words off both sides. */
   const fit = (text, weight, px) => {
     const face = (n) => `${weight} ${n}px ui-rounded, system-ui, sans-serif`;
     ctx.font = face(px);
@@ -894,8 +687,7 @@ function drawSplashWords() {
     if (wide > room) ctx.font = face(Math.max(11, px * (room / wide)));
   };
 
-  // The middle of the screen, with the title's own line sitting just above it —
-  // the three baselines below hang off this one.
+  // The three baselines below hang off the middle of the screen.
   const mid = H / 2;
 
   ctx.fillStyle = "#ffd166";
@@ -906,9 +698,7 @@ function drawSplashWords() {
   fit("every level cleared — the plant is watered", 700, 15);
   ctx.fillText("every level cleared — the plant is watered", W / 2, mid + 24);
 
-  // The prompt breathes, because it is the only thing to do on a screen that is
-  // otherwise completely still — the same tell the band anchors use while they
-  // wait to be finished.
+  // The prompt breathes: the same "waiting" tell the band anchors use.
   ctx.fillStyle = "#c9bdf0";
   ctx.globalAlpha = 0.6 + 0.4 * Math.sin(tGlobal * 2.2);
   fit("tap anywhere to pick a level", 400, 13);

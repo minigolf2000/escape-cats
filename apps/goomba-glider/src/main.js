@@ -1,12 +1,8 @@
 // Goomba Glider, multiplayer client — boot, the frame loop, and the wiring
-// between a snapshot and the UI.
-//
-// The room server owns the bands, the level, the phase and the score; this file
-// renders snapshots and sends intents, the same seam hex-clicker has. A run is
-// animated LOCALLY: the server scores it the instant PLAY lands (deterministic
-// physics), and every phone steps the same shared sim against the server's
-// runAt timestamp — so all four screens watch the same ride, and the ending the
-// animation reaches is the one the server already banked.
+// between a snapshot and the UI. The room server owns bands, level, phase and
+// score; this file renders snapshots and sends intents. A run is animated
+// LOCALLY against the server's runAt timestamp with the same shared sim, so
+// every phone watches the same ride and reaches the ending the server banked.
 //
 // The rest of the client is split by what it owns:
 //   dom.js       every element reference
@@ -74,30 +70,18 @@ window.addEventListener(
   },
   { capture: true, passive: false },
 );
-// And no zoom. `user-scalable=no` in the viewport meta has not stopped a pinch
-// since iOS 10 — Safari ignores it deliberately, so the meta is a statement of
-// intent and these three are the enforcement. WebKit-only events, and the only
-// ones that fire for a MAC trackpad pinch as well as an iOS one.
-//
-// The touchstart above already suppresses a pinch nearly everywhere, so this
-// closes one specific hole: the `button, a` exemption up there is load-bearing
-// (preventDefault on touchstart kills the synthesised click), which means a
-// pinch that happens to START on PLAY or the Figma link is not covered. Gesture
-// events synthesise no click, so they need no such exemption and get none.
-//
-// Two fingers are the game's own (`input.js` — a stretch lays a band), so
-// nothing here is taking a gesture away from a player; it is stopping the
-// BROWSER from reading the same two fingers as a zoom. What it cannot reach:
-// iOS "Always Allow Zoom", the system three-finger Accessibility Zoom, and
-// Safari's own AA-menu / Cmd+- page zoom. Those are browser chrome, and a page
-// that pretends otherwise is making a promise it cannot keep.
+// And no zoom: `user-scalable=no` has not stopped a pinch since iOS 10, so
+// these WebKit-only gesture events are the enforcement, closing the hole the
+// `button, a` exemption above leaves (a pinch that STARTS on PLAY). Two
+// fingers are the game's own (a stretch lays a band); this stops the BROWSER
+// reading them as zoom. It cannot reach iOS "Always Allow Zoom", Accessibility
+// Zoom or Safari's page zoom.
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) {
   window.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
 }
 
-// Run zoom only: the edit view sits at fitScale so the WHOLE level is on screen.
-// Nothing pans any more, so every point a band can reach has to be reachable by
-// a finger without moving the camera.
+// Run zoom only: the edit view sits at fitScale so the WHOLE level is on
+// screen — nothing pans, so every band point must be reachable by a finger.
 const RZ = 1.9;
 
 let shownPhase = "edit", shownLevel = -1, shownRunId = 0;
@@ -105,10 +89,9 @@ let shownPhase = "edit", shownLevel = -1, shownRunId = 0;
 let shownRoster = "";
 let anim = null;            // { key, st } — the local replay of the scored run
 let winFx = false;          // confetti fired for the current win
-// The locked-goal flare: when she reaches the plant with cans still out, the
-// state the plant is ALREADY wearing gets accented for four tenths of a second.
-// Local presentation only — passing over the goal on the way to somewhere else
-// is legitimate level design, so this may never block, bounce or delay her.
+// The locked-goal flare: reaching the plant with cans still out accents the
+// state the plant already wears, for 0.4s. Local presentation only — passing
+// over the goal is legitimate level design, so it may never block or delay her.
 let lockT = -9, lockArmed = false;
 let shake = 0;
 let parts = [], confetti = [], cushAnim = [], popPrev = null;
@@ -120,12 +103,9 @@ function refit() {
 }
 
 /**
- * The event's levels arrived (on connect, and again after any edit).
- *
- * `applyPack` writes into the same `GOOMBA_LEVELS` array every rule already
- * reads, so nothing downstream has to know the levels can change. What DOES
- * have to know is this file's one cache: the camera, which is framed on a level
- * whose geometry may have just been replaced under it.
+ * The event's levels arrived (on connect, and after any edit). `applyPack`
+ * writes into the array every rule reads; the camera is this file's one cache
+ * of a level that may just have been replaced under it.
  */
 function onPack(pack) {
   applyPack(pack);
@@ -139,28 +119,21 @@ function onSnapshot(s) {
   const first = !S.inited;
   const levelChanged = s.level !== shownLevel;
   const wasReset = s.runId !== shownRunId;
-  // Crossing into or out of the splash is fresh footing as much as a level
-  // change is: leaving it via a `goto` can land on the SAME level it was
-  // covering (the finale), which no other signal here would notice — and that
-  // would leave the finale's confetti and its finished run replay on screen.
+  // Crossing into or out of the splash is fresh footing: a `goto` out of it
+  // can land on the SAME level (the finale), which no other signal notices.
   const splashEdge = (s.phase === "splash") !== (shownPhase === "splash");
   S.snap = s;
   S.pending = null; // whatever we sent, the authority has now spoken
 
-  // The latched card tap resolves here — on the goto's exact signature (that
-  // level, fresh edit phase, no bands), so a snapshot merely in flight when we
-  // tapped doesn't drop the grid early. Closing now, in the same handler that
-  // recenters the camera below, means the first frame without the lab is
-  // already the new level, framed: no gap for the old one to show through.
+  // The latched card tap resolves here, in the same handler that recenters
+  // the camera below, so the first frame without the lab is the new level.
   resolveLabJump(s);
 
   if (first) {
     S.inited = true;
-    // The room is live, so the sheet stops waiting and starts asking: it is
-    // now dismissible, and the player is the one who dismisses it. Unless the
-    // GRID is already open — `?solo` and a pasted level both land there — in
-    // which case the sheet has nowhere to sit: `#hud.lab > *` hides it, so
-    // arming it would only leave an invisible sheet swallowing the next key.
+    // The room is live: arm the sheet (the player dismisses it). Unless the
+    // GRID is already open (`?solo`, a pasted level): `#hud.lab > *` hides
+    // the sheet, and an armed invisible sheet would swallow the next key.
     if (S.labOpen) closeSheet(false);
     else armSheet();
     requestAnimationFrame(frame);
@@ -182,9 +155,8 @@ function onSnapshot(s) {
     return;
   }
 
-  // Phase edges. run→edit is a scored FAIL (wins go run→win) — but only when
-  // `runResult` survived the edge. STOP takes the same edge and clears it,
-  // because an abort is nobody's failure and has nothing to shake or say.
+  // Phase edges. run→edit is a scored FAIL (wins go run→win) — only when
+  // `runResult` survived the edge; STOP takes the same edge and clears it.
   if (shownPhase === "run" && s.phase === "edit" && s.runResult) {
     shake = 1;
     toast(FAIL_MSG[s.runResult] || "try again!");
@@ -198,28 +170,21 @@ function onSnapshot(s) {
 function syncHud() {
   const s = S.snap; if (!s) return;
   const done = s.completed.filter(Boolean).length;
-  // The level's own name is deliberately off the HUD now — only the win
-  // banner ever occupies this line; editing and running say nothing.
+  // Only the win banner ever occupies this line.
   hintEl.textContent =
     s.phase === "win"
       ? (done === s.levelCount ? "ALL LEVELS CLEAR! 🎉🪴" : "LEVEL CLEAR! 🎉")
       : "";
 
-  // Both of these are room state, so they are re-read every snapshot: the
-  // selector arrives when the team clears the game and leaves on a reset, and
-  // the splash is a phase like any other.
+  // Room state, re-read every snapshot (a reset takes the selector back).
   hudEl.classList.toggle("cleared", levelSelect());
   hudEl.classList.toggle("splash", s.phase === "splash");
-  // The band plate's CHROME rides the phase, never the band count: keyed on the
-  // count it would grow and collapse every time the count crossed 0 (see the
-  // `#bandbar` comment in styles.css). At zero bands the plate stays exactly
-  // where it is and only goes quiet — `disabled`, below.
+  // The band plate's CHROME rides the PHASE, never the band count — keyed on
+  // the count it would grow and collapse every time it crossed 0 (`#bandbar`
+  // in styles.css). At zero bands it only goes quiet: `disabled`, below.
   hudEl.classList.toggle("laying", s.phase === "edit");
-  // `editing` is the SURFACE (editorOn), not room state, so no snapshot ever
-  // carries it and it needs its own sync point rather than riding this
-  // function's `s`-driven toggles above — this is just the one place already
-  // re-run on every UI-relevant change, and the surface can still change under
-  // a live room (a tablet that gains a trackpad mid-party).
+  // `editing` is the SURFACE (editorOn), not room state; synced here because
+  // the surface can change under a live room (a tablet gaining a trackpad).
   hudEl.classList.toggle("editing", editorOn());
 
   dotsEl.innerHTML = "";
@@ -229,16 +194,12 @@ function syncHud() {
     dotsEl.appendChild(d);
   });
 
-  // WHO IS HERE — one name per line (see #team in styles.css). Unlike the two
-  // strips either side of this, it is rewritten only when it CHANGES: those are
-  // cheap and genuinely move every snapshot, a roster is neither, and rebuilding
-  // four text nodes 4x/second would be the one thing on this screen churning for
-  // nothing.
+  // WHO IS HERE — one name per line (#team in styles.css), rebuilt only when
+  // it CHANGES.
   const roster = s.players.map((p) => `${p.connected ? 1 : 0}\u0000${p.name}`).join("\u0001");
   if (roster !== shownRoster) {
     shownRoster = roster;
-    // Nodes with textContent rather than an HTML string: a name is typed into
-    // the lobby by a player, so it stays text here by construction.
+    // textContent, never an HTML string: a name is typed by a player.
     teamEl.replaceChildren(
       ...s.players.map((p) => {
         const el = document.createElement("span");
@@ -249,12 +210,8 @@ function syncHud() {
     );
   }
 
-  // The 4 band slots — the room's whole budget, in the team's colour. Every
-  // one of them is the same colour now, because every one of them is anybody's
-  // to lay: the row says "two of the four are out", which is the only thing
-  // left to say about them. An empty slot during edit is lit rather than faded,
-  // since an empty slot is one I may fill — there is no share of them to be
-  // outside of any more.
+  // The 4 band slots — the room's whole budget, all in the team's colour. An
+  // empty slot during edit is lit: it is one I may fill.
   const ink = bandInk();
   invEl.innerHTML = "";
   for (let i = 0; i < MAX_BANDS; i++) {
@@ -262,23 +219,20 @@ function syncHud() {
     const bd = s.bands[i];
     const open = !bd && s.phase === "edit";
     el.className = "band" + (bd ? " used" : open ? " open" : "");
-    // Inline, because only the client knows which team it is on. A slot that is
-    // neither filled nor fillable (mid-run) keeps the faded dashes from CSS.
+    // Inline: only the client knows its team. Mid-run slots keep the CSS dashes.
     if (bd || open) el.style.borderColor = ink;
     if (bd) el.style.background = ink + "33";
     invEl.appendChild(el);
   }
 
-  // On the finale of a cleared room NEXT is the curtain call, not another
-  // level — nextLeadsToSplash is the sim's own predicate for that transition,
-  // so the label cannot disagree with where the button actually goes.
+  // nextLeadsToSplash is the sim's own predicate, so the label cannot
+  // disagree with where the button goes.
   playBtn.textContent =
     s.phase === "run" ? "■ STOP" :
     s.phase === "win" ? (nextLeadsToSplash(s) ? "FINISH ▸" : "NEXT ▸") : "▶ PLAY";
   playBtn.className = s.phase === "run" ? "stop" : s.phase === "win" ? "next" : "";
-  // The one thing that changes with the band count. `disabled` rather than a
-  // class: it blocks the pointer, greys the words through `:disabled`, and is
-  // the only one of the three a screen reader can hear.
+  // The one thing that changes with the band count. The real `disabled`:
+  // pointer, `:disabled` ink and the a11y tree in one.
   bandbarEl.disabled = !(s.phase === "edit" && s.bands.length);
 }
 
@@ -288,69 +242,41 @@ playBtn.onclick = () => {
   else if (S.snap.phase === "run") transport.send({ type: "stop" });
   else if (S.snap.phase === "win") transport.send({ type: "next" });
 };
-// One tap wipes, no confirm — and it wipes the ROOM's bands, teammates'
-// included (`clear` in goomba/sim.ts), from the corner of the screen a thumb
-// has to stretch for. That is a deliberate trade: the four players are in one
-// living room, so a clear nobody wanted is answered out loud in a second and
-// the bands go back down, whereas a confirm step would tax every deliberate
-// tap to insure against the rare stray one. No toast either: four bands
-// vanishing off the board IS the feedback, and the only phone a local toast
-// could reach is the one that already knows.
-//
-// The whole plate is the target, slots included — tapping the four bands is
-// what takes the four bands away. It only accepts a tap during edit with at
-// least one band down (`disabled` in syncHud); every other moment this corner
-// belongs to the canvas underneath, where a band may legally be anchored.
+// One tap wipes the ROOM's bands, teammates' included, with no confirm and no
+// toast: four people in one living room answer a stray out loud. If strays turn
+// up, the answer is UNDO, never a confirm step. The whole plate is the target;
+// `disabled` (syncHud) limits it to edit-with-bands, and every other moment the
+// corner belongs to the canvas underneath.
 bandbarEl.onclick = () => { resetInput(); transport.send({ type: "clear" }); };
 labEl.onclick = openSelector;
-// THE KEYBOARD, AND HOW LITTLE OF IT IS OURS.
-//
-// This listener exists for the laptop that EDITS: `\` is the whole level
-// selector on one key, and Escape is the way back out of it. Space is a
-// convenience on the same machine. That is the entire list, and everything else
-// on a keyboard belongs to the browser.
-//
-// It used to end with a catch-all — any key at all dismissed the help sheet —
-// and a catch-all on a keyboard is a promise you cannot keep. It skipped the
-// modifier keys THEMSELVES but not modifier COMBOS, so Cmd+R arrived as `r`
-// with metaKey set and preventDefault ate the reload; Ctrl+V went the same way,
-// which stopped the `paste` listener below from ever seeing a paste, on a
-// screen that closes itself precisely so a paste can land. Enumerating what to
-// skip does not fix that shape — F5, Tab and whatever a phone keyboard sends
-// next are all the same bug waiting — so the rule is inverted: a modifier combo
-// is never ours, and the sheet answers to the three keys that mean "go" rather
-// than to all of them.
+// THE KEYBOARD, AND HOW LITTLE OF IT IS OURS: `\` opens the selector, Escape
+// leaves it, Space plays, the sheet answers to GO_KEYS. Everything else belongs
+// to the browser — a modifier combo is NEVER ours (a catch-all once ate Cmd+R
+// and Ctrl+V, the paste this screen closes itself for). Never add a catch-all.
 const chord = (e) => e.metaKey || e.ctrlKey || e.altKey;
 const GO_KEYS = [" ", "Enter", "Escape"];
 
 window.addEventListener("keydown", (e) => {
   if (chord(e)) return;
-  // The help sheet owns those three while it is up: Space behind it would
-  // launch a run nobody on this screen can see.
+  // The sheet owns those three while it is up: Space behind it would launch
+  // a run nobody can see.
   if (sheetIsArmed()) {
     if (!GO_KEYS.includes(e.key)) return;
     e.preventDefault(); closeSheet(); return;
   }
   if (e.key === " ") { e.preventDefault(); playBtn.onclick(); }
-  // `\` — the door to the level pack, on one key. Swapping between the game
-  // and the pack has to be instant or nobody uses it mid-party: this is the
-  // same screen either way, so there is nothing to load and nothing to leave.
-  // What the grid then LOOKS like is not this key's business — the surface
-  // decides that (editorOn), so a laptop's grid always arrives with its
-  // editing controls on however it was opened.
+  // `\` — the DOOR to the level pack, and only the door: what the grid looks
+  // like is the surface's business (editorOn).
   if (e.key === "\\") {
     e.preventDefault();
-    // A plain toggle, whoever opened it: the way out is the way in. Closing
-    // locks the door behind you, so a room that has not earned the selector
-    // goes back to not having it.
+    // A plain toggle. Closing locks the door behind you.
     if (S.labOpen) { S.unlocked = false; setLab(false); syncHud(); return; }
     S.unlocked = true;
     if (S.snap && S.snap.phase === "run") transport.send({ type: "stop" });
     setLab(true);
     syncHud();
   }
-  // Escape only takes back the door `\` opened. A team that CLEARED the game
-  // owns the selector, and this key is not how they hand it back.
+  // Escape only takes back the door `\` opened; a cleared team keeps its grid.
   if (e.key === "Escape" && S.labOpen && S.unlocked) {
     S.unlocked = false; setLab(false); syncHud();
   }
@@ -358,12 +284,8 @@ window.addEventListener("keydown", (e) => {
 
 
 /**
- * Everything a paste has to say. `editSay` is the line under the grid's title,
- * which is no use to a paste that landed while the grid was SHUT — so when it
- * is, the game's own toast carries the same words. Without it a paste over the
- * level you are playing is silent unless the geometry happens to move somewhere
- * you were looking, and "did that work?" is the one thing this loop must never
- * make you guess.
+ * Everything a paste has to say: the line under the grid's title, and the
+ * toast when the grid is SHUT — "did that work?" is never left to guess.
  */
 function pasteSay(msg) {
   editSay(msg);
@@ -371,39 +293,22 @@ function pasteSay(msg) {
 }
 
 // ---------- pasting a level in ----------
-// Ctrl+V anywhere on the page. Where it LANDS is the one question, and the
-// answer is simply which screen you were looking at:
-//
-//   · the GRID is up — the selection. A card replaces that level, the trailing
-//     dashed slot appends. That is the whole reason the laptop grid grew a
-//     selection: "which level does this overwrite" is a question about a place
-//     on the screen, and now the answer is the place that is lit.
-//   · you are PLAYING — the level in front of you. Pasting over the level you
-//     are looking at is the editor's tightest loop (tweak the frame in Figma,
-//     Ctrl+C, Ctrl+V, watch the same level redraw under you), and it used to
-//     cost a bounce out to the grid and back for no reason: the paste already
-//     said which level it meant.
-//
-// The only paste that still opens the grid is the one with nowhere to land: an
-// EMPTY pack has no level in front of you and no card to select, so the first
-// one in is an append, and the grid is where you watch it arrive.
+// Ctrl+V lands wherever you were LOOKING: the selection on the grid (a card
+// replaces, the trailing slot appends), the level on screen while playing (the
+// tweak-copy-paste loop). Only an EMPTY pack opens the grid, having nowhere
+// else to land.
 window.addEventListener("paste", (e) => {
-  // Laptop only, like every other editing gesture. A phone reaching here would
-  // have had to grow a Ctrl+V first, and if one ever does, it gets the grid the
-  // rest of this file gives it — not a hidden second way to rewrite the pack.
+  // Laptop only, like every other editing gesture.
   if (!DESKTOP()) return;
   e.preventDefault();
-  // No zoop: this is a laptop editing gesture, and the grid it is usually
-  // about to open hides `#help` with the rest of the HUD.
+  // No zoop: the grid it is about to open hides `#help`.
   if (sheetIsArmed()) closeSheet(false);   // the grid must not open behind the sheet
-  // Read the screen NOW, not when the clipboard resolves: this is about what
-  // the person was looking at when they pressed the key.
+  // Read the screen NOW, not when the clipboard resolves.
   const onGrid = S.labOpen;
   const toGrid = !onGrid && GOOMBA_LEVELS.length === 0;
   if (onGrid || toGrid) {
-    // A paste earns the door as surely as `\` does. Without this, the grid a
-    // paste just opened on an un-cleared room is one the dot strip cannot open
-    // again — closing it would be the last look at the level that went in.
+    // A paste earns the door as surely as `\` does, or the grid it opened on
+    // an un-cleared room could not be opened again.
     S.unlocked = true;
     if (!S.labOpen) { S.selected = null; setLab(true); }
     syncHud();
@@ -411,20 +316,17 @@ window.addEventListener("paste", (e) => {
   pasteSay("reading the clipboard…");
   levelFromPaste(e.clipboardData).then(
     ({ level: lv, warnings }) => {
-      // `selected` on the grid (null = the dashed slot, so append); playing,
-      // the level on screen — which is never an append, and never null, since
-      // an empty pack took the grid branch above.
+      // `selected` on the grid (null = the dashed slot, append); playing, the
+      // level on screen — never null, since an empty pack took the grid branch.
       const target = onGrid || toGrid ? S.selected : level();
       if (target === null && GOOMBA_LEVELS.length >= PACK_MAX) {
         return pasteSay(`the pack is full at ${PACK_MAX} levels`);
       }
       const land = () => {
-        // Re-read the pack on the way in: a confirm is answered by a person,
-        // and a teammate's edit can land on this socket while they think.
+        // Re-read the pack: a teammate's edit can land while a confirm waits.
         if (target !== null && target >= GOOMBA_LEVELS.length)
           return pasteSay("that slot is gone — select another card and paste again");
-        // The pack is a list of level LINKS, so a paste becomes one here and
-        // the authority stores exactly what it validated.
+        // The pack is a list of LINKS, so a paste becomes one here.
         transport.send({ type: "packSet", index: target, hash: encodeLevel(lv) });
         const where = target === null ? "as a new level" : `over level ${target + 1}`;
         pasteSay(warnings.length
@@ -432,14 +334,9 @@ window.addEventListener("paste", (e) => {
           : `${lv.name} — in, ${where}`);
       };
       const over = target === null ? null : GOOMBA_LEVELS[target];
-      // A paste whose NAME matches the card it lands on is a redraw: the Figma
-      // frame it came from is the frame that card was made from, and stopping
-      // to ask would tax the loop the editor exists for (tweak in Figma, copy,
-      // paste, re-read the verdict) on every single lap. A DIFFERENT name is a
-      // different level, and "I meant to add this, not to overwrite level 3"
-      // is worth one click to catch — nothing on this grid is undoable. That
-      // holds just as much when the paste landed on the level you are playing:
-      // same rule, same question, no grid required to ask it.
+      // A MATCHING name is a redraw from the frame it came from and goes
+      // straight through; a DIFFERENT name asks, because nothing here is
+      // undoable. Same rule with the grid shut.
       if (over && over.name !== lv.name)
         askConfirm(
           `Replace level ${target + 1}?`,
@@ -454,11 +351,8 @@ window.addEventListener("paste", (e) => {
 
 
 // ---------- the run replay ----------
-// The flare's shape: snap up, fall away. It is clocked off the RUN's own
-// seconds rather than off wall-clock dt, which is what makes it survive the
-// fast-forward — a phone that joins late walks the missed substeps in one
-// frame, and reading `st.t - lockT` lands it at the right point of the
-// envelope instead of starting a fresh 0.4s that nobody else is seeing.
+// The flare's shape: snap up, fall away. Clocked off the RUN's seconds, not
+// wall-clock dt, so it survives a late joiner's fast-forward.
 const LOCK_ATTACK = 0.06, LOCK_RELEASE = 0.34;
 const lockFlare = (dt) =>
   dt < 0 ? 0
@@ -505,11 +399,7 @@ function frame(nowMs) {
   requestAnimationFrame(frame);
   frameBody(nowMs);
   // AFTER the body, unconditionally — frameBody's early returns must not skip
-  // it. The probe's rack used to be its own rAF loop, and both interleavings of
-  // two self-re-arming rAF loops are self-perpetuating: whichever ran first at
-  // boot ran first forever. On the phone the race landed rack-then-game, so the
-  // game erased the rack every frame while its paint counter climbed past 800.
-  // A hook called from the one real loop cannot lose that race.
+  // it (see `postFrame` in render.js for why it is a hook, not its own loop).
   if (postFrame) postFrame();
 }
 function frameBody(nowMs) {
@@ -525,8 +415,7 @@ function frameBody(nowMs) {
   const st = syncAnim();
   const riding = st && S.snap.phase === "run";
 
-  // Ride effects, driven off the local replay exactly as the prototype drove
-  // them off its local run.
+  // Ride effects, off the local replay.
   if (st) {
     if (riding && st.onBand >= 0 && Math.random() < 0.5) {
       parts.push({ x: st.p.x, y: st.p.y + R, vx: -st.v.x * 0.15, vy: -12,
@@ -546,12 +435,10 @@ function frameBody(nowMs) {
     });
     popPrev = st.popT.slice();
     st.bandHits.forEach((h, i) => { if (h) bandExcite.set(i, 1); });
-    // She reached the plant with cans still out. The 81 is the sim's own win
-    // circle (r=9, `stepRun`'s last test in physics.ts) read back rather than
-    // re-guessed: the flare has to fire on exactly the pass that WOULD have
-    // won, or it is telling the player about a line that was never there.
-    // Armed on the way in and re-armed on the way out, so a level that threads
-    // her over the goal three times reads as three taps, not one stuck alarm.
+    // She reached the plant with cans still out. 81 is the sim's own win
+    // circle (r=9, `stepRun` in physics.ts): the flare must fire on exactly
+    // the pass that WOULD have won. Re-armed on the way out, so three passes
+    // read as three taps.
     const gdx = st.p.x - lv.goal[0], gdy = st.p.y - lv.goal[1];
     const inGoal = gdx * gdx + gdy * gdy < 81 && st.gotN < lv.cans.length;
     if (inGoal && !lockArmed) lockT = st.t;
@@ -576,18 +463,14 @@ function frameBody(nowMs) {
   lv.cushions.forEach((c, i) => drawCushion(c, cushAnim[i] || 0));
   lv.pops.forEach((pp, i) => drawPopper(pp, i));
   lv.bumpers.forEach((bp, i) => drawBumper(bp, st ? Math.max(0, 1 - (st.t - st.bumpT[i]) * 4) : 0));
-  // The flare, and the rings it throws off the cans she still needs. They
-  // stagger in the order they are stored, which is the order a designer laid
-  // them out, so a handful of cans arrives as a list rather than a flashbulb —
-  // capped, because a twelve-can level should not still be pinging a second
-  // later.
+  // The flare, and the rings off the cans she still needs, staggered in
+  // stored order and capped so a twelve-can level is not pinging a second on.
   const lockFx = st ? lockFlare(st.t - lockT) : 0;
   let nth = 0;
   lv.cans.forEach((m, i) => {
     const taken = st ? st.got[i] : false;
-    // ...and each ring is read off its OWN envelope, not gated on the plant's:
-    // a staggered one is still fading when the plant has finished, and cutting
-    // it there is a ring that vanishes mid-fade.
+    // Each ring is read off its OWN envelope, not gated on the plant's, or a
+    // staggered one vanishes mid-fade.
     const ping = !taken && st ? lockFlare(st.t - lockT - Math.min(nth, 5) * 0.06) : 0;
     if (!taken) nth++;
     drawCan(m[0], m[1], taken, i, ping);
@@ -595,8 +478,7 @@ function frameBody(nowMs) {
   drawGoalPlant(lv, st, lockFx);
   bands().forEach((bd, i) => drawBand(bd, bandExcite.get(i) || 0, false));
   if (S.snap.phase === "edit") {
-    // Teammates' bands-in-progress: unmistakably in motion (marching dashes,
-    // pulsing alpha) so nobody confuses a drag with a placed band.
+    // Teammates' bands-in-progress.
     const pid = playerId();
     for (const p of S.snap.previews ?? []) {
       if (p.pid === pid) continue;
@@ -644,23 +526,11 @@ function frameBody(nowMs) {
 
 // ---------- boot — no menu, same contract as hex ----------
 const NAME_KEY = "escape-cats-name";
-// THE CONNECTION LINES, AND WHY ALMOST NOBODY SEES THEM.
-//
-// They are held invisible until this phone has been disconnected for STALL_MS
-// WITHOUT A BREAK, and they go back the instant it reconnects. Time since boot
-// would have been the wrong clock: a phone the proctor has not sorted yet has
-// no room to join and waits here indefinitely — connected, healthy, and by far
-// the commonest thing on this screen at the start of a party — so a plain timer
-// would put "Loading…" under the pictures for everyone. Being unable to REACH
-// anything is the only state worth a word.
-//
-// 1.5s because under a second is not a wait anyone perceives (a line there is
-// noise about something that already worked), because two of the three gaps
-// this covers — the first socket, and the one between being sorted and the room
-// answering — are normally a couple of hundred milliseconds, and because a
-// player who has been stuck this long is still wondering rather than long past
-// caring. It is a floor on complaining, not a timeout: nothing is given up on
-// at 1.5s, the words merely stop being withheld.
+// THE CONNECTION LINES: held invisible until this phone has been unreachable
+// for STALL_MS UNBROKEN, back the instant it reconnects. Time since boot is
+// the wrong clock — an unsorted phone is connected and waits indefinitely.
+// 1.5s is a floor on complaining, not a timeout: under a second is not a wait
+// anyone perceives, and the normal gaps are a couple of hundred ms.
 const STALL_MS = 1500;
 let stallTimer = null;
 /** Connected or not; the lines follow, after the delay when the answer is no. */
@@ -673,22 +543,16 @@ function netQuiet(up) {
 
 function boot() {
   requestAnimationFrame(sheetFrame);   // the gate is up: animate it until frame() exists
-  // ?debug adds no chrome of its own any more — the roster line it used to
-  // hide is gone from every phone. The SELECTOR rides `.cleared`, which syncHud
-  // toggles off the room's snapshot, and ?debug simply forces that predicate
-  // true (see levelSelect).
   if (SOLO) {
-    // Serverless: the shared sim in-page. A level pasted in via the hash opens
-    // ON that level; otherwise we land on the grid as before.
+    // Serverless: the shared sim in-page. A level pasted via the hash opens ON
+    // that level; otherwise land on the grid.
     const pasted = adoptHashLevel();
     setLab(pasted === null);
     startDebug({ onSnapshot, level: pasted ?? undefined });
     return;
   }
-  // Everything else joins the real room like any player, ?debug or not — the
-  // selector's card taps send a room-wide `goto`, so the whole team jumps
-  // together, and a ?debug phone differs only in getting at the selector
-  // before the team has earned it.
+  // Everything else joins the real room like any player; a ?debug phone
+  // differs only in reaching the selector before the team has earned it.
   const name = localStorage.getItem(NAME_KEY) ?? "Cat";
   gateStatusEl.textContent = "Loading…";
   netQuiet(false);   // nothing is connected yet: the clock starts here
@@ -697,15 +561,12 @@ function boot() {
     name,
     onTeam: (team, lobbyName) => {
       localStorage.setItem(NAME_KEY, lobbyName);
-      // The lobby socket is deliberately closed the moment a real team lands,
-      // and that close is a `false` on onStatus below. From here the room
-      // socket is the only connection this phone has an opinion about.
+      // The lobby socket closes once a real team lands (a `false` on onStatus
+      // below); from here the room socket is the only one that counts.
       sorted = true;
       netQuiet(false);   // ...and it is not open yet, so the clock restarts
-      // A team id doubles as its room id, so this is also the colour every band
-      // on this phone is about to be drawn in (bandInk). Set before the first
-      // snapshot can arrive, so nothing is ever painted in the fallback pink
-      // and then swapped.
+      // Also the band colour (bandInk). Set before the first snapshot, so
+      // nothing is painted in the fallback pink and then swapped.
       S.myTeam = team;
       gateStatusEl.textContent = "Joining your team…";
       connectRoom({
@@ -723,9 +584,8 @@ function boot() {
       });
     },
     onStatus: (up) => {
-      // Silent once sorted, TEXT included: the lobby socket is closed on
-      // purpose at that point, and letting its "check wifi?" land would leave
-      // the wrong sentence sitting there for a slow room join to reveal.
+      // Silent once sorted, TEXT included: the lobby socket's deliberate close
+      // must not leave "check wifi?" sitting under a slow room join.
       if (sorted) return;
       gateErrEl.textContent = up ? "" : "Can't reach the server — check wifi?";
       netQuiet(up);

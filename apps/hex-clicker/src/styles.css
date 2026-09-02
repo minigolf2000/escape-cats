@@ -1476,7 +1476,46 @@
     pointer-events: none;
     font: 400 13px var(--ui-font); line-height: 1.42;
     color: var(--title-color); text-shadow: var(--title-shadow);
+    /* THE RETURN LEG of the rule below — see it for why the roster sits out the
+       twist. .5s is #dock's own slide, and that is the point rather than a
+       coincidence: `dissolving` comes off in the same callback that starts the
+       tray back up the screen (runNightCutscene), so the names fade in over
+       exactly the travel the tray they ride is making, and the shop and the
+       roster arrive as one thing.
+       Declared HERE and not on the state rule, the same cascade reason #dock's
+       is: the browser reads a transition from the AFTER-change style, so a
+       transition stated only on `body.dissolving` would exist only while that
+       class is on — it would fade the names OUT and then be gone with the rule
+       when the class left, popping them back at full opacity. */
+    transition: opacity .5s ease;
   }
+  /* THE ROSTER SITS OUT THE TWIST.
+     --title-color and --title-shadow flip on `body.night`, which lands on the
+     FIRST frame of the beat, while #nightSky needs 2.2s to fade the daylight
+     out under them (see #nightSky). A custom property cannot be interpolated, so
+     the ink cannot ease across with the sky: the names went gold-on-gold-bloom
+     over the pink wallpaper on frame one and stayed there for the whole dissolve
+     — measured at 1.12:1 against the paper, where the day ink is 8.71:1. Four
+     names that read as ordinary UI in daylight and 14:1 against the night sky
+     were, for the 2.2 seconds between, simply not there; the `.off` name at .42
+     was less there still. A readout may be legible or it may be gone, and half
+     of a phase change is neither.
+     So it is GONE, deliberately, for the beat that has the screen — the same
+     beat #dock sits out and for the same reason, since this is a readout about
+     who is here and the cutscene is the one stretch of the game that is not
+     about that. No transition on the way out: a fade from an already-invisible
+     gold would be a fade from nothing, and the honest hide is the instant one.
+     It also swallows a jump that has nothing to do with colour. The twist
+     empties the day rail, so the night tray measures 180px shorter and
+     --dock-up drops with it on the flip's own frame — the column is doing
+     exactly its job (ride the tray's top edge) at the one moment the tray is
+     not on screen to be ridden. Hidden, it relocates unseen and fades in where
+     it belongs.
+     `dissolving` and not `night`: it is the CUTSCENE's window, added by the live
+     day->night edge in main.js and taken off at the end of the beat, so a
+     restored night save — which never gets the class — paints its roster
+     straight away with nothing to sit out. */
+  body.dissolving #team { opacity: 0; transition: none; }
   #team span { white-space: nowrap; }
   /* A phone that dropped. Dimmed, not struck through: a strike is a MARK, and
      this readout has none — it was also invisible at the size the old strip

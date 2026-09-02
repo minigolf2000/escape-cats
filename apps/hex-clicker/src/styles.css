@@ -163,7 +163,6 @@
     --muted: #6E5A57;
     --dim: #93807C;
     --line: rgba(49,43,42,.16);
-    --icon-bg: rgba(255,255,255,.52);
     /* Darkened to carry on a light row — the old pair were tuned to glow on the
        blue and both washed out here, red worst. Still the same two readings. */
     --cost-ok: #1C7F45;
@@ -216,7 +215,6 @@
     --muted: #77808f;
     --dim: #545d6c;
     --line: #262b36;
-    --icon-bg: #171a21;
     --cost-ok: var(--gold);
     --cost-no: #6b5535;
     --row-press: rgba(255,255,255,.11);
@@ -950,7 +948,6 @@
     --muted: #55504E;
     --dim: #6E6866;
     --line: #141110;
-    --icon-bg: #FFFFFF;
     /* Darkened off the dark-shelf pair (#7FE39B / #FF7B70), which were tuned to
        glow on green and are two pastels on paper. Checked against white: 4.7:1
        and 4.6:1, comfortably past the bar for the price line (20px at 700). */
@@ -1165,80 +1162,48 @@
   /* Collapsed: the scroller shrinks to nothing, leaving the titled SHOP rail
      alone as a slim closed bar — tap it to reopen. */
   #dock.collapsed #shopScroll { max-height: 0; }
-  /* CC store rows: a dark inset strip, a framed icon, name over effect, price
-     green when you can afford it and red when you can't — that red/green is the
-     whole readout. Affordable rows brighten rather than getting a neon glow. */
+  /* CC store rows: framed icon, name over effect, price green when you can
+     afford it and red when you can't — that red/green is the whole readout. */
   .item {
     display: flex; align-items: center; width: 100%; text-align: left;
     background: transparent; border: none; border-bottom: 1px solid var(--line);
     padding: 0 calc(11px * var(--ss)) 0 0; color: var(--muted); cursor: default;
     transition: background .1s, opacity .15s; opacity: .5;
   }
-  /* The wood divider right below opens with its own line, so the last row's
-     would double it. Scoped to #upgrades: #shop hides `.gone` rows at both ends
-     (night swaps the day list out), so its :last-child isn't a row you see. */
+  /* The wood divider below draws its own line. Scoped to #upgrades because
+     #shop's :last-child can be a `.gone` row nobody sees. */
   #upgrades .item:last-child { border-bottom: 0; }
-  /* Resting rows stay transparent so the page background shows through the
-     tray; .can:active keeps a background because that's tap feedback, not
-     the row's resting look. */
-  /* TWO CURSORS IN THIS GAME, EVER: `pointer` if a tap does something, `default`
-     if it does not. This row used to say `not-allowed` when you couldn't afford
-     it and `default` when it was still locked — two disabled states telling two
-     different stories, which reads as a bug rather than a distinction. It is a
-     phone game: almost nobody playing has a cursor at all, so the value cannot be
-     carrying information, and the only thing a third value can do is be
-     inconsistent. Enforced by scripts/check-cursors.mjs, which fails the build. */
+  /* TWO CURSORS IN THIS GAME, EVER: `pointer` if a tap does something,
+     `default` if it does not. check-cursors.mjs fails the build on a third. */
   .item.can { cursor: pointer; opacity: 1; }
   .item.can:active { background: var(--row-press); }
+  /* THE 11px GUTTER IS INSIDE THIS WIDTH. The row is flush with the dock's
+     left edge, so a glyph centred in a 36px box with the gutter outside it
+     reads shoved into the corner — 10px to the screen edge, 26.5 to the text.
+     Equal gaps are only possible with the gutter part of the width, which is
+     why .item carries no `gap` and this no margin.
+     Paints nothing, so its box is glyph-height, not row-height: give this rule
+     a background again and it needs `align-self: stretch` with it, or it paints
+     a short block mid-row. */
   .item .icon {
-    /* Fixed WIDTH for every row, full row HEIGHT. Rows still vary in height
-       (upgrade effect text wraps, and the one building blurb adds a line), so a
-       fixed square would leave a strip of row background above and below each
-       tile and turn every row boundary into five edges. Stretched, the tint is
-       one unbroken column that the row lines cross cleanly; keeping the glyphs
-       agreeing row-to-row is font-size's job, not the tile's.
-
-       THE GUTTER LIVES INSIDE THE WIDTH, and that is the whole of the icon
-       being centred. As a `margin: 0 11px 0 0` outside a 36px tile it centred
-       the glyph in the 36 — but the row is flush with the dock's left edge, so
-       what a player sees is 10px to the screen edge and 26.5 to the first
-       letter (the tile's own 10, plus the margin). Right centre, reads shoved
-       into the corner. Inside the width it measures 18.3/18.3 and .body still
-       starts at the same x — only the glyph moved. No other balance exists: a
-       glyph centred in a tile of width w followed by a gutter g has equal gaps
-       only when g is 0, so g has to be part of w — which is why `.item` carries
-       no `gap` and this tile no margin. */
-    flex: none; align-self: stretch;
+    flex: none;
     width: calc((36px + 11px) * var(--ss));
     display: grid; place-items: center;
-    font-size: calc(18px * var(--ss)); background: var(--icon-bg);
+    font-size: calc(18px * var(--ss));
   }
-  /* Cookie Clicker's own store-row placement: name top-left, price under it in
-     the same column, quantity pulled out to its own corner on the right. */
+  /* Name top-left, price under it, quantity out in its own corner. */
   .item .body { flex: 1 1 auto; min-width: 0; padding: calc(5px * var(--ss)) 0; line-height: 1.08; }
-  /* Building rows: the name sits alone on the top line, price under it, and for
-     all but ONE building that's the whole row — so the shelf is a single row
-     height (~61px at --ss 1.5), and the name has to carry the flavour by itself.
-     The exception is Mouse Subscription, which keeps a .fx blurb line until you
-     own one because that row is the game's onboarding (see its BUILDINGS entry).
-     So exactly one row, exactly once per run, stands taller than its neighbours;
-     buying your first one collapses it and the shelf is uniform from then on.
-     Its per-second rate is NOT here — it lives in .right, on the same baseline as
-     the owned count, so the two read as a pair (how many × how much each).
-     Upgrade rows reuse .item and always show .fx; they have no rate, so .nm sits
-     bare. */
+  /* Building rows are one line of name + price. Only Mouse Subscription adds a
+     .fx blurb, and only until you own one, so exactly one row stands taller
+     than the shelf. The rate is in .right, not here. */
   .item .titleRow { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .item .nm {
     font: 700 13.5px var(--ui-font); font-size: calc(13.5px * var(--ss)); line-height: 1.12;
     color: var(--ink); text-shadow: var(--row-shadow);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
   }
-  /* The wall rows that CHANGE something rather than giving more of it — see CRUX_KEYS.
-     Gold on the name, matching the effect values and the mouse count, because gold is
-     already this UI's word for "this is the number that matters". The glow is what
-     separates it from a merely-coloured label at 13.5px: the row has to catch an eye
-     that is mashing, not reading. Only the fill and shadow change, so it cannot shift
-     the row's metrics or reflow the rail. */
+  /* CRUX_KEYS: the wall rows that CHANGE something rather than give more of it.
+     Only fill and shadow move, so the row's metrics cannot shift. */
   #upgrades .item.crux .nm {
     color: var(--shop-accent);
     text-shadow: var(--crux-shadow);
@@ -1248,15 +1213,11 @@
     font: 700 11px var(--ui-font); font-size: calc(9.5px * var(--ss)); color: var(--muted);
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
-  /* Same mouse coin as .cost, shrunk down — without it "12/s" reads as a bare
-     number with no unit; this is the unit. */
+  /* Without the coin "12/s" is a bare number. This is the unit. */
   .item .rate .coin { flex: none; width: calc(10px * var(--ss)); height: auto; display: block; }
-  /* Every upgrade row, and the one building row with a blurb. */
   .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px; }
   .item .fx b { color: var(--shop-accent); font-weight: 700; }
-  /* The blurb is a pre-purchase tease: own one and the row drops to the standard
-     name + rate + price. Upgrade rows never get .bought, so their effect text
-     stays for as long as the row exists. */
+  /* Upgrade rows never get .bought, so their effect text stays. */
   .item.bought .fx { display: none; }
   .item .cost {
     display: flex; align-items: center; gap: 4px;
@@ -1266,15 +1227,11 @@
     margin-top: calc(1px * var(--ss));
   }
   .item .cost.no { color: var(--cost-no); }
-  /* The coin's fill is a literal `fill="var(--neon)"` baked into the SVG
-     markup at creation, not `currentColor` — so .cost.no flipping this div's
-     text color red can never touch it. See currencyIconSVG()'s comment. */
+  /* The coin's fill is a literal var(--neon) baked into the SVG, not
+     currentColor, so .cost.no cannot recolour it. */
   .item .cost .coin { flex: none; width: calc(16px * var(--ss)); height: auto; display: block; }
-  /* Right column: rate and owned count share a baseline so they read as one
-     "output" pair. Centered in the row by .item's own align-items. */
+  /* rate and owned count share a baseline so they read as one pair. */
   .item .right { flex: none; display: flex; align-items: baseline; gap: calc(5px * var(--ss)); align-self: center; }
-  /* Quantity owned — its own corner, not stacked with price, and sized to read
-     at a glance like CC's big count rather than as a label beside a label. */
   .item .own {
     flex: none; min-width: calc(26px * var(--ss)); text-align: right;
     font: 800 26px var(--ui-font); font-size: calc(20px * var(--ss)); line-height: 1; color: var(--dim); text-shadow: var(--row-shadow);
@@ -1283,15 +1240,12 @@
   .item.can .own { color: var(--ink); }
 
   /* ---- Locked / teased building rows ----
-     .gone  = past the tease window; not on the shelf at all.
-     .locked = the one ??? teaser; price shows, everything else is masked.
-     Swapping visibility in CSS means refreshShop() never writes text for a
-     teased row, and the real name can't flash before the class lands. */
+     .gone = past the tease window, off the shelf. .locked = the one ??? teaser,
+     price showing. Masked in CSS, not in JS, so the real name cannot flash. */
   .item.gone { display: none; }
-  /* line-height MUST match .nm's — this swaps in for .nm's whole line, and the
-     `font:` shorthand above resets line-height to `normal` (~1.63 in Baloo 2,
-     not the 1.12 .nm gets). Omitting it made the ??? row 10px taller than every
-     other building row, which is the one thing a masked row must not be. */
+  /* line-height MUST match .nm's: this replaces .nm's line, and the `font:`
+     shorthand resets it to normal (~1.63 in Baloo 2), which made the ??? row
+     10px taller than every other building row. */
   .item .lockedNm {
     display: none; font: 700 13.5px var(--ui-font);
     font-size: calc(13.5px * var(--ss)); line-height: 1.12;

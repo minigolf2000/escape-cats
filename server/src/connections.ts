@@ -10,24 +10,16 @@ export interface ConnMeta {
 /**
  * Shared join/presence plumbing for both game rooms.
  *
- * Players carry a persistent `pid` (client-generated, stored in
- * localStorage) so a phone that locks or drops wifi reclaims its seat on
- * reconnect instead of appearing as a fifth player. Proctor connections
- * declare ?role=proctor and are spectators, never players.
+ * Players carry a persistent `pid` (client-generated, localStorage) so a phone
+ * that locks or drops wifi reclaims its seat instead of appearing as a fifth
+ * player. `?role=proctor` connections are spectators, never players. The role
+ * is a claim, not a credential: the proctor page is a static asset, so a token
+ * would ship in its bundle and gate nothing.
  *
- * The role is a claim, not a credential — anyone can append it. That is
- * deliberate: the proctor page is a static asset, so any token it sent would
- * ship in its own bundle and gate nothing. The only power the role carries
- * is reset on your own room, which is not worth defending here.
- *
- * Every server here hibernates, so a connection's meta lives in its WebSocket
- * attachment (`conn.setState`), which the runtime persists with the socket —
- * the object can be evicted mid-connection and the meta comes back with the
- * wake. The `players` map is only a cache on top of that: it remembers the
- * offline (a phone that locked keeps its seat in the list) and join order
- * (which is slot order), both of which reset with an eviction — the same
- * lifetime they had before hibernation, when an eviction closed every socket.
- * After a wake, `sync` rebuilds the cache from the live sockets, once.
+ * Every server hibernates, so a connection's meta lives in its WebSocket
+ * attachment (`conn.setState`), which survives eviction. `players` is only a
+ * cache over that: the offline (a locked phone keeps its seat) and join order
+ * (= slot order), both reset by an eviction; `sync` rebuilds it once per wake.
  */
 export class Roster {
   private players = new Map<string, PlayerInfo>(); // pid -> info, in join order
@@ -94,16 +86,14 @@ export class Roster {
   }
 
   reset() {
-    // Re-seat currently connected players so a mid-session proctor reset
-    // doesn't orphan anyone.
+    // Re-seat connected players so a mid-session reset orphans nobody.
     this.players.clear();
     this.hydrated = false;
     this.sync();
   }
 
-  /** Rebuild the cache from the live sockets — needed once per wake (the
-   * instance fields reset with an eviction, so `hydrated` re-arms itself),
-   * a no-op on the 4Hz broadcast path the rest of the time. */
+  /** Rebuild the cache from the live sockets: once per wake (fields reset
+   * with an eviction), a no-op on the 4Hz broadcast path otherwise. */
   private sync() {
     if (this.hydrated) return;
     this.hydrated = true;

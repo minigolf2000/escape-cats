@@ -16,19 +16,11 @@ import {
 import { Roster } from "./connections";
 
 /**
- * One team's chat channel. The room id is the team id, so this DO is per team
- * exactly as the game room is.
- *
- * There is deliberately NO ticker in here. Chat is entirely event-driven, so
- * without a timer the room does nothing at all between messages — which is the
- * difference between a channel that costs nothing while nobody is typing and
- * one that bills like the game room.
+ * One team's chat channel; room id = team id, as the game room. NO ticker:
+ * chat is event-driven, so an idle room costs nothing.
  */
 export class ChatServer extends Server<Env> {
-  // No ticker only made the room CPU-free between messages; hibernation is
-  // what makes it duration-free. Without it, any open socket — a chat tab
-  // left in the background — pins the object resident, billing GB-seconds
-  // for a channel nobody is typing in.
+  // Hibernate, or a backgrounded chat tab's socket pins the object resident.
   static options = { hibernate: true };
 
   private roster = new Roster(() => this.getConnections());
@@ -40,14 +32,11 @@ export class ChatServer extends Server<Env> {
   private budget = new Map<string, { tokens: number; at: number }>();
 
   async onStart() {
-    // Rehydrate BEFORE any connection is served: partyserver holds connections
-    // until onStart resolves, so nobody ever sees an empty room that then
-    // fills itself in.
+    // Rehydrate BEFORE serving: partyserver holds connections until onStart
+    // resolves.
     const stored = await this.ctx.storage.list<ChatMessage>({ prefix: "m:" });
     this.history = [...stored.values()];
-    // Derived from the newest surviving message rather than persisted
-    // separately — pruning only ever drops from the front, so the last entry is
-    // always the highest id this room has issued.
+    // Pruning only drops from the front, so the last entry is the highest id.
     this.nextId = (this.history.at(-1)?.id ?? 0) + 1;
   }
 
@@ -77,27 +66,24 @@ export class ChatServer extends Server<Env> {
       return;
     }
     if (msg.type === "clear") {
-      // The proctor role is a claim, not a credential — the same trust every
-      // other control on that page runs on. What it protects here is a wipe of
-      // one team's channel, which the proctor can already read in full.
+      // The role is a claim, not a credential (Roster); it guards a wipe of
+      // a channel the proctor can already read.
       if (this.roster.isProctor(sender)) await this.clear();
       return;
     }
     if (msg.type !== "say") return;
 
     const me = this.roster.get(sender);
-    // Proctor connections are spectators here, same as in the game rooms.
+    // Proctors are spectators.
     if (!me || me.role !== "player") return;
 
-    // Collapsing whitespace before the clamp is what makes the clamp mean
-    // something: a screenful of newlines is one line of content, and would
-    // otherwise pass a length check while shoving the room off the screen.
+    // Collapse whitespace BEFORE the clamp, or a screenful of newlines passes
+    // the length check.
     const text = String(msg.text)
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, CHAT_MAX_TEXT);
-    // Checked before spending a token, so an empty send is free rather than
-    // burning someone's budget on nothing.
+    // Before spending a token: an empty send is free.
     if (!text) return;
     if (!this.spend(sender.id)) return;
 
@@ -114,44 +100,24 @@ export class ChatServer extends Server<Env> {
     await this.persist(entry);
   }
 
-  /**
-   * One small key per message, rather than the single-blob shape the lobby and
-   * the game room use. Those two rewrite their whole state on every change,
-   * which is right for state that mutates in place; a chat history only ever
-   * appends, so a blob would turn a 200-byte write into a CHAT_HISTORY-sized
-   * one on every line. Keys are zero-padded so the order `storage.list`
-   * returns is also chronological.
-   */
+  /** One key per message, zero-padded so `storage.list` order is
+   * chronological. Not one blob: history only appends, and a blob would
+   * rewrite CHAT_HISTORY entries per line. */
   private async persist(entry: ChatMessage) {
     await this.ctx.storage.put(key(entry.id), entry);
-    // Trimmed in the same step that grew it, so storage and `history` cannot
-    // drift apart.
+    // Trimmed in the same step, so storage and `history` cannot drift.
     if (this.history.length > CHAT_HISTORY) {
       const dropped = this.history.splice(0, this.history.length - CHAT_HISTORY);
       await this.ctx.storage.delete(dropped.map((m) => key(m.id)));
     }
   }
 
-  /**
-   * Empty the channel, in storage and in memory, and tell everyone. Used
-   * between groups, so the next team does not open chat onto the last one's
-   * conversation.
-   *
-   * The wipe goes out as a plain `chat` snapshot — the same message a fresh
-   * connection gets — so every client that already replaces its history on
-   * that message (all of them, for reconnects) wipes with no new case to
-   * handle.
-   *
-   * `nextId` is deliberately NOT rewound: clients dedupe on id, and reusing
-   * ids a still-connected phone might remember buys nothing. An eviction
-   * re-derives it from an empty history anyway, which is the same restart by
-   * another route.
-   */
+  /** Empty the channel in storage and memory, and tell everyone. The wipe
+   * goes out as a plain `chat` snapshot, which clients already REPLACE their
+   * history on. `nextId` is NOT rewound: clients dedupe on id. */
   private async clear() {
-    // By prefix rather than deleteAll(), so a key this room might store later
-    // for something other than a message isn't collateral. Chunked because
-    // storage.delete() takes at most 128 keys at a time and CHAT_HISTORY is
-    // larger than that.
+    // By prefix, not deleteAll(); chunked because storage.delete() takes at
+    // most 128 keys.
     const keys = [...(await this.ctx.storage.list({ prefix: "m:" })).keys()];
     for (let i = 0; i < keys.length; i += 128) {
       await this.ctx.storage.delete(keys.slice(i, i + 128));
@@ -165,12 +131,8 @@ export class ChatServer extends Server<Env> {
     this.broadcast(JSON.stringify(wiped));
   }
 
-  /**
-   * Token bucket, per connection. Over the limit the message is dropped
-   * SILENTLY: the only client that can reach this ceiling is a broken or
-   * hostile one, and a rate limit that reports itself is one more thing to
-   * fan out to the room.
-   */
+  /** Token bucket per connection. Over the limit the message is dropped
+   * SILENTLY — only a broken or hostile client reaches it. */
   private spend(id: string): boolean {
     const now = Date.now();
     const b = this.budget.get(id) ?? { tokens: CHAT_BURST, at: now };

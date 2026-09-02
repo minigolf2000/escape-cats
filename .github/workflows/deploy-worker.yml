@@ -1,26 +1,18 @@
-# Deploy the Cloudflare Worker (the four Durable Objects: game rooms, lobby,
-# chat, goomba).
+# Deploy the Cloudflare Worker (the four Durable Objects). Wrangler has no git
+# integration and Vercel deploys itself on every push; without this a client
+# can speak a protocol the live Worker doesn't know.
 #
-# Wrangler has no git integration, so without this workflow the Worker only
-# goes out when someone runs `npm run deploy:server` from a laptop — while
-# Vercel deploys itself on every push. That asymmetry is exactly how a client
-# can end up speaking a protocol the live Worker doesn't know.
-#
-# ORDER STILL MATTERS. The repo invariant is Worker BEFORE the Vercel deploy
-# that depends on it, and a push to main starts both at once — this job is much
-# faster (no Vite builds, no assemble step), so it normally wins, but "normally"
-# is not a guarantee. For a genuinely breaking protocol or DO change, run this
-# workflow by hand against the PR branch FIRST, then merge: the Worker is
-# already live when Vercel picks the merge up. That is what workflow_dispatch
-# is here for.
+# ORDER MATTERS: Worker BEFORE the Vercel deploy that depends on it. A push to
+# main starts both at once and this job normally wins, but that is not a
+# guarantee — for a breaking protocol/DO change, run this by hand
+# (workflow_dispatch) against the branch FIRST, confirm it is live, then merge.
 name: Deploy Worker
 
 on:
   push:
     branches: [main]
-    # Only what the Worker is actually built from. The Worker bundles
-    # @escape-cats/shared, so a shared-only change (an economy retune, a room
-    # rule like the band quota) MUST redeploy it — that path is not optional.
+    # The Worker bundles @escape-cats/shared, so a shared-only change MUST
+    # redeploy it.
     paths:
       - "server/**"
       - "packages/shared/**"
@@ -28,9 +20,8 @@ on:
       - ".github/workflows/deploy-worker.yml"
   workflow_dispatch:
 
-# Never let two deploys overlap, and never cancel one in flight: a half-applied
-# migration is worse than a queued job. (Migrations are append-only and each
-# tag runs once, so a cancelled deploy is not something to retry blindly.)
+# Never overlap, never cancel in flight: a half-applied migration is worse
+# than a queued job.
 concurrency:
   group: deploy-worker
   cancel-in-progress: false
@@ -51,10 +42,8 @@ jobs:
 
       - run: npm ci
 
-      # Guard, scoped to what is being deployed: `wrangler types` + tsc over the
-      # server workspace, which also typechecks the shared code the Worker
-      # imports. Deliberately NOT the root typecheck — a type error in the
-      # proctor dashboard should not block a room-server deploy.
+      # `wrangler types` + tsc over the server workspace (covers shared). NOT
+      # the root typecheck — a proctor type error must not block a room deploy.
       - name: Typecheck the Worker
         run: npm run typecheck -w server
 

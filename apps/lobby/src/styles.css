@@ -28,12 +28,10 @@ body {
     Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
-  /* Flex + auto margins rather than `place-items: center`, because the page is
-     no longer always shorter than the phone: the card now has the room's four
-     team boxes under it. A centred grid item that outgrows its container
-     overflows in BOTH directions and takes the top of the page past the
-     scrollable edge with it; `margin: auto` on a flex child centres the short
-     case and leaves the tall one scrollable from the top. */
+  /* Flex + auto margins, not `place-items: center`: a centred grid item
+     taller than the viewport overflows in BOTH directions and puts the top of
+     the page past the scrollable edge; `margin: auto` leaves the tall case
+     scrollable from the top. */
   display: flex;
   flex-direction: column;
   padding: 24px;
@@ -124,14 +122,9 @@ input:focus {
   padding: 6px;
 }
 
-/* A STATUS IS A SENTENCE. Both of the states that are only waiting for
-   something — unsorted, and the first connect — are one muted line and nothing
-   else: no panel, no title, no spinner. The board under it is the liveness
-   indicator a spinner was pretending to be, and it is an honest one, because it
-   moves when something actually happens rather than while nothing does.
-
-   There is no animation anywhere on this page now, which is why there is no
-   prefers-reduced-motion block below any more either. */
+/* A STATUS IS A SENTENCE: one muted line, no panel, no spinner — the board
+   under it is the liveness indicator. No animation on this page, hence no
+   prefers-reduced-motion block. */
 .await {
   color: var(--muted);
   font-size: 15px;
@@ -141,24 +134,17 @@ input:focus {
   text-wrap: balance;
 }
 
-/* ---------------------------------------------------------------------------
-   THE ROOM — the four teams, as the proctor currently has them.
-
-   The proctor's board, read-only: same eared boxes, same four fixed seats, and
-   nothing else. Sorting is the proctor's job (`assign` is proctor-only on the
-   wire), so nothing here is tappable and nothing here declares a cursor — see
-   check-cursors.mjs, and the rule it enforces: `pointer` if a tap does
-   something, `default` if it does not.
-   --------------------------------------------------------------------------- */
+/* ---- THE ROOM: the proctor's board, read-only. Nothing here is tappable
+   and nothing declares a cursor (check-cursors.mjs: `pointer` if a tap does
+   something, `default` if not). ---- */
 /* .muted carries a bottom margin for its use inside a card; on a box's head row
    it is a baseline-aligned label and must not push the row around. */
 .tbox-head .muted {
   margin: 0;
 }
 
-/* Two up, always. Four boxes in one column is a page of scrolling on a phone,
-   and `auto-fit` would give exactly that at the width a phone actually has.
-   Carries its own top margin now that no heading sits above it. */
+/* Two up, always: `auto-fit` would give one column at a phone's width.
+   Carries its own top margin; no heading sits above it. */
 .board {
   margin-top: 26px;
   display: grid;
@@ -167,17 +153,13 @@ input:focus {
   align-items: start;
 }
 
-/* THE EARED BOX, and now the only eared thing on this page: the border is the
-   headband and the ears grow out of it — the ear's fill hides the border under
-   its base and its stroke runs open into it, so box and ears are one outline.
-   Hence position: relative, and earsHeight() of room above it. The border width
-   must equal the strokeWidth passed to teamEarsSvg (BOARD_BORDER), or the ear's
-   base meets it at a step. */
+/* THE EARED BOX: the ears grow out of the border, hence position: relative
+   and earsHeight() of room above it. The border width must equal BOARD_BORDER
+   (the strokeWidth passed to teamEarsSvg), or the base meets it at a step. */
 .tbox {
   position: relative;
   background: #12141b;
-  /* Kept in step with the background below — an ear filled with the wrong one
-     reads as a sticker sitting on the box rather than part of it. */
+  /* Kept in step with the background below, or the ear reads as a sticker. */
   --ear-fill: #12141b;
   border: 2px solid var(--tc);
   border-radius: 12px;
@@ -186,9 +168,8 @@ input:focus {
   text-align: left;
 }
 
-/* Your own team, the one box on the board this phone is in. A lift rather than
-   a second colour: the ears already say which team it is, and the board's whole
-   job is that the four colours mean the four headbands. */
+/* Your own box: a lift, not a second colour — the four colours mean the four
+   headbands. */
 .tbox.mine {
   background: #191c25;
   --ear-fill: #191c25;
@@ -219,8 +200,8 @@ input:focus {
 }
 
 /* Fixed, and the SAME for a name and an empty seat: the proctor is dragging
-   people between boxes while this is on screen, and a box that changed height
-   every time would make the whole board twitch under a player's eyes. */
+   while this is on screen, and a box that changed height would twitch the
+   board. */
 .seats li {
   display: flex;
   align-items: center;
@@ -264,9 +245,7 @@ input:focus {
   padding: 1px 5px;
 }
 
-/* ---------------------------------------------------------------------------
-   THE NAME CHIP — rename from wherever you are, on every screen but the first.
-   --------------------------------------------------------------------------- */
+/* ---- THE NAME CHIP: rename from anywhere, on every screen but the first ---- */
 .chiprow {
   display: flex;
   justify-content: center;
@@ -300,11 +279,9 @@ input:focus {
   font-size: 11px;
 }
 
-/* The chip, opened. It replaces the chip in place — renaming is not starting
-   over, so it never takes the screen away from you. Both states share the
-   namechip's 40px height so opening/closing it never resizes `.chiprow`,
-   which would shift every element above it (`#app` is centred with
-   `margin: auto`, so any height change here moves the whole page). */
+/* The chip, opened in place. Both states share the namechip's 40px height so
+   toggling never resizes `.chiprow` — `#app` is centred with `margin: auto`,
+   so any height change here moves the whole page. */
 .rename {
   display: flex;
   align-items: center;

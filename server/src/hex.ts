@@ -13,26 +13,20 @@ import { Roster } from "./connections";
 /** Write-behind cadence for the room's saved game. */
 const PERSIST_MS = 5_000;
 
-/** One wire coordinate (thousandths of Hex's box) back to a 0..1 fraction, or
- * undefined for anything that isn't one — a client from before the field
- * existed, a short array, a hand-crafted socket. Undefined is a supported
- * answer all the way down: the tap replays scattered instead of at a spot, and
- * JSON.stringify drops the key on its way back out. */
+/** Wire coordinate (thousandths of Hex's box) to a 0..1 fraction, or undefined
+ * for anything else — undefined replays the tap scattered, and JSON.stringify
+ * drops the key. */
 function fraction(v: unknown): number | undefined {
   if (typeof v !== "number" || !Number.isFinite(v)) return undefined;
   return Math.max(0, Math.min(1, v / 1000));
 }
 
-// The room server is transport only: every game rule lives in the shared
-// HexSim (packages/shared/src/hex/sim.ts), which the client's ?debug mode runs
-// too. If you're changing what a purchase or a pet does, change the sim.
+// Transport only: every rule lives in the shared HexSim
+// (packages/shared/src/hex/sim.ts), which ?debug runs in-page too.
 export class HexServer extends Server<Env> {
-  // Hibernation keeps idle sockets from billing duration: without it, every
-  // open WebSocket pins the object in memory around the clock, and one
-  // forgotten proctor tab spends the day's GB-seconds on rooms nobody is
-  // playing in. Everything per-connection lives in the socket attachment
-  // (Roster) or tolerates a wake-time reset (petSeq/petAcked re-sync on the
-  // next pets batch).
+  // Hibernate, or one forgotten proctor tab pins four rooms resident all day.
+  // Per-connection state lives in the socket attachment (Roster) or re-syncs
+  // on the next pets batch (petSeq/petAcked).
   static options = { hibernate: true };
 
   private roster = new Roster(() => this.getConnections());
@@ -40,54 +34,42 @@ export class HexServer extends Server<Env> {
   /** conn.id -> highest `pets` batch seq received, and the last one acked. */
   private petSeq = new Map<string, number>();
   private petAcked = new Map<string, number>();
-  /** Taps since the last broadcast, stamped in server time. Presentation only:
-   * the bank already counted them, these just let every phone replay a
-   * teammate's rhythm and spot. Cleared on every broadcast. */
+  /** Taps since the last broadcast, in server time. Presentation only: the
+   * bank already counted them. Cleared on every broadcast. */
   private taps: TapEvent[] = [];
   private ticker: ReturnType<typeof setInterval> | null = null;
   private persister: ReturnType<typeof setInterval> | null = null;
 
   async onStart() {
-    // Rehydrate BEFORE any connection is served — PartyKit holds connections
-    // until onStart resolves, so no snapshot of the blank sim can ever leak
-    // out. The tick/persist loops are NOT started here: they run only while
-    // someone is connected (see wake/sleep), because pending timers keep the
-    // object pinned in memory — an empty room holding a ticker bills for
-    // duration around the clock instead of letting the runtime evict it.
+    // Rehydrate BEFORE serving: partyserver holds connections until onStart
+    // resolves. The loops are NOT started here — pending timers block
+    // hibernation, so they run only while a player is connected (wake/sleep).
     const saved = await this.ctx.storage.get<HexPersistedV1>("hex");
     if (saved?.v === 1) this.sim.restore(saved, Date.now());
   }
 
-  /** The loops run iff a player is connected — this is the one place that
-   * invariant lives. A proctor is a spectator of a paused game (sim.tick
-   * clamps idle dt, so nothing moves): they get a snapshot on connect and on
-   * every player-driven broadcast, and running the 4Hz loop for them is what
-   * used to keep all four rooms resident whenever the proctor page was open. */
+  /** The loops run iff a PLAYER is connected — the one place that invariant
+   * lives. A proctor is a spectator of a paused game (sim.tick clamps idle
+   * dt): a snapshot on connect and on every player-driven broadcast is enough. */
   private syncLoops() {
     if (this.roster.hasPlayer()) this.wake();
     else this.sleep();
   }
 
-  /** Start the loops. Idempotent. Resuming after a sleep is safe
-   * income-wise: sim.tick clamps dt to 2s, so an afternoon spent idle
-   * credits nothing. */
+  /** Start the loops. Idempotent; sim.tick clamps dt to 2s, so an idle
+   * afternoon credits nothing on resume. */
   private wake() {
     this.ticker ??= setInterval(() => {
       this.broadcastState(); // ticks income up to the stamp — see below
     }, SNAPSHOT_TICK_MS);
-    // Write-behind, not write-through: the sim mutates 4x/sec on its own
-    // (income), so per-change writes would be nearly per-tick writes. A 5s
-    // cadence bounds an eviction's loss to 5s of a 10-minute game — and the
-    // restore's offline credit covers most of even that.
+    // Write-behind: income mutates the sim 4x/sec. 5s bounds an eviction's
+    // loss, and the restore's offline credit covers most of that.
     this.persister ??= setInterval(() => void this.persist(), PERSIST_MS);
   }
 
-  /** Stop the loops and save, leaving the room evictable. Pending intervals
-   * block hibernation, so without this the object stays resident — billed
-   * duration around the clock — for a room nobody is playing in. Proctors may
-   * still be connected when this runs: they are spectators of a paused game
-   * (sim.tick clamps idle dt to 2s, so nothing moves), and the snapshot they
-   * got on connect is as current as a 4Hz feed of it would be. */
+  /** Stop the loops and save; pending intervals block hibernation. Proctors
+   * may still be connected: spectators of a paused game, their connect
+   * snapshot is current. */
   private sleep() {
     if (!this.ticker && !this.persister) return; // already asleep
     clearInterval(this.ticker);
@@ -107,19 +89,10 @@ export class HexServer extends Server<Env> {
     if (meta.role === "player") this.announce();
   }
 
-  /**
-   * Tell the lobby an AD-HOC room has somebody in it (see `sawRoom` there).
-   *
-   * Only ad-hoc rooms, and only this game's one reason to talk to the lobby at
-   * all: a team's room is on a board built from a constant, but a `?r=` room
-   * exists nowhere until it announces itself, and a Hex room that never does is
-   * one the proctor cannot press 🏆 on — which is the whole of Hex's win.
-   *
-   * Goomba announces on the pack fetch it already makes; Hex has no such fetch,
-   * so this is a bare one whose answer is discarded. Fire-and-forget: a room
-   * the proctor cannot see yet is worth less than a connection that stalls, and
-   * the next phone through the door tries again.
-   */
+  /** Tell the lobby an AD-HOC room has somebody in it (`sawRoom`). A `?r=`
+   * room exists nowhere until it announces, and a Hex room the proctor cannot
+   * see is one they cannot press 🏆 on. Goomba announces on its pack fetch;
+   * Hex has none, so this is a bare fire-and-forget fetch. */
   private announce() {
     if (!isAdhocRoom(this.name)) return;
     void this.env.Lobby.get(this.env.Lobby.idFromName("main"))
@@ -146,9 +119,8 @@ export class HexServer extends Server<Env> {
     const now = Date.now();
     const me = this.roster.get(sender);
     const proctor = me?.role === "proctor";
-    // A player message proves a player is here — the cheap special case of
-    // syncLoops(). It exists for the runtime evicting a hibernated room
-    // whose player sockets stayed open: the next tap batch re-arms the loops.
+    // A player message proves a player is here — the cheap case of
+    // syncLoops(), for a hibernated room evicted with player sockets open.
     if (!proctor) this.wake();
     switch (msg.type) {
       case "join":
@@ -158,12 +130,9 @@ export class HexServer extends Server<Env> {
         this.petSeq.set(sender.id, Number(msg.seq) || 0);
         if (!proctor && me) {
           const slot = this.roster.slot(me.pid);
-          // Offsets are ms before the client sent the batch, so they preserve
-          // the spacing between taps. Everything shifts later by the one-way
-          // latency, which is uniform and therefore invisible in the rhythm.
-          // xs/ys are the same taps' spots on Hex, in thousandths of her box.
-          // All three arrays are index-aligned; each is read defensively on its
-          // own, so a batch missing one still carries the others.
+          // Offsets are ms before the batch was sent (spacing survives;
+          // latency is uniform). xs/ys are the same taps' spots, in
+          // thousandths. Index-aligned, each read defensively on its own.
           const offsets = Array.isArray(msg.offsets) ? msg.offsets : [];
           const xs = Array.isArray(msg.xs) ? msg.xs : [];
           const ys = Array.isArray(msg.ys) ? msg.ys : [];
@@ -177,9 +146,8 @@ export class HexServer extends Server<Env> {
             });
           }
         }
-        // No broadcast: four phones flushing taps at 10Hz would mean ~40 full
-        // snapshots/sec fanned out to the room, and pets only move numbers the
-        // phones already show optimistically. The next tick (250ms) carries it.
+        // No broadcast: four phones at 10Hz would be ~40 snapshots/sec, and
+        // phones already show pets optimistically. The next tick carries it.
         if (!proctor) this.sim.pets(msg.count, now);
         return;
       }
@@ -193,11 +161,9 @@ export class HexServer extends Server<Env> {
         if (!proctor) this.sim.catchGold(msg.id, now);
         break;
       case "won":
-        // The one intent that is the PROCTOR's game action rather than their
-        // housekeeping: they heard the code word, so the room is won. Same
-        // write-through as reset below, and for the same reason — rehydrating a
-        // pre-win save would silently un-win a team who are already looking at
-        // their splash.
+        // The PROCTOR's game action: they heard the code word. Write-through
+        // like reset — rehydrating a pre-win save would un-win a team looking
+        // at their splash.
         if (!proctor) return;
         this.sim.setWon(msg.won !== false, now);
         void this.persist();
@@ -206,9 +172,8 @@ export class HexServer extends Server<Env> {
         if (!proctor) return;
         this.sim.reset(now);
         this.roster.reset();
-        // Write-through, like the win mark above and unlike every player
-        // mutation: rehydrating the PREVIOUS run after an eviction would
-        // silently undo the proctor's reset.
+        // Write-through, unlike player mutations: rehydrating the previous run
+        // would undo the reset.
         void this.persist();
         break;
     }
@@ -216,10 +181,8 @@ export class HexServer extends Server<Env> {
   }
 
   private broadcastState() {
-    // Acks go out BEFORE the snapshot. Message order is preserved per
-    // connection, so each client drops its in-flight taps first and then adds
-    // the authoritative bank — it never counts the same tap twice, not even
-    // for one frame.
+    // Acks BEFORE the snapshot: per-connection order is preserved, so a client
+    // drops its in-flight taps before adding the authoritative bank.
     for (const conn of this.getConnections()) {
       const seq = this.petSeq.get(conn.id);
       if (seq !== undefined && this.petAcked.get(conn.id) !== seq) {
@@ -228,14 +191,10 @@ export class HexServer extends Server<Env> {
         this.petAcked.set(conn.id, seq);
       }
     }
-    // Income up to THIS instant, before the snapshot is stamped with it.
-    // Only the 4Hz ticker used to tick; every OTHER path into this method — a
-    // purchase, a join, a disconnect, a proctor press — fired between ticks and
-    // sent a bank banked at `lastTick` under a `serverTime` of now. The phones
-    // extrapolate in real time, so a bank up to 250ms stale is a counter they
-    // have to walk BACKWARDS, and a room where four people are buying things is
-    // a room where that happens constantly. Awake-only: `sleep()` clears the
-    // ticker, and a paused game must not accrue on a proctor's press.
+    // Tick income up to THIS instant before stamping: every non-ticker path
+    // (purchase, join, proctor press) fires between ticks, and a bank up to
+    // 250ms stale is a counter the phones walk BACKWARDS. Awake-only: a paused
+    // game must not accrue on a proctor's press.
     const now = Date.now();
     if (this.ticker) this.sim.tick(now);
     const state = this.sim.snapshot(now, this.roster.list(), this.taps);

@@ -1,7 +1,5 @@
-/* Same tokens as the lobby (apps/lobby/src/styles.css) — chat sits next to it
-   on the same origin, so it should not look like a different product. The
-   layout differs: the lobby centres one card, chat fills the viewport so the
-   composer can sit against the bottom edge on a phone. */
+/* Same tokens as the lobby (apps/lobby/src/styles.css). Layout differs: chat
+   fills the viewport so the composer sits on the bottom edge. */
 :root {
   --bg: #0b0c10;
   --panel: #14161d;
@@ -201,11 +199,9 @@ input:focus {
   gap: 10px;
 }
 
-/* Anchor a short conversation to the BOTTOM, next to the composer, rather than
-   leaving it stranded at the top of a tall empty column. `margin-top: auto` on
-   the first line rather than `justify-content: flex-end` on the container:
-   flex-end on a scroll container makes the overflowing top unreachable in
-   Chrome, and this does nothing at all once the log is full enough to scroll. */
+/* Anchor a short conversation to the BOTTOM: `margin-top: auto` on the first
+   line, not `justify-content: flex-end` on the container, which makes the
+   overflowing top unreachable in Chrome. */
 .log > .line:first-child {
   margin-top: auto;
 }

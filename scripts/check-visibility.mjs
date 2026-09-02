@@ -1,38 +1,18 @@
 /**
  * Fail the build if goomba-glider says `visibility: visible`, anywhere.
  *
- * Goomba's HUD has one screen-owner at a time — the game, the levels grid
- * (`.lab`), the congratulations splash (`.splash`), the landscape rotate
- * screen — and each owner works by hiding a subtree with `visibility: hidden`
- * and re-showing its survivors. That structure has a contract nothing used to
- * enforce: visibility INHERITS, so an explicit `visible` on a descendant does
- * not just cancel the one `hidden` its author was thinking of — it re-opens
- * the element under EVERY hidden ancestor, present and future. It is a veto
- * over every owner, held by a leaf.
+ * Goomba's HUD has one screen-owner at a time (the game, `.lab`, `.splash`,
+ * the rotate screen), each hiding a subtree with `visibility: hidden`.
+ * Visibility INHERITS, so an explicit `visible` on a descendant re-opens it
+ * under EVERY hidden ancestor — a veto over every owner, held by a leaf. The
+ * two bugs this rule is made of: "clear all bands" floating over the level
+ * grid (`.lab` hides #top), and the splash's dot strip floating over "Turn
+ * your phone upright" (the rotate rule hides #hud).
  *
- * It was collected on twice in one day. "clear all bands" floated alone over
- * the level grid (`.lab` hides all of #top; the label's `visible` punched
- * through), and the splash's re-shown dot strip floated over "Turn your phone
- * upright" (the rotate rule hides #hud; the strip's `visible` punched
- * through). Different authors, different years of the file, same value.
+ * The rule: `hidden` to hide, `inherit` to re-show, `visible` never.
  *
- * The rule is deliberately blunt, because a blunt rule is one nobody has to
- * adjudicate: `hidden` to hide, `inherit` to re-show or to stop forcing
- * hidden, and `visible` never — an element with no opinion says nothing and
- * follows its ancestors, which is the entire point. `inherit` cancels exactly
- * the rule you mean it to (the one on your own element) and keeps following
- * everything above you. There is no state this file expresses that needs
- * `visible` to say it; if one ever appears, the conversation it forces here
- * is the feature.
- *
- * Goomba ONLY. hex-clicker legitimately trades in `visible`: its cat is a DOM
- * sprite whose frames are hidden as a set and shown one at a time by
- * [data-pose], an idiom where `visible` under a hidden-by-default parent is
- * the mechanism itself. (Whether hex's rotate screen has this same class of
- * leak through those frames is a fair question — but it is hex's question, to
- * be answered by reading hex, not by this script growing an exception list.)
- * lobby and chat don't use visibility at all and have no owner idiom to
- * protect; they stay out until they do.
+ * Goomba ONLY: hex's cat is a pose-frame DOM sprite where `visible` under a
+ * hidden parent is the mechanism itself; lobby and chat use no visibility.
  *
  * Run: node scripts/check-visibility.mjs
  */
@@ -42,14 +22,12 @@ import { dirname, join, resolve, relative, extname } from "node:path";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** The apps whose stylesheets keep the owner contract — see the header for
- * why this is not simply "every player-facing app". */
+/** Only goomba — see the header. */
 const ROOTS = ["apps/goomba-glider"];
 const SKIP_DIRS = new Set(["node_modules", "dist", ".git"]);
 const EXTS = new Set([".html", ".css", ".js", ".jsx", ".ts", ".tsx"]);
 
-/** CSS `visibility: visible`, and the JS form `style.visibility = "visible"`
- * (none today, but the contract is about the value, not the language). */
+/** CSS `visibility: visible`, and the JS form `style.visibility = "visible"`. */
 const DECL = /visibility\s*[:=]\s*["'`]?\s*visible/g;
 
 async function* walk(dir) {

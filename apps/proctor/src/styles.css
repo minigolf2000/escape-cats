@@ -96,8 +96,8 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  /* Fixed, and the SAME for a filled row and an empty slot: a team's box must
-   * not change height as players move in and out of it. */
+  /* Fixed, and the SAME for a filled row and an empty slot: a box must not
+   * change height as players move. */
   height: 36px;
   padding: 0 6px;
   border-bottom: 1px solid #1e2230;
@@ -114,8 +114,7 @@ button {
 .roster li.lifted {
   opacity: 0.35;
 }
-/* One of a team's four seats, empty. Not a drag handle. Same height as a
- * filled row — see above. */
+/* An empty seat. Not a drag handle; same height as a filled row. */
 .roster li.slot {
   justify-content: center;
   cursor: default;
@@ -159,36 +158,29 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
   margin-top: 12px;
-  /* Boxes size to their own content — every one now carries a roster, a game
-   * readout and a chat log, but a team's roster is four fixed seats and the
-   * pen's is however many phones are waiting. */
+  /* Boxes size to their own content: four fixed seats, or however many are
+   * waiting. */
   align-items: start;
 }
 .zone {
   background: #12141b;
-  /* The ear's interior, kept in step with the box's background below — an ear
-     filled with yesterday's colour reads as a sticker sitting on the box. */
+  /* Kept in step with the background below, or the ear reads as a sticker. */
   --ear-fill: #12141b;
-  /* THE EARED BOX. A team's box wears its team's headband: the border is the
-     band and the ears (teamEarsSvg, injected as the box's first child) grow out
-     of it — the ear's fill hides the border under its base and its stroke runs
-     open into it, so box and ears are one outline. Hence position: relative,
-     and hence the border width being 2px in BOTH places (see ZONE_BORDER in
-     Lobby.tsx) — a mismatch shows up as a step where they meet. */
+  /* THE EARED BOX: the ears (teamEarsSvg, first child) grow out of the border.
+     Hence position: relative, and the border width must equal ZONE_BORDER in
+     Lobby.tsx or the base meets it at a step. */
   position: relative;
   border: 2px solid var(--zone-tc, var(--team-tc, #1e2230));
   border-radius: 12px;
   padding: 12px;
-  /* Room for the ears standing above the box — reserved on ALL five, including
-     the earless holding pen, so the row of box tops stays on one line. */
+  /* Room for the ears, reserved on ALL five so the box tops stay on one line. */
   margin-top: var(--ear-h, 0px);
   /* An empty box still has to be a target you can hit. */
   min-height: 96px;
 }
 
-/* The game readouts inside a team's box, below its roster: one .game block per
- * game, all of them fixed-height. Nothing in here may grow or shrink with
- * state — see the note in TeamGame.tsx. */
+/* The game readouts, all fixed-height. Nothing here may grow or shrink with
+ * state — see TeamGame.tsx. */
 .games {
   display: flex;
   flex-direction: column;
@@ -201,12 +193,8 @@ button {
   flex-direction: column;
   gap: 4px;
 }
-/* Every seam in the box gets the same rule and the same air: roster / hex /
- * goomba / chat. Hex and Goomba used to be the one pair separated by a gap
- * alone, which read as one block with a lot of lines in it — the two games are
- * as different from each other as either is from the roster above them. The
- * spacing is a `+` rule rather than .games' gap so the divider and the space
- * are one decision (see .chat-col, which repeats it as the last block). */
+/* Every seam in the box gets the same divider and air (.chat-col repeats it
+ * as the last block). A `+` rule so divider and space are one decision. */
 .game + .game {
   margin-top: 12px;
   padding-top: 12px;
@@ -241,9 +229,8 @@ button {
 .game.pending .stat {
   opacity: 0.45;
 }
-/* A game block's controls, on one row. The row is what keeps the block's height
- * fixed while a label changes ("Mark won" -> "Won ✓"): two buttons side by side
- * cannot become two stacked lines, because neither ever wraps. */
+/* Controls on one row: neither button wraps, so a label change ("Mark won"
+ * -> "Won ✓") cannot add a line. */
 .game .btns {
   display: flex;
   align-items: center;
@@ -263,17 +250,15 @@ button {
 .game .btns .won {
   margin-top: 0;
 }
-/* The win mark. Neutral until pressed, gold after — the same trophy the readout
- * line above it wears, so the state reads twice in the same box. */
+/* The win mark: neutral until pressed, gold after. */
 .game .won.on {
   background: #ffd44d;
   color: #2a2410;
   font-weight: 700;
 }
-/* The drag states set --zone-tc rather than border-color: the team's own colour
-   arrives as an INLINE --team-tc, and inline wins over a class for the same
-   custom property. Two names, one cascade, and the ears stay team-coloured
-   while the box flashes. */
+/* Drag states set --zone-tc, not border-color: the team's colour arrives as
+   an INLINE --team-tc, and inline wins over a class for the same property.
+   The ears stay team-coloured while the box flashes. */
 .zone.over {
   --zone-tc: #57e6c9;
   background: #16211f;
@@ -330,12 +315,9 @@ button.small:disabled {
 }
 
 /* ---- Chat, read-only, inside the zone boxes ---- */
-/* The last block in a box, under the game readouts and wearing the same
- * divider, so roster / games / chat read as one stack about one room rather
- * than three cards. No background or border of its own for the same reason —
- * the box is the card. It may sit inside a drop target because it cannot change
- * that target's height: the log below is fixed and scrolls internally. See the
- * note in Chats.tsx. */
+/* The last block in a box, same divider, no background of its own — the box
+ * is the card. Allowed inside a drop target ONLY because the log is
+ * fixed-height and scrolls internally (Chats.tsx). */
 .chat-col {
   margin-top: 12px;
   padding-top: 12px;
@@ -356,9 +338,8 @@ button.small:disabled {
   color: #8a90a2;
   margin-bottom: 6px;
 }
-/* Fixed height and scrolled internally: five unequal conversations leave the
- * row one height, and — now that this lives in a drop target — no message can
- * move the box under a proctor's finger mid-drag. */
+/* Fixed height, scrolled internally: no message may move the box under a
+ * proctor's finger mid-drag. */
 .chat-log {
   list-style: none;
   margin: 0;
@@ -390,9 +371,8 @@ button.small:disabled {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
-/* The only arbitrary player-authored text on this page — wrapped, not clipped:
- * the log's own height is what holds the geometry still, and a proctor reading
- * a message needs all of it. */
+/* The only player-authored text on this page — wrapped, not clipped; the
+ * log's height holds the geometry still. */
 .chat-body {
   grid-column: 1 / -1;
   color: #ece9f5;
@@ -406,19 +386,16 @@ button.small:disabled {
 }
 
 /* ---- The shared testing room ---- */
-/* A block inside the Unassigned box, in the slot a team's games occupy — see
- * TestRoom.tsx. Nothing to lay out beyond the caption above the readout. */
+/* A block inside the Unassigned box, in a team's games slot (TestRoom.tsx). */
 .testroom .muted {
   display: block;
   margin: 6px 0 2px;
 }
 
-/* A box's own destructive control — Clear chat under the log. Red, and it
- * must not lose that red to button.small's background; a DISABLED one drops
- * back to the neutral pill, because an empty log has nothing to warn anybody
- * about. Always drawn — see the box-height rule. */
-/* Sized like a game block's Reset, not like a page-level pill: it lives
- * INSIDE a box, and a box's buttons should all be one size. */
+/* Clear chat: red, and it must not lose that red to button.small's
+ * background; DISABLED drops back to the neutral pill. Always drawn (the
+ * box-height rule). Sized like a game block's Reset — a box's buttons are
+ * one size. */
 .chat-col button.small {
   padding: 6px 11px;
   font-size: 12px;
@@ -436,17 +413,14 @@ button.small.danger:disabled {
 }
 
 /* ---- Ad-hoc rooms (?r= links) ---- */
-/* A readout at the bottom of the page, outside the board: these are not drop
- * targets and there is no fixed number of them, so they cannot be boxes in the
- * zones grid without breaking the rule that a box's height holds still under a
- * drag. See AdhocRooms.tsx. */
+/* Outside the board: not drop targets, no fixed count, and a box's height
+ * must hold still under a drag (AdhocRooms.tsx). */
 .adhoc {
   border-top: 1px solid #1e2230;
   padding-top: 12px;
   text-align: left;
 }
-/* The whole header is the toggle — a bar, not a link, because it is the only
- * thing to press up here and a proctor is often pressing it with a thumb. */
+/* The whole header is the toggle — often pressed with a thumb. */
 .adhoc-head {
   display: flex;
   justify-content: space-between;
@@ -487,17 +461,14 @@ button.small.danger:disabled {
   background: #12141b;
   color: #ece9f5;
 }
-/* The link that is about to be handed out, spelled in full: it is the thing
- * being copied, and a proctor with no clipboard permission needs to be able to
- * read it off the screen. */
+/* The link spelled in full, for a proctor with no clipboard permission. */
 .adhoc-url {
   font-size: 12px;
   color: #57e6c9;
   overflow-wrap: anywhere;
   margin-bottom: 10px;
 }
-/* Same grid as the board, so a row of rooms reads as the same kind of thing as
- * a row of teams — just without the drag. */
+/* Same grid as the board, without the drag. */
 .adhoc-list {
   list-style: none;
   display: grid;
@@ -525,15 +496,13 @@ button.small.danger:disabled {
 .adhoc-mint button.small {
   margin-top: 0;
 }
-/* Both games' links, one per line — the block is what a proctor reads off the
- * screen when the clipboard is not available. */
+/* Both games' links, one per line. */
 .adhoc-url span {
   display: block;
 }
 
-/* The hand-typed roster at the foot of a team's box (INTENDED in Lobby.tsx):
- * a reference for the proctor sorting, so it sits quieter than anything the
- * board actually knows. */
+/* The hand-typed roster (INTENDED in Lobby.tsx), quieter than anything the
+ * board knows. */
 .zone-intended {
   margin: 8px 0 0;
   color: #6b7183;

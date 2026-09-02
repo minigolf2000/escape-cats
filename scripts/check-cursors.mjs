@@ -1,26 +1,13 @@
 /**
- * Fail the build if a PLAYER-FACING app uses any cursor other than `pointer` or
- * `default`.
+ * Fail the build if a PLAYER-FACING app uses any cursor other than `pointer`
+ * or `default`: `pointer` if a tap does something, `default` if it does not.
+ * These are phone games — almost nobody playing has a cursor, so a third
+ * value cannot carry information and can only be inconsistent.
  *
- * This exists because the shop rows drifted into three cursors for what a player
- * experiences as two states: `pointer` when you could afford a row,
- * `not-allowed` when you couldn't, and `default` when it was still locked. Two
- * disabled states telling two different stories reads as a bug rather than as a
- * distinction — and these are PHONE games. Almost nobody playing has a cursor at
- * all, so the value cannot be carrying information to the people it renders for;
- * the only thing a third value can do is be inconsistent.
- *
- * So the rule is deliberately blunt, because a blunt rule is one nobody has to
- * adjudicate: `pointer` if a tap does something, `default` if it does not.
- * Anything else is a build failure with a file:line.
- *
- * NOT applied to apps/proctor or tools/. Those run on a
- * laptop, in front of one operator who does have a cursor: the proctor drags
- * teams between boxes (`grab`/`grabbing` is the affordance doing real work
- * there) and qr-studio is a canvas editor (`crosshair`, `text`). The rule is
- * about what players touch, not about banning a
- * CSS property — so ROOTS below is a list of the PLAYER-FACING apps, and a new
- * app belongs in it only if players open it.
+ * NOT applied to apps/proctor or tools/: they run on a laptop in front of one
+ * operator (`grab`/`grabbing` for the proctor's drag, `crosshair`/`text` for
+ * qr-studio). ROOTS lists the player-facing apps; a new app belongs in it
+ * only if players open it.
  *
  * Run: node scripts/check-cursors.mjs
  */
@@ -30,8 +17,7 @@ import { dirname, join, resolve, relative, extname } from "node:path";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Player-facing apps only — see the header for why proctor, the level editor
- * and tools are out. */
+/** Player-facing apps only — see the header. */
 const ROOTS = [
   "apps/hex-clicker",
   "apps/goomba-glider",

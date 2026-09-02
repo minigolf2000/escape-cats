@@ -1,38 +1,17 @@
-// THE ROOM'S BAND RULE: the room hands out exactly 4 bands and puts no
-// conditions on who lays or lifts them.
-//
-// This is a test of SHIPPED behaviour, not of a level. There used to be a level
-// gate beside it — `verify.mjs`, which proved a level NEEDS all four — and it
-// is deleted along with the rest of the simulation bench: whether a level is
-// any good is answered by people playing it. What is left here is the room
-// rule itself, which is code, and code is what a test is for.
-//
-// It drives the real GoombaSim (the same class the Durable Object wraps) through
-// the placement paths a room actually takes: one player laying all four, four
-// players sharing them, teammates lifting each other's bands, a clear.
+// THE ROOM'S BAND RULE: the room hands out exactly MAX_BANDS (4) and puts no
+// conditions on who lays or lifts them. A test of SHIPPED code, not of a level:
+// it drives the real GoombaSim (the class the Durable Object wraps) through the
+// placement paths a room takes. "A may lay all four while B, C and D watch" is
+// a product decision — a re-introduced per-player quota must fail here.
 //
 //   node bands.mjs
-//
-// This replaced quota.mjs, which tested the rule that used to sit beside the
-// budget: a per-player cap of ceil(MAX_BANDS / players in the room), so a room
-// of four was forced to lay exactly one band each. That cap is gone — the game
-// is multiplayer because four people share four bands, not because the room
-// rations them — and what is left to guard is the budget itself and the absence
-// of the cap. Both are checked here, the second one deliberately: "A may lay all
-// four while B, C and D watch" is a product decision, not an accident, and a
-// re-introduced quota should fail a test rather than surprise a party.
 
 import { GoombaSim, canPlaceBand, MAX_BANDS, applyPack, levelsToPack } from "./lib.mjs";
 
 /**
- * A board of its own, installed before any room is built.
- *
- * `GoombaSim` places bands against whatever level the room is on, so this test
- * needs A level — but emphatically not a REAL one. It used to run on the repo's
- * seed levels, which are deleted, and pointing it at an event's pack instead
- * would make a test of the room's rules fail or pass depending on what somebody
- * was playing that night. Geometry is irrelevant here: we are testing who may
- * place a band, not what a band does. So: a floor, a spawn, a plant.
+ * A board of its own — a floor, a spawn, a plant — installed before any room is
+ * built. GoombaSim places bands against the loaded level, and this must not
+ * pass or fail on whatever an event happens to be playing.
  */
 applyPack(levelsToPack([{
   name: "Band Rule Fixture",
@@ -48,8 +27,7 @@ const check = (label, ok, detail = "") => {
 };
 const section = (s) => console.log(`\n${s}`);
 
-// A band long enough to be legal (BAND_MIN..BAND_MAX) laid somewhere harmless.
-// Geometry is irrelevant here: we are testing who may place, not what wins.
+// A band long enough to be legal (BAND_MIN..BAND_MAX), laid somewhere harmless.
 let y = 0;
 const band = () => {
   y += 1;
@@ -63,9 +41,7 @@ const place = (sim, pid) => {
 };
 const held = (sim, pid) => sim.st.bands.filter((b) => b.pid === pid).length;
 
-// ---------------------------------------------------------------------------
 section("the budget");
-// ---------------------------------------------------------------------------
 check("canPlaceBand is exactly 'is a band free'",
   canPlaceBand([]) && canPlaceBand(new Array(MAX_BANDS - 1)) && !canPlaceBand(new Array(MAX_BANDS)));
 {
@@ -75,9 +51,7 @@ check("canPlaceBand is exactly 'is a band free'",
   check("one player may lay all four — nobody is rationed", held(sim, "A") === MAX_BANDS);
 }
 
-// ---------------------------------------------------------------------------
 section("anybody's band");
-// ---------------------------------------------------------------------------
 {
   const sim = new GoombaSim(Date.now());
   check("A, B, C, D lay one each", ["A", "B", "C", "D"].every((p) => place(sim, p)));
@@ -85,8 +59,7 @@ section("anybody's band");
   check("and a fifth from a fifth phone is still refused", !place(sim, "E"));
 }
 {
-  // The case the old quota forbade outright, checked from both ends: a full
-  // room where one player is doing all the placing.
+  // A full room where one player does all the placing.
   const sim = new GoombaSim(Date.now());
   place(sim, "A"); place(sim, "A");
   check("A holds two with three teammates present", held(sim, "A") === 2);
@@ -96,9 +69,7 @@ section("anybody's band");
     held(sim, "A") === 3 && held(sim, "B") === 1);
 }
 
-// ---------------------------------------------------------------------------
 section("taking one back");
-// ---------------------------------------------------------------------------
 {
   const sim = new GoombaSim(Date.now());
   const now = Date.now();
@@ -112,9 +83,7 @@ section("taking one back");
   check("…and all four are back", ["A", "A", "B", "C"].every((p) => place(sim, p)));
 }
 
-// ---------------------------------------------------------------------------
 section("nothing else gates a placement");
-// ---------------------------------------------------------------------------
 {
   const sim = new GoombaSim(Date.now());
   const now = Date.now();

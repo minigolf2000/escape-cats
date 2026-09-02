@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 // Builds figma-pack.svg — the kit you paste INTO Figma to design levels with.
-//
-// Why a script and not a hand-drawn SVG: the curve pieces are computed arcs and
-// the gauges carry real numbers out of DESIGNING.md, so both want to stay
-// correct when a constant moves. Run `node make-pack.mjs` and re-paste.
-//
-// The zero-height-rotated-line invariant, and why it matters, is in svgkit.mjs.
+// A script because the curve pieces are computed arcs and the gauges carry
+// numbers out of DESIGNING.md: when a constant moves, run it and re-paste.
+// The zero-height-rotated-line invariant is in svgkit.mjs.
 
 import { writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -15,13 +12,10 @@ import { newDoc, arc, hill, loop, S, BG, GUIDE, PINK, R_GOOMBA } from "./svgkit.
 const d = newDoc();
 const W = 3600, H = 2440;
 
-// The game's page purple, behind everything, so the sheet reads the way a
-// level does. Named with a leading _ so no importer ever picks it up.
+// The game's page purple, behind everything. Leading _ so no importer picks it up.
 d.rect("_bg", 0, 0, W, H, { id: "_bg", fill: BG });
 
-// ==========================================================================
-// SECTION A — slopes. The whole terrain vocabulary is "a line at an angle".
-// ==========================================================================
+// SECTION A — slopes.
 d.heading(40, 34, "TERRAIN — every piece is a Line (L). Drag an end, rotate freely, never reach for the pen.");
 d.label(40, 56, "Slope is the only thing that matters. Under ~0.12 she stalls creeping uphill; vertical hands back 0.15 while floors stay dead at 0.02.");
 
@@ -43,9 +37,7 @@ d.label(40 + 6 * 260 - 8, 96, "wall · 28 u", { size: 11 });
 d.label(40 + 6 * 260 - 8, 410, "walls hand a little back", { size: 11 });
 d.label(40 + 6 * 260 - 8, 426, "(E 0.15); floors stay dead (0.02)", { size: 11 });
 
-// ==========================================================================
-// SECTION B — curves. A "smooth" surface is a fan of lines; nothing else.
-// ==========================================================================
+// SECTION B — curves: a "smooth" surface is a fan of lines.
 d.heading(40, 500, "CURVES — a fan of lines. The sim flattens terrain to segments, so to her this IS smooth.");
 d.label(40, 522, "Only rule: keep neighbouring segments ≥ 4.4 u apart (2 × her radius) or she wedges in the corner and the run stalls out.");
 
@@ -58,9 +50,7 @@ d.label(400, 566, "quarter-pipe · 8 lines · catches her and flattens her out",
 d.poly(820, 660, hill(64, 7, 14));
 d.label(820, 566, "smooth hill · 14 lines over 64 u", { size: 11 });
 
-// ==========================================================================
-// SECTION C — composites. The shapes that held up in play.
-// ==========================================================================
+// SECTION C — composites.
 d.heading(40, 790, "COMPOSITES — patterns that held up in play. Copy the whole group.");
 
 d.label(40, 830, "V-basin · floor every dead column with one, or a single catch band turns the whole fall into a free ride to somewhere much later.", { size: 11 });
@@ -85,8 +75,7 @@ d.label(900, 1322, "short of a wall or she wedges in the notch.", { size: 11 });
 d.poly(1160, 1360, [[0, 0], [0, 28]]);
 d.poly(1160, 1360, [[-0.6, 31], [-32, 41]]);
 
-// The loop-the-loop, drawn from the same generator a level would use, so the
-// numbers under it are computed rather than remembered.
+// The loop-the-loop, from the generator a level would use, so its numbers are computed.
 const LOOP_R = 18;
 const K = loop(LOOP_R, { gap: 50, gapAt: 275 });
 const LX = 1800, LY = 1140, LT = 1420;
@@ -107,9 +96,7 @@ d.label(LT, 1402, "against 272/300 on an evenly fine fan. A 10\u00b0 tip chord s
 d.label(40, 1600, "popper lane · 16 u apart against an ~8 u trigger radius, so crossing the lane always gets her grabbed and re-flung. Poppers erase state, which is what makes stages independent — the structural tool for a 4-band level.", { size: 11 });
 for (let i = 0; i < 6; i++) d.popper(140 + i * 160, 1680, 76, 0);
 
-// ==========================================================================
-// SECTION D — toys, drawn at their true radius.
-// ==========================================================================
+// SECTION D — toys, at their true radius.
 d.heading(40, 1830, "TOYS — true radius, symmetric about their anchor. Select one and ⌥⌘K it: instances inherit the name, and the NAME is what carries the meaning.");
 
 const TOYS = [
@@ -132,10 +119,7 @@ d.cushion(1440, 1920, 24);
 d.label(1440, 2030, "cushion · a rect, not a line. Horizontal only,", { size: 11 });
 d.label(1440, 2046, "so rotation is ignored. Width = its span.", { size: 11 });
 
-// ==========================================================================
-// SECTION E — gauges. Numbers out of DESIGNING.md, at scale, so you can
-// eyeball a level instead of doing arithmetic. All `_`-prefixed = ignored.
-// ==========================================================================
+// SECTION E — gauges, at scale. All `_`-prefixed = ignored by every reader.
 d.heading(40, 2140, "GAUGES — the real numbers, at scale. Named with a leading _ so nothing here ever imports.");
 
 const gauge = (x, y, w, text, o = {}) => {

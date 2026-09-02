@@ -1,34 +1,22 @@
 // A level -> Figma's OWN clipboard format, so a paste lands as real nodes.
+// Figma's SVG import flattens every `<line>`, `<rect>` and `<ellipse>` to a
+// VECTOR and the reader refuses a vector `t`, so `levels-to-svg.mjs` is only a
+// tracing template; the plugin API and this are the two carriers that can set
+// a node's type.
 //
-// This is the direction the bridge never had. `levels-to-svg.mjs` can hand
-// Figma a picture, but Figma's SVG import keeps the NAME and throws the node
-// TYPE away — measured with `figma.createNodeFromSvg`, every `<line>`, `<rect>`
-// and `<ellipse>` arrives as a VECTOR — and the reader refuses a vector `t` on
-// purpose. So an SVG paste is a tracing template and can never be a round trip.
-// Only two carriers can set a node's type: the plugin API, and this.
+// A paste is `<span data-buffer="<!--(figma)…(/figma)-->">` around a base64
+// `fig-kiwi` container: magic, uint32 version, then length-prefixed compressed
+// blocks — block 0 a binary Kiwi SCHEMA, block 1 the message it describes.
+// THE SCHEMA IS BORROWED: the exact bytes of the real Ctrl+C fixture, verbatim,
+// and the message is encoded against the codec they compile to.
 //
-// WHAT A PASTE ACTUALLY IS
-// The clipboard holds `<span data-buffer="<!--(figma)…(/figma)-->">` around a
-// base64 `fig-kiwi` container: "fig-kiwi" magic, a uint32 version, then
-// length-prefixed compressed blocks. Block 0 is a binary Kiwi SCHEMA, block 1
-// is the message it describes. `clipboard.js` reads that; this writes it.
-//
-// THE SCHEMA IS BORROWED, NOT WRITTEN. `kiwi-schema` compiles a schema into a
-// codec that encodes as well as decodes, and the schema travels inside the
-// payload — so the honest move is to ship the exact bytes out of the real
-// Ctrl+C we already keep as a fixture, verbatim, and encode against the codec
-// they compile to. Nothing here knows what a Figma field means; it knows what
-// one real copy contained.
-//
-// WHAT THAT COSTS, stated plainly:
-//   * The format is undocumented and this pins a snapshot of ONE Figma version
-//     (container 106). It is meant to be disposable.
-//   * `pasteFileKey` names the file, so a payload pastes into that file and
-//     no other. That is deliberate — component instances are the whole point,
-//     and a `symbolID` only means anything in the file that holds the symbol.
-//   * `derivedSymbolData` and the 111 geometry `blobs` a real copy carries are
-//     omitted on the theory that "derived" means Figma rebuilds them. If
-//     instances come through blank, that theory is what was wrong.
+// What that pins:
+//   * ONE Figma version (container 106). Undocumented; meant to be disposable.
+//   * `pasteFileKey` names the file, so a payload pastes into that file and no
+//     other — a `symbolID` only means anything in the file holding the symbol.
+//   * `derivedSymbolData` and the geometry `blobs` a real copy carries are
+//     omitted on the theory that Figma rebuilds "derived" data. If instances
+//     come through blank, that theory is the suspect.
 import { readFileSync } from "node:fs";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { dirname, join } from "node:path";
@@ -77,12 +65,9 @@ function codecAndSchemaBlock() {
 }
 
 /**
- * A child's sort key under its parent.
- *
- * Figma orders siblings by a string compared lexicographically. Fixed-width
- * base-94 over printable ASCII gives an order that matches the numeric one
- * without needing to know how Figma mints its own — a paste only has to be
- * internally consistent, it is not editing an existing sequence.
+ * A child's sort key: Figma orders siblings by a lexicographic string, and
+ * fixed-width base-94 over printable ASCII matches numeric order. A paste only
+ * has to be internally consistent.
  */
 const position = (i) => {
   const D = 94, A = 33;
@@ -100,12 +85,9 @@ const SOLID = (r, g, b) => ({
 });
 
 /**
- * Turn a level into clipboard HTML.
- *
- * Coordinates: world units x10, with the level's own frame (or its padded
- * bounds) becoming the artboard, exactly as `levels-to-svg.mjs` lays one out —
- * so the frame's origin is world (0,0) and what you paste is what the reader
- * will read back.
+ * A level as clipboard HTML. World units x10, the level's frame (or its padded
+ * bounds) as the artboard with its origin at world (0,0) — the same layout as
+ * `levels-to-svg.mjs`, so what you paste is what the reader reads back.
  */
 export function figmaClipboardHtml(L, { at: canvasAt = [22000, 2000], pad = 4 } = {}) {
   const { schemaBlock, codec } = codecAndSchemaBlock();
@@ -187,12 +169,10 @@ export function figmaClipboardHtml(L, { at: canvasAt = [22000, 2000], pad = 4 } 
   if (L.goal) toy("goal", L.goal[0], L.goal[1]);
   for (const c of L.cans || []) toy("watering-can", c[0], c[1]);
   for (const m of L.bumpers || []) toy("bumper", m.x, m.y);
-  // NOT negated, and this is the one place the contract misleads. The README's
-  // `deg = -rotation` is about Figma's rotation PROPERTY, which counts
-  // counter-clockwise; the raw transform does not. The reader takes the game's
-  // deg straight off `atan2(m10, m00)`, so that is what goes back in. Negating
-  // here produces a level that looks right and plays mirrored — which is
-  // exactly what `test-kiwi.mjs` caught on the first run.
+  // NOT negated. The README's `deg = -rotation` is about Figma's rotation
+  // PROPERTY (counter-clockwise); the raw transform is not, and the reader
+  // takes deg straight off `atan2(m10, m00)`. Negating here plays mirrored
+  // while looking right; `test-kiwi.mjs` checks the aim.
   for (const p of L.pops || []) toy("party-popper", p.x, p.y, p.deg);
   for (const cu of L.cushions || []) toy("cushion", cu.x + cu.w / 2, cu.y);
 
@@ -216,9 +196,8 @@ export function figmaClipboardHtml(L, { at: canvasAt = [22000, 2000], pad = 4 } 
     nodeChanges: nodes,
   });
 
-  // Both blocks raw deflate. A real copy zstd's the message, but the reader
-  // picks by MAGIC rather than by position — ours does, and Figma's has to, or
-  // it could not read its own older payloads.
+  // Both blocks raw deflate. A real copy zstd's the message, but readers pick
+  // by MAGIC, not position.
   const blocks = [schemaBlock, deflateRawSync(Buffer.from(message))];
   const head = Buffer.alloc(12);
   head.write("fig-kiwi", 0, "latin1");

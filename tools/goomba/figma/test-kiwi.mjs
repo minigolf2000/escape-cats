@@ -3,25 +3,13 @@
 //
 //   node test-kiwi.mjs
 //
-// What this can and cannot prove is worth being precise about, because the
-// format is undocumented and the temptation is to believe a green test.
-//
-// It CAN prove the payload is well formed and means what we meant: the shipped
-// reader (`clipboard.js`) decodes it, and the level that comes back is the level
-// that went in — same terrain, same toys, same rotations, same names. That is
-// not a weak check. It is the same reader a real Ctrl+C goes through, and it
-// exercises the container, the borrowed schema, the compression, the transforms
-// and the naming contract in one pass.
-//
-// It CANNOT prove FIGMA will accept it. Only a paste can, and only a person can
-// paste. Two things in particular are theories until someone tries:
-//   * both blocks are raw DEFLATE here, where a real copy zstd's the message.
-//     The reader picks by magic; Figma's is assumed to.
-//   * `derivedSymbolData` and the geometry `blobs` a real copy carries are
-//     omitted, on the theory that "derived" means Figma rebuilds them.
-// If a paste comes through blank or refuses, those are the two suspects, in
-// that order — and this test staying green is exactly what tells you the
-// problem is Figma's acceptance rather than our encoding.
+// It proves the payload decodes, through the shipped reader (`clipboard.js`),
+// to the level it was made from: terrain, toys, rotations, names. It CANNOT
+// prove Figma will accept it — only a paste by a person can. If a paste comes
+// through blank or refuses, the suspects in order: both blocks are raw DEFLATE
+// where a real copy zstd's the message; `derivedSymbolData` and the geometry
+// `blobs` are omitted. This staying green says the fault is acceptance, not
+// encoding.
 import { figmaClipboardHtml, KIT, FILE_KEY } from "./kiwi.mjs";
 import { levelFromFigmaClipboard } from "../../../apps/goomba-glider/src/figma/clipboard.js";
 import { initLevel } from "../draft/_sim.mjs";
@@ -50,17 +38,13 @@ eq("the level name survives the `L:` frame", back.name, L.name);
 eq("every can", back.cans.length, L.cans.length);
 eq("every popper", back.pops.length, L.pops.length);
 
-// The frame's origin is world (0,0), so everything comes back shifted by the
-// frame's own offset. Compare RELATIVE to the start, which is the only thing
-// that has to be true — `levels-to-svg.mjs` re-pads the same way.
+// The frame's origin is world (0,0), so compare RELATIVE to the start.
 const dx = back.start[0] - L.start[0], dy = back.start[1] - L.start[1];
 const shifted = (p) => [+(p[0] + dx).toFixed(1), +(p[1] + dy).toFixed(1)];
 eq("start and goal keep their offset", back.goal, shifted(L.goal));
 eq("cans land where they were put", back.cans, L.cans.map(shifted));
 
-// The one that would go wrong silently: a popper's aim. `deg = -rotation`, and
-// getting the sign backwards produces a level that looks right and plays
-// mirrored.
+// A popper's aim: the sign backwards looks right and plays mirrored.
 for (const i of [0, 5, 11]) {
   near(`popper ${i} aim survives (deg ${L.pops[i].deg})`, back.pops[i].deg, L.pops[i].deg, 0.6);
   near(`popper ${i} x`, back.pops[i].x, L.pops[i].x + dx, 0.15);

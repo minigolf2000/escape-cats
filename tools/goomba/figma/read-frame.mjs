@@ -1,49 +1,22 @@
 #!/usr/bin/env node
-// A Figma level frame -> the numbers the GAME thinks in.
+// A Figma level frame -> the numbers the GAME thinks in. A READER, not a
+// verdict: no simulation, no pass, no fail.
 //
 //   node read-frame.mjs --nodes frame.json        # from a use_figma read (below)
 //   node read-frame.mjs --clipboard copied.html   # from a Ctrl+C
 //   node read-frame.mjs --nodes frame.json --json # for a script
 //
-// WHY THIS EXISTS
+// Both carriers carry the TRANSFORM. `--clipboard` reuses the SHIPPED reader
+// (apps/goomba-glider/src/figma/clipboard.js) and needs a person: a Figma copy
+// only reaches the clipboard from a real user gesture. `--nodes` is the JSON a
+// READ-ONLY `use_figma` script returns (snippet in --help), which an agent can
+// get alone.
 //
-// A level's source is a Figma frame, so every question about a level starts by
-// converting pixels to world units by hand. That conversion is where a thread
-// burns its afternoon and, worse, where it quietly gets one wrong: the anchor
-// is the instance's CENTRE, the scale is 10 px per unit, a popper's speed rides
-// in its layer name, `deg` is MINUS Figma's rotation, and `bounds` is not the
-// frame. All of that is written down — in figma/README.md, in levels.ts — and
-// writing it down has not stopped anyone from re-deriving it slightly
-// differently.
-//
-// So this prints it. It does not judge a level: there is no verdict here, no
-// simulation, no pass and no fail. `verify.mjs` and the gate it served are
-// deleted on purpose (see ../DESIGNING.md) and this is not them coming back —
-// it is Figma's Design panel, read in the units the physics uses, which is the
-// thing the docs already tell you to go and do by hand.
-//
-// TWO CARRIERS, AND BOTH CARRY THE TRANSFORM
-//
-// `--clipboard` reuses the SHIPPED reader (apps/goomba-glider/src/figma/
-// clipboard.js): what comes out is what pasting into the game would produce. It
-// needs a person, because a Figma copy only reaches the clipboard from a
-// genuine user gesture.
-//
-// `--nodes` is the one an agent can get alone — the JSON returned by a
-// READ-ONLY `use_figma` script (the snippet is in figma/README.md, and in the
-// --help below). It carries each node's x, y, size and ROTATION, which is what
-// makes it exact.
-//
-// There was very nearly a third carrier here: the XML from the MCP's
-// `get_metadata`, which needs no script at all. It is not safe and this is
-// worth spelling out, because it looks safe. That XML reports each node's x/y
-// as the node's ORIGIN but its width/height as the BOUNDING BOX — two different
-// rectangles — and it does not carry rotation at all. So `x + width/2` is the
-// centre only when the node happens to be unrotated, and nothing in the XML
-// says which nodes those are: a popper turned 90° reports the same 140x140 box
-// as one turned 0°, with its centre 14 units away from where that arithmetic
-// puts it. Every popper in Fireworks is rotated. Do not read positions out of
-// that XML; use it to find frames and names, and come here for numbers.
+// NEVER take a position out of `get_metadata`'s XML: it reports x/y as the
+// node's ORIGIN but width/height as the BOUNDING BOX, with no rotation, so
+// `x + width/2` is the centre only for an unrotated node and nothing says which
+// those are (a popper turned 90° reads 14 units off). Use it to find frames
+// and names; come here for numbers.
 import { readFile } from "node:fs/promises";
 import { classify, levelName, hasFigmaBuffer, levelFromFigmaClipboard, FIGMA_POP_SPD }
   from "../../../apps/goomba-glider/src/figma/clipboard.js";
@@ -73,13 +46,11 @@ return { frame: { name: f.name, w: f.width, h: f.height },
 // ------------------------------------------------------------ nodes carrier
 
 /**
- * Figma's transform, rebuilt from what the Plugin API hands back.
- *
- * `node.x`/`node.y` are the translation — where the node's own (0,0) lands in
- * its parent — and `rotation` turns it about that point, counter-clockwise
- * positive in a y-DOWN space. So the matrix is the usual one with the sines
- * swapped, and every anchor the contract asks for (an instance's centre, a
- * Line's two ends, a cushion's left edge) is a point pushed through it.
+ * Figma's transform from what the Plugin API hands back: `x`/`y` place the
+ * node's own (0,0) in its parent and `rotation` turns it about that point,
+ * counter-clockwise positive in a y-DOWN space — the usual matrix with the
+ * sines swapped. Every anchor (an instance's centre, a Line's ends, a cushion's
+ * left edge) is a point pushed through it.
  */
 const matrix = (x, y, rot) => {
   const r = (rot * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
@@ -177,9 +148,8 @@ function report(level, warnings, carrier) {
   say(`  frame     ${f.x0} , ${f.y0}  ->  ${f.x1} , ${f.y1}   (${ROUND(f.x1 - f.x0)} x ${ROUND(f.y1 - f.y0)})`);
   say(`  world     ${b.x0} , ${b.y0}  ->  ${b.x1} , ${b.y1}   (${ROUND(b.x1 - b.x0)} x ${ROUND(b.y1 - b.y0)})`);
 
-  // The frame is the world only when it is the outer box on every edge. Where
-  // the ink pushes past it, the world is bigger than the drawing says — and the
-  // camera and three of the four deaths are out there where nobody drew.
+  // Where the ink pushes past the frame the world is bigger than the drawing
+  // says, and the camera and three of the four deaths are out there.
   const over = [
     ["left", ROUND(f.x0 - b.x0)], ["top", ROUND(f.y0 - b.y0)],
     ["right", ROUND(b.x1 - f.x1)], ["bottom", ROUND(b.y1 - f.y1)],
@@ -202,19 +172,15 @@ function report(level, warnings, carrier) {
   const pts = level.terrain.reduce((n, t) => n + t.length, 0);
   say(`  terrain   ${level.terrain.length} polyline${level.terrain.length === 1 ? "" : "s"}, ${pts} points (stitched)`);
 
-  // Mechanical facts, not judgements. Each one is a distance the game already
-  // computes; none of them says whether a level is any good.
+  // Mechanical facts, not judgements.
   const notes = [];
-  // Speed used to ride in the layer name as trailing digits, and Figma
-  // increments a trailing number on duplicate — so a sketch full of copies
-  // arrived carrying speeds nobody chose. One constant now, for every popper
-  // any frame can produce; the note is what that constant IS.
+  // One constant for every popper (FIGMA_POP_SPD): Figma increments a trailing
+  // number on duplicate, so a speed in the layer name was never chosen.
   if (level.pops.length)
     notes.push(`popper speed: ${FIGMA_POP_SPD} for every one of them ` +
       `(FIGMA_POP_SPD) -> ${ROUND(FIGMA_POP_SPD * 0.82)} u/s off the muzzle`);
-  // A popper OVERWRITES velocity in the same step, after the bumper block. So
-  // wherever their discs overlap the popper simply wins, and that part of the
-  // ball cannot be bounced off.
+  // A popper OVERWRITES velocity in the same step, after the bumper block, so
+  // where their discs overlap the popper wins.
   const REACH = BUMP_R + R + POP_R + R;
   for (let i = 0; i < level.bumpers.length; i++)
     for (let j = 0; j < level.pops.length; j++) {

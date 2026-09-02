@@ -722,8 +722,11 @@ Mechanics worth knowing before changing any of it:
 - **Presence is not a game rule.** The `onConnect`/`onClose` broadcasts keep
   `players` current on the snapshot; nothing on either board reads it as a rule.
 - **Both games draw the ROOM's names, and nothing else does.** A column above
-  PLAY in Goomba, a column above the shop tray in Hex — one name per line, the
-  dropped ones dimmed. Never a label on a teammate's anchor or a band: a name
+  PLAY in Goomba, a column on the shop TRAY's top edge in Hex — one name per
+  line, the dropped ones dimmed. Hex's rode the tray + the SHOP rail for a
+  while, which is a sum that only made sense when the rail was a full-width
+  band: once it became a tab in the far corner, the term was holding the names
+  a tab's height off the goods for no reason a player could see. Never a label on a teammate's anchor or a band: a name
   attached to a THING says whose it is, and neither game has an owner for
   anything. Goomba's earlier roster was deleted for a good reason and it was not
   this one — it was a centred line at a hardcoded offset, sitting in the corridor

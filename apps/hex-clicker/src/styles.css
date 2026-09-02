@@ -1432,8 +1432,18 @@
   #gate p { margin: 0; opacity: .75; font-size: 14px; max-width: 34ch; }
   #gate .err { color: #ff6fa5; font-size: 13px; min-height: 1.2em; margin: 0; }
   /* WHO IS HERE. One name per line, right-aligned, riding the top edge of the
-     shop tray — the other end of the band the SHOP rail already owns, and the
-     one corner of this screen nothing else is in.
+     shop TRAY — the sheet of goods, not the tab hung above it.
+
+     Which of those two edges it rides is the whole of this rule, and the tab is
+     a fossil in it. `--dock-up` used to be tray + RAIL, from when the rail was
+     a full-width band 48px tall (see `.shopHead`): a right-aligned column
+     genuinely did have to clear it, because it ran under the names. The rail is
+     a TAB in the dock's top-LEFT corner now, 120px of a 390px screen, and the
+     right-hand side has nothing under the names but tray — so that term was
+     buying a tab's height (50px, measured) of empty screen with nothing on the
+     names' own side of the phone to explain it. Off the tray the names sit ten
+     pixels over the goods, which is where they read as belonging to the shop's
+     top edge rather than hovering over the stage.
 
      A COLUMN, not a line. Four names in a row measure ~250px and this screen is
      390 wide, so the row this replaced capped itself at 40vw and ellipsised the
@@ -1451,8 +1461,11 @@
      in main.js. Reading it back is what glues the names to the tray's top edge
      through all three of its heights — open, collapsed to the bare rail, and
      retired for good once the shop sells out — with no copy of any of them in
-     this file. The 0px fallback is deliberate rather than defensive: a tray that
-     is display:none measures 0, which drops the names to the screen's own bottom
+     this file. Collapsed, the tray is ~3px and the names come down with it, to
+     sit level with the tab across the screen from them; that is the same rule,
+     not an exception to it, and there is nothing on this side for them to be
+     above. The 0px fallback is deliberate rather than defensive: a tray that is
+     display:none measures 0, which drops the names to the screen's own bottom
      inset, and that is exactly where they belong both before the shop first
      appears and after it is gone. */
   #team {

@@ -1,595 +1,212 @@
-# Designing a Goomba Glider level (read this first)
+# Designing a Goomba Glider level
 
-**Draw it in Figma, paste it into the game, play it.** That is the whole loop.
-The design kit, the naming contract and the scale live in
-[`figma/README.md`](./figma/README.md); pressing `\` in Goomba Glider opens the
-levels grid, and Ctrl+V lands a copied frame on whatever you were looking at.
+**Draw it in Figma, paste it into the game, play it.** The kit, the naming
+contract and the scale are in [`figma/README.md`](./figma/README.md). `\` in
+Goomba Glider opens the levels grid; Ctrl+V lands a copied frame on whatever
+you were looking at.
 
-There is no copy of any level in this repo, and **nothing here grades one**. A
-level's source is the Figma frame it was drawn in; what an event plays is a pack
-of links in its lobby; whether it is any good is answered by four people playing
-it. This document is what was learned from doing that — the physics, and the
-shapes that turned out to work.
-
-> **The numbers in these notes were measured with a simulation bench that is
-> deleted**, on levels that are now Figma frames. Treat them as findings, not as
-> claims about your board. Git history has the bench if a question ever genuinely
-> needs a simulator — but playtesting caught what mattered sooner, which is why
-> it went.
-
-What is left in this folder is not about levels: `seed.mjs` moves a pack between
-events, `test-codec.mjs` tests the save format, `bands.mjs` tests the room's band
-rule, and `figma/` is the bridge in from Figma. `lib.mjs` bundles
-`packages/shared/src/goomba/` for those three so nothing carries a second copy of
-the codec.
-
-The game itself is the coop app in `apps/goomba-glider/` on the shared sim in
-`packages/shared/src/goomba/` — one copy of the physics, `physics.ts`, which the
-server scores runs with and every phone animates.
+No level lives in this repo and **nothing here grades one**. A level's source is
+its Figma frame; an event plays a pack of links in its lobby; whether it is good
+is answered by four people playing it. The numbers below were measured on a
+simulation bench that is deleted — treat them as findings about the physics,
+not as claims about your board.
 
 ## The loop
 
-1. **Draw it in Figma.** Start from a frame that already plays well rather than
-   from an empty one — remixing structure that works beats inventing it. A level
-   is plain data underneath: `terrain` (polylines; walls are just steep
-   segments), `start`, `goal`, and the toys — `cans` (watering cans: the
-   collectibles that lock the goal spider plant), `pops` (poppers: forced
-   re-launch, erases state), `cushions`, `bumpers`. World is portrait-leaning
-   (~110 wide × 200 tall), y is DOWN, and **the frame's own size is the world**,
-   so padding you draw on purpose is part of the design — room to lay a band out
-   past an edge is room you drew.
-
-2. **Play it yourself first.** Open the game with **`?solo`** — the levels grid
-   on the in-page sim, no server — and Ctrl+V your frame straight onto the level
-   in front of you. Tweak in Figma, copy, paste, watch it redraw under you; a
-   paste whose name matches goes through without a question, which is what makes
-   this loop tight. Scriptable via `window.__goomba`: `state() /
-   send({type:'place',...}) / send({type:'play'}) / send({type:'goto',level:i})`.
-
-2b. **A level whose geometry is COMPUTED — a ring of stations, an arc, a
-   lattice — is easier to keep in `tools/goomba/draft/<name>.mjs` than in a
-   frame**: a params object `P` and a `buildLevel(P)`, driven by `draft.mjs`
-   (`run`, `from`, `sweep`, `audit`, `card`, `link`). Figma is still where the
-   shape is decided; this is for the numbers under it, because "where does this
-   popper go" is answered by sweeping and a hand-drawn frame cannot be swept.
-   `draft.mjs link` hands the result straight back to step 2. It grades nothing
-   either — but `audit` covers the facts a run can never show you, the ones
-   about what must be IMPOSSIBLE: a popper's 8.2 reach ignores terrain, so two
-   popper rings being separate rooms is arithmetic, and a run that never happens
-   to be in the wrong place looks just like a level where it could not be.
-
-3. **Then play it with four people**, which is the only thing that has ever
-   really told us whether a level works. `/proctor`, assign yourself to a team,
-   open the game with `?debug`; tapping a level card jumps the whole room there,
-   so a table can walk a pack. Watch for the two failures a single player never
-   sees: nobody having anything to do, and everybody talking over one placement.
-
-4. **Update what the level makes stale.** A level carries a `name` and nothing
-   else prose-wise — there are no hint or description fields, so the title is the
-   only text players read. Make it earn its place.
+1. **Draw it in Figma.** Start from a frame that already plays well. A level is
+   `terrain` (polylines; walls are steep segments), `start`, `goal`, and the
+   toys: `cans` (collectibles that lock the goal plant), `pops` (poppers: a
+   forced re-launch that erases state), `cushions`, `bumpers`. The world is
+   portrait-leaning (~110 × 200), y is DOWN, and **the frame's own size is the
+   world** — padding you draw is room you gave the players.
+2. **Play it yourself with `?solo`** (the grid on the in-page sim, no server).
+   Ctrl+V your frame onto the level in front of you; a paste whose name matches
+   redraws without a question. Scriptable via `window.__goomba`: `state()`,
+   `send({type:'place',...})`, `send({type:'play'})`, `send({type:'goto',level:i})`.
+3. **A level whose geometry is COMPUTED** (a ring, an arc, a lattice) is easier
+   to keep in `draft/<name>.mjs` — a params object `P` and `buildLevel(P)` —
+   driven by `draft.mjs`: `run [bands]` (the route, in polar terms when the
+   draft names a centre), `from <x,y,vx,vy>` (drop her mid-level to judge one
+   stage), `sweep <key> <lo> <hi>`, `audit` (the draft's own geometry
+   invariants — facts a run cannot show, like two popper rings being separate
+   rooms), `card` (an SVG ride card), `link` (a `?solo#hash` URL, which is the
+   verdict). Figma still decides the shape; this is for the numbers under it.
+4. **Then play it with four people.** `/proctor`, assign yourself, open with
+   `?debug`; tapping a card jumps the whole room. Watch for the two failures one
+   player never sees: nobody having anything to do, and everybody talking over
+   one placement.
+5. A level carries a `name` and no other prose. Make the title earn its place.
 
 ## Physics cheat sheet (world units)
 
-- **One silly band stretches to 58 units max.** Ends within 5 units of terrain
-  snap onto it (ledge lips/corners win), landing FLUSH — on the vertex, offset
-  neither down nor up. They used to land 0.8 buried, and that is what made a
-  snapped band end in a kerb: a vertex sitting d above the band's riding surface
-  is inside Goomba's collision circle sqrt(R²−(R−d)²) short of the lip (1.70u at
-  d=0.8), on a normal that takes sqrt(1−((R−d)/R)²) of her along-band speed — 77%
-  — straight into the ground's dead restitution (level 1's bridge: in at 39 u/s,
-  off the lip at 10.6 horizontal). Flush is free at both ends; lifting the
-  endpoint instead only moves the kerb to the departure end.
-- **Gravity pulls at 140 u/s²; speed caps at 145 u/s** — `MAX_SPEED`, one
-  constant for the whole game (a level could once override it; exactly one did,
-  and the override is gone). Max height anything can gain: ~51 units.
-- **Poppers grab her to their center and OVERWRITE her velocity**: direction
-  from the popper's aim, speed exactly `spd × 0.82`, whatever she arrived with.
-  So a launch is exact, and identical every time — the same popper hit slow and
-  hit fast produces the same arc, which is what makes it safe to reset a sloppy
-  trajectory mid-level. Trigger radius ~8. (It used to carry arrival speed
-  through when that beat the fire speed. It didn't buy anything measurable —
-  across every shipped solution the floor bound 15 of 25 pops and all 10
-  carries were popper-to-popper gravity — and it punched a hole in the state
-  erasure the next section is about.)
-- **Fast lips throw flat.** Off a lip at speed she travels far horizontally;
-  don't put a floor 25–45 units below a fast lip unless you want her to land
-  on it bare.
-- **Steep catch bands** work when placed *below* the flight path; bands
-  *starting at the lip* need slope ≲ 1 or she sails over.
-- **Walls are ALMOST bumpers**: terrain restitution depends on how steep the
-  surface is (`groundE` in `levels.ts`). A floor, and anything shallower than
-  45°, is 0.02 — near-dead, so she settles and slides instead of bouncing down
-  a run-out. From 45° it ramps to `E_WALL` = 0.15 at vertical, so a wall hands
-  back about 15%: head-on at 60 u/s she leaves at 9, not 1.2. That is still a
-  speed ERASER — switchbacks work exactly as before, and 15% of a slow arrival
-  is nothing — but she no longer stops like wet cement, which read as a bug.
-  Two consequences worth holding: a wall is not a way to gain anything (a band
-  is 0.32, a cushion 1.3), and a corner where a wall meets a floor is still a
-  stall trap, because the speed she arrives with there is already small.
-- **V-basins catch everything** that falls into them — great for goals, fatal
-  for "she must not land here" zones. The stuck detector fails a run that
-  stops making progress (~4 s).
+- **A band stretches to 58 units** (`BAND_MAX`), minimum 6. Ends within **5 u**
+  of terrain snap onto it (lips and corners win), landing FLUSH on the vertex.
+- **Gravity 140 u/s², speed cap 145 u/s** (`MAX_SPEED`, one constant for the
+  game). Max height anything can gain from speed: ~51 u (`v²/280`).
+- **Poppers grab her to their centre and OVERWRITE her velocity**: direction
+  from the aim, speed exactly `spd × 0.82`, whatever she arrived with. Trigger
+  reach is `POP_R + R` = **8.2 u**, a plain distance test with no line of sight
+  — a popper grabs through floors and walls, so keep terrain out of its ring.
+  `POP_COOLDOWN` is 0.8 s.
+- **Cans** are picked up within `CAN_R + R` = 9.7 u, the same way.
+- **Restitution**: band 0.32, cushion 1.3, bumper `BUMP_E` 1.18 on the normal
+  with a `BUMP_MIN` of 58 outbound. Terrain depends on steepness (`groundE`):
+  0.02 for anything shallower than 45°, ramping to `E_WALL` 0.15 at vertical.
+  A wall is a speed eraser, not a lift.
+- **Friction** over a 100 u flat run entering at 120: terrain −15%, band −4%,
+  cushion −2%. **A band is the fastest floor in the game.**
+- **Fast lips throw flat**; a floor 25–45 u below a fast lip gets landed on
+  bare. Steep catch bands go BELOW the flight path; a band starting at the lip
+  needs slope ≲ 1 or she sails over.
+- **V-basins catch everything.** The stuck detector fails a run that stops
+  making progress (~4 s). Two segments closer than **4.4 u** (2 × her 2.2 u
+  radius) wedge her and stall the run.
+- **`START_VX` is 20**, unconditional: a bare 105 u drop drifts 24.6 u
+  sideways, so a straight shaft never lands where it was drawn.
+- Gaps wider than ~45 u are not jumpable at typical speed and a band spans 58,
+  so the "needs exactly one band" window is ~45–58 u, wider if she is slowed
+  first. A crossing band sags ~1 u per 20 u of span.
+- **Goomba's world radius `R` = 2.2, `POP_R` = 6, `CAN_R` = 7.5.** A sketch
+  handed over as a picture is already dimensioned: measure one ring in pixels
+  and every gap converts.
 
-## Design notes: what building these taught us
+## Patterns
 
-These are physics facts about this game, not opinions — each came from a level
-that broke, and most were first found by brute-forcing the solution space with
-tools that no longer exist. The numbers are what was measured then; the
-mechanisms are what to design against now.
+Each of these came from a level that broke. The mechanism is what to design
+against; the level names are where to look in Figma.
 
-**The universal shortcut is "long fall + one catch band."** If the plant sits at
-the bottom and the start at the top, gravity does all the work and a single
-band near the goal wins. Grand Finale shipped as a 3-band level and had 380
-one-band solutions. Anything that descends toward its goal has this problem.
+**Shortcuts to design against.**
+- *Long fall + one catch band*: anything that descends toward its goal is won
+  by one band near the plant.
+- *Extend the start ramp*: a band along the opening slope buys speed, and speed
+  clears gaps. Any level where more speed helps is trivialised this way.
+- *One band, two jobs*: a band slung above two popper apexes as a ceiling, or a
+  band laid steeper than a concave-up slope that bridges one notch and launches
+  over the next. The fix is always spacing — apexes further apart than 58, and
+  notches long (chords of 28–40) — never cleverness. For each pair of jobs ask:
+  could one band stand in both places at once?
+- *A 58 u band is half this world.* On a flat full-width floor she slides to the
+  plant from anywhere, so the last stage is free whatever happens above. Break,
+  tilt or fence the floor, and interrupt the descent with something that erases
+  state. Collectible placement alone never fixes it.
 
-**The second shortcut is "extend the start ramp."** A band laid along the
-opening slope just buys speed, and speed clears gaps that were supposed to
-need bridging. Any level where *more speed helps* can be trivialized this way.
+**Poppers are the structural tool.** They erase state — a stage entered hot and
+one entered cold run identically — which is what makes stages independent and
+forces one band per stage. Rules:
+- A popper must fire AWAY from the band that feeds it, or she re-collides with
+  it: ~12 u of drop below the feeding band's end, or aim it to continue her
+  direction.
+- **A popper's aim needs room DOWNRANGE.** What decides a throw is whether the
+  world extends far enough along its angle to land in. When a thrown leg fails,
+  measure where the arc exits before re-aiming; the fix may be moving the
+  LANDING popper, not the thrower (There and Back Again).
+- **A can on a popper's throw arc is a toll booth**: the only way to collect it
+  is to be thrown by that popper, which stops winning lines threading past it.
+  Compute the arc; expect to pay finger slop for it.
+- **A popper is only a brake if you tune it like one.** `spd × 0.82` is an
+  assignment, so a popper set near `arrival ÷ 0.82` reads as a redirect. The
+  erasure of direction and variance survives either way.
+- **A sparse popper lane needs fire speed ≳ 3 × the column gap** (she drops
+  `70 × (gap/speed)²` between poppers, which must stay under the 8.2 reach).
+  Trigger rings that do not touch make the lattice porous, which is what lets a
+  bare run fall through it (Cat's Cradle: 24 u columns, `spd` 114).
+- **An up-column of poppers is a trap** she cannot leave (`POP_COOLDOWN` 0.8 s
+  against a 1.3 s fall), which reads as "you missed the exit" and makes the exit
+  band honestly load-bearing. The exit is at an apex, so pair it with something
+  that re-centres her.
 
-**Poppers are the antidote, because they erase state.** A popper fires at a
-fixed speed along a fixed aim, so nothing upstream changes what happens
-downstream. That makes stages independent, which is precisely what forces one
-band per stage. Poppers aren't decoration — they're the structural tool for
-multiplayer levels. The erasure is *total* and that is the point: it is what
-stops "extend the start ramp" (shortcut #2 above) buying anything past the
-first popper, because a stage entered hot and a stage entered cold run
-identically.
+**Cat's Cradle: the players build the walls.** Four horizontal popper lanes
+aimed in alternation, three poppers a lane 24 u apart, lanes interlocked half a
+step, no terrain at all. Bands cannot help her travel; the only verb is to WALL
+a lane so she rebounds at 0.32, drifts back while falling, and lands in the lane
+below. Each lane needs its own wall, which reliably gives four people four jobs.
+Wall the END of a lane, past its last popper, and let the half-step stagger aim
+the drop; a wall before the lane's last popper drops her through a gap. Ship the
+wall LONG: ±3 u of slop on a 26 u wall tilts it 13° and the rebound by 26°; on a
+50 u wall, 7°. A terrain-free level gets no snap, so band length is the only
+forgiveness.
 
-**But a popper must fire *away* from the band that feeds it.** Launch back
-across the band she just rode and she immediately re-collides with it. Give the
-popper ~12 units of drop below the feeding band's end, or aim it to continue
-her direction.
+**Shelf-gating switchbacks.** Floors alternating direction with a band-sized gap
+in each and walls between erasing speed. Put the cans ON the far shelves between
+gap and wall, never hanging in the gaps: an in-gap can is grazed by anything
+flying through. A shelf 40+ u above the next corridor (past the ~34 u a capped
+launch can rise) is reachable only across its gap. Floors shallower than ~0.12
+strand her; a short uphill shelf before each lip pins bare lip speed to ~24.
 
-**The zigzag problem, solved by making the players build the walls (Cat's
-Cradle, level 4).** A one-way popper staircase drifts too wide to stay
-portrait; a zigzag needs a reverser, and the only robust reverser is a wall. So
-lay four horizontal lanes of forced poppers aimed in alternation, like a 2D line
-maze. Bands can't help her travel — the players' only verb is to *wall* a lane:
-she rebounds off the band (band restitution ≈ .32 kills most of her speed),
-drifts backwards while she falls, and lands in the lane below, which runs the
-other way. Each lane needs its own wall — nothing smaller than one wall per
-lane was ever found to win it, exhaustively at one band and by sampling at two
-and three. This is the structure that most reliably gives four people four
-separate jobs, and it has now been built twice.
+**Four different gates, no erasure needed.** Bridge, wall, bridge,
+choose-the-hole: no band can substitute for one doing a different job. Give
+every gap a far lip **1 u above** its near lip (arcs only fall, so no speed
+crosses it and width becomes purely a band-length question), and **floor every
+dead column with a bowl** so a drop down the empty space stalls.
 
-The Popper Grid built it DENSE — six poppers a lane, 16 units apart against the
-~8-unit trigger reach, so crossing a lane anywhere got her grabbed — plus a
-terrain entry chute (whose wall was needed to kill her ramp speed, or she flew
-over the first lane) and a V-basin holding the plant. Cat's Cradle replaced it
-with the sparse form: three poppers a lane, 24 apart so the reaches never touch,
-lanes interlocked half a step, and **no terrain at all** — twelve poppers, three
-cans and the plant hang in the void, and the players' four bands are the only
-surfaces in the world. Sparse changes the puzzle twice over. The lattice is
-porous, so the bare run *falls through* it (past lanes 1 and 2, into lane 3, out
-the side) instead of being carried, which makes the entry a real job; and the
-stagger is what aims a wall-drop, because each lane's gaps sit directly above
-the next lane's poppers. Both forms keep the tuning fact that makes this a maze
-rather than four free choices: a wall placed *before* a lane's can strands the
-run.
+**Cut obstacles PERPENDICULAR to the surface she rides (The Long Way Up).**
+Height only comes from speed, but at 140 u/s her arc is nearly straight and a
+stepped floor reads as a runway; flat-floored obstacles bite only below ~45 u/s.
+A notch cut perpendicular into a rising slope presents its far wall square to
+her travel at any speed. On a concave-up slope she can NEVER reach the next rim
+from a tangent launch, so notch width is a band-length question at any speed. A
+notch with VERTICAL walls on a steep slope is a rail that carries her up past
+the rim; the walls must lean back over the notch like a ratchet tooth. Bands are
+a poor way to buy height (0.32 → 15 u of rise from a 100 u/s run); poppers and
+bumpers are the only real lifts.
 
-**A sparse popper lane lives or dies on its fire speed.** Trigger circles that
-do not touch are a feature — they make the lattice porous, which is what lets a
-bare run fall through it — but they also mean a lane can only grab her while she
-is flying ALONG it, and that is a ballistics condition, not a layout one. She
-leaves a popper at `spd × 0.82` and drops `70 × (gap/speed)²` on the way to the
-next one, which has to come out under the ~8-unit reach: **fire speed ≳ 3 × the
-column gap**. Cat's Cradle's 24-unit columns need ≳ 72 and fire at 114 → 93,
-dropping ~4.6. Slow that lane down and the chain breaks in the middle of the
-level, which reads as a mystery rather than a miss. Re-check this number before
-moving a column or retuning `spd`.
+**Snap IS the forgiveness — anchor every band end on a terrain vertex.** An end
+within 5 u snaps exactly, so ±3 u of slop is absorbed. Keep rival vertices ~9 u
+apart so a jittered end cannot prefer the wrong one. Devices: a notch rim, or a
+**post** (a 7 u stub hanging DOWNWARD from the height you want the band at, one
+either side of where she comes down — downward so her rise passes it).
 
-Budget the WHOLE lane at the fire speed, not the entry hop. While poppers
-carried arrival speed through, a lane accelerated as she crossed it (86 → 90 →
-93.5 on gravity alone) and only the first hop ran at the number you tuned, so
-`spd` 105 was really "105 at the door, 114 by the far wall". Constant fire
-speed makes every hop the entry hop — the honest reading of `≳ 3 × gap`, and
-worth 9 units of `spd` on this level when the rule was made literal.
+**A popper erases error; a bumper multiplies it.** A bumper is a MIRROR at 1.18
+on the normal: she must arrive moving the way you don't want her to go, so the
+feeding launch overshoots and comes back down onto it. `BUMP_MIN` 58 normalises
+slow arrivals; a bumper below the apex passes variance through. A band that must
+aim her at a bumper is a precision tax a real finger pays. Aim bands at
+poppers; let bumpers be scenery or a curtain (bumpers packed tighter than she is
+wide).
 
-**Wall the END of a lane, never the middle — and let the stagger aim it.** A
-wall does not drop her straight down: she rebounds at ≈ .32 of her speed and
-keeps that backwards drift for the whole fall, which at Cat's Cradle's speeds is
-10–20 units by the time she reaches the lane below. That is what the half-step
-stagger is FOR — with the wall PAST a lane's last popper, a drift of anything in
-that range still lands on one of the interlocked columns rather than in a gap.
-Which one varies (its three walls land half a step back, level, and half a step
-on), so sweep the position instead of computing it. Park the wall BEFORE the
-lane's last popper and the same drift drops her through a gap and out of the
-level. (Measured on Cat's Cradle: wall face at x 81, and she was caught by the
-popper 19 units back from it.)
+**Loops.** Terrain is two-sided, so the inside of a circle holds her while
+`v² ≥ G·(r − R)`; `loop()` in `figma/svgkit.mjs` solves the entry `spd` over the
+arc she rides (72 at r 18; she holds at 95% and falls off at 85%, peeling into a
+chord, which reads as "not fast enough"). Rules:
+- A ring is a solid wall from outside, so a loop is always a `Ɔ`: in at the
+  mouth's top lip, 270° round, out the bottom going the other way. A 270° loop
+  is a −90° turn, so chain loops in alternating hands. A loop whose mouth sits
+  ON her incoming track is an infinite orbit.
+- Put the entry popper ON her riding circle (r − 2.2 from the centre) with ~20°
+  of material behind it.
+- The chord fan is a brake: budget ~30% over the minimum (out at 87 on 40
+  chords, 48 on 10, from 95 in at r 18).
+- She comes out FASTER than she went in (22 u of net drop on an r-18 loop).
+- **A gap in the ROOF is a band's job, and its lips must be COARSE**: one long
+  chord (30° at r 18, ~9 u) either side of the gap so snap has one candidate.
+  Fine lips score 272/300 at ±3 u, coarse 300/300, a 10° tip chord 239; posts
+  beside a loop wedge her (4/300).
+- Reversing curvature (bowl to loop) needs AIR: end one piece, let her fly, hang
+  the next on where she got to (`bank()` in `svgkit.mjs`). At the speed cap she
+  flies nearly straight; don't plan on a fast arc bending.
 
-**A long wall survives fingers; a short one does not.** The biggest robustness
-lever found while tuning Cat's Cradle, and it is pure geometry: ±3u of slop on
-each end of a **26**-unit wall tilts it up to 13°, and a tilt turns the rebound
-by *twice* that — 26° off, easily enough to throw the landing clear of the
-popper below. The same slop on a **50**-unit wall tilts it 7°. Measured, same
-walls, same positions: at 26 units they survived ±3u slop 68–90% of the time,
-stretched to 40–54 they survived 96–99%. So when the job is "wall this
-lane", ship the wall LONG — a band stretches to 58 and nothing charges you for
-using it. Corollary for a level with no terrain: endpoints snap only to terrain,
-so a terrain-free level gets no snap assistance at all, and band length is the
-only forgiveness you get. Spend it. (A terrain-free level is legal everywhere
-else too: the renderer and the editor already iterate an empty `terrain`, and
-the codec used to reject a level without a polyline — it now asks for furniture
-of any kind, so a level like this still travels as a link.)
+**Anti-shortcut devices that work**: a roofed pocket around the plant (entry
+only through the mouth); a ceiling over a run; the goal above the start; a speed
+governor (a short gentle shelf just below a wall-drop); a perpendicular notch
+in a rising slope; a **start chute** (two 10 u vertical bars either side of the
+start dot, above everything — turns "she must not touch the sides" into a 9 u
+doorway; In and Out is unbuildable without it); posts with nothing between them.
 
-**Don't ship on a lucky 30 trials.** A line whose true success rate was 48% once
-passed a 19-of-30 jittered check on a fixed seed, and only a re-run on unrelated
-seeds showed it up. **Thirty trials cannot tell 60% from 85%**, and only one of
-those is a level people can actually place. If you are counting anything, count
-enough of it.
+**A run-out floor has to outvote the pump.** The snowboard pump (`sp < 12` while
+grounded) pushes her the way she FACES, so a floor that only just clears the
+~0.12 stranding pitch still traps anything landing the wrong way. If a floor's
+job is "wherever she lands she reaches the plant", pitch it ~0.2 and test with
+arrivals moving AWAY from the goal.
 
-**Transcribing a sketch: the toys carry the scale.** A level handed over as a
-picture is already dimensioned, because the furniture has fixed sizes — a
-popper's dashed trigger ring is `POP_R` = 6 units, a can's ring is `CAN_R` =
-7.5, Goomba herself is `R` = 2.2. Measure one ring in pixels and every gap in
-the drawing converts. Doing that first is what turns "lanes roughly this far
-apart" into numbers the physics can vote on — and in Cat's Cradle's case the
-rings in the sketch clearly did NOT touch, which turned out to be the whole
-design.
-
-**Judge the ride in airborne seconds, not duration.** Across two review rounds,
-`duration × %airborne` predicted the fun ranking almost perfectly; raw duration
-predicted nothing. Lengthening the boring part is metric-gaming.
-
-**A collectible on the line she'd fly anyway is a chime, not a constraint.**
-Cans only create routing pressure when they're *expensive* — off the greedy
-path, costing speed or height or another can. (An early draft hung cans a
-few units under each bridge line — that turned out to be wrong; see
-shelf-gating below for why in-gap collectibles never survive scrutiny.)
-
-**Collectibles beat geometry for forcing multi-band.** Scattered watering cans
-make the plant a *routing* problem instead of a reachability one: one band can
-drop her down a shaft, but it can't make her pass three separate points.
-
-**Shelf-gating — the switchback pattern (Mind the Gap — level removed,
-findings stand; git history has the geometry).** Floors alternating
-direction, a band-sized gap in each, walls between floors erasing her speed.
-What makes it honestly need one band per floor is WHERE the collectibles sit:
-**on the far shelves between gap and wall, never hanging in the gaps**. A
-watering can in a gap can be grazed by anything flying through it — search
-found both a diagonal launcher band that overflew a whole floor through its
-gap, and an under-floor band that dropped her down a column past a lower
-can. A shelf, by contrast, has solid floor directly above (no fall reaches
-it) and sits 40+ units above the next corridor (beyond the ~34 units of rise
-a speed-capped launch can buy — check this number when changing the pitch),
-so the only way onto it is across its gap. Two supporting facts: floors
-shallower than ~0.12 strand her (the idle pump fights the slope and she creeps
-into a stall), and a short uphill shelf before each lip pins bare lip speed to
-~24, which no 42-unit gap forgives.
-
-**One deterministic launch is a spine (Pachinko Drop — level removed, findings
-stand; git history has the geometry).** A popper's fire is
-exact, so a whole level can hang off a single parabola: rows placed so the
-BARE arc misses them by a few units, with a catch band whose only job is that
-nudge. Hard-won mechanics from building it: an entry ledge even **+1 above**
-the lip facing it is unjumpable (arcs only fall — check the fastest
-band-ramp arrival still lands short), but the crossing band SAGS ~1 per 20
-units, so the rider needs lip speed ≳ √(280·(rise+sag)) or she oscillates
-trapped in the sag valley; a floor ending nearer than ~5 units to a wall
-makes a wedge notch she stalls in (end floors ≥6 short of walls so she falls
-through); and a feed band that delivers her straight under a vertical fire
-gets smashed by it — angle the fire or end the feed outside the barrel line.
-
-**A chain of different gates needs one band each, without any state erasure
-(Four Ways to Help — level replaced, findings stand; git history has the
-geometry).** The other way to get four separate jobs out of one board is four
-stages that fail *differently*: bridge, wall, bridge, choose-the-hole. Nothing has to reset her
-speed, because no band can substitute for a band doing a different job. Two
-rules make it hold. Give every gap a far lip **1 unit above** its near lip —
-arcs only fall, so no speed ever crosses it and gap width becomes purely a
-question of band length. And **floor every dead column with a bowl**: the
-level's tall empty space is where shortcuts live, and search found a
-2-band win that simply dropped her down the column under the start pad onto a
-much later ledge, collecting its can en route. A wide V-basin under that
-column turns the whole family into a stall. Bonus for a tutorial: four gates
-with four distinct deaths means every partial solution reads as a specific
-lesson rather than a generic "she died".
-
-**A 58-unit band is half this world — spreading the work out takes structure,
-not better collectible placement (The Long Way Down).** Rebuilding level 1 from a
-hand sketch — four ledges descending to a plant on a flat, full-width ground —
-the obvious lever was "move the second can somewhere a 3-band solution cannot
-reach". It does not exist. Painting every winning 3-band trajectory and every
-winning 4-band one onto a grid and asking which cells only the 4-band set
-reaches returned an EMPTY list — the 3-band reachable set covers the other
-completely, so there is no cell to put the can in. Two reasons, both
-structural. A band stretches 58 units across a world only ~110 wide, so one
-band spans half of anywhere; and a flat full-width floor is nearly frictionless
-here (she slid 24 units in 0.47 s losing almost nothing), so it delivers her to
-the plant from anywhere on it — the last stage is free no matter what happens
-above. To stop one band from carrying the whole board, the floor has to be
-broken, tilted away from the plant, or fenced, and the descent has to be
-interrupted by something that erases state. No amount of collectible placement
-substitutes.
-
-**Terrain detail and height pull in opposite directions — and the way out is
-to make the terrain PERPENDICULAR (The Long Way Up).** Height only comes from
-speed (`v²/280` of rise), so a level with 100 units of vertical action needs
-~150 u/s somewhere. But at 140 u/s her arc is nearly a straight line: she
-crosses a 16-unit notch in 0.11 s and drops one unit, so a stepped ground reads
-as one flat runway. Flat-floored obstacles therefore only bite below ~45 u/s,
-and a band laid over one is nearly the same path as her bare arc (a 30-unit
-band sags 1.5; her arc over the same span at 100 u/s droops about the same), so
-the band does nothing. Both problems have the same fix: **cut the obstacle
-perpendicular to the surface she is riding, not vertically.** A notch cut
-perpendicular into a rising slope presents its far wall square to her travel —
-she meets it head-on and the ground's dead 0.02 restitution takes everything,
-at 40 u/s or at 140. Combined with a slope that steepens (see below) that makes
-a speed-independent gate out of pure terrain. A corollary worth remembering:
-bands are a poor way to buy height. A band's restitution is 0.32, so a 45° band
-ramp turns 100 u/s of flat run into 15 units of rise — poppers (exact,
-magnitude-preserving) and bumpers (1.18× on the normal) are the only real
-lifts in the game.
-
-**A concave-up slope is a gate generator; a vertical wall is a rail (The Long
-Way Up).** Two facts do all the work on that level's run-up. First, on a slope
-that steepens, a Goomba who leaves a rim along the tangent can NEVER reach the
-next rim: the surface curves up away from her tangent while her arc curves
-down, so she is always below the far lip and lands on the wall under it. Notch
-width becomes a pure question of band length, exactly like the raised far lip
-does on flat ground, and it holds at any speed. Second — the draft that shipped
-nothing — a notch with VERTICAL walls does not gate anything on a steep slope.
-She arrives moving up-slope; a vertical wall kills only her horizontal
-component and preserves the vertical one, so it becomes a rail that carries her
-UP past the rim on her own speed and drops her neatly at the next popper. The
-walls have to face her: perpendicular to the surface, which on a 60° slope
-means they lean back over the notch like a ratchet tooth. Same reason her
-ratchet teeth work going up and let her slide out going down.
-
-**The bumper is a MIRROR, so she must arrive moving the way you don't want her
-to go (The Long Way Up).** `BUMP_E` reverses and amplifies the normal
-component, so a leftward exit needs a rightward arrival onto the bumper's left
-face — there is no placement that turns a leftward glide further left. Two
-consequences worth designing around. The launch that feeds it must therefore
-overshoot the bumper and come back down onto it: "one arrival speed lands on
-the bouncy" is a real, tunable knob, and the fence past it is what an overshoot
-dies on. And `BUMP_MIN` (58) is a state-eraser as useful as a popper's floor —
-a slow arrival leaves at exactly 58 along the contact normal, so a bumper
-positioned near the top of an arc *normalises* whatever reached it, while one
-positioned well below the apex passes the arrival's variance straight through
-at 1.18×. Pick which you want. (`BUMP_MIN` is a floor, where a popper is now a
-flat assignment — a bumper normalises only the arrivals slow enough to hit it,
-a popper normalises all of them.)
-
-**Snap IS the forgiveness — anchor every band end on a terrain vertex (The
-Long Way Up).** The ±3u jitter check is
-what kills chained-ballistics levels, because each hand-off tolerates only a
-few units and nothing re-centres her. But jitter perturbs the *bands*, not the
-physics: an endpoint within 5 units of a vertex lands exactly ON it, and ±3 per
-coordinate is at most 4.24 units of displacement, so an end placed on a vertex
-snaps back to the same vertex and the run is bit-identical. Two devices give you those
-vertices. A **notch rim** — the last smooth point before a perpendicular notch —
-is the natural one on a ridden slope, and a **post** (a 7-unit stub hanging
-DOWNWARD from the height you want the band at, one either side of where she
-comes down) is the one for open air; downward matters, so her near-vertical rise
-passes the post rather than clipping it. Either way the rule is the same: keep
-rival vertices ~9 units apart so a jittered end cannot prefer the wrong one
-(two vertices of the *same* stub are harmless — the band just gets a few units
-longer). The Long Way Up is a chain of exact ballistics and scores 29/30 on
-jitter this way; check the spacing whenever a jitter score comes back at 17.
-
-**One band will always try to do two jobs, and search will find how (The Long
-Way Up, three drafts running).** Every draft of that level died the same way and
-the fix was always spacing, never cleverness. On popper hops it was a single
-band slung above two apexes as a CEILING — hitting a sloped band from below near
-the apex is cheap, and it converts her spent climb into exactly the sideways
-skid that feeds the next popper; the fix was pushing the apexes further apart
-than one band's whole stretch (58). On the ridden slope it was a band laid
-STEEPER than the surface: because the slope is concave up, any chord sits above
-it, so one band bridges its notch and then launches her off its high end clean
-over the next one. The fix there was making the notches LONG (chords of 28-40)
-and letting them cover most of the slope, so every arc lands in a notch rather
-than on a pad. Before trusting a beam-search pass, ask it yourself for each pair
-of jobs: could one band stand in both of these places at once?
-
-**A popper erases error; a bumper multiplies it.**
-The two toys look interchangeable — both hurl her somewhere — but they sit on
-opposite sides of the finger-slop check. A popper *grabs her to its centre*
-before firing, so every trajectory that triggers it leaves identically: it is a
-position, direction AND speed reset, and slop upstream of one costs nothing.
-(This paragraph was written when the speed half was only mostly true — a fast
-arrival carried its speed through — which is a good part of why it is a flat
-assignment now: "leaves identically" is what the toy is FOR.) A bumper
-reflects off wherever she happened to touch it, at `BUMP_E` 1.18, so a 3-unit
-error in where she strikes becomes a larger error in where she goes next.
-Popper Pinball — a testbed since removed, findings stand; git history has the
-geometry — measured the gap on one solution: the band whose job ended in a
-popper jittered 30/30, the band whose job ended in a bumper jittered 10/30, and
-the whole solution scored the bumper band's number. There and Back Again (4) is the
-constructive version of the same fact: its fragile band hands off to a POPPER
-on the leg that follows, and it scores 29/30 with a bumper wall in the loop.
-Consequence for design: a bumper is fine as an obstacle or a curtain (Piñata
-Alley — level cut, the pattern stands: bumpers packed tighter than she is wide
-make a curtain she MUST bounce through) and fine as a *free* stage nothing is
-aimed at, but a band that must aim her at one is a precision tax a real finger
-pays. Aim bands at poppers; let bumpers be scenery.
-
-**An up-column of poppers is a trap, and that is the good part** (Up the
-Middle, level 5). Poppers firing straight up in a line make an elevator she
-cannot leave: the top one throws her ~35 units, she falls back into it 1.31 s
-later, and `POP_COOLDOWN` is 0.8 — so she re-fires forever and the run is
-called `loop`. That reads
-perfectly as a failure ("you missed the exit") and it makes the exit band
-honestly load-bearing. Just note the cost: the exit is at an apex, where she is
-slowest and most sensitive, so pair it with something that re-centres her.
-
-**A popper's aim needs ROOM DOWNRANGE, and that is invisible in the picture
-(There and Back Again, level 7).** A popper is a throw, so what decides whether it is
-a return or a run-killer is not its angle but whether the world extends far
-enough along that angle to land in. The same popper at 135° was: a working
-return at (55,30) — every one of 1030 sampled runs that fired it reached the
-far popper; a run-killer 20 units left at (35,30) — 0 of 5045 did, because an
-exactly-diagonal throw travels left as fast as it falls and crossed the world's
-left edge about 41 units into a 90-unit drop; and a working return again, still
-at (35,30) and still 135°, once the LANDING popper moved 8 units left to meet
-the throw. Nothing about the popper changed in that last step. When a thrown
-leg fails, measure where the arc actually exits before re-aiming: the fix may
-belong at the other end.
-
-**A can ON a popper's throw arc is a toll booth — the cheapest way to make a
-popper compulsory (There and Back Again, level 5).** A popper that merely *can* be hit
-will be skipped: the winning lines that thread past it are usually the ones
-with the most slack, so a winning line finds them and the popper becomes scenery.
-Putting a collectible where the popper's own arc passes fixes that with no
-geometry at all — the popper delivers her to it and nothing else does. Compute
-the arc, don't eyeball it: here the throw leaves (35,30) at 135° and ~90 u/s,
-so she crosses x=13 at y≈60, and a can at (13,54) is inside the 9.7 pickup
-radius. Expect to pay slop for it (29/30 → 22/30 on this board): the can turns
-a leg the solution could route around into one it must hit exactly.
-
-**A popper's reach is a SPHERE, and it has no line of sight.** `stepRun` tests
-`dx² + dy² < POP_R2` and nothing else, so a popper grabs her through a floor,
-through a wall, through the side of a loop — she gets scooped off a platform by
-a popper on the other side of it, which reads as a bug and is really a level
-telling on itself. The trigger is `POP_R + R` = **8.2 u**, which is exactly the
-dashed ring the kit draws, so the rule is one you can see: **keep terrain out of
-the ring.** Two consequences worth holding. A popper that has to sit near a
-surface belongs in the open air BEFORE it, with the surface hung on the arc it
-throws rather than wrapped around the barrel. And a band cannot shield a popper
-— there is nothing to shield, the test is a distance — so "wall it off" is never
-the fix for a popper she keeps falling into. (Cans reach the same way, and there
-it is a feature the kit already documents: a can on a one-segment ledge is
-grabbable from directly beneath it.)
-
-**A popper is only a brake if you tune it like one.** `spd × 0.82` is a flat
-assignment, not a cap, so a popper set to `arrival ÷ 0.82` hands back what she
-brought and reads as a redirect rather than a reset — measured on one board, in
-at 101 and out at 110 with `spd` 135. The state erasure that makes stages
-independent is about DIRECTION and VARIANCE, and it survives intact: every
-arrival still leaves identically. What you give up by firing fast is the floor,
-not the erasure. So "poppers kill the momentum" is a tuning choice; if a level
-wants to feel like one long ride, fire every popper near what it receives.
-
-**What each surface actually costs her**, over a 100-unit flat run entering at
-120: terrain **−15%** (120 → 102), a band **−4%** (→ 115), a cushion **−2%**
-(→ 118). The friction constants say the same thing (0.18 / 0.06 / 0.02) but the
-consequence is easy to miss: **a band is the fastest floor in the game.** A band
-laid across a gap is not just a bridge, it is a lane, and a level that wants
-speed should be asking players to lay track rather than to plug holes.
-
-**Momentum alone will carry a whole board, and a loop is what it is for.** With
-no popper anywhere: a steepening drop, a bowl that stands her up, and a loop
-hung on the arc she is already flying gave 77–99 u/s through the loop and never
-put her below 72. Three rules make chaining work, and each cost a run to find.
-
-- **A 270° loop is a −90° turn**, so loops compose like turns and a coaster
-  cannot come back on itself: chain them in alternating hands if you want her to
-  advance. A loop whose mouth sits ON her incoming track is an infinite orbit —
-  she comes back round to the same lip going the same way and does it again,
-  which is the popper-elevator trap wearing a better costume, and just as good a
-  puzzle. (Measured: a 270–310° loop fed by a popper on her return path fired 15
-  times in 15 seconds and held 81–112 u/s the whole way. 250° lets her out.)
-- **Reversing the curvature needs AIR.** A bowl holds her from below, a loop
-  from above; where they meet both surfaces are R away at once, which is the
-  4.4 u wedge exactly. End the first piece, let her fly, hang the next on where
-  she has got to — `bank()` in `figma/svgkit.mjs` is that piece.
-- **At the speed cap she flies nearly straight.** Pinned at 145 she went from a
-  72° dive to 85° over 140 units of fall, because the cap rescales away most of
-  what gravity just added. Don't plan on a fast arc bending; plan on it not.
-
-**A loop-the-loop is legal, and the wall does the holding.** Terrain is
-two-sided, so the inside of a circle pushes at its centre: ride it and that push
-IS the centripetal force. She holds the ceiling while `v² ≥ G·(r − R)`, and she
-has to climb to the ceiling to get there, so the whole loop is settled at the
-entry — `loop()` in `figma/svgkit.mjs` solves that over the arc she actually
-rides and hands back the popper `spd`. At r 18 it says 72, and she rides at 95%
-of it and falls off at 85%. The failure is a good one: she peels off the ceiling
-and cuts a chord through the middle, which reads as "not fast enough" rather
-than as a bug. Five things fell out of building one.
-
-- **A ring is a solid wall from outside, so a loop is always a `Ɔ`.** In at the
-  mouth's top lip going up-and-across, 270° round, out at the bottom lip going
-  back the other way — one popper in, and nothing at all at the exit. The exit
-  tangent clears the entry lip by exactly one radius, so the two never have to
-  be aimed apart; that is geometry, not tuning.
-- **Put the entry popper ON her riding circle** (r − 2.2 from the centre, aimed
-  along the ride), with ~20° of material carried BEHIND it so it fires along a
-  surface instead of off a tip. A loop is the one stage in this game with a hard
-  MINIMUM speed, and a popper is the only toy that promises one — this is the
-  state erasure of "poppers are the antidote" being used for its other half.
-- **The fan is a brake**, and how coarse it is, is a tuning knob rather than a
-  drawing detail. Every chord junction is a collision into terrain's dead
-  restitution. Over 270° at r 18, in at 95: out at 87 on 40 chords, 72 on 20, 48
-  on 10 — against 123 for the frictionless ride. Budget ~30% over `minSpd`.
-- **She comes out FASTER than she went in**, because the mouth's bottom lip sits
-  below its top: 270° of an r-18 loop is 22 units of net drop. A loop is a
-  slingshot, not a lap, and what it hands the next stage is a fast diagonal.
-- **A gap in the ROOF is a band's job, and its lips must be COARSE.** She flies
-  out of an open roof at any speed worth riding for (measured: a 40°+ gap is
-  escaped, a 30° one she bridges on her own), so the band is honestly
-  load-bearing — and its ends want the two lips, which are terrain vertices, so
-  snap should make it free. It does not, by default: on an evenly fine fan the
-  lips' neighbours are ~2 u away, inside the 5 u snap, so a jittered end takes
-  one of them and the lip it missed becomes the kerb from the note above. Give
-  each lip ONE long chord (30° at r 18, ~9 u) and the nearest rival is 9 u off:
-  **300/300 at ±3 u, against 272/300 fine.** A 10° tip chord scores 239 —
-  half-measures are worse than either end. Do NOT reach for posts instead: stubs
-  standing proud of the loop wedge her, and the same board scored 4/300.
-
-These numbers came off a throwaway probe against `physics.ts` in a scratch
-directory, not off the deleted bench and not off a table — they say the SHIPPED
-sim allows this, which is the only part a simulator can answer. Whether a loop
-is fun, and whether the roof band is the job four people want, is still four
-people playing it.
-
-**Anti-shortcut devices that do work:**
-- **Roofed pocket** — the goal plant in a pocket with a ceiling, so falling
-  arrivals are blocked and the only entry is horizontally through the mouth.
-- **Ceiling over a run** — caps how high she can arc, so extra speed can't
-  skip a gap.
-- **Goal above the start** — falling can never reach it.
-- **Speed governor** — a short gentle shelf just below a wall-drop; at ~15
-  speed even a 20-unit gap is uncrossable.
-- **A notch cut perpendicular into a rising slope** — its far wall and its
-  ratchet teeth face square back down-slope, so she meets them head-on at any
-  speed, and the slope's own concavity means no launch angle clears it. The
-  rims are snap points, which makes the chord across it forgiving (see the
-  jitter note above). Keep the notch long: a short one gets flown over from a
-  band laid steeper than the surface.
-- **A start chute** — two short vertical bars either side of the start dot,
-  ten units long, above everything else. `START_VX` is 20, it is unconditional,
-  and it is never spent, so a bare drop moves **24.6 units sideways** over a
-  105-unit fall — which is why a straight shaft down the middle of a level has
-  never worked and every drop has arrived somewhere to the right of where it
-  was drawn. She crosses to the right bar in 0.14 s, leaves it at `E_WALL`
-  0.15 doing −3, and the whole rest of the fall drifts her 3.6 back the other
-  way: total excursion 2.2 units. That turns "she must not touch the sides" into
-  a doorway you can draw at 9 units instead of 30. (In and Out is the level it
-  was built for: the same board reads `pops 0, cans 0` bare with the chute and
-  is unbuildable without it.)
-- **Posts with nothing between them** — a pair of downward stubs where a floor
-  ought to be. There is no surface until the players make one, so the stage
-  cannot be skipped by arriving faster, and the stub tops are snap points that
-  make the band's placement forgiving.
-
-**A run-out floor has to outvote the pump, not just the stall threshold.** The
-snowboard pump (`sp < 12` while grounded) pushes her the way she FACES, so a
-floor that only just clears the ~0.12 stranding pitch still traps anything that
-lands on it moving the WRONG way: she pumps into the far corner and stalls
-facing it. Slalom's floor — level since cut, the finding stands — was 0.061
-and stranded 741 of 3312
-sampled left-side arrivals; at 0.204 all 3312 slide to the goal. If a floor's
-job is "wherever she lands, she ends up at the plant", pitch it ~0.2, and test
-it with arrivals that carry velocity AWAY from the goal — a straight drop keeps
-her facing the way she already was and will tell you the floor is fine.
-
-**Useful numbers:** gaps wider than ~45 units aren't jumpable at typical speed,
-and a band only spans 58 — so the "needs exactly one band" window is roughly
-45–58 units, and it widens a lot if you slow her down first. Two segments
-closer than ~4.4 units (2 × her radius) wedge her in a corner and stall the
-run.
+**Judging.** A collectible on the line she would fly anyway is a chime, not a
+constraint — cans create routing pressure only when they are expensive.
+Collectibles beat geometry for forcing multi-band. `duration × %airborne` tracks
+fun; raw duration does not. Thirty trials cannot tell 60% from 85%. Don't copy
+the structure of the teaching level.
 
 ## Sharing the result
 
-Ship the level by pasting it into the event — there is no file to commit it to
-and no deploy in the loop, which is the whole point: a level is live for
-everyone a second after somebody pastes it.
-
-A pack can change under a live room, and that is safe by design:
-`GoombaSim.reconcile` re-fits `completed`, clamps the level index back inside
-the pack and abandons a run in flight. It does NOT remap flags by identity, so
-deleting a level shifts every flag after it — the accepted cost of editing live.
-
-If someone asked for an *idea* rather than a level, still build it. A board
-people can actually play for thirty seconds settles arguments that prose
-cannot.
+Paste it into the event; there is no file and no deploy. A pack can change under
+a live room: `GoombaSim.reconcile` re-fits progress by index and abandons a run
+in flight. If someone asked for an *idea*, still build it — a board people can
+play for thirty seconds settles what prose cannot.

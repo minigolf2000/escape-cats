@@ -1,8 +1,6 @@
 // THE SHOP — dock, building rows, upgrade rail, HUD numbers, the badge/seen
-// system, and the sold-out closing beat. Ported from the prototype; the one
-// structural change is that buy() / buyUpgrade() send intents to the server
-// instead of mutating state — the purchase lands in the next snapshot, and
-// main.js fires the UI beats off that snapshot's edges.
+// system, and the sold-out closing beat. buy() / buyUpgrade() send intents; the
+// purchase lands in the next snapshot, and main.js fires the beats off its edges.
 
 import {
   BUILDINGS,
@@ -36,13 +34,10 @@ import { fmt } from "./format.js";
 import { currencyIconSVG } from "./art.js";
 import { transport } from "./net";
 
-// ---------------------------------------------------------------------------
-// DOCK STATE
-// ---------------------------------------------------------------------------
-// Last touch anywhere in the shop, and how long a reveal will hold the list
-// still afterwards (see the long note on refreshUpgrades). 700ms outlasts the
-// gap between taps in a mash without keeping the list frozen once a player's
-// hands are off it.
+// ---- DOCK STATE ----
+// Last touch anywhere in the shop, and how long a reveal holds the list still
+// afterwards (see refreshUpgrades). 700ms outlasts the gap between taps in a
+// mash without freezing the list once a player's hands are off it.
 let lastShopTapAt = -Infinity;
 const SHOP_HOLD_MS = 700;
 shopScrollEl.addEventListener(
@@ -110,25 +105,17 @@ export function shopSoldOut() {
   return allRailBought(game);
 }
 
-// The unseen-upgrade count, split by WHICH EDGE it is hiding behind.
-//
-// `seen` is set by a row's midpoint entering the visible box (updSeen below),
-// so an unseen row is precisely one you have not scrolled to. That is a fact
-// about the scroller, not about the shop, which is why this reads at the
-// scroller's two edges instead of as a number on the tab: an edge chip can say
-// which way to go, and a tab badge could only ever say "somewhere".
-//
-// A row sitting INSIDE the box counts as neither, even while it is still
-// unseen — it is in front of you, waiting only on updSeen's look gate, and
-// pointing at something already on screen would be noise.
+// The unseen-upgrade count, split by WHICH EDGE it is hiding behind. `seen` is
+// set by a row's midpoint entering the visible box (updSeen), so "unseen" is a
+// fact about the scroller, not the shop — an edge chip can say which way to go
+// where a tab badge could only say "somewhere". A row INSIDE the box counts as
+// neither, even while unseen: pointing at something on screen is noise.
 export function refreshMoreHints() {
   const box = shopScrollEl.getBoundingClientRect();
   let up = 0,
     down = 0;
-  // A collapsed tray has no edges to hang these off, and nothing in it can be
-  // marked seen either — so every row would count as "below" and the chip would
-  // be both invisible and wrong. The accessible name below still reports the
-  // total, which is the one number worth having while the tray is shut.
+  // A collapsed tray has no edges and nothing in it can be marked seen, so every
+  // row would count as "below". The accessible name below still carries the total.
   if (box.height > 1) {
     for (const [key, r] of upRows) {
       if (game.seen[key]) continue;
@@ -166,10 +153,8 @@ function writeHint(el, n) {
   el.hidden = n === 0;
 }
 
-// ---------------------------------------------------------------------------
-// UPGRADE TEXT — every row's description is DERIVED from `effect`; the joke
-// lives in the NAME (Cookie Clicker's split). No flavor-text field, by design.
-// ---------------------------------------------------------------------------
+// ---- UPGRADE TEXT — every row's description is DERIVED from `effect`; the joke
+// lives in the NAME. No flavor-text field, by design. ----
 const buildingName = (id) =>
   (BUILDINGS.find((b) => b.id === id) || { name: id }).name;
 
@@ -180,12 +165,9 @@ export function effectText(u, reveal = false) {
   const parts = effectsOf(u)
     .map((e) => oneEffectText(e, reveal))
     .filter(Boolean);
-  // DEDUPED, and only the wall rows can trigger it: every wall effect renders as
-  // the same ??? on the rail, so a row carrying two of them (Paper Lantern's light
-  // and pace; Lucid Dreaming I's trail and pace) would read "??? · ???" — which is
-  // the exact flag the uniform ??? exists to avoid, a row announcing that it is
-  // bigger than its neighbours. One row, one ???. The dev dump passes `reveal`, so
-  // its strings differ and every effect still gets its own column entry there.
+  // DEDUPED, which only the wall rows trigger: every wall effect renders as the
+  // same ???, so a row carrying two (Paper Lantern, Lucid Dreaming I) would read
+  // "??? · ???" and announce itself as bigger than its neighbours. One row, one ???.
   return [...new Set(parts)].join(" · ");
 }
 // Word-form only reads naturally for small round multipliers — Cookie
@@ -197,10 +179,9 @@ const multWord = (m) =>
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 const hl = (s) => `<b>${s}</b>`;
 
-// The wall rows are the MYSTERY, so they do not describe themselves — every
-// effect that touches the wall renders as ??? and the player finds out by
-// buying it and looking up. Uniform on purpose: one bespoke row among eight
-// ???s is a flag saying "this is the important one".
+// The wall rows are the MYSTERY: every effect that touches the wall renders as
+// ???, uniformly — one bespoke row among eight ???s flags itself as the
+// important one.
 function oneEffectText(e, reveal = false) {
   if (WALL_EFFECTS.has(e.type) && !reveal) return hl("???");
   switch (e.type) {
@@ -226,13 +207,9 @@ function oneEffectText(e, reveal = false) {
       return `Zoomies pet ${hl("+×" + e.add)} harder`;
     case "zoomTime":
       return `Zoomies lasts +${hl(e.add + "s")} longer`;
-    // Everything below this line is reachable only with `reveal` — the dev dump.
-    // Written out rather than left to the ??? because it is the authoritative
-    // statement of what each wall row does, and the debug table is where that
-    // gets checked.
-    //
-    // Must print e.add: the sleep stages differ ONLY in trail length, so a
-    // constant string renders all four Lucid Dreaming rungs identically.
+    // Reachable only with `reveal` (the dev dump) — the authoritative statement
+    // of what each wall row does. Must print e.add: the sleep stages differ ONLY
+    // in trail length, so a constant string renders all four rungs identically.
     case "trail":
       return `Wall mice leave ${hl("+" + e.add)} more trail`;
     case "neon":
@@ -258,12 +235,9 @@ function oneEffectText(e, reveal = false) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// SHOP RENDER
-// ---------------------------------------------------------------------------
-// How often one of these earns a mouse, in words, from the rate the engine
-// will actually pay: mps x INCOME_SCALE. "second" rather than "1 second" when
-// it lands on the nose.
+// ---- SHOP RENDER ----
+// How often one of these earns a mouse, in words, from the rate the engine will
+// actually pay: mps x INCOME_SCALE. "second" rather than "1 second" on the nose.
 function everyText(b) {
   const secs = 1 / (b.mps * INCOME_SCALE);
   return Math.abs(secs - 1) < 0.005 ? "second" : `${fmt(secs)} seconds`;
@@ -402,10 +376,8 @@ function buy(i) {
   transport.send({ type: "buyBuilding", id: b.id });
 }
 
-// ---------------------------------------------------------------------------
-// UPGRADE SHOP — rows are rebuilt only when the visible SET changes (an unlock
-// or a purchase), not per frame; affordability restyles in place.
-// ---------------------------------------------------------------------------
+// ---- UPGRADE SHOP — rows are rebuilt only when the visible SET changes, not
+// per frame; affordability restyles in place. ----
 let upRows = new Map(); // key -> {el, cost}
 let upSig = "";
 export function refreshUpgrades() {
@@ -473,9 +445,7 @@ function buyUpgrade(key) {
   transport.send({ type: "buyUpgrade", key });
 }
 
-// ---------------------------------------------------------------------------
-// HUD
-// ---------------------------------------------------------------------------
+// ---- HUD ----
 const cpsValEl = cpsEl.querySelector("b");
 export function refreshHud() {
   // The bank is a whole number of mice: Math.floor, not fmt(n, 0) — toFixed
@@ -486,16 +456,12 @@ export function refreshHud() {
   cpsValEl.textContent = fmt(baseCps(), 0);
 }
 
-// ---------------------------------------------------------------------------
-// CLOSING THE SHOP, once and for the rest of the run — fired off the sold-out
-// edge. Three beats: the tray eases shut, the rail relabels SOLD OUT and
-// holds, then the dock leaves (the night's finale is reading the wall, and
-// #dock is a blurred band across the bottom of it).
-// ---------------------------------------------------------------------------
-// #shopScroll's max-height transition — must equal --tap-ms in index.html, which
-// the tray shares with the caret. The sold-out beat hands off to the sign only
-// once the tray has finished shutting, so a mismatch here either relabels the
-// rail over a tray still in motion or leaves a dead beat after it lands.
+// ---- CLOSING THE SHOP, once and for the rest of the run — fired off the
+// sold-out edge. Three beats: the tray eases shut, the rail relabels SOLD OUT
+// and holds, then the dock leaves (the finale is reading the wall). ----
+// Must equal --tap-ms in styles.css (#shopScroll's max-height transition): the
+// sign takes over only once the tray has finished shutting, so a mismatch
+// relabels the rail mid-motion or leaves a dead beat.
 const SHOP_CLOSE_MS = 220;
 const SHOP_SIGN_MS = 1800; // how long the closed sign holds before the dock leaves
 const SHOP_OUT_MS = 500; // the dockOut animation
@@ -563,9 +529,7 @@ export function reopenShop() {
   shopToggleEl.setAttribute("aria-label", "Shop");
 }
 
-// ---------------------------------------------------------------------------
-// SHOP SKIN RUNTIME — scroll shadows + the seen/badge poll.
-// ---------------------------------------------------------------------------
+// ---- SHOP SKIN RUNTIME — scroll shadows + the seen/badge poll ----
 export function initShopSkin() {
   const scrollers = [shopScrollEl];
   function updAff(el) {
@@ -600,8 +564,7 @@ export function initShopSkin() {
   function tick() {
     scrollers.forEach(updAff);
     updSeen();
-    // Unconditionally, unlike updSeen: the look gate decides whether a row gets
-    // CREDITED as seen, but which edge the unseen ones are hiding behind
+    // Unconditionally, unlike updSeen: which edge the unseen rows hide behind
     // changes on any scroll, resize or reveal, gate or no gate.
     refreshMoreHints();
   }

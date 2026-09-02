@@ -22,10 +22,8 @@ export function spawnMousePop(x, y, color) {
   if (pops.length >= POP_MAX) pops.shift().el.remove();
   const el = document.createElement("div");
   el.className = "mousePop";
-  // Keyline follows the phase, because the pop is the one mouse that appears in
-  // both: day's dark line would disappear into the night sky, night's white one
-  // blows out against the pink daytime page. Same shape either way — the art
-  // file draws its icons twice for exactly this reason.
+  // Keyline follows the phase: day's dark line vanishes into the night sky,
+  // night's white one blows out on the pink page. Same shape either way.
   el.innerHTML = mouseSVG(
     color ?? MOUSE_COLOR_LIST[(Math.random() * MOUSE_COLOR_LIST.length) | 0],
     nightActive() ? MOUSE_KEYLINE_NIGHT : MOUSE_KEYLINE_DAY,

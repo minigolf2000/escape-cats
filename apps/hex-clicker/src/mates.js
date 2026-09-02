@@ -2,20 +2,12 @@
 //
 // Asymmetric on purpose. YOUR tap pops instantly at your fingertip (pet.js) —
 // latency is felt where your own thumb is. A teammate's tap is only observed,
-// so it goes through a jitter buffer instead: every tap carries the server time
-// it was applied, and each phone renders it at that time plus a fixed delay on
-// its own synced clock. Uniformly late, but the spacing between taps survives.
-//
-// A tap also carries WHERE on Hex it landed, as a fraction of her box, so a
-// teammate who scratches her left ear is seen scratching her left ear.
-//
-// Fighting games delay every player equally, including the local one, because a
-// competitive match has to be fair. This is co-op — nobody is racing anybody —
-// so we can keep local input instant and buffer only what's watched.
-//
-// The alternative was sending a per-tick COUNT, which would have arrived as
-// lumps of 2-3 and needed fake spacing to look alive. Timestamps mean the
-// transport rate stops mattering: even clumped, each tap lands on its own beat.
+// so it goes through a jitter buffer: every tap carries the server time it was
+// applied and renders at that time plus a fixed delay on this phone's synced
+// clock. Uniformly late, but the spacing between taps survives, even when the
+// transport clumps them. A tap also carries WHERE on Hex it landed, as a
+// fraction of her box. Co-op, not a competitive match, so local input can stay
+// instant and only what is watched is buffered.
 
 import { stageEl } from "./dom.js";
 import { hexCatEl } from "./dom.js";
@@ -65,15 +57,9 @@ export function updateMateTaps() {
   const s = stageEl.getBoundingClientRect();
   while (queue.length && queue[0].dueAt <= now) {
     const { slot, x, y } = queue.shift();
-    // The wire carries fractions of Hex's box, not pixels, so a tap on her ear
-    // is on her ear here too however big she renders on this phone. She is at
-    // the same fraction of herself everywhere; nothing else about the two
-    // screens has to match.
-    //
-    // A tap with no spot (a client from before the coordinates existed) keeps
-    // the old behaviour: scattered across her middle, which was there to stop
-    // identical taps stacking. Real spots don't need it — they already differ,
-    // and where they don't, the player really did tap the same place twice.
+    // Fractions of Hex's box, not pixels: a tap on her ear is on her ear here
+    // too, however big she renders. A tap with no spot (a client from before the
+    // coordinates existed) scatters across her middle so identical taps don't stack.
     const u = x ?? 0.35 + Math.random() * 0.3;
     const v = y ?? 0.3 + Math.random() * 0.3;
     spawnMousePop(

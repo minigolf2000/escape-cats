@@ -1,8 +1,6 @@
-// Pure rules of Hex Clicker, ported from the prototype (the deleted
-// hex/index.html; git history only).
-// Everything here is a pure function of game-shaped state, so the PartyKit
-// server, the client's rendering, the ?debug mode, and any future pacing
-// simulator all price the same rules instead of copies that drift.
+// Pure rules of Hex Clicker: every function here is a pure function of
+// game-shaped state, so the server, the client and ?debug price the same rules
+// instead of copies that drift.
 
 import {
   BUILDINGS,
@@ -52,20 +50,17 @@ export interface HexMods {
 const effectsOf = (u: HexUpgrade): HexEffect[] =>
   Array.isArray(u.effect) ? u.effect : [u.effect];
 
-// `firstFree` is a COUNT of copies priced at zero, and it shifts the curve down by
-// that many steps rather than discounting it: copy n costs base * growth^(n - free),
-// so the first PAID copy still costs exactly `base`. It exists for one thing: night
-// opens with an empty bank and nothing but buildings earns, so without a copy priced
-// at zero the phase cannot start at all.
+// `firstFree` is a COUNT of copies priced at zero and shifts the curve down by
+// that many steps: the first PAID copy costs exactly `base`. The night cannot
+// start without one (empty bank, only buildings earn).
 export function costOf(b: HexBuilding, owned: number): number {
   const free = b.firstFree || 0;
   if (owned < free) return 0;
   return Math.ceil(b.base * Math.pow(b.growth || GROWTH, owned - free));
 }
 
-// The night phase is a pure function of the save — no separate flag to persist.
-// Derived from the table (which upgrade DECLARES `type: "night"`) rather than
-// hardcoding its key: the rule is that nothing asks "do I own upgrade X?" by name.
+// Night is a pure function of the save, derived from which upgrade DECLARES
+// `type: "night"`: nothing asks "do I own upgrade X?" by name.
 export const NIGHT_KEYS = UPGRADES.filter((u) =>
   effectsOf(u).some((e) => e.type === "night"),
 ).map((u) => u.key);
@@ -140,15 +135,11 @@ export function foldMods(
     goldenLife: 0,
     zoomMult: ZOOM_MULT,
     zoomTime: ZOOM_S,
-    // Wall state, all of it bought rather than crossed into:
-    //   neon      the points resolve into coloured mice (Counting Mice)
-    //   trail     length of the inked tail (the sleep-stage ladder)
-    //   persist   ink half-life; 0 = a rolling window (Scent Trail)
-    //   lantern   the dream is LIT (Paper Lantern, all of it)
-    //   pace      instalments of the night's pace paid back, out of
-    //             WALL.paceSteps — one from Paper Lantern, one from Lucid
-    //             Dreaming I. Zero on both is the night's opening state, not a
-    //             neutral default: see WALL.unlitSpeed / wallGlow.
+    // Wall state, all of it bought rather than crossed into: neon = the points
+    // resolve into mice; trail = inked tail length; persist = ink half-life (0 =
+    // a rolling window); lantern = the dream is LIT; pace = instalments of the
+    // night's pace paid back, out of WALL.paceSteps. Zero on lantern and pace is
+    // the night's OPENING state, not a neutral default (WALL.unlitSpeed).
     trail: 0,
     neon: 0,
     persist: 0,
@@ -217,9 +208,7 @@ export function clickBaseWith(m: HexMods, owned: Record<string, number>): number
   return (m.clickFlat + baseCpsWith(m, owned) * m.clickShare) * m.clickMult;
 }
 
-// ---------------------------------------------------------------------------
-// UNLOCKS / REVEALS
-// ---------------------------------------------------------------------------
+// ---- UNLOCKS / REVEALS ----
 const ownedPairs = (c: HexUnlock): [string, number][] =>
   typeof c.owned![0] === "string"
     ? [c.owned as [string, number]]
@@ -249,23 +238,19 @@ export function isRevealed(b: HexBuilding, s: HexCore): boolean {
   return s.total >= b.base;
 }
 
-// ---------------------------------------------------------------------------
-// GOLDEN MOUSE — spawn windows (the buff itself lives in mods.zoom*)
-// ---------------------------------------------------------------------------
+// ---- GOLDEN MOUSE — spawn windows (the buff itself lives in mods.zoom*) ----
 export const GOLD_MIN_S = 40,
   GOLD_MAX_S = 90; // spawn window
-// The FIRST golden of a run waits longer, landing ~1:50–2:40 — late in the
-// opening on purpose: the opening is for learning the pet-and-buy loop, so the
-// first golden arrives as "a taste" once there is a pet worth multiplying.
+// The FIRST golden of a run waits longer (~1:50–2:40): the opening is for
+// learning the pet-and-buy loop, so it arrives once there is a pet worth
+// multiplying.
 export const GOLD_FIRST_MIN_S = 90,
   GOLD_FIRST_MAX_S = 130;
 /** Seconds a golden stays on screen before escaping. */
 export const goldLifeS = (m: HexMods): number => 9 + m.goldenLife;
 
-// ---------------------------------------------------------------------------
-// NIGHT WALL RAMP + LEGIBILITY — the win condition, computable server-side.
-// ---------------------------------------------------------------------------
-// Per-shape headcounts, settled in the reveal lab. yellow spells the word.
+// ---- NIGHT WALL RAMP + LEGIBILITY — the win condition, computable server-side ----
+// Per-shape headcounts. yellow spells the word.
 export const WALL_COUNT: Record<string, number> = {
   yellow: 9,
   pink: 10,
@@ -278,101 +263,48 @@ export const WALL_CAP = WALL_COUNT_KEYS.reduce((a, k) => a + WALL_COUNT[k], 0);
 
 export const WALL = {
   // THE WHOLE CAST, FROM THE FIRST FRAME OF NIGHT. Don't reintroduce an arrival
-  // ramp: a golden mouse with NO TRAIL BEHIND IT is a moving dot, so starting the
-  // wall full gives nothing away, and it keeps the rule the whole night ladder is
-  // written to — every visible change at night is something a player pressed.
+  // ramp: a golden mouse with no trail behind it is a moving dot, so a full wall
+  // gives nothing away — and every visible change at night must be something a
+  // player pressed.
   maxMice: WALL_CAP,
-  // Scene units/sec, ONE rate for every mouse — and, since Paper Lantern, the LIT
-  // rate: the phase opens at a quarter of it (see unlitSpeed below). 9.6, four
-  // fifths of the 12 the wall shipped with: with the entire cast adrift from the
-  // first frame the opening reads busier than it did, and a slower drift puts it
-  // back to specks floating in the dark rather than a swarm with somewhere to be.
-  //
-  // NOT a free look, and the bill is paid in the trail ladder: coverage is linear
-  // in speed, so the word inks 20% slower for the same trail and the four rungs
-  // went 180 -> 236 units to put the same ink back on the wall (see data.ts).
-  // LEGIBLE_COV is deliberately NOT what moved — it is a measurement of the
-  // rendered word, not a dial (see the note there). This is the same trade the
-  // lab made when the word's rate was capped at MAX_SPEED and it needed 119 units
-  // of trail where 68 had sufficed.
+  // Scene units/sec, ONE rate for every mouse, and the LIT rate: the phase opens
+  // at unlitSpeed times it. Coverage is linear in speed, so the trail ladder's
+  // total in data.ts is fitted to this number — move it and refit the ladder.
+  // LEGIBLE_COV is NOT the dial to absorb it (see its note).
   speedBase: 9.6,
   speedMax: 20,
   trailDt: 80,
-  // ---- THE UNLIT NIGHT -------------------------------------------------------
-  // What the wall is BEFORE Paper Lantern: a QUARTER of the pace above, and a third
-  // of the brightness (unlitGlow, applied by wall.js to every speck, sprite and
-  // trail).
-  // The night used to open at full speed and full brightness, which made its first
-  // rung — Lucid Dreaming I, the trail hinge — the first thing that had ever
-  // changed the wall. Now the phase opens under-lit and sluggish and the FIRST
-  // purchase of the night is the one that fixes it, so the opening stretch has
-  // something to want instead of only something to wait through.
+  // ---- THE UNLIT NIGHT: before Paper Lantern ---------------------------------
+  // A QUARTER of the pace and a third of the brightness (unlitGlow, applied by
+  // wall.js to every speck, sprite and trail). One row and one mod (`lantern`),
+  // which SCALES the base until lit — unlike `speed`, which ADDS for everyone.
   //
-  // Both halves are one row and one mod on purpose (`lantern`, not a `speed` rung
-  // plus a brightness rung): a lantern is a light you release and then watch go, so
-  // the light and the going are the same gesture. It is also why the deleted speed
-  // rung's `speed` effect is NOT what implements this — that one ADDED to the base
-  // for everyone, where this SCALES it and only until the lantern is lit.
+  // NOTHING IN THE LEGIBILITY BUDGET MOVES, because of the unlock chain: Lucid
+  // Dreaming I requires the lantern AND pays the last pace instalment, so trail
+  // is 0 for the whole climb and every trail rung inks at the full 9.6. Break
+  // that `requires` and the ladder inks a quarter-speed wall, landing at ~0.45
+  // coverage against 1.6.
   //
-  // NOTHING IN THE LEGIBILITY BUDGET MOVES, and that is a fact about the unlock
-  // chain rather than luck: Lucid Dreaming I requires the lantern AND is the row
-  // that pays the last pace instalment, so the wall cannot own a single unit of
-  // trail below the full 9.6 units/sec. Coverage is trail x speed (see
-  // wallCoverage) and trail is 0 for the whole climb, so the phase's coverage
-  // curve starts where it always did. Break that `requires` and the four trail
-  // rungs are suddenly inking a quarter-speed wall, the ladder lands at 0.45
-  // coverage against a 1.6 threshold, and the word can never be read.
-  //
-  // 0.25 rather than something milder because the wall has to read as WRONG, not as
-  // retuned: at 2.4 units/sec a mouse needs over five minutes to walk the comet's
-  // sweep, which is longer than the whole night — so nothing out there resolves into
-  // a shape on its own, and the drift reads as sleep rather than as travel. It also
-  // sets up the ramp below: a fourfold change in pace is one a player SEES happen,
-  // where the doubling this started as could be mistaken for the mice they were
-  // already watching.
+  // 0.25 so the wall reads as WRONG, not retuned: at 2.4 units/sec a mouse needs
+  // over five minutes for the comet's sweep, longer than the night, so nothing
+  // resolves and the drift reads as sleep. A fourfold change is one a player
+  // SEES; a doubling could be mistaken for the mice they were already watching.
   unlitSpeed: 0.25,
   unlitGlow: 0.3,
   // ---- WHO PAYS THE PACE BACK -----------------------------------------------
-  // The climb out of unlitSpeed is split into this many EQUAL instalments, and the
-  // two rows that pay them are Paper Lantern and Lucid Dreaming I. So the night runs
-  // 2.4 -> 6.0 -> 9.6 scene units/sec across its first two purchases.
-  //
-  // The LIGHT is not split with it. Paper Lantern is all of the light and half of
-  // the pace; Lucid Dreaming I is the other half of the pace and the first trail.
-  // That asymmetry is the point of the split: it stops the lantern being the row
-  // that fixes everything and leaves the hinge with only its own trails to show,
-  // and it gives the hinge a second thing to be — the wall does not just start
-  // recording itself, it comes fully awake at the same moment.
-  //
-  // EQUAL IN UNITS, not in ratio, which is the reading of "half the speed benefit"
-  // that the arithmetic supports: each rung hands back 3.6 of the 7.2 units/sec the
-  // night is down. It does mean the two do not FEEL equal — 2.4 -> 6.0 is a 2.5x
-  // change and 6.0 -> 9.6 is a 1.6x one, because perceived speed is ratio-based —
-  // and that is the right way round: the lantern has to carry the moment on its own,
-  // where the hinge arrives with the biggest visual beat in the game already in hand.
-  // For two changes that feel the same size instead, the split wants to be
-  // geometric (2.4 -> 4.8 -> 9.6), which is `unlitSpeed ** (1 - paid)` here.
-  //
-  // NOTHING IN THE LEGIBILITY BUDGET MOVES, still, and for a sharper reason than
-  // before: the row that finishes the pace IS the first trail rung, so the wall
-  // owns its first unit of trail and its full 9.6 units/sec on the same purchase.
-  // Every rung of the trail ladder inks at 9.6 exactly as it always did. Sell a
-  // trail rung ahead of the last pace instalment and that stops being true.
+  // EQUAL instalments in UNITS (3.6 of the 7.2 units/sec the night is down),
+  // paid by Paper Lantern and Lucid Dreaming I: 2.4 -> 6.0 -> 9.6. The LIGHT is
+  // not split — the lantern is all of it. Perceived speed is ratio-based, so the
+  // lantern's 2.5x feels bigger than the hinge's 1.6x, which is the right way
+  // round: the hinge arrives with the first trails in hand. For two equal-
+  // feeling steps the split would be geometric: `unlitSpeed ** (1 - paid)`.
   paceSteps: 2,
   // ---- THE HAND-OVER --------------------------------------------------------
-  // How long the lantern takes to give the wall back. Both halves — the light and
-  // the pace — ride this one number from the purchase's own timestamp, because they
-  // are one gesture and staggering them reads as two unrelated things happening at
-  // once.
-  //
-  // A STEP would have been wrong for the speed half in a way that is not a matter of
-  // taste: position is distance travelled, so a rate that jumps discontinuously is a
-  // wall whose mice all change velocity in one frame — the visual signature of a
-  // dropped frame, not of acceleration. Eased over 1.4s they visibly speed UP, which
-  // is the thing the purchase is meant to say. 1.4s is long enough to read as
-  // acceleration and short enough to stay a beat; it sits between the neon
-  // cross-fade (620ms) and its ripple (900ms) in weight, deliberately, because this
-  // is the smaller of the two reveals.
+  // Light and pace both ease over this from the purchase's own timestamp; they
+  // are one gesture. Eased, never stepped: position is distance travelled, so a
+  // rate that jumps is every mouse changing velocity in one frame — the
+  // signature of a dropped frame, not of acceleration. 1.4s sits between the
+  // neon cross-fade (620ms) and its ripple (900ms) in weight.
   rampMs: 1400,
 };
 
@@ -394,32 +326,18 @@ export function wallGlow(m: HexMods): number {
   return m.lantern ? 1 : WALL.unlitGlow;
 }
 
-// ---------------------------------------------------------------------------
-// THE WALL'S ODOMETER — scene units travelled, banked by the authority.
-// ---------------------------------------------------------------------------
-// Position on the wall is DISTANCE TRAVELLED, not elapsed time (see wallPosAt),
-// because multiplying elapsed time by a changing speed rescales the whole of
-// history and teleports every mouse on the frame the rate changes. So a rate
-// change banks the distance so far and re-anchors from there.
+// ---- THE WALL'S ODOMETER — scene units travelled, banked by the authority ----
+// Position on the wall is DISTANCE TRAVELLED, not elapsed time (wallPosAt):
+// multiplying elapsed time by a changed speed rescales the whole of history and
+// teleports every mouse. So a rate change banks the distance so far and
+// re-anchors from there — ONCE, on the authority, riding the snapshot, or a
+// phone joining after the change replays the whole night at the new rate.
 //
-// That banking has to happen ONCE, on the authority, and ride the snapshot: the
-// wall's whole premise is that four phones draw the identical reveal from
-// (seed, time), and a client that banks its own base at its own frame time gets
-// a per-device offset — badly so for a phone that JOINS after the change, which
-// would otherwise replay the entire night at the new rate. This is the fix the
-// note in wall.js asked for when it said a speed rung would need one.
-//
-// The pair is a RECORD OF WHAT THE WALL WAS now, because the change is eased rather
-// than stepped (see WALL.rampMs): reproducing an eased change needs the values it
-// came FROM as well as the ones it went to. So the clock carries the rate and the
-// glow it was holding at `wallAt`, and each derived quantity below decides for
-// itself whether IT is mid-change by comparing its own `from` against its own
-// target. Anything equal is not animating.
-//
-// The two are genuinely independent now that the pace is split across two rungs:
-// Lucid Dreaming I changes the rate and NOT the light, so a glow that keyed off
-// "is a hand-over running" instead of off its own from-value would flash the wall
-// back to unlit and re-brighten it on the trail rung.
+// The from-values record what the wall WAS at `wallAt`, because the change is
+// eased (WALL.rampMs) and reproducing an eased change needs where it came FROM.
+// Each derived quantity decides for itself whether IT is mid-change by comparing
+// its own `from` against its own target; equal means not animating. Rate and
+// glow are independent: Lucid Dreaming I changes the rate and not the light.
 export interface HexWallClock {
   /** Scene units walked as of `wallAt`. */
   wallBase: number;
@@ -432,8 +350,7 @@ export interface HexWallClock {
 }
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
-// Smoothstep, so the wall leaves the old value and arrives at the new one with zero
-// acceleration at both ends — the mice ease into it instead of lurching.
+// Smoothstep: zero acceleration at both ends, so the mice ease rather than lurch.
 const smoothstep = (x: number) => x * x * (3 - 2 * x);
 
 /** 0..1 through the hand-over anchored at `wallAt`; 1 once it is spent. Whether
@@ -443,17 +360,16 @@ export function wallRampAt(w: HexWallClock, t: number): number {
   return clamp01((t - w.wallAt) / WALL.rampMs);
 }
 
-// Scene units walked by time `t`. During the hand-over this is the INTEGRAL of the
-// smoothstep blend between the two rates, in closed form rather than stepped per
-// frame — the wall has to be a pure function of (shared state, time) or four phones
-// accumulating their own frames drift apart, and a phone that joins mid-ramp has to
-// be able to land exactly where the others are.
+// Scene units walked by time `t`. During the hand-over this is the INTEGRAL of
+// the smoothstep blend between the two rates, in closed form — the wall must be
+// a pure function of (shared state, time), or four phones accumulating their
+// own frames drift apart and a phone joining mid-ramp cannot land where the
+// others are.
 //
 //   rate(d) = from + (to - from) * smoothstep(d / R)
 //   ∫₀ᴰ smoothstep(d/R) dd = R(x³ - x⁴/2) for x = D/R ≤ 1,  else D - R/2
 //
-// Continuous in both value and slope at D = R (both sides give from·R + Δ·R/2 and
-// rate `to`), so there is no seam where the ramp ends.
+// Continuous in value and slope at D = R, so there is no seam where the ramp ends.
 export function wallUnitsAt(
   w: HexWallClock,
   speed: number,
@@ -469,9 +385,8 @@ export function wallUnitsAt(
 }
 
 /** The instantaneous rate at `t` — the derivative of wallUnitsAt, and what the
- * authority banks as the next `wallFrom` so that a change landing mid-hand-over
- * eases out of the speed the mice are actually travelling at rather than
- * snapping to the one they were headed for. */
+ * authority banks as the next `wallFrom`, so a change landing mid-hand-over
+ * eases out of the speed the mice are actually travelling at. */
 export function wallRateAt(
   w: HexWallClock,
   speed: number,
@@ -482,11 +397,9 @@ export function wallRateAt(
   return w.wallFrom + (speed - w.wallFrom) * smoothstep(u);
 }
 
-/** The glow to draw at `t`: the rest value, eased from whatever the wall was
- * drawing at before `wallAt`, on the same curve and the same anchor the pace
- * rides. Pure like everything else on the wall, and self-restoring — a reload
- * lands with `t - wallAt` long past rampMs, so the ramp reads as finished rather
- * than replaying from the dark. */
+/** The glow to draw at `t`: the rest value, eased from `wallGlowFrom` on the
+ * same curve and anchor the pace rides. Self-restoring — a reload lands with
+ * `t - wallAt` long past rampMs, so the ramp reads as finished. */
 export function wallGlowAt(
   w: HexWallClock,
   m: HexMods,
@@ -500,30 +413,21 @@ export function wallGlowAt(
 
 // Scent Trail's decay: ms of half-life per unit of `persist`.
 export const WALL_PERSIST_MS = 40;
-// 1.6, and it did NOT move when the wall slowed to 9.6 — that is the whole reason
-// the trail ladder grew instead (180 -> 236 units, see data.ts). This number is not
-// a taste dial that can absorb a speed change: it is a measurement of the RENDERED
-// word, made in the reveal lab against the 1-stroke source, where a centreline word
-// is still dropping whole letter strokes at 1.2x and only resolves near 1.7x.
-// Scaling it with the speed would have declared the word readable — to the proctor,
-// to the progress bar, to the win condition — on a wall that is visibly missing
-// strokes. Slower mice ink less; the fix is more trail, not a lower bar.
+// A MEASUREMENT of the rendered 1-stroke word, not a taste dial: a centreline
+// word still drops whole letter strokes at 1.2x and only resolves near 1.7x.
+// Never scale it with the speed — that would declare the word readable (to the
+// proctor, the progress bar and the win) on a wall visibly missing strokes.
+// Slower mice ink less; the fix is more trail (data.ts), not a lower bar.
 export const LEGIBLE_COV = 1.6;
 // The word's total ink in scene units, measured off the live wall.
 export const WORD_INK_EST = 1067;
 
-// Coverage is word ink laid inside the visible window over the word's total ink;
-// the 1-stroke word needs LEGIBLE_COV of it to read unambiguously. visibleMs is
-// the rolling trail PLUS Scent Trail's persistence (2^(-t/half) integrates to
-// half/ln2 ms of full-strength equivalent).
-//
-// All nine golden mice are on the wall for the whole night (see WALL), so the
-// word's ink RATE is a constant and coverage is a pure function of the purchases:
-// trail length, plus persistence. Nothing here reads lifetime total.
-//
-// wallSpeed is quartered before Paper Lantern, so this reads a reduced rate
-// during the unlit opening — which changes NOTHING, because trail is 0 until
-// Lucid Dreaming I and that row is gated behind the lantern. See WALL.unlitSpeed.
+// Coverage = word ink laid inside the visible window / the word's total ink;
+// visibleMs is the rolling trail PLUS Scent Trail's persistence (2^(-t/half)
+// integrates to half/ln2 ms of full-strength equivalent). The cast is constant
+// (see WALL), so coverage is a pure function of the purchases. It reads the
+// unlit rate before Paper Lantern, which changes NOTHING: trail is 0 until Lucid
+// Dreaming I and that row is gated behind the lantern.
 export function wallCoverage(m: HexMods): number {
   if (!m.night) return 0;
   const visibleMs =
@@ -536,9 +440,7 @@ export function isLegible(s: HexCore): boolean {
   return wallCoverage(foldMods(s.bought, s.owned)) >= LEGIBLE_COV;
 }
 
-// ---------------------------------------------------------------------------
-// THE TWIST — the hard reset into the dream economy.
-// ---------------------------------------------------------------------------
+// ---- THE TWIST — the hard reset into the dream economy ----
 export function nightReset(s: HexCore & { zoomUntil?: number }): void {
   s.mice = 0;
   s.total = 0;
@@ -548,9 +450,7 @@ export function nightReset(s: HexCore & { zoomUntil?: number }): void {
   if (s.zoomUntil !== undefined) s.zoomUntil = 0;
 }
 
-// ---------------------------------------------------------------------------
-// SHOP TEXT DERIVATIONS shared by the client (the proctor may want them too).
-// ---------------------------------------------------------------------------
+// ---- SHOP TEXT DERIVATIONS shared by the client (the proctor may want them too) ----
 // The wall rows are the MYSTERY, so they do not describe themselves — every
 // effect that touches the wall renders as ??? in the shop.
 export const WALL_EFFECTS = new Set([

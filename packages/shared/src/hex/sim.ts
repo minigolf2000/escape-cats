@@ -1,10 +1,8 @@
-// The authoritative Hex Clicker simulation. The PartyKit server wraps one of
-// these per room (network transport only); the client's ?debug mode runs one
-// in-page. There is exactly one implementation of "what a purchase does".
-//
-// All timestamps are epoch milliseconds supplied by the caller (`now`), never
-// read from a clock here — that keeps the sim deterministic enough to test and
-// lets the server stamp everything from one Date.now() per message.
+// The authoritative Hex Clicker simulation. The PartyKit server wraps one per
+// room; the client's ?debug mode runs one in-page. Exactly one implementation
+// of "what a purchase does". All timestamps are epoch ms supplied by the caller
+// (`now`), never read from a clock here — deterministic enough to test, and the
+// server stamps everything from one Date.now() per message.
 
 import { BUILDINGS, UPGRADES, HEX_CODEWORD } from "./data";
 import { debugDerivedBought, type HexPreset } from "./presets";
@@ -53,25 +51,15 @@ export interface HexSimState extends HexCore {
   gold: HexGold | null;
   nightAt: number | null; // epoch ms the twist fired
   legibleAt: number | null; // epoch ms the word became readable
-  /**
-   * Epoch ms the PROCTOR marked this team as having won, else null.
-   *
-   * The one piece of hex state no player can reach: the code word leaves the
-   * game on a phone and comes back as four humans reading it out, so the win is
-   * something the proctor witnesses and presses (`setWon`) rather than something
-   * the sim can score. Room state all the same — it unlocks the win splash for
-   * all four phones on one snapshot, and a reset takes it back.
-   *
-   * `legibleAt` is the neighbouring but different fact: the word is READABLE.
-   * That one the sim knows on its own, and it says nothing about whether anybody
-   * read it out.
-   */
+  /** Epoch ms the PROCTOR marked this team won, else null. The one piece of hex
+   * state no player can reach: the code word leaves the game on a phone and
+   * comes back as four humans reading it out, so the win is witnessed and
+   * pressed (`setWon`), never scored. `legibleAt` is the neighbouring fact —
+   * the word is READABLE — and says nothing about whether anyone read it. */
   wonAt: number | null;
   /** The wall's odometer: scene units walked as of `wallAt`, re-banked by the
-   * authority whenever wallSpeed changes (the two pace rows — Paper Lantern
-   * and Lucid Dreaming I). Every phone reads position off this pair rather
-   * than integrating locally, so a phone that joins mid-night lands on the
-   * same frame as the rest of the room. See HexWallClock in rules.ts. */
+   * authority whenever wallSpeed or wallGlow changes, so a phone joining
+   * mid-night lands on the same frame. See HexWallClock in rules.ts. */
   wallBase: number;
   wallAt: number | null;
   /** The rate walked, and the glow drawn, UP TO wallAt — what the hand-over
@@ -86,18 +74,11 @@ export interface HexSimState extends HexCore {
 }
 
 /**
- * The wire-format for a room's saved game — everything a Durable Object
- * eviction would otherwise erase. Versioned so a deploy that changes the shape
- * refuses stale data instead of rehydrating garbage into a live room.
- *
- * Deliberately absent:
- *  - mods       — derived (foldMods) on restore, so a rebalance deploy applies
- *                 to live rooms instead of freezing the old table.
- *  - gold       — wall-clock lifetimes mean it is expired after any gap;
- *                 restore reschedules instead. Costs one missed golden.
- *  - speed      — ?debug-only time-scale: a real room never leaves ×1, and
- *                 ?debug runs storageless, so there is nothing to save.
- *  - lastTick / gold timer — restart-local by definition.
+ * A room's saved game — everything a Durable Object eviction would erase.
+ * Versioned so a deploy that changes the shape refuses stale data.
+ * Absent on purpose: mods (derived on restore, so a rebalance applies to live
+ * rooms), gold (expired after any gap; restore reschedules), speed (?debug
+ * only), lastTick / gold timer (restart-local).
  */
 export interface HexPersistedV1 {
   v: 1;
@@ -148,10 +129,8 @@ function freshCore(): HexCore {
   return { mice: 0, total: 0, clicks: 0, goldCaught: 0, owned, bought: {} };
 }
 
-/** Has the proctor marked this room as won? The one gate on hex's win splash —
- * named so every surface asks the same question of the snapshot instead of each
- * one remembering which field carries it (goomba's `goombaCleared`, for the
- * game whose win the sim CAN score by itself). */
+/** Has the proctor marked this room as won? The one gate on hex's win splash;
+ * every surface asks this rather than remembering which field carries it. */
 export const hexWon = (s: { wonAt: number | null }): boolean => s.wonAt !== null;
 
 export class HexSim {
@@ -260,17 +239,10 @@ export class HexSim {
     }
   }
 
-  /**
-   * The proctor's win mark — the team read the code word out, so their room is
-   * won (and their splash unlocks). Proctor-only at the transport; nothing a
-   * player sends can reach this.
-   *
-   * A TOGGLE, not a latch, because the mis-press is the realistic failure: four
-   * team boxes side by side on one dashboard, and pressing the wrong one has to
-   * be undoable without resetting that team's whole game. Marking an
-   * already-won room again keeps the original timestamp, so a double-press
-   * cannot quietly restamp the finish.
-   */
+  /** The proctor's win mark. Proctor-only at the transport. A TOGGLE, not a
+   * latch: four team boxes side by side make a mis-press realistic, and undoing
+   * one must not reset the team. Re-marking a won room keeps the original
+   * timestamp. */
   setWon(won: boolean, now: number): void {
     this.state.wonAt = won ? (this.state.wonAt ?? now) : null;
   }
@@ -308,16 +280,10 @@ export class HexSim {
     this.checkLegible(now);
   }
 
-  /** Debug-only: put a golden mouse up NOW rather than waiting out the 40–90s
-   * timer. Day-only for the same reason tick() is — at night a golden is a
-   * tappable prop paying zero — so this is inert at night and says so by
-   * returning false, which is what greys the panel's button out.
-   *
-   * A golden already in flight is REPLACED (new id, new seed, full life) rather
-   * than extended: the button exists to watch a spawn, and the client only
-   * re-places the mouse when the id changes. The natural timer needs no
-   * touching — it is only counted down while no golden is up, and tick()
-   * reschedules from scratch when this one expires. */
+  /** Debug-only: put a golden up NOW. Day-only like tick(); returns false at
+   * night, which greys the panel's button. A golden in flight is REPLACED (new
+   * id, so the client re-places it), not extended; the natural timer only runs
+   * while none is up, so it needs no touching. */
   spawnGold(now: number): boolean {
     if (this.night()) return false;
     this.mintGold(now);
@@ -337,21 +303,16 @@ export class HexSim {
     Object.assign(s.owned, p.owned);
     for (const k of p.bought ?? []) s.bought[k] = 1;
     debugDerivedBought(s);
-    // A `twist` preset spelled out the DAY it came out of, so the derivation
-    // above ran against the lifetime and the building counts that unlocked the
-    // day's upgrades — and the flip is then the SAME wipe buyUpgrade runs, not a
-    // second description of its result. Order matters: after the derivation, or
-    // the day would hand over nothing; before recalc, or the mods would be folded
-    // from buildings this state no longer owns.
+    // A `twist` preset spells out the DAY it came out of, so the derivation above
+    // ran against that day and the flip is the SAME wipe buyUpgrade runs. Order
+    // matters: after the derivation, or the day hands over nothing; before
+    // recalc, or the mods fold from buildings this state no longer owns.
     if (p.twist) nightReset(s);
     this.recalc();
     if (this.night()) {
-      // The preset IS the flip: stamp it now so elapsed-time UI reads sanely,
-      // and clear any golden — they are day-only (see tick()). The wall's
-      // odometer starts here too, at whatever speed the preset's purchases
-      // imply — a jump has no history to bank. wallFrom is that same speed, so
-      // a preset that already owns the lantern lands lit instead of replaying
-      // the hand-over it never pressed.
+      // The preset IS the flip: stamp it so elapsed-time UI reads sanely, clear
+      // any golden (day-only, see tick()), and start the odometer here at the
+      // speed the preset's purchases imply — a jump has no hand-over to replay.
       s.nightAt = now;
       s.wallBase = 0;
       s.wallAt = now;
@@ -479,17 +440,12 @@ export class HexSim {
     if (!onRail(u, this.state.bought)) return false;
     if (this.state.mice < u.cost) return false;
     const nightBefore = this.night();
-    // Read BEFORE the fold, and read TWICE, because the two readings answer
-    // different questions:
-    //   *Target — what the wall was headed for. The change test, so a purchase
-    //     that touches neither leaves a running hand-over completely alone.
-    //   *Now — what the wall is doing THIS instant, eased. What gets banked, so a
-    //     change landing inside a running hand-over continues out of the speed and
-    //     the glow actually on screen instead of snapping to the old targets. The
-    //     two pace rungs are the night's first two purchases, so a fast team can
-    //     genuinely buy the second inside the first's 1.4s ramp.
-    // The glow is tracked separately from the speed throughout: Lucid Dreaming I
-    // moves the pace and not the light, and must not drag the light through a ramp.
+    // Read BEFORE the fold, twice: *Target is the change test (a purchase that
+    // touches neither leaves a running hand-over alone); *Now is what gets
+    // banked, so a change landing INSIDE a hand-over — a fast team buys the
+    // second pace rung inside the first's 1.4s — continues from the speed and
+    // glow on screen rather than snapping to the old targets. Glow is tracked
+    // apart from speed: Lucid Dreaming I moves the pace, not the light.
     const speedTarget = wallSpeed(this.mods);
     const glowTarget = wallGlow(this.mods);
     const speedNow = wallRateAt(this.state, speedTarget, now);
@@ -504,24 +460,16 @@ export class HexSim {
       nightReset(this.state);
       this.state.gold = null;
       this.recalc();
-      // The wall starts walking here, at the twist's own timestamp, so every
-      // phone derives the same opening frame however late it joins. It starts AT
-      // the unlit values rather than easing down into them, which is what
-      // restWall() says.
+      // The wall starts walking at the twist's own timestamp, so every phone
+      // derives the same opening frame. It starts AT the unlit values (restWall).
       this.state.wallBase = 0;
       this.state.wallAt = now;
       this.restWall();
     } else if (this.state.wallAt !== null) {
-      // A change to EITHER derived quantity (Paper Lantern moves both; Lucid
-      // Dreaming I moves only the pace) banks the distance walked so far and
-      // re-anchors — continuous for every mouse, and identical on every phone
-      // because the authority does it once. See HexWallClock in rules.ts.
-      //
-      // The bank is read through wallUnitsAt against the clock as it stands, so a
-      // change landing DURING a hand-over banks the eased distance rather than a
-      // straight-line one. That is not hypothetical any more: the two pace rungs
-      // are the night's first two purchases and a fast team can buy the second
-      // inside the first's 1.4s ramp.
+      // A change to EITHER quantity banks the distance walked so far and
+      // re-anchors — once, here, so every phone agrees. wallUnitsAt against the
+      // clock as it stands banks the EASED distance when a change lands mid
+      // hand-over. See HexWallClock in rules.ts.
       if (
         wallSpeed(this.mods) !== speedTarget ||
         wallGlow(this.mods) !== glowTarget

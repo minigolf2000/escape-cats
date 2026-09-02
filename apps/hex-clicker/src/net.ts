@@ -1,14 +1,11 @@
-// Transport: one interface, two backends. A room on the server for the real
-// game, or the shared HexSim running in-page for ?debug. Either way the
-// game code only ever sees snapshots arriving and intents leaving.
+// Transport: one interface, two backends — a room on the server, or the shared
+// HexSim in-page for ?debug. Game code only sees snapshots arriving and intents
+// leaving.
 //
-// `partysocket` is imported DYNAMICALLY, inside the two functions that open a
-// socket, and this is load-bearing rather than fussiness. Every game module
-// (pet, shop, golden, debug) imports `transport` from here, so this module is
-// always in the graph — a static import would put the websocket client in the
-// main bundle for ?debug players too, who never open a socket at all. With the
-// import inside the functions, Vite splits it into a chunk that is fetched only
-// when someone actually joins a room. Keep the type-only import below type-only.
+// `partysocket` is imported DYNAMICALLY inside the two functions that open a
+// socket, and that is load-bearing: every game module imports `transport`, so a
+// static import would put the websocket client in the main bundle for ?debug
+// players who never open a socket. Keep the import below type-only.
 
 import type PartySocket from "partysocket";
 import { adhocRoomId, roomFor } from "@escape-cats/shared";
@@ -152,12 +149,9 @@ export function connectRoom(opts: {
 }
 
 /**
- * The ad-hoc room this URL asks for, or null. `?r=kelly` -> `r-kelly`.
- *
- * Goomba's copy of this function is the same three lines, on purpose: the two
- * games share no client code, and `adhocRoomId` — the part that must agree
- * byte for byte, since it decides which room id a slug names — is the shared
- * one they both call.
+ * The ad-hoc room this URL asks for, or null. `?r=kelly` -> `r-kelly`. Goomba
+ * has the same three lines on purpose (the games share no client code);
+ * `adhocRoomId`, the part that must agree byte for byte, is the shared one.
  */
 export function adhocRoom(): string | null {
   return adhocRoomId(new URLSearchParams(location.search).get("r"));
@@ -165,19 +159,14 @@ export function adhocRoom(): string | null {
 
 /**
  * Watch the lobby for this phone's room. Connecting also REGISTERS the phone in
- * the lobby roster (same pid+name contract the landing page uses), so a player
- * who lands here unsorted appears on the proctor's board.
+ * the lobby roster, so an unsorted player appears on the proctor's board.
+ * Which room comes from `roomFor`: a sorted phone gets its team, an unsorted one
+ * with `?r=` gets that room, one without gets the shared testing room (or
+ * `null`, the waiting screen, when it is closed).
  *
- * Which room that is comes from `roomFor`, not from here — a sorted phone gets
- * its team, an unsorted one with a `?r=` link gets that room, and an unsorted
- * one without gets the shared testing room (or `null`, the old waiting screen,
- * when that room is closed). One rule, three surfaces.
- *
- * Once we are in a REAL team the socket closes: the answer cannot change under
- * us in a way this phone should follow silently, and the lobby object should be
- * free to hibernate. A phone in the testing room — or an ad-hoc one — keeps it
- * open instead, because for those the answer very much can change: the proctor
- * sorting a tester onto a team mid-session reloads the page into it.
+ * In a REAL team the socket closes — the answer must not change under us
+ * silently, and the lobby object should hibernate. The testing room and ad-hoc
+ * rooms keep it open: the proctor sorting a tester onto a team reloads into it.
  */
 export function watchTeam(opts: {
   name: string;
@@ -211,10 +200,8 @@ export function watchTeam(opts: {
         opts.onTeam(room, me?.name ?? opts.name);
         return;
       }
-      // Only reachable from the testing room or an ad-hoc one, whose sockets
-      // stayed open.
-      // A reload is the whole move: the room is never in the URL, so the
-      // fresh boot re-asks the lobby and lands in the new team.
+      // Only reachable from the testing room or an ad-hoc one. A reload is the
+      // whole move: the room is never in the URL, so the fresh boot re-asks the lobby.
       if (room !== joined) location.reload();
     });
   })();

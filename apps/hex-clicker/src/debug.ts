@@ -1,9 +1,6 @@
-// ?debug mode: the SAME shared HexSim the server runs, in-page. This
-// replaces the old single-file prototype as the tuning bench — one sim, one
-// set of rules, whichever side of the wire it runs on. The floating 🛠 panel
-// is the prototype's dev panel ported over, now driving SHIPPED balance; its
-// controls call the sim directly, so nothing debug-only touches the wire
-// protocol and none of this can reach a real room.
+// ?debug mode: the SAME shared HexSim the server runs, in-page — the tuning
+// bench. The floating 🛠 panel calls the sim directly, so nothing debug-only
+// touches the wire protocol and none of this can reach a real room.
 
 import {
   BUILDINGS,
@@ -104,13 +101,10 @@ export function startDebug(opts: {
 const buildingName = (id: string) =>
   (BUILDINGS.find((b) => b.id === id) || { name: id }).name;
 
-// NOT the shop's fmt(), deliberately: that one appends "M" to every number at
-// night, because the dream is a place where you'd believe you have 2,000M mice.
-// That is the right joke on the rail and the wrong one in a tuning table, where
-// Scent Trail's 60,000,000 reading as "60,000,000M" is just a misprint. The
-// effect column IS still shop text (M suffix and all) — it is quoted verbatim on
-// purpose, since checking what the rail actually says is half of what the table
-// is for.
+// NOT the shop's fmt(): that one appends "M" to every number at night (the
+// dream's joke), which in a tuning table makes 60,000,000 a misprint. The effect
+// column IS still shop text, M suffix and all — checking what the rail says is
+// half of what the table is for.
 const num = (n: number) => Math.floor(n).toLocaleString("en-US");
 
 // Human-readable unlock condition. Mirrors the AND-ed checks in unlockMet() —
@@ -136,29 +130,19 @@ function unlockText(u: HexUpgrade): string {
   return parts.join(" + ") || "always";
 }
 
-// The full content table, ported from the prototype's dev dump. Read off the
-// SIM (the authority) rather than the render mirror, for the reason the console
-// handle below is the sim: the mirror drops server-private fields.
-//
-// `available` here is unlockMet against live state, NOT the shop's sticky
-// `unlocked` — so a row whose condition wobbles reads as locked in this table
-// while the rail still shows it. That is the more useful truth for tuning: it
-// answers "are this row's gates met right now?".
-//
-// Rows are walked in UPGRADES order, which is shop order (refreshUpgrades
-// renders the same array), so a row sitting out of cost sequence here is
-// sitting out of sequence on the rail.
+// The full content table, read off the SIM (the authority), not the mirror,
+// which drops server-private fields. `available` is unlockMet against live
+// state, NOT the shop's sticky `unlocked`: "are this row's gates met right
+// now?" is the useful truth for tuning. Rows walk in UPGRADES order, which is
+// shop order, so a row out of cost sequence here is out of sequence on the rail.
 function devContentHTML(sim: HexSim): string {
   const s = sim.state;
   const night = nightOf(s.bought);
   const bRows = BUILDINGS.map((b) => {
     const owned = s.owned[b.id] || 0;
-    // "off-phase" vs "hidden" is the difference between a row the twist has
-    // retired and one whose lifetime threshold has not been crossed yet — the
-    // two reasons isRevealed says no, and they mean opposite things to a tuning
-    // pass. Compare the two booleans, not b.night against a negation: b.night
-    // is `undefined` on every day building, so `b.night === !night` reads false
-    // at night and mislabelled the whole day rail as merely hidden.
+    // "off-phase" (retired by the twist) vs "hidden" (threshold not crossed) mean
+    // opposite things to a tuning pass. Compare the two booleans: b.night is
+    // `undefined` on day buildings, so `b.night === !night` mislabels the day rail.
     const state = !isRevealed(b, s)
       ? !!b.night !== night
         ? "off-phase"

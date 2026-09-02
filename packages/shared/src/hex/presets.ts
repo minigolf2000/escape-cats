@@ -1,18 +1,11 @@
-// Debug-mode jump presets: one press lands the game at a story beat, with the
-// state a real run would plausibly hold there. Ported from the frozen
-// prototype's DEV_PRESETS and RE-DERIVED against the shipped economy — the
-// prototype's `finale`/`legible` owned 58 of a fourth night tier (`nested`)
-// that the three-tier night deleted, so their numbers are recomputed here, not
-// copied. Debug-only: nothing on the wire or in the server ever reads these.
+// Debug-mode jump presets: one press lands the game at a story beat with the
+// state a real run would plausibly hold there. Debug-only: nothing on the wire
+// or in the server reads these.
 //
-// The night ladder math these lean on (see rules.ts wallCoverage): the full
-// trail ladder is 34+50+68+84 = 236 units. Without Scent Trail that yields
-// coverage ~1.53 — visibly dense but short of LEGIBLE_COV 1.6 — and with its
-// persist 60 it clears ~1.81. So `finale` (everything but Scent Trail) is
-// deliberately NOT legible with the word one purchase away, and `legible` is
-// past it. Lifetime total no longer enters any of it: the wall is fully cast
-// from the first frame of night, so coverage is a function of the PURCHASES a
-// preset carries and nothing else.
+// The night math (rules.ts wallCoverage): the full trail ladder is 34+50+68+84
+// = 236 units, ~1.53 coverage without Scent Trail (short of LEGIBLE_COV 1.6)
+// and ~1.81 with its persist 60. So `finale` is deliberately NOT legible and
+// `legible` is. Coverage is a function of the PURCHASES a preset carries only.
 
 import { UPGRADES, type HexUpgrade } from "./data";
 import { unlockMet, WALL_EFFECTS, type HexCore } from "./rules";
@@ -24,11 +17,9 @@ export interface HexPreset {
   golden?: number;
   owned?: Record<string, number>;
   bought?: string[];
-  /** Describe the DAY this state came out of, and let applyPreset run the same
-   * nightReset the purchase runs (see sim.applyPreset). A night preset written
-   * directly cannot reach the state the twist leaves: the wipe is what makes it,
-   * and the upgrades that survive it were unlocked by a lifetime and a building
-   * count that no longer exist to be written down. */
+  /** Describe the DAY this state came out of and let applyPreset run the same
+   * nightReset the purchase runs. A night preset written directly cannot reach
+   * the state the twist leaves: the wipe is what makes it. */
   twist?: boolean;
 }
 
@@ -46,30 +37,15 @@ export const DEBUG_PRESETS: Record<string, HexPreset> = {
     total: 1500000, mice: 1200000, clicks: 1100,
     owned: { shopper: 30, farm: 35, factory: 12, lab: 1 },
   },
-  // THE WALL OPENS, UNLIT. The whole cast is out there with nothing behind it —
-  // 33 anonymous specks at a third of full brightness, barely moving at a quarter
-  // speed. Paper Lantern is deliberately NOT in `bought` here — the only night
-  // preset without it — because this preset is the night as it actually begins, and
-  // the first thing it has to be earning toward is the light. Press `mice` after it
-  // to see the state the hand-over lands in; the hand-over itself only plays on a
-  // real purchase, since a jump has no beat to replay (see applyPreset).
-  //
-  // So this is written as THE DAY IT CAME OUT OF — `catnap`'s own state, down to
-  // the counters — plus `twist`, which runs the flip's nightReset over it. The
-  // jump therefore lands exactly where pressing Catnap Hypnalysis lands, and
-  // stays there as the ladder is retuned: broke, lifetime back to zero, the day's
-  // buildings gone, the day's UPGRADES kept (the wipe never touches `bought`),
-  // and one free Hole in the Wall the only thing on the rail.
-  //
-  // It used to name the night state directly — `mice: 0` with 10 Holes in the
-  // Wall and 3 Balls of String already standing. The empty bank was the right
-  // instinct and the buildings undid it: 6600 mice/s refilled it to five figures
-  // within seconds, so a beat that is ABOUT being broke was the one place you
-  // could not see it. They bought nothing else, either — the wall's cast, pace
-  // and glow are functions of `bought` alone (see wallSpeed/wallGlow), so it
-  // opens on the same 33 unlit specks with the buildings gone. (The later night
-  // presets DO carry a bank — each is deliberately one press from its beat,
-  // which is a different thing to show.)
+  // THE WALL OPENS, UNLIT: 33 anonymous specks at a third brightness and a
+  // quarter speed. Paper Lantern is deliberately NOT in `bought` — the only
+  // night preset without it — because the first thing this state has to earn is
+  // the light (the hand-over itself only plays on a real purchase). Written as
+  // THE DAY IT CAME OUT OF plus `twist`, so the jump lands exactly where
+  // pressing Catnap Hypnalysis lands and stays there as the ladder is retuned:
+  // broke, lifetime zero, day buildings gone, day upgrades kept, one free Hole.
+  // Not written as a night state directly: night buildings refill the bank in
+  // seconds, and this is the one beat that is ABOUT being broke.
   night: {
     total: 1500000, mice: 1200000, clicks: 1100, golden: 3,
     owned: { shopper: 30, farm: 35, factory: 12, lab: 1 },
@@ -115,15 +91,11 @@ const isStoryUpgrade = (u: HexUpgrade) =>
     .concat(u.effect)
     .some((e) => e.type === "night" || WALL_EFFECTS.has(e.type));
 
-/** Presets list buildings, counters and STORY rows only. The ordinary upgrades
- * a save in this state would hold are derived: unlock conditions met, paid out
- * of a share of lifetime earnings. A hand-written list rotted on every retune.
- *
- * Spends from a SHARED budget, cheapest affordable row first, until the money
- * runs out. Testing each row against the budget independently instead bought
- * every row under the threshold — several times the budget in total, a state
- * no real save reaches. Cheapest-first also resolves `requires` chains for
- * free: each purchase can make the next row eligible, and the scan reruns. */
+/** Presets list buildings, counters and STORY rows only; the ordinary upgrades
+ * are derived (a hand-written list rots on every retune). Spends a SHARED
+ * budget cheapest-affordable-first until it runs out — testing each row against
+ * the budget independently buys several times the budget — and rescans after
+ * each purchase, which resolves `requires` chains for free. */
 export const DEBUG_BOUGHT_SHARE = 0.25;
 export function debugDerivedBought(core: HexCore): void {
   let budget = core.total * DEBUG_BOUGHT_SHARE;

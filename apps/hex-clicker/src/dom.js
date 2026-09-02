@@ -1,5 +1,4 @@
-// Every element reference, in one place. The markup lives in index.html
-// (ported verbatim from the prototype); modules import what they touch.
+// Every element reference, in one place; modules import what they touch.
 
 export const $ = (s) => document.querySelector(s);
 
@@ -34,16 +33,12 @@ export const hexCatEl = $("#hexCat");
 export const catMotionEl = $("#catMotion");
 export const catFaceEl = $("#catFace");
 // The eye is three nested transform channels, one job each: #eyeLeft/#eyeRight
-// are the LIDS (scaleY), the .look groups inside them are the LOOK (translate),
-// and #pupilLeft/#pupilRight inside those are the DILATION (scale). See the eye
-// block in index.html for why they can't be collapsed.
-// .look is a list rather than a pair because each eye has two of them — the
-// pupil's group, which sits inside the socket clip, and the sleeping lash arc's,
-// which has to sit outside it. All four carry the same value.
-// #earLeft/#earRight are back: the day coat is split into a head plus two ear
-// layers, so the ears have their own channel again (a perk from the base — see
-// the pivot note in index.html). #whiskers and #mouth are still gone, since the
-// drawn head carries those as painted pixels with nothing to address.
+// are the LIDS (scaleY), the .look groups inside are the LOOK (translate), and
+// #pupilLeft/#pupilRight inside those are the DILATION (scale) — see the eye
+// block in index.html. .look is a list because each eye has two: the pupil's
+// group inside the socket clip and the sleeping lash arc's outside it.
+// #earLeft/#earRight are real layers (a perk from the base — see index.html);
+// whiskers and mouth are painted pixels with nothing to address.
 export const earLeftEl = $("#earLeft");
 export const earRightEl = $("#earRight");
 export const lookEls = [...document.querySelectorAll("#hexCat .look")];

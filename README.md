@@ -721,9 +721,12 @@ Mechanics worth knowing before changing any of it:
   locking: two players racing for it are serialized and the loser is refused.
 - **Presence is not a game rule.** The `onConnect`/`onClose` broadcasts keep
   `players` current on the snapshot; nothing on either board reads it as a rule.
-- **Both games draw the ROOM's names, and nothing else does.** A column above
-  PLAY in Goomba, a column above the shop tray in Hex — one name per line, the
-  dropped ones dimmed. Never a label on a teammate's anchor or a band: a name
+- **Both games draw the ROOM's names, and nothing else does.** In both it is a
+  column standing on that game's own bottom control — above PLAY in Goomba,
+  above the SHOP tab in Hex — one name per line, the dropped ones dimmed. Hex's
+  was in the opposite corner from its tab for a while, which put a tab's height
+  of empty screen under the names and the whole width of the phone between them
+  and the thing that explained it. Never a label on a teammate's anchor or a band: a name
   attached to a THING says whose it is, and neither game has an owner for
   anything. Goomba's earlier roster was deleted for a good reason and it was not
   this one — it was a centred line at a hardcoded offset, sitting in the corridor

@@ -55,8 +55,9 @@ a saucer where a yellow-on-yellow ring smeared. Don't reintroduce the switch.
 Game RULES live in `packages/shared/src/hex/` (data/rules/sim) — never here.
 The markup + CSS are in `index.html`, ported verbatim from the prototype plus
 the multiplayer shell (join gate, roster, reconnect toast) at the bottom. The
-roster is a column of names above the shop tray, riding its measured top edge
-(`--dock-up`, written by `main.js`) — see `#team` in `styles.css`.
+roster is a column of names standing on the SHOP tab, riding the dock's
+measured height (`--dock-up`, written by `main.js`) — see `#team` in
+`styles.css`.
 
 Debug: `window.__hex` exposes the mirror + `send()` for console/Playwright
 driving. `?debug&speed=20` fast-forwards a run. The 🛠 panel's `spawn golden`

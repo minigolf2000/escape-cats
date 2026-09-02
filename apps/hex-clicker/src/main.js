@@ -176,7 +176,7 @@ function initGame() {
 }
 
 /** How far up the screen the shop tray reaches, published to CSS as `--dock-up`
- * so the roster can ride its top edge (see `#team` in styles.css).
+ * so the roster can stand on the SHOP tab (see `#team` in styles.css).
  *
  * MEASURED, never copied. The tray has three heights — open, collapsed to the
  * bare SHOP rail, and gone once the shop retires — and every one of them is a

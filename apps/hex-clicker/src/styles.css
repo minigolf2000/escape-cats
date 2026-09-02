@@ -163,7 +163,6 @@
     --muted: #6E5A57;
     --dim: #93807C;
     --line: rgba(49,43,42,.16);
-    --icon-bg: rgba(255,255,255,.52);
     /* Darkened to carry on a light row — the old pair were tuned to glow on the
        blue and both washed out here, red worst. Still the same two readings. */
     --cost-ok: #1C7F45;
@@ -216,7 +215,6 @@
     --muted: #77808f;
     --dim: #545d6c;
     --line: #262b36;
-    --icon-bg: #171a21;
     --cost-ok: var(--gold);
     --cost-no: #6b5535;
     --row-press: rgba(255,255,255,.11);
@@ -950,7 +948,6 @@
     --muted: #55504E;
     --dim: #6E6866;
     --line: #141110;
-    --icon-bg: #FFFFFF;
     /* Darkened off the dark-shelf pair (#7FE39B / #FF7B70), which were tuned to
        glow on green and are two pastels on paper. Checked against white: 4.7:1
        and 4.6:1, comfortably past the bar for the price line (20px at 700). */
@@ -1191,12 +1188,23 @@
   .item.can { cursor: pointer; opacity: 1; }
   .item.can:active { background: var(--row-press); }
   .item .icon {
-    /* Fixed WIDTH for every row, full row HEIGHT. Rows still vary in height
-       (upgrade effect text wraps, and the one building blurb adds a line), so a
-       fixed square would leave a strip of row background above and below each
-       tile and turn every row boundary into five edges. Stretched, the tint is
-       one unbroken column that the row lines cross cleanly; keeping the glyphs
-       agreeing row-to-row is font-size's job, not the tile's.
+    /* Fixed WIDTH for every row, and NO PAINT of its own. It used to carry an
+       --icon-bg tint, and THAT is what the `align-self: stretch` was for: a
+       tinted box only as tall as its glyph leaves a strip of row showing above
+       and below it, turning every row boundary into five edges. But the tint
+       read as a block of another colour sitting ON the row rather than as a
+       column — worst on the night skin, where it was several shades off the
+       row — so the row's own background is now the only one, and --icon-bg has
+       no reader left anywhere.
+       With nothing painted the stretch had nothing to hold, so it went too.
+       The GLYPH does not move for that: `align-items: center` on the row lands
+       it on the same centre line either way (measured both ways, every row
+       type in both skins — glyph rects identical to the pixel). What does
+       change is this box's own rect, which is now glyph-height instead of
+       row-height. Invisible while it paints nothing — so ANYTHING that gives
+       this rule a background again needs `align-self: stretch` back with it,
+       or it will paint a short block mid-row. Keeping the glyphs agreeing
+       row-to-row is font-size's job, not the box's.
 
        THE GUTTER LIVES INSIDE THE WIDTH, and that is the whole of the icon
        being centred. As a `margin: 0 11px 0 0` outside a 36px tile it centred
@@ -1208,10 +1216,10 @@
        glyph centred in a tile of width w followed by a gutter g has equal gaps
        only when g is 0, so g has to be part of w — which is why `.item` carries
        no `gap` and this tile no margin. */
-    flex: none; align-self: stretch;
+    flex: none;
     width: calc((36px + 11px) * var(--ss));
     display: grid; place-items: center;
-    font-size: calc(18px * var(--ss)); background: var(--icon-bg);
+    font-size: calc(18px * var(--ss));
   }
   /* Cookie Clicker's own store-row placement: name top-left, price under it in
      the same column, quantity pulled out to its own corner on the right. */

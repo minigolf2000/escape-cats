@@ -1196,11 +1196,23 @@
        fixed square would leave a strip of row background above and below each
        tile and turn every row boundary into five edges. Stretched, the tint is
        one unbroken column that the row lines cross cleanly; keeping the glyphs
-       agreeing row-to-row is font-size's job, not the tile's. */
+       agreeing row-to-row is font-size's job, not the tile's.
+
+       THE GUTTER IS PART OF THE TILE, and that is what makes the glyph look
+       centred. It used to be a `margin: 0 11px 0 0` outside a 36px tile, which
+       centres the glyph in the 36 — but the row starts flush at the dock's left
+       edge, so what a player actually sees is the space either side of the
+       glyph: 10px to the screen edge on the left, and 26.5 to the first letter
+       on the right (the tile's own 10 plus the 16.5 margin). Same centre,
+       nothing wrong with the arithmetic, and it reads pushed into the corner.
+       Rolled into the width the two gaps come out 18.3/18.3 and the text starts
+       at exactly the same x as before — only the glyph moves. Balancing it any
+       other way is not available: with the tile flush left, a glyph centred in
+       a tile of width w followed by a gutter g has gaps that can only be equal
+       when g is 0, so the gutter has to live inside w. */
     flex: none; align-self: stretch;
-    width: calc(36px * var(--ss));
+    width: calc((36px + 11px) * var(--ss));
     display: grid; place-items: center;
-    margin: 0 calc(11px * var(--ss)) 0 0;
     font-size: calc(18px * var(--ss)); background: var(--icon-bg);
   }
   /* Cookie Clicker's own store-row placement: name top-left, price under it in

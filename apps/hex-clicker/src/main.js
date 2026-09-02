@@ -11,6 +11,7 @@ import {
   countIconEl,
   teamEl,
   dockEl,
+  hudEl,
   connToastEl,
   gateEl,
   gateStatusEl,
@@ -206,6 +207,26 @@ function measureDock() {
 }
 const dockRO = new ResizeObserver(measureDock);
 dockRO.observe(dockEl);
+
+/** The same trick at the other end of the screen, for #connToast, which hangs
+ * off the HUD's bottom edge. HEIGHT rather than a bottom edge for the same
+ * reason #team takes the tray's: #hud is top-anchored, so its height IS the
+ * offset. It varies with two things this file cannot hardcode — the notch (#hud
+ * pads by max(12px, env(safe-area-inset-top))) and the count's own line box,
+ * which grows when the number wraps to two lines on a narrow phone. */
+function measureHud() {
+  document.documentElement.style.setProperty(
+    "--hud-h",
+    `${hudEl.getBoundingClientRect().height}px`,
+  );
+}
+/* BORDER-BOX, unlike the dock's observer above, and the difference is the whole
+ * point of this one: the inset #connToast is trying to clear is #hud's PADDING,
+ * and a content-box observation does not fire when padding changes. Rotating a
+ * notched phone swapped env(safe-area-inset-top) in and out with no callback and
+ * left the toast hanging off a stale height. */
+const hudRO = new ResizeObserver(measureHud);
+hudRO.observe(hudEl, { box: "border-box" });
 
 let teamKey = "";
 function updateTeam() {

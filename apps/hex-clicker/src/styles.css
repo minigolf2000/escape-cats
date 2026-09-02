@@ -1482,11 +1482,28 @@
      this readout has none — it was also invisible at the size the old strip
      rendered at, which is how a disconnect went unnoticed. */
   #team .off { opacity: .42; }
+  /* THIS PHONE DROPPED. Hung off #hud's MEASURED bottom edge, the same way
+     #team above rides the tray's measured height — because the two numbers this
+     rule needs are both variable and neither is knowable from here. `top: 10px`
+     printed the pill straight over the mouse count: #bank centres, #count is
+     32px of it, and at z-index 70 over #hud's 6 the pill won and BOTH readouts
+     became unreadable (measured at 375px: toast 130-245 x 10-45, #count 118-222
+     x 12-47). The second number is the notch — #hud pads by
+     max(12px, env(safe-area-inset-top)) and this rule did not, so on a notched
+     phone the pill went the other way and sat up in the status bar. Measuring
+     the box answers both at once, which is why there is no constant here.
+
+     Still z-70, and still ABOVE the win splash (35) and the join gate (60):
+     that ordering is deliberate (see the z-index note on #splash), and moving
+     the pill into #hud as a flow child would have quietly given it up.
+     pointer-events off because it is a fixed box outside #hud's blanket rule —
+     it was eating taps in the strip it covered. */
   #connToast {
-    position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 70;
+    position: fixed; top: calc(var(--hud-h, 78px) + 8px);
+    left: 50%; transform: translateX(-50%); z-index: 70;
     padding: 6px 14px; border-radius: 999px; font-size: 13px;
     background: rgba(255,111,165,.15); border: 1px solid rgba(255,111,165,.4);
-    display: none;
+    display: none; pointer-events: none;
   }
   #connToast.on { display: block; }
 

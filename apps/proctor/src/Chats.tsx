@@ -19,9 +19,8 @@ import {
 import { closeWhileHidden } from "./closeWhileHidden";
 import { PARTYKIT_HOST } from "./net";
 
-/** Every channel that can have anybody in it: the four teams, and the testing
- * room while it is open. One list drives the sockets and the logs, so they
- * cannot disagree about which channels the board is reading. */
+/** Every channel that can have anybody in it. One list drives sockets and
+ * logs. */
 const ROOMS: Team[] = OPEN_ROOM_OPEN ? [...TEAMS, OPEN_TEAM] : TEAMS;
 
 interface ChatState {
@@ -34,26 +33,14 @@ interface ChatState {
 
 const ChatCtx = createContext<ChatState | null>(null);
 
-/**
- * Every channel's socket, in one place, above the board.
- *
- * Chat is a line from a team to the proctor as much as between teammates, so
- * the dashboard reads them all rather than making someone open five tabs. The
- * proctor connects as `?role=proctor` — a spectator, exactly as in the game
- * rooms: the server refuses a `say` from this connection, and the Roster never
- * counts it, so watching a channel does not change the "n here" line the team
- * sees.
- *
- * The LOGS are drawn inside the zone boxes (see TeamChat), but the sockets are
- * not: they belong to the page, not to a box. Five connections that opened and
- * closed as the board re-rendered would replay history on every reconnect —
- * and a box's own Clear button sends down the socket the page is already
- * holding for that room, rather than opening one to shout down.
- */
+/** Every channel's socket, above the board. The proctor connects
+ * `?role=proctor` — a spectator: the server refuses its `say` and the Roster
+ * never counts it. Sockets belong to the page, not a box: reopening on board
+ * re-renders would replay history, and a box's Clear sends down the socket
+ * already held. */
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [byRoom, setByRoom] = useState<Record<string, ChatMessage[]>>({});
-  /** One socket per room, by room id — that is how a box's Clear finds the
-   * connection for its own channel. */
+  /** One socket per room id — how a box's Clear finds its channel. */
   const socketsRef = useRef<Map<string, PartySocket>>(new Map());
 
   useEffect(() => {
@@ -74,8 +61,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setByRoom((prev) => {
           switch (msg.type) {
             case "chat":
-              // History as the server has it — on connect, on reconnect, and
-              // after a clear. Always a replace, never an append.
+              // History as the server has it: always a REPLACE (connect,
+              // reconnect, clear).
               return { ...prev, [t.id]: msg.messages };
             case "said": {
               const have = prev[t.id] ?? [];
@@ -84,8 +71,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               return { ...prev, [t.id]: [...have, msg.message] };
             }
             default:
-              // Presence is already on screen — the team's box counts who is
-              // in the game, which is the number a proctor acts on.
+              // Presence is already on screen via the team's box.
               return prev;
           }
         });
@@ -104,11 +90,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  /** Wipe one channel — the shape the wire has always had, now the shape the
-   * page has too: a Durable Object can only clear itself, and there is no
-   * server-side broadcast path between rooms to lean on either way. The
-   * confirm lives here, with the socket and the count, so every destructive
-   * chat press asks the same question. */
+  /** Wipe one channel: a Durable Object can only clear itself. The confirm
+   * lives here so every destructive chat press asks the same question. */
   const clear = (room: string, label: string) => {
     const n = (byRoom[room] ?? []).length;
     if (!confirm(`Delete ${n} message${n === 1 ? "" : "s"} from ${label}'s chat?`))
@@ -124,8 +107,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The board's chat state. Null outside the provider, which is a programming
- * error rather than a state to render — App wraps the whole page. */
+/** Null outside the provider is a programming error — App wraps the page. */
 export function useChats(): ChatState {
   const ctx = useContext(ChatCtx);
   if (!ctx) throw new Error("useChats outside ChatProvider");
@@ -135,27 +117,16 @@ export function useChats(): ChatState {
 const hhmm = (at: number) =>
   new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
-/**
- * One room's log, drawn at the bottom of that room's box — the last block in
- * the same stack as the game readouts, because it answers the same question
- * they do: how is this team getting on? The Unassigned box gets the testing
- * room's channel, which is the channel every phone in that box is typing in.
- *
- * It used to sit below the board, out of the drag's way. What made that
- * necessary was height: a box is a drop target, and one that grew by a line
- * whenever somebody typed would shove the boxes beside it out from under a
- * proctor's finger, mid-drag. The log has been fixed-height and internally
- * scrolled all along, so it can live in the box without ever moving it — that
- * is the property to keep, not the position.
- */
+/** One room's log, the last block in that room's box. It may live in a drop
+ * target ONLY because it is fixed-height and internally scrolled — a box that
+ * grew when somebody typed would shove its neighbours out from under a drag. */
 export function TeamChat({ room, label }: { room: string; label: string }) {
   const { byRoom, clear } = useChats();
   const messages = byRoom[room] ?? [];
   const loaded = byRoom[room] !== undefined;
   const logRef = useRef<HTMLOListElement | null>(null);
-  /** Whether the log was scrolled to the bottom BEFORE this render, measured
-   * in the commit that painted the previous list. A proctor reading back
-   * through a conversation must not be yanked to the end by a new line. */
+  /** Whether the log was at the bottom BEFORE this render, so a proctor
+   * reading back is not yanked to the end. */
   const pinned = useRef(true);
 
   useLayoutEffect(() => {
@@ -172,9 +143,7 @@ export function TeamChat({ room, label }: { room: string; label: string }) {
 
   return (
     <section className="chat-col">
-      {/* Titled like a game block, not with the team's name: the box's own head
-          already says whose this is, and a second copy of it read as a card
-          sitting inside the box rather than a part of it. */}
+      {/* Titled like a game block; the box's head already says whose. */}
       <h3>
         <span>💬 Chat</span>
         <span className="muted">{messages.length}</span>
@@ -186,9 +155,7 @@ export function TeamChat({ room, label }: { room: string; label: string }) {
           messages.map((m) => (
             <li className="chat-line" key={m.id}>
               <span className="chat-who">{m.name}</span>
-              {/* React escapes this; the proctor page renders the same
-                  arbitrary player-authored text the chat client does, and it
-                  never goes near innerHTML here either. */}
+              {/* Player-authored text: React escapes it, never innerHTML. */}
               <span className="chat-body">{m.text}</span>
               <time className="chat-at" dateTime={new Date(m.at).toISOString()}>
                 {hhmm(m.at)}
@@ -197,13 +164,8 @@ export function TeamChat({ room, label }: { room: string; label: string }) {
           ))
         )}
       </ol>
-      {/* The block's own destructive control, in the slot a game block's Reset
-          occupies — one wipe per channel, pressed in the box whose channel it
-          wipes. It used to be a single "Clear all chats" under the board, back
-          when the logs were under the board too; with a log inside every box,
-          one button that emptied all five was a wipe of four conversations
-          nobody had asked about. Always drawn, disabled at zero rather than
-          hidden: this is a drop target and its height must not move. */}
+      {/* One wipe per channel, in the box it wipes. Always drawn, disabled
+          at zero: this is a drop target and its height must not move. */}
       <button
         className="small danger"
         disabled={messages.length === 0}

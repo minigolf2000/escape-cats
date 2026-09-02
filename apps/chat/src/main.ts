@@ -1,8 +1,5 @@
-// Per-team chat, served at /chat/ on the lobby's origin.
-//
-// This surface asks the LOBBY which team this phone is on and uses that as its
-// room, exactly as the game client does — so there is no team picker here, no
-// `?room=` override, and no way to end up in someone else's channel.
+// Per-team chat at /chat/ on the lobby's origin. The LOBBY says which team
+// this phone is on, and that is the room — no team picker, no `?room=` override.
 
 import PartySocket from "partysocket";
 import {
@@ -21,10 +18,8 @@ import "./styles.css";
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? "127.0.0.1:1999";
 
-// The same keys the lobby and the game use. localStorage is per-ORIGIN, so this
-// only lines up while chat is served alongside them (see the README's origin
-// constraint) — which is exactly why /chat is a path on the lobby's origin
-// rather than a surface behind its own domain.
+// Same keys as the lobby and the game. localStorage is per-ORIGIN, which is
+// why /chat is a path on the lobby's origin, not its own domain.
 const PID_KEY = "escape-cats-pid";
 const NAME_KEY = "escape-cats-name";
 
@@ -48,18 +43,12 @@ let connected = false;
 /** Whether we have EVER been connected, so the first wait says "Connecting"
  * and a later one says "Reconnecting". */
 let everConnected = false;
-/** Whether the chat shell is already in the DOM. The shell is built ONCE and
- * then repainted, because rebuilding it would throw away whatever the player
- * has half-typed every time someone else joins or speaks. */
+/** The shell is built ONCE and repainted, or a rebuild would throw away a
+ * half-typed line every time someone speaks. */
 let shell = false;
-/** Lines typed before the socket was open, flushed when it opens.
- *
- * partysocket connects asynchronously, so the composer is on screen and usable
- * a moment before there is anything to send down — and a phone on venue wifi
- * drops mid-conversation. Dropping what someone already typed and watched
- * disappear is the worst of the options; the hex client queues taps that beat
- * its socket for the same reason. Bounded by CHAT_BURST because that is all the
- * server would accept in one flush anyway. */
+/** Lines typed before the socket opened, flushed when it opens — partysocket
+ * connects asynchronously, and venue wifi drops mid-conversation. Bounded by
+ * CHAT_BURST, all the server accepts in one flush. */
 let outbox: string[] = [];
 
 function myName(): string {
@@ -67,31 +56,17 @@ function myName(): string {
 }
 
 function teamName(id: string): string {
-  // Falls back to the raw id, though the only ids that reach here are a real
-  // team's (the lobby validates every assignment against TEAMS) or the testing
-  // room's, which is not one of them by design.
+  // Only a real team id or t0 reaches here (the lobby validates assignments).
   if (id === OPEN_TEAM.id) return OPEN_TEAM.name;
   return TEAMS.find((t) => t.id === id)?.name ?? id;
 }
 
-// ---------------------------------------------------------------------------
-// Connections
-// ---------------------------------------------------------------------------
+// ---- Connections ----
 
-/**
- * Watch the lobby for this phone's room, then open that channel.
- *
- * Which room comes from `roomFor`, the same rule both games use: a sorted
- * phone gets its team's channel, an unsorted one gets the shared testing
- * room's (or none, and the waiting screen, when that room is closed).
- *
- * Connecting also REGISTERS the phone in the lobby roster (the same pid+name
- * contract the landing page and the game use), so a player who opens chat
- * before being sorted shows up on the proctor's list. In a real team the
- * socket closes; in the testing room it stays open, so a tester the proctor
- * later sorts is reloaded into their team's channel rather than left talking
- * to the testers.
- */
+/** Watch the lobby for this phone's room (`roomFor`, the rule both games
+ * use), then open that channel. Connecting also REGISTERS the phone in the
+ * lobby roster. On a real team the lobby socket closes; in the testing room
+ * it stays open, so a tester sorted later reloads into their team's channel. */
 function watchTeam() {
   const lobby = new PartySocket({
     host: PARTYKIT_HOST,
@@ -150,14 +125,12 @@ function connect() {
     }
     switch (msg.type) {
       case "chat":
-        // A reconnect replays the room's history, so REPLACE rather than
-        // append — otherwise a phone that drops twice shows everything twice.
+        // A reconnect replays history: REPLACE, never append.
         messages = msg.messages;
         players = msg.players;
         break;
       case "said":
-        // Dedupe on id: our own lines come back through the same fan-out, and
-        // a reconnect can race one we already have in history.
+        // Dedupe on id: our own lines come back through the fan-out.
         if (messages.some((m) => m.id === msg.message.id)) return;
         messages.push(msg.message);
         break;
@@ -179,9 +152,7 @@ function say(text: string) {
   if (outbox.length < CHAT_BURST) outbox.push(text);
 }
 
-// ---------------------------------------------------------------------------
-// Screens
-// ---------------------------------------------------------------------------
+// ---- Screens ----
 
 /** Only reached by someone who opened /chat/ directly — anyone arriving from
  * the lobby already named themselves there. */
@@ -251,9 +222,8 @@ function chatScreen() {
       if (!text) return;
       say(text);
       input.value = "";
-      // No optimistic echo. The server decides ordering, truncation and
-      // whether the line was accepted at all, so the only honest moment to
-      // show it is when it comes back.
+      // No optimistic echo: the server decides ordering, truncation and
+      // acceptance.
       input.focus();
     };
   }
@@ -272,9 +242,8 @@ function paint() {
     empty.textContent = "No messages yet - say hi.";
     log.replaceChildren(empty);
   } else {
-    // Rebuilt rather than appended: the log holds no state of its own, and 200
-    // capped lines is nothing to re-create. The composer is outside it, so
-    // nothing the player is typing is in scope here.
+    // Rebuilt, not appended: the log holds no state, and the composer is
+    // outside it.
     log.replaceChildren(...messages.map(line));
   }
 
@@ -301,9 +270,8 @@ function line(m: ChatMessage): HTMLLIElement {
 
   const body = document.createElement("span");
   body.className = "body";
-  // textContent, never innerHTML. This is the one string on any surface in the
-  // repo that is arbitrary player-authored text, so it never goes near an HTML
-  // parser — not even escaped.
+  // textContent, never innerHTML: the one arbitrary player-authored string in
+  // the repo.
   body.textContent = m.text;
 
   const at = document.createElement("time");

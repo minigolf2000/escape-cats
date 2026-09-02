@@ -50,10 +50,9 @@ export function pet(clientX, clientY) {
   }
 
   const gain = clickGain();
-  // Where on Hex the finger landed, as a fraction of her box — the stage-space
-  // x/y above can't cross the wire, because a teammate's phone is a different
-  // size and has Hex somewhere else on it. Measured against #hexCat rather than
-  // the stage so the fraction survives every layout the game puts her through.
+  // Where on Hex the finger landed, as a fraction of her box — stage px cannot
+  // cross the wire, since a teammate's phone has Hex somewhere else at another
+  // size. Measured against #hexCat so the fraction survives every layout.
   const cat = hexCatEl.getBoundingClientRect();
   // Queue first: the credit is held against the batch this tap leaves in.
   petCredit(
@@ -63,10 +62,8 @@ export function pet(clientX, clientY) {
       (clientY - cat.top) / cat.height,
     ),
   );
-  // Every tap squashes; only a sustained one spends the ear gesture. This is the
-  // ordinary reaction — the streak beat below upgrades it, and squashPet ignores
-  // a soft call that lands on top of a big one already playing, so a tap during
-  // the big reaction can no longer cut it short.
+  // Every tap squashes; the streak beat below upgrades it, and squashPet ignores
+  // a soft call landing on a big one already playing.
   squashPet(false);
 
   const now = performance.now();
@@ -81,9 +78,8 @@ export function pet(clientX, clientY) {
   ) {
     petState.slowBlinkStart = now;
     petState.petStreak = 0;
-    // The one day beat that earns the full drawn squash — the same threshold
-    // that earns the slow blink, so "she really is being petted" has one meaning
-    // in this file rather than two.
+    // The one day beat that earns the full drawn squash — the same threshold as
+    // the slow blink, so "she really is being petted" has one meaning here.
     squashPet(true);
   }
 

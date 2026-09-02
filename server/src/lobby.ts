@@ -13,38 +13,25 @@ import {
 } from "@escape-cats/shared";
 import { Roster } from "./connections";
 
-/** An ad-hoc room nobody has opened in this long drops off the proctor's list.
- * The ROOM itself is untouched — this is only how long the lobby keeps saying
- * "somebody is using this link". A week covers a playtest fortnight's worth of
- * weekends without the list growing forever. */
+/** An ad-hoc room unopened this long drops off the proctor's list. The ROOM
+ * itself is untouched. */
 const ADHOC_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-/** Hard cap on the list, newest kept. A registry fed by anyone with a URL bar
- * needs a ceiling that does not depend on the TTL doing its job. */
+/** Hard cap, newest kept — a registry fed by anyone with a URL bar needs a
+ * ceiling independent of the TTL. */
 const ADHOC_MAX = 60;
-/** Don't rewrite storage for an announce this fresh. A room announces on every
- * connect, and four phones opening one link is four announces in a second —
- * none of which tells the proctor anything the first one didn't. */
+/** Skip the storage rewrite for an announce this fresh: four phones opening
+ * one link is four announces in a second. */
 const ADHOC_SEEN_MS = 60_000;
 
 /**
- * The team lobby. One room ("main" on this party) for the whole event.
- *
- * Unlike the game rooms, this state is written through on EVERY change. A game
- * room losing its memory costs a team its progress; the lobby losing its memory
- * costs every team its identity, mid-event, with no way to rebuild it except
- * asking forty people who they are. Assignments change a handful of times per
- * event, so writing through on every change is free.
- *
- * Players are remembered by pid even after they disconnect — a phone that
- * locks between sorting and playing must come back to the same team, not
- * reappear as a stranger.
+ * The team lobby: one room ("main") for the whole event. Written through on
+ * EVERY change — losing this costs every team its identity mid-event, and
+ * assignments change a handful of times. Players are remembered by pid after
+ * they disconnect, so a locked phone comes back to the same team.
  */
 export class LobbyServer extends Server<Env> {
-  // The landing page keeps a socket open on every phone that visits, and
-  // there is one lobby for the whole event — without hibernation that single
-  // object stays resident (billed duration) as long as anyone has the page
-  // open anywhere. The identity that matters (names, teams) is already
-  // persisted; connected-ness is derived from the live sockets on demand.
+  // Hibernate: every landing page holds a socket to this one object. Identity
+  // is persisted; connected-ness is derived from the live sockets.
   static options = { hibernate: true };
 
   private roster = new Roster(() => this.getConnections());
@@ -52,24 +39,15 @@ export class LobbyServer extends Server<Env> {
   private teams = new Map<string, string>();
   /** pid -> display name, kept for players who are currently offline. */
   private names = new Map<string, string>();
-  /**
-   * **The event's level pack** — the game's levels, as links, and the only
-   * copy of them anywhere. There is no built-in list any more: an event that
-   * has never been seeded has no levels, and the selector says so.
-   */
+  /** The event's level pack, as links — the ONLY copy anywhere. No built-in
+   * list: an unseeded event has no levels. */
   private pack: LevelPack = [];
   /** Bumped on every write, so a game room can tell "same pack" from "new
    * pack" without comparing geometry. */
   private packV = 0;
-  /**
-   * **The ad-hoc room registry**: room id -> when a phone last joined it.
-   * Persisted, pruned, and shown to the proctor only.
-   *
-   * The lobby cannot discover these any other way — a Durable Object namespace
-   * has no listing, and an ad-hoc room's players are strangers to the roster
-   * the moment they stop holding a lobby socket. So the ROOM tells us, on the
-   * pack fetch it already makes (see `onRequest`).
-   */
+  /** Ad-hoc room registry: room id -> when a phone last joined. Persisted,
+   * pruned, proctor-only. Nothing can list Durable Objects, so the ROOM
+   * announces itself on its pack fetch (`onRequest`). */
   private adhoc = new Map<string, number>();
 
   async onStart() {
@@ -86,38 +64,26 @@ export class LobbyServer extends Server<Env> {
     if (adhoc) this.adhoc = new Map(Object.entries(adhoc));
   }
 
-  /**
-   * The internal door the GOOMBA rooms read the pack through.
-   *
-   * A room server cannot take a phone's word for the geometry it is scoring
-   * against, and it has no lobby socket of its own, so it fetches the pack
-   * object-to-object. Read-only and unauthenticated because it is reachable
-   * only from inside the Worker — `routePartykitRequest` never routes here.
-   */
+  /** The internal door the GOOMBA rooms read the pack through, object-to-
+   * object: a room cannot take a phone's word for the geometry it scores.
+   * Unauthenticated because `routePartykitRequest` never routes here. */
   async onRequest(request: Request): Promise<Response> {
-    // `?room=` is a goomba room announcing itself as it reads the pack — the
-    // registry's only source (see `adhoc`). It rides this fetch rather than a
-    // door of its own because the room already makes it on every connect, so
-    // the announce costs nothing and cannot drift out of step with "a phone is
-    // actually in there".
+    // `?room=` is a goomba room announcing itself — the registry's only
+    // source. Rides this fetch so an announce cannot drift from "a phone is
+    // in there".
     const room = new URL(request.url).searchParams.get("room");
     if (room) await this.sawRoom(room);
     if (request.method === "POST") {
-      // A pack edit forwarded by a game room (see goomba.ts). Same validation
-      // as the socket path — one implementation, two doors.
+      // A pack edit forwarded by a game room (goomba.ts): same validation as
+      // the socket path.
       const msg = (await request.json().catch(() => null)) as LobbyClientMsg | null;
       if (msg) await this.packIntent(msg);
     }
     return Response.json({ v: this.packV, pack: this.pack });
   }
 
-  /**
-   * Record that a phone just joined `room`, if it is one we track.
-   *
-   * Team rooms and the testing room are ignored: they are a fixed list the
-   * proctor's board already draws, and a registry entry for them would be a
-   * second, staler answer to the same question.
-   */
+  /** Record that a phone joined `room`. Team rooms and t0 are ignored — the
+   * board already draws them. */
   private async sawRoom(room: string) {
     if (!isAdhocRoom(room)) return;
     const now = Date.now();
@@ -128,9 +94,7 @@ export class LobbyServer extends Server<Env> {
     this.broadcastState();
   }
 
-  /** Prune to the TTL and the cap, then persist. Both bounds are applied on
-   * every write rather than on a timer: there is no alarm here, and a lobby
-   * that only ever grows is the failure mode worth spending four lines on. */
+  /** Prune to the TTL and the cap on every write — there is no alarm here. */
   private async writeAdhoc() {
     const now = Date.now();
     const kept = [...this.adhoc]
@@ -161,13 +125,9 @@ export class LobbyServer extends Server<Env> {
     this.broadcastState();
   }
 
-  /**
-   * Only a genuine player device gets persisted into the roster. Anything else
-   * connecting without a pid — a curious browser tab, a health check — would
-   * otherwise leave a phantom "Cat" that the proctor has to sort, permanently
-   * and once per visit. A real player device always sends its own pid and
-   * never claims a role.
-   */
+  /** Only a genuine player device is persisted: anything without a pid (a
+   * curious tab, a health check) would leave a phantom "Cat" to sort, once
+   * per visit. A real device sends a pid and claims no role. */
   private isPlayerDevice(
     role: string,
     ctx: ConnectionContext,
@@ -205,8 +165,8 @@ export class LobbyServer extends Server<Env> {
       case "assign": {
         if (!proctor) return;
         const team = msg.team === null ? null : String(msg.team);
-        // An unknown team id would strand the player in a room no game
-        // serves, so only ids from TEAMS are accepted.
+        // Only TEAMS ids: an unknown one strands the player in a room no game
+        // serves.
         if (team !== null && !TEAM_IDS.includes(team)) return;
         const pid = String(msg.pid);
         if (!this.names.has(pid)) return;
@@ -216,8 +176,8 @@ export class LobbyServer extends Server<Env> {
       }
       case "clearTeam": {
         if (!proctor) return;
-        // Same gate as `assign`: an unknown id would be a no-op here, but
-        // refusing it keeps "which strings name a team" in one place.
+        // Same gate as `assign`, so "which strings name a team" lives in one
+        // place.
         const team = String(msg.team);
         if (!TEAM_IDS.includes(team)) return;
         for (const [pid, t] of [...this.teams]) {
@@ -227,9 +187,8 @@ export class LobbyServer extends Server<Env> {
       }
       case "forgetRoom": {
         if (!proctor) return;
-        // The list, not the room: the Durable Object behind it keeps every
-        // level it has cleared, and the next phone through the link puts it
-        // straight back on the board.
+        // The list, not the room: its Durable Object keeps its progress, and
+        // the next phone through the link puts it back.
         this.adhoc.delete(String(msg.room));
         await this.writeAdhoc();
         this.broadcastState();
@@ -237,16 +196,16 @@ export class LobbyServer extends Server<Env> {
       }
       case "forget": {
         if (!proctor) return;
-        // One player at a time. A still-connected phone re-registers itself on
-        // its next reconnect, so this is "drop the row", not a ban.
+        // "Drop the row", not a ban: a connected phone re-registers on
+        // reconnect.
         const pid = String(msg.pid);
         this.names.delete(pid);
         this.teams.delete(pid);
         break;
       }
 
-      // ---- the level pack. Any phone, no proctor gate: the level selector IS
-      // the editor now, and this runs for one weekend in one room.
+      // ---- the level pack. Any phone, no proctor gate (README: the selector
+      // is the editor).
       case "packSet":
       case "packMove":
       case "packDelete":
@@ -258,14 +217,9 @@ export class LobbyServer extends Server<Env> {
     this.broadcastState();
   }
 
-  /**
-   * Apply one pack edit. Returns whether the pack actually changed.
-   *
-   * Every branch validates by DECODING rather than by shape. A link that does
-   * not parse would otherwise reach four phones and be silently dropped by each
-   * of them — a level that vanishes with nobody able to say why — so it is
-   * refused here, at the one place that owns the pack.
-   */
+  /** Apply one pack edit; returns whether the pack changed. Validate by
+   * DECODING, not shape: a link that does not parse would otherwise be
+   * silently dropped by four phones — refuse it here, where the pack is owned. */
   private async packIntent(msg: LobbyClientMsg): Promise<boolean> {
     const before = this.pack;
     switch (msg.type) {
@@ -313,16 +267,10 @@ export class LobbyServer extends Server<Env> {
     return true;
   }
 
-  /**
-   * Persist a new pack, tell every phone, and tell every game ROOM.
-   *
-   * The rooms are the part that is easy to forget: a team mid-level holds its
-   * own copy of the levels for scoring, and "apply immediately" means it has to
-   * hear about the change without waiting for someone to reconnect. There is no
-   * subscription — the team ids are a fixed constant, so this just pokes all
-   * four. Cheap, bounded, and it wakes a hibernating room exactly as a player
-   * connecting would.
-   */
+  /** Persist, tell every phone, and poke every game ROOM: a team mid-level
+   * holds its own copy for scoring and must hear the change without a
+   * reconnect. No subscription — TEAM_IDS is a constant, so poke all four; the
+   * fetch wakes a hibernating room. */
   private async writePack() {
     this.packV++;
     await this.ctx.storage.put("pack", this.pack);
@@ -332,8 +280,7 @@ export class LobbyServer extends Server<Env> {
       TEAM_IDS.map((id) =>
         this.env.Goomba.get(this.env.Goomba.idFromName(id))
           .fetch("http://room/pack-changed", { method: "POST" })
-          // A room that will not wake is not worth failing the edit over; it
-          // re-reads the pack on its next connect anyway.
+          // A room that will not wake re-reads the pack on its next connect.
           .catch(() => undefined),
       ),
     );
@@ -371,14 +318,8 @@ export class LobbyServer extends Server<Env> {
     };
   }
 
-  /**
-   * Two payloads, not one: the proctor's carries the ad-hoc room list and a
-   * player's does not, so this cannot use `this.broadcast`.
-   *
-   * Both strings are built once and sent to whoever wants them — the cost of
-   * the split is one extra `JSON.stringify` per broadcast, against a fan-out
-   * that was already one send per phone.
-   */
+  /** Two payloads: the proctor's carries the ad-hoc list, a player's does
+   * not, so this cannot use `this.broadcast`. */
   private broadcastState() {
     const forPlayers = JSON.stringify(this.snapshot(false));
     let forProctors: string | null = null;

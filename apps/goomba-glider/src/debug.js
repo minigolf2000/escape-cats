@@ -1,16 +1,10 @@
-// The two debug switches. Neither one OWNS the levels grid any more: a team
-// that clears every level earns it (goombaCleared in goomba/sim.ts), and these
-// are the tester's way into that state without playing the game first.
-//   ?solo   — the shared GoombaSim running in-page, no server, no lobby (hex's
-//             debug architecture: the game code sees snapshots arriving and
-//             intents leaving, and cannot tell there is no room behind them).
-//   ?debug  — the REAL multiplayer game, with the level selector unlocked on
-//             THIS phone as if the room had cleared: the LEVELS grid where
-//             tapping a card jumps the whole room (a real wire intent).
-//             ?solo implies the override too.
-// The server validates everything in a real room, so shipping this costs
-// nothing security-wise — the override is a client-side gate, and the `goto`
-// behind it was always open to any player in the room.
+// The two debug switches — the tester's way into the cleared-room state
+// (goombaCleared in goomba/sim.ts) without playing the game first:
+//   ?solo   — the shared GoombaSim in-page, no server, no lobby; the game code
+//             cannot tell there is no room behind it.
+//   ?debug  — the REAL multiplayer game with the selector unlocked on THIS
+//             phone; a card tap is a real room-wide `goto`. ?solo implies it.
+// The server validates everything, so the override is a client-side gate only.
 
 import {
   GOOMBA_LEVELS,
@@ -32,20 +26,10 @@ export function soloFromUrl() {
 }
 
 /**
- * A level handed over in the URL hash — the Figma paste target's "play for
- * real" lands here — appended to the level list and returned as its index.
- *
- * Appending to `GOOMBA_LEVELS` rather than teaching the sim about a second kind
- * of level is what makes this play for REAL: the placement rules, the phases,
- * the scoring and the animation all read that array and cannot tell the
- * difference. The one thing they must not do is disagree about
- * its LENGTH, so this has to run before `new GoombaSim`, which sizes
- * `completed` from it.
- *
- * Solo only, and now the ONE kind of level that is not in the event's pack:
- * everything else a phone plays arrives from the lobby over the room socket.
- * A link is how a level travels before it has reached a pack — off someone
- * else's phone, out of a chat message — so it stays.
+ * A level handed over in the URL hash, appended to `GOOMBA_LEVELS` (so every
+ * rule plays it for real) and returned as its index. Must run before
+ * `new GoombaSim`, which sizes `completed` from that array. Solo only — the
+ * one kind of level not in the event's pack.
  */
 export function adoptHashLevel() {
   if (location.hash.length <= 1) return null;
@@ -61,10 +45,7 @@ export function startDebug(opts) {
   const sim = new GoombaSim(Date.now());
   let runTimer = null;
 
-  // A one-player room, on this phone's REAL pid — the roster line is drawn from
-  // it, and a band carries it as a note of who laid it. Nothing divides the
-  // four bands by headcount any more, so a solo bench lays all four exactly as
-  // a full room's first player could.
+  // A one-player room on this phone's REAL pid; it may lay all four bands.
   const pid = playerId();
   const emit = () => {
     opts.onSnapshot(
@@ -114,11 +95,9 @@ export function startDebug(opts) {
       case "goto":
         sim.goto(msg.level, now);
         break;
-      // The pack, edited with no server behind it. `?solo` is a laptop with no
-      // room — but it is still the editor, so the same four intents have to
-      // mean something here or the grid's buttons would be dead. They act on
-      // the in-page level list directly; `reconcile` then fits the solo room to
-      // it exactly as the real room does.
+      // The pack, edited with no server behind it: the four intents act on the
+      // in-page list and `reconcile` fits the solo room to it as the real
+      // room does.
       case "packSet": {
         const pack = currentPack();
         if (msg.index === null || msg.index === undefined) pack.push(msg.hash);

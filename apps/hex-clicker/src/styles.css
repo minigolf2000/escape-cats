@@ -1,38 +1,14 @@
-/* hex-clicker — the whole stylesheet.
- *
- * Ported verbatim from the prototype's single file, then from index.html: this
- * was 1,505 lines of inline <style> in the markup, which is the one thing about
- * this app that did not match lobby/chat/proctor (each already has its own
- * styles.css). Imported from main.js, so Vite hashes and inlines it the same way
- * it does theirs.
- *
- * Two halves, in the order they were written: the GAME, and under it the
- * MULTIPLAYER SHELL that the coop port added (join gate, team strip, reconnect
- * toast, win pill).
- */
+/* hex-clicker — the whole stylesheet, imported from main.js. Two halves: the
+ * GAME, and under it the MULTIPLAYER SHELL (join gate, team strip, reconnect
+ * toast, win pill). */
 
   /* ---- THEME ----
-     Every themeable surface reads a var; DAY is the default in :root and NIGHT
-     overrides the same names on body.night. Component rules below never
-     hardcode a color, so the Catnap flip restyles the entire game without a
-     parallel set of `body.night .whatever` rules for each widget.
-
-     Day is a deliberate Cookie Clicker pastiche — painted wallpaper, hard
-     rules, green/red price signalling. That's the joke AND the setup: it reads
-     as a cozy, familiar idle game, so when Catnap Hypnalysis strips it away to
-     the bare dark dream, the contrast is the reveal. The one font is Baloo 2,
-     self-hosted from public/fonts/ — no third-party request, and no version of
-     it that a network can be late with.
-
-     It was a base64 data URI in this file, which is the same promise ("no
-     external asset") kept a worse way. A stylesheet is RENDER-BLOCKING: the
-     19KB face became 26KB of base64 that gzip cannot touch, sitting between
-     the browser and the first pixel of the page. Splitting it back out took
-     this file from 26KB gzipped to 5.6KB, and hex's first paint from ~1140ms
-     to ~830ms on an emulated 4G phone — measured three runs each way. The
-     preload in index.html is what keeps the face itself from arriving any
-     later than it did inline: it starts on the same pass that finds the
-     stylesheet, rather than waiting for the @font-face rule to be parsed. */
+     DAY is the default in :root and NIGHT overrides the same names on
+     body.night; component rules never hardcode a colour, so the Catnap flip
+     restyles the whole game on one class. Day is a Cookie Clicker pastiche on
+     purpose — the contrast with the bare dark dream is the reveal. The one font
+     is Baloo 2, self-hosted from public/fonts/ and PRELOADED in index.html; a
+     stylesheet is render-blocking, so never inline it here as a data URI. */
   @font-face {
     font-family: 'Baloo 2'; font-style: normal; font-weight: 100 900; font-display: swap;
     src: url(/fonts/baloo2.woff2) format('woff2');
@@ -41,84 +17,41 @@
     --gold: #ffd44d;
     --neon: #57e6c9;
     --ss: 1.5;  /* shop skin scale (locked) */
-    /* THE TAP CURVE — every move a finger asks for directly (the shop tray, its
-       caret) runs on this. `ease` is the wrong shape for those: it is
-       cubic-bezier(.25,.1,.25,1), which leaves the start slope BELOW linear, so
-       the first ~60ms after a tap is the slowest part of the travel. That gap
-       between finger-down and anything visibly moving is what reads as lag —
-       the duration was never the problem.
-       This curve leaves at ~5x linear instead, so the tray is already most of
-       the way there while the tap still feels current, then settles long. It is
-       dockIn's curve, deliberately: the dock arrives on it, so the tray opening
-       and shutting on it makes the whole thing one piece of furniture rather
-       than a panel with its own motion vocabulary. Both directions get it —
-       symmetric, because a collapse is just as much a direct answer to a tap as
-       an expand is, and there is nothing to "settle into" on the way out that
-       an accelerate curve would be describing. */
+    /* THE TAP CURVE — every move a finger asks for directly (the tray, its
+       caret) runs on this. Not `ease`: its start slope is below linear, so the
+       first ~60ms after a tap is the slowest part of the travel, which reads as
+       lag. This leaves at ~5x linear and settles long; it is dockIn's curve, so
+       the tray and its arrival are one piece of furniture. Symmetric on purpose. */
     --tap-ease: cubic-bezier(.16, .84, .44, 1);
-    /* Paired with the curve above and shared by both, so the tray and its caret
-       cannot drift apart. Shorter than the .25s it replaces, but that is the
-       small half of the change — with a front-loaded curve, 220ms of this reads
-       faster than 250ms of `ease` by a wider margin than the 30ms suggests.
-       SHOP_CLOSE_MS in shop.js is this number: the sold-out beat waits on this
-       transition before it relabels the rail. Move one, move the other. */
+    /* Shared by the tray and its caret so they cannot drift apart.
+       SHOP_CLOSE_MS in shop.js is this number: move one, move the other. */
     --tap-ms: .22s;
     /* Where the day sunburst converges inside #stage, and therefore where Hex
        is parked: #rays hangs its center here and #catWrap offsets from the same
        number. Above true center because the shop owns the bottom of the screen.
        Move this one value and cat + background travel together. */
     --sun-y: 33%;
-    /* NIGHT pose: where the sleeping cat sits, as screen px from the stage center.
-       Written every resize by syncPoseVars() from the wall's own scene->screen
-       mapping, because the target is a SCENE coordinate — the center of the blue
-       crew's orbit — and no fixed vh/px pair lands on it at more than one aspect
-       ratio. The values below are the old hand-set pose, kept as the fallback for
-       the window before the wall first sizes itself (and if it never does).
-       See `body.night #catPose` and syncPoseVars. */
+    /* NIGHT pose: where the sleeping cat sits, as screen px from the stage
+       centre. Written every resize by syncPoseVars() — the target is a SCENE
+       point (the centre of the orbit), and no fixed vh/px pair lands on it at
+       more than one aspect ratio. These values are the fallback until the wall
+       first sizes itself. */
     --pose-x: 0px;
     --pose-y: calc(39vh - 104px);
-    /* And how big she is once she gets there, as a multiplier on the night pose.
-       Also syncPoseVars'. 1 is "the size she has always been on a phone" — that is
-       not a coincidence, it's what the target is calibrated to, so every portrait
-       phone resolves this to exactly 1 and nothing about them changes. */
+    /* Her size once she gets there, as a multiplier on the night pose. Also
+       syncPoseVars'; every portrait phone resolves it to exactly 1. */
     --pose-fit: 1;
 
     --ui-font: 'Baloo 2', system-ui, sans-serif;
-    /* The daytime page is the hand-painted polka dot from the art file. It is a
-       LAYER LIST, and the order matters: the bloom stays on top of the art, so
-       the same soft convergence at --sun-y that used to sit over the blue
-       stripes now sits over the dots. #rays (the slow conic spiral) is a
-       separate element above both and is untouched by this — the spiral still
-       turns over the new paper exactly as it did over the old.
-       The bloom warmed from blue to white/rose because it is lighting pink now;
-       left cold it read as a grey haze on the art rather than sunlight.
-
-       THE PAPER TILES; IT DOES NOT STRETCH, and it is no longer a file.
-       It was `bg-dots.jpg center center / cover no-repeat`: one 900x1295 sheet
-       scaled to whatever the viewport happened to be, so the dots were ~32px on a
-       phone and half again that on a tablet. Wallpaper does not work that way — a
-       dot is a fixed size and there are simply more of them on a bigger wall. That
-       was fixed by cropping a 444x444 tile and repeating it at 240px.
-       The tile is now drawn instead of shipped. The pattern is a flat ground and
-       one dot, which is exactly what two radial-gradients say, so the 17KB JPEG
-       bought nothing but its own compression artefacts — and being a photograph of
-       paint it could only ever be resampled, never re-rendered, so it softened on
-       a phone and showed JPEG ringing around each dot at 3x.
-       Measured off the artist's own tile rather than guessed: ground #F4C0C0, dot
-       #E7B7B7 (about 5% darker, which is the whole reason the pattern reads as
-       texture and not as spots), dot radius 13.4px and one dot per ~3390px2 of
-       wall. Two gradients half a cell apart give that density in an 82px cell,
-       which is the offset grid the art paints by hand.
-       The dots fade to their OWN colour at zero alpha rather than to `transparent`:
-       `transparent` is rgba(0,0,0,0), so interpolating to it drags every edge
-       through grey and leaves a dirty ring on a pink ground.
-       Seamlessness is now structural — a gradient cell cannot have a visible seam —
-       so the old constraint on re-cropping ("four dot-free edges") is retired with
-       the file. To restyle, move the two colours and the three lengths.
-       `fixed` is deliberately gone with `cover`. Its whole effect was to hold the
-       stretched sheet still while the page moved; a tile that repeats forever has
-       nothing to hold still, and background-attachment: fixed on a repeating layer
-       is a known scroll-performance trap on mobile Safari. */
+    /* The daytime page: a LAYER LIST, bloom on top of the polka-dot paper. The
+       paper TILES (a dot is a fixed size; a bigger wall has more of them) and is
+       drawn, not shipped: two radial-gradients half a cell apart give the art's
+       own density (dot radius 13.4px, one per ~3390px2) in an 82px cell. Ground
+       and dot measured off the artist's tile; the dot is ~5% darker, which is
+       why it reads as texture and not spots. The dots fade to their OWN colour
+       at zero alpha, never to `transparent` (rgba(0,0,0,0) drags every edge
+       through grey). No `fixed`: background-attachment: fixed on a repeating
+       layer is a scroll-performance trap on mobile Safari. */
     --paper: #f4c0c0;
     --paper-dot: #e7b7b7;
     --paper-cell: 82px;
@@ -129,23 +62,11 @@
       radial-gradient(circle at 75% 75%, var(--paper-dot) 0 15%, rgba(231,183,183,0) 17%)
         0 0 / var(--paper-cell) var(--paper-cell) repeat,
       var(--paper);
-    /* THE SHOP IS BRUTALIST: white ground, black ink, hard rules.
-       It has been three things now — a wash that let the polka dot through (no
-       edge at all), then a green surface (#151, which fixed the edge). This is
-       the third, and it fixes something the green could not: the RAIL.
-       A 48px black-green band spanning the full width sat between Hex and her
-       shop, and it was the single largest opaque object on the screen. The tab
-       below reclaims it — see .shopHead.
-       White rather than another hue because the page is already carrying the
-       art. The wallpaper is pink and painted, Hex is a drawing, the mice are
-       five colours; a shop that is simply paper and rules is the one surface
-       that does not compete with any of it, and it makes the price readout —
-       green when affordable, red when not, the shop's whole signal — the only
-       colour on the shelf.
-       --plank keeps its name and stops being a gradient: the rail is one flat
-       ink now, because a tab that small has nowhere to put a gradient. Row text,
-       prices and coins re-pitch in the scoped block on #dock below rather than
-       here, since they are the shop's readings of these tokens, not the page's. */
+    /* THE SHOP IS BRUTALIST: white ground, black ink, hard rules. The page
+       already carries the art, so a shop that is paper and rules is the one
+       surface that does not compete, and it makes the price readout — green /
+       red, the shop's whole signal — the only colour on the shelf. Row text,
+       prices and coins re-pitch in the scoped block on #dock below. */
     --shop-paper: #FFFFFF;
     --shop-dot: #FFFFFF;   /* no dots on the shelf — it is paper, not wallpaper */
     --panel-bg: #FFFFFF;
@@ -156,41 +77,29 @@
     --plank: linear-gradient(#141110, #141110);
     --plank-line: #141110;
     --rail-ink: #FFFFFF;
-    /* Everything the tray prints, re-pitched for a light ground. These were a
-       cream-on-dark set; on a white wash over pink they were the same smudge the
-       HUD was before it flipped. --ink is the art file's own "Text/outline". */
+    /* Everything the tray prints, pitched for a light ground. --ink is the art
+       file's own "Text/outline". */
     --ink: #312B2A;
     --muted: #6E5A57;
     --dim: #93807C;
     --line: rgba(49,43,42,.16);
-    /* Darkened to carry on a light row — the old pair were tuned to glow on the
-       blue and both washed out here, red worst. Still the same two readings. */
+    /* Darkened to carry on a light row. Still the same two readings. */
     --cost-ok: #1C7F45;
     --cost-no: #BE3B2E;
-    /* The two treatments that assumed a dark tray and so cannot be tokens the
-       rows already had: the press flash (a light lift on dark, a dark press on
-       light) and the text shadow under row names (a drop shadow only reads when
-       the type is light on dark). --glyph-shadow is the same idea for the shop
-       icon, where it has to be a filter rather than a text-shadow. */
+    /* The two treatments that assume a dark tray: the press flash (a dark press
+       on light) and the text shadow under row names (only reads light-on-dark).
+       --glyph-shadow is the same idea for the shop icon, as a filter. */
     --row-press: rgba(49,43,42,.07);
     --row-shadow: none;
     --glyph-shadow: none;
-    /* The shop's "this is the number that matters" highlight. NOT --gold itself:
-       that hex is the golden mouse, the night titles and the yellow mouse, and it
-       has to stay put. This is only the shop's reading of it, deepened to a
-       bronze so it still carries on a white wash — #ffd44d on pale pink is a
-       highlighter with nothing under it. The crux glow goes dark for the same
-       reason: a yellow bloom is invisible on a light ground, so the emphasis has
-       to come from the color and the weight instead. */
+    /* The shop's "this is the number that matters" highlight. NOT --gold
+       itself, which is the golden mouse and the night titles: a bronze reading
+       of it that carries on white, where a yellow bloom is invisible. */
     --shop-accent: #96690F;
     --crux-shadow: none;
-    /* Flipped from white-on-dark to the art file's own ink, because the page
-       under this text went from a deep blue to a pale pink: white with a black
-       drop shadow was legible on the stripes and is a smudge on the dots. The
-       shadow becomes a light halo for the same reason — it now has to lift the
-       ink OFF a light ground, not punch it out of a dark one. This is the art
-       file's "Text/outline" swatch, the same one the mice's daytime keyline
-       uses, so the HUD and the mice share one line color by construction. */
+    /* The art file's "Text/outline" swatch — the same one the mice's daytime
+       keyline uses, so the HUD and the mice share one line colour. The shadow
+       is a light halo, to lift ink OFF a light ground. */
     --title-color: #312B2A;
     --title-shadow: 0 1px 0 rgba(255,255,255,.55), 0 0 12px rgba(255,255,255,.5);
     /* The mouse keyline, for the one mouse that is markup rather than art:
@@ -203,10 +112,8 @@
        FADES in — two gradient stacks cannot be transitioned into one another, so
        overriding this var would snap the whole screen from day to night on one
        frame. body keeps the day background all game; #nightSky covers it. */
-    /* The green shop is a DAY material, exactly as the wood before it was: at
-       night the tray goes back to blurring the sky, the rails to dark glass, and
-       the rail's ink back to the same --ink the rows use — the dark --rail-ink
-       exists only because the day rail is a bright green. */
+    /* The bright rail is a DAY material: at night the tray goes back to blurring
+       the sky and the rail's ink to the same --ink the rows use. */
     --panel-bg: rgba(9,11,18,.93);
     --plank: none;
     --plank-line: #262b36;
@@ -227,16 +134,12 @@
     --mouse-line: #F4F4F2;
   }
   * { box-sizing: border-box; }
-  /* RESTORING A NIGHT SAVE MUST NOT REPLAY THE TWIST.
-     The phase is applied by syncPhase() during boot, and every day->night rule below
-     is a TRANSITION on a base element — so adding body.night animates them, and a
-     player who refreshed mid-dream watched the whole dissolve again: the sky fading
-     in over 2.2s, the rays fading out over 1.8s, and the camera holding still for a
-     3.3s delay before pulling back. Five seconds of daytime turning into night, on
-     every reload.
-     `.booting` is on in the markup and removed one frame after the phase is set, so
-     a restored save simply PAINTS in its phase. Blanket rule on purpose: enumerating
-     the animated properties is how one gets missed the next time a beat is added. */
+  /* RESTORING A NIGHT SAVE MUST NOT REPLAY THE TWIST. Every day->night rule is
+     a TRANSITION on a base element, so adding body.night at boot would animate
+     the whole five-second dissolve on every reload. `.booting` is on in the
+     markup and removed one frame after the phase is set, so a restored save
+     PAINTS in its phase. Blanket rule on purpose: enumerating properties is how
+     one gets missed. */
   body.booting *, body.booting *::before, body.booting *::after {
     transition: none !important;
     animation: none !important;
@@ -245,28 +148,20 @@
     margin: 0; height: 100%; overflow: hidden;
     font: 500 13px var(--ui-font); color: var(--ink);
     -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
-    /* Kiosk lockdown: this is a proctored, locked-in escape-room game, so the
-       browser's ambient gestures are noise. `overscroll-behavior: none` kills
-       Android pull-to-refresh and the rubber-band bounce at the document edge
-       (inner scrollers re-enable their own with `contain`, below), and
-       `-webkit-touch-callout: none` stops iOS's long-press copy/share popover
-       mid-tap. Pinch/double-tap zoom is already gone via the viewport's
-       user-scalable=no; text selection via user-select above. */
+    /* Kiosk lockdown: `overscroll-behavior: none` kills pull-to-refresh and the
+       document-edge rubber band (inner scrollers re-enable their own with
+       `contain`); `-webkit-touch-callout: none` stops iOS's long-press popover. */
     overscroll-behavior: none; -webkit-touch-callout: none;
   }
   body {
     background: var(--page-bg);
     display: flex; flex-direction: column;
   }
-  /* The night sky, as a layer rather than a variable, so day->night can be a
-     DISSOLVE instead of a cut. z-index -1 puts it above body's background and
-     below every in-flow child, so it needs no cooperation from anything else.
-     Fixed, not absolute: it has to cover the whole viewport including behind the
-     fixed #hud and #dock, which body's background does too.
-     2.2s and no delay, so it runs from the moment the twist fires and is fully
-     dark at 2.2s — before the stars finish at 2.9s and well before the camera
-     starts moving at 3.3s. That ordering is the point: the world goes to night
-     first, THEN Hex is carried away from it. */
+  /* The night sky as a LAYER, not a variable, so day->night is a DISSOLVE.
+     z-index -1 sits above body's background and below every in-flow child;
+     fixed so it covers behind #hud and #dock. 2.2s, no delay: fully dark before
+     the stars finish (2.9s) and before the camera moves (3.3s) — the world goes
+     to night first, THEN Hex is carried away from it. */
   #nightSky {
     position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
     background:
@@ -277,19 +172,9 @@
   body.night #nightSky { opacity: 1; }
 
   /* ---- HUD ----
-     An overlay, not a flow element — same reasoning as the shop tray. Before
-     this, #hud sat above #stage in flex flow, so the score/mps readout ate a
-     real ~70px strip that never registered a pet tap (it was never part of
-     #catWrap at all). Fixed + pointer-events:none makes it float on top of a
-     stage that now runs edge-to-edge, so a tap "on" the score still lands on
-     the cat underneath. Nothing left inside #hud is interactive (the menu
-     button was removed earlier), so blanket pointer-events:none is safe. */
-  /* Cookie Clicker's signature readout, in our own units: one centered line
-     reading "N 🐭", with "per second: X" tucked under it. The shop rows say
-     "2.5/s" instead — terse there because it's a column competing with a name
-     and a price, verbose here because this line has the room and reads as a
-     sentence. #count and the coin are inline so they share a baseline rather
-     than stacking. */
+     An overlay, not a flow element: fixed + pointer-events:none, so a tap "on"
+     the score lands on the cat underneath (nothing in #hud is interactive).
+     One centred line "N 🐭" with "per second: X" under it. */
   #hud {
     position: fixed; top: 0; left: 0; right: 0; z-index: 6; pointer-events: none;
     padding: max(12px, env(safe-area-inset-top)) 14px 6px;
@@ -301,10 +186,8 @@
     color: var(--title-color); text-shadow: var(--title-shadow);
     font: 700 32px var(--ui-font); font-variant-numeric: tabular-nums; line-height: 1.1;
   }
-  /* Same coin as the shop rows (see currencyIconSVG()) — set once at boot,
-     never rewritten by refreshHud(), since it's static art next to a live
-     number, not part of the number itself. Sits AFTER the count, standing in
-     for the word "mice" rather than prefixing the number like a currency sign. */
+  /* Same coin as the shop rows (currencyIconSVG()), set once at boot. Sits
+     AFTER the count, standing in for the word "mice". */
   #countIcon { display: inline-block; vertical-align: middle; margin-left: 7px; margin-bottom: 4px; }
   #countIcon .coin { display: block; width: 28px; height: auto; }
   #cps {
@@ -316,11 +199,8 @@
 
   /* ---- Play area ---- */
   #stage { flex: 1 1 auto; position: relative; min-height: 0; }
-  /* Cookie Clicker's slowly-turning sunburst behind the cookie. Masked to a
-     soft disc so the spokes fade out before the screen edge instead of
-     ending in a hard circle. Day only — hidden at night the same way #wall is
-     shown at night (the theme vars are for colors; a display toggle doesn't
-     need to round-trip through one). */
+  /* Cookie Clicker's slowly-turning sunburst, masked to a soft disc so the
+     spokes fade before the screen edge. Day only. */
   #rays {
     position: absolute; top: var(--sun-y); left: 50%; width: 190vmax; height: 190vmax;
     margin: -95vmax 0 0 -95vmax; pointer-events: none; display: block;
@@ -333,64 +213,39 @@
   }
   @keyframes raySpin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { #rays { animation: none; } }
-  /* Not clickable itself — just the centering flexbox. Petting hit-tests
-     against #hexCat's actual painted shapes (see its rule below), not this
-     full-stage box, so a tap in the empty space around Hex (or between her
-     ears) doesn't count as a pet. */
-  /* Biased upward, not centered: the buildings strip is pinned to the bottom of
-     the screen (see #buildingSec), so Hex sits in the upper play area to fill
-     what used to be dead space and to stay clear of the pinned shop.
-     A static transform on this outer box only — the JS purr/dream (#catMotion)
-     and the night zoom (#catPose) live inside and compose on top of it. */
+  /* The centering flexbox, not a hit target: petting hit-tests #hexCat's
+     painted shapes. Biased upward because the shop owns the bottom of the
+     screen. A static transform on this outer box only — #catMotion and
+     #catPose compose on top of it. */
   #catWrap {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    /* Parked on the sunburst's hub (--sun-y, the same anchor #rays is positioned
-       from), NOT centered in the leftover space above the shop. Both percentages
-       resolve against #stage, so Hex sits exactly where the background converges
-       and the two can never drift apart.
-
-       This is deliberately a CONSTANT. It used to center her between the HUD and
-       the top of the dock off measured --hud-h/--dock-h, which meant every shop
-       state change — opening, collapsing to the SHOP rail, the first building
-       section appearing — slid Hex up or down the screen. She's the thing you're
-       tapping; the shop moving must not move the target out from under a finger. */
+    /* Parked on the sunburst's hub (--sun-y, the anchor #rays positions from)
+       so Hex and the background can never drift apart. A CONSTANT, deliberately:
+       centring her off measured HUD/dock heights slid the target out from under
+       a finger on every shop state change. */
     transform: translateY(calc(var(--sun-y) - 50%));
     /* Transitioned for ONE reason: the night rule below drops this offset, and
        dropping it instantly was a teleport. See that rule. */
     transition: transform 1.8s cubic-bezier(.22, .61, .36, 1);
   }
-  /* At night the wall reveal owns Hex's position (see #catPose), so drop the day
-     centering entirely — but drop it as a MOVE, not as a cut.
-     This offset is -17% of the stage (--sun-y 33% against a centred box), which
-     on a 390x844 phone is 143px: half of her entire journey from the sunburst to
-     the centre of the orbit (measured 278 -> 422 -> 570). It used to be spent in
-     the single frame `night` landed on, before the yawn had even started, so the
-     camera move that followed covered only the remaining half and the beat read
-     as a jump-cut with a glide stapled to it.
-     Duration and easing are #catPose's, deliberately: the two translates — this
-     one unscaled, that one inside the zoom — compose, so identical clocks are
-     what make them sum to a single continuous move. Change one, change both, or
-     her path picks up a kink halfway down. */
+  /* At night the wall reveal owns Hex's position (#catPose), so drop the day
+     offset — as a MOVE, not a cut: it is half her journey to the orbit's
+     centre. Duration and easing are #catPose's, deliberately: the two
+     translates compose, so identical clocks sum to one continuous move. Change
+     one, change both, or her path kinks halfway. */
   body.night #catWrap { transform: none; }
-  /* Choreography, so it hangs off .dissolving exactly like #catPose's — she yawns
-     and lets the first zzz go where the player left her, and only THEN does the
-     camera carry her down to the wall. A restored night save never gets the class,
-     so it opens already in place instead of stalling 3.3s before it moves. */
+  /* Choreography, so it hangs off .dissolving like #catPose's: she yawns where
+     the player left her, THEN the camera carries her down. */
   body.dissolving #catWrap { transition-delay: 3.3s; }
-  /* Four nested layers, one transform each, because they animate on wildly
-     different clocks and CSS can't run two durations on one property:
+  /* Four nested layers, one transform each, because they animate on different
+     clocks and CSS can't run two durations on one property:
        #catMotion — purr + dream twitch (JS, per-frame, NO transition)
-       #catPose   — the night zoom-out (slow, one-shot, 1.8s)
+       #catPose   — the night zoom-out (1.8s, one-shot)
        #catBreath — sleeping breath (slow loop, night only)
-       #hexCat    — pet squash (fast, .1s, fires constantly)
-     Flattening these into one element makes every pet squash inherit the
-     1.8s night easing and feel broken.
-
-     #catMotion sits OUTSIDE #catPose on purpose. Its moves are measured in real
-     screen px, and #catPose's night transform scales everything under it to
-     .25 — so a 3px dream twitch nested inside would render as 0.75px and read
-     as nothing. It also carries no transition of its own: purr runs at ~14Hz,
-     and any easing at all would smear a 69ms oscillation into a flat line. */
+       #hexCat    — pet squash (.1s, fires constantly)
+     #catMotion sits OUTSIDE #catPose: its moves are real screen px, and the
+     night transform scales everything under it to .25. It carries no
+     transition — the ~14Hz purr would smear into a flat line. */
   #catMotion {
     display: flex; align-items: center; justify-content: center;
     width: 100%; height: 100%;
@@ -408,67 +263,38 @@
     display: flex; align-items: center; justify-content: center;
     width: 100%; height: 100%;
   }
-  /* pointer-events:none on the root svg is load-bearing, not decoration: an
-     inline <svg> hit-tests its own bounding box by default (unlike its
-     graphics children, which default to visiblePainted), so without this a
-     tap in the gap between Hex's ears — inside the viewBox but on no
-     path — would still count as a pet. none is inherited, so every child
-     shape below re-enables auto (== visiblePainted for SVG content) to get
-     real per-shape hit-testing back; cursor/touch-action move down with it,
-     since they're meaningless on an element excluded from hit-testing. */
+  /* pointer-events:none on the root svg is load-bearing: an inline <svg>
+     hit-tests its whole bounding box, so a tap in the gap between Hex's ears
+     would count as a pet. Children re-enable auto to get per-shape hit-testing;
+     cursor/touch-action move down with it. */
   #hexCat {
     width: min(55%, 300px); height: auto; max-height: 84%;
     pointer-events: none;
-    /* day: sitting in the sunburst, so a warm white bloom like CC's cookie */
-    /* The drawing carries its own soft shadow — a wide band of COAT-COLOURED
-       pixels at partial alpha, painted into the PNG — so this only has to add a
-       little contact darkness under her, not build the whole shadow. Kept warm
-       rather than cool: the old cold bloom read as grey haze once the page behind
-       it went pink.
-       Deliberately light. Both this and the baked band are things the sunburst
-       has to show through, and they stack: at the previous .30 the two together
-       muted the spokes into a grey smear right where they converge on her. */
+    /* The drawing carries its own soft shadow in the PNG, so this only adds a
+       little contact darkness. Warm, and light: both stack under the sunburst,
+       and heavier they muted the spokes into a grey smear where they converge. */
     filter: drop-shadow(0 3px 7px rgba(120,70,70,.18));
     transition: transform .1s ease-out;
   }
-  /* Only the traced hit path takes taps. The head is five <image> layers now,
-     and an <image> hit-tests its whole RECTANGLE — so handing pointer-events to
-     the children the way the vector cat did would make the empty corners of the
-     box pettable. #catHit carries the silhouette instead. */
+  /* Only the traced hit path takes taps. The head is five <image> layers, and
+     an <image> hit-tests its whole RECTANGLE, so the empty corners of the box
+     would be pettable. #catHit carries the silhouette. */
   #hexCat #catHit { pointer-events: auto; cursor: pointer; touch-action: manipulation; }
-  /* NIGHT PET FEEDBACK. The drawn squash frames are painted in the day coat, so
-     they cannot play over the black one — which left a night poke moving nothing
-     at all: the "Zzz"/"grr…" float appeared and Hex sat perfectly still. This is
-     the same beat expressed as the one thing that works on either coat, a scale.
-     .big is the annoyed stir (the same beat that gets the full drawn sequence by
-     day) and presses harder. #hexCat already carries `transition: transform .1s
-     ease-out`, which is what eases both back.
-     Sized against how big she IS at night rather than against the day cat: the
-     wall reveal parks her at a quarter scale, where a 2-3% squash is a pixel or
-     two and reads as nothing. Proportional, so it carries at whatever size the
-     camera has left her at. */
+  /* NIGHT PET FEEDBACK. The drawn squash frames are painted in the day coat and
+     cannot play over the black one, so at night the same beat is a scale; .big
+     is the annoyed stir. Proportional, because the wall reveal parks her at a
+     quarter scale, where a 2-3% squash reads as nothing. */
   body.night #catWrap.squash #hexCat { transform: scale(.95); }
   body.night #catWrap.squash.big #hexCat { transform: scale(.90); }
   #catWrap.zoomies #hexCat { filter: drop-shadow(0 0 32px rgba(255,212,77,.45)); }
 
-  /* THE HEAD, as drawn. One frame visible at a time, picked by data-pose:
-       day  -> resting daytime coat        s1..s3 -> the pet squash, in order
-       night-> the black night coat
-     Visibility rather than display, because display:none on an <image> can drop
-     it from the decode queue in some engines and the first pet of the game would
-     then flash an empty head while the PNG loads. All five decode at boot and
-     stay decoded; only one is shown. */
-  /* Settled at .58 after comparing the options on the real cat: enough to read as
-     shadow down her right side, light enough that the sunburst turns through it.
-     A flat value rather than a variable now that the question is answered — the
-     debug rows that offered 0-100% and a blur have done their job and are gone.
-     Restoring them is the one rule here plus the branch in debug.ts.
-     No blur: the chosen softness was 0px, and a filter on this layer would force
-     a compositing layer every frame for a no-op.
-     The layer itself stays split out of the coat. That is not scaffolding — it is
-     the correct shape for this art. The shadow is painted OUTSIDE her outline, so
-     keeping it separate is what lets it be translucent at all without punching a
-     hole in her. */
+  /* THE HEAD, as drawn: one frame visible at a time, picked by data-pose (day,
+     s1..s3 the pet squash in order, night). Visibility rather than display, so
+     every frame stays decoded and the first pet never flashes an empty head.
+     The shadow is its own layer at .58 because it is painted OUTSIDE her
+     outline — keeping it separate is what lets it be translucent without
+     punching a hole in her. No blur: a filter here forces a compositing layer
+     for a no-op. */
   #hexCat #catShadow { opacity: .58; }
   #hexCat .shadowFrame, #hexCat .headFrame, #hexCat #coatDay { visibility: hidden; }
   #hexCat[data-pose="day"] #shadowDay,
@@ -480,35 +306,20 @@
   #hexCat[data-pose="s2"]  #headSquash2,
   #hexCat[data-pose="s3"]  #headSquash3 { visibility: visible; }
 
-  /* EAR PIVOT. fill-box + 50% 100% puts the origin on the BASE of each ear's own
-     cropped box, and the idle gesture is a scaleY about that line — so the base
-     pixels do not move at all and the drawn outline stays joined to the head.
-     That is why this is a perk and not the old rig's rotation: rotating a slice
-     cut out of one continuous hand-drawn line always nicks it where the line was
-     cut, and at Hex's real size that nick is plainly visible. Scaling from the
-     base is invisible in the same place, and "ears prick up" is the same thing
-     the flick was saying. */
+  /* EAR PIVOT. fill-box + 50% 100% puts the origin on the BASE of each ear's
+     own box, so a scaleY perk leaves the base pixels put and the drawn outline
+     joined to the head. Not a rotation: rotating a slice cut out of one
+     continuous hand-drawn line nicks it visibly at Hex's real size. */
   #hexCat .ear, #hexCat #earLeft, #hexCat #earRight {
     transform-box: fill-box; transform-origin: 50% 100%;
   }
 
-  /* THE COAT CHANGE. Day and night are two drawings of the same cat, one brown
-     and one black, and picking between them on a class flip cut from one to the
-     other in a single frame — at the one moment in the game where she is
-     supposed to be falling asleep. So the night coat CROSS-FADES in over the day
-     one, on the same 1.8s and the same curve as the camera move, and she darkens
-     into the night rather than being replaced by it.
-     The day coat stays FULLY OPAQUE underneath for the whole fade instead of
-     fading out in step with it: two half-transparent layers would let a quarter
-     of the page through the middle of the blend and she would go briefly
-     ghostly. It hides only after the fade, on a delayed visibility flip, because
-     the night drawing's white keyline makes it ~2% wider than the day one —
-     left underneath at full opacity that 2% reads as a thin brown fringe all the
-     way round her.
-     The delay is declared on the NIGHT rule alone, so the return leg (a dev jump
-     back to day) reads 0s off the day rule and she brightens immediately. Same
-     cascade rule as #dock's cutscene fade: the browser takes a transition from
-     the after-change style. */
+  /* THE COAT CHANGE: the night coat CROSS-FADES in over the day one on the
+     camera move's 1.8s and curve. The day coat stays FULLY OPAQUE underneath
+     (two half-transparent layers let the page through) and hides only after the
+     fade, on a delayed visibility flip, because the night keyline is ~2% wider
+     and would otherwise show a brown fringe. The delay is on the NIGHT rule
+     alone, so a jump back to day reads 0s and brightens immediately. */
   #hexCat #headNight {
     visibility: visible; opacity: 0;
     transition: opacity 1.8s cubic-bezier(.22, .61, .36, 1);
@@ -522,31 +333,19 @@
     #hexCat[data-pose="night"] #coatDay { transition: none; }
   }
 
-  /* idle-motion pivot: the head tilts about the neck. The ears no longer have
-     pivots of their own — they are painted into the frames above, and the four
-     squash frames already fold them, which is the ear motion the art ships. */
+  /* idle-motion pivot: the head tilts about the neck. */
   #catFace { transform-box: fill-box; transform-origin: 50% 96%; }
-  /* THE EYES. The artist's latest sheet puts a PUPIL back inside the socket —
-     the previous drop was a bare hollow ring, which is why look and dilate had
-     to be expressed as the whole ring sliding and the whole ring growing. There
-     is a dot inside the socket again, so both go back to meaning what they
-     normally mean: the socket holds still and the pupil moves and widens in it.
-     Colour comes through variables so Zoomies can light every yellow shape (and
-     the shut lashes) by flipping one value, rather than naming each shape. */
-  /* The artist's yellow. Briefly the shop's green, to tie the tray to the thing
-     you tap — that tie is gone with the green shop, and a brutalist tray has no
-     hue to match anyway, so the eyes go back to the drawing. */
-  /* The pupil is inked in the drawing's own line colour (#302B2A, sampled off
-     hex-day.webp rather than guessed) on the solid yellow socket. */
+  /* THE EYES. The socket holds still; the pupil moves and widens in it. Colour
+     comes through variables so Zoomies can light every yellow shape (and the
+     shut lashes) by flipping one value. The pupil is the drawing's own line
+     colour (#302B2A, sampled off hex-day.webp) on the solid yellow socket. */
   #hexCat { --hex-eye: #D0D060; --hex-pupil: #302B2A; }
   #hexCat .eye path { fill: var(--hex-eye); }
   #hexCat .eye path.pupil { fill: var(--hex-pupil); }
   #catWrap.zoomies #hexCat { --hex-eye: #ffe98a; }
 
-  /* Open socket vs the drawn shut-lash arc. Swapped as a pair, never blended:
-     the artist drew the closed eye as its own gesture (a lash curve with three
-     strokes under it), and cross-fading it with the open socket would show two
-     eyes at once through the middle of every transition. */
+  /* Open socket vs the drawn shut-lash arc, swapped as a pair, never blended:
+     cross-fading them would show two eyes at once through every transition. */
   #hexCat .eyeShut { visibility: hidden; }
   #hexCat.shut .eyeOpen { visibility: hidden; }
   #hexCat.shut .eyeShut { visibility: visible; }
@@ -556,94 +355,58 @@
     transform-box: fill-box; transform-origin: center; transition: transform .06s;
   }
   #hexCat.blink #eyeLeft, #hexCat.blink #eyeRight { transform: scaleY(.14); }
-  /* LOOK. JS-owned (updateCat), not class-driven like the lids — a gaze is a
-     continuous direction, which no set of classes can express. Nested INSIDE the
-     lid group so a blink and a glance multiply instead of overwriting each
-     other.
-     A class rather than the four ids, because there are four of these now and
-     they all get the same value: the pupil's group (inside the socket clip) and
-     the sleeping lash arc's (outside it, since the clip would shave the lashes).
-     updateCat writes them in one pass. */
+  /* LOOK. JS-owned (updateCat), not class-driven: a gaze is a continuous
+     direction. Nested INSIDE the lid group so a blink and a glance multiply.
+     A class because there are four: the pupil's group (inside the socket clip)
+     and the sleeping lash arc's (outside it, or the clip would shave the lashes). */
   #hexCat .look {
     transform-box: fill-box; transform-origin: center; transition: transform .12s ease-out;
   }
-  /* DILATION, on its own element one level further in. It is a scale and the
-     look is a translate, and a single transform cannot hold both — that is the
-     same reason the lids are split from the look. Its own element also keeps it
-     off the lash arc: scaling THAT on X would squeeze the closed eye narrow
-     every time she rested.
-     Slower than the look on purpose (.22s vs .12s). A pupil dilating is a
-     physical response with visible ramp; a glance is a snap. Same numbers as the
-     ease on #catFace, so the whole face reads as one animal. */
+  /* DILATION, one level further in: a scale, where the look is a translate, and
+     one transform cannot hold both. Its own element also keeps it off the lash
+     arc. Slower than the look (.22s vs .12s): a pupil dilating has a visible
+     ramp, a glance is a snap. Same numbers as #catFace's ease. */
   #hexCat .pupil {
     transform-box: fill-box; transform-origin: center; transition: transform .22s ease-out;
   }
 
   /* ---- Night phase (post–Catnap Hypnalysis): Hex sleeps, the wall wakes ----
-     Colors/fonts come from the body.night var block at the top — the whole
-     Cookie Clicker skin falls away on one class. Only structural/motion
-     changes live here.
-     .asleep sits after .blink so its eye rule wins the specificity tie. */
-  /* THE ZOOM-OUT. Hex glides down and shrinks to a quarter size, which reads
-     as the camera pulling back to take in the whole wall. Done as transform
-     (not width/align-items) so it's one smooth GPU-composited move — the old
-     version snapped, because align-items and width can't tween a flex reflow.
-     The translate is applied AFTER scale in the matrix, so the distance is in
-     real screen px and doesn't get quartered by the scale.
-     WHERE she lands is the orbit's center, and that is not expressible as a
-     constant: it's a point in the wall's 390x620 scene space, and the scene is
-     fitted with min(w/390, h/620), so the screen offset to it depends on the
-     viewport's SHAPE and not only its height. Hence the two custom properties —
-     syncPoseVars() recomputes them from the same mapping the canvas draws with,
-     so the cat and the ellipse around her can't drift apart on any screen. */
-  /* The zoom WAITS, and for two things now: the yawn (YAWN_MS, 1300ms) and then
-     a 2000ms hold at full size while the first zzz drift off her (see #sleepZ).
-     1.3 + 2.0 = the 3.3s delay below.
-     Without any delay the yawn is simply never seen — the zoom is ease-OUT, so
-     she is ~40% shrunk within 300ms and a thumbnail by peak gape. Without the
-     hold the zzz were legible only as she shrank, at a quarter size, during the
-     one beat the player is forced to watch. Ordering all three turns the phase
-     change into a sentence: she yawns herself to sleep, the zzz say she IS
-     asleep, and THEN the camera leaves her for the wall.
-     Delay only on the night rule, so waking (dev preset back to day) still snaps
-     back immediately. Keep in sync with YAWN_MS + ZZZ_HOLD_MS. */
+     Colours come from the body.night var block; only structure and motion live
+     here. .asleep sits after .blink so its eye rule wins the specificity tie.
+     THE ZOOM-OUT: Hex glides down and shrinks to a quarter, the camera pulling
+     back to take in the wall. A transform, so it is one composited move (width
+     and align-items cannot tween a flex reflow); translate is applied AFTER
+     scale, so the distance is real screen px. WHERE she lands is the orbit's
+     centre in the wall's 390x620 scene space, fitted with min(w/390, h/620) —
+     not expressible as a constant, hence the custom properties syncPoseVars()
+     writes from the same mapping the canvas draws with.
+     The zoom WAITS for the yawn (YAWN_MS 1300) and a 2000ms hold at full size
+     while the first zzz drift off (#sleepZ): 1.3 + 2.0 = the 3.3s delay. The
+     zoom is ease-OUT, so without the delay she is a thumbnail by peak gape.
+     Keep in sync with YAWN_MS + ZZZ_HOLD_MS. */
   body.night #catPose {
-    /* Independent of the day centering (#catWrap is neutralized at night), so
-       these offsets are measured from the bare center of #stage — which is also
-       what the wall's scene box is centered on. That shared origin is the whole
-       reason the pose can be stated as a scene offset at all.
-       --pose-fit multiplies the .25 rather than sitting on a layer of its own, so
-       her final SIZE arrives as part of the camera move like her final position
-       does. Parked on #catBreath instead it applied from the first frame of the
-       phase, which meant the yawn and the zzz hold — the beat that plays at full
-       size, before the camera moves at all — were staged at the fitted size and
-       popped on the class flip. Nothing to see on a phone either way (the fit is
-       1 there); on a tablet it was a 31% jump.
-       No transition-delay here: it is choreography, so it hangs off .dissolving
-       below rather than off `night`, where it also stalled a restored save. */
+    /* Measured from the bare centre of #stage (#catWrap is neutralised at
+       night), which is also what the wall's scene box is centred on — the
+       shared origin is why the pose can be a scene offset at all. --pose-fit
+       multiplies the .25 here rather than on a layer of its own, so her final
+       SIZE arrives as part of the camera move; parked on #catBreath it applied
+       from the phase's first frame and popped at the class flip on tablets.
+       No transition-delay here: it is choreography, so it hangs off
+       .dissolving. */
     transform: translate(var(--pose-x), var(--pose-y)) scale(calc(.25 * var(--pose-fit)));
   }
-  /* The delay is CHOREOGRAPHY, so it hangs off the cutscene rather than off `night`.
-     On `night` it also applied to a restored save, where there is no yawn and no zzz
-     to wait for — just a stall before the camera moved. Same for the breath, the zzz
-     and the starfield below. */
+  /* The delay is CHOREOGRAPHY, so it hangs off the cutscene rather than
+     `night`, where it also stalled a restored save. Same for the breath, the
+     zzz and the starfield below. */
   body.dissolving #catPose { transition-delay: 3.3s; }
   body.night #hexCat { filter: drop-shadow(0 0 16px rgba(180,140,255,.28)); }
-  /* Asleep no longer SQUASHES the eye to a sliver — it swaps in the eye the
-     artist actually drew for sleeping (.shut, the lash arc with three strokes
-     under it). A 0.07 scaleY of the open ring was the best a hollow circle could
-     do at "closed"; there is a real drawing of it now, so use that instead.
-     The REM drift underneath still plays — it just moves lashes rather than
-     pupils. */
+
 
   /* ---- Sleeping: subdued signs of life ----
-     Breath is the only always-on one; it's what separates "asleep" from
-     "paused". 4s cycle, ~3% — deliberately below conscious notice. Held off
-     at 3.1s, which used to mean "once the zoom has landed" (yawn 1.3 + zoom
-     1.8). With the zzz hold pushing the zoom back to 3.3s, 3.1s now lands just
-     inside the HOLD instead, and that is worth keeping rather than chasing the
-     zoom again: she is still full size there, so a 3% rise and fall is actually
-     legible, right where the beat is asking the player to notice she's asleep. */
+     Breath is the only always-on one, and what separates "asleep" from
+     "paused": 4s, ~3%, below conscious notice. Held off 3.1s, which lands
+     inside the zzz HOLD while she is still full size — where a 3% rise is
+     legible, right as the beat asks the player to notice she is asleep. */
   body.night #catBreath { animation: breathe 4s ease-in-out infinite; }
   body.night.dissolving #catBreath { animation-delay: 3.1s; }
   @keyframes breathe {
@@ -651,69 +414,33 @@
     50%      { transform: scale(1.03) translateY(-1.5px); }
   }
 
-  /* Idle "zzz" — the sign that she is ASLEEP rather than merely small and still.
-     Breath alone can't carry that: it is 3% over 4s, deliberately below
-     conscious notice, which reads as alive but not as sleeping. Three z's drift
-     from her head on a stagger so one is always in flight.
+  /* Idle "zzz" — the sign she is ASLEEP rather than merely small and still.
      Lives inside #catBreath, so it inherits the night pose's translate AND its
-     scale(.25) for free and stays pinned to her head through the zoom-out.
-     Two consequences, both easy to get wrong:
-     Every length here is in PRE-SCALE pixels — the 96px font lands at 24px on
-     screen. Keep that in step with the .25 above. 60px was the first try and
-     landed at 15px, which vanished into the starfield next to a 56px cat.
-     And #catBreath is the whole STAGE, not the cat: it is a flex box that
-     centres the 200x210 SVG. So the anchor is calc(50% ± px), offsets from that
-     centre, NOT from a box the size of the cat. Positioning against the box
-     directly parks the glyphs ~90px above her head, which happens to look
-     almost right and is entirely accidental — measure it, don't eyeball it.
-     115px above centre CLEARS her silhouette, and has to: the offsets here are
-     pre-scale, so they track her exactly as she shrinks, but the glyph's own size
-     is held constant by the counter-scale below — which means the glyph is 4x
-     larger RELATIVE to her once she is small. Anchored on her ear (the first
-     version, -85px) that read fine at quarter size and vanished during the new
-     full-size hold, a near-white glyph sitting on her white ear outline. Above
-     the head at 115px it is clear of her at both scales; the head's half-height
-     is 105px, so this is 10px of daylight.
-     Starts at 1.3s — YAWN_MS, the same beat the zoom and the sky start on. It
-     used to wait 3.1s to match #catBreath, which put the first z exactly at the
-     moment the cutscene ENDS (runNightCutscene runs for YAWN_MS + 1800 = 3100ms),
-     so the one stretch of the game where the player is forced to watch her fall
-     asleep was the one stretch with no zzz in it. Not earlier than 1.3s though:
-     during the yawn she is still awake, and you do not snore mid-yawn. */
+     scale(.25) and stays pinned to her head through the zoom-out. So every
+     length here is in PRE-SCALE pixels (96px lands at 24px on screen; keep in
+     step with the .25), and the anchor is calc(50% ± px) from #catBreath's
+     centre — it is the whole STAGE, not a cat-sized box. 115px above centre
+     clears her silhouette at BOTH scales (the head's half-height is 105px).
+     First z at 1.3s (YAWN_MS): not during the yawn, not after the cutscene. */
   #sleepZ {
     position: absolute; left: calc(50% + 50px); bottom: calc(50% + 115px); display: none;
     font: 700 96px var(--ui-font); line-height: 1;
-    /* Brighter than --ink, which is body text grey and disappears into a sky
-       full of stars at this size. Warm white with the night's own violet glow,
-       so it reads as HERS rather than as another star. */
+    /* Brighter than --ink, which disappears into a sky full of stars at this
+       size. Warm white with the night's violet glow, so it reads as HERS. */
     color: #e8ecf6; text-shadow: 0 0 22px rgba(180,140,255,.75), 0 0 6px rgba(0,0,0,.6);
     pointer-events: none;
   }
   body.night #sleepZ { display: block; }
-  /* COUNTER-SCALE. The glyphs live inside #catPose, so they inherit its
-     scale(.25) — which is what keeps them pinned to her head, and also what made
-     them 96px on screen during the new hold, when the pose is still at scale(1).
-     This runs the opposite curve on the same clock as the zoom above, so the
-     product stays .25 throughout: identical on-screen size while she is big AND
-     after she shrinks.
-     The stops are NOT a straight .25 -> 1, and that is the whole point. The pose
-     interpolates its scale linearly under the easing (1 -> .25), so a counter that
-     also interpolates linearly (.25 -> 1) does not cancel it — the product peaks
-     at (1-.375)(.25+.375) = .39, and the z's were measured bulging to 39px against
-     a 24px baseline halfway through the move. Each stop below is .25 / poseScale
-     at that point, with cubic-bezier(.22,.61,.36,1) evaluated into the VALUES so
-     this animation can run `linear`. Product is .250 at every stop.
-     Recompute these if the zoom's duration, easing or .25 ever move.
-     The pose ends at .25 * --pose-fit, not at a bare .25, and these stops cancel the
-     bare .25 only — so on a screen where the fit is not 1 the product drifts to that
-     factor over the 1.8s instead of holding flat, which lands the glyphs at
-     24px * fit and keeps them proportionate to the cat they belong to. That is the
-     end state we want; the cost is a slow size ease across the move rather than a
-     held size. Exact on every portrait phone, where the fit IS 1 — which is where
-     the 39px bulge above was measured and where it still cannot come back.
-     #sleepZ's own box is 0x0 (its spans are absolute), so the default
-     transform-origin is the emergence point itself — exactly what should stay
-     put. `forwards` holds the end state instead of snapping back. */
+  /* COUNTER-SCALE: runs the opposite curve on the same clock as the zoom, so
+     the product stays .25 and the glyphs hold one on-screen size while she is
+     big AND after she shrinks. The stops are NOT linear .25 -> 1: the pose's
+     scale interpolates linearly under its easing, so a linear counter peaks at
+     .39 mid-move. Each stop is .25 / poseScale with cubic-bezier(.22,.61,.36,1)
+     evaluated into the VALUES, so this can run `linear`. Recompute them if the
+     zoom's duration, easing or .25 move. They cancel the bare .25 only: where
+     --pose-fit is not 1 the glyphs ease to 24px * fit, the wanted end state.
+     #sleepZ's own box is 0x0, so the default origin is the emergence point.
+     `forwards` holds the end state. */
   #sleepZ { transform: scale(.25); }
   body.night #sleepZ { animation: zCounterScale 1.8s linear 3.3s forwards; }
   @keyframes zCounterScale {
@@ -732,9 +459,8 @@
   /* bottom:0, so a glyph grows UPWARD out of the anchor into empty sky instead of
      hanging down over her face. */
   #sleepZ span { position: absolute; bottom: 0; opacity: 0; animation: driftZ 3.6s ease-out infinite; }
-  /* 1.2s apart inside a 3.6s loop, so the three are evenly spaced forever. Each
-     is a little smaller and offset, which is what stops them reading as one
-     glyph stuttering in place. */
+  /* 1.2s apart inside a 3.6s loop, so the three are evenly spaced forever;
+     each a little smaller and offset, so they don't read as one glyph stuttering. */
   #sleepZ span:nth-child(1) { animation-delay: 1.3s; }
   #sleepZ span:nth-child(2) { animation-delay: 2.5s; left: 14px; font-size: .78em; }
   #sleepZ span:nth-child(3) { animation-delay: 3.7s; left: -8px; font-size: .6em; }
@@ -744,36 +470,27 @@
     65%  { opacity: .6; }
     100% { opacity: 0; transform: translate(52px, -130px) rotate(12deg) scale(1.2); }
   }
-  /* Motion is the whole point of this one, so there is nothing to keep when it
-     is refused — hide it rather than leaving three glyphs parked on her ear. */
+  /* Motion is the whole point, so hide it rather than park three glyphs on her ear. */
   @media (prefers-reduced-motion: reduce) {
     body.night #sleepZ { display: none; }
   }
   #wall { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
   body.night #wall { display: block; }
-  /* Fades rather than `display: none`, which cannot be transitioned and took the
-     whole sunburst out on one frame. 1.8s, no delay: the spokes are gone before
-     #nightSky finishes darkening at 2.2s, so the day comes apart in the right
-     order — light first, then colour. It keeps spinning behind zero opacity,
-     which is one composited rotation and cheaper than fighting the animation. */
+  /* Fades rather than `display: none` (untransitionable). 1.8s, no delay: the
+     spokes are gone before #nightSky finishes at 2.2s — light first, then
+     colour. It keeps spinning at zero opacity; cheaper than fighting the animation. */
   body.night #rays { opacity: 0; }
 
   /* ---- Night starfield ----
-     A backdrop that says "night" the moment the room goes dark, independent of
-     the wall mice. Dots are % positioned so they scale with the stage (no resize
-     hook needed). Hidden by default; the 1.3s delay matches the yawn (YAWN_MS),
-     so the sky comes out the moment her eyes close rather than before. It used to
-     land during the zoom; with the zzz hold in front of the zoom it now lands
-     during the HOLD, which is better — the room goes dark around a cat who is
-     still full size, and only then does the camera pull back. */
+     Says "night" independently of the wall mice. Dots are % positioned so they
+     scale with the stage. The 1.3s delay matches the yawn (YAWN_MS), so the sky
+     comes out the moment her eyes close, during the zzz HOLD. */
   #stars { position: absolute; inset: 0; overflow: hidden; pointer-events: none;
     opacity: 0; transition: opacity 1.6s ease-in; }
   body.dissolving #stars { transition-delay: 1.3s; }
   body.night #stars { opacity: 1; }
-  /* Each star: a pale dot that breathes between its base opacity (--o) and a
-     dim floor, on its own staggered clock (--dur/--delay) so the field shimmers
-     instead of pulsing in unison. Colour is a cool white so it reads as sky and
-     never competes with the neon mice. */
+  /* Each star breathes between --o and a dim floor on its own clock
+     (--dur/--delay) so the field shimmers instead of pulsing in unison. */
   #stars i { position: absolute; display: block; border-radius: 50%;
     background: #dfe9ff; box-shadow: 0 0 3px rgba(200,220,255,.5);
     animation: twinkle var(--dur) ease-in-out var(--delay) infinite; }
@@ -800,17 +517,15 @@
     100% { opacity: 0; transform: translate(-50%,-64px) scale(1); }
   }
 
-  /* per-click mouse particles (Cookie Clicker's flying cookie, but a toy mouse).
-     JS drives x/y/rot through the main loop; transform+opacity only, so each
-     particle stays on the compositor and never triggers layout. */
+  /* per-click mouse particles. JS drives x/y/rot; transform+opacity only, so
+     each stays on the compositor and never triggers layout. */
   .mousePop {
     position: absolute; left: 0; top: 0; width: 36px; pointer-events: none;
     z-index: 3; will-change: transform, opacity;
   }
 
-  /* golden mouse — art injected by spawnGold(), day only (frame() won't spawn one
-     once Hex is asleep). Nothing downstream hardcodes these dimensions; moveGold()
-     measures the element instead. */
+  /* golden mouse — art injected by spawnGold(), day only. Nothing hardcodes
+     these dimensions; moveGold() measures the element. */
   #golden {
     position: absolute; width: 62px; height: 62px; display: none; place-items: center;
     cursor: pointer; filter: drop-shadow(0 0 14px rgba(255,212,77,.85));
@@ -819,10 +534,9 @@
   #golden svg { width: 100%; height: auto; display: block; }
   @keyframes goldPulse { 0%,100% { transform: scale(1) rotate(-6deg); } 50% { transform: scale(1.14) rotate(6deg); } }
 
-  /* top clears #hud (score + per-second line): same top-pad formula #hud uses
-     for its own padding-top, plus #hud's content+bottom-pad height (~62px)
-     and a small gap, so the pill sits just under the score instead of behind
-     it — #buff is absolute against #stage, which starts flush with #hud. */
+  /* top clears #hud: the same top-pad formula #hud uses plus its content height
+     (~62px) and a gap — #buff is absolute against #stage, which starts flush
+     with #hud. */
   #buff {
     position: absolute; top: calc(max(12px, env(safe-area-inset-top)) + 70px);
     left: 50%; transform: translateX(-50%);
@@ -834,131 +548,69 @@
   }
 
   /* ---- Shop tray ----
-     An OVERLAY, not a flow element: fixed to the bottom edge, so it floats over
-     Hex instead of resizing the stage. Identical day and night — only the tint
-     changes. Hides entirely when there's nothing to sell.
-
-     No background and no border of its own: the stage (Hex, the rays, the night
-     wall) shows straight through the transparent rows, and .shopHead below
-     already draws the tray's top line. The blur is what keeps row text legible
-     over whatever art it's floating on. */
+     An OVERLAY, fixed to the bottom edge, floating over Hex rather than
+     resizing the stage. No background or border of its own: the stage shows
+     through the rows, .shopHead draws the top line, and the blur keeps row text
+     legible over whatever it floats on. */
   #dock {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
     display: none; flex-direction: column;
     background: transparent; backdrop-filter: blur(10px);
-    /* See the day override below — the tray borrows its color from the page,
-       and the page changed. */
     padding-bottom: env(safe-area-inset-bottom);
-    /* Lives on the base rule, NOT on .cutscene-hidden, so the cutscene fade runs
-       BOTH ways. A transition declared only on the state class exists only while
-       that class is on: the browser reads the transition from the after-change
-       style, so adding it fades out, and removing it takes the rule (and the
-       transition with it) away in the same frame — the shop popped back at full
-       opacity. Declared here it survives the class going away and the shop eases
-       back in as the wall reveal settles.
-       The SLIDE is the other half of the same beat: the shop leaves the way it
-       arrived (dockIn, below) — down through the screen edge it lives on — rather
-       than dissolving where it stands. Same .5s as that entrance. The easing
-       written here is the RETURN leg's, matching dockIn's; the exit overrides it
-       on .cutscene-hidden, which works for the same cascade reason the note above
-       describes — the browser reads a transition from the AFTER-change style, so a
-       timing function stated on the state class is the one used going in to it. */
+    /* On the base rule, NOT on .cutscene-hidden, so the fade runs BOTH ways:
+       the browser reads a transition from the after-change style, so one
+       declared only on the state class vanishes when the class does and the
+       shop pops back. The easing here is the RETURN leg's (dockIn's); the exit
+       overrides it on .cutscene-hidden, by the same cascade rule. */
     transition: opacity .5s ease, transform .5s cubic-bezier(.16, .84, .44, 1);
   }
-  /* FIRST APPEARANCE. The shop slides up from under the screen edge the moment
-     the Mouse Subscription reveals at 10 lifetime mice.
-     An animation rather than a transition, because the thing that changes here is
-     `display: none` -> `flex`, which cannot be transitioned at all. An animation
-     does fire the instant an element becomes rendered, which is exactly this
-     moment, so the reveal gets to be a move instead of a pop.
-     Gated on .dock-in, which syncDock adds only when the dock goes from hidden to
-     shown DURING PLAY. Hanging it off .show alone also fired on every page load,
-     because a resumed save adds .show before the first paint — measured sliding the
-     shop up again on reload, which makes the move an entrance for the page rather
-     than for the shop's arrival. Dev preset jumps would do the same.
-     It cannot repeat within a run anyway: a CSS animation only restarts if its
-     class is re-added, and nothing takes .show off once the buildings section is
-     up — that section is sticky on lifetime mice, so the dock stays shown even
-     when the upgrade list empties.
-     NO fill-mode, deliberately. `forwards` would pin opacity: 1 into the element's
-     own style and quietly break the night cutscene, which fades this same element
-     out through the transition declared above. With no fill, the styles revert to
-     the base rule the moment the animation ends and the cutscene works untouched.
-     translateY(100%) not a fixed px: the dock's height depends on how much shop
-     there is, and 100% is always exactly its own height, so it starts fully
-     offscreen whether it is one rail tall or four rows. */
+  /* FIRST APPEARANCE: the shop slides up when the Mouse Subscription reveals.
+     An animation, not a transition — `display: none` -> `flex` cannot be
+     transitioned, and an animation fires the instant an element is rendered.
+     Gated on .dock-in, which syncDock adds only when the dock goes hidden ->
+     shown DURING PLAY; off .show alone it also fired on every reload and preset
+     jump. NO fill-mode: `forwards` would pin opacity: 1 into element style and
+     break the cutscene fade above. translateY(100%) is always exactly the
+     dock's own height. */
   #dock.show { display: flex; }
   #dock.show.dock-in { animation: dockIn .5s cubic-bezier(.16, .84, .44, 1); }
   @keyframes dockIn {
     from { transform: translateY(100%); opacity: 0; }
     to   { transform: translateY(0);    opacity: 1; }
   }
-  /* The slide is the whole effect, so there is nothing to keep at a reduced
-     setting — it just appears, which is what it did before. */
+  /* The slide is the whole effect; nothing to keep at a reduced setting. */
   @media (prefers-reduced-motion: reduce) {
     #dock.show.dock-in { animation: none; }
   }
 
-  /* Cookie Clicker framing, in two lengths: the titled SHOP cap and the inert
-     Upgrades/Buildings divider. Cut from the same board here — three bands each,
-     carved line / board / carved line. No bevel highlight: --plank is already a
-     light-to-dark gradient, and a second lit edge on top of the first is what
-     turns a short rail into a stack of hairlines.
-
-     The vars were --wood/--wood-line, from when this was a timber gradient. The
-     board is green now, and a var named for a material it no longer is is the
-     kind of thing that gets read as a hint later — so --plank/--plank-line, which
-     names the SHAPE and outlives the next recolor the way `shopHead`/`shopDivider`
-     already do.
-
-     The board is a DAY material and only a day material: body.night sets
-     `--plank: none`, so at night these same two bands fall back to --panel-bg and
-     read as dark glass hairlined with --plank-line. One rule, two materials.
-
-     Tapping the SHOP rail collapses/reopens the whole dock (#dock.collapsed).
-     It's the ONLY hit target for that — the divider is inert, so a mistap while
-     reaching for a row can't shut the shop. */
-  /* ---- THE DAY SHOP: its own room, its own tokens ----
-     The tray is transparent-over-blur and takes its color from the PAGE behind
-     it, which by night is what we want and by day is what left the shop
-     invisible against the wall. So day hands it a ground of its own.
-
-     That ground is THE SAME POLKA TILE as the page, multiplied by the shop
-     green: same paper, same dots, same 240px pitch, one hue apart. Blending the
-     art rather than laying a flat fill is what keeps the shop part of the
-     drawing — the artist's dots carry straight through the tray, and a flat
-     green would have read as a UI panel dropped on top of a painting. It also
-     means the tile is the only background asset either surface needs.
-     Layer order matters: multiply blends each layer with the one BELOW, so the
-     tile must sit above the color it is tinted by.
-
-     Everything under it re-pitches for a dark shelf. These are the same tokens
-     :root sets for the light page — scoped here rather than overwritten there,
-     because the page still needs its own readings: the join gate prints --ink on
-     pink, and the HUD's coin keeps the dark --mouse-line while the tray's coins
-     take the white one. The shop is a THIRD theme scope, after day and night,
-     and it is the only place in the game where a var means one thing inside an
-     element and another outside it. */
+  /* Cookie Clicker framing, two lengths: the titled SHOP tab and the inert
+     divider, cut from the same board. --plank is a DAY material: body.night
+     sets it to none and both fall back to --panel-bg with a --plank-line
+     hairline. Tapping the tab collapses/reopens the whole dock (#dock.collapsed);
+     the divider is inert, so a mistap reaching for a row cannot shut the shop. */
+  /* ---- THE DAY SHOP: its own tokens ----
+     The tray is transparent-over-blur and takes its colour from the page, which
+     at night is right and by day left the shop invisible. So day hands it a
+     ground and re-pitches every token for it — scoped here rather than in :root
+     because the page still needs its own readings (the join gate prints --ink
+     on pink; the HUD's coin keeps the dark --mouse-line). A THIRD theme scope,
+     the only place a var means one thing inside an element and another outside. */
   body:not(.night) #dock {
-    /* Plain paper. No dots: the page is wallpaper, the shop is a sheet laid on
-       it, and carrying the pattern through both was what made the tray read as
-       part of the wall in the first place. The only ornament left is the rules. */
+    /* Plain paper, no dots: the page is wallpaper, the shop is a sheet laid on
+       it; carrying the pattern through both made the tray read as wall. */
     background: var(--shop-paper);
     --ink: #141110;
     --muted: #55504E;
     --dim: #6E6866;
     --line: #141110;
-    /* Darkened off the dark-shelf pair (#7FE39B / #FF7B70), which were tuned to
-       glow on green and are two pastels on paper. Checked against white: 4.7:1
-       and 4.6:1, comfortably past the bar for the price line (20px at 700). */
+    /* Checked against white: 4.7:1 and 4.6:1, past the bar for the price line. */
     --cost-ok: #157F3F;
     --cost-no: #B33A2B;
     --row-press: #EDEAE8;
     --row-shadow: none;
     --glyph-shadow: none;
-    /* Gold cannot survive on paper — #ffd44d on white is a highlighter with
-       nothing under it — so the shop's accent goes to the ink it prints in and
-       earns emphasis from weight instead of hue. */
+    /* Gold cannot survive on paper, so the accent goes to the ink and earns
+       emphasis from weight instead of hue. */
     --shop-accent: #141110;
   }
 
@@ -968,24 +620,14 @@
     border: 0;
     border-top: 1px solid var(--plank-line); border-bottom: 1px solid var(--plank-line);
   }
-  /* THE RAIL IS A TAB, not a band. It used to be a full-width bar 48px tall —
-     the largest opaque object on the screen, parked between Hex and her shop for
-     no reason except that it was where the label lived. Taken out of the dock's
-     flow and hung off its top-left corner, it costs the play area a tab-sized
-     notch instead of a whole stripe, and the tray's first row starts where the
-     band used to.
-     Everything the band held is on the tab: the storefront mark shrinks and sits
-     beside the word rather than floating in its own centred cluster, and the
-     chevron follows the word it belongs to. One shape, one control.
-     It stays a comfortable target — 44px tall, which is Apple's minimum and
-     Material's within a pixel — because the point was never to make the CONTROL
-     small, only to stop it spanning the screen. Absolute positioning does not
-     take it out of the button: taps on the tab still toggle the tray. */
+  /* THE RAIL IS A TAB, not a band: hung off the dock's top-left corner, outside
+     its flow, so it costs the play area a notch instead of a stripe and the
+     tray's first row starts where the band used to. Still a 44px target
+     (Apple's minimum). Absolute positioning keeps it inside the button: taps
+     on the tab still toggle the tray. */
   .shopHead {
     position: absolute; bottom: 100%; left: 0; z-index: 2;
     width: auto; height: auto;
-    /* 44px of target: Apple's minimum, Material's within a pixel. The point was
-       never to make the CONTROL small — only to stop it spanning the screen. */
     padding: calc(8px * var(--ss)) calc(9px * var(--ss));
     display: flex; align-items: center; justify-content: center;
     gap: calc(4px * var(--ss));
@@ -993,18 +635,13 @@
     border-radius: 0 calc(7px * var(--ss)) 0 0;
     cursor: pointer; color: var(--rail-ink);
   }
-  /* The mark shrinks and joins the word instead of floating in its own centred
-     cluster — on a tab this size the two read as one lockup. */
+  /* The mark joins the word as one lockup rather than floating in its own cluster. */
   .shopHead .shopIcon svg {
     width: calc(13px * var(--ss)); height: calc(13px * var(--ss));
   }
-  /* DAY ONLY. The storefront is a daytime idea — a shop you walk into, drawn in
-     the same hand as the cat and the mice — and by day it sits on a black tab
-     over a pink wall, where it reads instantly. At night the whole surface is
-     already near-black, the tab is a dark shape on a dark sky, and the mark
-     becomes a smudge competing with the one word that has to survive there.
-     display:none rather than opacity: it must leave the flex row entirely, or
-     the gap it was holding stays and the word sits off-centre on its own tab. */
+  /* DAY ONLY: at night the tab is a dark shape on a dark sky and the mark is a
+     smudge competing with the one word that has to survive. display:none, not
+     opacity: it must leave the flex row, or its gap leaves the word off-centre. */
   body.night .shopHead .shopIcon { display: none; }
   /* The tab hangs off the dock's top edge, so the dock must not clip it. */
   #dock { overflow: visible; }
@@ -1019,27 +656,23 @@
     letter-spacing: .14em; text-transform: uppercase; line-height: 1;
     text-shadow: var(--row-shadow);
   }
-  /* Sized off the cap height of .shopTitle rather than the rail, so the mark and
-     the word read as one lockup at any --ss. Same drop shadow the labels carry as
-     a text-shadow — on a filled glyph that has to be a filter to follow the
-     holes. */
+  /* Sized off .shopTitle's cap height so mark and word read as one lockup at
+     any --ss. The labels' text-shadow, as a filter so it follows the holes. */
   .shopHead .shopIcon { display: flex; align-items: center; }
   .shopHead .shopIcon svg {
     display: block; width: calc(16px * var(--ss)); height: calc(16px * var(--ss));
     fill: currentColor; filter: var(--glyph-shadow);
   }
   .soldTitle { display: none; }
-  /* Border-corner caret rather than a glyph — scales with --ss, no font
-     dependency. Points down while open (tapping pushes the shop toward the
-     screen edge it lives on), up when collapsed. The translateY re-centers it:
-     rotating a square about its middle leaves the visual "V" sitting low. */
+  /* Border-corner caret, so it scales with --ss. Points down while open
+     (tapping pushes the shop toward its screen edge), up when collapsed. The
+     translateY re-centres it: a rotated square's "V" sits low. */
   .shopHead .chev {
     width: calc(6px * var(--ss)); height: calc(6px * var(--ss));
     border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
     transform: translateY(calc(-2px * var(--ss))) rotate(45deg);
-    /* Same clock AND same curve as the tray it points at — the caret is the only
-       part of the rail that moves, so if it eased differently it would read as a
-       second, slower animation chasing the first. */
+    /* Same clock AND curve as the tray it points at, or it reads as a second,
+       slower animation chasing the first. */
     transition: transform var(--tap-ms) var(--tap-ease);
   }
   /* .closing rides the same rotation as a hand-collapsed shop: the last purchase
@@ -1050,108 +683,76 @@
   }
 
   /* ---- SOLD OUT: the night's last purchase closes the shop for good ----
-     The last upgrade on the rail is also the last thing the game has to sell —
-     the wall's cast is capped and every trail is bought, so no further building
-     changes anything you can see. So the shop shuts rather than sitting there
+     Nothing left changes anything you can see, so the shop shuts rather than
      taking money for nothing. Three states, in order (see runShopClose):
-
        .closing   the scroller eases shut on its own max-height transition
        .sold-out  the rail relabels itself to the closed sign and goes inert
        .dock-out  the whole dock slides off the bottom edge...
        .retired   ...and is gone, so nothing floats over the wall for the final read
-
-     Deliberately NOT folded into .collapsed: that class is the player's own
-     open/shut toggle, and a permanent state parked in it would reopen on one
-     stray tap. */
+     NOT folded into .collapsed: that is the player's own toggle, and a
+     permanent state parked in it would reopen on one stray tap. */
   #dock.closing #shopScroll, #dock.sold-out #shopScroll { max-height: 0; }
   #dock.sold-out .shopTitle, #dock.sold-out .chev { display: none; }
   #dock.sold-out .soldTitle { display: inline; }
-  /* Dimmed and cursor-default, the same "this is not a control" reading a locked
-     building row gets (.item.locked). The button is also disabled in JS — this is
-     the half of that a player can see. */
+  /* Dimmed and cursor-default, the same "not a control" reading a locked row
+     gets. The button is also disabled in JS; this is the visible half. */
   #dock.sold-out .shopHead { opacity: .55; cursor: default; }
-  /* The exit, mirroring dockIn. `forwards` HERE is correct where it was wrong on
-     dockIn (see the note there): this is the dock's terminal state, so pinning the
-     end frame is the point — it holds the tray offscreen for the frame between the
-     animation ending and .retired landing, instead of letting it pop back into view.
-     Eased the other way round too: dockIn decelerates INTO its resting place, so the
-     exit accelerates OUT of it. A plain accelerate curve, not a mirrored one — the
-     first shape tried here (.4,0,.9,.5) held the tray inside the screen for 400 of its
-     500ms and then yanked the last half of the travel through in one frame. */
+  /* The exit, mirroring dockIn. `forwards` IS correct here: this is the
+     terminal state, and pinning the end frame holds the tray offscreen for the
+     frame between the animation ending and .retired landing. A plain
+     accelerate curve: a mirrored one held the tray on screen for 400 of 500ms. */
   #dock.dock-out { animation: dockOut .5s cubic-bezier(.4, 0, 1, 1) forwards; }
   @keyframes dockOut {
     from { transform: translateY(0);    opacity: 1; }
     to   { transform: translateY(100%); opacity: 0; }
   }
   #dock.retired { display: none; }
-  /* Same call as dockIn: the slide is the whole effect, so there is nothing to keep
-     at a reduced setting — the dock simply stops being there when .retired lands. */
+  /* Same call as dockIn: the slide is the whole effect. */
   @media (prefers-reduced-motion: reduce) {
     #dock.dock-out { animation: none; }
   }
 
   /* Divider and list travel together, and the section waits for a real
-     building — a header over nothing but a ??? teaser is chrome. Plain blocks
-     inside #shopScroll: neither section caps or scrolls on its own anymore. */
+     building — a header over a ??? teaser is chrome. */
   #buildingSec { display: none; }
   #buildingSec.show { display: block; }
-  /* Night cutscene: clear the ENTIRE shop (including the pinned buildings) off the
-     screen so nothing covers the wall reveal; restored when the beat ends. It
-     SHUTS — slides down out of the bottom edge, the reverse of the dockIn
-     entrance — instead of dissolving in place, so the tray reads as closing for
-     the night rather than as art quietly switching off.
-     Only the target state belongs here: the durations live on #dock so they play
-     in both directions (see the transition note there). The exit's EASING is the
-     one thing that is genuinely one-way, which is why it is stated here — and it
-     is ease-OUT, not the usual choice for an exit, for a reason worth keeping.
-     The tray is fading on the same .5s clock, so every millisecond
-     of travel it spends near the end of the move is travel nobody can see. The
-     standard accelerate-away ease-in puts it there: measured, ~20% of the distance
-     covered by the time opacity is already through half its fade, which comes out
-     looking like the fade it replaced. Front-loading the motion instead has it
-     16% down at 98ms (opacity .84) and half gone by 212ms (.51) — it visibly
-     LEAVES, and the fade becomes the tail of a move rather than the move itself.
-     translateY(100%) is the dock's own height whatever the shop is currently tall,
-     same as dockIn's. The fade stays alongside it as the unconditional half of
-     "gone": it is what still hides the shop under prefers-reduced-motion, where the
-     slide is cut. */
+  /* Night cutscene: the ENTIRE shop slides down off the bottom edge (the
+     reverse of dockIn) so nothing covers the reveal; restored when the beat
+     ends. Only the target state lives here — the durations are on #dock so
+     they run both ways. The exit's easing is the one one-way thing, and it is
+     ease-OUT: the tray is fading on the same .5s clock, so travel near the end
+     of the move is travel nobody sees; front-loading it makes the tray visibly
+     LEAVE. The fade is the unconditional half: it still hides the shop under
+     prefers-reduced-motion, where the slide is cut. */
   #dock.cutscene-hidden {
     opacity: 0; transform: translateY(100%); pointer-events: none;
     transition-timing-function: ease-out;
   }
-  /* The slide is decoration on top of a fade that already does the job, so drop
-     just the slide — same call as dockIn's entrance above. */
+  /* The slide is decoration on top of a fade that does the job; drop the slide. */
   @media (prefers-reduced-motion: reduce) {
     #dock { transition: opacity .3s ease; }
     #dock.cutscene-hidden { transform: none; }
   }
-  /* The way BACK is a moving hit target for its half-second, and every row in
-     there spends mice on a single tap with no confirm — so the shop does not
-     accept one until it has stopped moving. The cutscene veil can't cover this:
-     it comes off at the same moment, and it has to, because petting is meant to
-     resume the instant the beat ends. This is that same idea scoped to the one
-     element still in flight. See runNightCutscene (DOCK_SLIDE_MS). */
+  /* The way BACK is a moving hit target for its half-second, and every row
+     spends mice on one tap with no confirm — so the shop accepts nothing until
+     it has stopped moving. The veil comes off at the same moment, because
+     petting must resume the instant the beat ends. See DOCK_SLIDE_MS. */
   #dock.settling { pointer-events: none; }
 
-  /* Between Upgrades and Buildings, unlabelled — the rows below already say
-     which section they are. Scales with --ss like the rest of the shop so it
-     stays a plank instead of thinning to a pinstripe at the skin's scale. */
+  /* Between Upgrades and Buildings, unlabelled. Scales with --ss so it stays a
+     plank instead of thinning to a pinstripe. */
   .shopDivider { height: calc(6px * var(--ss)); }
-  /* Only earns its keep between two lists. With Upgrades hidden it would stack
-     under the SHOP rail as a second bar, and collapsed it would hang below the
-     closed header — so a shut shop is exactly one rail. */
+  /* Only earns its keep between two lists: hidden with Upgrades, and collapsed,
+     so a shut shop is exactly one rail. */
   #upgradeSec:not(.show) + #buildingSec .shopDivider,
   #dock.collapsed .shopDivider { display: none; }
 
-  /* THE shop scroller — the only one. Upgrades and Buildings are plain blocks
-     inside it, so a single drag runs the whole shop end to end.
-     `overscroll-behavior: contain` so scrolling past the end stops here instead
-     of bubbling into a document-level pull-refresh. The cap is whichever is
-     smaller: ~3.3 rows of list, or 46% of the viewport — the px term keeps the
-     shop from swallowing a tall screen, the vh term keeps it off Hex on a short
-     one. Either way the partial row peeking under the cap is the scroll
-     affordance, since the scrollbar itself is hidden. Shorter lists size to
-     content. */
+  /* THE shop scroller — the only one; a single drag runs the whole shop.
+     `overscroll-behavior: contain` keeps a scroll past the end from bubbling
+     into pull-refresh. The cap is ~3.3 rows or 46vh, whichever is smaller: the
+     px term keeps the shop off a tall screen, the vh term keeps it off Hex on a
+     short one. The partial row under the cap is the scroll affordance, since
+     the scrollbar is hidden. */
   #shopScroll {
     max-height: min(calc(300px * var(--ss)), 46vh);
     overflow-y: auto; overscroll-behavior: contain;
@@ -1159,8 +760,7 @@
   }
   #shopScroll::-webkit-scrollbar { width: 0; }
   #shop { padding: 0; }
-  /* Collapsed: the scroller shrinks to nothing, leaving the titled SHOP rail
-     alone as a slim closed bar — tap it to reopen. */
+  /* Collapsed: the scroller shrinks to nothing, leaving the SHOP rail alone. */
   #dock.collapsed #shopScroll { max-height: 0; }
   /* CC store rows: framed icon, name over effect, price green when you can
      afford it and red when you can't — that red/green is the whole readout. */
@@ -1260,21 +860,15 @@
   .item.locked .fx,
   .item.locked .right { display: none; }
 
-  /* ---- Upgrades strip (only unlocked-and-unbought ones exist here, so the
-     list is short; buying removes the row) ----
-     No padding or bottom border: the list has to reach the section edge so the
-     wood divider below sits flush against the last row, and the divider already
-     draws the line between them. */
+  /* ---- Upgrades strip. No padding or bottom border: the list reaches the
+     section edge so the divider sits flush and draws the line itself. ---- */
   #upgradeSec { display: none; }
   #upgradeSec.show { display: block; }
   #upgrades { padding: 0; }
   .item.up .body { padding: calc(4px * var(--ss)) 0; }
   .item.up .nm { font-size: calc(12.5px * var(--ss)); }
-  /* ---- Scroll shadow (locked affordance): a soft inner shadow at whichever
-     edge still has content to scroll. Snug to the row edge because the scrollers
-     carry no vertical padding. .can-up / .can-down are toggled by the runtime.
-     One scroller, so one pair of shadows — they now mark the ends of the WHOLE
-     shop rather than of each list, which is the point of merging them. ---- */
+  /* ---- Scroll shadow: a soft inner shadow at whichever edge still has content
+     to scroll. .can-up / .can-down are toggled by the runtime. ---- */
   #shopScroll::before, #shopScroll::after {
     content: ""; position: sticky; left: 0; right: 0; display: block;
     height: calc(16px * var(--ss)); pointer-events: none; z-index: 3;
@@ -1291,25 +885,14 @@
   #shopScroll.can-down::after { opacity: 1; }
 
   /* ---- "N MORE": the unseen-upgrade count, at the edge it is hiding behind ----
-     This used to be a red badge on the SHOP tab, and the tab was the wrong
-     place for it. A row is marked SEEN when its midpoint enters this box and
-     you have scrolled recently (updSeen in shop.js) — so "unseen" does not mean
-     "new", it means "you have not scrolled to it". That is a fact about this
-     scroller, and a number on the tab could only ever say "somewhere". Here it
-     can point, so there are two: one per edge, each counting only what is
-     hiding past that edge.
-     Sticky rather than absolute, so each rides its own end of the content and
-     lands on the first or last VISIBLE row wherever the scroll happens to be.
-     The negative margin is what keeps it an overlay: it cancels the height so
-     the pill floats on the edge row instead of reserving a strip of the tray,
-     which is a fifth of it — the tray caps at ~46vh, about five rows.
-     pointer-events: none is load-bearing, not tidiness: the pill sits ON a
-     buyable row, so a tap that lands on it has to reach the row underneath.
-     z-index clears the edge shadows above (3), which it is meant to sit on.
-     It wears the RAIL's paint rather than a colour of its own — --plank-line is
-     the material the dividers and the tab's edges are cut from, so the chip
-     reads as a piece of the shop's own furniture in every phase, and the night
-     skin needs no second answer. */
+     A row is marked SEEN when its midpoint enters this box and you have
+     scrolled recently (updSeen in shop.js), so "unseen" means "not scrolled to"
+     — a fact about this scroller, so the chip lives here and can point. Sticky,
+     so each rides its own end of the content; the negative margin cancels the
+     height so the pill floats on the edge row instead of reserving a fifth of
+     the tray. pointer-events: none is load-bearing — the pill sits ON a buyable
+     row. z-index clears the edge shadows (3). Wears --plank-line, the rail's
+     own paint, so the night skin needs no second answer. */
   .moreHint {
     position: sticky; z-index: 4; pointer-events: none;
     height: calc(24px * var(--ss));
@@ -1328,33 +911,20 @@
     box-shadow: 0 2px 6px rgba(0,0,0,.45);
     font-variant-numeric: tabular-nums;
   }
-  /* The arrow is the DIRECTION, so it comes off the class — leaving the count
-     as the only thing any JS writes into this. NBSP, so it can never be the
-     place the pill wraps. */
+  /* The arrow is the DIRECTION, so it comes off the class — the count is the
+     only thing JS writes. NBSP, so it can never be where the pill wraps. */
   .moreHint.up .pill::before { content: "\2191\00a0"; }
   .moreHint.down .pill::after { content: "\00a0\2193"; }
 
-  /* ---- PORTRAIT GATE -------------------------------------------------------
-     This game is portrait: the shop rail and the night wall are stacked
-     vertically, so a sideways phone squeezes the wall — the one thing the
-     night phase exists to show — into an unreadable band.
-
-     Deliberately CSS-only. It needs no JS, so it is already covering the
-     screen on first paint rather than after the bundle boots, and there is no
-     orientation state to keep in sync with anything.
-
-     The `max-height` is the load-bearing half, not `orientation`. On its own,
-     `orientation: landscape` also matches every desktop and laptop browser,
-     where this game plays fine — gating those would be a regression, and the
-     proctor drives sessions from a laptop. Phones in landscape are ~430px tall
-     at most (iPhone Pro Max ~430, most Androids less); laptops start around
-     650px of viewport height even with chrome. 520px sits in that gap with
-     room on both sides. A small tablet in landscape clears it and stays
-     playable, which is the intent.
-
-     Uses dvh, not vh: mobile Safari's vh is the tallest-possible viewport, so
-     with the URL bar shown a 100vh overlay is taller than the visible area and
-     the message can sit under the fold. */
+  /* ---- PORTRAIT GATE ----
+     The shop and the wall stack vertically; a sideways phone squeezes the wall
+     into an unreadable band. CSS-only, so it covers the screen on first paint
+     with no state to sync. `max-height` is the load-bearing half: `orientation:
+     landscape` alone also matches every laptop, where the game plays fine and
+     the proctor drives from. Phones in landscape are ~430px tall at most,
+     laptops start ~650; 520 sits in the gap. dvh, not vh: Safari's vh is the
+     tallest-possible viewport, so a 100vh overlay can put the message under
+     the fold. */
   #rotate { display: none; }
   @media (orientation: landscape) and (max-height: 520px) {
     #rotate {
@@ -1380,9 +950,7 @@
     #rotate .glyph { animation: none; }
   }
 
-/* ======================================================================
-   THE MULTIPLAYER SHELL — everything the coop port added to the page.
-   ====================================================================== */
+/* ---- THE MULTIPLAYER SHELL — everything the coop port added to the page ---- */
 
   #gate {
     position: fixed; inset: 0; z-index: 60;
@@ -1395,42 +963,15 @@
   #gate p { margin: 0; opacity: .75; font-size: 14px; max-width: 34ch; }
   #gate .err { color: #ff6fa5; font-size: 13px; min-height: 1.2em; margin: 0; }
   /* WHO IS HERE. One name per line, right-aligned, riding the top edge of the
-     shop TRAY — the sheet of goods, not the tab hung above it.
-
-     Which of those two edges it rides is the whole of this rule, and the tab is
-     a fossil in it. `--dock-up` used to be tray + RAIL, from when the rail was
-     a full-width band 48px tall (see `.shopHead`): a right-aligned column
-     genuinely did have to clear it, because it ran under the names. The rail is
-     a TAB in the dock's top-LEFT corner now, 120px of a 390px screen, and the
-     right-hand side has nothing under the names but tray — so that term was
-     buying a tab's height (50px, measured) of empty screen with nothing on the
-     names' own side of the phone to explain it. Off the tray the names sit ten
-     pixels over the goods, which is where they read as belonging to the shop's
-     top edge rather than hovering over the stage.
-
-     A COLUMN, not a line. Four names in a row measure ~250px and this screen is
-     390 wide, so the row this replaced capped itself at 40vw and ellipsised the
-     fourth player away — which is the one thing a roster may not do. Stacked,
-     the width is the WIDEST SINGLE NAME (~70px) and nothing ever truncates.
-
-     No plate, no panel: --title-color/--title-shadow are the page's pair for a
-     readout floating ON the stage — #cps wears the same two — so these names
-     sit in the bank's register rather than reading as a widget bolted over the
-     art, and the night phase costs nothing. Both tokens flip on body.night, so
-     the ink goes gold and the white halo becomes a gold bloom with no second
-     rule here.
-
-     --dock-up is the tray's own measured height, published by the ResizeObserver
-     in main.js. Reading it back is what glues the names to the tray's top edge
-     through all three of its heights — open, collapsed to the bare rail, and
-     retired for good once the shop sells out — with no copy of any of them in
-     this file. Collapsed, the tray is ~3px and the names come down with it, to
-     sit level with the tab across the screen from them; that is the same rule,
-     not an exception to it, and there is nothing on this side for them to be
-     above. The 0px fallback is deliberate rather than defensive: a tray that is
-     display:none measures 0, which drops the names to the screen's own bottom
-     inset, and that is exactly where they belong both before the shop first
-     appears and after it is gone. */
+     shop TRAY (--dock-up, measured by the ResizeObserver in main.js) — the
+     tray, not the tab, which is in the far left corner with nothing under the
+     names. A COLUMN, not a line: four names in a row are ~250px on a 390px
+     screen, and a row ellipsised the fourth player, which a roster may never
+     do. No plate: --title-color/--title-shadow are the page's pair for a
+     readout floating ON the stage, and both flip on body.night. The 0px
+     fallback is deliberate: a display:none tray measures 0, dropping the names
+     to the screen's own bottom inset, which is where they belong before the
+     shop appears and after it is gone. */
   #team {
     position: fixed; z-index: 6;
     right: 14px;
@@ -1439,67 +980,32 @@
     pointer-events: none;
     font: 400 13px var(--ui-font); line-height: 1.42;
     color: var(--title-color); text-shadow: var(--title-shadow);
-    /* THE RETURN LEG of the rule below — see it for why the roster sits out the
-       twist. .5s is #dock's own slide, and that is the point rather than a
-       coincidence: `dissolving` comes off in the same callback that starts the
-       tray back up the screen (runNightCutscene), so the names fade in over
-       exactly the travel the tray they ride is making, and the shop and the
-       roster arrive as one thing.
-       Declared HERE and not on the state rule, the same cascade reason #dock's
-       is: the browser reads a transition from the AFTER-change style, so a
-       transition stated only on `body.dissolving` would exist only while that
-       class is on — it would fade the names OUT and then be gone with the rule
-       when the class left, popping them back at full opacity. */
+    /* THE RETURN LEG of the rule below. .5s is #dock's own slide: `dissolving`
+       comes off in the callback that starts the tray back up, so names and
+       tray arrive as one thing. Declared HERE, not on the state rule, for
+       #dock's cascade reason — a transition on `body.dissolving` alone vanishes
+       with it. */
     transition: opacity .5s ease;
   }
-  /* THE ROSTER SITS OUT THE TWIST.
-     --title-color and --title-shadow flip on `body.night`, which lands on the
-     FIRST frame of the beat, while #nightSky needs 2.2s to fade the daylight
-     out under them (see #nightSky). A custom property cannot be interpolated, so
-     the ink cannot ease across with the sky: the names went gold-on-gold-bloom
-     over the pink wallpaper on frame one and stayed there for the whole dissolve
-     — measured at 1.12:1 against the paper, where the day ink is 8.71:1. Four
-     names that read as ordinary UI in daylight and 14:1 against the night sky
-     were, for the 2.2 seconds between, simply not there; the `.off` name at .42
-     was less there still. A readout may be legible or it may be gone, and half
-     of a phase change is neither.
-     So it is GONE, deliberately, for the beat that has the screen — the same
-     beat #dock sits out and for the same reason, since this is a readout about
-     who is here and the cutscene is the one stretch of the game that is not
-     about that. No transition on the way out: a fade from an already-invisible
-     gold would be a fade from nothing, and the honest hide is the instant one.
-     It also swallows a jump that has nothing to do with colour. The twist
-     empties the day rail, so the night tray measures 180px shorter and
-     --dock-up drops with it on the flip's own frame — the column is doing
-     exactly its job (ride the tray's top edge) at the one moment the tray is
-     not on screen to be ridden. Hidden, it relocates unseen and fades in where
-     it belongs.
-     `dissolving` and not `night`: it is the CUTSCENE's window, added by the live
-     day->night edge in main.js and taken off at the end of the beat, so a
-     restored night save — which never gets the class — paints its roster
-     straight away with nothing to sit out. */
+  /* THE ROSTER SITS OUT THE TWIST. --title-color flips on `body.night` on the
+     FIRST frame while #nightSky takes 2.2s to fade the daylight out under it;
+     a custom property cannot interpolate, so the names went gold on pink
+     (1.12:1) for the whole dissolve. A readout may be legible or gone, not
+     half — so it is GONE for the beat, with no transition out (a fade from
+     invisible is a fade from nothing). It also hides the jump when the emptied
+     night tray drops --dock-up 180px on the flip's frame. `dissolving`, not
+     `night`: a restored save never gets the class and paints its roster at once. */
   body.dissolving #team { opacity: 0; transition: none; }
   #team span { white-space: nowrap; }
   /* A phone that dropped. Dimmed, not struck through: a strike is a MARK, and
-     this readout has none — it was also invisible at the size the old strip
-     rendered at, which is how a disconnect went unnoticed. */
+     this readout has none. */
   #team .off { opacity: .42; }
-  /* THIS PHONE DROPPED. Hung off #hud's MEASURED bottom edge, the same way
-     #team above rides the tray's measured height — because the two numbers this
-     rule needs are both variable and neither is knowable from here. `top: 10px`
-     printed the pill straight over the mouse count: #bank centres, #count is
-     32px of it, and at z-index 70 over #hud's 6 the pill won and BOTH readouts
-     became unreadable (measured at 375px: toast 130-245 x 10-45, #count 118-222
-     x 12-47). The second number is the notch — #hud pads by
-     max(12px, env(safe-area-inset-top)) and this rule did not, so on a notched
-     phone the pill went the other way and sat up in the status bar. Measuring
-     the box answers both at once, which is why there is no constant here.
-
-     Still z-70, and still ABOVE the win splash (35) and the join gate (60):
-     that ordering is deliberate (see the z-index note on #splash), and moving
-     the pill into #hud as a flow child would have quietly given it up.
-     pointer-events off because it is a fixed box outside #hud's blanket rule —
-     it was eating taps in the strip it covered. */
+  /* THIS PHONE DROPPED. Hung off #hud's MEASURED bottom edge (--hud-h, main.js)
+     because both numbers it needs vary: the count's line box and the notch
+     padding. A constant printed the pill over the mouse count on one phone and
+     in the status bar on another. z-70, ABOVE the win splash (35) and the join
+     gate (60) on purpose (see #splash). pointer-events off: a fixed box outside
+     #hud's blanket rule was eating taps. */
   #connToast {
     position: fixed; top: calc(var(--hud-h, 78px) + 8px);
     left: 50%; transform: translateX(-50%); z-index: 70;
@@ -1509,69 +1015,45 @@
   }
   #connToast.on { display: block; }
 
-  /* ---- THE WIN SPLASH (the proctor pressed "Mark won" — see HexSim.setWon) ----
-     One full-screen picture, over the night scene rather than instead of it: the
-     team can flip back and forth with the one pill below, so this covers the game
-     and never unbuilds it.
-
-     Always in the DOM, faded out — so the picture is decoded before the win lands
-     (nobody watches a 200KB blank) and the arrival is a cross-fade rather than a
-     cut. `pointer-events` is what makes an invisible full-screen div harmless:
-     off, every tap goes through to the cat; on, it eats them, so there is no
-     petting through the artwork.
-
-     z-index 35 clears the whole game — the dock (10), the HUD (6), the golden
-     mouse, and the cutscene veil (30) — while staying under the ?debug panel
-     (40, which has to be reachable FROM this screen or a tester cannot get back
-     out of it), the join gate (60) and the reconnect toast (70). A room you are
-     not in yet and a socket that just dropped both outrank a victory lap. */
+  /* ---- THE WIN SPLASH (the proctor pressed "Mark won" — HexSim.setWon) ----
+     One picture OVER the night scene, never instead of it: the pill below
+     flips back and forth. Always in the DOM, faded out, so the 200KB picture is
+     decoded before the win lands and the arrival is a cross-fade;
+     `pointer-events` is what makes the invisible div harmless. z-index 35
+     clears the game (dock 10, HUD 6, veil 30) and stays under the ?debug panel
+     (40, which must be reachable FROM this screen), the join gate (60) and the
+     reconnect toast (70). */
   #splash {
     position: fixed; inset: 0; z-index: 35;
     opacity: 0; pointer-events: none; transition: opacity .28s ease;
     /* A COLUMN, so the leftover sky is laid out rather than guessed at: the two
-       .sky bands take whatever height the picture does not, and the picture sits
-       between them. See the two-slacks note below for why that is a flex box and
-       not a background-position. */
+       .sky bands take whatever height the picture does not (see TWO SLACKS). */
     display: flex; flex-direction: column;
-    /* The SIDE sky, for the wide case: the art's own side edge, sampled down its
-       height (skyStops in phase.js sets --sky-ramp; the two-stop fallback here is
-       THIS art's, and is what shows for the moment before it loads). It is only
-       ever visible when the picture is height-fitted, and a height-fitted picture
-       spans the viewport exactly — so the ramp's ends land on the art's own ends
-       and every stop between lines up with the row it was taken from. */
+    /* The SIDE sky, for the wide case: the art's own side edge sampled down its
+       height (skyStops in phase.js sets --sky-ramp; the fallback shows until it
+       loads). Only visible when the picture is height-fitted, which spans the
+       viewport exactly, so every stop lines up with the row it was taken from. */
     background: var(--sky-ramp, linear-gradient(var(--sky-top, #81a2d2), var(--sky-bottom, #90c2cf)));
   }
   #splash.on { opacity: 1; pointer-events: auto; }
-  /* TWO SLACKS, and the picture is never cropped into either of them. A portrait
-     picture (1390x2000) on a phone has slack ABOVE and BELOW; on a laptop, which
-     is wider than the picture is proportionally tall, fitting the width instead
-     overflows the screen and eats the top of the art — which is where the cat
-     is. So the fit is "whole picture, whichever axis binds": width on a phone,
-     height on a desktop.
-     The two fills can never collide, which is what makes them exact rather than
-     approximate. The bands below have height only when the WIDTH binds, and a
-     width-fitted picture covers the viewport side to side — so it hides the
-     ramp. The ramp shows only when the HEIGHT binds, and then the bands are zero
-     tall. Each slack is filled by the thing that matches the art's edge there:
-     flat rows above and below, the vertical ramp beside. */
+  /* TWO SLACKS, and the picture is never cropped into either: whole picture,
+     whichever axis binds — width on a phone, height on a laptop (fitting width
+     there eats the top of the art, where the cat is). The bands have height
+     only when WIDTH binds, and then the picture hides the ramp; the ramp shows
+     only when HEIGHT binds, and then the bands are zero tall. Each slack is
+     filled by the thing that matches the art's edge there. */
   #splash .sky { flex: 1 1 0; min-height: 0; }
   #splash .sky.top { background: var(--sky-top, #81a2d2); }
   #splash .sky.bottom { background: var(--sky-bottom, #90c2cf); }
-  /* flex-shrink is the height fit: the img asks for its full-width height and
-     gets cut down to what is left when that overflows, and object-fit keeps the
-     picture itself un-squashed inside the box that shrinking leaves. min-height
-     because a flex item will not shrink past its content otherwise. */
+  /* flex-shrink is the height fit; object-fit keeps the picture un-squashed in
+     the box shrinking leaves. min-height, or a flex item won't shrink past content. */
   #splashArt {
     flex: 0 1 auto; min-height: 0;
     width: 100%; height: auto; object-fit: contain;
   }
-  /* THE TOGGLE — the only control the win adds, and the only one on the splash.
-     Hidden until the proctor marks the team won, then it ping-pongs: over the
-     game it opens the splash, over the splash it goes back. Top-left because
-     that is the corner nothing else uses (#bank centres, and the whole top
-     right is empty now that #team has moved down to the tray), and because
-     Goomba's level selector opens from the same corner — one habit across both
-     games. */
+  /* THE TOGGLE — the only control the win adds. Hidden until the proctor marks
+     the team won, then ping-pongs between game and splash. Top-left: the one
+     corner nothing else uses, and where Goomba's level selector opens too. */
   #wonPill {
     position: fixed; z-index: 36; display: none;
     top: max(10px, env(safe-area-inset-top)); left: 10px;

@@ -1,15 +1,9 @@
-// The authoritative Goomba Glider ROOM state — who has placed which band,
-// which level the team is on, whether a run is in flight, and which levels are
-// done.
-//
-// Same shape as hex/sim.ts: the Durable Object wraps one of these per team and
-// is transport only. Unlike hex there is no economy ticking away — the room
-// mutates only on player intents, plus one deterministic transition when a run
-// finishes. A run is SCORED the instant PLAY lands (the physics is
-// deterministic, so the server steps all ~15s of substeps synchronously in a
-// few ms); what remains "in flight" is only the phones' animation of it, so
-// run-end is a timestamp comparison, not a timer the object must stay awake
-// for. resolve(now) applies it lazily on the next message/connect/tick.
+// The authoritative Goomba Glider ROOM state: bands, level, phase, which
+// levels are done. Same shape as hex/sim.ts — the Durable Object wraps one per
+// team and is transport only. The room mutates only on player intents plus one
+// transition when a run finishes: a run is SCORED the instant PLAY lands, what
+// is "in flight" is only the phones' animation, so run-end is a timestamp
+// comparison applied lazily by resolve(now).
 
 import type { PlayerInfo } from "../protocol";
 import { GOOMBA_LEVELS, MAX_BANDS, BAND_MIN, BAND_MAX } from "./levels";
@@ -17,13 +11,10 @@ import type { LevelPack } from "./pack";
 import { snapBand, scoreRun, type GoombaBand, type RunResult } from "./physics";
 
 /**
- * `edit` → `run` → (`win` | back to `edit`), plus one terminal screen:
- *
- * `splash` is where NEXT lands after the finale of a room that has cleared
- * every level — the party's curtain call rather than a victory lap on the last
- * level. Nothing may be placed or played from it; the only ways out are the
- * level selector (a `goto`, which the clear itself unlocks — see
- * `goombaCleared`) and a proctor `reset`.
+ * `edit` → `run` → (`win` | back to `edit`), plus `splash`: where NEXT lands
+ * after the finale of a room that has cleared every level. Nothing may be
+ * placed or played from it; the ways out are a `goto` (the selector, which the
+ * clear unlocks — `goombaCleared`) and a proctor `reset`.
  */
 export type GoombaPhase = "edit" | "run" | "win" | "splash";
 
@@ -53,17 +44,12 @@ export interface GoombaPersistedV1 {
   state: GoombaSimState;
 }
 
-/** A teammate's band-in-progress: the ghost they are stretching RIGHT NOW,
- * streamed while they drag and gone when they release. Presentation only —
- * the sim never reads these; they exist so the other phones can watch a
- * band take shape (and yell about where it should go). Same deal as hex's
- * teammate taps: ephemeral, never persisted, rides the snapshot.
+/** A teammate's band-in-progress, streamed while they drag. Presentation
+ * only — never read by the sim, never persisted, rides the snapshot.
  *
- * A preview SHORTER than BAND_MIN means "I'm choosing here", not "here is my
- * band" — it can't become one, since the sim would reject it. That's how the
- * tap-tap placement streams its waiting first tap: both ends on the same
- * point. Clients draw those as a marker rather than a band ghost; no extra
- * wire shape, and a half-finished drag reads honestly the same way. */
+ * A preview SHORTER than BAND_MIN means "I'm choosing here": the tap-tap
+ * placement streams its waiting first tap as both ends on one point, and
+ * clients draw that as a marker rather than a band ghost. */
 export interface GoombaBandPreview {
   pid: string;
   ax: number;
@@ -111,18 +97,13 @@ export type GoombaClientMsg =
   | { type: "stop" }
   /** Advance after a win (any player). */
   | { type: "next" }
-  /** Level-selector jump: point the WHOLE ROOM at a level (any player). The
-   * selector is what a team EARNS by clearing every level (`goombaCleared`);
-   * `?debug` is only a local override of that gate, so the intent itself stays
-   * open to any player — the party's own phones are the trusted tool here,
-   * exactly as `play`/`next` already assume. */
+  /** Level-selector jump: point the WHOLE ROOM at a level. Open to any player
+   * (`?debug` is only a local override of the client gate) — the party's own
+   * phones are the trusted tool, as `play`/`next` already assume. */
   | { type: "goto"; level: number }
-  // ---- editing the level pack, from inside the game.
-  //
-  // These ride the ROOM socket rather than the lobby's, because the lobby
-  // socket is closed the moment a phone learns its team — and because the room
-  // is the authority a player is actually talking to. The room forwards them to
-  // the lobby, which owns the pack and tells every room about the write.
+  // ---- editing the level pack. These ride the ROOM socket (the lobby's is
+  // closed once a phone knows its team); the room forwards them to the lobby,
+  // which owns the pack and tells every room about the write.
   /** Paste a level in: `index` null appends a slot, otherwise replaces one. */
   | { type: "packSet"; index: number | null; hash: string }
   | { type: "packMove"; from: number; to: number }
@@ -133,55 +114,26 @@ export type GoombaClientMsg =
 export type GoombaServerMsg =
   | { type: "state"; state: GoombaSnapshot }
   /**
-   * **The level pack**, sent on connect and again whenever it changes.
-   *
-   * A separate message rather than a field on the snapshot, because snapshots
-   * go out on every intent — including band previews at 10Hz while someone is
-   * dragging. Riding along there would put the whole pack (a couple of KB) on
-   * the wire ten times a second, per phone, to say nothing new.
+   * The level pack, sent on connect and whenever it changes. Separate from the
+   * snapshot, which goes out on every intent including 10Hz previews.
    */
   | { type: "pack"; v: number; pack: LevelPack };
 
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
-// ---------------------------------------------------------------------------
-// The four bands
-// ---------------------------------------------------------------------------
-
 /**
- * **The band budget, and now the whole of it: `MAX_BANDS` bands per level,
- * shared by whoever is in the room.**
- *
- * There used to be a second half — a per-player quota of ⌈`MAX_BANDS` / players
- * in the room⌉, so that four players were forced to lay exactly one band each —
- * and it is deliberately gone. Nobody owns a band. Any player may lay any of
- * the four, take back any of them (their own or a teammate's), and clear the
- * board. The game is multiplayer because four people are arguing over the same
- * four bands, not because the room hands each of them a token; a player who
- * wants to lay three of them while a teammate reads the level out loud is
- * playing it right.
- *
- * So the predicate is just "is there a band left to lay". It stays shared
- * between the client and the authority for the reason it always was: the phone
- * greys the gesture out with the same rule the server rejects it by, so a
- * refused tap is never a silent one.
+ * The whole band budget: `MAX_BANDS` per level, shared by whoever is in the
+ * room. There is deliberately NO per-player quota (README, "The four bands");
+ * any player may lay, lift or clear any band. Shared with the client so the
+ * phone greys the gesture out by the rule the server rejects it with.
  */
 export const canPlaceBand = (bands: GoombaBand[]): boolean => bands.length < MAX_BANDS;
 
-// ---------------------------------------------------------------------------
-// The clear, and what it unlocks
-// ---------------------------------------------------------------------------
-
 /**
- * **Has this ROOM cleared the game?** Every level done, which is exactly what
- * `finishedAt` records (set once, in `resolve`, the moment the last flag flips).
- *
- * Room state, not per-phone state: the team clears it together, so all four
- * phones unlock the level selector on the same snapshot — and a proctor
- * `reset` takes it back, because it is the same field the finish line is.
- * `?debug` is a client-side override of this gate and nothing more; nothing on
- * the authority knows or cares which phones are holding one.
+ * Has this ROOM cleared the game? Room state, so all four phones unlock the
+ * selector on the same snapshot and a proctor `reset` takes it back. `?debug`
+ * is a client-side override of this gate and nothing more.
  */
 export const goombaCleared = (s: GoombaSimState): boolean => s.finishedAt !== null;
 
@@ -242,9 +194,8 @@ export class GoombaSim {
     return Math.max(0, s.runAt + s.runT * 1000 - now);
   }
 
-  /** `pid` rides along on the band as a note of who laid it — nothing reads it
-   * as a rule any more (see `canPlaceBand`), and any player may take any band
-   * back. */
+  /** `pid` rides on the band as a note of who laid it; nothing reads it as a
+   * rule. */
   place(
     pid: string,
     msg: { ax: unknown; ay: unknown; bx: unknown; by: unknown },
@@ -253,8 +204,7 @@ export class GoombaSim {
     this.resolve(now);
     const s = this.st;
     if (s.phase !== "edit") return;
-    // A free band, and that is the whole permission check. The client greys the
-    // gesture out with the same predicate; this is what makes it true.
+    // A free band is the whole permission check.
     if (!canPlaceBand(s.bands)) return;
     const ax = num(msg.ax),
       ay = num(msg.ay),
@@ -265,8 +215,8 @@ export class GoombaSim {
     if (len < BAND_MIN || len > BAND_MAX) return;
     const L = GOOMBA_LEVELS[s.level];
     if (!L) return; // pack emptied under us
-    // Snapping happens HERE, once, on the authority — so the run every phone
-    // animates uses exactly the endpoints the server scored with.
+    // Snapped HERE, once, so every phone animates the endpoints the server
+    // scored with.
     s.bands.push(snapBand(L, { ax, ay, bx, by, pid }));
     s.runResult = null;
   }
@@ -296,27 +246,14 @@ export class GoombaSim {
     s.runT = t;
   }
 
-  /** Cutting a run short is an ABORT, not a verdict: straight back to edit
-   * with the bands still on the board and nothing scored either way.
-   *
-   * It used to backdate `runAt` and resolve, on the reasoning that the run was
-   * already scored at PLAY and stopping only skipped the movie. For a fail
-   * that reads fine; for a WIN it handed the room the clear without anyone
-   * seeing the ride. And the button makes that a one-tap accident: `▶ PLAY`
-   * becomes `■ STOP` at the same pixel under the same finger (Space too), so a
-   * second impatient press a beat later cleared the level in a single frame —
-   * `syncAnim`'s join-late catch-up loop burning every remaining substep at
-   * once. `\` and the level selector send `stop` as well, so opening the grid
-   * mid-run banked a clear the same way.
-   *
-   * Clearing `runResult` is what keeps the run→edit edge silent — the fail
-   * toast on that edge is gated on it (the client's main.js), and an abort has nothing
-   * to say. */
+  /** Cutting a run short is an ABORT, not a verdict: back to edit with the
+   * bands down and nothing scored. Never backdate `runAt` and resolve instead:
+   * PLAY becomes STOP under the same finger, so a second press would bank a
+   * win nobody watched. Clearing `runResult` keeps the run→edit edge silent
+   * (main.js gates the fail toast on it). */
   stop(now: number): void {
-    // A run that has already played out to its end gets to resolve on its own
-    // terms first. resolve() is lazy, so the state can still say "run" for a
-    // moment after the ride actually finished, and aborting THAT would throw
-    // away a win the room genuinely earned.
+    // resolve() is lazy: a run that has already played out resolves first, or
+    // aborting it would throw away an earned win.
     this.resolve(now);
     const s = this.st;
     if (s.phase !== "run") return;
@@ -326,11 +263,8 @@ export class GoombaSim {
     s.runT = null;
   }
 
-  /** The level selector's jump: fresh edit phase on the chosen level, for
-   * everyone in the room. Completed flags are untouched — jumping earns
-   * nothing. Legal from the splash too, which is how a cleared room picks its
-   * next victory lap. Also the solo (?solo) backend's card-tap, so both run
-   * the same transition. */
+  /** The selector's jump: fresh edit phase on the chosen level for the whole
+   * room. Completed flags untouched. Legal from the splash. */
   goto(level: unknown, now: number): void {
     this.resolve(now);
     if (!Number.isInteger(level)) return;
@@ -355,13 +289,9 @@ export class GoombaSim {
     s.runAt = null;
     s.runResult = null;
     s.runT = null;
-    // The finale of a cleared room lands on the splash instead of a victory
-    // lap, and stays pointed at the finale behind it — a `goto` out of the
-    // splash is what picks the next level now, and clearing the game is what
-    // handed the team that selector.
+    // The splash stays pointed at the finale; a `goto` picks the next level.
     if (splash) return;
-    // Otherwise: on to the next level, or (past the last one, with levels still
-    // open) wrap to the first that isn't done.
+    // Next level, or past the last one wrap to the first still open.
     if (s.level < GOOMBA_LEVELS.length - 1) s.level++;
     else {
       const open = s.completed.findIndex((c) => !c);
@@ -398,27 +328,12 @@ export class GoombaSim {
   }
 
   /**
-   * Fit the room to the level pack it is now looking at.
-   *
-   * This used to be a once-per-boot correction for a list that changed in a
-   * DEPLOY. The pack is live data now — someone can paste, reorder or delete a
-   * level while a team is mid-session — so it is a transition the room takes
-   * whenever the pack lands, and it is the whole of "apply immediately, keep
-   * progress":
-   *
-   *  - `completed` is re-fitted to the new length: flags past the end fall off,
-   *    new slots read as not-done rather than as undefined.
-   *  - `level` is clamped back inside the pack, so a team standing on a level
-   *    that was just deleted lands on the last one rather than on nothing.
-   *  - a run in flight is abandoned, because it was scored against geometry
-   *    that may no longer be there — finishing it would credit a level nobody
-   *    played.
-   *
-   * What it deliberately does NOT do is remap flags by identity. A delete
-   * shifts every level after it, so a cleared flag can end up describing its
-   * neighbour. That is the known cost of editing live, and it is cheap next to
-   * the alternative of wiping a team's progress every time someone fixes a
-   * typo in Figma.
+   * Fit the room to the pack it is now looking at — the whole of "apply
+   * immediately, keep progress", taken whenever the pack lands: `completed`
+   * re-fitted to the new length, `level` clamped inside it, a run in flight
+   * abandoned (scored against geometry that may be gone). It deliberately does
+   * NOT remap flags by identity: a delete shifts every flag after it. Accepted
+   * cost of editing live.
    */
   reconcile(now: number): void {
     const s = this.st;
@@ -431,9 +346,8 @@ export class GoombaSim {
       s.runResult = null;
       s.runT = null;
     }
-    // The finish line is "every level done", and that answer just changed in
-    // both directions: a new level un-clears a cleared room, and deleting the
-    // last unfinished one clears it.
+    // "Every level done" can change in both directions: a new level un-clears
+    // a room, deleting the last unfinished one clears it.
     const all = n > 0 && s.completed.every(Boolean);
     if (!all) s.finishedAt = null;
     else if (s.finishedAt === null) s.finishedAt = now;

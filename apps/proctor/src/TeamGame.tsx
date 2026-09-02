@@ -20,10 +20,8 @@ const mmss = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
-/** The Hex readout, one string per line and always the same number of them.
- * Absent state becomes placeholders rather than fewer lines — see the note on
- * TeamGame. Long values are clipped by CSS, never wrapped, for the same
- * reason. */
+/** The Hex readout: one string per line, ALWAYS the same number of them —
+ * absent state is placeholders (see TeamGame). Long values are clipped by CSS. */
 function hexStats(s: HexSnapshot | null): string[] {
   if (!s) return ["…", "…", `…/${UPGRADES.length} upgrades`];
   const phase = s.nightAt ? "🌙 night" : "☀️ day";
@@ -45,11 +43,8 @@ interface StatLine {
   title?: string;
 }
 
-/**
- * One game's readout: a heading, a progress bar, then a line each. Both games
- * in a team's box render through this, so "the same shape" is structural rather
- * than a promise two JSX trees are trusted to keep.
- */
+/** One game's readout: heading, progress bar, a line each. Both games render
+ * through this so "the same shape" is structural. */
 function GameBlock({
   title,
   progress,
@@ -84,21 +79,14 @@ function GameBlock({
   );
 }
 
-/** The Goomba readout — same fixed-line contract as hexStats: every line drawn
- * in every state, absent values as placeholders, so the box never changes
- * height.
- *
- * The levels come from the ROOM, never from this bundle: `GOOMBA_LEVELS` ships
- * empty on every surface now, and a proctor never applies a pack (four teams
- * share one module-global array, so it would be four writers on one variable
- * React is not watching anyway). So the count is the one the server stamped on
- * the snapshot, and `names` is this team's pack decoded — see useGoombaRoom. */
+/** The Goomba readout — same fixed-line contract as hexStats. The levels come
+ * from the ROOM, never this bundle: `GOOMBA_LEVELS` ships empty and a proctor
+ * never applies a pack (four teams would be four writers on one module-global
+ * array). `names` is this team's pack decoded — see useGoombaRoom. */
 function goombaStats(s: GoombaSnapshot | null, names: string[]): StatLine[] {
   if (!s) return [{ text: "…" }, { text: "…/… levels" }, { text: "…" }];
   const total = s.levelCount;
-  // The icon alone: four states, four glyphs, and the word beside them was
-  // only ever restating the picture. Kept as the line's `title` so a hover
-  // still says which is which.
+  // Icon alone; the word is the line's `title`.
   const phase =
     s.phase === "run" ? "🛹"
     : s.phase === "win" ? "🎉"
@@ -111,11 +99,9 @@ function goombaStats(s: GoombaSnapshot | null, names: string[]): StatLine[] {
     : "placing";
   const done = s.completed.filter(Boolean).length;
   const finishedMs = s.finishedAt ? s.finishedAt - s.startedAt : null;
-  // An event with no pack loaded yet is a real state, not an error; so is a
-  // pack message that has not landed on THIS socket yet.
-  // A real name is numbered by its place in the pack (`levelLabel`, the same
-  // one the phones' cards use). Neither fallback is: "no levels loaded" is not
-  // a level, and the other one already IS the number.
+  // No pack yet, or a pack message not yet on THIS socket, is a real state.
+  // A known name is numbered by `levelLabel`, the same one the phones' cards
+  // use; neither fallback is.
   const known = names[s.level];
   const name =
     known !== undefined
@@ -133,17 +119,10 @@ function goombaStats(s: GoombaSnapshot | null, names: string[]): StatLine[] {
   ];
 }
 
-/**
- * One team's live game state, rendered inside that team's drop target so
- * sorting and watching are the same box.
- *
- * EVERY line is drawn in every state — connecting, empty, mid-run, finished —
- * because a team's box must not change height as its state changes. It sits in
- * a grid with four others, so a box that grew by a line when a codeword landed
- * would move the boxes beside it out from under the proctor's finger, mid-drag.
- * The two blocks need not have the same line count as each other; what matters
- * is that all four teams render the same two blocks.
- */
+/** One team's live game state, inside its drop target. EVERY line is drawn in
+ * every state — a box that grew when a codeword landed would move its
+ * neighbours out from under a drag. The two blocks need not match each other;
+ * all four teams must render the same two. */
 export function TeamGame({
   team,
   assigned,
@@ -160,15 +139,10 @@ export function TeamGame({
   );
 }
 
-/**
- * One room's Hex readout, its 🏆 and its reset, as a block.
- *
- * The trophy is why an ad-hoc room needs this and not just the Goomba half:
- * Hex cannot score its own win — `wonAt` is set by a proctor-only intent — so a
- * room with no box on this page is a room whose players can reach the code word
- * and never be told they won. Sharing the component is what stops that being a
- * second, thinner version of the same readout.
- */
+/** One room's Hex readout, 🏆 and reset. The trophy is why an ad-hoc room
+ * needs this block: Hex cannot score its own win (`wonAt` is a proctor-only
+ * intent), so a room with no box here could reach the code word and never be
+ * told. */
 export function HexBlock({
   room,
   label,
@@ -177,8 +151,7 @@ export function HexBlock({
   room: string;
   label: string;
   /** Who the LOBBY says belongs here, for the "not in game" half of the
-   * presence line. An ad-hoc room has no assigned roster anywhere — nobody is
-   * sorted into one — so it passes none and the line is a plain count. */
+   * presence line. An ad-hoc room has no roster and passes none. */
   assigned?: LobbyPlayer[];
 }) {
   const { snap, reset, setWon } = useHexRoom(room, label);
@@ -186,10 +159,8 @@ export function HexBlock({
   const inRoom = new Set(
     (snap?.players ?? []).filter((p) => p.connected).map((p) => p.id),
   );
-  // Assigned but not in the game room — the useful direction, and the only
-  // honest presence signal for a sorted phone (the lobby's own `connected` goes
-  // false as soon as a phone leaves the landing page). Who IS playing is
-  // already on screen: the roster above this block, minus these names.
+  // Assigned but not in the room — the only honest presence for a sorted
+  // phone (the lobby's `connected` goes false off the landing page).
   const missing = (assigned ?? [])
     .filter((p) => !inRoom.has(p.pid))
     .map((p) => p.name);
@@ -207,9 +178,7 @@ export function HexBlock({
     },
     snap?.codeword
       ? {
-          // The trophy replaces the tick once the word has actually been read
-          // out to me: same line, same height, and it is the line I am looking
-          // at when I press the button, so the two cannot disagree on screen.
+          // The trophy replaces the tick on the same line, same height.
           text: `${won ? "🏆" : "✅"} ${snap.codeword}${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,
           className: "codeword",
         }
@@ -219,11 +188,9 @@ export function HexBlock({
   return (
     <GameBlock title="🐱 Hex Clicker" progress={snap?.progress ?? 0} lines={lines}>
       <div className="btns">
-        {/* The win, as the proctor witnesses it: they hear the code word, they
-            press this, and all four of that team's phones get their splash.
-            Pressing it again takes it back (a mis-pressed team box must not
-            need a whole-game reset to fix) — that direction confirms, the
-            granting direction doesn't. */}
+        {/* The proctor witnesses the win: press, and all four phones get their
+            splash. Pressing again takes it back; that direction confirms,
+            granting doesn't. */}
         <button className={won ? "won on" : "won"} onClick={() => setWon(!won)}>
           {won ? "🏆 Won ✓" : "🏆 Mark won"}
         </button>
@@ -235,16 +202,8 @@ export function HexBlock({
   );
 }
 
-/**
- * One room's Goomba readout and its reset, as a block.
- *
- * Split out of TeamGame for the same reason as HexBlock: an ad-hoc room's row
- * is these two blocks without the roster and the chat around them, and the
- * readout is exactly a team's. One component means the two cannot drift into
- * telling the same story two ways — including the fixed line count, which an
- * ad-hoc row needs for the same reason a team box does (a list of rows that
- * reflow as rooms report in is unreadable).
- */
+/** One room's Goomba readout and reset. Split out like HexBlock so an ad-hoc
+ * row and a team box cannot drift — including the fixed line count. */
 export function GoombaBlock({
   room,
   label,
@@ -252,11 +211,9 @@ export function GoombaBlock({
 }: {
   room: string;
   label: string;
-  /** Add a "who is in there" line. A team box gets this from the ROSTER above
-   * it (and from Hex's own line); an ad-hoc room has no roster anywhere — the
-   * lobby never learns who walked through the link — so the room itself is the
-   * only place to ask. Fixed per call site, so neither caller's line count
-   * changes as its state does, which is the rule that matters. */
+  /** Add a "who is in there" line. A team box gets that from the roster; an
+   * ad-hoc room has no roster, so the room is the only place to ask. Fixed
+   * per call site, so no caller's line count changes with state. */
   showPlayers?: boolean;
 }) {
   const { snap, names, reset } = useGoombaRoom(room, label);
@@ -279,14 +236,10 @@ export function GoombaBlock({
   );
 }
 
-/** Watch one team's Goomba room as a spectator — the hex hook's shape, aimed
- * at the `goomba` party.
- *
- * Two messages, not one: the room sends its level `pack` on connect (before the
- * first snapshot) and again whenever someone edits it, and a snapshot's `level`
- * only means something against that pack. We keep the NAMES rather than the
- * levels — the proctor draws no geometry — and keep them per team, so one
- * team's mid-event edit cannot relabel another team's box. */
+/** Watch one Goomba room as a spectator. Two messages: `pack` on connect
+ * (before the first snapshot) and on every edit, and a snapshot's `level`
+ * only means something against it. NAMES only, per team, so one team's edit
+ * cannot relabel another's box. */
 function useGoombaRoom(
   room: string,
   teamName: string,
@@ -329,9 +282,8 @@ function useGoombaRoom(
   };
 }
 
-/** Watch one team's game room as a spectator. The snapshot is kept as it
- * arrives; everything shown is derived from it at render, so there is no second
- * copy of the room's state to keep in step. */
+/** Watch one hex room as a spectator; everything shown is derived from the
+ * snapshot at render. */
 function useHexRoom(
   room: string,
   teamName: string,
@@ -369,9 +321,8 @@ function useHexRoom(
       }
     },
     setWon: (won: boolean) => {
-      // Granting a win is one tap: it happens with the team standing in front
-      // of me having just read the word out. TAKING it back is the one that
-      // asks, because it pulls a splash off four phones mid-event.
+      // Granting is one tap (the team is standing there). TAKING it back
+      // asks: it pulls a splash off four phones.
       if (!won && !confirm(`Take back ${teamName}'s Hex win?`)) return;
       socketRef.current?.send(JSON.stringify({ type: "won", won }));
     },

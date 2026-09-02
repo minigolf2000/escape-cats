@@ -1,21 +1,11 @@
-// The draft bench's own bridge to the shipped physics.
+// The draft bench's physics bridge: the shipped physics, codec and levels,
+// bundled for `draft.mjs`. `../lib.mjs` exposes no physics on purpose and this
+// does not loosen that rule — a draft is a level whose numbers are still being
+// SWEPT, and nothing in draft.mjs prints a pass, a fail or a score. The verdict
+// is `draft.mjs link`, played.
 //
-// `../lib.mjs` deliberately does NOT expose one. Its comment is emphatic and it
-// is right: a node-side rig that GRADED levels — verify, route, slack, solve,
-// minbands, reach, scan — was deleted along with the gate it served, because
-// "does this level pass" is a question people playing it answer and a script
-// does not. Nothing about that decision is being reopened here, which is why
-// this file exists instead of a line being added over there.
-//
-// What a draft needs is a different thing, and the distinction is the whole
-// justification: a draft is a level whose numbers are still being SWEPT. "Where
-// does this popper go" and "how wide does this doorway have to be" are answered
-// by running the same geometry thirty times with one number changed, and the
-// answer is a shape, not a verdict. `draft.mjs` never prints a pass, a fail, a
-// score or a minimum band count. The verdict is `draft.mjs link`.
-//
-// A file under `draft/` whose name starts with `_` is infrastructure, not a
-// draft — the same convention the Figma layer contract uses for `_gauge`.
+// A `draft/` file whose name starts with `_` is infrastructure, not a draft
+// (the Figma kit's `_gauge` convention).
 import { build } from "esbuild";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

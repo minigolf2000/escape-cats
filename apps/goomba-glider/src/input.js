@@ -3,7 +3,7 @@
 // A band is just two world points, so nothing forces one gesture on everyone:
 //   · tap, then tap again — the anchor waits between them (calmest on a phone)
 //   · one finger down, drag, release
-//   · two fingers stretched apart (the original)
+//   · two fingers stretched apart
 // Tapping a placed band takes it back; tapping an open anchor cancels it.
 //
 // There is no panning or zooming — the edit camera shows the whole level — so a
@@ -29,16 +29,10 @@ const ANCHOR_BEAT_MS = 1200; // re-send it this often; the room forgets ghosts a
 
 const canEdit = () => S.snap && S.snap.phase === "edit";
 
-/** The congratulations screen is one big button: the only thing anyone can do
- * from it is pick a level, so a press anywhere on the picture opens the grid
- * rather than making a thumb find the dot strip in the corner (which still
- * works — it is the same `openSelector`).
- *
- * Called from the RELEASE, not the press, so the grid never inherits the tail
- * of the gesture that opened it: the same finger's touchend would otherwise
- * land on whatever card the grid had just drawn under it. Nothing else on this
- * screen wants the gesture — `canEdit()` is false in the splash phase, so the
- * band handlers have already bowed out by the time this is asked. */
+/** The congratulations screen is one big button: a press anywhere opens the
+ * grid (same `openSelector` as the dot strip). Called from the RELEASE, not the
+ * press, so the same finger's touchend cannot land on a card the grid just
+ * drew under it. */
 export function splashTap() {
   if (S.labOpen || !S.snap || S.snap.phase !== "splash") return false;
   openSelector();
@@ -94,11 +88,10 @@ function previewFromTouches() {
 }
 function placePreview() {
   if (S.preview && S.preview.ok) {
-    // The server snaps again (authoritatively); the ghost bridges the gap.
-    // Placing also clears my streamed preview server-side, so no extra send.
-    // The ghost goes up BEFORE the send: ?solo answers synchronously, and a
-    // ghost set afterwards would outlive the snapshot that should retire it —
-    // which is what used to eat the 4th band in the lab.
+    // The server snaps again; the ghost bridges the gap and placing clears my
+    // streamed preview server-side. The ghost goes up BEFORE the send: ?solo
+    // answers synchronously, and a ghost set afterwards outlives the snapshot
+    // that should retire it.
     S.pending = { ax: S.preview.ax, ay: S.preview.ay, bx: S.preview.bx, by: S.preview.by };
     transport.send({ type: "place", ax: S.preview.ax, ay: S.preview.ay, bx: S.preview.bx, by: S.preview.by });
   } else {
@@ -195,8 +188,8 @@ cv.addEventListener("touchend", (e) => {
 }, { passive: false });
 cv.addEventListener("touchcancel", resetInput);
 
-// Mouse (desktop + the design bench): click-drag stretches, click-click does
-// the same tap-tap as a finger, with a live rubber line in between.
+// Mouse: click-drag stretches, click-click does the same tap-tap as a finger,
+// with a live rubber line in between.
 cv.addEventListener("mousedown", (e) => {
   if (S.labOpen) { labPointerDown(e.clientX, e.clientY); return; }
   if (!canEdit()) return;

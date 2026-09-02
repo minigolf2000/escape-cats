@@ -34,11 +34,9 @@ let socket: PartySocket | null = null;
 let players: LobbyPlayer[] = [];
 let teams: Team[] = [];
 let connected = false;
-/** Whether the name chip is currently an input rather than a chip, and what is
- * half-typed in it. Both live up here because a lobby broadcast rebuilds this
- * whole page — and the proctor is dragging names between boxes the entire time
- * somebody is renaming themselves, so a draft held only in the DOM is a draft
- * that disappears when a stranger gets sorted. */
+/** Rename state lives up here because a lobby broadcast rebuilds the whole
+ * page, and a draft held only in the DOM disappears when a stranger gets
+ * sorted. */
 let renaming = false;
 let draft = "";
 
@@ -106,31 +104,20 @@ function nameScreen() {
   };
 }
 
-// ---------------------------------------------------------------------------
-// The room — the four teams as the proctor currently has them
-// ---------------------------------------------------------------------------
+// ---- The room: the four teams as the proctor has them ----
 
-/** Ear width on a board box, in px. Small: four of these sit two-up on a phone
- * under whichever card owns the screen, and they are here to be recognised
- * against the headbands on the table, not admired. */
+/** Ear width on a board box, px — four of these sit two-up on a phone. */
 const BOARD_EAR_W = 48;
 /** Matches .tbox's border-width in styles.css, so the ear's base and the box's
  * border meet without a step. */
 const BOARD_BORDER = 2;
 
-/**
- * The four teams, drawn for a PLAYER: the proctor's board with the drag, the
- * buttons, the game readouts and the chat taken out of it.
- *
- * Read-only on purpose — sorting is the proctor's job and `assign` is
- * proctor-only on the wire, so nothing in here is tappable and nothing in here
- * sets a cursor. It exists because the lobby already knows all of this: every
- * phone's snapshot carries the whole roster (see LobbySnapshot.players), so
- * showing the room costs one render and no protocol at all.
- */
+/** The four teams, drawn for a PLAYER: the proctor's board without the drag,
+ * buttons, readouts or chat. Read-only: `assign` is proctor-only, so nothing
+ * here is tappable or sets a cursor. Every phone's snapshot already carries
+ * the whole roster. */
 function roomHtml(myTeam: string | null): string {
-  // Before the first snapshot there are no teams to draw and no room to
-  // describe. The caller's card is the whole page until one arrives.
+  // Before the first snapshot there is no room to draw.
   if (teams.length === 0) return "";
 
   const byTeam = new Map<string, LobbyPlayer[]>(teams.map((t) => [t.id, []]));
@@ -139,8 +126,7 @@ function roomHtml(myTeam: string | null): string {
   const boxes = teams
     .map((t) => {
       const members = byTeam.get(t.id) ?? [];
-      // Non-null for the same reason as the card above: `teams` is TEAMS off
-      // the snapshot, and all four have a pair.
+      // `teams` is TEAMS off the snapshot; all four have a pair.
       const ears = earsFor(t.id)!;
       const mine = t.id === myTeam;
       const seats = members
@@ -151,8 +137,7 @@ function roomHtml(myTeam: string | null): string {
             )}</span>${p.pid === pid ? `<span class="youpill">you</span>` : ``}</li>`,
         )
         .join("");
-      // Four seats, always drawn, so a half-full team reads as unfinished
-      // rather than just short — and so a box does not change height while the
+      // Four seats always drawn, so a box does not change height while the
       // proctor is dragging somebody into it.
       const empty = Array.from(
         { length: Math.max(0, TEAM_SIZE - members.length) },
@@ -177,26 +162,17 @@ function roomHtml(myTeam: string | null): string {
     })
     .join("");
 
-  // No heading and no counts over it. The four boxes say which teams there are,
-  // how full each one is and where you are, and a label saying "the room" over
-  // a picture of the room is the kind of chrome this screen is now without.
+  // No heading over the board: the boxes say which teams there are and where
+  // you are.
   return `<div class="board" style="--ear-h:${earsHeight(BOARD_EAR_W)}px">${boxes}</div>`;
 }
 
-// ---------------------------------------------------------------------------
-// The name, changeable from anywhere
-// ---------------------------------------------------------------------------
+// ---- The name, changeable from anywhere ----
 
-/**
- * The name chip, and the input it becomes.
- *
- * This is the ONLY thing on the page that used to be a "Not Kelly?" link, and
- * the link did something quite different: it deleted the stored name, which
- * threw the phone back to the blank first-run screen. Renaming is not
- * starting over — you keep your team, you keep your place, you are just called
- * something else — so it happens in place, on whichever screen you are on, and
- * `rename` is a wire intent the lobby has always accepted from any player.
- */
+/** The name chip, and the input it becomes. Renaming is not starting over —
+ * you keep your team and your place — so it happens in place, on whichever
+ * screen you are on; `rename` is a wire intent the lobby accepts from any
+ * player. */
 function nameChipHtml(): string {
   if (renaming) {
     return `
@@ -228,9 +204,8 @@ function wireNameChip() {
   const save = document.getElementById("savename") as HTMLButtonElement | null;
   const cancel = document.getElementById("cancelname") as HTMLButtonElement | null;
   if (!input || !save || !cancel) return;
-  // The draft lives in module state, not in the DOM — see `renaming`. Every
-  // keystroke writes it back so the next lobby broadcast redraws the input
-  // with what is actually in it.
+  // The draft lives in module state — see `renaming`. Every keystroke writes
+  // it back so a broadcast redraws the input with what is in it.
   input.oninput = () => {
     draft = input.value;
   };
@@ -254,9 +229,8 @@ function wireNameChip() {
     renaming = false;
     render();
   };
-  // Focus once, on the render that opened the editor — not on the re-renders a
-  // broadcast causes underneath it, which would steal the caret back to the end
-  // mid-word.
+  // Focus once, on the render that opened the editor — not on broadcast
+  // re-renders, which would steal the caret mid-word.
   if (document.activeElement !== input) {
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
@@ -271,18 +245,7 @@ function page(cardHtml: string, myTeam: string | null) {
   wireNameChip();
 }
 
-/**
- * The one thing an unsorted phone needs told, and now the only chrome on this
- * page: one line over the board.
- *
- * It used to be a whole card — a title, a greeting, a spinner. Every part of it
- * was already on screen somewhere better. The TITLE said the name of the app to
- * somebody who just typed their name into it. The GREETING ("Hi dog - you're
- * in") named you, which the chip under the board does, editably. And the SPINNER
- * promised the page was live, which the board itself does far better and more
- * honestly: names appear in boxes as the proctor sorts people, and a spinner
- * keeps spinning after the socket has dropped (it has no idea).
- */
+/** The one thing an unsorted phone needs told: one line over the board. */
 function waitingLine(): string {
   return `<p class="await">Waiting to be sorted\u2026</p>`;
 }
@@ -306,12 +269,9 @@ function render() {
     app.innerHTML = `<p class="await">Connecting\u2026</p>`;
     return;
   }
-  // ON A TEAM, THE BOARD IS THE WHOLE SCREEN. There is no "you're on Team 3"
-  // card any more: your box is the one wearing your colour, lifted, with your
-  // name in it under a `you` pill — which is the same fact, drawn once, in the
-  // place that also answers where everybody else went. Unsorted, the card above
-  // the board says what you are waiting for, because nothing on the board can:
-  // an unsorted phone appears in none of the four boxes.
+  // ON A TEAM, THE BOARD IS THE WHOLE SCREEN: your box wears your colour,
+  // lifted, with a `you` pill. Unsorted, the line above the board says what
+  // you are waiting for — an unsorted phone appears in none of the boxes.
   const mine = me();
   page(mine?.team ? "" : waitingLine(), mine?.team ?? null);
 }

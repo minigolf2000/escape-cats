@@ -1,15 +1,7 @@
 /**
- * Assemble every deployable surface into a single dist/ tree.
- *
- * The whole repo ships as ONE Vercel project. Each surface lands in its own
- * subdirectory here. The vanity domains REDIRECT into those subdirectories
- * rather than rewriting to them, so every surface is served from one origin --
- * which is what lets a player's localStorage pid, and therefore the team the
- * proctor put them on, follow them from the lobby into a game.
- *
- * Two kinds of surface:
- *   - Vite apps  — built by `npm run build --workspaces`, dist/ copied here.
- *   - Static     — no build step, folder copied verbatim.
+ * Assemble every surface into one dist/ tree: ONE Vercel project, one origin,
+ * so a player's localStorage pid follows them from the lobby into a game.
+ * Vite apps are copied from their dist/; static surfaces verbatim.
  */
 import { cp, mkdir, rm, access, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -18,29 +10,19 @@ import { dirname, join, resolve } from "node:path";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outRoot = join(repoRoot, "dist");
 
-/** [source, destination-under-dist, human label]. "." lands at the dist root —
- * the lobby is the landing page, so it owns / rather than a subdirectory. It
- * goes first so a later surface would visibly collide rather than be
- * silently overwritten by it. */
+/** [source, dest-under-dist, label]. The lobby owns "." (the landing page)
+ * and goes first so a later collision is visible rather than silent. */
 const SURFACES = [
   ["apps/lobby/dist", ".", "Team lobby (landing page)"],
-  // The game paths are deliberately not /hex and /goomba: they are what the
-  // vanity domains redirect to, and a player who guesses the path would walk
-  // into a game without being sorted onto a team first. /g00mBa's casing is
-  // load-bearing -- URL paths are case-sensitive, so /g00mba is a 404.
+  // Not /hex and /goomba: the vanity domains redirect here, and a guessable
+  // path walks a player into a game unsorted. /g00mBa's casing is
+  // load-bearing -- /g00mba is a 404.
   ["apps/hex-clicker/dist", "hexxygon", "Hex Clicker (coop)"],
   ["apps/goomba-glider/dist", "g00mBa", "Goomba Glider (coop)"],
   ["apps/proctor/dist", "proctor", "Proctor dashboard"],
-  // Chat must live on THIS origin, not behind a vanity domain: it reads the
-  // same localStorage pid the lobby wrote, and localStorage is per-origin.
-  // This is the one surface players type from a card rather than tap.
+  // Chat must be on THIS origin: it reads the lobby's localStorage pid.
   ["apps/chat/dist", "chat", "Per-team chat"],
-  // (There is no /editor surface any more. The Figma paste target was folded
-  // into the game itself: the level SELECTOR is the editor now, so pasting a
-  // frame, reordering the pack and playing it are all one screen behind `\`.)
-  // The two standalone tools. Each is one self-contained file with no relative
-  // references, so landing it as <name>/index.html puts it at its own pretty
-  // URL with no rewrite involved -- the path IS the file.
+  // Single-file tools land as <name>/index.html -- the path IS the file.
   ["tools/qr-studio.html", "qr-studio", "QR Art Studio"],
   ["tools/reveal-lab.html", "reveal-lab", "Night reveal wall lab"],
 ];

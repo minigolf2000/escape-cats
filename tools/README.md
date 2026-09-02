@@ -1,27 +1,18 @@
 # tools 🛠
 
-[`goomba/`](./goomba/) is the Goomba Glider design guide (`DESIGNING.md`), the
-Figma bridge, and three small commands. It has its own README.
+[`goomba/`](./goomba/) is the Goomba Glider design guide, the Figma bridge and
+the event commands; it has its own README.
 
-Everything else here is a **standalone browser tool** — not a game, not part of
-the multiplayer architecture. Each is a single self-contained HTML file with zero
-dependencies, zero build step and no server, so it costs nothing to keep and
-rides along on the same Vercel deploy.
+The two HTML files are **standalone browser tools**: single self-contained
+files, no dependencies, no build, no server. `scripts/assemble.mjs` copies each
+to `<name>/index.html` in `dist/`, so it is served by the filesystem with no
+rewrite in `vercel.json`. Neither makes a relative reference, so the
+trailing-slash trap in the root README does not apply.
 
 | File | Serves at | What it does |
 | --- | --- | --- |
-| `qr-studio.html` | `/qr-studio/` | QR Art Studio — live QR pixel painter. Paint black/white/noise directly on a working code; a GF(2) solver honors your pixels in paint order (~4ms/solve), an error-correction budget absorbs stragglers, and a background pass retries every EC level × mask to keep more of your paint legal. Over-budget pixels are annotated, never blocked; the code always scans. The page's own URL **is** the save file — the drawing is run-length encoded, deflated and written into the hash on a debounce, so the address bar always holds a link to what's on screen (⌘L ⌘C, or the copy button), about half as long as it used to be. Undo/redo is a classical two-stack pair: ⌃Z, ⇧⌃Z / ⌃Y, and the caret in the link field keeps its own. **Shift** locks to horizontal, vertical or 45°, whichever is nearest — drag one out, or click to run there from the last cell painted. Notes in [`qr-art-notes.md`](./qr-art-notes.md), source art in [`qr-art/`](./qr-art/). |
-| `reveal-lab.html` | `/reveal-lab/` | The tuning instrument for the night reveal wall's mice/word-legibility sim. The shipped wall is `apps/hex-clicker/src/wall.js`, ported from here; the lab is where the ramp gets eyeballed before it lands there. |
+| `qr-studio.html` | `/qr-studio/` | QR Art Studio: paint black/white/noise on a working code. A GF(2) solver honours pixels in paint order, an error-correction budget absorbs the rest, and a background pass retries every EC level × mask. The page's URL **is** the save file (run-length encoded, deflated, in the hash). Undo/redo on ⌃Z / ⇧⌃Z; **Shift** locks a stroke to H, V or 45°. Notes in [`qr-art-notes.md`](./qr-art-notes.md), source art in [`qr-art/`](./qr-art/). |
+| `reveal-lab.html` | `/reveal-lab/` | The tuning instrument for hex's night reveal wall. The shipped wall is `apps/hex-clicker/src/wall.js`, ported from here. |
 
-Both land at their own pretty URL through `scripts/assemble.mjs`, which copies a
-single-file surface to `<name>/index.html`. **That is why there are no rewrites
-for these paths in `vercel.json`** — the URL is a real directory on disk, so
-`/qr-studio/` is served by the filesystem the way `/hexxygon/` is.
-
-Neither file makes a single relative reference, so the trailing-slash trap
-documented in the root README does not apply to them.
-
-**The level editor is not here.** It is the game's level selector, reached with
-`\` from inside Goomba Glider (`apps/goomba-glider/src/figma/`) — the editor
-never had a second renderer or a second sim worth keeping, only a second copy of
-the same grid.
+**The level editor is not here.** It is Goomba Glider's level selector, behind
+`\` (`apps/goomba-glider/src/figma/`).

@@ -1,19 +1,16 @@
-// Goomba Glider level types + physics constants — the ONLY copy.
+// Goomba Glider level types + physics constants — the ONLY copy. The client
+// animates a run with the same sim the server scored it with, so a constant
+// that differed would show as the cat teleporting at the finish line.
 //
 // There are no levels here: a level is a Figma frame, and an event's pack lives
 // in its lobby DO. See tools/goomba/DESIGNING.md.
-//
-// The client animates a run with this sim while the server has already scored
-// it with the same sim, so a constant changed in only one place would show as
-// a cat teleporting at the finish line — there is deliberately no other place.
 
 export const G = 140; // gravity, units/s^2
 export const R = 2.2; // Goomba's collision radius
 export const START_VX = 20; // the little push when PLAY is hit
-/** Her speed ceiling, and it BINDS — she rides pinned to it for part of the run
- * on most levels, so it is a tuning parameter, not a safety limit. ONE value for
- * the whole game; there is no per-level override. Change it and every level is
- * retuned by it — replay them all. */
+/** Her speed ceiling, and it BINDS on most levels — a tuning parameter, not a
+ * safety limit. ONE value for the whole game; change it and every level needs
+ * replaying. */
 export const MAX_SPEED = 145;
 export const BAND_MAX = 58; // one silly band's worth of stretch
 export const BAND_MIN = 6;
@@ -27,21 +24,10 @@ export const KIND_GROUND = 0,
   KIND_CUSH = 2;
 export const E_KIND = [0.02, 0.32, 1.3]; // restitution: ground, band, cushion
 /**
- * Walls get a little of their own back, floors do not.
- *
- * `E_KIND[KIND_GROUND]` is one number for every piece of terrain, but a floor
- * and a wall want opposite things from it. A floor has to be near-dead or she
- * bounces down a run-out instead of settling and sliding to the plant (level
- * 3's whole last stage is that slide). A wall at 0.02 stops her like wet
- * cement, which reads as a bug rather than a rule — you expect a rubbery cat
- * to come off it with *something*.
- *
- * So restitution against terrain is chosen by the CONTACT NORMAL rather than
- * by a second terrain kind: `|nx|` is 1 for a vertical wall and 0 for a level
- * floor, and `wallness()` below ramps between the two. Nothing shallower than
- * 45° changes at all, which is what keeps floors and ridden slopes exactly as
- * they were — The Long Way Up's slope and every run-out floor still behave
- * identically.
+ * Walls give a little back, floors stay near-dead (or she bounces down a
+ * run-out instead of sliding to the plant). Chosen by the CONTACT NORMAL, not a
+ * second terrain kind: `groundE` ramps from E_KIND[0] to this between 45° and
+ * vertical, so nothing shallower than 45° changes.
  */
 export const E_WALL = 0.15;
 /** cos of the steepest surface still treated as pure floor (45°). */
@@ -86,17 +72,9 @@ export interface GoombaBumper {
 }
 
 /**
- * How a level is NAMED to players: where it sits in the pack, then its own
- * name. `index` is the pack index, so the first level reads "1 · ...".
- *
- * The number is computed HERE, at display time, and is stored nowhere. It used
- * to be typed into the `name` string of every level, which made the position
- * and the name one editable thing and meant that inserting, deleting or
- * reordering a single level was a rename of every level after it — done by
- * hand, in a file, for a number the array already knew. Now the pack's order
- * IS the numbering: drag a card and the grid renumbers itself for free.
- *
- * So a level's `name` is just its name. Don't type a number into one.
+ * How a level is NAMED to players: pack index + 1, then its name. The number
+ * is computed here and stored nowhere — the pack's order IS the numbering, so
+ * never type a number into a `name`.
  */
 export const levelLabel = (index: number, name: string): string =>
   `${index + 1} · ${name}`;
@@ -113,17 +91,10 @@ export interface GoombaLevel {
   pops?: GoombaPopper[];
   bumpers?: GoombaBumper[];
   /**
-   * The box the level was DRAWN in — the Figma frame, in level units.
-   *
-   * Padding around the geometry is a design decision, not slack: a wall with
-   * forty units of empty world to its right is a wall players can lay a band
-   * out past, and cropping to the ink takes that away. `bounds` is derived from
-   * the ink, so without this the frame's own size was dropped on the way in and
-   * the level re-cropped itself the moment it loaded.
-   *
-   * `initLevel` UNIONS it with the derived box, never replaces it: a frame
-   * drawn tighter than its own contents can only ever have been an accident,
-   * and honouring it would push terrain outside the world.
+   * The box the level was DRAWN in (the Figma frame, in level units). Padding
+   * around the ink is a design decision — room to lay a band out past a wall —
+   * so it must survive. `initLevel` UNIONS it with the derived box, never
+   * replaces it.
    */
   frame?: { x0: number; y0: number; x1: number; y1: number };
   /** Derived by initLevel — the ink, its margins, and `frame` if there is one. */
@@ -141,8 +112,7 @@ export interface GoombaLevelInit extends GoombaLevel {
   startAngle: number;
 }
 
-/** World bounds + popper aim vectors + start-pad angle — the prototype's
- * initLevel, verbatim. */
+/** World bounds + popper aim vectors + start-pad angle. */
 export function initLevel(L: GoombaLevel): GoombaLevelInit {
   L.cushions = L.cushions || [];
   L.pops = L.pops || [];
@@ -175,10 +145,9 @@ export function initLevel(L: GoombaLevel): GoombaLevelInit {
   eat(L.goal[0], L.goal[1]);
   eat(L.start[0], L.start[1]);
   L.bounds = { x0: x0 - 8, y0: y0 - 16, x1: x1 + 8, y1: y1 + 8 };
-  // The authored frame, unioned in. Its edges take no margin of their own: the
-  // margins above exist to give ink breathing room when nobody said how much,
-  // and a frame is somebody saying. Union rather than replace, so this is
-  // idempotent — running initLevel twice cannot shrink a world.
+  // The authored frame, unioned in with no margin of its own (a frame is
+  // somebody saying how much). Union, not replace: idempotent, and a frame
+  // drawn tighter than its ink adds nothing.
   const f = L.frame;
   if (f) {
     L.bounds.x0 = Math.min(L.bounds.x0, f.x0);
@@ -203,12 +172,9 @@ export function initLevel(L: GoombaLevel): GoombaLevelInit {
         L.start[0] <= Math.max(ax, bx) &&
         Math.abs(bx - ax) > 1
       ) {
-        // Normalised to point RIGHT, because the idle cat is always drawn
-        // with face = 1: a floor drawn right-to-left in Figma stores its
-        // points that way, and the raw atan2 would hand a flat floor π and
-        // draw her upside down on it. The running physics already does this,
-        // against her actual face (`tanX * st.face < 0` in physics.ts); this
-        // is the same rule for the one frame before she has a face.
+        // Normalised to point RIGHT: the idle cat is drawn with face = 1, and
+        // a floor drawn right-to-left would hand atan2 π and draw her upside
+        // down. Same rule as `tanX * st.face < 0` in physics.ts.
         const dx = bx - ax,
           dy = by - ay;
         L.startAngle = dx < 0 ? Math.atan2(-dy, -dx) : Math.atan2(dy, dx);
@@ -219,27 +185,16 @@ export function initLevel(L: GoombaLevel): GoombaLevelInit {
 }
 
 /**
- * **The levels the game is playing right now**, and the ONE array every rule
- * reads: `scoreRun`, the placement rules, the phases, the selector and the phone
- * animation all index this and cannot tell where a level came from.
- *
- * It starts EMPTY. The pack lives in the lobby DO and arrives over the wire, so
- * a client that has not heard from the lobby yet has no levels — which is the
- * honest state, and every caller below is guarded for it.
- *
- * It is a MUTABLE array rather than a fresh binding on every change because
- * that is already the contract here: `adoptHashLevel` pushes a pasted level
- * onto it so the shipped sim plays it for real. Replacing the binding would
- * strand every module that imported the old one.
+ * The levels the game is playing right now — the ONE array every rule reads.
+ * Starts EMPTY (the pack arrives from the lobby DO) and is MUTATED in place,
+ * never rebound: `adoptHashLevel` pushes onto it and every module holds this
+ * binding.
  */
 export const GOOMBA_LEVELS: GoombaLevelInit[] = [];
 
 /**
- * Swap the whole pack in place, preparing each level exactly as a shipped one.
- *
- * In PLACE — same array object — for the reason above. Returns the new length,
- * which is the number every `completed` array has to agree with; a caller that
- * changes the pack mid-room must reconcile that (see `GoombaSim.reconcile`).
+ * Swap the whole pack in place. Returns the new length, which every
+ * `completed` array has to agree with (`GoombaSim.reconcile`).
  */
 export function setGoombaLevels(list: GoombaLevel[]): number {
   GOOMBA_LEVELS.length = 0;

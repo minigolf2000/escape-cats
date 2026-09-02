@@ -1,13 +1,9 @@
 // The LEVELS menu — and, on a laptop, the level editor. One screen either way.
+// Every level as a card drawn from its own geometry; tapping one sends the
+// whole room there. Who may open it is `levelSelect()` in state.js.
 //
-// Every level as a card drawn from its own geometry; tapping one sends the whole
-// room there. Who may open it is `levelSelect()` in state.js; this draws the same
-// grid for a cleared team and for `\`.
-//
-// A card carries NO verdict. It held two once — a baked solution's result, then
-// the bare run's — and both are gone with the bench that graded them. Nothing
-// evaluates a level now except people playing it, so there is no true word to put
-// on a card, and opening the menu no longer sims every level to label one.
+// A card carries NO verdict: nothing evaluates a level except people playing
+// it (CLAUDE.md). Don't add one.
 
 import { GOOMBA_LEVELS, levelLabel } from "@escape-cats/shared";
 import { transport } from "./net";
@@ -26,11 +22,10 @@ let labCells = [];
 let labBtns = [];
 
 /**
- * A card tap is a wire intent, so the room answers a round trip later. Closing
- * the grid on the tap would uncover the OLD level for that gap and then swap it
- * under the player — so the tap only LATCHES, and the grid stays up until the
- * authority's snapshot lands on the chosen level. The timeout is the escape
- * hatch for an intent the room never echoes (dropped socket, proctor seat).
+ * A card tap is a wire intent: it only LATCHES, and the grid stays up until
+ * the snapshot lands on the chosen level (closing on the tap would uncover the
+ * OLD level for a round trip). The timeout covers an intent the room never
+ * echoes.
  */
 let labJump = null;
 const LAB_JUMP_MS = 1500;
@@ -110,13 +105,8 @@ function labButtonAt(px, py) {
   return null;
 }
 /**
- * Where a dragged card would land: an insertion GAP (0..n), read off the
- * nearest card as "left of its middle = before it, right = after it".
- *
- * Nearest CARD rather than a rect hit, because the pointer spends a drag in
- * the gutters between cards and at the ragged end of the last row, and a drop
- * there still has an obvious answer — the alternative is a drag that goes
- * dead in the space it is aiming at.
+ * Where a dragged card would land: an insertion GAP (0..n), off the NEAREST
+ * card (not a rect hit — the pointer spends a drag in the gutters).
  */
 function labGapAt(px, py) {
   let best = null, bestD = Infinity;
@@ -144,8 +134,7 @@ export function labJumpTo(i) {
 function labButtonHit(b) {
   const lv = GOOMBA_LEVELS[b.i];
   switch (b.kind) {
-    // DELETE — behind a confirm, because it is the one control here that
-    // destroys a level rather than moving it, and the pack is the only copy.
+    // DELETE — behind a confirm: the pack is the only copy.
     case "del":
       askConfirm(`Delete level ${b.i + 1}?`, lv ? lv.name : "", () => {
         // Follow the selection across the hole this leaves, or it silently
@@ -175,13 +164,10 @@ export function labPointerDown(px, py) {
   const btn = labButtonAt(px, py);
   if (btn) { labDownHandled = true; labButtonHit(btn); return; }
   const i = labCardAt(px, py);
-  // THE PHONE: a tap plays. There is nothing to select on a phone — no paste
-  // to aim, no drag to make — so a select-then-play would be a toll on the one
-  // gesture that means anything.
+  // THE PHONE: a tap plays (nothing to select — no paste to aim).
   if (!DESKTOP()) { labDownHandled = true; labJumpTo(i); return; }
-  // THE LAPTOP: select on the press, like every file browser. Clicking off the
-  // cards clears the selection back to the trailing slot, which is what "the
-  // next paste adds a level" looks like.
+  // THE LAPTOP: select on the press. Clicking off the cards selects the
+  // trailing slot ("the next paste adds a level").
   S.selected = i < 0 ? null : i;
   if (editorOn() && i >= 0)
     labDrag = { i, sx: px, sy: py, x: px, y: py, moved: false, gap: i };
@@ -208,11 +194,9 @@ export function labPointerUp(px, py) {
     }
     return;
   }
-  // Not a drag, so the press already selected — and a SECOND press on the same
-  // card inside the double-click window is what plays it. Hand-rolled rather
-  // than left to the `dblclick` event because touchstart is preventDefault'd
-  // here (the kiosk lockdown), which is exactly what stops a browser
-  // synthesising that event on a laptop with a touchscreen.
+  // Not a drag, so the press already selected; a SECOND press inside the
+  // double-click window plays. Hand-rolled: the kiosk lockdown's
+  // preventDefault on touchstart stops `dblclick` on a touchscreen laptop.
   const i = labCardAt(px, py);
   if (i < 0) { lastLabClick = { i: -1, t: 0 }; return; }
   const t = performance.now();
@@ -224,11 +208,8 @@ export function labPointerUp(px, py) {
   lastLabClick = { i, t };
 }
 /**
- * The one line under the title. It has to describe a DIFFERENT screen on each
- * surface, because the gestures are different: on a phone a tap plays, on a
- * laptop a tap selects and the second one plays. Two lines, not three — a
- * laptop has exactly one grid (editorOn is the surface), so there is no
- * controls-off wording left to write for it.
+ * The one line under the title, per surface: a phone taps to play, a laptop
+ * selects then plays. Two wordings, not three — a laptop has exactly one grid.
  */
 function labHelp() {
   if (editorOn() && editMsgT > 0 && editMsg) return editMsg;
@@ -263,17 +244,10 @@ export function drawLab() {
   const savedCam = { ...cam };
 
   /** The per-card editor controls. Drawn last so they sit over the level, and
-   * hit-tested BEFORE the card, so pressing ⌫ never also selects it. It acts
-   * on the card it sits on whatever is selected — a button on a card is a
-   * sentence about that card.
-   *
-   * ONE button, down from four: ◀ ▶ went to the drag, and `⧉` copy went too.
-   * Copy existed to get a level back OUT as a link — to duplicate it, to send
-   * it, or to grade it on the bench. Duplicating and sending are Figma's now
-   * (the frame is the source, and Ctrl+C there is the way in), and grading is
-   * nobody's — the bench is deleted, and a level is judged by being played.
-   * `seed.mjs --pull` reads a live event's whole pack off the lobby, which beat
-   * copying one card at a time even when there was something to grade with. */
+   * hit-tested BEFORE the card, so pressing ⌫ never also selects it. Acts on
+   * the card it sits on, whatever is selected. ONE button: reorder is the
+   * drag, and there is no copy-out — the Figma frame is the source and
+   * `seed.mjs --pull` reads a whole pack. */
   const cardButtons = (i, x, y) => {
     if (!editorOn()) return;
     const B = 22, G = 4;
@@ -319,10 +293,7 @@ export function drawLab() {
     lv.bumpers.forEach((bp) => drawBumper(bp, 0));
     lv.cans.forEach((m, k) => drawCan(m[0], m[1], false, k));
     drawGoalPlant(lv, null);
-    // Her spawn, drawn as herself. A card is read at a glance and every other
-    // thing on it is a picture of the thing it is; `start` was the one piece of
-    // the level with nothing standing where it says. Idle, so the grid has her
-    // waiting on all of them at once.
+    // Her spawn, drawn as herself, idle.
     drawGoomba(lv.start[0], lv.start[1], lv.startAngle, 1, true, false, true);
     setCamOffset(0, 0);
     ctx.restore();
@@ -336,20 +307,12 @@ export function drawLab() {
     ctx.setLineDash([]);
     ctx.font = "700 12px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = "#f2ecff";
-    // The title is all a card says, so trim to the card's real width rather
-    // than a guessed character count.
-    //
-    // The number comes from the card's PLACE, not from the level — see
-    // `levelLabel`. A hash-adopted level is the one card that gets no number:
-    // it is appended to this array locally and is not in the pack at all, so
-    // numbering it would claim a position in a pack it never joined, which is
-    // the opposite of what the rest of the card says about itself.
+    // The number is the card's PLACE (`levelLabel`). A hash-adopted level gets
+    // none: it is not in the pack at all.
     const title = lv.pasted ? lv.name : levelLabel(i, lv.name);
     ctx.fillText(fitText(title, cw - 18), x + 9, y + ch - 8);
-    // A level adopted from the URL hash (?solo#…) is the one kind that is NOT
-    // in the event's pack: it plays identically — same sim, same bands, same
-    // scoring — but nobody else can see it and no room has to clear it. It
-    // takes the top-left corner the bare verdict used to hold.
+    // A level adopted from the URL hash (?solo#…): plays identically, but
+    // nobody else can see it and no room has to clear it.
     if (lv.pasted) {
       ctx.font = "700 9px ui-rounded, system-ui, sans-serif";
       ctx.fillStyle = "#ffd166";
@@ -367,9 +330,8 @@ export function drawLab() {
       ctx.fillText("jumping…", x + cw / 2, y + ch / 2);
       ctx.restore();
     }
-    // SELECTION, drawn outside the card's own frame so it can coexist with
-    // the amber "this is the level the room is on" — they are different facts
-    // and a card is often both.
+    // SELECTION, outside the card's frame so it coexists with the amber
+    // "the room is on this level" — a card is often both.
     if (DESKTOP() && S.selected === i) {
       ctx.strokeStyle = "#f2ecff"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.roundRect(x - 4, y - 4, cw + 8, ch + 8, 15); ctx.stroke();
@@ -389,8 +351,6 @@ export function drawLab() {
   }
 
   // The trailing slot: where a paste lands when it is not replacing anything.
-  // Drawn as a card rather than explained in a line of help, because "the next
-  // paste goes HERE" is a place, and a place is easier to point at than a rule.
   if (editorOn()) {
     const i = GOOMBA_LEVELS.length;
     const c = i % cols, r = (i / cols) | 0;
@@ -402,8 +362,8 @@ export function drawLab() {
     ctx.lineWidth = S.selected === null ? 2.5 : 1.5;
     ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
     ctx.restore();
-    // The empty slot is selectable like any card — "nothing is S.selected" and
-    // "the new-level slot is S.selected" are one state, and this is its face.
+    // "nothing is S.selected" and "the new-level slot is selected" are one
+    // state; this is its face.
     if (S.selected === null) {
       ctx.strokeStyle = "#f2ecff"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.roundRect(x - 4, y - 4, cw + 8, ch + 8, 15); ctx.stroke();

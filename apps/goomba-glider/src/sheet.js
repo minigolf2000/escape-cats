@@ -1,16 +1,7 @@
-// How to play: two pictures, drawn by the game.
-//
-// The waiting room used to explain this in four sentences. Nobody reads four
-// sentences at a party, and nothing ever showed them again: the gate is the one
-// screen a player passes through exactly once. It says the same two things in
-// pictures now — WHERE she is going (past every can, home to the plant) and WHAT
-// the players do about it (lay bands in her way) — and `?` brings them back
-// mid-party, which is the half that was actually missing.
-//
-// They are drawn by the RENDERER, not by hand: a scene is a level-shaped literal
-// and `drawScene` points ctx/W/H/cam at the sheet's little canvases and back. A
-// picture of a watering can that is not THE watering can drifts the first time
-// either is touched.
+// How to play: pictures, drawn by the RENDERER — a scene is a level-shaped
+// literal and `drawScene` points ctx/W/H/cam at the sheet's canvases and back,
+// so a can in the picture cannot drift from a can in the game. The gate is the
+// one screen a player passes through exactly once; `?` brings it back.
 
 import { R } from "@escape-cats/shared";
 import { S, REDUCED } from "./state";
@@ -27,73 +18,31 @@ import {
 /** A scene: only the fields the draw functions actually read. Nothing here is
  * simulated, verified or playable — `bounds` is just the box to frame. */
 const GOAL_SCENE = {
-  // The floor RUNS DOWNHILL and then STOPS, one gap short of the plant. The
-  // hill is the motor — gravity is the only one this game has, since the
-  // players never push her, they only put things in her way — and the gap is
-  // what the band is FOR: a band drawn over solid ground is decoration, and
-  // this one is the last thing between her fall and the pot.
-  //
-  // The gap is at the END rather than in the middle because that is what lets
-  // the cans stay UP. She leaves the ground where the hill steepens and flies
-  // the rest, so her line runs high and clear across the picture; a gap in the
-  // middle has to be crossed ON the band, which drags that line — and every can
-  // strung along it — down onto the floor.
-  //
-  // The band's ends ARE the two platform ends, which is where a real band snaps
-  // (a terrain vertex), so nothing here is a shape the game could not make. The
-  // far side sits LOWER than the near side's line would reach, so the band
-  // slants at twice the floor's grade: drawn level with it, it read as a pink
-  // section OF the floor rather than as a break.
+  // The floor runs downhill and STOPS one gap short of the plant. The gap is
+  // what a band is FOR (a band over solid ground is decoration), and it is at
+  // the END so the cans stay up: a gap in the middle is crossed ON the band,
+  // dragging her line and every can along it onto the floor. The band's ends
+  // are the platform ends (where a real band snaps); the far side sits lower
+  // so the band reads as a break, not a pink section of floor.
   terrain: [[[0, 10.2], [24, 12.7], [48, 16.3]], [[60, 20], [74, 22.4]]],
   band: { ax: 48, ay: 16.3, bx: 60, by: 20 },
-  // ONE can, where the middle of three used to be. Three of them said "and
-  // another, and another" about a number that is not the point — a level's cans
-  // are however many its designer drew — while one reads as "collect this on
-  // the way", which is the whole sentence. Up in the air where the three were:
-  // 4.5 clear of a floor that is falling away faster than she is, so no part of
-  // it sits on the floor.
+  // ONE can, in the air: 4.5 clear of a floor falling away faster than she is.
   cans: [[33, 9.2]],
   startX: 7,   // ...her seat on the slope is derived from it, see seatOn
-  // The plant SITS ON the far platform rather than standing IN it, and three
-  // numbers put it there.
-  //
-  // drawGoalPlant anchors on the CROWN, not the base — its saucer's bottom
-  // lands 3.6 below `goal` — so a goal placed a few tenths over the surface,
-  // which is where a level's own `goal` layer sits and where this one used to,
-  // sinks the whole pot into the floor.
-  //
-  // Then the floor is not the polyline. Terrain is drawn twice (drawTerrain): a
-  // 4.4-wide halo, which is 2×R and reads as air she may not be in, and the
-  // 1.5-wide cream LINE inside it, which is what a player sees as the ground —
-  // her own board rides that line. So the pot rests on the cream's top edge,
-  // 0.75 over the polyline, and not on the halo's: sat on the halo it hangs a
-  // clear 1.45 off the floor, which is the same picture as sunk into it, upside
-  // down.
-  //
-  // And a wide flat saucer on a SLOPING shelf touches down on its uphill edge,
-  // not under its middle. The saucer is a 4.2×0.8 ellipse and this ledge falls
-  // 2.4 over 14, so tangency wants √((4.2·0.171)² + 0.8²) ≈ 1.08 under its
-  // centre where a level shelf would want 0.8 — 1.1 over the polyline once the
-  // ellipse's own half-height is taken back off. Rest it at 0.75 and the uphill
-  // rim cuts a quarter of a unit into the cream.
+  // The plant's goal sits 3.6 ABOVE the floor, unlike a real level's:
+  // drawGoalPlant anchors on the CROWN (saucer bottom 3.6 below `goal`), so a
+  // goal on the surface buries the pot in the stroke. It rests on the cream
+  // line's top edge (0.75 over the polyline), plus the extra a 4.2×0.8 saucer
+  // needs on this 2.4/14 slope to touch on its uphill rim (≈1.1 total).
   goal: [67, 21.2 - 1.1 - 3.6],
-  // Framed off what the DRAW functions reach, not off the coordinates above:
-  // the plant's glow is 8.8 wide of its goal and a can's is 4.6 of its middle,
-  // so a box drawn to the objects' own points clips both. The canvas is far
-  // wider than it is tall, so the WIDTH is what sets the scale here and these
-  // two y's do nothing but centre the picture: their midpoint is the middle of
-  // everything drawn, from the top of the first can's glow (2.4) to the bottom
-  // of the far platform's stroke (24.3).
+  // Framed off what the DRAW functions reach (plant glow 8.8 wide, can glow
+  // 4.6), not the points above. Width sets the scale; the y's only centre.
   bounds: { x0: -3, x1: 77, y0: 4.2, y1: 23 },
 };
 
 
-/** Her seat on a scene's terrain at `x`: the surface angle there, and her
- * centre R clear of it along the surface NORMAL — the same two numbers the sim
- * keeps for a body resting on the ground, and the same trick the gesture
- * pictures play off a band. Derived rather than written down, because a
- * hand-typed start next to a slope is one edit away from leaving her hanging in
- * the air. */
+/** Her seat on a scene's terrain at `x`: surface angle, centre R clear along
+ * the NORMAL — derived, so an edit to the slope cannot leave her in the air. */
 function seatOn(poly, x) {
   let i = 0;
   while (i < poly.length - 2 && poly[i + 1][0] < x) i++;
@@ -104,43 +53,19 @@ function seatOn(poly, x) {
 }
 const GOAL_SEAT = seatOn(GOAL_SCENE.terrain[0], GOAL_SCENE.startX);
 
-// ...and the trailing points are not cans, they are the SHAPE: one arc, from
-// her pad to the pot, steepening the way a fall does. It is drawn as though the
-// band were not there, and that is deliberate — bent down onto the band and
-// back up it stopped being an arc and became a route, with a kink at every
-// place the geometry underneath happened to be interesting. The band is what
-// the floor needs, not what her line needs; the arc passes over the gap without
-// ever asking what is under it.
-//
-// It ends at the PLANT'S MIDDLE — `goalMid`, derived rather than typed. An
-// arrow is a sentence with a subject, and this one used to stop over the far
-// ledge with its nose still on the fall's slope, which put its point on the
-// floor a little short of the pot: it read as "down there somewhere" next to a
-// plant it never named. `TIP_CLEAR` is what lets it aim AT the plant without
-// landing on it — the tip stops that far short, outside the blades, and the aim
-// carries the rest.
-//
-// The plant's middle sits a good 5 over the floor it stands on — the pot rests
-// on the cream and drawGoalPlant centres the ink up by the crown — so a line
-// that keeps falling cannot arrive at it: the tail is a shallower descent than
-// it was, and the shaping point comes UP with it to keep the arc steepening the
-// whole way. The alternative — dive to the ledge and lift into the pot — is the
-// route with a kink in it that this arc already replaced once. The shaping
-// point is the one number here still set by eye, and it is set against the
-// endpoint: move the plant and it wants looking at again.
+// The ride-line is the SHAPE of her fall: one arc from pad to pot, drawn as
+// though the band were not there (bent onto the band it became a kinked
+// route). It ends at the plant's MIDDLE (`goalMid`, derived); the shaping point
+// [53, 12.2] is the one number set by eye, against that endpoint — move the
+// plant and look at it again.
 const RIDE_PATH = [[11, 8.8], ...GOAL_SCENE.cans, [53, 12.2], goalMid(GOAL_SCENE)];
-// World units from the plant's middle to the arrow's nose. The blades fan ~5.4
-// out of the crown, so anything under about 5 buries the nose in leaves; much
-// over 6 and the nose backs out of the glow and stops looking aimed at all.
+// World units from the plant's middle to the arrow's nose: under ~5 buries the
+// nose in the blades, much over 6 backs it out of the glow.
 const TIP_CLEAR = 5.6;
 
-/** The dashed ride-line, with an arrow on its nose. Marching dashes, so it
- * reads as travel rather than as a rope she is hanging from.
- *
- * The path's last point is what the arrow AIMS at, not where it is drawn: the
- * nose stops TIP_CLEAR short of it, along the same line, so the arrowhead's
- * rotation is the true bearing to that point rather than something eyeballed
- * against it. Move the plant and the arrow follows. */
+/** The dashed ride-line with an arrow. The path's last point is what the
+ * arrow AIMS at, not where it is drawn: the nose stops TIP_CLEAR short along
+ * the same line, so the bearing is true. */
 function drawRide(path) {
   ctx.save();
   ctx.strokeStyle = "rgba(87,230,201,0.6)";
@@ -168,111 +93,52 @@ function drawRide(path) {
   ctx.restore();
 }
 
-/** Picture one — the goal. She is idle at the TOP of the slope, the cans are
- * strung down it, and the plant is drawn READY (st.gotN = every can):
- * this is the ending, not a snapshot mid-level, so it wears the face the
- * ending has. */
+/** Picture one — the goal. The plant is drawn READY (st.gotN = every can):
+ * this is the ending, so it wears the ending's face. */
 function drawGoalScene() {
   drawTerrain(GOAL_SCENE);
   drawRide(RIDE_PATH);
   GOAL_SCENE.cans.forEach((c, i) => drawCan(c[0], c[1], false, i));
   drawGoalPlant(GOAL_SCENE, { gotN: GOAL_SCENE.cans.length });
-  // After the cans and the plant, exactly as the game draws them: a band is in
-  // front of everything it is laid across, and a can's glow is 4.6 wide enough
-  // to swallow one drawn underneath it.
+  // After the cans and the plant, as the game draws them: a can's glow would
+  // swallow a band drawn underneath it.
   drawBand(GOAL_SCENE.band, 0, false);
   drawGoomba(GOAL_SEAT.x, GOAL_SEAT.y, GOAL_SEAT.a, 1, true, false, true);
 }
 
-/** Picture zero — her, gliding along the top of the words.
+/** Picture zero — her, gliding along the top of the words. Her canvas covers
+ * the words as well as the air (#title #scTitle) so she is drawn OVER the
+ * letters, never sliced at the line she rides. Nothing else is drawn into it.
  *
- * The one scene with no level in it: the "terrain" she rides IS the title, and
- * that is DOM text. Her canvas covers the words as well as the air over them
- * (#title #scTitle), so she is never sliced off at the line she is riding, and
- * she is drawn OVER the letters wherever the two meet. Nothing else is drawn
- * into it — the title is already three colours and a dashed ride-line across it
- * would be noise.
- *
- * HER SIZE IS THE GOAL PICTURE'S, to the pixel — `goalScale` below, read off
- * that canvas rather than written down. There are two drawings of this cat on
- * this screen, a few hundred pixels apart, and a player reads them as one
- * animal: two sizes is the same drift as a watering can in the picture that is
- * not the watering can in the game, and it is the reason nothing in this file
- * writes down a number another box already holds.
- *
- * That is a change of MASTER, not just of value. The strip used to size her —
- * a constant of world units crammed into the air over the cap line — so she
- * came out a fixed fraction of the TITLE, about .74 of its em, and grew 14-18%
- * with it the day the mark grew. She is decoration on somebody else's letters;
- * the letters are not what she should be measured against. Now the scale comes
- * in from the picture below and `ground` is what falls out of it: the measured
- * air, in those units, so she still rides the cap line exactly.
- *
- * She lands a good bit smaller than she has ever been here — 27.3px against
- * 35.0 on a 390x844 phone — because she was always over the picture's cat and
- * nothing in the old arrangement could see it. Measured, that gap ran 18% on a
- * 320 phone and 40% on a 430 one, and it WIDENED with the screen for a reason
- * worth keeping: the title scales all the way up while `.how` stops at its 340
- * max-width, so the two cats were diverging exactly where there was most room
- * to notice. She now stops growing at a 388px viewport, where the picture
- * does, and holds 27.3px above it.
- *
- * She crosses and comes round again rather than parking mid-word, because a cat
- * sitting on the O is a decal and a cat travelling is the game's verb; the wrap
- * happens with her clear of both ends (TITLE_RUNWAY ≥ her half-width, both in
- * WORLD units, so a change of scale cannot reach it), so the jump is never on
- * screen and the bob's phase at the seam does not matter. */
+ * HER SIZE IS THE GOAL PICTURE'S (`goalScale`), not the title's: scale-in,
+ * `ground`-out (`titleFrame`). Reverse it and she becomes a fraction of the
+ * LOGO and drifts from the picture's cat. She crosses and wraps clear of both
+ * ends (TITLE_RUNWAY ≥ her half-width, in WORLD units). */
 const TITLE_CROSS = 9;     // seconds, one end of the words to the other
 const TITLE_RUNWAY = 6;    // ...starting and ending this far outside the canvas
 
-/** The title's CAP LINE, in css px below the top of the h1's own box: the line
- * she rides, and the one number the stylesheet holds ABOUT the mark rather than
- * about its box.
- *
- * This used to MEASURE — a canvas, measureText("H"), font metrics, a memo keyed
- * on the resolved font and, once the face became a webfont, on whether it had
- * landed yet. All of that was paying for one uncertainty: the title was text,
- * so the face under it was whatever the platform had, seating its capitals
- * somewhere this code could not know in advance. The mark is OUTLINES now (see
- * index.html), which have exactly one geometry everywhere, so the answer is a
- * constant — and it is `--cap-em` in styles.css rather than a literal here,
- * because logo-outline.py prints it in the same breath as the svg's size and
- * the two must agree. One em-relative number, scaled by whatever #title's clamp
- * came out at on this screen. */
+/** The title's CAP LINE, css px below the top of the h1's box: the line she
+ * rides. A constant, because the mark is OUTLINES with one geometry — and it
+ * is `--cap-em` in styles.css, not a literal here, because logo-outline.py
+ * prints it with the svg's size and the two must agree. */
 function capLine(h1) {
   const cs = getComputedStyle(h1);
   return parseFloat(cs.fontSize) * (parseFloat(cs.getPropertyValue("--cap-em")) || 0);
 }
 
-/** The scale the GOAL picture is drawn at, css px per world unit — taken off
- * its canvas with drawScene's own formula rather than written down here. It is
- * the column width over 80 in practice (`#gate .scene`'s aspect-ratio IS
- * GOAL_SCENE's frame, so the min() has nothing left to letterbox), and it is
- * written as the min() anyway: the day that ratio and that frame drift apart
- * is exactly the day a hardcoded column width would put two different cats on
- * one screen. */
+/** The scale the GOAL picture is drawn at, css px per world unit, with
+ * drawScene's own formula — the min() written out so that if `#gate .scene`'s
+ * aspect-ratio and GOAL_SCENE's frame ever drift apart, the cats still agree. */
 function goalScale() {
   const r = scGoalEl.getBoundingClientRect(), b = GOAL_SCENE.bounds;
   return Math.min(r.width / (b.x1 - b.x0), r.height / (b.y1 - b.y0));
 }
 
-/** The world the title canvas frames: exactly the canvas, at the GOAL
- * picture's scale. Both axes are handed that same scale, so drawScene's min()
- * cannot letterbox it, and `ground` — the one line in world coordinates she
- * has to sit on — is the measured air converted into those units.
- *
- * This is the inversion worth holding on to. It used to run the other way: a
- * constant said how many world units the air was worth and the scale fell out
- * of it, which made her size a property of the TITLE. Now the scale is given
- * and the cap line is what falls out, which makes her size a property of the
- * CAT in the picture below. She rides the letters either way, at whatever size
- * the letters happen to be.
- *
- * The `|| 1` is for the frame where the gate has no box at all: `goalScale`
- * comes back 0, and drawScene bails on the title canvas before it ever calls
- * the body, so these numbers have to be finite and do not have to be right.
- * `Math.max(air, 1)` is the older guard for a face whose metrics have not
- * landed — it keeps her ON the strip rather than above it. */
+/** The world the title canvas frames: the canvas, at the GOAL picture's scale
+ * on BOTH axes (so drawScene's min() cannot letterbox), with `ground` the
+ * measured air in those units. Scale in, cap line out — never the reverse.
+ * `|| 1`: with the gate unboxed `goalScale` is 0 and drawScene bails before the
+ * body, so these need only be finite. `Math.max(air, 1)` keeps her ON the strip. */
 function titleFrame(el, h1) {
   const w = el.clientWidth, h = el.clientHeight;
   const air = Math.max(h1.getBoundingClientRect().top
@@ -284,65 +150,38 @@ function titleFrame(el, h1) {
 function drawTitleScene(b) {
   const t = REDUCED() ? 0.5 : (tGlobal % TITLE_CROSS) / TITLE_CROSS;
   const x = b.x0 - TITLE_RUNWAY + (b.x1 - b.x0 + TITLE_RUNWAY * 2) * t;
-  // A shallow glide path, and her nose on its slope. World y is down, so a
-  // positive slope is a positive (clockwise) rotation — the same sign the sim
-  // hands drawGoomba off a band's normal.
+  // A shallow glide path, nose on its slope. World y is down, so a positive
+  // slope is a positive (clockwise) rotation, as the sim hands drawGoomba.
   const k = 0.26, amp = 0.4;
   const y = b.ground - R + Math.sin(x * k) * amp;
-  // GROUNDED, not airborne: she is riding the words, the way she rides a band
-  // in the picture below. `airborne` is not a pose here, it is a FACE — it
-  // blows her pupils up 1.5x, which is the game's tell for being off the
-  // ground with nothing under her, and a title is no place to wear it.
+  // GROUNDED, not airborne: `airborne` blows her pupils up 1.5x, the game's
+  // tell for nothing under her, and a title is no place to wear it.
   drawGoomba(x, y, Math.atan(amp * k * Math.cos(x * k)), 1, true, false, false);
 }
 
-/** Pictures three and four — the two gestures, side by side on one stage.
- *
- * The two pictures above say what a band DOES and nothing said how one gets
- * there. These are a PAIR: the same two ledges and the same band in both, so
- * the only difference between the panels is what the hand does — laying it on
- * the left, taking it back on the right. One stage twice is why they can be
- * read together at a glance; two different stages would be two puzzles.
- *
- * Only these two gestures are here. A band can also be laid tap-then-tap or
- * stretched between two fingers (see "three ways to lay a band"), and a picture
- * showing all three would be a manual — the drag is the one a thumb finds by
- * itself, and the other two are found by anyone who tries them.
- *
- * There is no X over the band on the right, and there must not be: a mark
- * across a band already means something in this game — drawBand paints an
- * illegal placement RED and dashed — so an X here would teach "you cannot put
- * one there" in the one place that is teaching how to take one away. The hand
- * and the ring it leaves say it without borrowing that word.
- *
- * The FINGERTIP is the one mark in this sheet with no counterpart in the game,
- * the same licence the ride-line takes in picture one: a gesture cannot be
- * drawn out of the things it acts on. Everything under it is the game's own —
- * drawTerrain, and drawBand as a ghost and then solid, exactly as a live drag
- * and a placed band are drawn. */
+/** Pictures three and four — the two gestures on ONE stage: the same ledges
+ * and band in both, so the only difference is the hand (lay on the left, take
+ * back on the right). Only drag and tap are shown; tap-tap and the stretch are
+ * found by trying. NO X over the band being taken back, ever: drawBand already
+ * paints an illegal placement red and dashed, so an X would teach "you cannot
+ * put one there". The FINGERTIP is the one mark with no counterpart in the
+ * game, on the same licence as the ride-line: a gesture cannot be drawn out of
+ * the things it acts on. */
 const GESTURE_SCENE = {
   terrain: [[[0, 8], [11, 8]], [[26, 15], [37, 15]]],
   band: { ax: 11, ay: 8, bx: 26, by: 15 },    // what the drag lays, end to end
-  // A ledge down onto a lower one, so the band goes in on the SLANT every band
-  // in this game goes in on — and so a half-width panel still uses its height.
-  // Drawn flat and level first, it was a rule across the middle of an empty
-  // box: 35% ink against the ~70% the two pictures above it carry.
-  // Half the width of those two, at the same SCALE as them (~4 px per world
-  // unit at 340px), because four pictures at two scales look like two games.
-  // Wide enough for the terrain's HALO, not just its line: the stroke runs 2.2
-  // either side of a polyline, so ledges drawn to 0 and 37 need the frame out
-  // at -3 and 40 or they are shaved off against the panel's edges.
+  // A ledge down onto a lower one, so the band goes in on a slant and a
+  // half-width panel uses its height. Same SCALE as the pictures above. Wide
+  // enough for the terrain HALO (2.2 either side), hence -3 and 40.
   bounds: { x0: -3, x1: 40, y0: 5, y1: 18 },
 };
-// The beats of each loop, in seconds. Both run 3s, held long enough to read at
-// a glance and short enough that a player looking up mid-caption sees it again.
+// The beats of each loop, in seconds. Both run 3s.
 const LAY_PRESS = 0.25, LAY_PULL = 1.55, LAY_LET = 1.75, LAY_HOLD = 2.75,
   LIFT_TAP = 0.75, LIFT_GONE = 1.35, LIFT_BACK = 2.05, LIFT_SOLID = 2.25,
   GESTURE_LOOP = 3;
 
-/** A fingertip: a soft disc under a ring, `press` scaling both (1 = down on the
- * glass) and `a` fading them. White, because it is a hand rather than anything
- * in the world, and the only white thing on these two canvases. */
+/** A fingertip: a soft disc under a ring, `press` scaling both (1 = down on
+ * the glass) and `a` fading them. White — the only white thing here. */
 function drawTouch(x, y, press, a) {
   const r = 2.0 * cam.s * press;
   ctx.save();
@@ -366,15 +205,12 @@ function drawTapRing(x, y, u) {
 /** Where a tap lands on the band: its middle, plus the sag it hangs with. */
 const bandMid = (bd) => [(bd.ax + bd.bx) / 2, (bd.ay + bd.by) / 2 + 0.85];
 
-/** LEFT — laying one. Press, pull the band out under the finger (drawn as the
- * ghost the game puts under a live drag), let go, hold it there. The loop's
- * last beat drops the band back to a ghost and then to nothing: a rewind, and
- * one deliberately done with no finger anywhere near it, so that the panel
- * whose whole subject is placing never appears to remove. */
+/** LEFT — laying one: press, pull the band out (the game's own drag ghost),
+ * let go, hold. The rewind at the end happens with no finger near it, so the
+ * placing panel never appears to remove. */
 function drawLayScene() {
   const bd = GESTURE_SCENE.band;
-  // Parked mid-pull when the phone asks for less motion: one frame has to carry
-  // this, and the one that does is a band half-drawn under a finger.
+  // Reduced motion: parked mid-pull, a band half-drawn under a finger.
   const t = REDUCED() ? 0.9 : tGlobal % GESTURE_LOOP;
   const smooth = (u) => u * u * (3 - 2 * u);
   drawTerrain(GESTURE_SCENE);
@@ -390,16 +226,14 @@ function drawLayScene() {
   }
 }
 
-/** RIGHT — taking it back. The band is already there; the finger comes down on
- * it, it goes, and the ring goes out after it. Then it steps back in through
- * the same ghost, which is the loop resetting rather than anything the hand
- * did — the finger is long gone by then. */
+/** RIGHT — taking it back: the finger comes down, the band goes, the ring
+ * goes out after it. It steps back in through the ghost with the finger long
+ * gone. */
 function drawLiftScene() {
   const bd = GESTURE_SCENE.band, [mx, my] = bandMid(bd);
   drawTerrain(GESTURE_SCENE);
   if (REDUCED()) {
-    // No loop to watch, so one frame has to say "tapped, and going": the band
-    // still there under the finger, with the ring already leaving.
+    // Reduced motion: one frame says "tapped, and going".
     drawBand(bd, 0, true);
     drawTapRing(mx, my, 0.35);
     drawTouch(mx, my, 1, 1);
@@ -413,11 +247,8 @@ function drawLiftScene() {
       drawTouch(mx, my, 1.35 - 0.35 * u, u);
     }
   } else if (t < LIFT_BACK) {
-    // It comes OFF: both ends pulled into the tap over a beat and a half, then
-    // the ring out after it. A band that simply stopped being drawn read as a
-    // cut in the film — and this way the panel's motion is the opposite of the
-    // one beside it, where a band grows OUT of an anchor, instead of a second
-    // picture of the same slanted line.
+    // Both ends pulled into the tap, then the ring out after it — the
+    // opposite motion to the panel beside it, where a band grows OUT.
     const c = (t - LIFT_GONE) / 0.14;
     if (c < 1) drawBand({ ax: bd.ax + (mx - bd.ax) * c, ay: bd.ay + (my - bd.ay) * c,
       bx: bd.bx + (mx - bd.bx) * c, by: bd.by + (my - bd.by) * c }, 0, true);
@@ -438,30 +269,19 @@ export function drawSheet() {
   drawScene(scLiftEl, GESTURE_SCENE.bounds, drawLiftScene);
 }
 
-// The sheet's two wearings. It opens as the GATE, carrying the connection
-// status, and is the same element every time after, opened by `?`. `sheetOpen`
-// is what the loops render off; `sheetTap` is only "may this be dismissed",
-// which is the entire difference — and the sheet is NEVER dismissed by anything
-// but a tap or a key. The room going live only ARMS it (`armSheet` below): a
-// how-to-play sheet that vanishes by itself the moment the proctor sorts a
-// phone in is a sheet nobody read, which is the whole failure the pictures
-// replaced.
+// The sheet opens as the GATE and is the same element `?` reopens. `sheetOpen`
+// is what the loops render off; `sheetTap` is "may this be dismissed". It is
+// NEVER dismissed by anything but a tap or a key: the room going live only
+// ARMS it (`armSheet`) — a sheet that vanishes by itself is a sheet nobody read.
 let sheetOpen = true, sheetTap = false;
 /** Is the sheet on screen (so the loop must keep drawing it)? */
 export const sheetIsOpen = () => sheetOpen;
 /** May a key or a tap dismiss it? Armed by the first snapshot, never by it. */
 export const sheetIsArmed = () => sheetTap;
 
-/** Make the sheet dismissible — and, because `.ready` is also what raises
- * `#gateTap`, this is the moment the sheet starts saying how to leave.
- *
- * It said nothing for a long time, on the argument that a tap is what a phone
- * answers to anyway and the zoop out says where the sheet went. That held while
- * the gate was 86% and the game showed faintly through it: the ghost underneath
- * was the sentence "this is a layer". The gate is opaque now, so the sheet is
- * the whole phone, and one small line at the bottom is what replaces it — never
- * before this call, because before it a tap does nothing and the line would be
- * a lie. */
+/** Make the sheet dismissible. `.ready` also raises `#gateTap` ("tap to
+ * continue"), and never before this call: before it a tap does nothing and the
+ * line would be a lie. */
 export function armSheet() {
   sheetOpen = true; sheetTap = true;
   cancelZoop();   // re-opened mid-flight: the sheet is back, not still leaving
@@ -470,22 +290,14 @@ export function armSheet() {
   drawSheet();   // the frame it appears on is already the picture, never a blank box
 }
 
-// The dismissal is the one moment a player is looking straight at the sheet,
-// and it is the only moment `#help` and the thing `#help` reopens are ever on
-// screen together — so that is where the sheet is told to say where it went.
-// It ZOOPS: the whole screen shrinks into the button's corner while the button
-// pops up to catch it (the keyframes are in styles.css, under "THE ZOOP").
-//
-// Both boxes are MEASURED here rather than written into the CSS, because
-// `#help` sits on a safe-area inset and a rotation moves it — an animation
-// aimed at a hardcoded corner would fly at yesterday's one. Everything else
-// about the close is unchanged: `hidden` still lands, just a beat later.
+// Dismissal ZOOPS the sheet into `#help`'s corner while the button pops to
+// catch it (keyframes in styles.css, "THE ZOOP"). Both boxes are MEASURED,
+// never written into the CSS: `#help` sits on a safe-area inset and a rotation
+// moves it.
 let zoopTimers = [];
-/** Put the sheet away. `.ready` comes off HERE rather than at the top of the
- * close: it is one of the two things keeping the connection lines invisible, so
- * dropping it early would raise "Joining your team…" on a sheet that is already
- * flying into the corner — its last visible word, and a lie. Nothing needs it
- * gone sooner; `sheetTap` is what says the sheet can no longer be dismissed. */
+/** Put the sheet away. `.ready` comes off HERE, not at the top of the close:
+ * it is one of the two things keeping the connection lines invisible, and
+ * dropping it early raises "Joining your team…" on a sheet already flying. */
 function hideGate() {
   gateEl.classList.add("hidden"); gateEl.classList.remove("ready");
 }
@@ -493,14 +305,9 @@ function cancelZoop() {
   zoopTimers.forEach(clearTimeout); zoopTimers = [];
   gateEl.classList.remove("zoop"); helpEl.classList.remove("pop");
 }
-/** The clock, read off the CSS so the flight and the landing cannot drift.
- *
- * UNIT-AWARE, and it has to be: a CSS time is `460ms` or `0.46s` and both are
- * the same duration, but the value that comes back here is whichever one the
- * BUILD chose. Vite's CSS minifier rewrites `460ms` to `.46s` — so a bare
- * parseFloat reads 0.46, calls it milliseconds, and retires the sheet half a
- * millisecond in. Dev looked right and the deployed build skipped the whole
- * animation. */
+/** The clock, read off the CSS so flight and landing cannot drift. UNIT-AWARE:
+ * Vite's minifier rewrites `460ms` to `.46s`, and a bare parseFloat would
+ * retire the sheet half a millisecond in. */
 function zoopMs() {
   const raw = getComputedStyle(hudEl).getPropertyValue("--zoop-ms").trim();
   const v = parseFloat(raw);
@@ -527,28 +334,22 @@ export function closeSheet(animate = true) {
   gateEl.classList.add("zoop");
   helpEl.classList.add("pop");       // its own delay lands it as the sheet arrives
   const ms = zoopMs();
-  // `hidden` the moment the flight ends — the pop and its ring run on past
-  // that, over a game that is already playable, and are cleared after.
+  // `hidden` the moment the flight ends; the pop runs on and is cleared after.
   zoopTimers.push(setTimeout(hideGate, ms));
   zoopTimers.push(setTimeout(cancelZoop, ms * 2));
 }
 helpEl.onclick = () => armSheet();
-// POINTERDOWN, not click: the kiosk lockdown at the top of main.js
-// preventDefault()s touchstart on anything that is not a button or a link, and
-// that is exactly what cancels the synthesised `click` a finger would otherwise
-// produce — so an `onclick` here is a desktop-only dismiss. pointerdown is the
-// one press both a finger and a mouse deliver. Nothing beneath can catch the
-// rest of the gesture: the canvas draws bands off touchstart/mousedown, and
-// those went to the gate.
+// POINTERDOWN, not click: the kiosk lockdown in main.js preventDefault()s
+// touchstart, which kills the synthesised click — an `onclick` here works on a
+// laptop and does nothing on a phone.
 gateEl.addEventListener("pointerdown", (e) => {
   if (!sheetTap) return;
   e.preventDefault();
   closeSheet();
 });
 
-/** Before the first snapshot there is no game loop — `frame` starts on it —
- * so the sheet drives its own clock until then, and stands down the moment
- * frame() takes over (which draws it too, for the `?` case mid-party). */
+/** Before the first snapshot there is no game loop, so the sheet drives its
+ * own clock and stands down when frame() takes over (which draws it too). */
 export function sheetFrame(nowMs) {
   if (S.inited) return;
   requestAnimationFrame(sheetFrame);

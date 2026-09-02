@@ -1,8 +1,6 @@
-// PHASE — day/night as a PROJECTION of folded state, the seeded starfield,
-// the night-transition cutscene, and the win splash. In multiplayer the cutscene
-// fires off the snapshot's day->night edge (see main.js), so every phone in the
-// room takes the beat together — including phones whose player never touched the
-// button. The win splash arrives the same way, off the proctor's `wonAt`.
+// PHASE — day/night as a PROJECTION of folded state, the seeded starfield, the
+// night-transition cutscene, and the win splash. The cutscene fires off the
+// snapshot's day->night edge (main.js), so every phone takes the beat together.
 
 import { mulberry32 } from "@escape-cats/shared";
 import { game, nightActive, wallSeed } from "./state.js";
@@ -15,11 +13,9 @@ import { YAWN_MS, ZZZ_HOLD_MS } from "./cat.js";
 
 let nightInited = false;
 export function isNightInited() { return nightInited; }
-// Phase is a PROJECTION of folded state, not an event: every caller just
-// re-asserts it and this figures out the rest. Replaces an enterNight() that
-// mutated the DOM from inside the buy path plus a hand-written devExitNight()
-// inverse that had already drifted to a partial copy. Idempotent and cheap —
-// safe to call after any state change, forward or backward.
+// Phase is a PROJECTION of folded state, not an event: every caller re-asserts
+// it. Idempotent and cheap — safe after any state change, forward or backward,
+// so there is no hand-written inverse to drift.
 export function syncPhase() {
   const night = nightActive();
   document.body.classList.toggle('night', night);
@@ -33,10 +29,8 @@ export function syncPhase() {
   }
 }
 
-// Starfield, built once when night first falls (from the latch above). Seeded so
-// the sky is stable across reloads/reconnects rather than reshuffling each time —
-// decorative, so it needn't match other clients, but a fixed layout reads calmer.
-// % positions + px sizes so it scales with the stage without a resize hook.
+// Starfield, built once when night first falls. Seeded so the sky is stable
+// across reloads; decorative, so it needn't match other clients.
 function makeStars() {
   if (starsEl.childElementCount) return;   // idempotent — the latch only fires once, but be safe
   const rnd = mulberry32(0x5741 ^ wallSeed());
@@ -55,28 +49,17 @@ function makeStars() {
   starsEl.appendChild(frag);
 }
 
-// ---------------------------------------------------------------------------
-// THE WIN SPLASH — the picture a won team gets, and the toggle off it
-// ---------------------------------------------------------------------------
-// Hex cannot score its own win: the code word leaves the game on a phone and
-// comes back as four people reading it out, so the proctor presses the button
-// and `wonAt` arrives on the snapshot (see HexSim.setWon). What that unlocks is
-// this splash — and, deliberately, a way BACK to the night scene, because the
-// wall the team just read is the thing they earned and a victory screen that
-// buried it for good would be taking it away.
-//
-// Which of the two a phone is looking at is LOCAL, unlike Goomba's level cards
-// (a card tap moves what the whole room PLAYS, so it has to be a wire intent).
-// Here both views are the same room state seen two ways, so one player peeking
-// at the picture has no business yanking a teammate's screen.
+// ---- THE WIN SPLASH — the picture a won team gets, and the toggle off it ----
+// Hex cannot score its own win: the proctor presses it and `wonAt` arrives on
+// the snapshot (HexSim.setWon). The splash deliberately has a way BACK to the
+// night scene — the wall they read is what they earned. Which view a phone
+// shows is LOCAL, unlike Goomba's level cards, which move what the room PLAYS.
 let splashOpen = false;
 
-/** Point the splash at its picture and take the sky colours FROM that picture,
- * which is why nothing here hardcodes a sky: replace the file, get a new one.
- *
- * BASE_URL rather than a literal /hexxygon/: this is a public/ asset referenced
- * from JS, and Vite's base is the one string that is right in dev and in the
- * built bundle both. */
+/** Point the splash at its picture and take the sky colours FROM that picture:
+ * replace the file, get a new sky. BASE_URL rather than a literal /hexxygon/ —
+ * a public/ asset referenced from JS, and Vite's base is the one string that is
+ * right in dev and in the built bundle both. */
 export function initSplashArt() {
   splashArtEl.onload = () => {
     const sky = skyStops(splashArtEl, SKY_STOPS);
@@ -92,12 +75,9 @@ export function initSplashArt() {
         .join(",")})`,
     );
   };
-  // 200KB, and the splash it belongs to cannot be on screen until a proctor
-  // presses the win — so it waits for an idle moment rather than riding out
-  // with the room's first snapshot, where it was the biggest single thing the
-  // phone fetched at the exact moment the game started. The timeout is
-  // generous because nothing is watching for it: the sky vars are set by the
-  // onload above, and #wonPill is minutes away at the earliest.
+  // 200KB that cannot be on screen until a proctor presses the win, so it waits
+  // for an idle moment rather than riding out with the room's first snapshot.
+  // The timeout is generous because nothing is watching for it.
   const load = () => {
     splashArtEl.src = import.meta.env.BASE_URL + "art/hex-splash.webp";
   };
@@ -107,18 +87,10 @@ export function initSplashArt() {
 }
 
 /** The art's own SIDE EDGE, sampled down its height into n colours — the sky to
- * continue the picture with in every direction, which is why no colour is
- * picked by hand here and none survives the art being replaced.
- *
- * The EDGE strip rather than the full row, because these colours have to meet
- * the picture at its left and right sides, where the sky is; a full-row average
- * would be the artist's sky mixed with whatever is in the middle of the picture,
- * which at these heights is a moon. And more than two stops, because a ramp
- * down the side has to follow the sky's own turns (this one lightens into a
- * horizon band low down) rather than just its ends.
- *
- * Each stop is one exact row squeezed to a pixel, so sky[0] and the last stop
- * are the picture's true first and last rows and the flat bands can share them. */
+ * continue the picture with in every direction. The EDGE strip, not a full row
+ * (the middle of the picture is a moon), and more than two stops because the
+ * ramp has to follow the sky's own turns. Each stop is one exact row, so sky[0]
+ * and the last stop are the picture's true first and last rows. */
 const SKY_STOPS = 24;
 function skyStops(img, n) {
   const c = document.createElement("canvas");
@@ -161,32 +133,23 @@ export function syncWon() {
   if (!won) setSplash(false);
 }
 
-// The night-transition CUTSCENE. Fired once, only on the live day->night edge (a
-// player buying the twist) — never on load/reconnect or a dev preset, so a
-// returning player drops straight into night without replaying the beat. It
-// takes the screen: the whole static shop slides shut, a transparent veil locks
-// ALL input (petting included), the existing yawn->zoom->reveal plays, then input
-// frees and the shop slides back in.
+// The night-transition CUTSCENE. Fired once, only on the live day->night edge —
+// never on load/reconnect or a preset — so a returning player drops straight
+// into night. A transparent veil locks ALL input while the beat plays.
 let cutsceneLock = false;
-// How long #dock takes to slide out and back. Mirrors the .5s transition on
-// #dock — the only thing read from here is how long the returning shop stays
-// inert (see #dock.settling), so an over-estimate is harmless and an
-// under-estimate hands the player a row that is still moving.
+// How long #dock takes to slide back in. Mirrors the .5s transition on #dock;
+// only decides how long the returning shop stays inert (#dock.settling).
 const DOCK_SLIDE_MS = 500;
 export function runNightCutscene() {
   if (cutsceneLock) return;
   cutsceneLock = true;
-  // `dissolving` (the beat's transition delays — see #catPose / #catBreath / #stars)
-  // is added by buyUpgrade BEFORE syncPhase, for the ordering reason documented
-  // there. It is removed at the end of the beat below. A restored night save never
-  // gets it, so it has no choreography to wait through.
+  // `dissolving` (the beat's transition delays) is added by main.js BEFORE
+  // syncPhase and removed at the end of the beat. A restored save never gets it.
   dockEl.classList.add("cutscene-hidden"); // shut the whole static shop for the reveal
   cutsceneVeilEl.classList.add("on"); // nothing selectable while the beat plays
-  // Kept in sync with the CSS, and it is a sum of
-  // three beats rather than two: YAWN_MS (1300) + ZZZ_HOLD_MS (2000, she holds
-  // still at full size while the first zzz drift off) + the #catPose zoom
-  // (1800ms) = the moment the camera settles. The veil has to outlast all three,
-  // or the shop comes back in over a cat who is still mid-move.
+  // Keep in sync with the CSS: YAWN_MS (1300) + ZZZ_HOLD_MS (2000, she holds
+  // still while the first zzz drift off) + the #catPose zoom (1800ms). The veil
+  // has to outlast all three, or the shop comes back over a cat still mid-move.
   setTimeout(() => {
     cutsceneVeilEl.classList.remove("on");
     dockEl.classList.remove("cutscene-hidden"); // slides back up as the reveal settles

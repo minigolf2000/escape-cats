@@ -1,32 +1,23 @@
 #!/usr/bin/env python3
 """Regenerate the gate logo — GOOMBA GLIDER as SVG outlines, for index.html.
 
-The logo used to be DOM text in Titan One, which meant shipping the face: first
-as a font-CDN fetch, then as a base64 woff2 in the stylesheet, because a face
-that arrives over the network arrives after the gate has already painted (the
-h1 is in index.html, so the words are on screen before any script runs) and the
-fallback flash was loud — the weight is 400, so an ultra-heavy face was being
-stood in for by a normal-weight rounded one. Outlines end that argument: there
-is no face to be late.
-
-The cost is that the geometry is FROZEN. Tracking, the line spacing, the words
-themselves — none of them is a CSS edit any more. This script is the way back:
-it re-derives the whole mark from the source face, so a change of tracking is a
-number here and a re-run, not a hand-edit of path data.
+The mark is outlines, not text in Titan One, so no face can arrive late and
+flash a fallback under a gate that has already painted. The cost is FROZEN
+geometry: tracking, line spacing and the words are numbers here and a re-run,
+never a hand-edit of path data.
 
     pip install fonttools brotli
     npm pack @fontsource/titan-one@5.3.0 && tar xzf fontsource-titan-one-5.3.0.tgz
     python3 tools/goomba/logo-outline.py package/files/titan-one-latin-400-normal.woff2
 
-It prints the <svg> block to paste into apps/goomba-glider/index.html. The
-numbers below are the CSS the mark replaced, so the outlines land exactly where
-the text did; CAP_EM is the one number sheet.js still needs (--cap-em in
-styles.css) and it is printed alongside.
+Prints the <svg> block to paste into apps/goomba-glider/index.html. The numbers
+below are the CSS the mark replaced, so the outlines land where the text did;
+CAP_EM is the one number sheet.js still needs (--cap-em in styles.css) and is
+printed alongside.
 
-Titan One is OFL-1.1, Copyright (c) 2011 Rodrigo Fuenzalida, with Reserved Font
-Name "Titan One" — see apps/goomba-glider/OFL-titan-one.txt. Outlines drawn
-into a document are the font's OUTPUT, not the Font Software, so nothing here
-redistributes the face; the notice is kept because this script reads it.
+Titan One is OFL-1.1, Copyright (c) 2011 Rodrigo Fuenzalida, Reserved Font Name
+"Titan One" — see apps/goomba-glider/OFL-titan-one.txt. Outlines drawn into a
+document are the font's OUTPUT, not the Font Software.
 """
 import sys
 from fontTools.ttLib import TTFont

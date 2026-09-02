@@ -1,19 +1,8 @@
-// The one bridge between what is left of these tools and the SHIPPED code:
-// bundles `packages/shared/src/goomba` (TypeScript) with esbuild on the fly, so
-// nothing here carries a second copy of the codec, the pack rules or the room
-// sim. No browser involved.
-//
-// It used to bridge to the PHYSICS, for a bench that simulated levels: verify,
-// route, trace, slack, solve, minbands, reach, scan, search, robust, diag,
-// searchall, ridecards — a node-side rig that graded a level before anyone
-// played it. That bench is deleted, and with it the gate it served. Levels are
-// evaluated by people playing them.
-//
-// What still needs the bridge is not about levels at all: `test-codec.mjs` (the
-// save format), `bands.mjs` (the room hands out four bands and rations nobody)
-// and `figma/levels-to-svg.mjs` (draw a pack as artboards). Physics still comes
-// along inside the bundle because `sim.ts` imports it — but nothing here
-// exposes a way to run it, which is the point.
+// Bundles `packages/shared/src/goomba` (TypeScript) with esbuild on the fly, so
+// these tools share the shipped codec, pack rules and room sim rather than a
+// copy. It exposes NO grading: physics rides along because `sim.ts` imports it,
+// and nothing here offers a way to run it — a level is evaluated by people
+// playing it. The draft bench's physics bridge is `draft/_sim.mjs`.
 import { build } from "esbuild";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -29,8 +18,7 @@ const entry = join(dir, "entry.ts");
 await writeFile(
   entry,
   `export * from ${JSON.stringify(join(srcDir, "levels.ts"))};\n` +
-  // codec.ts + pack.ts: a level is a link and a pack is a list of them, which
-  // is the only shape a level travels in now.
+  // codec.ts + pack.ts: a level is a link and a pack is a list of them.
   `export * from ${JSON.stringify(join(srcDir, "codec.ts"))};\n` +
   `export * from ${JSON.stringify(join(srcDir, "pack.ts"))};\n` +
   // sim.ts: the ROOM rules, for the one test that drives them (bands.mjs).
@@ -42,9 +30,8 @@ const sim = await import(pathToFileURL(outfile).href);
 
 export const {
   GOOMBA_LEVELS: LEVELS,
-  // Collision radii, for tools that MEASURE a drawing rather than run it:
-  // read-frame.mjs reports a bumper's reach against a popper's, and both
-  // numbers have to be the game's own.
+  // Collision radii, so read-frame.mjs measures a drawing with the game's own
+  // numbers.
   R,
   BUMP_R,
   POP_R,
@@ -60,23 +47,15 @@ export const {
 } = sim;
 
 /**
- * Fill the level array from a PACK, for the one caller that still indexes
- * levels: `figma/levels-to-svg.mjs`, which draws each one as an artboard.
+ * Fill the level array from a PACK. The repo holds no levels (a level's source
+ * is its Figma frame; an event's levels are links in its lobby), so:
  *
- * There is nothing else to fill it from. The repo holds no levels — a level's
- * source is the Figma frame it was drawn in, and what an event plays is a pack
- * of links in its lobby — so:
- *
- *   node seed.mjs --pull > pack.json    then the tool needs no flag
- *   --pack <file>                       explicit, per-run
+ *   node seed.mjs --pull > pack.json    then no flag is needed (gitignored)
+ *   --pack <file>                       per-run
  *   GOOMBA_PACK=<file>                  for a whole session
  *
- * `pack.json` beside these tools is gitignored: a pack is what an event is
- * running right now, not something the repo has an opinion about.
- *
- * `--pack <file>` is spliced OUT of `process.argv` here, before any tool's own
- * argument parsing runs (imports evaluate first), so a tool that reads its
- * arguments positionally never sees it.
+ * `--pack` is spliced OUT of `process.argv` here, before any tool's own argument
+ * parsing runs (imports evaluate first), so positional readers never see it.
  */
 const packArgAt = process.argv.indexOf("--pack");
 const packFile = packArgAt > 1 && process.argv[packArgAt + 1]
@@ -86,16 +65,10 @@ export const packSource = existsSync(packFile) ? packFile : null;
 if (packSource) applyPack(JSON.parse(await readFile(packSource, "utf8")));
 
 /**
- * The level at `<idx>`, or an error a person at a terminal can act on.
- *
- * With no pack loaded, indexing is `undefined.bounds` — a stack trace that says
- * nothing about the one thing that is actually wrong. "I ran it and it exploded"
- * is a report nobody can act on, so this is the message instead.
+ * The level at `<idx>`, or a message a person can act on — stderr + exit(2),
+ * not a throw, like every other bad-argument path here.
  */
 export function levelAt(li) {
-  // stderr + exit(2), not a throw: these are commands run by a person at a
-  // terminal, and every other bad-argument path here already answers that way.
-  // A stack trace would bury the one line worth reading.
   if (!LEVELS.length) {
     console.error(packSource
       ? `${packSource} decoded to an empty pack — no levels to work on`
@@ -116,20 +89,12 @@ export function levelAt(li) {
   return L;
 }
 
-// `usePack(pack)` used to live here, for a tool that wanted to re-point the
-// bench mid-run. Nothing calls it now that loading a pack is the only way the
-// bench gets levels at all — it happens once, above, before any tool's own code
-// runs. `LEVELS` IS `sim.GOOMBA_LEVELS` and `applyPack` fills it IN PLACE,
-// which is the part worth keeping written down: a caller that tried to swap the
-// binding instead would strand every module holding the old array.
+// `LEVELS` IS `sim.GOOMBA_LEVELS` and `applyPack` fills it IN PLACE; swapping
+// the binding instead would strand every module holding the old array.
 
 /**
- * Every index in the loaded pack — and `levelAt`'s guidance instead when there
- * is none.
- *
- * A tool that sweeps "all levels" must not run cleanly over nothing: an SVG of
- * a pack that silently came out empty is a file you notice much later than an
- * error you get right now.
+ * Every index in the loaded pack, or `levelAt`'s guidance when there is none —
+ * a sweep over "all levels" must not run cleanly over nothing.
  */
 export function allIndexes() {
   if (!LEVELS.length) levelAt(0); // prints the how-to and exits

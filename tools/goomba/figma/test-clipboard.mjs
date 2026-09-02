@@ -1,19 +1,12 @@
 #!/usr/bin/env node
-// Proof for the native-clipboard reader: build a fig-kiwi payload the same way
-// Figma builds one, hand it to apps/goomba-glider/src/figma/clipboard.js, and
-// check the level that comes out against the numbers that went in.
+// Proof for the native-clipboard reader: build a fig-kiwi payload the way Figma
+// builds one and check what apps/goomba-glider/src/figma/clipboard.js reads
+// back. Synthetic, so it covers everything after the clipboard (container
+// framing, raw-deflate blocks, the travelling schema, transforms, the name
+// contract, the unit conversion); whether Figma's real field names match is
+// what `test-real-copy.mjs` settles.
 //
 //   node test-clipboard.mjs
-//
-// Why this exists rather than a captured real payload: a Figma copy only lands
-// on the clipboard from a genuine user gesture, so no automation here can
-// produce one. What this DOES cover is everything after the clipboard — the
-// base64, the fig-kiwi container framing, raw-deflate blocks, the travelling
-// Kiwi schema, matrix composition, rotation recovery, the name contract and the
-// world-unit conversion. What it CANNOT cover is whether Figma's real field
-// names match the ones assumed here (`nodeChanges`, `guid`, `parentIndex`,
-// `transform.m00…`, `size.x`). One real paste settles that, and the reader is
-// written to fail loudly rather than silently mis-read if they ever differ.
 import { deflateRawSync } from "node:zlib";
 import { parseSchema, encodeBinarySchema, compileSchema } from "kiwi-schema";
 import { levelFromFigmaClipboard, FIGMA_POP_SPD } from "../../../apps/goomba-glider/src/figma/clipboard.js";
@@ -86,15 +79,13 @@ nodes.push({
 
 line("t", 100, 100, 400, 160, "a");
 line("t", 400, 160, 700, 140, "b");
-line("band", 150, 300, 500, 320, "c"); // a leftover from the old answer-key layer — must be ignored
+line("band", 150, 300, 500, 320, "c"); // must be ignored, never geometry
 node("start", "INSTANCE", 120, 80, 110, 110, 0, "d");
 node("goal", "INSTANCE", 650, 500, 200, 210, 0, "e");
 node("watering-can", "INSTANCE", 300, 250, 180, 140, 0, "f");
 node("bumper", "INSTANCE", 500, 400, 180, 180, 0, "g");
-// The popper proves the naming contract: its LAYER is called nonsense (Figma
-// numbers duplicates, so a sketch full of copies really does look like this)
-// and it still reads as a popper, because identity comes from the component it
-// is an instance of.
+// The popper's LAYER name is nonsense (Figma numbers duplicates) and it still
+// reads as a popper: identity comes from the component it is an instance of.
 nodes.push({
   guid: POPPER_SYM,
   parentIndex: { guid: { sessionID: 0, localID: 0 }, position: "@" },
@@ -122,21 +113,15 @@ version.writeUInt32LE(1, 0);
 const container = Buffer.concat([
   Buffer.from("fig-kiwi", "ascii"), version, block(schemaBin), block(message),
 ]);
-// Shaped like a real copy: the metadata and buffer comments CLOSE with
-// `(/figmeta)` / `(/figma)`, which is what a live paste turned out to carry.
+// A real copy CLOSES the comments with `(/figmeta)` / `(/figma)`.
 const html =
   `<meta charset="utf-8"><span data-metadata="<!--(figmeta)eyJmaWxlS2V5IjoidGVzdCJ9(/figmeta)-->"></span>` +
   `<span data-buffer="<!--(figma)${container.toString("base64")}(/figma)-->"></span>`;
 
-// Also drop the payload where the browser can fetch it, so the same bytes can
-// be run through the shipped bundle (DecompressionStream, atob, kiwi) rather
-// than only through node.
+// Also write the payload beside the fixtures, so the same bytes can be pasted
+// into the game's level selector without Figma open.
 const { writeFileSync } = await import("node:fs");
 const { fileURLToPath } = await import("node:url");
-// A synthetic-but-valid Figma copy, kept beside the fixtures so the paste path
-// can be exercised without Figma open. (It used to be written into the editor
-// app's public/ dir; that app is gone — the game's level selector is the paste
-// target now.)
 const outDir = fileURLToPath(new URL("./fixtures/", import.meta.url));
 writeFileSync(outDir + "sample-figma-clipboard.html", html);
 
@@ -144,33 +129,23 @@ const { level, warnings } = await levelFromFigmaClipboard(html);
 
 const TRUTH = {
   name: "Clipboard Test",
-  // Two Figma Lines sharing (40,16): `stitchTerrain` chains them into one
-  // polyline, so the game strokes a lineJoin there rather than two round caps
-  // overhanging the shared vertex. Same surface either way — `segsFor` splits
-  // polylines back into segments before collision.
+  // Two Lines sharing (40,16): `stitchTerrain` chains them into one polyline.
   terrain: [[[10, 10], [40, 16], [70, 14]]],
-  // The frame's `band` layer is consumed and dropped (it is warned about below).
-  // There is no `solution` field on a level at all any more — a level is
-  // geometry, and the codec stopped carrying an answer key at fmt 2 — so what
-  // is asserted here is the absence of the KEY, further down.
+  // The `band` layer is dropped and warned about; the absence of a `solution`
+  // KEY is asserted below.
   start: [12, 8],
   goal: [65, 50],
   cans: [[30, 25]],
   bumpers: [{ x: 50, y: 40 }],
   pops: [{ x: 20, y: 45, deg: -37, spd: FIGMA_POP_SPD }],
   cushions: [{ x: 35, y: 52, w: 20 }],
-  // The frame's SIZE (800×600 px = 80×60 units), and none of its POSITION: the
-  // frame node sits at canvas x 20000, which must leave no trace. This is the
-  // padding a designer draws on purpose — here, 10 units of empty world past
-  // the terrain's right end at x 70, which is room for a band and is exactly
-  // what re-cropping to the ink used to throw away. `initLevel` unions it with
-  // the derived box; see `frame` in levels.ts.
+  // The frame's SIZE (800×600 px = 80×60 units) and none of its POSITION: the
+  // node sits at canvas x 20000, which must leave no trace. The 10 units past
+  // the terrain's right end is authored room for a band; `initLevel` unions it
+  // with the derived box.
   frame: { x0: 0, y0: 0, x1: 80, y1: 60 },
 };
-// The frame name and the level name are now the same string bar the `L:`
-// marker. A trailing "@145" used to ride here too, setting that level's own
-// speed cap; speed is one game constant (MAX_SPEED) now, so it is gone and
-// there is no suffix left to strip.
+// The level name is the frame name bar the `L:` marker; no suffix is stripped.
 
 let bad = 0;
 const check = (key, got, want) => {
@@ -184,10 +159,8 @@ check("no `solution` key at all — the field is gone", "solution" in level, fal
 check("no stray props (_gauge ignored)", level.cans.length + level.bumpers.length + level.pops.length, 3);
 check("the `band` layer is warned about, not read", warnings.filter((w) => w.includes("`band`")).length, 1);
 if (warnings.length) console.log("  warnings:", warnings.join(" · "));
-// --- the wrapper, every way it might survive ------------------------------
-// A real Figma copy reached the page with the (figma) marker present but the
-// buffer unreadable, so how that attribute is escaped is not something to
-// assume. Each of these must produce exactly the level the plain form did.
+// --- the wrapper, every way it might be escaped: each must decode to exactly
+// the plain form's level.
 const b64 = container.toString("base64");
 const wrap = (inner, quote = '"') => `<span data-buffer=${quote}${inner}${quote}></span>`;
 const VARIANTS = {

@@ -1,12 +1,8 @@
 // GOLDEN MOUSE — the fun spike. The SERVER owns when one exists and for how
-// long (see HexSim); this module owns what it looks like on this phone.
-// Catching it triggers team-wide ZOOMIES: everyone's pets ×mods.zoomMult.
-//
-// Position is deliberately per-phone: the spawn seed drives a deterministic
-// placement, but each phone bounces the mouse inside its own layout (HUD and
-// dock heights differ), so "where it is" can drift between devices. That's
-// fine — the mechanic is "a golden mouse is up, somebody grab it", and ANY
-// phone's tap catches it for the whole team.
+// long (HexSim); this module owns what it looks like on this phone. Catching it
+// triggers team-wide ZOOMIES. Position is deliberately per-phone: the seed
+// drives a deterministic placement, but each phone bounces it inside its own
+// layout, and ANY phone's tap catches it for the whole team.
 
 import { mulberry32 } from "@escape-cats/shared";
 import { stageEl, goldenEl, hudEl, dockEl } from "./dom.js";
@@ -17,12 +13,9 @@ import { mouseParts, MOUSE_BOX, MOUSE_KEYLINE_DAY, MOUSE_KEYLINE_NIGHT } from ".
 
 const GOLD_MARGIN = 10; // px of stage edge the golden won't drift past
 
-// The mouse, gilded. Same box as the click-pop, so it sits in the same art
-// family at a glance — only the material differs. (Gold is a gradient rather
-// than flat #ffd44d, which would read as "the yellow mouse".)
-// Keyline follows the phase for the same reason the click-pop's does: a golden
-// can be on screen in either one, and each phase has exactly one line color
-// that survives its background.
+// The mouse, gilded: same box as the click-pop, only the material differs (a
+// gradient, since flat #ffd44d reads as "the yellow mouse"). Keyline follows
+// the phase, like the click-pop's: each phase has one line colour that survives.
 const goldenMouseSVG = () =>
   `<svg viewBox="0 0 ${MOUSE_BOX.w} ${MOUSE_BOX.h}" xmlns="http://www.w3.org/2000/svg">
      <defs>

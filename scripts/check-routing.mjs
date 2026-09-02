@@ -1,12 +1,7 @@
 /**
  * Crawl the assembled dist/ through a router that implements vercel.json, and
- * fail if any page's own links or assets 404.
- *
- * This exists because two production-only breakages got past manual checks.
- * Both were the same shape: a page served at a URL whose directory depth
- * differed from what its relative references assumed. `python -m http.server`
- * cannot catch them — it redirects /x to /x/, the opposite of Vercel's default,
- * so it silently serves builds that are broken in production.
+ * fail if any page's links or assets 404. `python -m http.server` cannot
+ * catch these: it redirects /x to /x/, the opposite of Vercel's default.
  *
  * Run: node scripts/check-routing.mjs
  */
@@ -28,19 +23,11 @@ const exists = async (p) => access(p).then(() => true, () => false);
 function matchSource(source, pathname) {
   if (source.endsWith("/:path*")) {
     const prefix = source.slice(0, -"/:path*".length);
-    // `/:path*` does NOT match a bare directory on Vercel — the tail has to be
-    // non-empty — however much it looks like it should. That directory needs
-    // its own literal rule, listed first.
-    //
-    // This bit the repo twice, and the second time is why the rule below is
-    // stated for ANY prefix rather than just the root. The checker first
-    // claimed `/:path*` matched `/`, which is why it passed while
-    // hexxygon.com/ served the wrong app and rendered white. It then claimed
-    // `/chat/:path*` matched `/chat/` — on the reasoning that the root was a
-    // special case and a real path segment was not — so `/chat` shipped
-    // 404ing, green the whole way. `trailingSlash: true` turns every bare
-    // `/chat` into `/chat/` BEFORE redirects run, so the empty-tail form is
-    // the only form these rules are ever asked about.
+    // `/:path*` does NOT match a bare directory on Vercel — the tail must be
+    // non-empty, for ANY prefix, root included. That directory needs its own
+    // literal rule, listed first. `trailingSlash: true` turns `/chat` into
+    // `/chat/` BEFORE redirects run, so the empty-tail form is the only one
+    // these rules are ever asked about.
     if (pathname === prefix + "/" || (prefix === "" && pathname === "/"))
       return null;
     if (pathname === prefix) return { path: "" };
@@ -51,11 +38,8 @@ function matchSource(source, pathname) {
   return source === pathname ? {} : null;
 }
 
-/**
- * Resolve a request the way Vercel does: trailing-slash normalisation first,
- * then redirects, then rewrites, then the filesystem.
- * Returns { status, file, location }.
- */
+/** Resolve a request the way Vercel does: trailing-slash normalisation, then
+ * redirects, rewrites, filesystem. Returns { status, file, location }. */
 function route(pathname, host = ORIGIN_HOST) {
   // trailingSlash, which skips paths carrying a file extension.
   if (!extname(pathname)) {
@@ -109,20 +93,13 @@ async function fetchPath(pathname, host) {
   return { status: 508, pathname };
 }
 
-/** Every reference a page makes, resolved against the URL it is served at.
- *
- * Markup refs AND stylesheet refs. It was href/src only, which meant an asset
- * named solely from CSS — `background: url(...)` — was invisible to this
- * check: rename or move one and the build stayed green while the page shipped
- * with a 404 behind it. The stylesheets are separate hashed files now (each
- * app's src/styles.css), so the crawl below descends into every .css file a
- * page links and checks its url() refs too. */
+/** Every reference a page makes, resolved against the URL it is served at —
+ * markup href/src AND stylesheet url(), since the stylesheets are separate
+ * hashed files. */
 function refsOf(html, pageUrl) {
   const out = [];
-  // `data-href` counts: hex's alternate cat poses park their URL there so the
-  // browser does not fetch seven never-visible frames before first paint (see
-  // warmPoseFrames in hex-clicker/src/cat.js). A deferred asset is still an
-  // asset this page will 404 on if it moves, so it is checked like any other.
+  // `data-href` counts: hex's alternate cat poses park their URL there
+  // (warmPoseFrames in hex-clicker/src/cat.js) and still 404 if moved.
   const patterns = [
     /(?:data-)?(?:href|src)="([^"]+)"/g,
     /url\(\s*["']?([^"')]+)["']?\s*\)/g,
@@ -137,15 +114,9 @@ function refsOf(html, pageUrl) {
   return out;
 }
 
-/**
- * [entry, host, expected-landing-path?]
- *
- * The third element is what makes a vanity domain check meaningful. Without it
- * this script only asked "does this resolve to a file that exists, and do its
- * refs resolve" — and a vanity root that lands on the WRONG app answers yes to
- * both. That is precisely how hexxygon.com/ shipped serving the lobby instead
- * of Hex Clicker: every assertion passed while production rendered white.
- */
+/** [entry, host, expected-landing-path]. The third element is what makes a
+ * vanity check meaningful: a root landing on the WRONG app still resolves to
+ * a file whose refs resolve. */
 const ENTRIES = [
   // The origin root legitimately serves the lobby from the dist root.
   ["/", ORIGIN_HOST, "/"],
@@ -155,13 +126,10 @@ const ENTRIES = [
   ["/g00mBa", ORIGIN_HOST, "/g00mBa/"],
   ["/qr-studio", ORIGIN_HOST, "/qr-studio/"],
   ["/reveal-lab", ORIGIN_HOST, "/reveal-lab/"],
-  // A retired host gets no row here, and the reason is worth keeping: this
-  // checker models vercel.json against dist/, so a `has: host` rule for a host
-  // that is no longer ATTACHED to the project would pass here while 404ing in
-  // production — Vercel rejects an unattached host at the edge, before any of
-  // this config is consulted. A green row would be a simulation artifact.
-  // The vanity roots. Each MUST land in its game's subdirectory, never at the
-  // dist root.
+  // A retired host gets no row: this models vercel.json against dist/, but
+  // Vercel rejects an unattached host at the edge before the config is
+  // consulted, so a green row would be a simulation artifact.
+  // Vanity roots MUST land in their game's subdirectory, never the dist root.
   ["/", "hexxygon.com", "/hexxygon/"],
   ["/", "www.hexxygon.com", "/hexxygon/"],
   ["/", "g00.mba", "/g00mBa/"],
@@ -195,8 +163,7 @@ for (const [entry, host, expect] of ENTRIES) {
       continue;
     }
     console.log(`  ok    ${ref}`);
-    // A linked stylesheet is a page of refs in its own right — url() assets
-    // stopped being visible from the HTML when the styles moved out of it.
+    // A linked stylesheet is a page of refs in its own right.
     if (extname(sub.file) !== ".css") continue;
     const css = await readFile(sub.file, "utf8");
     for (const cssRef of refsOf(css, sub.pathname)) {

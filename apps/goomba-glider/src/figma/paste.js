@@ -1,29 +1,12 @@
 // "What did they just paste?" — the one resolver behind Ctrl+V in the level
-// selector.
+// selector. Two shapes arrive and both are accepted:
 //
-// This is what is left of the old /editor page. That page existed because the
-// game had no way to take a level in; now the SELECTOR is the editor, so the
-// only part worth keeping is the part that reads a clipboard. Two shapes
-// arrive and both are accepted:
+//   1. a plain Ctrl+C in Figma — a `fig-kiwi` payload on text/html.
+//   2. one of our own level links — off someone else's phone or out of a pack.
 //
-//   1. a plain Ctrl+C in Figma — a `fig-kiwi` payload on text/html. Real layer
-//      names, stored geometry, nothing corrected on the way in.
-//   2. one of our own level links — how a level comes back from someone else's
-//      phone, or out of an event's pack.
-//
-// There used to be a third: an exported .svg, read through the browser's SVG
-// engine. It is gone. It was always the WORSE path and it was never the one
-// anyone used — Figma writes layer names into SVG only when the `id` attribute
-// is on, and names are the entire contract, so the route people reach for first
-// ("Copy as SVG") could not work by construction. What survived it had to undo
-// the exporter's half-stroke shift on every line and chase a component's
-// dropped padding with `anchor` dots, both leaning on undocumented exporter
-// behaviour that could drift without throwing. Ctrl+C needs none of that: it
-// carries the numbers the Figma file actually holds. One reader, one contract.
-//
-// Nothing here is allowed to be silent. "I pressed Ctrl+V and nothing happened"
-// is the one report a party cannot act on, so every path either returns a level
-// or throws something a person standing at a laptop can act on.
+// "Copy as SVG" is NOT read (it strips layer names, which are the contract);
+// it is named in the error instead. Nothing here is allowed to be silent: every
+// path returns a level or throws something a person at a laptop can act on.
 
 import { decodeLevel } from "@escape-cats/shared";
 
@@ -60,34 +43,24 @@ function describe(dt) {
 export async function levelFromPaste(dt) {
   if (!dt) throw new Error("that paste carried no clipboard data at all");
 
-  // BOTH reads happen before the first await, and that is a hard requirement,
-  // not a style: a DataTransfer is only guaranteed readable while its own
-  // event is being dispatched, so anything this function does asynchronously
-  // has to be done to these two strings and never to `dt`.
+  // EVERY read of `dt` happens before the first await: a DataTransfer is only
+  // readable while its event is being dispatched. That includes `held`, or the
+  // error at the bottom would say "(empty clipboard)" about a full one.
   const html = dt.getData("text/html") || "";
   const text = dt.getData("text/plain") || "";
-  // The "it held:" line for the error at the bottom, taken here for the same
-  // reason: it reads every type off `dt`, and by the time that error is thrown
-  // the event is long over. An error that says "(empty clipboard)" about a
-  // clipboard that was not empty is the silent version of this one.
   const held = describe(dt);
 
-  // The Figma reader — the kiwi decoder, the shape readers and the stitcher,
-  // ~34KB of source and fzstd behind it — is loaded HERE rather than imported
-  // at the top, because the only surface that can reach it is a laptop that
-  // pressed Ctrl+V. Every player is on a phone, and a phone has no paste to
-  // make: this took the whole subtree out of the chunk each of them downloads
-  // before the game starts. It is awaited on the path that needs it, so a
-  // paste costs one extra fetch on the machine that is doing the pasting.
+  // The Figma reader (kiwi, the shape readers, the stitcher, fzstd) is loaded
+  // HERE, not imported at the top: only a laptop that pressed Ctrl+V can reach
+  // it, and every phone would otherwise download it before the game starts.
   const figma = await import("./clipboard.js");
   if (figma.hasFigmaBuffer(html)) return await figma.levelFromFigmaClipboard(html);
 
   const got = fromText(text || html);
   if (got) return got;
 
-  // The one wrong turn that actually happens: Figma's "Copy as SVG" sits right
-  // next to plain Copy in the same menu, and it produces something that looks
-  // like it ought to work. Name it rather than listing MIME types at someone.
+  // The one wrong turn that actually happens: "Copy as SVG" sits next to
+  // plain Copy in the same menu. Name it.
   if (looksLikeSvg(String(text || html).trim()))
     throw new Error(
       "that is “Copy as SVG”, which strips every layer name — and the names are " +

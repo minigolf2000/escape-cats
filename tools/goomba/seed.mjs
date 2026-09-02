@@ -7,24 +7,12 @@
 //   node seed.mjs --push --file pack.json  # send it to the local dev lobby
 //   node seed.mjs --push --file pack.json --host g00.mba
 //
-// The game has no built-in levels: `GOOMBA_LEVELS` ships empty and the event's
-// pack lives in the lobby Durable Object, which is the only copy. That is the
-// right shape for a party — a level pasted from Figma is live for everyone a
-// second later, with no deploy — but it means a brand new event starts with an
-// empty grid, and the way you fill it is by pasting frames.
-//
-// This command is the OTHER way: it moves a pack between events, and reads back
-// what one is running. It used to be able to seed from the repo, and the five
-// levels it seeded from are deleted — see `pack.ts`.
-//
-// It is deliberately a COMMAND rather than a button in the editor. Seeding is
-// an operator's day-one action, not something to leave one tap away from a
-// phone that is mid-level; and the editor's job is the four things a person
-// does at a party (paste, reorder, delete, play), which this is not one of.
-//
-// It talks to the lobby exactly as a phone does — same party, same room, same
-// message shapes. There is no admin door, because there isn't one, and adding
-// one for a weekend in one room would be the wrong trade.
+// `GOOMBA_LEVELS` ships empty and an event's pack lives in its lobby Durable
+// Object, the only copy; a new event fills its grid by pasting frames, and this
+// moves a pack BETWEEN events. A command, not an editor button: an operator's
+// day-one action, not one tap from a phone mid-level. It talks to the lobby
+// exactly as a phone does — same party, same room, same message shapes. There
+// is no admin door.
 import { readFile } from "node:fs/promises";
 // No lib.mjs import: this command moves packs around and never decodes one.
 
@@ -75,12 +63,8 @@ if (flag("pull")) {
   process.exit(0);
 }
 
-// A pack has to come from a FILE now. There is no repo-side pack to fall back
-// on: `SEED_LEVELS` — five levels kept as TypeScript literals for exactly this
-// command to push — is deleted, because a level's source is the Figma frame it
-// was drawn in and a hand-maintained transcription beside it is a second copy
-// that goes stale. What this command is for is moving a pack BETWEEN events:
-// pull one out of the lobby that has it, push it into the one that needs it.
+// A pack comes from a FILE: the repo holds none (a level's source is its Figma
+// frame, and a transcription beside it would be a second copy that goes stale).
 const file = opt("file", null);
 if (!file) {
   console.error("nothing to push: --push needs --file <pack.json>.");
@@ -102,8 +86,7 @@ if (!flag("push")) {
   process.exit(0);
 }
 
-// Write, then read back — "I ran the seeder" and "the event has levels" are
-// different claims, and only the second one matters at 9pm.
+// Write, then read back: "the event has levels" is the claim that matters.
 let sent = false;
 const live = await lobby((got, send, done) => {
   if (!sent) { sent = true; send({ type: "packAll", pack }); return; }

@@ -1,20 +1,13 @@
 #!/usr/bin/env node
-// `stitchTerrain` — the one thing standing between "Figma drew this as eight
-// Lines" and "the game draws it the way it drew every hand-authored level".
+// `stitchTerrain`: Figma holds one Line per segment; the game strokes polylines.
 //
 //   node test-stitch.mjs
 //
-// Two kinds of case matter here and they pull in opposite directions:
-//
-//   * it must WELD, because hand-drawn joints are never exact. Measured on
-//     "2 · The Long Way Up" as actually drawn: seven joints, one exact, the
-//     rest 0.3-1.8 units apart. An exact-match rule chains nothing real.
-//   * it must NOT weld a real gap. A 45-58 unit gap is how a level says "one
-//     band goes here", and closing one silently redraws someone's level.
-//
-// The tolerance between those is set by the game's own design rule: no two
-// terrain segments may come closer than 4.4 units (2 × her radius) or she
-// wedges, so nothing under that is ever a deliberate separation.
+// Two cases pull in opposite directions. It must WELD, because hand-drawn
+// joints are never exact (0.3-1.8 units apart on a real level, so an exact rule
+// chains nothing); and it must NOT weld a real gap — 45-58 units is how a level
+// says "one band goes here". The tolerance between them is the game's wedge
+// rule: segments closer than 4.4 units (2 × her radius) are never deliberate.
 import { stitchTerrain } from "../../../apps/goomba-glider/src/figma/stitch.js";
 
 let bad = 0;
@@ -32,7 +25,6 @@ check("an exact chain becomes one polyline",
   stitchTerrain([[[0, 0], [10, 5]], [[10, 5], [20, 5]], [[20, 5], [30, 0]]]),
   [[[0, 0], [10, 5], [20, 5], [30, 0]]]);
 
-// The case the first version of this got wrong, and the reason it exists.
 check("a hand-drawn near-miss welds",
   stitchTerrain([[[0, 0], [10, 0]], [[10.6, 0.2], [20, 0]]]),
   [[[0, 0], [10, 0], [20, 0]]]);
@@ -41,8 +33,7 @@ check("the weld keeps the point already in the chain",
   stitchTerrain([[[0, 0], [10, 0]], [[9.4, 0], [20, 0]]]),
   [[[0, 0], [10, 0], [20, 0]]]);
 
-// 4.4u is where deliberate geometry starts (2 × her 2.2 radius — closer than
-// that and she wedges), so this must survive untouched.
+// 4.4 u is where deliberate geometry starts, so this must survive untouched.
 check("a 4.4 u wedge gap survives",
   stitchTerrain([[[0, 0], [10, 0]], [[14.4, 0], [24, 0]]]),
   [[[0, 0], [10, 0]], [[14.4, 0], [24, 0]]]);
@@ -56,8 +47,8 @@ check("a backwards-drawn segment still chains",
   stitchTerrain([[[0, 0], [10, 0]], [[20, 0], [10, 0]]]),
   [[[0, 0], [10, 0], [20, 0]]]);
 
-// The notch in The Long Way Up: its floor and its left wall share a corner at
-// both their START points, which a forward-only pass cannot see.
+// A floor and a wall sharing a corner at both START points, which a
+// forward-only pass cannot see.
 check("two segments sharing their start points chain",
   stitchTerrain([[[10, 0], [20, 0]], [[10, 0], [10, -8]]]),
   [[[10, -8], [10, 0], [20, 0]]]);
@@ -72,8 +63,7 @@ check("a closed loop closes",
 
 check("nothing in, nothing out", stitchTerrain([]), []);
 
-// The real thing: the eight Lines the floor of "2 · The Long Way Up" is drawn
-// as, straight off a Figma clipboard, in Figma's own order.
+// Eight Lines of a real floor, straight off a Figma clipboard, in Figma's order.
 check("The Long Way Up's floor is one surface",
   stitchTerrain([
     [[8.1, 168.3], [35.6, 172.3]], [[35, 172.3], [63.8, 174.1]],
@@ -84,19 +74,16 @@ check("The Long Way Up's floor is one surface",
   [[[8.1, 168.3], [35.6, 172.3], [63.8, 174.1], [63.8, 181.1], [79.6, 181.1],
     [80.6, 172.3], [96.3, 173.2], [114.6, 165.5], [128.1, 151.1]]]);
 
-// ---- T-junctions: a platform butting into a wall ----------------------------
-// Chaining is end-to-end, which is the wrong shape for the commonest thing
-// anyone draws. Level 1 stores its start platform at x 124 and its wall at
-// x 133, so the platform ends 0.9 units past the wall's centreline — a sliver
-// under Figma's 15 px stroke, a visible stub hanging off the game's 4.4-unit
-// collision halo.
+// ---- T-junctions: a platform butting into a wall lands near the wall's
+// MIDDLE, where end-to-end chaining never looks. 0.9 units past the centreline
+// hides under Figma's 15 px stroke and is a visible stub on the game's
+// 4.4-unit collision halo.
 
 check("a loose end snaps onto the wall it was drawn against",
   stitchTerrain([[[12.4, 21.5], [50, 24.3]], [[13.3, 85.7], [13.3, 8.9]]]),
   [[[13.3, 21.5], [50, 24.3]], [[13.3, 85.7], [13.3, 8.9]]]);
 
-// ...but only where the wall actually IS. Level 1's ground is at y 137 and the
-// wall stops at y 85.7, so that end hangs off the world on purpose.
+// ...but only where the wall actually IS: this end hangs off the world on purpose.
 check("an end past the wall's extent is left hanging",
   stitchTerrain([[[12, 137], [122, 137]], [[13.3, 85.7], [13.3, 8.9]]]),
   [[[12, 137], [122, 137]], [[13.3, 85.7], [13.3, 8.9]]]);
@@ -109,7 +96,7 @@ check("an end already ON the surface is not moved",
 check("a T-junction does not merge the two surfaces",
   stitchTerrain([[[0, 10], [20, 10]], [[21, 0], [21, 30]]]).length, 2);
 
-// The whole of level 1, exactly as it decodes out of Figma today.
+// A whole level as it decodes out of Figma.
 check("level 1's platform and shelf both land on the wall",
   stitchTerrain([
     [[12.4, 21.5], [50, 24.3]], [[75, 31], [89, 43]], [[12.6, 43], [98.7, 43]],

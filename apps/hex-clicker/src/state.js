@@ -17,11 +17,8 @@ import {
   hashString,
 } from "@escape-cats/shared";
 
-// ---------------------------------------------------------------------------
-// STATE — same shape the prototype kept, so every ported module reads the
-// fields it always read. `unlocked`/`seen` are per-phone UI stickiness (what
-// this player has been shown), never server state.
-// ---------------------------------------------------------------------------
+// ---- STATE. `unlocked`/`seen` are per-phone UI stickiness (what this player
+// has been shown), never server state. ----
 export const game = {
   mice: 0, // display bank: server value + local extrapolation
   total: 0,
@@ -73,11 +70,9 @@ export function isUnlocked(u) {
   return true;
 }
 
-// ---------------------------------------------------------------------------
-// SHARED CLOCK — the night wall is a pure function of (seed, time), so every
-// phone has to draw it against the same timeline. wallNow() is server-epoch
-// milliseconds riding on this device's performance.now() ticker.
-// ---------------------------------------------------------------------------
+// ---- SHARED CLOCK — the night wall is a pure function of (seed, time), so
+// every phone draws it against the same timeline. wallNow() is server-epoch ms
+// riding on this device's performance.now() ticker. ----
 let clockSkew = null; // serverEpoch - performance.now()
 function syncClock(serverTime) {
   const skew = serverTime - performance.now();
@@ -98,22 +93,11 @@ export function wallSeed() {
   return seed;
 }
 
-// ---------------------------------------------------------------------------
-// OPTIMISTIC PETS — a tap credits the display immediately and is held until
-// the server acknowledges the batch that carried it.
-// ---------------------------------------------------------------------------
-// This used to expire entries after a fixed window that had to equal the whole
-// round trip: PET_FLUSH_MS (100) + SNAPSHOT_TICK_MS (250) + RTT. With ?debug the
-// RTT is zero so any window worked, but over a real connection the budget left
-// ~50ms for the network. Overshoot and the entry died before its snapshot
-// arrived (bank dips one tap); undershoot and it was still counted after the
-// snapshot included it (bank reads high). Both happened, tap by tap, which is
-// what made the counter jitter.
-//
-// Now the server tells us exactly which batches a snapshot contains, so the
-// arithmetic is exact at any latency. The timestamp survives only as a
-// backstop: if an ack is lost — a reconnect mid-flight — an entry must not
-// inflate the bank forever.
+// ---- OPTIMISTIC PETS — a tap credits the display immediately and is held
+// until the server acknowledges the batch that carried it. ----
+// Ack-based, not a time window: a window had to equal the whole round trip, and
+// jitter either way made the counter jump tap by tap. The timestamp is only a
+// backstop against a lost ack (a reconnect mid-flight) inflating the bank forever.
 const OPTIMISTIC_BACKSTOP_MS = 5000;
 let optimistic = []; // {seq, gain, at: perfNow}
 
@@ -136,36 +120,16 @@ function optimisticGain() {
   return optimistic.reduce((a, o) => a + o.gain, 0);
 }
 
-// ---------------------------------------------------------------------------
-// THE BANK IS A FUNCTION OF TIME, NOT A RUNNING TOTAL
-// ---------------------------------------------------------------------------
-// It used to be a running total: add cps*dt every frame, then ASSIGN the
-// snapshot's bank over the top of it four times a second. That assignment is
-// what made the counter tick backwards, in two ways that are both small and
-// both permanent:
-//
-//   - it re-based on ARRIVAL, which drops the snapshot's own age on the floor.
-//     A constant latency cancels, but the JITTER in it does not, so every
-//     wobble in the network moved the bank — either way, and the down way is
-//     the one you can see; and
-//   - the frame after a snapshot credited dt from the previous FRAME rather
-//     than from the snapshot, so each interval double-counted the sliver
-//     between the two — up to a frame of income, handed straight back the
-//     moment the next snapshot landed.
-//
-// So the bank is read off an ANCHOR instead: a value, the moment on the shared
-// clock it was true, and the rate it was climbing at. That makes it a pure
-// function of time, and consecutive anchors AGREE — the authority integrates
-// the same rate across the same interval we do, so anchor n+1 evaluates to
-// exactly what anchor n was already showing. There is nothing left to
-// reconcile, so there is nothing to hand back.
-//
-// The other half is that income cannot move the bank down at all any more.
-// `total` is lifetime-earned and only ever climbs; the gap between it and the
-// bank is what the room has SPENT, and that only moves when somebody buys
-// something. Extrapolate the climbing half, subtract the stepping half, and
-// the one thing that can still take the number down is a teammate at the shop
-// — which is not the counter miscounting, it is the money actually being gone.
+// ---- THE BANK IS A FUNCTION OF TIME, NOT A RUNNING TOTAL ----
+// A running total that a snapshot then overwrites ticks backwards two ways: it
+// re-bases on ARRIVAL, so network jitter moves the bank, and the frame after a
+// snapshot double-counts the sliver since the previous frame. So the bank is
+// read off an ANCHOR — a value, the shared-clock moment it was true, and the
+// rate it was climbing at. Consecutive anchors AGREE (the authority integrates
+// the same rate over the same interval), so there is nothing to reconcile. And
+// income can never move the bank DOWN: `total` only climbs and the spent gap
+// only steps on a purchase, so the one thing that takes the number down is a
+// teammate at the shop — the money actually being gone.
 let anchorTotal = 0; // lifetime mice as of anchorAt
 let anchorSpent = 0; // total - mice there; only a purchase moves it
 let anchorCps = 0; // mice/sec it was climbing at (dev speed already folded in)
@@ -180,9 +144,7 @@ export function extrapolate() {
   game.mice = game.total - anchorSpent;
 }
 
-// ---------------------------------------------------------------------------
-// SNAPSHOT APPLICATION — copy the authoritative state in, report the edges.
-// ---------------------------------------------------------------------------
+// ---- SNAPSHOT APPLICATION — copy the authoritative state in, report the edges ----
 let runId = null;
 export let players = [];
 
@@ -248,10 +210,8 @@ export function applySnapshot(snap) {
 
   const nightAfter = nightOf(game.bought);
   edges.nightFlip = !first && !nightBefore && nightAfter;
-  // Live edge only, exactly like nightFlip: the splash RAISES itself the moment
-  // the proctor presses, and a phone that joins an already-won room lands on the
-  // game with the toggle lit instead of on a celebration it missed (the night
-  // cutscene set that precedent — a rejoin gets the state, not the beat).
+  // Live edge only, like nightFlip: a phone that joins an already-won room
+  // lands on the game with the toggle lit, not on a celebration it missed.
   edges.wonFlip = !first && !wonBefore && game.wonAt !== null;
   edges.neonOn = !first && !neonBefore && !!mods.neon;
   edges.soldOut = !first && !soldOutBefore && allRailBought(game);

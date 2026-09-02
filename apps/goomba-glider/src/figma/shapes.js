@@ -1,22 +1,12 @@
 // Figma SHAPES as terrain, and `cut` layers that take terrain away.
 //
-// Terrain used to have to be a Line, and the reason was sound: a Line is a
-// zero-height node whose stored geometry IS the segment, while `(0,0)-(w,0)` on
-// a pen path is the top edge of a bounding box that can be nowhere near what
-// was drawn. That argument never applied to a RECTANGLE or an ELLIPSE, whose
-// outlines ARE their box — so those two are read here exactly, and the pen is
-// still refused.
+// A RECTANGLE or ELLIPSE's outline IS its box, so both are read exactly; a pen
+// path is still refused (clipboard.js). A layer named `cut` SUBTRACTS: every
+// terrain polyline is clipped against it, splitting where it enters and
+// rejoining where it leaves — a doorway is one shape with a hole, not two.
 //
-// `cut` is the other half, and it is the piece that makes a ring level
-// drawable. A doorway in a wall is not a shape anyone wants to draw as two
-// shapes; it is one shape with a hole punched through it. So a layer named
-// `cut` is a shape that SUBTRACTS: every terrain polyline is clipped against
-// it, splitting where it enters and rejoining where it leaves. Two crossed
-// rectangles over two concentric circles is then eight arcs, which is a level.
-//
-// Everything here works in WORLD units (the caller has already divided by the
-// 10 px/unit scale), except the matrices, which are Figma's own px-space
-// affines — so `inside()` scales back up before applying one.
+// Everything here is in WORLD units except the matrices, which are Figma's
+// px-space affines — so `inside()` scales back up before applying one.
 
 const S = 10; // px per world unit, as in clipboard.js
 const ROUND = (v) => Math.round(v * 10) / 10;
@@ -35,13 +25,9 @@ const apply = (m, x, y) => [m[0] * x + m[1] * y + m[2], m[3] * x + m[4] * y + m[
 const facets = (px) => Math.max(8, Math.min(256, Math.ceil(px / (3 * S))));
 
 /**
- * A rectangle's outline as a CLOSED polyline, honouring its corner radius.
- *
- * The radius is not decoration here. Two terrain segments meeting at a sharp
- * inside corner wedge her (nothing closer than 4.4 u = 2x her radius), so a
- * rounded corner is a physically different object from a square one, and a
- * rounded-rectangle node that came back square would be a silent lie about
- * whether the level stalls her.
+ * A rectangle's outline as a CLOSED polyline, honouring its corner radius: a
+ * sharp inside corner wedges her (4.4 u = 2x her radius), so a rounded corner
+ * is a physically different object and must not come back square.
  */
 export function rectPoly(m, w, h, radius = 0) {
   const r = Math.max(0, Math.min(radius || 0, w / 2, h / 2));
@@ -109,18 +95,12 @@ export function cutTester(kind, m, w, h, radius = 0) {
 }
 
 /**
- * Clip every polyline against every cut, returning the surviving pieces.
- *
- * The AUTHORED vertices are kept exactly; the only points this adds are the two
- * where a surface crosses a cut's edge. (An earlier pass densified to one point
- * a unit and re-simplified afterwards, which quietly re-faceted every arc to
- * whatever the simplifier liked rather than to what was drawn.)
- *
- * A crossing is FOUND by sampling and then bisected, rather than solved: a cut
- * can be a rounded rect or an ellipse under an arbitrary affine, so there is no
- * one closed form, and sampling also catches the case a solver needs written
- * separately — a long segment that enters AND leaves a cut with both of its
- * endpoints in open air.
+ * Clip every polyline against every cut, returning the surviving pieces. The
+ * AUTHORED vertices are kept exactly; the only added points are the crossings
+ * (never densify and re-simplify — that re-facets every arc). A crossing is
+ * found by sampling then bisected, not solved: there is no closed form under
+ * an arbitrary affine, and sampling catches a segment that enters AND leaves
+ * a cut with both ends in open air.
  */
 export function applyCuts(polys, tests) {
   if (!tests.length) return polys;

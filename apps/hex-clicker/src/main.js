@@ -1,8 +1,6 @@
 // BOOT + MAIN LOOP + the multiplayer seam. The room server (or the ?debug sim)
-// broadcasts snapshots; state.js mirrors them and reports EDGES; this file
-// wires those edges to the UI beats the prototype used to fire from inside
-// its own buy path — so the night cutscene, the neon flip and the shop close
-// play on every phone in the room, whoever pressed the button.
+// broadcasts snapshots; state.js mirrors them and reports EDGES; this file wires
+// those edges to the UI beats, so they play on every phone, whoever pressed.
 
 import "./styles.css";
 import { BUILDINGS, UPGRADES, costOf, isRevealed } from "@escape-cats/shared";
@@ -61,20 +59,11 @@ import {
 import { drawWall, startWallNeon, resetWallClock } from "./wall.js";
 import { currencyIconSVG } from "./art.js";
 
-// ---------------------------------------------------------------------------
 // Kiosk lockdown: swallow the long-press context menu and the touch gestures
-// that would buzz the phone mid-mash. Native controls and the shop scroller
-// opt out — they're driven by `click` and the scroll gesture respectively.
-//
-// `[data-native-touch]` is the GENERAL form of that opt-out, and anything with
-// its own scroller needs it: preventDefault on a capture-phase touchstart stops
-// the browser from ever starting a pan, so an `overflow:auto` box inside this
-// page is scrollable with a mouse and frozen under a finger. The debug panel's
-// buildings & upgrades dump was exactly that (see debug.ts) — it opted out on
-// its buttons and its <summary> and nowhere else, so the one part of it worth
-// scrolling was the one part that could not be. Subtree-wide via closest(), so
-// marking a container covers every scroller inside it.
-// ---------------------------------------------------------------------------
+// that would buzz the phone mid-mash. Native controls and scrollers opt out —
+// preventDefault on a capture-phase touchstart stops the browser ever starting
+// a pan, so any `overflow:auto` box needs `[data-native-touch]` (subtree-wide
+// via closest()) or it scrolls with a mouse and freezes under a finger.
 window.addEventListener("contextmenu", (e) => e.preventDefault());
 const NATIVE_TOUCH =
   "#shopScroll, [data-native-touch], button, a, summary, input, select, textarea";
@@ -88,9 +77,7 @@ window.addEventListener(
   { capture: true, passive: false },
 );
 
-// ---------------------------------------------------------------------------
-// SNAPSHOT WIRING
-// ---------------------------------------------------------------------------
+// ---- SNAPSHOT WIRING ----
 let inited = false;
 
 /** This phone's roster slot — the same index the server derives colours from. */
@@ -175,30 +162,14 @@ function initGame() {
   requestAnimationFrame(frame);
 }
 
-/** How far up the screen the shop tray reaches, published to CSS as `--dock-up`
- * so the roster can ride its top edge (see `#team` in styles.css).
- *
- * MEASURED, never copied. The tray has three heights — open, collapsed to the
- * bare SHOP rail, and gone once the shop retires — and every one of them is a
- * number in the stylesheet; a constant here would be wrong in two of the three.
- *
- * The TRAY alone, and the rail is deliberately not in it. The rail is
- * `position: absolute; bottom: 100%`, so it hangs above the tray and outside
- * its box, and this number summed the two for as long as the rail was a
- * full-width band — under a right-aligned roster as much as anything else.
- * It is a tab in the top-LEFT corner now (`.shopHead`), and adding its height
- * to a measurement the names read from the RIGHT edge just pushed them a tab's
- * height up the empty side of the screen. Whatever the roster ends up riding,
- * it should be something actually beneath it.
- *
- * HEIGHTS rather than a top edge, because the tray arrives and leaves on a
- * transform (`dockIn`, and `.cutscene-hidden` on the way to night). A transform
- * moves a box without resizing it, so a measured position would be wrong for
- * the whole half-second of each slide with no resize to correct it; the height
- * is right throughout, and the names simply stay put while the tray travels.
- * A hidden tray measures 0, which is the answer `#team` wants: it falls to the
- * screen's own bottom inset and stays on screen, both before the shop first
- * appears and after it has retired for good. */
+/** The shop tray's height, published to CSS as `--dock-up` so the roster rides
+ * its top edge (`#team` in styles.css). MEASURED, never copied: the tray has
+ * three heights (open, collapsed, retired) and all live in the stylesheet. The
+ * TRAY alone, not the rail — the rail is a tab in the top-LEFT corner, outside
+ * the tray's box, and the names read from the RIGHT edge. A HEIGHT rather than
+ * a top edge because the tray arrives and leaves on a transform, which moves
+ * the box without resizing it. A hidden tray measures 0, which drops the names
+ * to the screen's own bottom inset — where they belong. */
 function measureDock() {
   document.documentElement.style.setProperty(
     "--dock-up",
@@ -208,23 +179,18 @@ function measureDock() {
 const dockRO = new ResizeObserver(measureDock);
 dockRO.observe(dockEl);
 
-/** The same trick at the other end of the screen, for #connToast, which hangs
- * off the HUD's bottom edge. HEIGHT rather than a bottom edge for the same
- * reason #team takes the tray's: #hud is top-anchored, so its height IS the
- * offset. It varies with two things this file cannot hardcode — the notch (#hud
- * pads by max(12px, env(safe-area-inset-top))) and the count's own line box,
- * which grows when the number wraps to two lines on a narrow phone. */
+/** The same trick at the top, for #connToast, which hangs off the HUD's bottom
+ * edge. #hud is top-anchored, so its height IS the offset; it varies with the
+ * notch padding and with the count wrapping to two lines on a narrow phone. */
 function measureHud() {
   document.documentElement.style.setProperty(
     "--hud-h",
     `${hudEl.getBoundingClientRect().height}px`,
   );
 }
-/* BORDER-BOX, unlike the dock's observer above, and the difference is the whole
- * point of this one: the inset #connToast is trying to clear is #hud's PADDING,
- * and a content-box observation does not fire when padding changes. Rotating a
- * notched phone swapped env(safe-area-inset-top) in and out with no callback and
- * left the toast hanging off a stale height. */
+/* BORDER-BOX, unlike the dock's observer: the inset #connToast clears is #hud's
+ * PADDING, and a content-box observation does not fire when padding changes
+ * (rotating a notched phone swapped the safe-area inset with no callback). */
 const hudRO = new ResizeObserver(measureHud);
 hudRO.observe(hudEl, { box: "border-box" });
 
@@ -235,10 +201,9 @@ function updateTeam() {
   const key = players.map((p) => `${p.connected ? 1 : 0}\u0000${p.name}`).join("\u0001");
   if (key === teamKey) return;
   teamKey = key;
-  // One element per player and no separator: the names are a COLUMN now, so the
-  // dot that used to join them would hang off the end of every line. Built as
-  // nodes with textContent rather than a joined HTML string, so a name typed in
-  // the lobby is text here by construction and there is no escaper to get wrong.
+  // One element per player, no separator (the names are a COLUMN). Built as
+  // nodes with textContent, so a name typed in the lobby is text here by
+  // construction and there is no escaper to get wrong.
   teamEl.replaceChildren(
     ...players.map((p) => {
       const el = document.createElement("span");
@@ -249,9 +214,7 @@ function updateTeam() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// MAIN LOOP
-// ---------------------------------------------------------------------------
+// ---- MAIN LOOP ----
 let last = performance.now(),
   hudTick = 0;
 function frame(now) {
@@ -293,21 +256,12 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// ---------------------------------------------------------------------------
-// BOOT — there is no menu.
-//
-// By the time a player reaches this page they have been through the physical
-// lobby: the proctor has already put their pid on a team, so the page slots
-// them in by itself. A phone the proctor HASN'T sorted yet gets a waiting
-// screen, not a form — and because watchTeam registers the phone in the lobby
-// roster, that phone appears on the proctor's list while it waits and enters
-// the game the moment it is assigned. Nobody types a room code; the only
-// keyboard this game ever shows is the lobby's name prompt.
-//
-// The lobby is the ONLY way into a team: `?room=` used to override it and was
-// removed (the README's "?room= is gone" has the why, including the room-id
-// casing bug it caused). `?debug` still bypasses the server entirely.
-// ---------------------------------------------------------------------------
+// BOOT — there is no menu. The proctor has already put this pid on a team in
+// the physical lobby, so the page slots itself in; an unsorted phone gets a
+// waiting screen (watchTeam registers it in the lobby roster, so it appears on
+// the proctor's list and enters the game the moment it is assigned). The lobby
+// is the ONLY way into a team — no `?room=`, ever (README). `?debug` bypasses
+// the server entirely.
 const NAME_KEY = "escape-cats-name";
 
 function boot() {
@@ -358,23 +312,16 @@ function enterRoom(room, name) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// `\` — the same key Goomba uses to swap between playing and its level editor.
-//
-// Hex has no levels to edit; what it has behind ?debug is the 🛠 panel. But
-// ?debug in hex is a different BACKEND — the shared sim running in-page, with
-// no room and no server — so switching into it mid-session is a reload by
-// construction, not a toggle. That is the honest behaviour and it is why this
-// does not pretend to flip a switch: it puts you in debug, and once you are
-// there the same key opens and closes the panel.
-// ---------------------------------------------------------------------------
+// `\` — the same key Goomba uses for its editor. Hex's ?debug is a different
+// BACKEND (the sim in-page, no room), so switching into it mid-session is a
+// reload by construction; once there, the same key opens and closes the panel.
 window.addEventListener("keydown", (e) => {
   if (e.key !== "\\") return;
   e.preventDefault();
   if (!debugFromUrl()) {
     const u = new URL(location.href);
-    // `?debug`, not `?debug=` — it is read with `has()`, but the bare form is
-    // what every note and whiteboard in this repo writes.
+    // `?debug`, not `?debug=`: read with `has()`, and the bare form is what every
+    // note in this repo writes.
     u.search = u.search ? `${u.search}&debug` : "?debug";
     location.replace(u.toString());
     return;
@@ -385,15 +332,12 @@ window.addEventListener("keydown", (e) => {
 
 boot();
 
-// The alternate cat poses, fetched once the page is up rather than before its
-// first paint — see warmPoseFrames in cat.js. Out here rather than in
-// initGame() so the frames are on their way while the room is still
-// connecting, not after it answers.
+// Alternate cat poses, fetched once the page is up (warmPoseFrames in cat.js).
+// Out here so they are on their way while the room is still connecting.
 warmPoseFrames();
 
-// Debug handle — the multiplayer stand-in for the prototype's ?debug panel.
-// Lets a console (or a Playwright test) inspect the mirror and inject intents;
-// harmless to ship since the server validates everything anyway.
+// Debug handle: lets a console (or a Playwright test) inspect the mirror and
+// inject intents. Harmless to ship; the server validates everything.
 window.__hex = {
   game,
   mods,

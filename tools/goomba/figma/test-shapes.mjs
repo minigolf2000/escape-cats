@@ -3,11 +3,8 @@
 //
 //   node test-shapes.mjs
 //
-// The case that matters is the last one, because it is the level this feature
-// was added for: two concentric Ellipses named `t`, two crossed Rectangles
-// named `cut`, and the answer has to be EIGHT arcs — four per ring, with four
-// doorways. Nothing about that is expressible as Lines, which is why a ring
-// level could not be drawn in Figma at all before.
+// The case that matters is the last: two concentric Ellipses named `t` and two
+// crossed Rectangles named `cut` must yield EIGHT arcs, four per ring.
 import { rectPoly, ellipsePoly, cutTester, applyCuts } from "../../../apps/goomba-glider/src/figma/shapes.js";
 
 let bad = 0;
@@ -66,8 +63,7 @@ console.log("\ncut shapes");
   const wholly = applyCuts([[[26, 20], [34, 20]]], [door]);
   check("a surface wholly inside a cut disappears", wholly.length === 0, JSON.stringify(wholly));
 
-  // The case a solver would need writing for separately: both ENDS outside a
-  // cut and the middle inside. The sampler sees it because it walks the segment.
+  // Both ENDS outside a cut and the middle inside: the sampler walks the segment.
   const long = applyCuts([[[0, 20], [60, 20]]], [cutTester("rect", at(200, 150), 200, 100)]);
   check("a long segment cut through its middle splits", long.length === 2, JSON.stringify(long));
 

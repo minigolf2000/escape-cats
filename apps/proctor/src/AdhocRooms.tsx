@@ -7,16 +7,9 @@ import {
 } from "@escape-cats/shared";
 import { GoombaBlock, HexBlock } from "./TeamGame";
 
-/**
- * Where the links point. Same origin as this page, because that is the whole
- * one-origin deal — the pid that identifies a phone is per-origin, the vanity
- * domains REDIRECT here rather than rewriting, and a link built off any other
- * host would hand out a different player to the same person.
- *
- * `npm run dev` is the exception, serving each app on its own port; the env
- * vars are set in .env.development so the copy buttons produce something you
- * can paste there too.
- */
+/** Same origin as this page: the pid is per-origin, so a link off any other
+ * host hands the same person a different player. `npm run dev` serves each
+ * app on its own port; the env vars in .env.development cover that. */
 const GAMES = [
   {
     key: "goomba",
@@ -32,10 +25,8 @@ const GAMES = [
 
 type GameKey = (typeof GAMES)[number]["key"];
 
-/** The link for a slug, in one game. One function, so the URL the proctor
- * copies and the URL the game parses cannot disagree about what a slug is —
- * `adhocRoomId` has already lowercased and stripped it by the time it gets
- * here. The two games take the SAME slug: it names a room, not a game. */
+/** One function for the link, so the URL copied and the URL parsed agree —
+ * `adhocRoomId` has already normalised the slug. Both games take the SAME slug. */
 function linkFor(room: string, game: GameKey): string {
   const url = new URL(GAMES.find((g) => g.key === game)!.base);
   url.searchParams.set("r", adhocSlug(room));
@@ -46,8 +37,7 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-/** Rough, and deliberately so: this answers "is anyone still using this link",
- * not "when exactly". */
+/** Rough on purpose: answers "is anyone still using this link". */
 function ago(ms: number): string {
   const d = Date.now() - ms;
   if (d < 2 * MINUTE) return "just now";
@@ -56,20 +46,10 @@ function ago(ms: number): string {
   return `${Math.round(d / DAY)}d ago`;
 }
 
-/**
- * The ad-hoc rooms — every `?r=` link somebody has actually opened.
- *
- * A readout at the bottom of the page rather than a box on the board, because
- * these are not drop targets: nobody can be sorted INTO one (`assign` validates
- * against TEAM_IDS), the list has no fixed length, and the board's five boxes
- * are five things whose height must hold still under a drag. It is the same
- * reasoning that kept the testing room out of the grid — except that room is a
- * constant with a home in the Unassigned box, and these are not.
- *
- * COLLAPSED BY DEFAULT, and that is load-bearing rather than tidy: each row
- * holds an open spectator socket to its room, so a proctor who never opens this
- * section opens no sockets at all. Rows only mount while it is open.
- */
+/** Every `?r=` link somebody has opened. Below the board, not a box in it:
+ * not a drop target, no fixed count, and a box's height must hold still
+ * under a drag. COLLAPSED BY DEFAULT, and that is load-bearing: each row
+ * holds a spectator socket to its room, and rows only mount while open. */
 export function AdhocRooms({
   rooms,
   onForget,
@@ -80,8 +60,7 @@ export function AdhocRooms({
   const [open, setOpen] = useState(false);
   const [slug, setSlug] = useState("");
 
-  // What the typed slug will actually become — normalised by the same function
-  // the game uses on the URL, so what is copied is what will be joined.
+  // Normalised by the same function the game uses on the URL.
   const minted = adhocRoomId(slug);
 
   return (
@@ -99,9 +78,7 @@ export function AdhocRooms({
             phone onto a team takes it out of here. Anyone with a link can join.
           </p>
 
-          {/* Minting a link is the reason to be on this page at all: the list
-              below only ever shows rooms that already exist, so without this
-              there is nowhere to make the first one. */}
+          {/* The list only shows rooms that exist; the first one is made here. */}
           <div className="adhoc-mint">
             <input
               value={slug}
@@ -139,21 +116,10 @@ export function AdhocRooms({
   );
 }
 
-/**
- * One room: what it is called, when it was last joined, both games' readouts,
- * and the two things a proctor can do to the row itself.
- *
- * BOTH games, in the same two slots a team's box uses, because `?r=kelly` names
- * a room rather than a game — the same slug plays Hex at `/hexxygon/?r=kelly`
- * and Goomba at `/g00mBa/?r=kelly`, in two separate rooms that happen to share
- * a name (as a team's two games always have). Hex's block is the load-bearing
- * one: its win is a proctor's press, so without a 🏆 here a room could reach
- * the code word and never be told it won.
- *
- * The two "playing" counts are genuinely two numbers, not one repeated: a
- * friend in the glider holds a socket to the goomba room and none to the hex
- * one. No chat, though — a channel needs a box on the board to be read from.
- */
+/** One room: name, last join, both games' readouts in a team box's two
+ * slots (same slug, two rooms). Hex's block is load-bearing: its win is a
+ * proctor's press. The two "playing" counts are genuinely two numbers. No
+ * chat — a channel needs a box on the board. */
 function AdhocRow({
   room,
   onForget,
@@ -177,9 +143,7 @@ function AdhocRow({
         {GAMES.map((g) => (
           <CopyLink key={g.key} room={room.id} game={g.key} label={g.label} />
         ))}
-        {/* Drops the ROW, not the room — the levels it has cleared are safe,
-            and the next phone through the link puts it straight back. So no
-            confirm: this is a tidy-up, exactly like forgetting a player. */}
+        {/* Drops the ROW, not the room, so no confirm. */}
         <button className="small" onClick={() => onForget(room.id)}>
           Forget
         </button>
@@ -188,8 +152,7 @@ function AdhocRow({
   );
 }
 
-/** Copy one game's link for a room, and say so. Disabled with nothing to copy,
- * so the button is never a no-op that looks like a failure. */
+/** Copy one game's link. Disabled with nothing to copy. */
 function CopyLink({
   room,
   game,
@@ -212,9 +175,7 @@ function CopyLink({
             setDone(true);
             setTimeout(() => setDone(false), 1500);
           },
-          // Clipboard access can be refused (an insecure origin, a permission
-          // the browser never granted). The URL is on screen either way —
-          // saying nothing happened beats a tick that lies.
+          // Clipboard can be refused (insecure origin); the URL is on screen.
           () => undefined,
         );
       }}

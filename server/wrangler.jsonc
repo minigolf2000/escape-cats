@@ -6,18 +6,13 @@
   // Required by Durable Objects on the Workers free plan.
   "compatibility_flags": ["nodejs_compat"],
 
-  // Port 1999 is PartyKit's dev default, and every client falls back to
-  // 127.0.0.1:1999 when VITE_PARTYKIT_HOST is unset — so `npm run dev` needs no
-  // per-app .env.local to keep working.
+  // PartyKit's dev default; every client falls back to 127.0.0.1:1999 when
+  // VITE_PARTYKIT_HOST is unset.
   "dev": { "port": 1999 },
 
-  // Binding names are load-bearing: routePartykitRequest kebab-cases them to
-  // match the :party segment of /parties/:party/:room. `Main` -> "main" is
-  // partysocket's default party (the game rooms); `Lobby` -> "lobby" is what
-  // the landing page and proctor connect to; `Chat` -> "chat" is the per-team
-  // channel, roomed by team id exactly as the game is. Renaming a binding
-  // changes the wire protocol, so don't tidy these into matching the class
-  // names.
+  // Binding names are WIRE PROTOCOL: routePartykitRequest kebab-cases them
+  // into the :party segment of /parties/:party/:room (`Main` -> "main" is
+  // partysocket's default party). Don't rename them to match the class names.
   "durable_objects": {
     "bindings": [
       { "name": "Main", "class_name": "HexServer" },
@@ -27,13 +22,9 @@
     ]
   },
 
-  // SQLite-backed DOs — the only class type available on the free plan, and
-  // what `ctx.storage.get/put` persists into.
-  //
-  // Migrations are APPEND-ONLY and each tag runs once: a new class needs its
-  // own new tag, never an edit to v1. (Renaming a class is the dangerous
-  // direction — DO storage is keyed to the class, so a rename orphans every
-  // room in it.)
+  // SQLite-backed DOs — the only type on the free plan. Migrations are
+  // APPEND-ONLY and each tag runs once: a new class needs a new tag. Renaming
+  // a class orphans every room in it.
   "migrations": [
     {
       "tag": "v1",

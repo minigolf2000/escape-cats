@@ -1,9 +1,6 @@
-// The Hex Clicker economy: every building, upgrade and dial. The tuning comments
-// ARE the balance documentation — a number here is load-bearing and the note
-// beside it says what pins it.
-//
-// This is the ONE place balance lives: the server, the client and `?debug` all
-// import it.
+// The Hex Clicker economy: every building, upgrade and dial. The ONE place
+// balance lives — the server, the client and `?debug` all import it. A note
+// beside a number says what pins it.
 
 export interface HexBuilding {
   id: string;
@@ -59,221 +56,89 @@ export interface HexUpgrade {
   effect: HexEffect | HexEffect[];
 }
 
-// ---------------------------------------------------------------------------
-// BALANCE — the whole economy lives here. The day column STARTED as a mirror
-// of Cookie Clicker's first buildings (a known-good pacing) and has since been
-// retuned rung by rung — the per-row notes carry the measurements. All OPEN
-// for tuning (see DESIGN.md).
-// cost(n owned) = baseCost * growth^n   |   income = mps * count
-// ---------------------------------------------------------------------------
+// BALANCE. cost(n owned) = base * growth^n   |   income = mps * count.
+// All OPEN for tuning (see DESIGN.md).
 export const GROWTH = 1.15;
 export const BUILDINGS: HexBuilding[] = [
-  // The ONLY building with a blurb, and deliberately so: it's the first thing on
-  // the shelf, so its .fx line is where a new player learns what "owning a
-  // building" even means. Every other building inherits that lesson and gets by
-  // on its name — see the .item .titleRow note for why the rest stay bare.
-  //
-  // {every} is substituted with the rate this building ACTUALLY earns, and the
-  // token is the whole point. The blurb used to hand-write "every 2.5 seconds",
-  // which is 1/mps straight off this column, and it was wrong from the moment
-  // INCOME_SCALE arrived — the real rate is mps x INCOME_SCALE, and the row
-  // printed that correct figure right beside the incorrect prose. Deriving it
-  // (see everyText) means the two cannot disagree again whichever dial moves.
-  //
-  // Budget is 21 characters AFTER substitution, measured: .fx has the quoted
-  // rate beside it, so 22+ wraps and the row grows to 97px against its
-  // neighbours' 61px. "A mouse every second" is 20 and stays one line at an 80px
-  // row. The old wrapping text is why this row used to be the tall one.
+  // The ONLY building with a blurb: it is first on the shelf, so its .fx line is
+  // where a player learns what owning a building means. {every} is substituted
+  // with the rate it ACTUALLY earns (mps x INCOME_SCALE, see everyText), so the
+  // prose and the printed figure cannot disagree. Budget is 21 characters after
+  // substitution: 22+ wraps, and the row grows from 61px to 97px.
   { id: "shopper", name: "Mouse Subscription", icon: "🚚", base: 10,     mps: 0.4,
     blurb: "A mouse every {every}" },
   { id: "farm",    name: "Mouse Farm",      icon: "🌾", base: 100,    mps: 1   },
-  // base 10000 and mps 120, both tuned against the same failure: with the rung
-  // between Farm and Factory (the old Quarry) cut, the cost column steps
-  // 10 → 100 → 10,000 while Cookie Clicker's steps roughly ten-fold each — so
-  // at CC-shaped mps the Farm was a hundred times cheaper per mouse and stayed
-  // the better buy essentially forever (at CC's 47 mps the sim's bot bought 35
-  // farms and ZERO factories, taking the whole Factory ladder and the Cardboard
-  // line down with it). The mps had to rise until cost-per-mps sat close enough
-  // to the Farm's that the Factory is what you graduate TO once farms get
-  // expensive — the job the missing rung used to do — and the BASE had to come
-  // down from 12000 once the Factory ladder lost two of its five rungs: a
-  // shorter ladder tops out lower, so the building must be cheaper to stock or
-  // the bot goes back to farms forever. At 8000 it overshot the other way
-  // (factories crowded farms out and the Farm's top rungs went unreachable);
-  // 10000 is the measured middle.
-  //
-  // It is a NARROW band on both dials, so re-measure if either moves: at 70 mps
-  // the bot still bought zero factories, at 130 it bought almost nothing else.
+  // base and mps are pinned together: cost-per-mps must sit close to the Farm's
+  // so the Factory is what you graduate TO once farms get expensive. A NARROW
+  // band on both dials — lower mps and nobody buys factories, higher and nobody
+  // buys anything else.
   { id: "factory", name: "Mouse Factory",   icon: "🏭", base: 10000,  mps: 120 },
   // The one day building that keeps producing after the night reset (see
-  // baseCpsWith) — the design's "the Lab is still present" in the dream.
-  //
-  // It is also, now, the DOOR OUT OF PHASE 1: Catnap Hypnalysis unlocks on owning
-  // one. That makes its old numbers untenable. At 260 mps it was the worst
-  // cost-per-mps on the rail by a factor of two and had no upgrades of its own to
-  // fix that, so buying one was a straight penalty — fine when it was scenery,
-  // hostile when it's the gate. 400 mps still loses the marginal comparison to a
-  // Factory or a Farm carrying its upgrade stack, and that is correct: you buy
-  // the Lab for what it OPENS — four cross-building upgrades, and the twist —
-  // not because the arithmetic says to. It just shouldn't punish you for it.
-  // Knock-on: Labs keep earning at night, so day Labs now bootstrap the dream
-  // harder than the seed holes below. Watch that in the sim if this moves again.
+  // baseCpsWith), and the DOOR OUT OF PHASE 1: Catnap Hypnalysis unlocks on
+  // owning one. 400 mps still loses the marginal comparison to an upgraded Farm
+  // or Factory, and that is correct — you buy the Lab for what it OPENS — but it
+  // must not be a straight penalty either. Day Labs keep earning at night and
+  // bootstrap the dream harder than the free Hole does.
   { id: "lab",     name: "Schrödinger's Lab",  icon: "🔬", base: 130000, mps: 400 },
   // ---- Night buildings: DREAM is the mechanism, SPACE is the secret ----------
-  // The old set was Dimensional Mouse Hole / Chrono Cattelite Courier /
-  // Constellation Cattery / Singularity Scratcher, which handed the answer away for
-  // free: a team reads "constellation" and "singularity" off the shop rail before
-  // earning anything, and the wall's whole job is to make that space imagery an
-  // EARNED clue. So the buildings are dream-native now and every space reference
-  // lives behind the reveal.
+  // Dream-native names only: every space reference lives behind the reveal, so
+  // nothing on the rail may leak the answer. Tiers reveal on lifetime >= base,
+  // exactly as in the day.
   //
-  // They also escalate rather than just scaling: a place -> a device -> a recursion,
-  // which is how dreams actually get stranger.
+  // THE SPACING IS THE PACING. A tier is worth buying once the tier below has
+  // climbed past the COST-PER-MPS ratio between them, so that ratio is the dial:
+  // 4 -> 20 -> 50. It has to GROW — income compounds, so a constant ratio bunches
+  // the arrivals into the night's first seconds instead of one per third of it.
+  // Do not rebase a tier to buy income back: a tier n times dearer is bought
+  // 1/n as often, and purchasing IS the action here.
   //
-  // THREE tiers, not four. The fourth was a second recursion sitting on top of this
-  // one (base 2.88M, 14400 mps) and it was eating the room: it revealed at a lifetime
-  // total the night reached with two minutes still to run, and from then on the shop
-  // was tall enough to cover the bottom half of the wall — which is the one thing the
-  // night phase exists to show. Its name is the one worth keeping, so it moved DOWN
-  // onto this row (see `delta` below) and the tier itself is gone. What that costs and
-  // what it buys is measured in the Scent Trail note further down; the short version is
-  // that the night's whole money supply fell 6.7x (567M lifetime to 103M) and the
-  // purchase cadence got BETTER for it, because the worst wait in the night was the
-  // hoard for a 2.88M building.
+  // PURCHASING IS NIGHT'S MASHING ACTION (petting earns nothing asleep), which
+  // the day curve would prevent. growth 1.035, not 1.15: cost climbs as
+  // growth^n while income from copies climbs linearly in n, so a steep curve
+  // makes the gap between purchases grow without bound (Cookie Clicker papers
+  // over that with buy-10). base = 4x mps on the first tier, so the first copies
+  // land a fraction of a second apart; a 33x base was 12 seconds of nothing.
   //
-  // Tiers reveal on lifetime >= base, exactly as they do in the day. They used to be
-  // gated behind research that unlocked nothing but the right to buy them, which is
-  // buying a recipe rather than buying a thing — not a mechanic this game has.
-  //
-  // THE SPACING IS THE PACING, now that nothing gates these. What decides when a tier
-  // is worth buying is not its price but its COST PER MPS against the tier below: tier
-  // n+1 only wins the marginal comparison once tier n's own curve has climbed past the
-  // ratio between them. So that ratio is the dial, and it is 4 → 20 → 50.
-  //
-  // The ratio has to GROW, not just be large, or the arrivals bunch up rather than
-  // spreading out. Income compounds, so a constant ratio buys less and less waiting each
-  // time: at a flat x8 per tier the measured arrivals were 0:00, 0:14, 1:34 — gaps of
-  // 14s then 80s off a night that was half over. Escalating the ratio (x5, x2.5 here)
-  // turns that into 0:00, 0:17, 1:15 — a tier for every third of the night instead of
-  // two of them inside the first fifteen seconds.
-  //
-  // Do NOT try to buy the deleted tier's income back by rebasing this one. Measured:
-  // holding the 50 ratio and scaling `delta` up 4x (480k base, 9600 mps) restores the
-  // money supply and drops the night to 178 purchases from 273, because a tier four
-  // times dearer is a tier bought a quarter as often — and purchasing IS the action
-  // here (see below). 2x is the same trade at half strength: 242 purchases.
-  //
-  // Equal spacing was what the research gates had been hiding. At the same cost per mps
-  // for every tier, the curves interleave into an aggregate growing about 1% per purchase
-  // and the bank refills faster than anyone can spend it: 96 purchases in the first 30
-  // seconds and 2 per 30 seconds thereafter. The gates were staggering the tiers by
-  // hand; the price ladder does it honestly.
-  //
-  // The cost of escalation is that the stretch BEFORE each arrival goes quiet — the
-  // tier you own has priced itself out and the next is not affordable yet. That is what
-  // `growth` below is holding open.
-  //
-  // PURCHASING IS NIGHT'S MASHING ACTION. Petting earns nothing once Hex is asleep,
-  // so the repeated physical thing a player does has to become buying — which the
-  // day curve actively prevents. Two numbers do that work, and both are deliberate:
-  //
-  //   growth 1.035, not 1.15. Cost climbs as growth^n while income from copies climbs
-  //   linearly in n, so a steep curve means the gap between affordable purchases
-  //   grows without bound. This is exactly what Cookie Clicker papers over with
-  //   buy-10, which we do not want: the answer here is to flatten the curve so the
-  //   next copy stays reachable instead of batching the taps.
-  //
-  //   It is also what keeps the escalating tier spacing above from costing cadence.
-  //   Measured on the same ladder, 1.05 → 1.035 moves the purchase rate from 0.84/s
-  //   to 1.25/s and the worst gap from 21.7s down: a shallower curve means the tier you
-  //   already own is still buyable while you wait for the next one. The trade is that a
-  //   player ends the night owning ~96 Holes rather than ~68.
-  //
-  //   base = 4x mps on the first tier. The ratio IS the gap between copies: one Hole
-  //   earns mps * INCOME_SCALE, so a base of 33x meant 12 seconds of nothing before
-  //   the second Hole. At 4x the first few land a fraction of a second apart.
-  //
-  // mps is 2x what it was before this pass. Measured against the pacing bot at 16
-  // pets/s, night from the twist to a readable wall: 4:21 and 156 purchases before,
-  // 3:07 and 233 after — the run is shorter AND has half again as much in it, which is
-  // the whole point. Purchase rate 0.60/s to 1.25/s; worst gap 30.3s to 21.9s.
-  // (Those are the numbers for THIS change, on the four-tier ladder. The night's
-  // current figures are 2:45 and 273 purchases — see the Scent Trail note.)
-  //
-  // The `id`s are save keys, so `spindle` and `delta` carry names that have nothing to
-  // do with them: `spindle` was Sleep Spindle and `delta` was Delta Wave, then Slow
-  // Wave, and is now Dream Within a Dream — the name inherited from the tier deleted
-  // above it, because it was the best name on the rail and the tier under it was the
-  // weakest ("Slow Wave" is a sleep stage, not a joke). Do not "fix" the mismatch:
-  // renaming an id silently wipes that building from every existing save. `delta`'s
-  // NUMBERS are untouched by the inheritance — it is the same 120000/2400 row it was,
-  // now sitting at the top of the ladder instead of one from the top.
+  // The `id`s are SAVE KEYS and do not match the names (`delta` is Dream Within
+  // a Dream). Do not "fix" it: renaming an id wipes that building from every
+  // existing save.
   { id: "portal",  name: "Hole in the Wall",       icon: "🕳️", base: 480,    mps: 120,  night: true, growth: 1.035, firstFree: 1 },
   { id: "spindle", name: "Ball of String Theory",  icon: "🧵", base: 9600,   mps: 480,  night: true, growth: 1.035 },
   { id: "delta",   name: "Dream Within a Dream",   icon: "🌀", base: 120000, mps: 2400, night: true, growth: 1.035 },
 ];
-// The night opens on NOTHING: an empty bank, an empty wall, and one Hole in the Wall
-// priced at zero. That free copy is the entire bootstrap — nothing but buildings earns
-// once Hex is asleep, so something has to break a 0-income start, and the two candidates
-// were a handful of mice up front or a copy that costs nothing.
-//
-// The bank was tried and gives the phase away: it opened on 1,600 mice already counted,
-// which reads as a handout rather than a start, and lifetime counting the grant put the
-// Hole past its reveal threshold before the player did anything. Zero is the honest
-// version — the player opens the dream's first hole themselves, and every mouse on the
-// wall after that is one they earned.
-//
-// Cost: the second Hole is 480 against the first one's 300/s, so 1.6s of waiting before
-// the mashing starts. That is the same opening gap two free Holes used to buy at half
-// the mps, and it is the price of the wall being empty at 0:00.
+// The night opens on NOTHING but one Hole in the Wall priced at zero
+// (firstFree). That free copy is the whole bootstrap — only buildings earn once
+// Hex is asleep. Not a starting bank: a grant counts toward lifetime and reveals
+// the Hole before the player has done anything. The 1.6s wait for the second
+// Hole is the price of the wall being empty at 0:00.
 export const CLICK_BASE = 1;           // mice per pet before bonuses
 export const CLICK_CPS_SHARE = 0.02;   // + this fraction of mps per pet (keeps petting alive)
-// Zoomies, the golden-mouse buff (the mechanic itself lives with the golden
-// mouse code further down). BASE values: upgrades raise both, so everything at
-// runtime reads mods.zoomMult / mods.zoomTime, never these two directly.
+// Zoomies BASE values: upgrades raise both, so runtime reads mods.zoomMult /
+// mods.zoomTime, never these two.
 export const ZOOM_MULT = 6;            // Zoomies: pets x6...
 export const ZOOM_S = 7;               // ...for 7s
-// Global income compression. The BUILDINGS mps column began as a mirror of
-// Cookie Clicker's first buildings, whose pacing targets a weeks-long IDLE
-// game; this is a frantic ~7-min co-op for a team of 4. INCOME_SCALE
-// multiplies all passive income (and, via clickShare, the pet-share term with
-// it — so the click/idle balance is preserved). One dial, tune against
-// playtests. Applied in baseCpsWith so the pacing simulator sees it for free.
-//
-// 2.5 rather than 2.7 for a reason that is about READING, not pacing: it makes
-// the Mouse Subscription earn exactly 1.00/s (0.4 x 2.5), so the first thing on
-// the shelf is "a mouse every second" and the shop opens on a round number
-// instead of 1.08. Changing this therefore changes that row's blurb, which is
-// derived from the same arithmetic — see everyText.
-//
-// Measured against the pacing sim at 2.5, whole run to the last night upgrade:
-// 16 pets/s (a team of four mashing) 4:28, 10/s 4:59, 8/s 5:15, 3/s (solo) 6:30.
-// This dial only moves the DAY: night's income is buildings alone, so its 2:45 is
-// the same at every rate — the spread above is entirely how long the day takes to
-// reach the twist. Read as ±20s, and do not chase a few seconds by moving this.
+// Global income compression: multiplies all passive income and, via clickShare,
+// the pet-share term with it, so the click/idle balance is preserved. Applied in
+// baseCpsWith. 2.5 makes the Mouse Subscription earn exactly 1.00/s, so its
+// blurb reads "a mouse every second" (everyText derives it from this). Moves the
+// DAY only — night income is buildings alone.
 export const INCOME_SCALE = 2.5;
 
-// THE ANSWER. The night wall paints this word — the glyph layout in the
-// client's wall module is hand-placed art for exactly this string, so this
-// constant and that art are one unit: change them together or not at all.
-//
-// Deliberately a plain constant and not a deploy secret. It ships in the
-// client bundle either way (?debug runs the sim in-page), so an env var only
-// bought the appearance of secrecy while adding a way for the configured word
-// and the painted wall to disagree. The puzzle is protected by the legibility
-// gate in HexSim.snapshot, not by hiding this string.
+// THE ANSWER. wall.js's MOON_SCENE is hand-placed art for exactly this string:
+// change them together or not at all. A plain constant, not a deploy secret —
+// it ships in the bundle either way (?debug runs the sim in-page); the puzzle is
+// protected by the legibility gate in HexSim.snapshot.
 export const HEX_CODEWORD = "TO THE MOON";
 
 // ---------------------------------------------------------------------------
-// UPGRADES — a flat authored list, no tier table. Cookie Clicker's tier system
-// exists to compress a 20-buildings x 15-tiers cross-product; ours is 4 day + 3 night, so
-// there's nothing to compress and every field is written out longhand.
+// UPGRADES — a flat authored list, in SHOP ORDER (refreshUpgrades renders the
+// array as-is), so keep costs ascending within a ladder.
 //
 //   unlock: what makes it appear. Sticky once met. Kinds, all AND-ed:
 //     owned: [buildingId, n]   total: n (lifetime mice)
 //     clicks: n                golden: n (golden mice caught)
 //     requires: "key"          (must own that upgrade)
-//   effect: what it does. Folded into `mods` by recalc():
+//   effect: what it does. Folded into `mods` by foldMods():
 //     buildingMult  building, mult   — that building only
 //     globalPct     pct              — all buildings, additive with each other
 //     globalMult    mult             — all buildings, multiplicative (Lucky 6)
@@ -295,49 +160,25 @@ export const HEX_CODEWORD = "TO THE MOON";
 //                                      sells it; kept for the machinery)
 //     night         (no fields)      — THE phase flip; handled in buyUpgrade
 //
-// There is NO flavor-text field, by design. Every description is derived from
-// `effect` (see effectText) and states the mechanical effect and nothing else —
-// Cookie Clicker's split, where the row tells you what you're buying and the
-// NAME carries the joke. An `fx:` override used to exist and it replaced the
-// derived line rather than joining it, so 27 of 45 rows showed no numbers at
-// all. If a row isn't funny, rename it; don't add a field back.
-//
-// Thresholds and costs below are GUESSES — nothing here is playtested, and a
-// 10-minute run is short enough that a threshold set too high is dead content
-// you never see. Tune against a real playthrough. The lab has no upgrades on
-// purpose: you don't own enough of it, late enough, for one to land.
+// There is NO flavor-text field: every description is derived from `effect`
+// (see effectText) and states the mechanical effect only; the NAME carries the
+// joke. If a row isn't funny, rename it. The Lab has no upgrades of its own on
+// purpose.
 // ---------------------------------------------------------------------------
 export const UPGRADES: HexUpgrade[] = [
   // --- Mouse Subscription ---
   { key: "shopper1", name: "2-Day Shipping", icon: "🚚",
     cost: 200, unlock: { owned: ["shopper", 5] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
-  // 1000, from 1800, and the price is not what places this row — see the reveal
-  // schedule note on Cat Brush below. What the price buys is how long the row
-  // WAITS once revealed: measured reveal-to-purchase across 3/8/16 pets/s,
-  // 9.3/7.0/13.5s here against 26.5/77.8/35.4s at 1800. Still a wait at every
-  // rate, which is the floor worth keeping — the bank at a 3500 lifetime is barely
-  // three figures, so this cannot become affordable-on-reveal without going
-  // several times cheaper again, and a row bought on sight never appears in the
-  // shop at all (the failure the Cat Brush note describes).
-  //
-  // AN EMPTY RAIL IS SET BY REVEAL GATES, NOT BY COSTS, and this row is the proof:
-  // dropping it 1800 → 1000 moved the measured empty-rail windows by nothing, to
-  // the frame, at all three tap rates. Cost decides when a row LEAVES the rail;
-  // `unlock` decides when it arrives. Tune pacing with the former and coverage
-  // with the latter.
-  //
-  // Knock-on of the two price cuts: the day is ~9s shorter (twist at 2:59 from
-  // 3:08 at 8 pets/s, 5:10 from 5:20 solo). Noise against the ±20s spread
-  // INCOME_SCALE is documented with, but the direction to watch if more rows get
-  // cheaper.
+  // AN EMPTY RAIL IS SET BY REVEAL GATES, NOT BY COSTS: `unlock` decides when a
+  // row arrives, cost decides when it LEAVES. Tune coverage with the former and
+  // pacing with the latter. This row must stay a wait at every tap rate — the
+  // bank at a 3500 lifetime is three figures, so it would have to go several
+  // times cheaper to be bought on sight (see Cat Brush for why that is a hole).
   { key: "shopper2", name: "Subscribe & Save", icon: "🔁",
     cost: 1000, unlock: { total: 3500, owned: ["shopper", 10] },
     effect: { type: "buildingMult", building: "shopper", mult: 2 } },
-  // The subscription line's later tiers break from the flat ×2: each one cuts
-  // deeper into the supply chain, so the mice-per-dollar gain grows. Liquidation
-  // pallets (bulk, still through a middleman) → ×3; importing straight from the
-  // factory (no middleman at all) → ×4, the deepest cut in the line.
+  // Later tiers escalate ×3 then ×4: each cuts deeper into the supply chain.
   { key: "shopper3", name: "Wholesale Liquidation Pallets", icon: "🏷️",
     cost: 8000, unlock: { total: 15000, owned: ["shopper", 15] },
     effect: { type: "buildingMult", building: "shopper", mult: 3 } },
@@ -346,48 +187,23 @@ export const UPGRADES: HexUpgrade[] = [
     effect: { type: "buildingMult", building: "shopper", mult: 4 } },
 
   // --- Mouse Farm ---
-  // The day-game workhorse now that the Quarry is gone: a long ladder (base 100
-  // to the Factory's 12000 is a wide gap with no building between them) so the
-  // Farm carries that whole stretch on upgrades instead. Multipliers escalate
-  // as the tech gets sillier — ×2 mechanical tweaks, ×3 precision/premium, ×4
-  // full automation. Ascending so they reveal in sequence rather than all at
-  // once. Five rungs, not six — Zoomie Tractors was a second flat ×2 sitting
-  // between two others, so the rungs below it slid up into its slot rather than
-  // leaving a hole at 16k. (Splice-Grown Mice used to live here too; it moved to
-  // the lab tier below and is now Mice from Theory.)
-  //
-  // Owned thresholds are priced against what the day ACTUALLY buys, not a wish.
-  // The old ladder asked for 75 and 100 Farms; the geometric curve puts 50 Farms
-  // at ~722k mice, several times the entire day's spend, so its top three rungs
-  // could never be revealed at all. A day now ends holding ~16-17 Farms (sim,
-  // across 3-16 pets/s), so that is where the ladder tops out. These gates are
-  // measured, not chosen — re-measure them whenever building mps moves.
-  // ONE Farm, not three, and `total: 800` is the number doing the work again. The
-  // farm count used to bind at a ~1500 lifetime (measured 1531/1513/1518 across
-  // 3/8/16 pets/s), because a day spends its opening on Mouse Subscriptions —
-  // they out-earn Farms per mouse while pets carry income — so the 800 that was
-  // chosen to place this row never placed it, and the row landed already
-  // affordable and was bought on the frame it appeared.
-  //
-  // The gate drops to one rather than coming off entirely: a Farm multiplier
-  // bought with no Farms does nothing, which is the rule the cardboard line states
-  // for its factory counts, and one Farm is met by anyone who bought the building
-  // when it appeared at a 100 lifetime.
+  // The day workhorse: a long ladder carrying the 100 -> 10000 gap between Farm
+  // and Factory on upgrades. Multipliers escalate ×2 -> ×3 -> ×4 with costs
+  // ascending, so they reveal in sequence. Owned thresholds are priced against
+  // what a day ACTUALLY ends holding (~16-17 Farms), not a wish: re-measure them
+  // whenever building mps moves, or the top rungs never reveal.
+  // ONE Farm, and `total: 800` is what places the row: a day spends its opening
+  // on Mouse Subscriptions, so any larger farm count binds late (~1500 lifetime)
+  // and the row lands already affordable. Not zero Farms, because a Farm
+  // multiplier with no Farms does nothing.
   { key: "farmplow", name: "Sisal Scratching Plows", icon: "🧶",
     cost: 400, unlock: { total: 800, owned: ["farm", 1] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
-  // 1800, from 2200, which keeps this the cheapest thing on the rail once
-  // Subscribe & Save is bought and holds the Farm ladder's step near ×4.5 (400 →
-  // 1800 → 7200) instead of the ×5.5 it was.
-  //
-  // 2000 and TWO Farms, from 4000 and five, and both halves had to move: the farm
-  // count bound well past a 4000 lifetime on its own, so lowering the total alone
-  // would have changed nothing — the same trap the Plows above were in. This row
-  // is the back half of the opening's coverage (see Cat Brush for the schedule).
-  // It is a slow burn by design: a Farm multiplier revealed while pets still carry
-  // income, so it sits unbought for 37-135s depending on tap rate (123s at the old
-  // price and gate). That dwell is what holds the rail from here to Subscribe &
-  // Save's 3500, so do not price or gate this to be bought on sight.
+  // Keeps the Farm ladder's step near ×4.5 (400 -> 1800 -> 7200). Total and farm
+  // count bind together — lower one alone and the other still places the row. A
+  // slow burn BY DESIGN: revealed while pets still carry income, it sits
+  // unbought and holds the rail until Subscribe & Save's 3500. Do not price or
+  // gate this to be bought on sight.
   { key: "farmfeliway", name: "Feliway Sprinklers", icon: "💨",
     cost: 1800, unlock: { total: 2000, owned: ["farm", 2] },
     effect: { type: "buildingMult", building: "farm", mult: 2 } },
@@ -402,23 +218,11 @@ export const UPGRADES: HexUpgrade[] = [
     effect: { type: "buildingMult", building: "farm", mult: 4 } },
 
   // --- Mouse Factory ---
-  // Same escalating ladder as the Farm (×2 mechanical → ×3 fancier → ×4 finale),
-  // all cat-toy-flavoured factory kit. THREE rungs now, down from five: Laser
-  // Chaser Assembly Belt was a duplicate flat ×2 and Bioluminescent Dip Vats sat
-  // at 600k, past anything a day reaches. The survivors slid down into the
-  // vacated slots and their multipliers grew to ×3/×4/×5, because a 3-rung ladder
-  // multiplying to 60 cannot do the job the old 5-rung ×432 did — that collapse
-  // is why the base cost had to come down with it (see the BUILDINGS note).
-  //
-  // Same measured-threshold rule as the Farm: a day ends holding 11-15
-  // Factories, so the ladder tops out at 6 and every rung is reachable at every
-  // tap rate.
-  //
-  // Cost steps stay near 3x even though the gains are ×2/×3, for the reason the
-  // petting ladder is built the way it is: by the time Factories carry the day's
-  // income, a ×3 to Factories is a ×3 to EVERYTHING, and rungs less than that
-  // apart buy each other. At 200k/400k for the top two the sim fired the last
-  // eight rows of the whole game inside three seconds.
+  // Three rungs, ×3/×4/×5. A day ends holding 11-15 Factories, so the ladder
+  // tops out at 6 and every rung is reachable at every tap rate. Cost steps stay
+  // near 3x even though the gains are larger: once Factories carry the day's
+  // income, a ×3 to Factories is a ×3 to EVERYTHING, and rungs closer than that
+  // buy each other in a cascade.
   { key: "factory1", name: "Sisal Conveyor Tracks", icon: "🧵",
     cost: 9000, unlock: { owned: ["factory", 2] },
     effect: { type: "buildingMult", building: "factory", mult: 3 } },
@@ -429,226 +233,105 @@ export const UPGRADES: HexUpgrade[] = [
     cost: 72000, unlock: { owned: ["factory", 6] },
     effect: { type: "buildingMult", building: "factory", mult: 5 } },
 
-  // --- Schrödinger's Lab — fantastical cross-building tier ---
-  // The Lab gets NO upgrades that boost itself. Instead, owning it unlocks a
-  // tier of theory-powered boosts to the OTHER day buildings — "synthesizes
-  // mice from theory" made literal. Each is AND-gated on owning the Lab plus a
-  // modest count of its target building, so it reveals as a late-day power
-  // spike once you've committed to the Lab. This tier is the last rung of phase
-  // 1: it sits under Catnap Hypnalysis on cost so the capstone is still the
-  // capstone, but above every other day ladder so buying a Lab reads as an
-  // escalation. Fantastical flavour, ×3 where it is a plain multiplier.
-  //
-  // Exactly one row per day building now, which is the tier's whole shape: the
-  // Farm gets Mice from Theory, the Subscription gets 2 Second Shipping, and the
-  // Factory gets Factory Factory's synergy. Superposition Assembly Line was a
-  // second, redundant Factory ×3 and came out. The Observer Effect closed the
-  // tier with a flat +15% global before that — the only row pointing at nothing
-  // in particular, and the only one gated on a second Lab, so it read as a tax.
-  //
-  // "Mice from Theory" is the Lab's own description, promoted to a row title.
-  // The building's blurb said "synthesizes mice from theory" until blurbs were
-  // trimmed to the one row that teaches, and the phrase was too good to lose.
+  // --- Schrödinger's Lab — cross-building tier ---
+  // The Lab gets NO upgrades that boost itself; owning one unlocks one row per
+  // OTHER day building, AND-gated on a modest count of its target. Priced under
+  // Catnap Hypnalysis (the capstone stays the capstone) and above every other
+  // day ladder, so buying a Lab reads as an escalation.
   { key: "farm2", name: "Mice from Theory", icon: "🧬",
     cost: 36000, unlock: { owned: [["farm", 9], ["lab", 1]] },
     effect: { type: "buildingMult", building: "farm", mult: 3 } },
   { key: "labparcels", name: "2 Second Shipping", icon: "🚀",
     cost: 36000, unlock: { owned: [["shopper", 15], ["lab", 1]] },
     effect: { type: "buildingMult", building: "shopper", mult: 3 } },
-  // A factory that makes factories: a SELF-synergy (crossBuilding with per ==
-  // building), so each Mouse Factory you own makes every Mouse Factory +8%
-  // better. Total factory output becomes ~quadratic in count — a snowball that
-  // rewards going wide. The only crossBuilding in the game; buy()'s recalc keeps
-  // its owned-dependent term live. 8% rather than 5% because this row is now the
-  // Lab tier's whole contribution to Factories; at the 11-15 a day ends with that
-  // is ×1.9-2.2. Watch it in the pacing sim if factory counts drift — 12% was
-  // measurably too much, pulling the day in by ~40s.
+  // A SELF-synergy (crossBuilding with per == building): total factory output
+  // goes ~quadratic in count. The only crossBuilding in the game; buyBuilding's
+  // recalc keeps its owned-dependent term live. 8% is ×1.9-2.2 at the 11-15
+  // Factories a day ends with; 12% pulled the day in by ~40s.
   { key: "factoryfactory", name: "Factory Factory", icon: "🪆",
     cost: 68000, unlock: { owned: [["factory", 8], ["lab", 1]] },
     effect: { type: "crossBuilding", building: "factory", per: "factory", pct: 8 } },
   // --- Petting ---
-  // EVERY row here belongs to phase 1 — petting earns nothing once Hex is asleep
-  // (see pet()'s night gate), so a petting upgrade that isn't affordable before
-  // Catnap Hypnalysis is an upgrade nobody can ever use. The ladder is priced to
-  // finish at half the capstone, and its click gates top out at 1200 pets, which
-  // even a slow solo run (3 pets/s) clears inside the day.
+  // EVERY row here belongs to phase 1: petting earns nothing once Hex is asleep
+  // (pets()'s night gate), so a petting upgrade not affordable before Catnap
+  // Hypnalysis is one nobody can ever use. The ladder finishes at half the
+  // capstone and its click gates top out at 1200 pets, which a slow solo run
+  // clears inside the day.
   //
-  // WHY THIS ISN'T FOURTEEN ×2s. It used to be, spread from 3k to 180M, and it
-  // paced fine only because most of it sat past the twist and was never bought.
-  // Pull the same fourteen doublings under a 1M ceiling and they detonate: once
-  // petting is the bulk of income, each ×2 more than pays for the next rung, so
-  // the last eight rows all fire inside five seconds and the whole day ends at
-  // 1:09. A rung's cost step has to beat the income it grants, which against a
-  // fixed ceiling leaves room for four doublings and no more. The rest of the
-  // ladder earns its keep with effects that CAN'T cascade, in Cookie Clicker's
-  // own idiom:
+  // Only FOUR ×2 rungs. A rung's cost step has to beat the income it grants or
+  // the rungs buy each other in a cascade, and under a fixed ceiling that leaves
+  // room for four doublings. The rest of the ladder uses effects that CANNOT
+  // compound: per-building (additive rungs), golden-mouse (bounded by the buff's
+  // uptime however many stack), and flat / share for the opening.
   //
-  //   ×2 pets       — 4 rungs, widely spaced; the only shape that compounds
-  //   per-building  — Thousand Fingers: pets scale with Mouse Factories owned.
-  //                   Additive rungs, so stacking them can't compound.
-  //   golden mice   — Lucky Day / Get Lucky: goldens spawn sooner and linger
-  //                   longer, and Zoomies itself hits harder and lasts longer.
-  //                   All bounded by the buff's uptime however many you stack.
-  //   flat / share  — the opening rungs, irrelevant by the end, exactly as in CC.
-  //
-  // Each mechanic is assigned to the running gag that already fit it, not
-  // sprinkled at random: the perches are where Hex WATCHES (goldens), cardboard
-  // is what a Mouse Factory ships in (per-building), and a pounce and a chin
-  // scritch are what Zoomies is made of (buff power and length).
-  //
-  // ASCENDING COST, which is also shop order — refreshUpgrades renders UPGRADES
-  // in array order, so the rail reads as one ladder. Keep it monotonic: a row
-  // out of sequence shows up in the shop above things cheaper than it.
-  // Gated on OWNING a Mouse Subscription, not on lifetime mice, so the opening is
-  // a ladder with one rung per idea: pet Hex until a building appears, buy the
-  // building, and buying it hands you your first upgrade. Each step is caused by
-  // the last.
-  //
-  // It was briefly ungated entirely (unlock: {}), which put it on the rail in the
-  // very first frame — before a single pet, with nothing yet explaining what a
-  // shop is. Reads as clutter rather than as an opening. The lifetime-total gate
-  // it had before that was worse in the other direction: at 200 lifetime against
-  // a 50 cost it only ever appeared already affordable, so it taught nothing
-  // about saving up.
+  // ASCENDING COST is also shop order — keep it monotonic, or a row shows up
+  // above things cheaper than it.
+  // Gated on OWNING a Subscription, not on lifetime: the opening is one rung per
+  // idea — pet, a building appears, buy it, and buying it hands you your first
+  // upgrade. Ungated it is clutter on the first frame; a lifetime gate had it
+  // appear already affordable and taught nothing about saving.
   { key: "whiskers", name: "Cat Tree", icon: "🌳",
     cost: 50, unlock: { owned: ["shopper", 1] },
     effect: { type: "clickFlat", add: 1 } },
   { key: "scratchpost", name: "Scratching Post", icon: "🪵",
     cost: 250, unlock: { clicks: 60 },
     effect: { type: "clickMult", mult: 2 } },
-  // THE OPENING'S REVEAL SCHEDULE LIVES HERE. 700, from 4000, and this row is what
-  // keeps the shop's upgrade rail from going blank in the first minute.
-  //
-  // The failure it fixes, reported from playtest as "a gap between 1k and 2k where
-  // there were no upgrades at all": every row in the opening ladder — Cat Tree 50,
-  // 2-Day Shipping 200, Scratching Post 250, Sisal Scratching Plows 400 — costs
-  // LESS than a player has banked by the time its gate opens, so each is bought on
-  // the frame it appears and the rail drops straight back to empty. The next row to
-  // arrive was Subscribe & Save on a 3500 lifetime. Measured, that left the rail
-  // empty from a ~650 lifetime to a ~3500 one at every tap rate: 31s of a 38s
-  // stretch solo, 18s of 20s for a team of four, and the worst empty window in the
-  // game.
-  //
-  // A row that fills that band cannot be a cheap one, or it just gets bought on
-  // sight too and the hole reopens one purchase later. It has to arrive priced
-  // ABOVE the bank and STAY there as something to save toward, which is what 2200
-  // revealed on a 700 lifetime is: the bank at that point is two figures. So the
-  // reveal schedule for the opening is now
+  // THE OPENING'S REVEAL SCHEDULE. Every cheap opening row (Cat Tree 50, 2-Day
+  // Shipping 200, Scratching Post 250, Plows 400) costs LESS than the bank at
+  // its gate, so each is bought on the frame it appears and the rail drops back
+  // to empty. This row is the savings target that fills the ~650-3500 band: 2200
+  // revealed on a 700 lifetime, when the bank is two figures. The schedule:
   //
   //   ~12    Cat Tree                 50    bought on sight
   //   ~73    Scratching Post          250   bought on sight
   //   ~382   2-Day Shipping           200   bought on sight
-  //   700    Cat Brush                2200  <- SAVED FOR, 20-246s on the rail
+  //   700    Cat Brush                2200  <- SAVED FOR
   //   800    Sisal Scratching Plows   400   bought on sight
-  //   2000   Feliway Sprinklers       1800  <- saved for, 37-135s on the rail
+  //   2000   Feliway Sprinklers       1800  <- saved for
   //   3500   Subscribe & Save         1000
   //
-  // and the two savings targets are what cover the band the four cheap rows cannot.
-  // Measured worst early-day empty window across 3/8/16 pets/s: 19.0/13.5/9.5s
-  // before, 3.5/1.3/1.5s after — and the 3.5s is the intended opening beat before
-  // the first Mouse Subscription exists, not a hole. Longest stretch with no NEW
-  // row revealed is 34/38/24s.
-  //
-  // THE TRADE, stated plainly because it is a judgement call and not a free win: a
-  // solo player now sees Cat Brush sit unaffordable for up to four minutes. That is
-  // deliberate — a visible goal you are saving toward is not the same experience as
-  // a blank shelf, and it is Cookie Clicker's own idiom — but if playtest says the
-  // rail reads as STUCK rather than as a target, the fix is another row revealing
-  // in the 1000-2000 band, NOT making this one cheaper. Cheaper just returns it to
-  // the bought-on-sight pile.
-  //
-  // `clicks: 110` is untouched and is not load-bearing for placement: 110 pets is
-  // ~37s even solo, and a 700 lifetime arrives after that at every rate, so the
-  // total is what places the row. Kept because it costs nothing and holds the row
-  // off a run that somehow banks 700 without petting.
+  // The trade: a solo player sees this sit unaffordable for minutes. If playtest
+  // says the rail reads as STUCK, add a row revealing in the 1000-2000 band —
+  // making this one cheaper just returns it to the bought-on-sight pile.
+  // `clicks: 110` is not load-bearing; the total places the row.
   { key: "clawsharp", name: "Cat Brush", icon: "🪮",
     cost: 2200, unlock: { total: 700, clicks: 110 },
     effect: { type: "clickFlat", add: 5 } },
-  // The Cardboard line is this game's Thousand Fingers: pets get better the more
-  // Mouse Factories you own, because a factory is what the boxes ship in. Three
-  // additive rungs (10 → 35 → 100 per factory) rather than Cookie Clicker's
-  // multiplied ones — additive can't compound, which is the whole reason this
-  // line exists instead of three more doublings.
-  //
-  // Per FACTORY and not per Mouse Subscription, for the same reason Thousand
-  // Fingers counts every building EXCEPT cursors. Hung off the cheapest building
-  // it was a feedback loop with no brake — subscriptions cost 10 and make pets
-  // better, better pets buy more subscriptions — and the sim's bot duly bought
-  // 53 subscriptions, 13 farms and ZERO factories, taking the Farm ladder and
-  // the entire Factory ladder down with it. The Factory's 12000 base is the
-  // brake, and aiming the line at the building nobody was stocking is the point.
-  // Gated on owning factories as well: bought with none, these rows do nothing.
-  // The Box is the classic ambush spot, the Castle is its upgrade, and locking
-  // Goomba in it leaves Hex the whole fort — so they read as a sequence, but the
-  // gates are factory counts (3/5/7) and NOT `requires` links any more. That
-  // chain broke the line twice. Every row here is a PETTING upgrade, so at a low
-  // tap rate it is genuinely not worth buying — and a `requires` on a purchase
-  // turns "not worth buying" into "never revealed", taking the two rows behind it
-  // down as well. A visible row you choose to skip is fine; an invisible one is
-  // dead content. The counts alone keep the sequence in practice, since you pass
-  // 3 factories before 5 and 5 before 7.
+  // The Cardboard line is this game's Thousand Fingers: pets per Mouse FACTORY
+  // owned, in three ADDITIVE rungs (10 -> 35 -> 100) that cannot compound. Per
+  // Factory, never the cheapest building: subscriptions cost 10 and make pets
+  // better, which is a feedback loop with no brake. Gated on factory counts
+  // (3/5/7), NOT `requires` links: every row here is a petting upgrade, so at a
+  // low tap rate it is genuinely not worth buying, and a `requires` turns
+  // "skipped" into "never revealed" for the rows behind it. The counts order the
+  // sequence on their own.
   { key: "cardboardbox", name: "Cardboard Box", icon: "📦",
     cost: 4500, unlock: { owned: ["factory", 3] },
     effect: { type: "clickPerBuilding", add: 10, per: "factory" } },
   { key: "scratchpost2", name: "Reinforced Scratching Post", icon: "🪢",
     cost: 3600, unlock: { total: 7000, requires: "scratchpost", clicks: 160 },
     effect: { type: "clickMult", mult: 2 } },
-  // Pounce Reflex and Chin Scritch are the Zoomies pair — the two rows that make
-  // CATCHING a golden mouse matter more, rather than making every pet matter
-  // more. A pounce is what the zoomies burst IS, so it hits harder; a chin
-  // scritch is what keeps a cat in that state, so it lasts longer. Both are
-  // bounded by the buff's own uptime no matter what else is stacked, which is
-  // exactly why they're here rather than being two more doublings.
+  // Pounce Reflex and Chin Scritch are the Zoomies pair — bounded by the buff's
+  // own uptime whatever is stacked, which is why they are not two more doublings.
   { key: "pounce", name: "Pounce Reflex", icon: "🐾",
     cost: 11000, unlock: { total: 20000, clicks: 220 },
     effect: { type: "zoomMult", add: 3 } },
-  // Window Perch #1 of the running gag (see #2/#3 below). A perch is where Hex
-  // sits and WATCHES the window, so the three perches are the golden-mouse line:
-  // she spots them sooner, and from the second window on they hang around longer
-  // before escaping. This title stays bare "Window Perch" on purpose — it's the
-  // setup the other two count off from, so it's the ONE perch that shouldn't
-  // name a window. (It used to be the Saucer of Milk; hence the key.)
+  // Window Perch #1 of three (the golden-mouse line). Stays bare "Window Perch"
+  // on purpose: it is the setup the other two count off from. `milk` is its
+  // save key; leave it.
   { key: "milk", name: "Window Perch", icon: "🪟",
     cost: 5400, unlock: { total: 12000 },
     effect: { type: "goldenFreq", mult: 1.5 } },
-  // Window Perch #2 and #3. Two effects each, Cookie Clicker's grandma-synergy
-  // shape: another window is both a better lookout (sooner) and a longer watch
-  // (linger). goldenLife is PAIRED rather than sold alone on purpose — the spawn
-  // timer only runs while nothing is on screen and a caught golden despawns
-  // instantly, so linger is pure insurance against a MISS and is worth exactly
-  // zero to a room that catches everything. Alone it would read as a dead row,
-  // and the pacing sim (which assumes every golden is caught) would score it at
-  // zero gain and never buy it.
-  //
-  // Spaced 12k / 60k / 220k rather than the old 40k / 50k / 110k, where the first
-  // two were a quarter of a step apart and read as the same purchase twice. The
-  // third no longer `requires` the second, for the reason the cardboard line
-  // doesn't either: the pets gates (620 then 820) already order them, and a
-  // purchase-gate turns a skipped row into an invisible one.
-  //
-  // Rungs are 1.5 / 1.4 / 1.4 = ×2.94 across the line, up from 1.3 / 1.25 / 1.25
-  // = ×2.03, absorbing the ×1.5 that Mouse Magnet used to contribute. That row is
-  // gone and its strength had to land somewhere: golden frequency is not just a
-  // day bonus, it is the clock on Lucky Number 6's six-goldens gate, so deleting
-  // a third of the game's goldenFreq pushed the night's one economy spike ~1:30
-  // later. It also flattened the perches themselves — the marginal value of a
-  // frequency multiplier scales with the frequency you already have, so with the
-  // Magnet gone the pacing bot stopped buying the line at all and the third
-  // perch went unreachable at three of four tap rates.
-  //
-  // All three perches are one gag, so the NAME has to carry it — it used to live
-  // in flavor text, which meant three rows titled "Window Perch" with only the
-  // flavor telling them apart. The arithmetic is in the titles now: three
-  // perches, two windows. Never collapse these back to a bare "Window Perch".
+  // Window Perch #2 and #3, two effects each. goldenLife is PAIRED with
+  // goldenFreq, never sold alone: the spawn timer only runs while nothing is on
+  // screen and a caught golden despawns instantly, so linger is pure insurance
+  // against a MISS and worth zero to a room that catches everything. No
+  // `requires` between them, for the cardboard line's reason — the pets gates
+  // already order them. The titles carry the gag (three perches, two windows);
+  // never collapse them back to a bare "Window Perch".
   { key: "cattree", name: "Window Perch, Second Window", icon: "🪟",
     cost: 27000, unlock: { total: 50000, clicks: 340 },
     effect: [{ type: "goldenFreq", mult: 1.4 }, { type: "goldenLife", add: 3 }] },
-  // 35k, down from 60k, from back when Lock Goomba `required` this row BOUGHT and
-  // a run that skipped the Castle never revealed the jail. The requires links are
-  // gone (see the Box's note), so the price is no longer load-bearing for
-  // anything downstream — but it stays at 35k, because the reason it was skipped
-  // still holds: a 3-pets/s run reaches this point already banking for Catnap and
-  // only taking fast-payback rows.
   { key: "cardboardcastle", name: "Cardboard Castle", icon: "🏰",
     cost: 16000, unlock: { owned: ["factory", 5] },
     effect: { type: "clickPerBuilding", add: 35, per: "factory" } },
@@ -658,179 +341,76 @@ export const UPGRADES: HexUpgrade[] = [
   { key: "windowperch", name: "Third Window Perch, Second Window", icon: "🪟",
     cost: 99000, unlock: { total: 180000, clicks: 460 },
     effect: [{ type: "goldenFreq", mult: 1.4 }, { type: "goldenLife", add: 4 }] },
-  // The anticlimax is the joke: bought after churu hydroponics and a quantum
-  // lab, and what it buys is the same kibble as yesterday. The title has to land
-  // that — "Dry Food" alone reads as a straight item — so the effect stays the
-  // most ordinary thing in the shop.
+  // The anticlimax is the joke: keep the effect the most ordinary thing in the
+  // shop.
   { key: "dryfood", name: "Dry Food, Same As Yesterday", icon: "🥣",
     cost: 58000, unlock: { total: 105000, clicks: 300 },
     effect: { type: "clickMult", mult: 2 } },
-  // The ladder's only share-of-your-/s rung, and not a fifth doubling — four ×2s
-  // is all the cost ceiling can space far enough apart. The mitts let you keep
-  // both hands in it however fast the operation is running, which is what a
-  // share of your /s per pet actually means. (Static Fur was the other one and
-  // sat at 20k; the two together were the same purchase twice, once at a price
-  // where +2% of a tiny /s bought nothing.) The floor is still CLICK_CPS_SHARE,
-  // so pets keep their share of income whether or not this is bought.
+  // The ladder's only share-of-your-/s rung, not a fifth doubling. The floor is
+  // CLICK_CPS_SHARE whether or not this is bought.
   { key: "ovenmitts", name: "Bite-Proof Oven Mitts", icon: "🧤",
     cost: 72000, unlock: { total: 130000, clicks: 400 },
     effect: { type: "clickShare", pct: 2 } },
   { key: "jailgoomba", name: "Lock Goomba in Cardboard Castle", icon: "🚔",
     cost: 81000, unlock: { owned: ["factory", 7] },
     effect: { type: "clickPerBuilding", add: 100, per: "factory" } },
-  // Sequel to the original Cat Tree (whiskers) — same running-gag pattern as the
-  // Window Perch trio, and the same rule: the title carries it, because a second
-  // row titled plain "Cat Tree" is indistinguishable from the first in the shop.
-  // The ladder's last doubling.
+  // Sequel to Cat Tree; the title carries it, since a second plain "Cat Tree"
+  // is indistinguishable in the shop. The ladder's last doubling.
   { key: "cattreetable", name: "Cat Tree, On the Table", icon: "🌳",
     cost: 144000, unlock: { total: 260000, requires: "whiskers", clicks: 520 },
     effect: { type: "clickMult", mult: 2 } },
-  // Reads two ways on purpose: a breath of fresh air to anyone playing, and the
-  // daily asthma puff to anyone who knows the real Hex. Don't "fix" the wording
-  // toward either reading — it has to stay plain enough to carry both. The
-  // ambiguity lives in the TITLE, which is why dropping the flavor line cost
-  // nothing here. The ladder's last rung, and the last petting upgrade anyone
-  // can ever buy — Hex falls asleep shortly after. It lifts the WHOLE operation
-  // rather than pets alone, which is both the plainest reading of the name and
-  // the one shape that can't set off another cascade this late in the day.
+  // Reads two ways on purpose — fresh air, and the real Hex's daily asthma puff —
+  // so don't "fix" the wording toward either. The last petting upgrade anyone
+  // can buy. A globalPct, not a pet multiplier: the one shape that cannot set
+  // off a cascade this late in the day.
   { key: "freshair", name: "A Breath of Fresh Air", icon: "💨",
     cost: 189000, unlock: { total: 340000, clicks: 560 },
     effect: { type: "globalPct", pct: 25 } },
 
-  // --- Cross-building synergies ---
-  // (None right now.) Assisted Pounce and Thesis Subjects lived here — both used
-  // Robo-Cat as the synergy subject (Cookie Clicker's GrandmaSynergy pattern:
-  // the cheapest building takes a job elsewhere and the name is the punchline).
-  // They were removed with Robo-Cat. The machinery survives for a future
-  // re-authoring against a new subject: the `clickPerBuilding` and
-  // `crossBuilding` effect types (see foldMods/effectText), and buy()'s recalc()
-  // that keeps their game.owned-dependent multipliers live. A synergy only
-  // changes behavior when its term dwarfs the subject's own mps, so the subject
-  // must be a cheap, low-mps building (Mouse Subscription 0.4 or Mouse Farm 1),
-  // never the Factory.
-
-  // --- Bespoke ---
-  // Empty, and worth keeping as a warning. Three rows have been retired from
-  // here — Hex's Undivided Focus (+10% global), The Observer Effect (+15%
-  // global), and Mouse Magnet (goldens 50% sooner) — and they had the same
-  // problem: a bare number with no joke in the title, sitting outside every
-  // ladder, so nothing about the shop told you why you'd want it. A row needs a
-  // line to belong to. The effect types they used are all still live and owned
-  // elsewhere: globalPct by A Breath of Fresh Air, goldenFreq by all three
-  // Window Perches, so nothing here freed any plumbing.
+  // Two kinds of row deliberately NOT here: a cross-building synergy (the
+  // machinery — clickPerBuilding, crossBuilding — survives; a subject must be a
+  // cheap, low-mps building, never the Factory) and a bespoke row with a bare
+  // number and no ladder to belong to. A row needs a line to belong to.
 
   // --- THE TWIST + night chain ---
-  // Catnap Hypnalysis is the END OF PHASE 1, and it is priced to say so: at 1M
-  // it costs more than five times the dearest thing under it (A Breath of
-  // Fresh Air at 189k), so no day ladder can be mistaken for the capstone
-  // and none of them is left stranded behind it. Every other day upgrade —
-  // building AND petting — is tuned to be affordable well before this one, which
-  // matters most for the petting ladder: pets earn nothing at night, so a
-  // petting row you can't buy in daylight is a row you can never use.
-  //
-  // Unlock is OWNING a Schrödinger's Lab, not the old "total >= the Lab's base"
-  // pairing. Same idea told properly: the Lab is what causes the dream, so the
-  // twist appears when you actually build one rather than when you could have.
-  // It also hands the pacing to the room — the Lab is the door, and phase 1 ends
-  // when a team decides to open it, not when a lifetime counter ticks over. And
-  // it avoids the failure mode a plain total gate has at this price: a 1M row
-  // sitting unaffordable on screen for minutes, loudest thing in the shop and
-  // the one thing you can't press. Buying it flips the night phase permanently
-  // (it derives from game.bought, so saves restore it for free).
-  //
-  // The cost of that gate is that a team who never buys a Lab never sees the
-  // twist. Two things pay for it: the Lab is the last, strangest, most expensive
-  // building on the rail (the thing groups buy on sight), and buying one lights
-  // up FOUR upgrade rows at once — its cross-building tier is priced inside
-  // phase 1 now, so the reward for opening the door is immediate and visible.
-  // If playtests still show teams stalling out in daylight, the fix is a nudge
-  // toward the Lab, not a second unlock condition here.
+  // Catnap Hypnalysis is the END OF PHASE 1. 1M is more than five times the
+  // dearest day row, so no day ladder is mistaken for the capstone and every day
+  // upgrade — petting most of all — is affordable before it. Unlock is OWNING a
+  // Lab: the Lab causes the dream, phase 1 ends when a team decides to open the
+  // door, and a 1M row never sits unaffordable on screen for minutes. Night
+  // derives from `bought`, so saves restore it for free. A team that never buys
+  // a Lab never sees the twist; the fix for that is a nudge toward the Lab, not
+  // a second unlock condition here.
   { key: "catnap", name: "Catnap Hypnalysis", icon: "💤",
     cost: 1e6, unlock: { owned: [["lab", 1]] },
     effect: { type: "night" } },
-  // THE FIRST RUNG OF THE NIGHT, and the one that gives the opening something to
-  // want. The night opens UNLIT: the wall runs at a QUARTER speed and a third of its
-  // brightness (WALL.unlitSpeed / unlitGlow), so the phase begins as a barely-there
-  // drift in the dark and the first thing a team buys is the light. Nothing here is
-  // a new capability; it is the baseline handed back — and it is handed back as a
-  // BEAT rather than a toggle, easing over WALL.rampMs from the purchase's own
-  // timestamp, so the wall visibly brightens and picks up instead of cutting.
+  // THE FIRST RUNG OF THE NIGHT. The night opens UNLIT — a quarter of the wall's
+  // pace and a third of its brightness (WALL.unlitSpeed / unlitGlow) — and this
+  // hands the baseline back as a BEAT, eased over WALL.rampMs from the
+  // purchase's own timestamp. ALL of the light, HALF of the pace: Lucid
+  // Dreaming I pays the other instalment (WALL.paceSteps), so the night runs
+  // 2.4 -> 6.0 -> 9.6 units/sec across its first two purchases.
   //
-  // ALL of the light, HALF of the pace. The other half is Lucid Dreaming I's (see
-  // WALL.paceSteps and the row itself), so the climb out of the dark is 2.4 -> 6.0
-  // -> 9.6 units/sec across the night's first two purchases rather than one row
-  // fixing everything. What that buys is a hinge that is no longer only about
-  // trails: the wall starts recording itself AND comes fully awake on the same
-  // press. What it costs this row is the cleaner story — "the lantern gives the
-  // night back" is now "the lantern gives the night back, mostly".
+  // `key` is `lantern`, NOT `paperlantern` — that is Lucid Dreaming I's save
+  // key. Do not tidy it.
   //
-  // The name comes back to the row it was written for. It has been a tombstone in
-  // the block below since the sleep stages were renumbered ("a lantern is a light
-  // you release and then watch go, which is exactly this mechanic") — and it is now
-  // literally that mechanic, so the 🏮 icon comes back with it and Lucid Dreaming I,
-  // which had been wearing both, is reissued a sleep-stage icon of its own.
-  //
-  // `key` is `lantern`, NOT `paperlantern` — that string is Lucid Dreaming I's save
-  // key and has been since before the rename. Two rows in this table now read
-  // "lantern"-ish and mean different rungs; do not tidy it, the keys are saves.
-  //
-  // ---- THE COST -------------------------------------------------------------
-  // 10,000, and the window either side of it is narrow. Measured on the night's
-  // opening curve (empty bank, one free Hole, buildings the only earner), first
-  // moment the bank clears a price, across bots that sink 5%-20% of the bank into
-  // any one building:
-  //
-  //     2,500   0:08-0:09        25,000   0:23-0:42
-  //     5,000   0:13-0:17        50,000   0:30-0:48   <- Lucid Dreaming I's price
-  //    10,000   0:16-0:34
-  //
-  // The floor is the CUTSCENE. The twist's beat runs 5.1s (yawn + zzz hold + the
-  // camera zoom) and the shop takes another 0.5s to slide back in, so a price under
-  // ~5k is bought within a couple of seconds of the rail becoming touchable — the
-  // player never sees the unlit wall as a state they were in, only as a flicker
-  // during a cutscene they were not controlling. A deprivation nobody experiences
-  // is not worth building.
-  //
-  // The ceiling is LUCID DREAMING I, and it binds harder than it looks, because the
-  // opening bank curve is exponential off that free Hole: measured end to end with
-  // this row inserted, a 25k lantern lands 7-9s before the hinge and a 40k one lands
-  // 4s before it. Two rungs that close is one moment, not two — the wall lights up
-  // and starts leaving trails almost together, and the trail hinge (the single
-  // biggest visual beat in the game) is what gets stepped on.
-  //
-  // 10,000 leaves 12-25s of lit, trail-less wall between them: long enough to read
-  // the lantern's change as its own event, short enough that the dark stretch is a
-  // beat rather than a phase. It is also a fifth of Lucid Dreaming I, which is the
-  // step the rest of the ladder is written in.
-  //
-  // The ceiling got sharper when the pace was split across the two rows: they are
-  // now the only two rows that change the wall's speed, each easing over 1.4s, so
-  // bunching them does not merely crowd two beats — it stacks two hand-overs, and
-  // the second banks out of the middle of the first (buyUpgrade handles that
-  // correctly, but "correctly" here means the player sees one long acceleration
-  // instead of two accelerations).
-  //
-  // What it does NOT cost is the night's length: the same measurement puts the end
-  // of the night within ~10s of where it lands with no lantern row at all, at every
-  // price in the table. This row is paid for out of the opening's idle time, which
-  // is why it can exist at all.
-  //
-  // If playtests say the dark opening drags, the move is 5,000 (dark for ~15s), NOT
-  // deleting the row — and if they say the dark never registers, the move is 15,000,
-  // which is the last price that still clears the hinge by ~10s.
+  // COST: 10,000, and the window is narrow on both sides. The floor is the
+  // cutscene: the twist's beat runs ~5.6s before the rail is touchable, and a
+  // price under ~5k is bought seconds later, so the unlit wall is never seen as
+  // a state. The ceiling is Lucid Dreaming I at 50k: the opening bank curve is
+  // exponential off the free Hole, so 25k+ lands within seconds of the hinge and
+  // stacks two 1.4s hand-overs into one long acceleration. 10k leaves 12-25s of
+  // lit, trail-less wall between them and costs the night's length nothing. If
+  // the dark drags, move to 5,000; if it never registers, 15,000 is the last
+  // price that still clears the hinge by ~10s.
   { key: "lantern", name: "Paper Lantern", icon: "🏮",
     cost: 10000, unlock: { requires: "catnap" },
     effect: [{ type: "lantern" }, { type: "pace", add: 1 }] },
   // ---- The night ladder ------------------------------------------------------
-  // EVERY change to the wall is a purchase. Thresholds were tried on paper and
-  // rejected: if the wall changes because lifetime mice silently crossed a number,
-  // the player cannot tell they caused it, and the whole phase reads as random
-  // weather. Trails especially — that is the single biggest visual beat in the game
-  // and it must be something someone bought.
-  //
-  // Every rung is VISIBILITY, and nothing here sells permission to buy a thing —
-  // buildings reveal themselves on lifetime, the same way the day's do. The ladder runs
-  // in one clean line from anonymous specks to a readable wall:
+  // EVERY change to the wall is a purchase. Not thresholds: if the wall changes
+  // because a counter silently crossed a number, the player cannot tell they
+  // caused it and the phase reads as weather. Every rung is VISIBILITY — nothing
+  // sells permission to buy a thing; buildings reveal on lifetime.
   //
   //   Lucid Dreaming I      THE STARS START TO HAVE TRAILS  <- the hinge
   //   Lucid Dreaming II     longer trails
@@ -840,217 +420,91 @@ export const UPGRADES: HexUpgrade[] = [
   //   Lucid Dreaming IV     longer trails
   //   Scent Trail           INK STOPS FADING, WORD READABLE <- the finale
   //
-  // Four numbered rungs, and three rows that each happen once. The numerals exist because
-  // the four ARE the same purchase four times and the ??? descriptions cannot say so; see
-  // the block on them below. Two of the three singular rows get gold names for the same
-  // reason, derived from the same count (CRUX_KEYS) — Lucky Number 6 is the third and
-  // stays plain, because it is the economy row and states its own effect in words.
+  // Wall rows show ??? for their effect (WALL_EFFECTS, oneEffectText). The
+  // numerals exist because the four trail rungs ARE the same purchase four times
+  // and ??? cannot say so. The singular wall rows get gold names (CRUX_KEYS);
+  // Lucky Number 6 is the economy row, states its effect, and stays plain.
   //
-  // Don't add a speed rung here. One existed and the coverage it bought is paid for by
-  // the trail rungs instead: 9.6 is the pace the wall wants, and selling speed as an
-  // upgrade re-opens the linearity trap described under the trail budget below.
+  // No speed rung: 9.6 is the pace the wall wants, and coverage is linear in
+  // speed (see the trail budget below). Counting Mice is LATE on purpose — the
+  // wall spends over a minute as a starfield drawing something, and the trails
+  // are white until it fires (drawWall inks WALL_POINT_COLOR while `neon` is
+  // off), so the reveal recolours the whole drawing at once.
   //
-  // Counting Mice is LATE on purpose, and it changes what the whole phase is about: the
-  // player must not spend the night watching mice they already know are mice. Parked
-  // just before Lucky Number 6, the wall
-  // spends a minute and a half as a drifting starfield that slowly draws something — and
-  // the trails are white until this fires, because drawWall inks in WALL_POINT_COLOR
-  // while `neon` is off, so the reveal recolours the whole drawing at once as well as
-  // resolving the sprites. None of these rows say what they do in any case; see
-  // WALL_EFFECTS by oneEffectText.
-  //
-  // Costs are large because night's income is: the shallow 1.035 building curve
-  // means a player ends the night owning ~96 Holes, so the whole curve sits far
-  // higher than a day-shaped one would.
-  //
-  // The first six rungs are HALVED from the pass before this one — the other half of
-  // running the night twice as fast, since doubling mps alone brings every rung forward
-  // without changing how many purchases fit between them. The last two (Lucid Dreaming IV
-  // and Scent Trail) are deliberately NOT halved: by the time they are live, Lucky
-  // Number 6's x6 has landed and income is running away, and halving them collapsed the
-  // final four rungs into ten seconds. Their ownership gates do the real pacing there —
-  // see the note on them below. They want playtesting, not more arithmetic.
+  // Costs are large because night income is: on the 1.035 curve a player ends
+  // the night owning ~96 Holes.
 
-  // FOUR NUMBERED RUNGS, and the numbering is the point. These are the only rows that
-  // repeat — one effect, `trail`, sold four times — and every wall row shows ??? for its
-  // effect, so without the numerals a team has no way to tell "this is more of what you
-  // just bought" from "this is a new thing". I, II, III, IV says it in one glyph.
+  // FOUR NUMBERED RUNGS, and I is the hinge: before it the lights leave nothing
+  // behind and the wall is unreadable in principle. 34/50/68/84, escalating so
+  // numeral and size agree.
   //
-  // I is the hinge of the whole night regardless of what it is called: before it the
-  // lights leave nothing behind and the wall is unreadable in principle, not just in
-  // practice. After it the dream starts recording itself. The other three only deepen it.
+  // THE TOTAL (236) IS SET BY LEGIBILITY, not taste: at speed 9.6 the four rungs
+  // alone reach 1.53 coverage — just under LEGIBLE_COV 1.6 — and Scent Trail's
+  // persistence tips it to 1.81. The word must not become readable until the
+  // last purchase, and must become readable ON it; the window is [204, 247).
+  // COVERAGE IS LINEAR IN SPEED: change WALL.speedBase and refit this total by
+  // the same ratio, then the persistence term around it. Raising LEGIBLE_COV
+  // instead is the wrong half of the inequality (see its note).
   //
-  // 34/50/68/84, escalating so the numeral and the size agree. The TOTAL (236) is set by
-  // legibility rather than taste: at speed 9.6 the wall needs trail x 80 + persist x 57.7 ms
-  // of visible ink to cross 1.6 coverage, and 236 puts the four rungs alone at 1.53 — just
-  // under — with Scent Trail's persistence tipping it to 1.81. That ordering is the point:
-  // the word must not become readable until the last purchase, and it must become readable
-  // ON it. The window is [204, 247): below it the finale cannot get the word over the line,
-  // at or above it the rungs alone already have.
+  // The budget costs FRAMETIME: the tail is SAMPLED, not recorded
+  // (wallGrowTrail), so it is 33 mice x 236 lookups per frame — the heaviest
+  // frame in the game. If it bites on a phone, sample the faded end coarsely.
   //
-  // **COVERAGE IS LINEAR IN SPEED**, and that is the only lever there is: change
-  // WALL.speedBase and this total has to be refitted by the same ratio before the
-  // persistence term is re-fitted around it. Raising LEGIBLE_COV instead is the wrong
-  // half of the inequality to touch; see the note there.
+  // IT ALSO FINISHES THE PACE (`pace`, WALL.paceSteps): this row owns the first
+  // unit of trail AND the last pace instalment, so every trail rung inks at the
+  // full 9.6. Sell a trail rung ahead of the last pace instalment and the ladder
+  // lands at ~0.45 against 1.6 and the word can never be read. `requires:
+  // "lantern"` is the other half of that guarantee.
   //
-  // What the budget costs is FRAMETIME, because the tail is SAMPLED
-  // rather than recorded (see wallGrowTrail): 33 mice x 236 samples is ~467k tour lookups
-  // a second at 60fps against ~356k before. Measured in headless Chromium at 390x844 DPR2,
-  // the finished wall ran 27.5fps against 31.6 before — the last rung of the night is the
-  // heaviest frame in the game either way, and this made it ~13% heavier. Watch it on a
-  // real phone; the cheapest fix if it bites is sampling the tail coarsely at its faded
-  // end, where the alpha ramp has already made the detail invisible.
-  //
-  // IT ALSO FINISHES THE PACE. Half the climb out of the unlit night is Paper
-  // Lantern's and the other half is this row's (`pace`, see WALL.paceSteps), which
-  // is why the numbered rung that "only deepens" the hinge is carrying a second
-  // effect: the wall goes 6.0 -> 9.6 units/sec on the same press that first inks it.
-  //
-  // That pairing is what keeps the legibility budget exactly where it was, and it is
-  // a stronger guarantee than the `requires` edge alone. Coverage is trail x speed,
-  // and this row owns the first unit of trail AND the last instalment of pace — so
-  // every rung of the trail ladder inks at the full 9.6, as it always did. Sell a
-  // trail rung ahead of the last pace instalment and that stops being true: on a
-  // quarter-speed wall the finished ladder lands at ~0.45 against a 1.6 threshold and
-  // the word can never be read. `requires: "lantern"` is still doing its half of the
-  // work. See WALL.unlitSpeed / paceSteps in rules.ts.
-  //
-  // `key` stays `paperlantern` though the row is named Lucid Dreaming I: it is a SAVE
-  // KEY, and renaming one strands every persisted purchase of it.
+  // `key` stays `paperlantern`: a SAVE KEY, so renaming it strands every
+  // persisted purchase.
   { key: "paperlantern", name: "Lucid Dreaming I", icon: "🛌",
     cost: 50000, unlock: { requires: "lantern" },
     effect: [{ type: "trail", add: 34 }, { type: "pace", add: 1 }] },
-  // 1M, not the 115k it was, to put this at 0:50. It is a big jump from I's 50k and that is
-  // the point: the first stretch of night is meant to be buildings only while the one thing
-  // on the rail sits out of reach. The cost of hitting 0:50 is a dip to ~10 purchases in
-  // the 0:30-1:00 window while the bank fills; 700k lands it at 0:44 with ~17 instead.
+  // 1M puts this at ~0:50. The jump from I's 50k is the point: the first stretch
+  // of night is buildings only, with the one row on the rail out of reach.
   { key: "luciddreaming", name: "Lucid Dreaming II", icon: "🌀",
     cost: 1e6, unlock: { requires: "paperlantern" },
     effect: { type: "trail", add: 50 } },
-  // Night opens with the wall ALREADY populated — anonymous points of light, colourless
-  // and shapeless, indistinguishable from the starfield behind them. By the time this
-  // lands they have been drawing for over a minute. Counting Mice is what resolves them
-  // into creatures, and the name earns its keep twice: counting sheep is what you do
-  // falling asleep, and counting is exactly what you cannot do until the specks become
-  // things distinct enough to count.
-  //
-  // It is also just accurate cat vision. Cats are dichromatic and read motion before
-  // form and form before colour, so a dream that starts as bare moving specks is what
-  // Hex would really see; every upgrade around this is her dreaming BETTER than she can
-  // see awake.
-  //
-  // TRADED WITH Lucid Dreaming III — this row took its 1.15M and its slot in the chain,
-  // and III took the 1.4M. Swapping the PRICES alone could not do it: `requires` pins the
-  // order whatever the cost, so the cheaper row simply became affordable the instant the
-  // dearer one landed and the two bunched to eleven seconds apart. The chain had to swap
-  // with them.
-  //
-  // The reveal lands at 1:12 instead of 1:40, on a wall drawn to 0.54 coverage rather than
-  // 0.99 — less ink to recolour, so a smaller bang, bought for 28 more seconds of colour
-  // afterwards and a one-two the old order could not make: the lights turn out to be mice,
-  // and then the very next purchase doubles what they are drawing with.
+  // Resolves the anonymous specks into creatures — counting is what you cannot
+  // do until they are things. Sits BEFORE Lucid Dreaming III: the reveal lands
+  // ~1:12 on a lightly-drawn wall, and the very next purchase doubles what the
+  // mice are drawing with. To reorder night rows, swap the `requires` chain WITH
+  // the prices: the chain pins the order, so a cheaper row behind a dearer one
+  // is simply affordable the instant it lands and the two bunch.
   { key: "countingmice", name: "Counting Mice", icon: "💭",
     cost: 1.15e6, unlock: { requires: "luciddreaming" },
     effect: { type: "neon" } },
-  // There was a Word of Mouse row here — a research that put the nine golden
-  // letter-mice on the wall. Deleted, because it could not do the job it was
-  // written for. Its comment promised "the nine letters then arrive one at a time
-  // in REVEAL_ORDER as the wall fills", but it gated the golden crews out of the
-  // CAST, and the cast is drawn as a prefix: buying it rebuilt the cast from 24 to
-  // 33 while the ramp had long since counted past 33, so all nine letters popped on
-  // in a single frame. Measured with the pacing sim, that frame was 8:09 of a night
-  // that opens at 5:12 and ends legible at 9:39 — the mice the whole phase is about
-  // arriving 86% of the way through it, all at once, which is exactly the "they
-  // appear at the end" the reveal order was designed to avoid.
-  //
-  // So the golden mice follow the same rule as every other colour, and the shared
-  // ramp they used to arrive on is gone too: the ENTIRE cast — all nine letters
-  // included — is walking from the first frame of night (see WALL in rules.ts). The
-  // REVEAL_ORDER that staged the nine letters one at a time went with it; a wall
-  // that starts full has no arrival order to stage (see the tombstone in wall.js).
-  //
-  // This does NOT give the word away early. A golden mouse with no trail behind it
-  // is a moving dot, so the word stays unreadable until Lucid Dreaming — which the
-  // ladder already calls its hinge. The mystery beat moves onto the row that was
-  // always doing the work, instead of sitting on a row that only changed a headcount.
   { key: "deepsleep", name: "Lucid Dreaming III", icon: "😴",
     cost: 1.4e6, unlock: { requires: "countingmice" },
     effect: { type: "trail", add: 68 } },
-  // Not part of the sleep-stage chain — it's the night's one economy row, gated on the
-  // phase plus six HOLES rather than on the stage above it. Parked here by cost
-  // (between Counting Mice and Lucid Dreaming IV) because that's where the shop and the dev dump
-  // both render it: they walk UPGRADES in array order, so a row's position in this
-  // table IS its position on the rail.
-  //
-  // A clean ×6 to ALL mouse generation (globalMult, so it multiplies the whole stack
-  // rather than blending into the +% sum). Triple-six theme carried by the name, the
-  // ×6, and the six-holes gate. It used to be six GOLDENS, and that gate broke when the
-  // night got faster: goldens arrive on a wall clock (first at ~1:50, then every ~65s),
-  // so the sixth lands past the end of a 2-minute night and the row went unbuyable —
-  // for a mashing team, while a slow solo player still got it. Exactly backwards. Six
-  // Holes is earned by the night's own action instead, and the price is what makes it land
-  // mid-night (1:56), right after Counting Mice, rather than in the opening seconds.
+  // The night's one economy row, gated on six HOLES rather than the stage above
+  // it; parked here by cost because array order is rail order. globalMult so it
+  // multiplies the whole stack. Six Holes, not six goldens: goldens arrive on a
+  // wall clock, so a fast team's night ended before the sixth — exactly
+  // backwards. The price is what lands it mid-night, after Counting Mice.
   { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
     cost: 1.8e6, unlock: { requires: "countingmice", owned: [["portal", 6]] },
     effect: { type: "globalMult", mult: 6 } },
-  // NO ownership gate, and the night's ladder now has none at all above Lucky Number 6's
-  // six Holes. This rung used to carry one (`nested 28`), and dropping it is the same
-  // lesson the finale below learned the hard way: an owned-count gate on a night building
-  // makes the bot hoard for that building from the moment it is revealed, which drains the
-  // stretch of night in front of the rung to pay for the rung. Measured when this row
-  // carried it: a 30-second window with TWO purchases in it, in the middle of the mashing
-  // phase. Price alone paces it — 7M lands it at 2:14 into the night.
+  // NO ownership gate, here or on Scent Trail: an owned-count gate on a night
+  // building turns the stretch before the rung into a hoard for that building.
+  // Price alone paces it (~2:14 into the night).
   { key: "remsleep", name: "Lucid Dreaming IV", icon: "👀",
     cost: 7e6, unlock: { requires: "deepsleep" },
     effect: { type: "trail", add: 84 } },
-  // THE FINALE, and the only rung that is not more of something. Cats track by scent and
-  // scent lingers, which is exactly the mechanic: ink stops being a rolling window and
-  // starts accumulating, so the wall holds a drawing instead of shimmering like a
-  // screensaver. Worth roughly as much coverage as tripling the trail.
+  // THE FINALE, and the only rung that is not more of something: ink stops being
+  // a rolling window and accumulates, so the wall holds a drawing. Persist is
+  // LOAD-BEARING — the four trail rungs alone fall short of LEGIBLE_COV — so it
+  // is the step that makes the word readable, on the purchase that ends the
+  // night. Delete this row rather than move it and the word can never be read.
   //
-  // It used to sit mid-ladder at 7.5M, which put the single largest legibility jump in the
-  // game in the middle of the night and left two `trail` rungs after it to finish the job.
-  // Measured: coverage ran 1.18 after it, 1.58 after the next rung, and only crossed the
-  // 1.6 threshold on the last one — so the reveal was arriving in three instalments with
-  // the smallest one last. Here it is the step that makes the word readable, on the
-  // purchase that ends the night.
+  // Paced by PRICE, no owned gate (see Lucid Dreaming IV). 60e6 puts it at the
+  // end of a ~2:45 night whose worst wait (~22s) is the hoard for the top tier,
+  // not this row; push the price up to buy clock and this row's hoard becomes
+  // the worst wait instead (100e6: a 31s gap).
   //
-  // Persist is LOAD-BEARING, not a garnish, and this is the number that proves it: all
-  // four trail rungs with no persistence reach 1.32 against a 1.6 threshold. Delete this
-  // row rather than move it and the word can never be read at all.
-  //
-  // Paced by PRICE, and that is a reversal: this row used to carry an owned-count gate
-  // (58 of the top tier) because "once Dream Within a Dream is online night income runs
-  // away and cost stops being a brake". That was true of the 14400-mps tier and is not
-  // true of the ladder without it. Income now climbs LINEARLY in copies owned while cost
-  // climbs as 1.035^n, so the curve outruns the bank on its own and a price is a real
-  // brake again.
-  //
-  // The gate had to go rather than move, and the reason is REVEAL TIME, not preference.
-  // An owned gate paces the finale only if the building it names is unaffordable when the
-  // gate appears — the deleted tier revealed at a 2.88M lifetime, two thirds of the way
-  // into the night. Every remaining tier reveals in the night's first half, so pointing
-  // the gate at one makes the whole night a savings plan for it. Measured, gate on 76
-  // `delta`: Lucid Dreaming II slid from 0:50 into the night to 2:18, then five rungs
-  // landed in the last 59 seconds — a two-minute dead stretch followed by a pile-up.
-  // A gate at 40 was the same shape at two thirds strength. There is no count that fixes
-  // it, so the brake is the number below.
-  //
-  // 60e6 (from 27M), which is what puts the finale at the end of a night whose money
-  // supply fell 6.7x with the tier. Measured at 16 pets/s, twist to a readable wall:
-  // 2:45 and 273 purchases at 1.65/s, worst gap 21.8s — against 3:17 and 231 at 1.17/s,
-  // worst gap 20.4s, before. Shorter, denser, and the same worst wait.
-  //
-  // That 21.8s is the ceiling this price is set by, and it is NOT this row's own hoard —
-  // it is the wait before the top tier arrives, which is where it has always been. Push
-  // the price up to buy the clock back and this row's hoard becomes the worst wait in the
-  // night instead: 100e6 gives a 2:58 night with a 30.8s gap, 150e6 a 3:13 night with a
-  // 41.1s gap. 30 seconds of run is the cheaper thing to lose.
-  //
-  // `key` stays `hypnagogia` — it is a save key, so renaming it would silently un-buy this
-  // row for anyone mid-run. Footprints, and NOT the crescent moon this row used to carry:
-  // the answer is TO THE MOON, so a moon on the shop rail leaks it the same way
-  // Constellation Cattery did. Every icon on a night row has to pass that test.
+  // `key` stays `hypnagogia` — a save key. Footprints, and NOT a moon: the
+  // answer is TO THE MOON, and every icon on a night row has to pass that test.
   { key: "hypnagogia", name: "Scent Trail", icon: "👣",
     cost: 60e6, unlock: { requires: "remsleep" },
     effect: { type: "persist", add: 60 } },

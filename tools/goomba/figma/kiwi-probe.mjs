@@ -2,13 +2,9 @@
 //
 //   node kiwi-probe.mjs
 //
-// The format is undocumented and `kiwi.mjs` pins a snapshot of one version of
-// it (container 106). When a paste stops working, this is the tool that says
-// what changed: it dumps the real Ctrl+C fixture's envelope, its DOCUMENT and
-// CANVAS roots, one LINE and one INSTANCE with every field they carry. Capture
-// a fresh copy into fixtures/, run this, and diff against what kiwi.mjs emits.
-//
-// Nothing here is a test. It is the thing you read before writing one.
+// Not a test. When a paste stops working, capture a fresh copy into fixtures/,
+// run this, and diff its envelope, DOCUMENT/CANVAS roots, one LINE and one
+// INSTANCE against what kiwi.mjs emits.
 import { readFileSync } from "node:fs";
 import { decodeBinarySchema, compileSchema } from "kiwi-schema";
 import { decompress as unzstd } from "fzstd";

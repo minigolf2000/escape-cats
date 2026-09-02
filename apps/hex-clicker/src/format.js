@@ -1,7 +1,6 @@
-// NUMBER FORMATTING — full numbers, comma-grouped. Deliberately NOT Cookie
-// Clicker's short scale ("1.10K"): counting real mice is the joke — "1,103"
-// reads as a hoard. One formatter feeds the bank, prices, rates and effect
-// text, so the convention is the same everywhere.
+// NUMBER FORMATTING — full numbers, comma-grouped, deliberately NOT Cookie
+// Clicker's short scale: counting real mice is the joke ("1,103" reads as a
+// hoard). One formatter feeds the bank, prices, rates and effect text.
 
 import { nightActive } from "./state.js";
 

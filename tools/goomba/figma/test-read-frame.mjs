@@ -4,18 +4,10 @@
 //   node test-read-frame.mjs
 //
 // The fixture is REAL: `fixtures/fireworks-nodes.json` is what a read-only
-// `use_figma` script returned for the Fireworks frame, saved untouched. That
-// matters more here than it usually does, and there is a scar to show for it.
-//
-// The first version of this tool read the MCP's `get_metadata` XML instead, and
-// had a fixture and a test that agreed with it perfectly. Both were wrong the
-// same way: that XML reports a node's x/y as its ORIGIN and its width/height as
-// its BOUNDING BOX, and carries no rotation, so `x + width/2` is the centre
-// only for an unrotated node — and nothing in the XML says which those are. Ten
-// of Fireworks' fifteen poppers are turned 90°, and every one of them was read
-// 14 units from where it actually sits. A fixture generated under the same
-// assumption as the code cannot catch that; the transform can, so the fixture
-// is now a carrier that has one.
+// `use_figma` script returned for the Fireworks frame, untouched. It must be a
+// carrier with the TRANSFORM: ten of Fireworks' fifteen poppers are turned 90°,
+// and a box-only carrier (`get_metadata` XML) reads each 14 units off — a
+// fixture generated under the same assumption as the code cannot catch that.
 import { FIGMA_POP_SPD } from "../../../apps/goomba-glider/src/figma/clipboard.js";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -40,21 +32,18 @@ eq("the frame name is the level name, with no number", L.name, "Fireworks");
 // 1205 x 1640 px at 10 px per unit, origin at the frame's top-left.
 eq("frame box in world units", L.frame, { x0: 0, y0: 0, x1: 120.5, y1: 164 });
 
-// And the world is NOT that box: poppers reach past three of its four edges,
-// and `initLevel` eats a popper as its centre ±6 before unioning the frame in.
-// Printing both lines side by side is most of why this tool exists.
+// The world is NOT that box: poppers reach past three edges, and `initLevel`
+// eats a popper as its centre ±6 before unioning the frame in.
 eq("world bounds from the shipped initLevel", L.bounds, { x0: -7.3, y0: -11.4, x1: 121.6, y1: 166.6 });
 
-// THE ONE THAT BIT. This popper's node is at (815, 1596), 140x140, rotated 90°.
-// Rotation is about the node's own origin, so its centre lands ABOVE its y:
-// (815 + 70, 1596 - 70) -> 88.5, 152.6. Reading the box instead — 815 + 70,
-// 1596 + 70 — puts it at 166.6, fourteen units into the floor.
+// A node at (815, 1596), 140x140, rotated 90°: rotation is about the node's
+// own origin, so its centre is (815 + 70, 1596 - 70) -> 88.5, 152.6. The box
+// would say 166.6, fourteen units into the floor.
 const col = L.pops.filter((p) => p.deg === -90 && p.x === 88.5).map((p) => p.y);
 eq("a rotated instance anchors through its TRANSFORM, not its box", col, [152.6, 116.6, 80.6, 44.6]);
 
-// deg is MINUS Figma's rotation: Figma counts counter-clockwise, the game's deg
-// feeds cos/sin in a y-down world. rot 90 -> deg -90 -> uy = -1 -> aims UP,
-// which is what the column is for.
+// deg is MINUS Figma's rotation (Figma counts counter-clockwise; deg feeds
+// cos/sin in a y-down world). rot 90 -> deg -90 -> aims UP.
 eq("deg is minus the Figma rotation", L.pops[2].deg, -90);
 eq("...and that aim points up", [Math.round(Math.cos(L.pops[2].deg * Math.PI / 180)), Math.round(Math.sin(L.pops[2].deg * Math.PI / 180))], [0, -1]);
 
@@ -63,12 +52,8 @@ eq("...and that aim points up", [Math.round(Math.cos(L.pops[2].deg * Math.PI / 1
 eq("all four bumpers", L.bumpers, [
   { x: 68.5, y: 62.6 }, { x: 68.5, y: 80.6 }, { x: 68.5, y: 98.6 }, { x: 68.5, y: 152.6 }]);
 
-// SPEED NO LONGER RIDES IN THE NAME, and this fixture is the argument for the
-// change: its fifteen poppers are named with trailing digits reading 110, 110,
-// 130, 134, 130, 135, 130, 136, 130, 137, 138, 110, 131, 132, 133 — a spread
-// nobody designed. Figma increments a trailing number every time you duplicate,
-// so copying one popper around a sketch retunes the level as a side effect of
-// drawing it. One constant for every popper any frame can produce.
+// One constant speed: Figma increments a trailing number on duplicate, so this
+// fixture's popper names read 110..138 — a spread nobody designed.
 eq("every popper gets the one constant speed",
   L.pops.map((p) => p.spd), L.pops.map(() => FIGMA_POP_SPD));
 eq("...and the digits in the names are ignored",

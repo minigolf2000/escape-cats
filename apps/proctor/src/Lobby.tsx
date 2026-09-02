@@ -32,10 +32,8 @@ const ZONES: Team[] = [{ id: UNSORTED, name: "Unassigned" }, ...TEAMS];
 const zoneOf = (team: string | null) => team ?? UNSORTED;
 const teamOf = (zone: string) => (zone === UNSORTED ? null : zone);
 
-/** Who is MEANT to be on each team, typed in by hand. Purely a reading aid for
- * the proctor doing the sorting — nothing reads it but the line at the bottom
- * of a team's box, and it is not checked against the actual roster, because a
- * name on a phone is whatever that player typed. Edit it per event. */
+/** Who is MEANT to be on each team, typed by hand: a reading aid for the
+ * proctor, not checked against the roster. Edit per event. */
 const INTENDED: Record<string, string[]> = {
   t1: ["Deepa", "Emi", "Gia Hoa", "Zerah"],
   t2: ["Amanda", "John", "Kyle"],
@@ -43,8 +41,7 @@ const INTENDED: Record<string, string[]> = {
   t4: ["Alyssa", "Anamaria", "Patrin", "Will"],
 };
 
-/** Ear width on a zone box, in px. Small — the board is five boxes at once and
- * the ears are here to be matched against heads across the room, not admired. */
+/** Ear width on a zone box, px — small, the board is five boxes at once. */
 const ZONE_EAR_W = 64;
 /** Matches .zone's border-width in styles.css, so the ear's base and the box's
  * border meet without a step. */
@@ -55,17 +52,13 @@ const ZONE_BORDER = 2;
 const DRAG_SLOP = 5;
 
 /** A drag held within this many px of the viewport's top/bottom edge scrolls
- * the board (up to SCROLL_MAX px per frame). Dragging is the only way to sort
- * anyone, so a zone below the fold must be reachable mid-drag — rows set
- * `touch-action: none`, which kills native scrolling for exactly the gesture
- * that needs it most. */
+ * the board (up to SCROLL_MAX px/frame). Rows set `touch-action: none`, so a
+ * zone below the fold is otherwise unreachable mid-drag. */
 const SCROLL_EDGE = 56;
 const SCROLL_MAX = 14;
 
 interface Drag {
-  /** The pointer this drag belongs to. There is one drag record, so a second
-   * finger landing on another row must be ignored, not adopted — otherwise
-   * both fingers steer one ghost and somebody gets dropped on the wrong team. */
+  /** The pointer this drag belongs to; a second finger is ignored, not adopted. */
   pointerId: number;
   pid: string;
   name: string;
@@ -84,22 +77,11 @@ interface Drag {
 }
 
 
-/**
- * The board: five boxes, and dragging a name between them is the only way to
- * sort anyone. A team id is also the room id both games run in, so dropping
- * someone on Team 2 is what puts them in room t2 — there is no other route in.
- *
- * A box is ALSO everything else about the room those players are in — the live
- * game status (see TeamGame) and the chat log (see TeamChat) — because they all
- * answer the same question: how is Team 2 doing? Unassigned is no exception,
- * and that is the point of it being a zone at all: its players are exactly the
- * phones in the shared testing room, so it carries t0's readout and t0's
- * channel in the same two slots a team's box uses.
- *
- * The drag runs on POINTER events rather than HTML5 drag-and-drop, which fires
- * no dragstart under a finger. Dragging is the whole interface now, so a
- * proctor holding a tablet would otherwise have no way to sort anybody.
- */
+/** The board: five boxes; dragging a name is the only way to sort anyone, and
+ * a team id is the room id both games run in. A box is also everything about
+ * that room (TeamGame, TeamChat); Unassigned carries t0's readout and channel.
+ * POINTER events, not HTML5 drag-and-drop, which fires no dragstart under a
+ * finger. */
 export function Lobby() {
   const [players, setPlayers] = useState<LobbyPlayer[]>([]);
   /** Only ever populated on a proctor's socket — the lobby sends every other
@@ -133,9 +115,8 @@ export function Lobby() {
       }
       if (msg.type === "lobby") {
         setPlayers(msg.snapshot.players);
-        // `?? []` for the deploy window, not for a bug: CI starts the Worker
-        // and Vercel at once on a push to main, and a snapshot from a Worker
-        // that predates this field would otherwise blank the whole board.
+        // `?? []` covers the deploy window: a Worker that predates this field
+        // would otherwise blank the board.
         setAdhoc(msg.snapshot.adhoc ?? []);
       }
     };
@@ -162,8 +143,7 @@ export function Lobby() {
     setDrag(d);
   };
 
-  // Who is in which box, in one pass — the counts, the caps and the rows all
-  // read from this, so they cannot disagree about what "in zone z" means.
+  // Who is in which box, in one pass — counts, caps and rows all read this.
   const byZone = new Map<string, LobbyPlayer[]>(
     ZONES.map((z) => [z.id, [] as LobbyPlayer[]]),
   );
@@ -171,9 +151,8 @@ export function Lobby() {
   const isFull = (zone: string) =>
     zone !== UNSORTED && (byZone.get(zone)?.length ?? 0) >= TEAM_SIZE;
 
-  /** The zone under the pointer, asked of the browser rather than measured: the
-   * ghost is `pointer-events: none`, and `closest` walks up from whatever row or
-   * button the pointer is actually over. */
+  /** The zone under the pointer, asked of the browser: the ghost is
+   * `pointer-events: none`, and `closest` walks up from whatever is under it. */
   const zoneAt = (x: number, y: number): string | null =>
     document.elementFromPoint(x, y)?.closest<HTMLElement>(".zone")?.dataset
       .zone ?? null;
@@ -184,13 +163,10 @@ export function Lobby() {
     setDragState(null);
   };
 
-  // The move/up/cancel handlers live on WINDOW for the drag's duration, not on
-  // the row. Handlers on the row die with it — and a lobby broadcast can
-  // unmount the dragged row mid-drag (another proctor tab sorting the same
-  // player), which used to strand the ghost on screen and leave a live drag
-  // record that the next unrelated pointerup turned into a surprise assign.
-  // The pointerId check is the other half: only the pointer that started the
-  // drag may steer or finish it.
+  // The move/up/cancel handlers live on WINDOW for the drag's duration: a
+  // lobby broadcast can unmount the dragged row mid-drag, which would strand
+  // the ghost and leave a live drag record for the next pointerup to turn into
+  // an assign. The pointerId check: only the starting pointer may steer it.
   const onDragMove = (e: PointerEvent) => {
     const d = dragRef.current;
     if (!d || e.pointerId !== d.pointerId) return;
@@ -222,9 +198,9 @@ export function Lobby() {
     if (d && e.pointerId === d.pointerId) endDrag();
   };
 
-  // The window listeners are bound once per drag, but must never act on a
-  // stale closure — a drop reads isFull from the CURRENT roster, not the one
-  // at drag start. So they delegate through a ref re-pointed every render.
+  // Bound once per drag but must never act on a stale closure — a drop reads
+  // isFull from the CURRENT roster — so they delegate through a ref re-pointed
+  // every render.
   const liveDrag = useRef({ move: onDragMove, up: onDragUp, cancel: onDragCancel });
   liveDrag.current = { move: onDragMove, up: onDragUp, cancel: onDragCancel };
 
@@ -251,9 +227,9 @@ export function Lobby() {
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", cancel);
-    // Held near the viewport's top/bottom edge, the board scrolls under the
-    // drag. The pointer doesn't move while that happens, so the drop target
-    // has to be re-asked here, not in the move handler.
+    // Autoscroll near the viewport edge. The pointer doesn't move while the
+    // board scrolls under it, so the drop target is re-asked here, not in the
+    // move handler.
     let raf = requestAnimationFrame(function tick() {
       const d = dragRef.current;
       if (d?.moved) {
@@ -280,8 +256,7 @@ export function Lobby() {
   // A drag must not outlive the board (proctor navigates mid-drag).
   useEffect(() => () => dragCleanup.current?.(), []);
 
-  // No confirm: forgetting is cheap to undo — the phone reappears in Unassigned
-  // the moment it reconnects — and the prompt fired on every tidy-up.
+  // No confirm: the phone reappears in Unassigned the moment it reconnects.
   const forget = (p: LobbyPlayer) => {
     send({ type: "forget", pid: p.pid });
   };
@@ -296,16 +271,14 @@ export function Lobby() {
             title={online ? "connected" : "offline"}
           />
         </h2>
-        {/* Deliberately not a here/away count: the lobby only knows who is on
-         * the landing page (see LobbyPlayer.connected), so every phone that has
-         * moved on to a game would read as away. */}
+        {/* Not a here/away count: the lobby only knows who is on the landing
+         * page (LobbyPlayer.connected). */}
         <span className="muted">
           {players.length} phones · {byZone.get(UNSORTED)?.length ?? 0} unsorted
         </span>
       </div>
 
-      {/* Only speaks up when the board is empty — with names on it, the board
-       * explains itself and the line was just standing there. */}
+      {/* Only with an empty board; with names on it the board explains itself. */}
       {players.length === 0 && (
         <p className="muted">
           {online
@@ -329,17 +302,13 @@ export function Lobby() {
               key={z.id}
               data-zone={z.id}
               className={`zone${hovered ? (isFull(z.id) ? " blocked" : " over") : ""}`}
-              // --team-tc is the box's resting colour; the drag states override
-              // it through --zone-tc, which is a CLASS and would lose to an
-              // inline --zone-tc here (see .zone in styles.css). The ears keep
-              // the team's colour throughout — they say WHICH team this is,
-              // and that doesn't change because a name is hovering over it.
+              // --team-tc is the resting colour; drag states override it
+              // through --zone-tc, a CLASS that would lose to an inline
+              // --zone-tc here (see .zone). The ears keep the team's colour.
               style={ears ? ({ "--team-tc": ears.ink } as React.CSSProperties) : undefined}
             >
-              {/* Markup from our own colour table — no player input reaches it.
-                  It goes in raw because the ears have to be a child of the box
-                  they hang off, and one drawing serves this React board, the
-                  lobby's template literals and chat alike. */}
+              {/* Our own colour table, no player input. Raw because the ears
+                  must be a child of the box they hang off. */}
               {ears && (
                 <span
                   dangerouslySetInnerHTML={{
@@ -365,8 +334,8 @@ export function Lobby() {
                     key={p.pid}
                     player={p}
                     // Struck through only in Unassigned, where "not connected"
-                    // honestly means the phone has left the landing page. On a
-                    // team it would strike through everyone who is playing.
+                    // means the phone left the landing page. On a team it
+                    // would strike through everyone playing.
                     offline={!isTeam && !p.connected}
                     lifted={Boolean(drag?.moved) && drag?.pid === p.pid}
                     onDragStart={startDrag}
@@ -392,25 +361,19 @@ export function Lobby() {
                   {members.length === 0 && (
                     <p className="zone-empty">Drop here</p>
                   )}
-                  {/* The holding pen's own game: every phone in this box is
-                      playing the shared testing room, so it gets the readout a
-                      team's box gets, in the same slot. */}
+                  {/* The pen's own game: every phone here plays the testing room. */}
                   <TestRoom />
                 </>
               )}
-              {/* Last block in the box, for teams and the pen alike. The pen
-                  reads t0's channel, because that is the room its phones are
-                  typing in. Skipped when the testing room is closed — there is
-                  no channel to read then. */}
+              {/* Last block for teams and the pen alike; the pen reads t0's
+                  channel. Skipped when the testing room is closed. */}
               {(isTeam || OPEN_ROOM_OPEN) && (
                 <TeamChat
                   room={isTeam ? z.id : OPEN_TEAM.id}
                   label={isTeam ? z.name : OPEN_TEAM.name}
                 />
               )}
-              {/* Last line in the box: the roster this team is supposed to end
-                  up with. A reference while dragging, nothing more — see
-                  INTENDED. */}
+              {/* The roster this team is supposed to end up with — see INTENDED. */}
               {isTeam && INTENDED[z.id] && (
                 <p className="zone-intended">{INTENDED[z.id].join(" · ")}</p>
               )}
@@ -425,9 +388,9 @@ export function Lobby() {
       />
 
       {drag?.moved && (
-        // Moved with a transform, not left/top: this runs on every pointermove,
-        // and an out-of-flow transform skips layout — which also keeps zoneAt's
-        // hit test off the read-after-write path.
+        // A transform, not left/top: runs on every pointermove, and an
+        // out-of-flow transform skips layout (keeps zoneAt's hit test off the
+        // read-after-write path).
         <div
           className="drag-ghost"
           style={{
@@ -459,8 +422,8 @@ function PlayerRow({
       className={[offline && "offline", lifted && "lifted"]
         .filter(Boolean)
         .join(" ")}
-      // Only the press starts here — the rest of the drag is handled on
-      // window, so it survives this row unmounting under a lobby update.
+      // Only the press starts here; the rest is on window, so it survives
+      // this row unmounting.
       onPointerDown={(e) => onDragStart(player, e)}
     >
       <span className="pname">{player.name}</span>

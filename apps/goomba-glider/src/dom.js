@@ -1,5 +1,4 @@
-// Every element reference, in one place. The markup lives in index.html;
-// modules import what they touch. (hex-clicker/src/dom.js is the same idea.)
+// Every element reference, in one place. The markup lives in index.html.
 
 const $ = (id) => document.getElementById(id);
 

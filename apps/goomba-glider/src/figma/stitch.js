@@ -1,39 +1,17 @@
 // Figma draws terrain one Line at a time. This puts the chains back together.
 //
-// A surface a designer drew as a run of connected Lines arrives here as N
-// separate two-point polylines. PHYSICALLY that is already correct and always
-// was — `segsFor` in `goomba/physics.ts` flattens every polyline into
-// independent segments before collision, so a bag of segments and an authored
-// polyline are the same surface to her.
+// Physically a bag of two-point segments is already the same surface (`segsFor`
+// in physics.ts flattens every polyline). It does not LOOK the same: each
+// polyline is stroked with round caps, three times over, and a round cap
+// overhangs by half the stroke — so every unstitched joint grows a 2.2-unit
+// halo stub through whatever the next segment heads into.
 //
-// It does not LOOK the same, and that is the whole reason this exists. The game
-// strokes each polyline as its own path with `lineCap = "round"`, three times
-// over: a 4.4-unit collision halo, the 1.5-unit cream core, then the pink
-// centreline. A round cap overhangs its endpoint by HALF the stroke, so every
-// joint in a pasted level grew two stubs — 2.2 units of halo and 0.75 of core,
-// poking past the joint and through whatever the next segment was heading into
-// — where a hand-authored polyline has one clean `lineJoin`.
-//
-// WHY THIS WELDS RATHER THAN MATCHING EXACTLY
-// The first version of this required endpoints to be EXACTLY equal. That was
-// measured against the GENERATED frames, whose coordinates come out of
-// `levels-to-svg.mjs` and therefore agree to the last decimal — and it is
-// useless on a hand-drawn one. Measured on "2 · The Long Way Up" as actually
-// drawn in Figma: seven joints, ONE of them exact, the rest 0.3 to 1.8 units
-// apart. A person dragging a line end lands near the last one, not on it, and
-// the 15-unit stroke hides the difference. So exact matching chained almost
-// nothing and the stubs came straight back.
-//
-// The tolerance is not a guess. This game's own design rule is that no two
-// terrain segments may come closer than 4.4 units (2 × her 2.2 radius) or she
-// wedges in the corner and the run stalls — so a pair of endpoints closer than
-// that is never a deliberate separation, it is one joint drawn by hand. WELD
-// sits at 2.0: above every real joint measured (worst 1.84) and well below the
-// 4.4 floor where deliberate geometry starts. The band between the two is a
-// no-man's-land this stays out of.
-//
-// It still refuses to close a real gap. A 45-58 unit gap is how a level says
-// "one band goes here", and nothing near that is touched.
+// It WELDS rather than matching exactly: hand-drawn joints are never exact
+// (measured on one real level, seven joints, ONE exact, the rest 0.3–1.8 u
+// apart), so an exact rule chains nothing real. WELD is 2.0 — above every real
+// joint, and below the game's own 4.4 u wedge rule (2 × her radius), under
+// which nothing was ever a deliberate separation. A 45–58 u "one band goes
+// here" gap is never touched.
 
 /** Endpoints closer than this are the same point, drawn twice by a human. */
 const WELD = 2.0;
@@ -53,25 +31,11 @@ function toSegment(p, a, b) {
 }
 
 /**
- * T-junctions: pull a loose END onto the surface it was drawn against.
- *
- * Chaining only ever joins end TO end, which is the wrong shape for the most
- * common thing anyone draws — a platform butting into a wall. That platform's
- * end lands near the middle of the wall, nowhere near either of the wall's own
- * endpoints, so no amount of end-to-end welding touches it.
- *
- * Measured in the file: level 1's start platform is stored at x 124 and its
- * wall at x 133, so the platform ends 0.9 units PAST the wall's centreline. In
- * Figma that is a sliver hidden under a 15 px stroke. In game the same 0.9
- * units hangs off a 4.4-unit collision halo, which is the stub sticking out of
- * the left wall — the geometry is faithful, the drawing is just three times
- * wider, and what was invisible at design time is not invisible at play time.
- *
- * So the end is snapped onto the wall's line. Same WELD, same reasoning: the
- * game's own rule puts deliberate geometry at 4.4 units apart or more, so
- * anything under 2 was meant to touch. This does NOT chain the two — a T is not
- * a chain, and they stay separate polylines with separate ends. It only removes
- * the overhang.
+ * T-junctions: pull a loose END onto the surface it was drawn against. A
+ * platform butting into a wall lands near the wall's MIDDLE, nowhere near
+ * either endpoint, so end-to-end welding never sees it — and under a 15 px
+ * stroke a 0.9 u overhang is invisible in Figma while in game it hangs off a
+ * 4.4 u halo. Same WELD. Does NOT chain the two; only removes the overhang.
  */
 function snapTees(polys) {
   for (let i = 0; i < polys.length; i++) {
@@ -92,22 +56,12 @@ function snapTees(polys) {
 }
 
 /**
- * Two-point segments, in the order Figma listed them -> polylines.
- *
- * Chains grow from BOTH ends and accept a segment drawn in either direction,
- * because neither is information about the surface: which way a Line points is
- * which way the designer dragged it, and which end of a chain they drew first
- * is nothing at all. (The notch in The Long Way Up is exactly this — its floor
- * and its left wall share a corner at both their START points, which a
- * forward-only pass cannot see.)
- *
- * Deterministic despite that freedom: segments are always scanned in their
- * original order and the lowest-index neighbour always wins, so the same paste
- * always yields the same level.
- *
- * A welded joint keeps the point already in the chain and DROPS the incoming
- * near-duplicate, which is what actually closes the seam — the rest of the
- * incoming segment is untouched. Nothing moves by more than WELD.
+ * Two-point segments, in Figma's order -> polylines. Chains grow from BOTH
+ * ends and accept a segment drawn in either direction (which way a Line points
+ * is which way it was dragged — two lines can share a corner at both their
+ * START points). Deterministic: original scan order, lowest index wins. A
+ * welded joint keeps the chain's point and DROPS the incoming near-duplicate;
+ * nothing moves by more than WELD.
  */
 export function stitchTerrain(segs) {
   const used = new Array(segs.length).fill(false);

@@ -38,10 +38,9 @@
       "port": 5175
     },
     {
-      // The ASSEMBLED production build (run `npm run build:vercel` first) —
-      // the only way to see real chunking. Vite's dev server pre-bundles deps
-      // and serves modules unsplit, so a dev-mode network log cannot tell you
-      // whether ?debug actually avoids fetching the websocket client.
+      // The ASSEMBLED build (`npm run build:vercel` first) — the only way to
+      // see real chunking; dev serves modules unsplit, so it cannot show
+      // whether ?debug avoids fetching the websocket client.
       "name": "built-site",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "dist", "-l", "4180"],

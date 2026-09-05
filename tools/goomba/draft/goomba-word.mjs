@@ -73,7 +73,12 @@ export const P = {
   // 0.2 u apart, which is a wedge she never leaves. `bWaist` is the clear stem
   // between them; `bPopOut`/`bPopDown` seat the popper against the crown.
   bTop: 0.84, bBot: 0.94, bWaist: 7, bPopOut: 2, bPopDown: 6,
-  bBrow: 0.5,      // where on the top lobe the M's throw lands, 0..1 of its width
+  // Where on the top lobe the M's throw lands, as a fraction of its width.
+  // Land her HIGH on the lobe and she settles onto it and rides the curve down
+  // into the crown's popper; land her near the crown and she skips over it
+  // airborne, which is a catch that holds only for the exact geometry it was
+  // tuned at. 0.35 wins across every letter spacing tried.
+  bBrow: 0.35,
   // A: the crossbar's height as a fraction of cap height, and the APEX GAP —
   // the chimney the last throw threads to reach the plant on the bar.
   aBar: 0.85, aApex: 9,

@@ -71,8 +71,8 @@ export const P = {
   // B: the two lobes, as fractions of the letter's width. They meet the stem at
   // DIFFERENT heights — a B whose lobes join tangentially puts two surfaces
   // 0.2 u apart, which is a wedge she never leaves. `bWaist` is the clear stem
-  // between them; `bPopOut` holds the popper off the crown.
-  bTop: 0.84, bBot: 0.94, bWaist: 7, bPopOut: 7,
+  // between them; `bPopOut`/`bPopDown` seat the popper against the crown.
+  bTop: 0.84, bBot: 0.94, bWaist: 7, bPopOut: 2, bPopDown: 6,
   bBrow: 0.5,      // where on the top lobe the M's throw lands, 0..1 of its width
   // A: the crossbar's height as a fraction of cap height, and the APEX GAP —
   // the chimney the last throw threads to reach the plant on the bar.
@@ -190,11 +190,12 @@ export function letters(p = P) {
         // onto the B and rides the lobe's outside to the crown from there.
         brow: [r2(x0 + w * p.bTop * p.bBrow),
                r2(p.yT + ryT - ryT * Math.sqrt(1 - p.bBrow * p.bBrow))],
-        // Just OFF the crown of the top lobe, in the air: a popper sitting
-        // exactly on a tight convex vertex fires her into the two facets
-        // either side of it, and one sitting ON the letter clutters the only
-        // silhouette this level has. Its 8.2 reach still takes her off the lobe.
-        shoulder: [r2(x0 + w * p.bTop + p.bPopOut), r2(p.yT + ryT - 2)],
+        // Off the crown of the top lobe and tucked DOWN into its curve, on the
+        // line she leaves the letter by. Two things decide this spot: a popper
+        // sitting exactly on a tight convex vertex fires her into the facets
+        // either side of it, and one parked out in the B-to-A gap reads as a
+        // stray mark on the only silhouette this level has.
+        shoulder: [r2(x0 + w * p.bTop + p.bPopOut), r2(p.yT + ryT + p.bPopDown)],
       };
     } else {
       // A, with its apex snipped open: the chimney the last throw drops down.

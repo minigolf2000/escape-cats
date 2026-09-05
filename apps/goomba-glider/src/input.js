@@ -99,7 +99,9 @@ function placePreview() {
     // a broken screen. (Too SHORT stays quiet: that's the cancel gesture.)
     if (S.preview && S.preview.len > BAND_MAX) toast("too stretchy! 🫨", 900);
     else if (S.preview && bandsOut() >= MAX_BANDS)
-      toast("all 4 bands are out! 🫰 tap one to take it back", 1300);
+      // Short enough to fit a phone (#toast is one `nowrap` line). The way out
+      // — tap a band to take it back — is the sheet's fourth picture, not this.
+      toast("all 4 bands used! 😿", 1300);
     transport.preview(null); // gesture ended without a placement
   }
   S.preview = null;

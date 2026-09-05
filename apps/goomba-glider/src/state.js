@@ -126,8 +126,12 @@ export function askConfirm(title, body, onYes) {
   if (window.confirm(body ? `${title}\n\n${body}` : title)) onYes();
 }
 
+/* Why a run ended, on the toast — which is ONE `nowrap` line with no width
+ * cap, so a line much past 300px runs off both edges of a phone. Short for
+ * that reason and because this is a PUZZLE: naming the fault is the toast's
+ * job, and working out the fix is the player's. */
 export const FAIL_MSG = {
   fall: "Goomba fell! 🙀", left: "she rolled away! 🙀", flew: "overshot the party! 🙀",
-  stall: "ran out of zoom… 😿", loop: "she’s stuck! try different bands 😹",
-  timeout: "she’s stuck! try different bands 😹",
+  stall: "ran out of zoom… 😿", loop: "she’s stuck! 😹",
+  timeout: "she’s stuck! 😹",
 };

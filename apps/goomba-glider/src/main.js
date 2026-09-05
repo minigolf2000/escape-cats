@@ -27,6 +27,7 @@ import {
   levelLabel,
   nextLeadsToSplash,
   PACK_MAX,
+  isTeamRoom,
 } from "@escape-cats/shared";
 import { connectRoom, watchTeam, transport, playerId } from "./net";
 import { adoptHashLevel, startDebug } from "./debug";
@@ -195,13 +196,16 @@ function syncHud() {
   });
 
   // WHO IS HERE — one name per line (#team in styles.css), rebuilt only when
-  // it CHANGES.
-  const roster = s.players.map((p) => `${p.connected ? 1 : 0}\u0000${p.name}`).join("\u0001");
+  // it CHANGES, and only in one of the four TEAMS: elsewhere the room is
+  // whoever turned up, still on the default name, so the column is one word
+  // repeated (isTeamRoom). Empty there, not hidden — #team has no box.
+  const named = isTeamRoom(S.myTeam) ? s.players : [];
+  const roster = named.map((p) => `${p.connected ? 1 : 0}\u0000${p.name}`).join("\u0001");
   if (roster !== shownRoster) {
     shownRoster = roster;
     // textContent, never an HTML string: a name is typed by a player.
     teamEl.replaceChildren(
-      ...s.players.map((p) => {
+      ...named.map((p) => {
         const el = document.createElement("span");
         if (!p.connected) el.className = "off";
         el.textContent = p.name;

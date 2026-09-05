@@ -86,8 +86,16 @@ export function wallNow() {
 
 // Room seed: all phones derive the same wall cast/phases from the room code.
 let seed = 7;
+/** The room itself, kept because the seed above HASHES it away and the roster
+ * line needs the id (isTeamRoom). Also "DEBUG", which is not a room and
+ * correctly answers false. */
+let roomId = null;
 export function setRoomSeed(room) {
   seed = hashString(String(room));
+  roomId = String(room);
+}
+export function myRoom() {
+  return roomId;
 }
 export function wallSeed() {
   return seed;

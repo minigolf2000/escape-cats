@@ -45,11 +45,30 @@ export class GoombaServer extends Server<Env> {
   /** Poked by the lobby's `writePack`. The fetch itself wakes a hibernating
    * room, so `onStart` picks the pack up on the way in. */
   async onRequest(request: Request): Promise<Response> {
-    if (new URL(request.url).pathname.endsWith("/pack-changed")) {
+    const path = new URL(request.url).pathname;
+    if (path.endsWith("/pack-changed")) {
       await this.refreshPack();
       return new Response("ok");
     }
+    // The lobby throwing an ad-hoc room away. Object-to-object rather than a
+    // proctor socket: the fetch WAKES a hibernating room, which is what a room
+    // being deleted usually is.
+    if (path.endsWith("/reset")) {
+      this.resetRoom(Date.now());
+      await this.persist();
+      this.broadcastState();
+      return new Response("ok");
+    }
     return new Response("not found", { status: 404 });
+  }
+
+  /** One reset, two callers — the proctor's press and the lobby's delete.
+   * `previews` is the step a second copy would forget: a stale band ghost
+   * outliving the state it was drawn against. */
+  private resetRoom(now: number) {
+    this.sim.reset(now);
+    this.roster.reset();
+    this.previews.clear();
   }
 
   /** Read the pack off the lobby and install it; returns whether it changed.
@@ -186,9 +205,7 @@ export class GoombaServer extends Server<Env> {
         return;
       case "reset":
         if (!proctor) return;
-        this.sim.reset(now);
-        this.roster.reset();
-        this.previews.clear();
+        this.resetRoom(now);
         break;
     }
     // Write-through on every mutation: bands land at human rate, unlike hex

@@ -94,6 +94,23 @@ export class LobbyServer extends Server<Env> {
     this.broadcastState();
   }
 
+  /** Wipe both games for one slug. BOTH, because a slug names a ROOM and not a
+   * game: taking one leaves the other to surprise the next link-follower.
+   * `allSettled` — a briefly unreachable room must not make the delete refuse,
+   * and the row is going either way. */
+  private async resetAdhocGames(room: string): Promise<void> {
+    await Promise.allSettled([
+      this.env.Goomba.get(this.env.Goomba.idFromName(room)).fetch(
+        "http://goomba/reset",
+        { method: "POST" },
+      ),
+      this.env.Main.get(this.env.Main.idFromName(room)).fetch(
+        "http://hex/reset",
+        { method: "POST" },
+      ),
+    ]);
+  }
+
   /** Prune to the TTL and the cap on every write — there is no alarm here. */
   private async writeAdhoc() {
     const now = Date.now();
@@ -187,9 +204,14 @@ export class LobbyServer extends Server<Env> {
       }
       case "forgetRoom": {
         if (!proctor) return;
-        // The list, not the room: its Durable Object keeps its progress, and
-        // the next phone through the link puts it back.
-        this.adhoc.delete(String(msg.room));
+        // A DELETE, not a tidy-up. The row is the board's list; the progress is
+        // in the two Durable Objects named after the slug, so dropping the row
+        // alone let the same slug come back on the level it had reached. Rooms
+        // FIRST: the row is the only way back to them, so wiping after would
+        // strand state nothing on the board can reach.
+        const room = String(msg.room);
+        await this.resetAdhocGames(room);
+        this.adhoc.delete(room);
         await this.writeAdhoc();
         this.broadcastState();
         return;

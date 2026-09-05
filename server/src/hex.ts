@@ -89,6 +89,25 @@ export class HexServer extends Server<Env> {
     if (meta.role === "player") this.announce();
   }
 
+  /** The lobby throwing an ad-hoc room away — this game's only non-socket door,
+   * and the other half of `announce` below. Object-to-object: the fetch WAKES a
+   * hibernating room, which is what a room being deleted usually is. */
+  async onRequest(request: Request): Promise<Response> {
+    if (new URL(request.url).pathname.endsWith("/reset")) {
+      this.resetRoom(Date.now());
+      await this.persist();
+      this.broadcastState();
+      return new Response("ok");
+    }
+    return new Response("not found", { status: 404 });
+  }
+
+  /** One reset, two callers: the proctor's press and the lobby's delete. */
+  private resetRoom(now: number) {
+    this.sim.reset(now);
+    this.roster.reset();
+  }
+
   /** Tell the lobby an AD-HOC room has somebody in it (`sawRoom`). A `?r=`
    * room exists nowhere until it announces, and a Hex room the proctor cannot
    * see is one they cannot press 🏆 on. Goomba announces on its pack fetch;
@@ -170,8 +189,7 @@ export class HexServer extends Server<Env> {
         break;
       case "reset":
         if (!proctor) return;
-        this.sim.reset(now);
-        this.roster.reset();
+        this.resetRoom(now);
         // Write-through, unlike player mutations: rehydrating the previous run
         // would undo the reset.
         void this.persist();

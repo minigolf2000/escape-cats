@@ -1,30 +1,36 @@
 // GOOMBA — the word IS the level. Six letters drawn as monoline terrain on one
 // baseline, floating in space, and she rides them left to right: down into the
-// G's bowl, a full lap inside each O, across the M on a band, over the B's
+// G's bowl, a full lap inside each O, into the M's valley, over the B's
 // shoulder, and down the A's open apex onto the crossbar the plant sits on.
 // Nothing else is drawn, so what the camera fits at the start of a run is the
 // word, and the gaps BETWEEN the letters are the void — a run that comes off
 // the word falls out of the world.
 //
-// This is a SHOWCASE board: the reading is the point and the band work is
-// deliberately small (two bridges, both in the 45-58 "one band goes here"
-// window). Nothing here grades it — `draft.mjs link`, played, does that.
+// This is a SHOWCASE board and it wins on PLAY, with NO BANDS: every letter
+// with a room in it (the G's bowl, both O counters, the M's valley, the B's
+// shoulder) catches her and throws her at the next one, so the run reads as
+// one long ride through the word. The room's four bands are still there to
+// play with; nothing needs them. Nothing here grades it either —
+// `draft.mjs link`, played, does that.
 //
 // Everything is a stroke font with ANCHORS: `letters(p)` returns the polylines
 // and the named points the choreography aims at, so every popper is aimed at a
 // PLACE on the next letter (`aimAt` solves the arc) rather than at a hand-typed
 // angle. Move a letter, retype a width, and the throws follow it.
 //
-//   node draft.mjs --draft goomba-word card sol   the ride, as a picture
-//   node draft.mjs --draft goomba-word run sol    ...and as a route
-//   node draft.mjs --draft goomba-word audit      the geometry invariants
-//   node draft/_slop.mjs --slop 3                 what a jittered finger gets
+//   node draft.mjs --draft goomba-word card      the ride, as a picture
+//   node draft.mjs --draft goomba-word run       ...and as a route
+//   node draft.mjs --draft goomba-word audit     the geometry invariants
 //
-// Two facts about the physics shape every letter here:
+// Three facts about the physics shape every letter here:
 //   * Height only comes from a POPPER. Bands cannot lift, so the ride is a
 //     chain of throws and the letters are what she rides between them.
 //   * A popper OVERWRITES her velocity, so each letter is independent: the
 //     arc out of the G is the same arc however she got to the bottom of it.
+//   * Every hop between letters is AT THE FIRE CEILING (spd x 0.82 clamped to
+//     MAX_SPEED 145). The word is as wide as the game can throw, which is why
+//     `audit` reports each throw's headroom: widen a letter or the lead and
+//     the arc that lands in the next mouth stops reaching.
 
 const D = Math.PI / 180;
 const r2 = (v) => +v.toFixed(2);
@@ -67,6 +73,7 @@ export const P = {
   // 0.2 u apart, which is a wedge she never leaves. `bWaist` is the clear stem
   // between them; `bPopOut` holds the popper off the crown.
   bTop: 0.84, bBot: 0.94, bWaist: 7, bPopOut: 7,
+  bBrow: 0.5,      // where on the top lobe the M's throw lands, 0..1 of its width
   // A: the crossbar's height as a fraction of cap height, and the APEX GAP —
   // the chimney the last throw threads to reach the plant on the bar.
   aBar: 0.85, aApex: 9,
@@ -84,10 +91,13 @@ export const P = {
   oLoft: 1,        // LOFTED: the flat arc out of a ring is the ring itself
   o1AimDX: 0, o1AimDY: 4,    // O1 throws at O2's mouth
   o2AimDX: -6, o2AimDY: -22, // O2 throws over the M's left peak
+  mSpd: 175,       // the M's valley popper, out over its own right peak
+  mAimDX: 0, mAimDY: 0,      // ...aimed at the B's brow
   bSpd: 134,       // the B's popper, at the crown of the top lobe
   bAimDX: 0, bAimDY: 0,      // ...aimed at the middle of the A's chimney
   goalDX: 5,       // the plant, right of centre on the A's crossbar
-  canMUp: 8.5,     // the watering can, below the bridge over the M's valley
+  canA: 55,        // where on the first O's lap the can hangs (deg, y-down)
+  canIn: 8,        // ...and how far inboard of the ring
 };
 
 /** Points along an ellipse arc, a0 -> a1 in degrees, y-down. */
@@ -150,6 +160,7 @@ export function letters(p = P) {
         // through. Up-and-right from here is INWARD, which is the only
         // direction a popper standing on a ring may fire.
         pop: on(cx, cy, rx - 2.6, ry - 2.6, p.oPopA),
+        can: on(cx, cy, rx - p.canIn, ry - p.canIn, p.canA),
       };
     } else if (k === "M") {
       const mid = p.yT + p.ch * p.mMid;
@@ -158,9 +169,13 @@ export function letters(p = P) {
         [r2(cx - p.mFlat), r2(mid)], [r2(cx + p.mFlat), r2(mid)],
         [r2(x0 + w), p.yT], [r2(x0 + w), yB],
       ]);
-      // Both peaks are polyline VERTICES, which is what makes the bridge over
-      // the valley a forgiving band: an end within 5 u snaps onto them flush.
-      A.M = { peakL: [x0, p.yT], peakR: [r2(x0 + w), p.yT], vee: [cx, r2(mid)] };
+      A.M = {
+        peakL: [x0, p.yT], peakR: [r2(x0 + w), p.yT], vee: [cx, r2(mid)],
+        // The valley floor. Everything that comes off the second O lands here
+        // — she arrives steeply, lands perpendicular, and terrain gives back
+        // 2%, so the valley is a room with one exit and the exit is a popper.
+        floor: [cx, r2(mid - 4.6)],
+      };
     } else if (k === "B") {
       // Stem, then two lobes hung off it. Her road is the OUTSIDE of the top
       // lobe; the counters stay shut, which is what keeps a B a B.
@@ -171,6 +186,10 @@ export function letters(p = P) {
       polys.push(ell(x0, r2(yB - ryB), r2(w * p.bBot), r2(ryB), -90, 90, p.seg));
       A.B = {
         top: [x0, p.yT],
+        // A landing on the top lobe's upper face, half way out: she comes down
+        // onto the B and rides the lobe's outside to the crown from there.
+        brow: [r2(x0 + w * p.bTop * p.bBrow),
+               r2(p.yT + ryT - ryT * Math.sqrt(1 - p.bBrow * p.bBrow))],
         // Just OFF the crown of the top lobe, in the air: a popper sitting
         // exactly on a tight convex vertex fires her into the two facets
         // either side of it, and one sitting ON the letter clutters the only
@@ -230,28 +249,23 @@ export function buildLevel(p = P, extra = {}) {
   // wall, which fires her back out through the same mouth at the next letter.
   pop(A.O1.pop, [A.O2.mouth[0] + p.o1AimDX, A.O2.mouth[1] + p.o1AimDY], p.oSpd, !!p.oLoft);
   pop(A.O2.pop, [A.M.peakL[0] + p.o2AimDX, A.M.peakL[1] + p.o2AimDY], p.oSpd, !!p.oLoft);
+  // M: the valley's popper, up over its own right peak and down onto the B's
+  // top lobe. Lofted — the M's right leg is a wall the flat arc walks into.
+  pop(A.M.floor, [A.B.brow[0] + p.mAimDX, A.B.brow[1] + p.mAimDY], p.mSpd, true);
   // B: the shoulder, aimed at the middle of the A's CHIMNEY rather than at the
   // plant under it — what the last throw has to survive is the gap between the
   // A's two tips, and everything below that is the counter catching her.
   pop(A.B.shoulder, [A.A.apex[0] + p.bAimDX, A.A.apex[1] + p.bAimDY], p.bSpd, true);
 
-  // One can, hanging in the M's valley just under the bridge that spans it:
-  // swept up by the band ride, and unavoidable for anything that falls in.
-  const cans = [[A.M.vee[0], r2(A.M.peakL[1] + p.canMUp)]];
+  // One can, inside the first O on the line she laps it: a collectible in a
+  // counter is the one place a prop can sit without touching a letter's
+  // silhouette, which on this board is the whole point.
+  const cans = [A.O1.can];
 
-  // The intended solution. Both ends of both bands are polyline vertices, so a
-  // jittered finger snaps flush (300/300 wins at +/-3 u, `draft/_slop.mjs`).
-  const solution = [
-    // The bridge over the M — 52 u, inside the 45-58 window where a gap is
-    // exactly one band's job. Without it the valley keeps her: she arrives
-    // steeply, lands perpendicular on the flat, and rocks there until the run
-    // is called.
-    [A.M.peakL, A.M.peakR],
-    // ...and the letter gap after it. She leaves the M's peak at about 40, and
-    // the B's stem is a wall: two units low and she hits it and drops down the
-    // void between the letters.
-    [A.M.peakR, A.B.top],
-  ];
+  // NO BANDS. Every letter with a room in it catches her and throws her on, so
+  // the board wins on PLAY alone: the word is the ride, and the four bands the
+  // room still holds are there to be played with, not spent.
+  const solution = [];
 
   return {
     name: "GOOMBA",
@@ -297,18 +311,31 @@ export function audit(p = P) {
   const out = [];
   const say = (name, rule, clear, ok) => out.push({ name, rule, clear: r2(clear), ok });
 
-  // 1. Every gap between adjacent letters is a fall, not a wedge.
+  // 1. Every gap between adjacent letters is a fall, not a wedge. This board's
+  //    hazard IS the void between letters; a void narrower than she is turns a
+  //    death into something she sits in until the stuck detector fires.
   for (let i = 0; i + 1 < boxes.length; i++) {
     let m = Infinity;
     for (let a = boxes[i].from; a < boxes[i].to; a++)
       for (let b = boxes[i + 1].from; b < boxes[i + 1].to; b++) m = Math.min(m, polyGap(polys[a], polys[b]));
     say(`gap ${boxes[i].k} -> ${boxes[i + 1].k}`, "> 4.4, she wedges", m, m > 4.4);
   }
-  // 2. Both solution bands are inside a band's stretch.
-  for (const [n, [a, b]] of [["bridge over M", [A.M.peakL, A.M.peakR]],
-                             ["M -> B letter gap", [A.M.peakR, A.B.top]]]) {
-    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    say(`band: ${n}`, "6..58, BAND_MIN..BAND_MAX", L, L >= 6 && L <= 58);
+  // 2. Every hop still REACHES. The minimum launch speed for a target is
+  //    v² = g(rise + hypot(run, rise)); the fire is clamped to MAX_SPEED, so
+  //    this is the headroom the whole ride runs on, and it is small.
+  const need = (from, to) => {
+    const dx = Math.abs(to[0] - from[0]), rise = from[1] - to[1];
+    return Math.sqrt(140 * (rise + Math.hypot(dx, rise)));
+  };
+  for (const [n, from, to] of [
+    ["G -> O1", A.G.bowl, A.O1.mouth],
+    ["O1 -> O2", A.O1.pop, A.O2.mouth],
+    ["O2 -> M", A.O2.pop, A.M.peakL],
+    ["M -> B", A.M.floor, A.B.brow],
+    ["B -> A", A.B.shoulder, A.A.apex],
+  ]) {
+    const v = need(from, to);
+    say(`throw: ${n}`, `needs ${v.toFixed(0)} of 145`, 145 - v, v < 145);
   }
   // 3. The A's chimney passes a 4.4 u cat.
   say("A's chimney", "> 4.4 wide", A.A.gap, A.A.gap > 4.4);
@@ -317,7 +344,7 @@ export function audit(p = P) {
   //    straight back out instead of letting her ride the ring.
   const d = Math.hypot(A.O1.lipR[0] - A.O1.pop[0], A.O1.lipR[1] - A.O1.pop[1]);
   say("O: entry lip to popper", "> 8.2, the pop reach", d, d > 8.2);
-  // 5. The M's valley floor is a basin, not a wedge.
+  // 5. The M's valley floor is a basin she lands flat in, not a wedge.
   say("M's valley floor", "> 4.4 across", 2 * p.mFlat, 2 * p.mFlat > 4.4);
   return out;
 }

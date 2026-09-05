@@ -3,7 +3,7 @@
 // those edges to the UI beats, so they play on every phone, whoever pressed.
 
 import "./styles.css";
-import { BUILDINGS, UPGRADES, costOf, isRevealed } from "@escape-cats/shared";
+import { BUILDINGS, UPGRADES, costOf, isRevealed, isTeamRoom } from "@escape-cats/shared";
 import {
   buffEl,
   countIconEl,
@@ -26,6 +26,7 @@ import {
   setRoomSeed,
   wallNow,
   players,
+  myRoom,
 } from "./state.js";
 import {
   connectRoom,
@@ -196,16 +197,21 @@ hudRO.observe(hudEl, { box: "border-box" });
 
 let teamKey = "";
 function updateTeam() {
+  // WHO IS HERE — and only in one of the four TEAMS: elsewhere the room is
+  // whoever turned up, still on the default name, so the column would be one
+  // word repeated (isTeamRoom). Same rule as Goomba's roster.
+  //
   // Rebuilt per snapshot but written only on change — the roster shifts a
   // handful of times per session, not 4x/second.
-  const key = players.map((p) => `${p.connected ? 1 : 0}\u0000${p.name}`).join("\u0001");
+  const named = isTeamRoom(myRoom()) ? players : [];
+  const key = named.map((p) => `${p.connected ? 1 : 0}\u0000${p.name}`).join("\u0001");
   if (key === teamKey) return;
   teamKey = key;
   // One element per player, no separator (the names are a COLUMN). Built as
   // nodes with textContent, so a name typed in the lobby is text here by
   // construction and there is no escaper to get wrong.
   teamEl.replaceChildren(
-    ...players.map((p) => {
+    ...named.map((p) => {
       const el = document.createElement("span");
       if (!p.connected) el.className = "off";
       el.textContent = p.name;

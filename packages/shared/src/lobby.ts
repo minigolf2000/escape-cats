@@ -65,6 +65,14 @@ export function isAdhocRoom(room: string | null | undefined): boolean {
   return typeof room === "string" && room.startsWith(ADHOC_PREFIX);
 }
 
+/** The gate on showing player NAMES: a team's four are a sorted, known group,
+ * where t0 is every unsorted phone in the building and an ad-hoc room is
+ * whoever a link reached. NOT `!isAdhocRoom` — that answers true for t0, and
+ * for any room id a later change invents. The four are a closed list; ask it. */
+export function isTeamRoom(room: string | null | undefined): boolean {
+  return typeof room === "string" && TEAM_IDS.includes(room);
+}
+
 /** The slug back out of a room id — what the link says. */
 export function adhocSlug(room: string): string {
   return room.startsWith(ADHOC_PREFIX) ? room.slice(ADHOC_PREFIX.length) : room;

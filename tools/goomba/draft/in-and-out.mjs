@@ -6,6 +6,17 @@
 // inside the inner ring a CW carousel. Start above the N doorways, plant below
 // the S doorways. Every number is measured off the frame (px/10) or is a
 // regularisation of hand-placement noise to exact 4-fold symmetry.
+//
+// NEEDS A RE-TUNE. Its stations used to be authored at 145 and the conveyor is
+// sized to that; there is one popper speed now (POP_SPD, 106.6 off the muzzle)
+// and `draft.mjs run` shows her falling out of the annulus at 1.6s. Note what
+// that means: this draft and the FRAME it came from never agreed in the first
+// place — a pasted frame has always fired at POP_SPD, so the level people
+// played was never the level this file simulated. Re-tune it against the one
+// speed: the rings want a smaller `rA`/`rI` or more stations per lap, since
+// what a station can throw is now fixed and only the geometry can move.
+
+import { POP_SPD } from "./_sim.mjs";
 
 export const P = {
   cx: 64.8, cy: 70.2,          // ring centre  (Ellipse 1/2 share it)
@@ -31,21 +42,21 @@ export const P = {
   // over a doorway. At 60-deg steps the chord plus the ballistic bulge (inward,
   // over the bottom half) clips the inner ring and a station becomes an
   // up-column trap; 30 deg dips 1.5.
-  rA: 44.5, aN: 12, aPhase: 15, aSpd: 145,
+  rA: 44.5, aN: 12, aPhase: 15,
   // Degrees of arc around the BOTTOM (+90) left with no station. Widen it and
   // the conveyor stops being a closed loop and becomes a ride that ENDS at the
   // exit.
   aGapS: 0,
-  // ...or keep those stations and make them WEAK: a popper is a flat
-  // assignment, so a station firing at 40 drops her back in the trough barely
-  // moving, where the bowl's lowest point is the doorway. `aSlowS` is the arc.
-  aSlowS: 0, aSpdS: 40,
+  // (A WEAK station used to live here — `aSlowS`/`aSpdS`, a few stations set
+  // to fire at 40 so they dropped her in the trough instead of carrying her.
+  // There is one popper speed now, POP_SPD, so a brake has to be geometry: a
+  // wider `aGapS`, or terrain she lands on.)
 
   // THE DRAIN: one popper at dead centre, aimed straight down. A popper grabs
   // her to its OWN centre before firing, so whatever reaches it leaves from
   // (cx, cy) travelling down — the middle of both south doorways. Neither ring
   // reaches it (r 28.5 and 44.5 against an 8.2 reach): the EXIT, not a shortcut.
-  midPop: true, midSpd: 100,
+  midPop: true,
   // A SHELF for the drain, off by default: its target is only the 8.2 popper
   // reach, and a band aimed at a bare popper is far harder to land than one
   // that SLIDES her into it. Two arms sloping down to the drain, with a throat
@@ -54,7 +65,7 @@ export const P = {
   // Inner carousel. `iMode`: 'chord' aims each station at the NEXT one (she
   // flies the diagonals of a square); 'wall' aims TANGENTIALLY plus `iOut`
   // degrees outward, so she is thrown at the wall and rides the inside of it.
-  rI: 28.5, iSpd: 145, iN: 8, iMode: 'wall', iOut: 0,
+  rI: 28.5, iN: 8, iMode: 'wall', iOut: 0,
   // `iPhase` decides whether a station sits in the fall shaft. A station must
   // stay ~10 units clear of it laterally (8.2 reach plus her radius), lateral
   // is rI*|cos(theta)|, so none may come within 20.5 deg of +/-90: a 41-deg
@@ -127,13 +138,15 @@ function aimAt(from, to, spd) {
   return dx > 0 ? a : a + 180;
 }
 
-/** A closed ring of stations, each aimed at the next one round. */
-function ring(cx, cy, r, degs, spd) {
+/**
+ * A closed ring of stations, each aimed at the next one round — at POP_SPD,
+ * because that is the only speed a popper has (`POP_SPD` in shared).
+ */
+function ring(cx, cy, r, degs) {
   const pts = degs.map((d) => at(cx, cy, r, d));
   return pts.map((p, i) => ({
     x: p[0], y: p[1],
-    deg: +aimAt(p, pts[(i + 1) % pts.length], spd).toFixed(2),
-    spd,
+    deg: +aimAt(p, pts[(i + 1) % pts.length], POP_SPD).toFixed(2),
   }));
 }
 
@@ -165,16 +178,12 @@ export function buildLevel(p = P, extra = {}) {
     const off = Math.abs(((d - 90) % 360 + 540) % 360 - 180);  // distance to +90
     if (off > (p.aGapS || 0) / 2) aDeg.push(d);
   }
-  const annulus = ring(p.cx, p.cy, p.rA, aDeg, p.aSpd);
-  if (p.aSlowS) for (let i = 0; i < aDeg.length; i++) {
-    const off = Math.abs(((aDeg[i] - 90) % 360 + 540) % 360 - 180);
-    if (off <= p.aSlowS / 2) annulus[i].spd = p.aSpdS;
-  }
+  const annulus = ring(p.cx, p.cy, p.rA, aDeg);
   // The carousel runs CW (theta increasing).
   const iDeg = [];
   for (let i = 0; i < (p.iN || 4); i++) iDeg.push((p.iPhase ?? -135) + (i * 360) / (p.iN || 4));
   const mid = p.midPop
-    ? [{ x: p.cx, y: p.cy, deg: 90, spd: p.midSpd }]   // deg 90 is straight down
+    ? [{ x: p.cx, y: p.cy, deg: 90 }]                  // deg 90 is straight down
     : [];
   const inner = p.iMode === 'wall'
     // RIDING THE WALL: from inside a circle a tangential throw drifts OUTWARD,
@@ -183,9 +192,9 @@ export function buildLevel(p = P, extra = {}) {
     // friction takes, ~25% a lap.
     ? iDeg.map((d) => {
         const [x, y] = at(p.cx, p.cy, p.rI, d);
-        return { x, y, deg: +(d + 90 - (p.iOut || 0)).toFixed(2), spd: p.iSpd };
+        return { x, y, deg: +(d + 90 - (p.iOut || 0)).toFixed(2) };
       })
-    : ring(p.cx, p.cy, p.rI, iDeg, p.iSpd);
+    : ring(p.cx, p.cy, p.rI, iDeg);
   return {
     name: extra.name || 'In and Out',
     budget: 4,

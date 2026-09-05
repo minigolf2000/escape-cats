@@ -126,7 +126,7 @@ export function newDoc() {
     circle(x, y, 1.2 * S, { fill: RUST });
   });
 
-  // Just `pop`: speed is one constant (FIGMA_POP_SPD), never a trailing number.
+  // Just `pop`: speed is one constant (POP_SPD), never a trailing number.
   const popper = (x, y, spd, deg = 0) => group("pop", () => {
     circle(x, y, R_POP * S, { stroke: AMBER, sw: 1.5, dash: "5 5" });
     circle(x, y, 2 * S, { stroke: AMBER, sw: 3 });

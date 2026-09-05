@@ -8,7 +8,8 @@
 // older link still decodes unchanged, a level without the field encodes to the
 // SAME bytes it always did (live lobby packs are not quietly rewritten), and a
 // link that claims the field and ends early is `null`, not a NaN world edge.
-import { encodeLevel, decodeLevel, initLevel } from "./lib.mjs";
+import { encodeLevel, decodeLevel, initLevel, POP_SPD, POP_FIRE } from "./lib.mjs";
+const ROUND = (v) => Math.round(v * 10) / 10;
 
 /**
  * The level under test, as a literal rather than one out of a pack, so this
@@ -22,7 +23,7 @@ const FIXTURE = {
   terrain: [[[0, 70], [40, 72.5], [80, 66]], [[95, 20], [95, 55]]],
   cans: [[30, 40], [70, 30]],
   cushions: [{ x: 20, y: 65, w: 12 }],
-  pops: [{ x: 50, y: 50, deg: -45, spd: 110 }],
+  pops: [{ x: 50, y: 50, deg: -45 }],
   bumpers: [{ x: 60, y: 20 }],
 };
 /**
@@ -42,9 +43,9 @@ const STRESS = {
   cans: [[3276.7, -3276.8], [0, 0]],
   cushions: [{ x: 1, y: 2, w: 3 }, { x: 1, y: 2, w: 3 }],
   pops: [
-    { x: 0, y: 0, deg: -180, spd: 110 },
-    { x: 1000, y: -1000, deg: -180, spd: 110 },
-    { x: 0.1, y: 0.2, deg: 179.9, spd: 3276.7 },
+    { x: 0, y: 0, deg: -180 },
+    { x: 1000, y: -1000, deg: -180 },
+    { x: 0.1, y: 0.2, deg: 179.9 },
   ],
   bumpers: [{ x: -0.1, y: -0.2 }],
 };
@@ -103,6 +104,18 @@ console.log("\nfmt 2: a link written before coordinates became steps");
   check("and re-encodes as a shorter fmt 3", three.length < FMT2.length, true);
   check("with nothing lost on the way", decodeLevel(three), two);
   console.log(`       (${FMT2.length} chars at fmt 2 -> ${three.length} at fmt 3, ${(100 * (1 - three.length / FMT2.length)).toFixed(0)}% shorter)`);
+}
+
+console.log("\none popper speed, whatever a link says");
+{
+  // `spd` still rides in the layout, so a link CAN spell a number — links
+  // written before the one-speed rule do. Encode one by hand at the format's
+  // own bytes and check the level plays at POP_SPD anyway: initLevel stamps.
+  const odd = clone(FIXTURE);
+  odd.pops = [{ x: 50, y: 50, deg: -45, spd: 200 }];
+  const L = initLevel(decodeLevel(encodeLevel(odd)));
+  check("a link's own speed is stamped over", L.pops.map((p) => p.spd), [POP_SPD]);
+  check("...and the fire is the constant", ROUND(POP_SPD * POP_FIRE * 10) / 10, 106.6);
 }
 
 console.log("\nthe frame a level was drawn in");

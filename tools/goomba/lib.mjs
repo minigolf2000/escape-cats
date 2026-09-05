@@ -35,6 +35,9 @@ export const {
   R,
   BUMP_R,
   POP_R,
+  // The ONE popper speed, and what a popper fires at as a fraction of it.
+  POP_SPD,
+  POP_FIRE,
   GoombaSim,
   canPlaceBand,
   MAX_BANDS,

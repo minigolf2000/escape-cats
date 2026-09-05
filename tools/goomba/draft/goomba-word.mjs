@@ -6,6 +6,10 @@
 // word, and the gaps BETWEEN the letters are the void — a run that comes off
 // the word falls out of the world.
 //
+// It plays the same from its FRAME as from its link: the drawing carries
+// everything the level is, because the one thing a frame cannot carry — a
+// popper's speed — is not a thing any level carries any more.
+//
 // This is a SHOWCASE board and it wins on PLAY, with NO BANDS: every letter
 // with a room in it catches her and sends her on. Three of those rooms hold a
 // POPPER (the G's bowl, both O counters) and two hold a BUMPER — a bouncy ball
@@ -33,39 +37,49 @@
 //     throws her over the M's valley onto its FAR arm (she slides back down
 //     into the ball moving left, and leaves moving right), and why the B's
 //     ball sits where her carom off the A's own leg drops her.
-//   * The three throws that are still poppers are AT THE FIRE CEILING (spd x
-//     0.82 clamped to MAX_SPEED 145): the word is as wide as the game can
-//     throw. `audit` reports what each one needs of the 145 there is.
+//   * There is ONE popper speed, everywhere: POP_SPD x POP_FIRE = 106.6 u/s
+//     (packages/shared/src/goomba/levels.ts). It is not a per-level number and
+//     a Figma frame could never have carried one, so this board is SIZED to
+//     it — cap height 45 with both launch seats halfway up their letter, which
+//     is what a 106.6 throw crosses a letter pitch and still drops into the
+//     next mouth. `audit` reports what each throw needs of the 106.6 there is.
+//     That is also why the frame and the link play identically.
+
+import { POP_SPD, POP_FIRE, MAX_SPEED } from "./_sim.mjs";
+
+/** What every popper on this board fires at. There is no other. */
+const FIRE = Math.min(MAX_SPEED, POP_SPD * POP_FIRE);
 
 const D = Math.PI / 180;
 const r2 = (v) => +v.toFixed(2);
 
 export const P = {
   // ── the word, as type ──────────────────────────────────────────────────
-  yT: 48,          // cap line
-  ch: 58,          // cap height (baseline = yT + ch)
+  yT: 40,          // cap line
+  ch: 45,          // cap height (baseline = yT + ch)
   seg: 3.0,        // arc chord: the facet length every curve is cut into
   // Letter boxes: left edge, then widths. The 10 u of LEAD between boxes is
   // the void she can fall through, and it must stay well over 4.4 (2 x her
   // radius) or a fall between two letters wedges instead of killing.
-  lead: 10,
+  lead: 8,
   // ...except before the A, which is kerned in: an A's diagonal leaves a hole
   // under the B that reads as a word break. `audit` is what says how far this
   // can go — the two letters must stay more than 4.4 apart.
-  kernA: 9,
-  x0: 10,
-  wG: 46, wO: 46, wM: 52, wB: 44, wA: 50,
+  kernA: 7,
+  x0: 8,
+  wG: 36, wO: 36, wM: 41, wB: 34, wA: 39,
   // Frame padding. The 40 above the cap line is not decoration: the throws
   // between letters are lofted and their apexes have to be inside the world,
   // or she leaves the camera on every hop.
-  padX: 8, padTop: 40, padBot: 20,
+  padX: 7, padTop: 30, padBot: 16,
 
   // G: the aperture, in degrees about the letter's centre (y-down, 0 = east).
   gLo: 14,         // the lower terminal, where the crossbar hangs
   gHi: -62,        // the upper lip. The aperture has to pass a LOFTED throw —
                    // the arc out of the bowl leaves at about 75 degrees
-  gBar: 11,        // crossbar inner end, as x from the letter's centre. A
-                   // longer bar roofs the bowl and eats the throw.
+  gBar: 2,         // crossbar inner end, as x from the letter's centre. It is
+                   // a LONG bar: it has to catch the drop, and a G reads
+                   // better for it. Nothing throws from under it any more.
   // O: the mouth is a gap centred on the top, half-width in degrees. She drops
   // in over its right half and is thrown back out through it, so the mouth has
   // to be wide enough to enter steeply and leave steeply.
@@ -91,22 +105,21 @@ export const P = {
   aBar: 0.85, aApex: 9,
 
   // ── the ride ───────────────────────────────────────────────────────────
-  // She starts INSIDE the G's counter. START_VX is 20 and unconditional, so
-  // she drifts right as she falls and lands on the bowl's floor: the drop is
-  // the level saying hello, and the popper it lands on is the first throw.
-  startDX: -13, startDY: -18,
-  // The G's bowl popper. 180 x 0.82 clamps to MAX_SPEED: the arc out of the
-  // aperture is at the ceiling of the game, and that is why this room cannot
-  // hold a ball instead. She drops into the bowl at about 109 and a mirror
-  // gives back 1.18 of that at best — 128 against the 135 the hop to O1 needs,
-  // so a ball here just rattles her round the counter (`--set gDev=bump`).
-  gSpd: 180,
-  gAimDX: 6, gAimDY: 0,      // ...aimed at O1's mouth, right of centre
-  oSpd: 180,       // both O poppers, low on the ring's left wall
-  oPopA: 150,      // where that popper sits on the ring (deg, y-down)
+  // She starts INSIDE the G's counter, above its crossbar. START_VX is 20 and
+  // unconditional, so she drifts right as she falls and lands ON the bar: the
+  // drop is the level saying hello, and the popper it lands on is the first
+  // throw. Move the start and check she still clears the ring's left wall.
+  startDX: -8, startDY: -18,
+  // Every throw is aimed at a PLACE, never at a speed: there is one popper
+  // speed (POP_SPD, 106.6 u/s off the muzzle) and this board is built inside
+  // it. The G's throw is aimed a little BELOW O1's mouth — at the roof it is
+  // out of range, and out of range is what makes `aimAt` give up and point
+  // straight at the target, which lands her in O1's own popper.
+  gAimDX: 0, gAimDY: 6,
+  oPopA: 180,      // where that popper sits on the ring (deg, y-down)
   oLoft: 1,        // LOFTED: the flat arc out of a ring is the ring itself
-  o1AimDX: 0, o1AimDY: 4,    // O1 throws at O2's mouth
-  o2AimT: 0.65,    // where on the M's FAR slope the second O lands her
+  o1AimDX: 0, o1AimDY: 6,    // O1 throws at O2's mouth
+  o2AimT: 0.45,       // where on the M's FAR slope the second O lands her
   o2AimDX: 0, o2AimDY: 0,
   // THE DEVICE IN EACH ROOM. Every `*Dev` flips between "bump" (a ball) and
   // "pop", so which rooms can hold a ball is a question you can answer here
@@ -126,11 +139,9 @@ export const P = {
   // `draft.mjs sweep` rather than nudging them by eye.
   gDev: "pop", gBallDX: 0, gBallDY: 0,
   oDev: "pop", oBallA: 150, oBallIn: 2.6,
-  mDev: "bump", mBallT: 0.1, mBallOff: 3,
-  bDev: "bump", bBumpDX: 3.75, bBumpDY: 7,
-  mSpd: 175,       // if mDev is "pop": out over the M's own right peak
+  mDev: "bump", mBallT: 0.3, mBallOff: 3.5,
+  bDev: "bump", bBumpDX: 1.25, bBumpDY: 5,
   mAimDX: 0, mAimDY: 0,      // ...aimed at the B's brow
-  bSpd: 134,       // if bDev is "pop": the crown of the top lobe
   bAimDX: 0, bAimDY: 0,      // ...aimed at the middle of the A's chimney
   goalDX: 5,       // the plant, right of centre on the A's crossbar
   canA: 55,        // where on the first O's lap the can hangs (deg, y-down)
@@ -173,14 +184,16 @@ export function letters(p = P) {
     if (k === "G") {
       // A ring open at the upper right, with the crossbar hanging off the lower
       // terminal. Inside it, a bowl: the level's first room.
-      polys.push(ell(cx, cy, rx, ry, p.gLo, p.gHi + 360, p.seg));
       const term = on(cx, cy, rx, ry, p.gLo);
+      polys.push(ell(cx, cy, rx, ry, p.gLo, p.gHi + 360, p.seg));
       polys.push([[r2(cx + p.gBar), term[1]], term]);
       A.G = {
-        // The bowl's floor. A drop down a counter lands perpendicular and
-        // terrain gives back 2%, so nothing but a popper leaves the G — which
-        // is exactly why the popper goes where the drop ends.
-        bowl: [cx, r2(cy + ry - 4.6)],
+        // ON THE CROSSBAR, which is where the drop into the counter ends: the
+        // bar is long enough to catch her, and landing halfway up the letter
+        // instead of on its floor is what brings the throw to O1 inside the
+        // one fire speed there is. A drop lands perpendicular and terrain
+        // gives back 2%, so what she lands on has to hold a popper either way.
+        bowl: [r2(cx + p.gBar + 2), r2(term[1] - 2.4)],
         ball: [r2(cx + p.gBallDX), r2(cy + ry - 5.5 + p.gBallDY)],
         start: [r2(cx + p.startDX), r2(cy + p.startDY)],
       };
@@ -193,10 +206,11 @@ export function letters(p = P) {
         mouth: [cx, r2(cy - ry)],
         lipL: on(cx, cy, rx, ry, -90 - p.oGap),
         lipR: on(cx, cy, rx, ry, -90 + p.oGap),
-        // Low on the ring's LEFT wall: the end of her lap, where she is still
-        // fast, and low enough that the throw out has the whole mouth to climb
-        // through. Up-and-right from here is INWARD, which is the only
-        // direction a popper standing on a ring may fire.
+        // Halfway up the ring's LEFT wall: the end of her lap, and as high as
+        // she can still reliably climb to. Every unit of height here is a unit
+        // the throw to the next letter does not have to buy, which is what
+        // fits these hops inside one fire speed. Up-and-right from here is
+        // INWARD, the only direction a popper standing on a ring may fire.
         pop: on(cx, cy, rx - 2.6, ry - 2.6, p.oPopA),
         ball: on(cx, cy, rx - p.oBallIn, ry - p.oBallIn, p.oBallA),
         can: on(cx, cy, rx - p.canIn, ry - p.canIn, p.canA),
@@ -279,8 +293,8 @@ export function letters(p = P) {
  * crossbar, an O's ring) and arrives descending, which is the only way into a
  * mouth or a chimney. Degrees, y-down.
  */
-function aimAt(from, to, spd, loft = false) {
-  const v = Math.min(145, spd * 0.82), g = 140;   // MAX_SPEED clamps the fire
+function aimAt(from, to, loft = false) {
+  const v = FIRE, g = 140;
   const dx = to[0] - from[0], dy = to[1] - from[1];
   if (Math.abs(dx) < 1e-6) return dy > 0 ? 90 : -90;
   // dy = dx·tan + k(1 + tan²)  =>  k·tan² + dx·tan + (k − dy) = 0.
@@ -295,33 +309,33 @@ function aimAt(from, to, spd, loft = false) {
 export function buildLevel(p = P, extra = {}) {
   const { polys, A, yB } = letters(p);
   const pops = [], bumpers = [];
-  const pop = (at, target, spd, loft) =>
-    pops.push({ x: at[0], y: at[1], deg: aimAt(at, target, spd, loft), spd });
+  const pop = (at, target, loft) =>
+    pops.push({ x: at[0], y: at[1], deg: aimAt(at, target, loft) });
 
   // G: the bowl's popper throws her out through the aperture into O1's mouth.
   // Lofted, because the flat arc out of the bowl is the one the crossbar eats.
   if (p.gDev === "bump") bumpers.push({ x: A.G.ball[0], y: A.G.ball[1] });
-  else pop(A.G.bowl, [A.O1.mouth[0] + p.gAimDX, A.O1.mouth[1] + p.gAimDY], p.gSpd, true);
+  else pop(A.G.bowl, [A.O1.mouth[0] + p.gAimDX, A.O1.mouth[1] + p.gAimDY], true);
   // Each O: she rides the inside all the way round to the popper on the left
   // wall, which fires her back out through the same mouth at the next letter.
   if (p.oDev === "bump") bumpers.push({ x: A.O1.ball[0], y: A.O1.ball[1] });
-  else pop(A.O1.pop, [A.O2.mouth[0] + p.o1AimDX, A.O2.mouth[1] + p.o1AimDY], p.oSpd, !!p.oLoft);
+  else pop(A.O1.pop, [A.O2.mouth[0] + p.o1AimDX, A.O2.mouth[1] + p.o1AimDY], !!p.oLoft);
   // O2 throws OVER the M's valley and onto its FAR slope, because what waits
   // at the bottom is a mirror: she has to arrive travelling the way she must
   // not leave. `o2AimT` slides that landing up and down the right slope.
   const land = [r2(A.M.vee[0] + (A.M.peakR[0] - A.M.vee[0]) * p.o2AimT),
                 r2(A.M.vee[1] + (A.M.peakR[1] - A.M.vee[1]) * p.o2AimT)];
-  pop(A.O2.pop, [land[0] + p.o2AimDX, land[1] + p.o2AimDY], p.oSpd, !!p.oLoft);
+  pop(A.O2.pop, [land[0] + p.o2AimDX, land[1] + p.o2AimDY], !!p.oLoft);
   // M: she comes off the second O steeply and lands in the valley. A ball
   // seated in it turns that drop into a launch back out over the M's own
   // right peak; a popper there does the same job by assignment.
   if (p.mDev === "bump") bumpers.push({ x: A.M.ball[0], y: A.M.ball[1] });
-  else pop(A.M.floor, [A.B.brow[0] + p.mAimDX, A.B.brow[1] + p.mAimDY], p.mSpd, true);
+  else pop(A.M.floor, [A.B.brow[0] + p.mAimDX, A.B.brow[1] + p.mAimDY], true);
   // B: the shoulder, aimed at the middle of the A's CHIMNEY rather than at the
   // plant under it — what the last throw has to survive is the gap between the
   // A's two tips, and everything below that is the counter catching her.
   if (p.bDev === "bump") bumpers.push({ x: A.B.ball[0], y: A.B.ball[1] });
-  else pop(A.B.shoulder, [A.A.apex[0] + p.bAimDX, A.A.apex[1] + p.bAimDY], p.bSpd, true);
+  else pop(A.B.shoulder, [A.A.apex[0] + p.bAimDX, A.A.apex[1] + p.bAimDY], true);
 
   // One can, inside the first O on the line she laps it: a collectible in a
   // counter is the one place a prop can sit without touching a letter's
@@ -388,26 +402,29 @@ export function audit(p = P) {
       for (let b = boxes[i + 1].from; b < boxes[i + 1].to; b++) m = Math.min(m, polyGap(polys[a], polys[b]));
     say(`gap ${boxes[i].k} -> ${boxes[i + 1].k}`, "> 4.4, she wedges", m, m > 4.4);
   }
-  // 2. Every popper hop still REACHES. The minimum launch speed for a target
-  //    is v² = g(rise + hypot(run, rise)); the fire is clamped to MAX_SPEED, so
-  //    this is the headroom the ride runs on, and it is small.
+  // 2. Every popper hop still REACHES, at the ONE speed there is. The minimum
+  //    launch speed for a target is v² = g(rise + hypot(run, rise)); measured
+  //    against FIRE, this is the headroom the whole ride runs on. Widen a
+  //    letter or the lead and this is what goes red first.
   const need = (from, to) => {
     const dx = Math.abs(to[0] - from[0]), rise = from[1] - to[1];
     return Math.sqrt(140 * (rise + Math.hypot(dx, rise)));
   };
-  const hops = [["G -> O1", A.G.bowl, A.O1.mouth, p.gDev],
-                ["O1 -> O2", A.O1.pop, A.O2.mouth, "pop"],
-                // ...to the same point on the M's far arm the throw is aimed
-                // at, not to its peak: the arm is what she lands on.
-                ["O2 -> M's far arm", A.O2.pop,
-                 [A.M.vee[0] + (A.M.peakR[0] - A.M.vee[0]) * p.o2AimT,
-                  A.M.vee[1] + (A.M.peakR[1] - A.M.vee[1]) * p.o2AimT], "pop"],
-                ["M -> B", A.M.floor, A.B.brow, p.mDev],
-                ["B -> A", A.B.shoulder, A.A.apex, p.bDev]];
+  // Measured to the point each throw is actually AIMED at, offsets and all —
+  // aiming below a mouth is how a hop that cannot reach the roof still gets
+  // in, so measuring to the roof would report a board that plays as broken.
+  const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const hops = [
+    ["G -> O1", A.G.bowl, [A.O1.mouth[0] + p.gAimDX, A.O1.mouth[1] + p.gAimDY], p.gDev],
+    ["O1 -> O2", A.O1.pop, [A.O2.mouth[0] + p.o1AimDX, A.O2.mouth[1] + p.o1AimDY], "pop"],
+    ["O2 -> M's far arm", A.O2.pop,
+     (([x, y]) => [x + p.o2AimDX, y + p.o2AimDY])(lerp(A.M.vee, A.M.peakR, p.o2AimT)), "pop"],
+    ["M -> B", A.M.floor, A.B.brow, p.mDev],
+    ["B -> A", A.B.shoulder, A.A.apex, p.bDev]];
   for (const [n, from, to, dev] of hops) {
     if (dev === "bump") continue;   // a mirror is not aimed; it has no range
     const v = need(from, to);
-    say(`throw: ${n}`, `needs ${v.toFixed(0)} of 145`, 145 - v, v < 145);
+    say(`throw: ${n}`, `needs ${v.toFixed(0)} of ${FIRE.toFixed(1)}`, FIRE - v, v < FIRE);
   }
   // 3. No ball may stand a POCKET away from terrain. She is caught at 7.7 from
   //    a ball's centre, so terrain between 7.7 and 7.7 + 4.4 of it leaves a

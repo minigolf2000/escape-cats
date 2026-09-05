@@ -18,12 +18,12 @@
 // those are (a popper turned 90° reads 14 units off). Use it to find frames
 // and names; come here for numbers.
 import { readFile } from "node:fs/promises";
-import { classify, levelName, hasFigmaBuffer, levelFromFigmaClipboard, FIGMA_POP_SPD }
+import { classify, levelName, hasFigmaBuffer, levelFromFigmaClipboard }
   from "../../../apps/goomba-glider/src/figma/clipboard.js";
 import { stitchTerrain } from "../../../apps/goomba-glider/src/figma/stitch.js";
 import { rectPoly, ellipsePoly, cutTester, applyCuts }
   from "../../../apps/goomba-glider/src/figma/shapes.js";
-import { initLevel, R, BUMP_R, POP_R } from "../lib.mjs";
+import { initLevel, R, BUMP_R, POP_R, POP_SPD, POP_FIRE } from "../lib.mjs";
 
 const S = 10; // px per world unit — the kit's scale, and the contract's
 const ROUND = (v) => Math.round(v * 10) / 10;
@@ -119,7 +119,7 @@ function fromNodes(doc) {
     else if (kind === "bumper") level.bumpers.push({ x: pt[0], y: pt[1] });
     // `deg = -rotation`: Figma's rotation is counter-clockwise positive and the
     // game's deg feeds cos/sin in a y-down world, so it is clockwise positive.
-    else if (kind === "pop") level.pops.push({ x: pt[0], y: pt[1], deg: ROUND(-(k.rot || 0)), spd: FIGMA_POP_SPD });
+    else if (kind === "pop") level.pops.push({ x: pt[0], y: pt[1], deg: ROUND(-(k.rot || 0)) });
     else if (kind === "cushion") {
       const left = apply(m, 0, k.h / 2);
       level.cushions.push({ x: W(left.x), y: W(left.y), w: W(k.w) });
@@ -163,7 +163,7 @@ function report(level, warnings, carrier) {
   const rows = [["start", ...level.start, ""], ["goal", ...level.goal, ""]];
   for (const c of level.cans) rows.push(["can", ...c, ""]);
   for (const p of level.pops)
-    rows.push(["popper", p.x, p.y, `deg ${padL(p.deg, 4)}   spd ${p.spd} -> ${ROUND(p.spd * 0.82)} u/s`]);
+    rows.push(["popper", p.x, p.y, `deg ${padL(p.deg, 4)}   fires ${ROUND(POP_SPD * POP_FIRE)} u/s (POP_SPD, the only one)`]);
   for (const m of level.bumpers) rows.push(["bumper", m.x, m.y, ""]);
   for (const c of level.cushions) rows.push(["cushion", c.x, c.y, `w ${c.w}`]);
   for (const r of rows) say(`  ${pad(r[0], 9)}${padL(r[1], 7)} ${padL(r[2], 7)}   ${r[3]}`.trimEnd());
@@ -174,11 +174,11 @@ function report(level, warnings, carrier) {
 
   // Mechanical facts, not judgements.
   const notes = [];
-  // One constant for every popper (FIGMA_POP_SPD): Figma increments a trailing
+  // One constant for every popper (POP_SPD): Figma increments a trailing
   // number on duplicate, so a speed in the layer name was never chosen.
   if (level.pops.length)
-    notes.push(`popper speed: ${FIGMA_POP_SPD} for every one of them ` +
-      `(FIGMA_POP_SPD) -> ${ROUND(FIGMA_POP_SPD * 0.82)} u/s off the muzzle`);
+    notes.push(`popper speed: ${POP_SPD} for every one of them, here and ` +
+      `everywhere (POP_SPD) -> ${ROUND(POP_SPD * POP_FIRE)} u/s off the muzzle`);
   // A popper OVERWRITES velocity in the same step, after the bumper block, so
   // where their discs overlap the popper wins.
   const REACH = BUMP_R + R + POP_R + R;

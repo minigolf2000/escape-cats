@@ -38,6 +38,25 @@ export function groundE(nx: number): number {
   return E_KIND[0] + (E_WALL - E_KIND[0]) * (w < 0 ? 0 : w > 1 ? 1 : w);
 }
 export const FR_KIND = [0.18, 0.06, 0.02]; // friction
+/**
+ * THE popper speed. One number, for every popper, in every level, everywhere —
+ * there is no second one and no way to author one.
+ *
+ * It is a constant rather than level data because a level has two doors: a
+ * Figma frame (`figma/clipboard.js`) and a link (`codec.ts`). A frame carries
+ * layer names and geometry and CANNOT carry a per-popper number — Figma's
+ * duplicate numbering would make `party-popper 138`…`149` twelve speeds nobody
+ * chose — so anything a link could say here would be a speed the same board
+ * loses the moment it goes through Figma. That asymmetry cost a whole level's
+ * retune once; it does not get to cost another.
+ *
+ * `initLevel` stamps this onto every popper it is handed, so a link that says
+ * otherwise (they exist: `spd` rode in the format before this rule) plays at
+ * this speed anyway. The fire is `POP_SPD * POP_FIRE`, clamped to MAX_SPEED.
+ */
+export const POP_SPD = 130;
+/** What a popper fires at, as a fraction of POP_SPD (`stepRun`). */
+export const POP_FIRE = 0.82;
 export const POP_R = 6; // party-popper trigger radius
 export const POP_R2 = (POP_R + R) * (POP_R + R);
 export const POP_COOLDOWN = 0.8;
@@ -52,7 +71,8 @@ export interface GoombaPopper {
   x: number;
   y: number;
   deg: number;
-  spd: number;
+  /** Derived by initLevel — ALWAYS `POP_SPD`. Not authorable: see POP_SPD. */
+  spd?: number;
   /** Derived by initLevel. */
   ux?: number;
   uy?: number;
@@ -159,8 +179,11 @@ export function initLevel(L: GoombaLevel): GoombaLevelInit {
     const rad = (pp.deg * Math.PI) / 180;
     pp.ux = Math.cos(rad);
     pp.uy = Math.sin(rad);
-    pp.vx = pp.ux * pp.spd;
-    pp.vy = pp.uy * pp.spd;
+    // The ONE speed, stamped over whatever arrived. Old links carry a `spd`
+    // from before the rule; a frame never carried one at all. Both land here.
+    pp.spd = POP_SPD;
+    pp.vx = pp.ux * POP_SPD;
+    pp.vy = pp.uy * POP_SPD;
   }
   L.startAngle = 0;
   for (const poly of L.terrain)

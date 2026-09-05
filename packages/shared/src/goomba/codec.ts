@@ -43,6 +43,7 @@
 //
 // `bounds` is NOT carried (derived by initLevel) and neither is a band budget
 // (the room's MAX_BANDS is the only one).
+import { POP_SPD } from "./levels";
 import type { GoombaLevel, Pt } from "./levels";
 
 /** What `encodeLevel` writes. `decodeLevel` also accepts 1 and 2. */
@@ -214,7 +215,13 @@ export function encodeLevel(L: GoombaLevel): string {
     const p = pops[i];
     w.dpt([p.x, p.y]);
     pdeg = w.dv(p.deg, pdeg);
-    pspd = w.dv(p.spd, pspd);
+    // LEGACY FIELD, still in the layout. Every popper fires at POP_SPD, so
+    // this is written as POP_SPD rather than removed: dropping a field from
+    // the MIDDLE of a record costs a format version, and keeping it costs one
+    // byte a popper (the step from the last one is zero). Links written before
+    // the one-speed rule still carry a real number here; `initLevel` stamps
+    // over it, so they play at POP_SPD like everything else.
+    pspd = w.dv(POP_SPD, pspd);
   }
 
   const cush = L.cushions ?? [];
@@ -303,8 +310,8 @@ export function decodeLevel(input: string): GoombaLevel | null {
   for (let i = 0; i < nPops; i++) {
     const [x, y] = pt();
     const d = deg();
-    const v = spd();
-    pops.push({ x, y, deg: d, spd: v });
+    spd(); // read past the legacy field — the value is POP_SPD, see the writer
+    pops.push({ x, y, deg: d });
   }
 
   const cushions = [];

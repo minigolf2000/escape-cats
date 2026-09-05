@@ -9,7 +9,7 @@
 //   node test-clipboard.mjs
 import { deflateRawSync } from "node:zlib";
 import { parseSchema, encodeBinarySchema, compileSchema } from "kiwi-schema";
-import { levelFromFigmaClipboard, FIGMA_POP_SPD } from "../../../apps/goomba-glider/src/figma/clipboard.js";
+import { levelFromFigmaClipboard } from "../../../apps/goomba-glider/src/figma/clipboard.js";
 
 // Figma's schema is far larger than this; these are exactly the fields the game
 // needs, in the shapes Figma uses for them.
@@ -137,7 +137,7 @@ const TRUTH = {
   goal: [65, 50],
   cans: [[30, 25]],
   bumpers: [{ x: 50, y: 40 }],
-  pops: [{ x: 20, y: 45, deg: -37, spd: FIGMA_POP_SPD }],
+  pops: [{ x: 20, y: 45, deg: -37 }],   // no speed: there is only POP_SPD
   cushions: [{ x: 35, y: 52, w: 20 }],
   // The frame's SIZE (800×600 px = 80×60 units) and none of its POSITION: the
   // node sits at canvas x 20000, which must leave no trace. The 10 units past

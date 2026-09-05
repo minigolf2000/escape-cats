@@ -8,7 +8,7 @@
 // carrier with the TRANSFORM: ten of Fireworks' fifteen poppers are turned 90°,
 // and a box-only carrier (`get_metadata` XML) reads each 14 units off — a
 // fixture generated under the same assumption as the code cannot catch that.
-import { FIGMA_POP_SPD } from "../../../apps/goomba-glider/src/figma/clipboard.js";
+import { POP_SPD, initLevel } from "../lib.mjs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -52,12 +52,15 @@ eq("...and that aim points up", [Math.round(Math.cos(L.pops[2].deg * Math.PI / 1
 eq("all four bumpers", L.bumpers, [
   { x: 68.5, y: 62.6 }, { x: 68.5, y: 80.6 }, { x: 68.5, y: 98.6 }, { x: 68.5, y: 152.6 }]);
 
-// One constant speed: Figma increments a trailing number on duplicate, so this
-// fixture's popper names read 110..138 — a spread nobody designed.
-eq("every popper gets the one constant speed",
-  L.pops.map((p) => p.spd), L.pops.map(() => FIGMA_POP_SPD));
-eq("...and the digits in the names are ignored",
-  new Set(L.pops.map((p) => p.spd)).size, 1);
+// ONE speed, and a FRAME DOES NOT CARRY IT. The reader leaves it off entirely
+// and `initLevel` stamps POP_SPD, so a drawing and a link fire identically.
+// Figma increments a trailing number on duplicate, so this fixture's popper
+// names read 110..138 — a spread nobody designed, and now one that nothing in
+// the pipeline can express.
+eq("every popper fires the one speed, whatever the frame said",
+  [...new Set(L.pops.map((p) => p.spd))], [POP_SPD]);
+eq("...and it is the constant, not something the reader chose",
+  initLevel(L).pops.every((p) => p.spd === POP_SPD), true);
 
 eq("cans", L.cans.length, 6);
 eq("start", L.start, [6, 112.1]);

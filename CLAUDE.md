@@ -26,7 +26,7 @@ Figma frame, not code — see below).
 ```sh
 npm run dev            # server :1999, hex :5173, proctor :5175, lobby :5176, chat :5177, goomba :5178
 npm run typecheck      # all workspaces
-npm run build:vercel   # build + assemble + check:routing + check:cursors + check:visibility
+npm run build:vercel   # build + assemble + check:routing/cursors/visibility/popper-speed
 cd tools/goomba && node test-codec.mjs        # save format
 cd tools/goomba && node bands.mjs             # room band rule
 cd tools/goomba && node seed.mjs --pull       # what an event is running
@@ -69,6 +69,11 @@ Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
   [`tools/goomba/figma/README.md`](./tools/goomba/figma/README.md). Ground truth
   is Figma's Design panel; A/B with encoded links, not re-pastes; `#hash` is read
   only at boot.
+- **ONE popper speed, everywhere, full stop.** `POP_SPD` (shared `levels.ts`)
+  is stamped onto every popper by `initLevel`; nothing else may decide one and
+  `check:popper-speed` fails the build over it. A Figma frame cannot carry a
+  per-popper number, so a board tuned to any other speed plays one way from its
+  link and another from its drawing. An aim is the only thing you tune.
 - **The codec (`goomba/codec.ts`) is shared by browser, Worker and tools and is
   never forked.** A new field rides at the TAIL behind a flag bit. Anything that
   moves an existing byte costs a format version, and the Worker ships first.

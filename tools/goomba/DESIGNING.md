@@ -44,10 +44,20 @@ not as claims about your board.
 - **Gravity 140 u/s², speed cap 145 u/s** (`MAX_SPEED`, one constant for the
   game). Max height anything can gain from speed: ~51 u (`v²/280`).
 - **Poppers grab her to their centre and OVERWRITE her velocity**: direction
-  from the aim, speed exactly `spd × 0.82`, whatever she arrived with. Trigger
-  reach is `POP_R + R` = **8.2 u**, a plain distance test with no line of sight
-  — a popper grabs through floors and walls, so keep terrain out of its ring.
-  `POP_COOLDOWN` is 0.8 s.
+  from the aim, speed **always 106.6 u/s** (`POP_SPD × POP_FIRE`), whatever she
+  arrived with. Trigger reach is `POP_R + R` = **8.2 u**, a plain distance test
+  with no line of sight — a popper grabs through floors and walls, so keep
+  terrain out of its ring. `POP_COOLDOWN` is 0.8 s.
+- **THERE IS ONE POPPER SPEED AND YOU CANNOT CHANGE IT.** `POP_SPD` lives in
+  `packages/shared/src/goomba/levels.ts`; `initLevel` stamps it onto every
+  popper of every level, and `scripts/check-popper-speed.mjs` fails the build
+  if anything else tries to decide one. The reason is that a Figma frame cannot
+  carry a per-popper number (Figma renumbers duplicates, so `party-popper
+  138`…`149` would be twelve speeds nobody chose) — so a board tuned to any
+  other speed plays one way from its link and another from its drawing. **An
+  aim is the only thing you tune. What a popper can reach, everything reaches:
+  106.6 u/s buys a bracket of `v²/g` = 81 u**, spent as `rise + hypot(run,
+  rise)`. That is the budget every hop between rooms is drawn inside.
 - **Cans** are picked up within `CAN_R + R` = 9.7 u, the same way.
 - **Restitution**: band 0.32, cushion 1.3, bumper `BUMP_E` 1.18 on the normal
   with a `BUMP_MIN` of 58 outbound. Terrain depends on steepness (`groundE`):
@@ -103,13 +113,15 @@ forces one band per stage. Rules:
 - **A can on a popper's throw arc is a toll booth**: the only way to collect it
   is to be thrown by that popper, which stops winning lines threading past it.
   Compute the arc; expect to pay finger slop for it.
-- **A popper is only a brake if you tune it like one.** `spd × 0.82` is an
-  assignment, so a popper set near `arrival ÷ 0.82` reads as a redirect. The
-  erasure of direction and variance survives either way.
-- **A sparse popper lane needs fire speed ≳ 3 × the column gap** (she drops
-  `70 × (gap/speed)²` between poppers, which must stay under the 8.2 reach).
-  Trigger rings that do not touch make the lattice porous, which is what lets a
-  bare run fall through it (Cat's Cradle: 24 u columns, `spd` 114).
+- **A brake is geometry, never a weak popper.** Every popper fires at 106.6, so
+  slowing her down is a climb, a run-out, or terrain she lands on — not a
+  number. A popper aimed near her own arrival direction still reads as a
+  redirect, and the erasure of direction and variance survives either way.
+- **A sparse popper lane is spaced to the fire speed, not the other way round.**
+  She drops `70 × (gap/106.6)²` between poppers and that must stay under the
+  8.2 reach, so columns live at **~24 u** and no wider; trigger rings that do
+  not touch make the lattice porous, which is what lets a bare run fall through
+  it (Cat's Cradle).
 - **An up-column of poppers is a trap** she cannot leave (`POP_COOLDOWN` 0.8 s
   against a 1.3 s fall), which reads as "you missed the exit" and makes the exit
   band honestly load-bearing. The exit is at an apex, so pair it with something
@@ -165,9 +177,11 @@ poppers; let bumpers be scenery or a curtain (bumpers packed tighter than she is
 wide).
 
 **Loops.** Terrain is two-sided, so the inside of a circle holds her while
-`v² ≥ G·(r − R)`; `loop()` in `figma/svgkit.mjs` solves the entry `spd` over the
+`v² ≥ G·(r − R)`; `loop()` in `figma/svgkit.mjs` solves the entry SPEED over the
 arc she rides (72 at r 18; she holds at 95% and falls off at 85%, peeling into a
-chord, which reads as "not fast enough"). Rules:
+chord, which reads as "not fast enough"). That entry speed is a fact about the
+ring's size — the popper feeding it has only one speed, so a loop she cannot
+enter has to get smaller. Rules:
 - A ring is a solid wall from outside, so a loop is always a `Ɔ`: in at the
   mouth's top lip, 270° round, out the bottom going the other way. A 270° loop
   is a −90° turn, so chain loops in alternating hands. A loop whose mouth sits

@@ -132,12 +132,6 @@ function mul(m, t) {
 const apply = (m, x, y) => ({ x: m[0] * x + m[1] * y + m[2], y: m[3] * x + m[4] * y + m[5] });
 const degOf = (m) => (Math.atan2(m[3], m[0]) * 180) / Math.PI;
 
-/**
- * One popper speed for every level drawn in Figma. Never read it off the layer
- * name: Figma numbers duplicates, so `party-popper 138`…`149` would be twelve
- * speeds nobody chose.
- */
-export const FIGMA_POP_SPD = 130;
 
 /**
  * What KIND of thing is this node? A toy is an INSTANCE and its identity is
@@ -309,7 +303,11 @@ export async function levelFromFigmaClipboard(html) {
     else if (kind === "goal") goal = [W(c.x), W(c.y)];
     else if (kind === "can") cans.push([W(c.x), W(c.y)]);
     else if (kind === "bumper") bumpers.push({ x: W(c.x), y: W(c.y) });
-    else if (kind === "pop") pops.push({ x: W(c.x), y: W(c.y), deg: ROUND(degOf(m)), spd: FIGMA_POP_SPD });
+    // No speed: there is ONE (POP_SPD in shared), and `initLevel` stamps it.
+    // A frame could never have carried a per-popper number anyway — Figma
+    // numbers duplicate layers, so `party-popper 138`…`149` would be twelve
+    // speeds nobody chose.
+    else if (kind === "pop") pops.push({ x: W(c.x), y: W(c.y), deg: ROUND(degOf(m)) });
     else if (kind === "cushion") {
       const left = apply(m, 0, h / 2);
       cushions.push({ x: W(left.x), y: W(left.y), w: ROUND(w / S) });

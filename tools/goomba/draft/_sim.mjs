@@ -30,4 +30,7 @@ const sim = await import(pathToFileURL(outfile).href);
 
 export const {
   makeRun, stepRun, snapBand, SUB, RUN_MAX, initLevel, encodeLevel, decodeLevel,
+  // The ONE popper speed and its fire fraction. A draft aims with these; it
+  // cannot choose them (`POP_SPD` in packages/shared/src/goomba/levels.ts).
+  POP_SPD, POP_FIRE, MAX_SPEED,
 } = sim;

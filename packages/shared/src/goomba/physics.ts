@@ -20,6 +20,8 @@ import {
   groundE,
   FR_KIND,
   POP_R2,
+  POP_SPD,
+  POP_FIRE,
   POP_COOLDOWN,
   CAN_R,
   BUMP_R,
@@ -318,9 +320,9 @@ export function stepRun(st: RunState, dt: number): void {
       // arrives. Never carry arrival speed through.
       st.p.x = pp.x;
       st.p.y = pp.y;
-      // 0.82 lives here, not in `spd`: `spd` is level DATA in every link and
-      // pack, so rescaling it would silently retune levels.
-      const sp2 = Math.min(MAX_SPEED, pp.spd * 0.82);
+      // ONE speed for every popper in every level (POP_SPD), read from the
+      // constant and not from the popper, so a level cannot carry another.
+      const sp2 = Math.min(MAX_SPEED, POP_SPD * POP_FIRE);
       st.v.x = pp.ux * sp2;
       st.v.y = pp.uy * sp2;
       st.popT[i] = st.t;

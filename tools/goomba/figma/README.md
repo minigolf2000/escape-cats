@@ -74,7 +74,7 @@ digits and a `-42` suffix.
 | `start`, `goal` | instance | bbox centre |
 | `watering-can`, `bumper` | instance | a `cans[]` / `bumpers[]` entry, bbox centre |
 | `cushion` | instance | `{x: left, y: centre, w: width}` — horizontal only, rotation ignored |
-| `party-popper` | instance | popper at bbox centre; `deg` from rotation, `spd` = `FIGMA_POP_SPD` (130, in `clipboard.js`) |
+| `party-popper` | instance | popper at bbox centre; `deg` from rotation. **No speed**: there is one (`POP_SPD` in shared), stamped by `initLevel` |
 | `band` | Line | **ignored** with a warning; delete these |
 | `_…` or `//…` | anything | **ignored** (gauges, guides, notes) |
 | any Text | text | **ignored** |
@@ -87,8 +87,12 @@ fixture) falls back to its layer name.
   `deg` feeds cos/sin in a y-down world.
 - Toy glyphs are symmetric about their anchor (the popper's arrow is inside its
   ring), so bbox-centre is exact.
-- Popper speed is one constant. Per-popper tuning belongs in a draft, not in a
-  layer name.
+- **Popper speed is one constant, everywhere** — `POP_SPD` in
+  `packages/shared/src/goomba/levels.ts`, not a layer name, not a draft, not a
+  link. A frame can only ever have carried a popper's PLACE and AIM, so those
+  are the only two things a popper has; `scripts/check-popper-speed.mjs` fails
+  the build if anything tries to add a third. This is why a frame and the link
+  of the same board play identically.
 
 ## Reading a frame back
 

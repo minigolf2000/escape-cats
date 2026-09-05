@@ -143,9 +143,23 @@ function AdhocRow({
         {GAMES.map((g) => (
           <CopyLink key={g.key} room={room.id} game={g.key} label={g.label} />
         ))}
-        {/* Drops the ROW, not the room, so no confirm. */}
-        <button className="small" onClick={() => onForget(room.id)}>
-          Forget
+        {/* Wipes BOTH games, then drops the row (`forgetRoom` in
+            server/src/lobby.ts). Unlike forgetting a PLAYER this destroys
+            something no phone can put back, so it is the one button here that
+            asks — native confirm, like the chat log's delete. */}
+        <button
+          className="danger small"
+          onClick={() => {
+            if (
+              !confirm(
+                `Reset and forget "${adhocSlug(room.id)}"? Both games lose every level cleared.`,
+              )
+            )
+              return;
+            onForget(room.id);
+          }}
+        >
+          Reset &amp; forget
         </button>
       </div>
     </li>

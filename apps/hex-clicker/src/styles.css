@@ -189,7 +189,11 @@
   /* Same coin as the shop rows (currencyIconSVG()), set once at boot. Sits
      AFTER the count, standing in for the word "mice". */
   #countIcon { display: inline-block; vertical-align: middle; margin-left: 7px; margin-bottom: 4px; }
-  #countIcon .coin { display: block; width: 28px; height: auto; }
+  /* Sized by HEIGHT, not width: the coin's box is square (MOUSE_COIN_VIEWBOX),
+     and a width-driven square grows as tall as it is wide — which is what puts
+     3px into every shop row. Height-driven, it is exactly as tall as the line
+     beside it and the rows do not move. */
+  #countIcon .coin { display: block; height: 28px; width: auto; }
   #cps {
     font: 400 13px var(--ui-font); color: var(--title-color);
     text-shadow: var(--title-shadow); opacity: .92;
@@ -297,7 +301,6 @@
      for a no-op. */
   #hexCat #catShadow { opacity: .58; }
   #hexCat .shadowFrame, #hexCat .headFrame, #hexCat #coatDay { visibility: hidden; }
-  #hexCat[data-pose="day"] #shadowDay,
   #hexCat[data-pose="s1"]  #shadowS1,
   #hexCat[data-pose="s2"]  #shadowS2,
   #hexCat[data-pose="s3"]  #shadowS3 { visibility: visible; }
@@ -336,13 +339,14 @@
   /* idle-motion pivot: the head tilts about the neck. */
   #catFace { transform-box: fill-box; transform-origin: 50% 96%; }
   /* THE EYES. The socket holds still; the pupil moves and widens in it. Colour
-     comes through variables so Zoomies can light every yellow shape (and the
-     shut lashes) by flipping one value. The pupil is the drawing's own line
-     colour (#302B2A, sampled off hex-day.webp) on the solid yellow socket. */
-  #hexCat { --hex-eye: #D0D060; --hex-pupil: #302B2A; }
+     comes through variables so Zoomies can light the iris (and the shut
+     lashes) by flipping one value. Both are sampled off the v2 sheet: the iris
+     is her sage #A9B792, the pupil her coat's own shade #221F1E, so the pupil
+     reads as a hole in the eye rather than a dark disc on it. */
+  #hexCat { --hex-eye: #A9B792; --hex-pupil: #221F1E; }
   #hexCat .eye path { fill: var(--hex-eye); }
   #hexCat .eye path.pupil { fill: var(--hex-pupil); }
-  #catWrap.zoomies #hexCat { --hex-eye: #ffe98a; }
+  #catWrap.zoomies #hexCat { --hex-eye: #CFE0B4; }
 
   /* Open socket vs the drawn shut-lash arc, swapped as a pair, never blended:
      cross-fading them would show two eyes at once through every transition. */
@@ -814,7 +818,7 @@
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
   /* Without the coin "12/s" is a bare number. This is the unit. */
-  .item .rate .coin { flex: none; width: calc(10px * var(--ss)); height: auto; display: block; }
+  .item .rate .coin { flex: none; height: 1em; width: auto; display: block; }
   .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px; }
   .item .fx b { color: var(--shop-accent); font-weight: 700; }
   /* Upgrade rows never get .bought, so their effect text stays. */
@@ -829,7 +833,7 @@
   .item .cost.no { color: var(--cost-no); }
   /* The coin's fill is a literal var(--neon) baked into the SVG, not
      currentColor, so .cost.no cannot recolour it. */
-  .item .cost .coin { flex: none; width: calc(16px * var(--ss)); height: auto; display: block; }
+  .item .cost .coin { flex: none; height: 1em; width: auto; display: block; }
   /* rate and owned count share a baseline so they read as one pair. */
   .item .right { flex: none; display: flex; align-items: baseline; gap: calc(5px * var(--ss)); align-self: center; }
   .item .own {

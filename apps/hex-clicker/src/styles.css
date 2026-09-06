@@ -523,22 +523,22 @@
 
   /* per-click mouse particles. JS drives x/y/rot; transform+opacity only, so
      each stays on the compositor and never triggers layout.
-     41px, not 36: the box grew to the left when the mouse got its tail back, and
+     44px, not 36: the box grew to the left when the mouse got its tail back, and
      this width keeps the BODY at the 36px every tap was tuned against. POP_W in
      fx.js is this number, and it centres on the body with MOUSE_POP_PIVOT —
      move one, move both. */
   .mousePop {
-    position: absolute; left: 0; top: 0; width: 41px; pointer-events: none;
+    position: absolute; left: 0; top: 0; width: 44px; pointer-events: none;
     z-index: 3; will-change: transform, opacity;
   }
 
   /* golden mouse — art injected by spawnGold(), day only. Nothing hardcodes
      these dimensions; moveGold() measures the element. */
-  /* 71px wide for a 62px mouse: the extra is the tail's reach past the body box
+  /* 75px wide for a 62px mouse: the extra is the tail's reach past the body box
      (MOUSE_VIEWBOX), so the gilded body stays the size it was drawn for. The
      square height is the catch target and does not follow the width. */
   #golden {
-    position: absolute; width: 71px; height: 62px; display: none; place-items: center;
+    position: absolute; width: 75px; height: 62px; display: none; place-items: center;
     cursor: pointer; filter: drop-shadow(0 0 14px rgba(255,212,77,.85));
     animation: goldPulse 1.1s ease-in-out infinite; z-index: 5;
   }

@@ -9,7 +9,7 @@ import { stageEl, goldenEl, hudEl, dockEl } from "./dom.js";
 import { mods, wallNow, nightActive } from "./state.js";
 import { floatNum } from "./fx.js";
 import { transport } from "./net";
-import { mouseParts, MOUSE_BOX, MOUSE_KEYLINE_DAY, MOUSE_KEYLINE_NIGHT } from "./art.js";
+import { mouseParts, MOUSE_VIEWBOX, MOUSE_KEYLINE_DAY, MOUSE_KEYLINE_NIGHT } from "./art.js";
 
 const GOLD_MARGIN = 10; // px of stage edge the golden won't drift past
 
@@ -18,9 +18,11 @@ const GOLD_MARGIN = 10; // px of stage edge the golden won't drift past
 // the phase, like the click-pop's: each phase has one line colour that survives.
 // The shine rides the BACK, ~3 units inside the body's top edge. It is fitted
 // to the silhouette, so a re-trace of mouse-geom.js strands it: re-fit it
-// against the new top edge rather than nudging the old numbers.
+// against the new top edge rather than nudging the old numbers. The tail did NOT
+// strand it — the tail hangs at negative x and every body coordinate held, which
+// is the whole reason it was placed that way.
 const goldenMouseSVG = () =>
-  `<svg viewBox="0 0 ${MOUSE_BOX.w} ${MOUSE_BOX.h}" xmlns="http://www.w3.org/2000/svg">
+  `<svg viewBox="${MOUSE_VIEWBOX}" xmlns="http://www.w3.org/2000/svg">
      <defs>
        <linearGradient id="gmBody" x1="0" y1="0" x2="0" y2="1">
          <stop offset="0" stop-color="#fff6c4"/><stop offset=".45" stop-color="#ffd44d"/><stop offset="1" stop-color="#c98a12"/>

@@ -1,7 +1,8 @@
-// GENERATED — do not hand-edit. Source: Figma "Hexxxygon" file, page Hex_v2
-// (node 52:2), the "Green 2 1" mouse strip on the shared-across-modes section;
-// the FIRST of its four mice, traced. Regenerate by re-tracing that strip; see
-// art.js for how these are consumed.
+// GENERATED, with ONE exception (TAIL_HI/TAIL_LO — see below). Source: Figma
+// "Hexxxygon" file, page Hex_v2 (node 52:2), the "Green 2 1" mouse strip on the
+// shared-across-modes section; the FIRST of its four mice, traced. Regenerate by
+// re-tracing that strip — and re-place the tail after, since nothing on the
+// sheet carries it. See art.js for how these are consumed.
 //
 // The hand-drawn mouse traced to polygons rather than re-drawn as beziers, so
 // the wobble in the artist's line survives verbatim. Layers, drawn in order:
@@ -14,20 +15,41 @@
 // recoloured: the artist draws the same hot pink on all four of her mice
 // whatever the body is, so their colour lives in art.js as one constant.
 //
+// TAIL is the ONE mark here that is not off the v2 sheet: it is v1's squiggle,
+// lifted out of that trace as its own ring and set on this rump (scale 1.0,
+// rotated 18 degrees so it leaves the flank along the v2 drawing's own slope).
+// The artist's v2 mice have no tail — this is the game's addition, so a re-trace
+// of the sheet will not bring it back and must not drop it either. It carries NO
+// body fill because v1's did not: the v1 body ring stopped at the rump and the
+// curl was keyline all the way through, which is what keeps it readable when it
+// thins. It is drawn as its OWN path, never merged into SIL: the two overlap at
+// the rump, and one even-odd path would punch that overlap into a hole.
+//
 // Coordinates are a 54.0 x 28.94 box, nose facing +x, matching the artwork's
 // own aspect. The WIDTH is deliberately v1's 54.0 — every downstream size
-// (NIGHT_POP_SCALE, WALL_MOUSE_R, the coin crop) is set against it, so keeping
-// it means only the height moved (32.93 -> 28.94: this mouse has no tail curl).
+// (NIGHT_POP_SCALE, WALL_MOUSE_R, the coin's box) is set against it.
+//
+// MOUSE_BOX is the BODY's box and does not move when the tail is added: the tail
+// hangs off the rump at NEGATIVE x, so every existing coordinate here — the eye,
+// the golden mouse's shine, the wall's pivot — stays valid, and only renderers
+// that draw the whole animal switch to MOUSE_VIEWBOX. That is why the tail was
+// placed rather than the drawing re-registered.
 // Each entry is one closed ring as a flat [x0,y0,x1,y1,...] run; rings within a
 // layer are filled even-odd, so inner rings cut holes.
 //
 // HI is for SVG (the click-pop, the golden mouse, the price coin). LO is the
 // same shape simplified for the night wall, which draws dozens of mice per
 // frame at ~7.6px across — at that size the extra points cost fill rate and buy
-// nothing you can see. The wall draws SIL/BODY/eye only: at 7.6px the ear and
-// nose are a third of a pixel each.
+// nothing you can see. The wall draws SIL/TAIL/BODY/eye only: at 7.6px the ear
+// and nose are a third of a pixel each, but the tail is the silhouette's own
+// outline and reads as the swarm's direction even when it is one pixel wide.
 
 export const MOUSE_BOX = { w: 54, h: 28.94 };
+// The whole animal, tail included: MOUSE_BOX grown to the left by the tail's
+// reach. Anything drawing the mouse WHOLE (the click-pop, the golden mouse)
+// takes this; anything sized against the body (the wall's pivot, the coin) takes
+// MOUSE_BOX. The tail stays inside the body's height, so only x moved.
+export const MOUSE_VIEWBOX = "-11.31 0 65.31 28.94";
 export const MOUSE_EYE = { cx: 37.43, cy: 17.38, r: 2.77 };
 
 // The coin's SQUARE box, centred on the whole mouse. The v1 coin cropped to the
@@ -41,5 +63,7 @@ export const SIL_HI = [[12.4,0,15.5,0,15.76,0.26,18.09,0.26,18.34,0.52,19.38,0.5
 export const BODY_HI = [[13.95,2.58,16.54,2.58,16.79,2.84,17.57,2.84,17.83,3.1,18.86,3.1,19.38,3.62,19.89,3.62,20.15,3.88,20.41,3.88,20.67,4.13,21.19,4.13,21.96,4.65,22.48,4.65,22.74,4.91,23.51,4.91,23.77,5.17,24.55,5.17,24.8,5.43,25.32,5.43,25.58,5.68,26.1,5.68,26.35,5.94,26.87,5.94,27.13,6.2,28.16,6.2,28.42,6.46,28.94,6.46,29.71,6.98,31,6.98,31.26,7.23,31.78,7.23,32.3,7.75,32.81,7.75,33.33,8.27,33.59,8.27,33.85,8.53,34.36,8.53,34.62,8.78,35.14,8.78,35.4,9.04,35.91,9.04,36.17,9.3,36.95,9.3,37.21,9.56,37.98,9.56,38.24,9.82,38.5,9.82,39.53,10.85,39.79,10.85,40.31,11.37,40.56,11.37,41.34,11.89,42.11,11.89,42.63,12.4,42.89,12.4,43.67,12.92,44.18,12.92,44.7,13.44,44.96,13.44,45.73,13.95,45.99,13.95,46.51,14.47,47.02,14.47,49.09,16.54,49.09,16.79,49.35,17.05,49.35,17.57,50.38,18.6,50.9,18.6,51.42,19.12,51.42,19.64,51.67,19.89,51.67,20.15,51.16,20.93,51.16,21.7,50.64,22.22,50.64,22.48,49.87,23.25,49.35,23.25,49.09,23.51,48.57,23.51,48.32,23.77,47.8,23.77,47.54,23.51,47.28,23.51,47.28,23.25,46.77,22.74,46.51,22.74,46.25,23,45.73,23,45.47,23.25,44.44,23.25,44.18,23.51,41.08,23.51,40.82,23.77,39.79,23.77,39.53,24.03,36.43,24.03,36.17,24.29,35.66,24.29,35.14,24.8,34.88,24.8,34.62,25.06,33.59,25.06,33.33,25.32,31.78,25.32,31.52,25.06,31,25.06,30.75,25.32,29.71,25.32,29.45,25.58,26.35,25.58,26.1,25.84,25.84,25.58,25.06,25.58,24.8,25.84,21.7,25.84,21.44,26.1,19.89,26.1,19.64,25.84,18.86,25.84,18.6,26.1,18.09,26.1,17.83,25.84,16.02,25.84,15.76,26.1,15.5,26.1,15.24,25.84,13.69,25.84,13.44,26.1,12.92,26.1,12.66,25.84,11.89,25.84,11.63,25.58,11.11,25.58,10.85,25.32,10.33,25.32,10.08,25.06,9.3,25.06,9.04,24.8,8.78,24.8,8.53,24.55,8.27,24.55,7.49,24.03,7.23,24.03,6.46,23.25,6.2,23.25,5.94,23,5.43,23,3.88,21.96,3.88,21.44,3.62,21.19,3.62,20.67,3.36,20.41,3.36,20.15,2.84,19.38,2.84,18.09,2.58,17.83,2.58,15.24,2.84,14.99,2.84,14.47,3.1,14.21,3.1,13.18,3.36,12.92,3.36,12.4,3.88,11.63,3.88,10.59,4.13,10.33,4.13,10.08,4.39,9.82,4.39,9.56,4.91,9.04,4.91,8.53,5.94,7.49,5.94,7.23,6.46,6.72,6.72,6.72,6.98,6.46,7.23,6.46,8.01,5.68,8.27,5.68,9.04,4.91,9.3,4.91,10.59,3.62,10.85,3.62,11.63,3.1,12.4,3.1,12.66,2.84,13.69,2.84]];
 export const EAR_HI = [[28.68,9.04,29.2,9.04,29.45,9.3,31.26,9.3,32.3,10.33,32.56,10.33,32.56,10.59,33.07,11.11,33.07,11.37,32.81,11.63,33.07,11.89,33.07,14.73,32.81,14.99,32.81,15.5,32.56,15.76,32.56,16.02,31.78,16.79,31.52,16.79,31.26,17.05,30.49,17.05,30.23,17.31,27.39,17.31,27.13,17.05,26.35,17.05,26.1,16.79,25.84,16.79,25.06,16.28,24.8,16.28,24.55,16.02,24.55,15.76,24.03,14.99,24.03,14.21,23.77,13.95,23.77,13.69,24.03,13.44,24.03,12.92,24.29,12.66,24.29,12.4,24.55,12.14,24.55,11.89,25.06,11.37,25.06,11.11,25.58,10.33,25.58,10.08,25.84,9.82,26.1,9.82,26.35,9.56,26.87,9.56,27.13,9.3,28.42,9.3]];
 export const NOSE_HI = [[50.12,18.34,50.38,18.6,50.9,18.6,51.42,19.12,51.42,19.64,51.67,19.89,51.67,20.15,51.16,20.93,51.16,21.7,50.64,22.22,50.64,22.48,49.87,23.25,49.35,23.25,49.09,23.51,48.57,23.51,48.32,23.77,47.8,23.77,47.54,23.51,47.28,23.51,47.28,23.25,47.02,23,47.02,21.96,47.54,21.19,47.54,20.67,47.8,20.41,47.8,20.15,48.57,19.38,48.57,19.12,48.83,19.12,49.35,18.6,49.87,18.6]];
+export const TAIL_HI = [[5,26.5,3.89,25.94,3.68,26,2.72,25.52,2.66,25.31,2.1,25.02,1.62,24.25,1.2,24.04,-0.2,25.42,-1.24,25.76,-1.52,25.62,-2.28,26.1,-2.56,25.96,-3.39,26.23,-4.71,25.73,-5.69,25.59,-6.17,25.17,-7.2,24.81,-7.96,23.91,-8.51,23.62,-8.71,23,-8.99,22.86,-8.99,22.16,-9.61,21.67,-9.81,21.04,-10.5,20.35,-10.64,19.93,-10.49,19.65,-10.63,19.23,-10.91,19.09,-10.77,18.82,-11.04,17.98,-10.9,17.7,-11.31,17.14,-11.09,15.69,-11.29,15.06,-10.58,12.29,-10.09,11.32,-9.88,11.25,-9.59,10.71,-9.18,10.57,-9.03,10.29,-7.99,9.95,-7.85,9.68,-6.47,9.69,-5.91,9.96,-5.71,9.9,-4.11,10.88,-3.77,11.23,-3.56,11.86,-2.87,12.56,-2.4,14.02,-2.54,14.29,-2.42,16.1,-2.77,16.8,-3.54,17.28,-3.68,17.55,-4.72,17.89,-4.99,17.75,-5.13,18.03,-5.62,17.95,-7.21,16.97,-7.55,15.92,-7.27,15.71,-7.06,14.96,-6.22,14.69,-5.46,14.89,-5.19,14.69,-5.66,13.24,-6.34,12.88,-7.32,12.73,-8.38,14.81,-8.67,16.05,-8.46,16.68,-8.6,16.96,-8.4,17.58,-8.12,17.73,-8.26,18,-7.99,18.14,-7.38,20.02,-7.1,20.16,-6.83,21,-6.21,21.49,-6.07,21.91,-4.48,22.89,-3.23,23.18,-2.61,22.98,-2.34,23.11,-2.19,22.84,-1.35,22.57,0.05,20.84,-0.28,18.41,0.29,15.92]];
+export const TAIL_LO = [[3.68,26,1.2,24.04,-2.28,26.1,-5.69,25.59,-8.51,23.62,-10.91,19.09,-11.29,15.06,-10.09,11.32,-7.85,9.68,-6.47,9.69,-4.11,10.88,-2.87,12.56,-2.42,16.1,-3.68,17.55,-5.62,17.95,-7.21,16.97,-7.06,14.96,-5.19,14.69,-6.34,12.88,-7.32,12.73,-8.67,16.05,-6.07,21.91,-2.34,23.11,0.05,20.84,0.29,15.92]];
 export const SIL_LO = [[12.4,0,20.41,0.78,23.51,2.33,31.52,4.13,36.17,6.46,38.76,6.98,42.37,9.3,47.54,11.63,50.64,13.95,51.93,13.95,52.19,14.99,51.67,15.5,53.48,18.34,53.48,21.7,51.93,24.03,49.09,26.1,47.54,25.58,44.96,26.35,38.24,26.61,34.62,27.9,32.56,27.65,29.71,28.42,24.55,28.68,12.4,28.68,7.75,27.39,4.91,25.84,1.29,22.48,0,18.6,0,14.21,3.36,5.94,8.27,1.81]];
 export const BODY_LO = [[13.95,2.58,18.86,3.1,21.96,4.65,31,6.98,33.85,8.53,38.5,9.82,40.31,11.37,47.02,14.47,49.09,16.54,49.35,17.57,51.42,19.12,51.67,20.15,51.16,21.7,49.87,23.25,48.32,23.77,46.51,22.74,44.18,23.51,36.43,24.03,33.33,25.32,31,25.06,21.44,26.1,12.92,26.1,7.23,24.03,3.88,21.96,2.84,19.38,2.58,15.24,3.88,10.59,6.46,6.72,10.59,3.62]];

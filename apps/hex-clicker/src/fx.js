@@ -4,7 +4,16 @@
 
 import { stageEl } from "./dom.js";
 import { nightActive } from "./state.js";
-import { mouseSVG, MOUSE_COLOR_LIST, NIGHT_POP_SCALE, MOUSE_KEYLINE_DAY, MOUSE_KEYLINE_NIGHT } from "./art.js";
+import { mouseSVG, MOUSE_COLOR_LIST, MOUSE_POP_PIVOT, NIGHT_POP_SCALE, MOUSE_KEYLINE_DAY, MOUSE_KEYLINE_NIGHT } from "./art.js";
+
+// .mousePop's width in styles.css. The pop is sized so the BODY still comes out
+// 36px — the size every tap has been tuned against — and the tail hangs off the
+// left beyond that, which is why the element is wider than the mouse reads.
+// Move this and move the CSS, or the pop lands off the finger.
+const POP_W = 44;
+// Half the drawn height, plus the lift that puts the pop above the fingertip
+// rather than under it. The tail grew the box sideways only, so this held.
+const POP_OFF_Y = 14;
 
 export function floatNum(x, y, text) {
   const f = document.createElement("div");
@@ -59,6 +68,6 @@ export function updatePops(dt) {
     p.y += p.vy * dt;
     p.rot += p.vr * dt;
     p.el.style.opacity = Math.min(1, p.life / 0.35);
-    p.el.style.transform = `translate(${p.x - 18}px, ${p.y - 14}px) rotate(${p.rot}deg) scale(${p.flip * nightScale}, ${nightScale})`;
+    p.el.style.transform = `translate(${p.x - POP_W * MOUSE_POP_PIVOT}px, ${p.y - POP_OFF_Y}px) rotate(${p.rot}deg) scale(${p.flip * nightScale}, ${nightScale})`;
   }
 }

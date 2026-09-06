@@ -129,17 +129,11 @@
            border: 1.5px solid var(--plate-edge); }
   /* `inherit`, not `visible`, like every re-show in this file. */
   #hud.lab.editing #figma { display: block; visibility: inherit; }
-  /* The splash (phase "splash", goomba/sim.ts): its ONLY control is the level
-     selector, so the strip stays and the rest of the HUD goes. The words are on
-     the CANVAS (drawSplashWords). The :not(.lab) keeps the grid a whole screen
-     when it opens from here. */
+  /* The splash (phase "splash", goomba/sim.ts) is the FINALE and it has no
+     controls at all: the whole HUD goes and the picture, the code word and
+     nothing else are on the CANVAS (drawSplash). Terminal — there is no way
+     back that a phone could press, so there is no button to keep. */
   #hud.splash > * { visibility: hidden; }
-  /* `inherit`, NOT `visible`: `visible` would float the plate over the rotate
-     screen. (#lab sits inside #top and needs no rule of its own.) */
-  #hud.splash:not(.lab) #top { visibility: inherit; }
-  /* ...and the band slots go, by VISIBILITY so #top keeps its height and the
-     bunting measured off its bottom edge does not jump. */
-  #hud.splash #bandbar { visibility: hidden; }
   #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.9);
            background: rgba(20,10,45,.92); border: 2px solid #ffd166; color: #ffe9b3;
            padding: 14px 26px; border-radius: 18px; font-size: 20px; font-weight: 800; text-align: center;

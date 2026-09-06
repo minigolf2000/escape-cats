@@ -11,10 +11,12 @@ import type { LevelPack } from "./pack";
 import { snapBand, scoreRun, type GoombaBand, type RunResult } from "./physics";
 
 /**
- * `edit` → `run` → (`win` | back to `edit`), plus `splash`: where NEXT lands
- * after the finale of a room that has cleared every level. Nothing may be
- * placed or played from it; the ways out are a `goto` (the selector, which the
- * clear unlocks — `goombaCleared`) and a proctor `reset`.
+ * `edit` → `run` → (`win` | back to `edit`), plus `splash`: THE FINALE, which
+ * the last flag going up lands on directly (`resolve` — the clearing win never
+ * passes through `win`, so there is no banner and no NEXT to press). It is
+ * TERMINAL: nothing may be placed, played or jumped to from it, and the only
+ * ways off are a proctor `reset` and a pack edit that un-clears the room
+ * (`reconcile`).
  */
 export type GoombaPhase = "edit" | "run" | "win" | "splash";
 
@@ -137,12 +139,6 @@ export const canPlaceBand = (bands: GoombaBand[]): boolean => bands.length < MAX
  */
 export const goombaCleared = (s: GoombaSimState): boolean => s.finishedAt !== null;
 
-/** Where NEXT goes from the current win: the splash iff this is the finale of a
- * cleared room. One copy so the sim's transition and the button that triggers
- * it cannot disagree about which it is. */
-export const nextLeadsToSplash = (s: GoombaSimState): boolean =>
-  s.phase === "win" && s.level === GOOMBA_LEVELS.length - 1 && goombaCleared(s);
-
 function freshState(now: number): GoombaSimState {
   return {
     runId: 1,
@@ -173,11 +169,14 @@ export class GoombaSim {
     if (s.phase !== "run" || s.runAt === null || s.runT === null) return false;
     if (now < s.runAt + s.runT * 1000) return false;
     if (s.runResult === "win") {
-      s.phase = "win";
       s.completed[s.level] = true;
       // `[].every` is true, so an empty pack would otherwise clear the game.
-      if (s.completed.length > 0 && s.completed.every(Boolean) && s.finishedAt === null)
-        s.finishedAt = now;
+      const cleared = s.completed.length > 0 && s.completed.every(Boolean);
+      if (cleared && s.finishedAt === null) s.finishedAt = now;
+      // The win that CLEARS the room skips `win` altogether: the ride ends on
+      // the splash, on the frame Goomba reaches the plant. Every other win
+      // stops for its banner and its NEXT.
+      s.phase = cleared ? "splash" : "win";
     } else {
       s.phase = "edit";
       s.runAt = null;
@@ -264,13 +263,15 @@ export class GoombaSim {
   }
 
   /** The selector's jump: fresh edit phase on the chosen level for the whole
-   * room. Completed flags untouched. Legal from the splash. */
+   * room. Completed flags untouched. NEVER from the splash — the finale is
+   * terminal, and this is the intent that used to leave it. */
   goto(level: unknown, now: number): void {
     this.resolve(now);
     if (!Number.isInteger(level)) return;
     const li = level as number;
     if (li < 0 || li >= GOOMBA_LEVELS.length) return;
     const s = this.st;
+    if (s.phase === "splash") return;
     s.level = li;
     s.phase = "edit";
     s.bands = [];
@@ -283,14 +284,13 @@ export class GoombaSim {
     this.resolve(now);
     const s = this.st;
     if (s.phase !== "win") return;
-    const splash = nextLeadsToSplash(s);
-    s.phase = splash ? "splash" : "edit";
+    // Never the finale: the win that clears the room went straight to the
+    // splash and this button was never drawn (`resolve`).
+    s.phase = "edit";
     s.bands = [];
     s.runAt = null;
     s.runResult = null;
     s.runT = null;
-    // The splash stays pointed at the finale; a `goto` picks the next level.
-    if (splash) return;
     // Next level, or past the last one wrap to the first still open.
     if (s.level < GOOMBA_LEVELS.length - 1) s.level++;
     else {
@@ -352,6 +352,15 @@ export class GoombaSim {
     if (!all) s.finishedAt = null;
     else if (s.finishedAt === null) s.finishedAt = now;
     if (n === 0) s.phase = s.phase === "splash" ? "splash" : "edit";
+    // The splash is terminal only while the room is still CLEARED: adding a
+    // level un-clears it above, and the room has somewhere to be again. An
+    // emptied pack keeps the finale, having nothing to show instead.
+    if (s.phase === "splash" && !all && n > 0) {
+      s.phase = "edit";
+      s.bands = [];
+      const open = s.completed.findIndex((c) => !c);
+      if (open >= 0) s.level = open;
+    }
     this.resolve(now);
   }
 }

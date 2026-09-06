@@ -15,4 +15,8 @@ cd apps/goomba-glider/art && node export-svg.mjs
 
 Everything is frozen at t=0 (no sway, no drip phase) and emitted at 10 SVG
 units per world unit in named `<g>` layers, which is the scale the Figma kit
-uses. Goomba's `splash` phase is drawn black; this app loads no image asset.
+uses. The game's one image asset is the finale's picture,
+`public/art/goomba-splash.webp` — a drop-in file (lossless WebP, portrait, like
+hex's): the splash draws it whole and takes its backdrop off the picture's own
+top and bottom rows, so replacing it needs no code change. Nothing else here is
+loaded; every prop is drawn.

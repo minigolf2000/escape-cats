@@ -10,7 +10,7 @@ import { mouseSVG, MOUSE_COLOR_LIST, MOUSE_POP_PIVOT, NIGHT_POP_SCALE, MOUSE_KEY
 // 36px — the size every tap has been tuned against — and the tail hangs off the
 // left beyond that, which is why the element is wider than the mouse reads.
 // Move this and move the CSS, or the pop lands off the finger.
-const POP_W = 44;
+const POP_W = 41;
 // Half the drawn height, plus the lift that puts the pop above the fingertip
 // rather than under it. The tail grew the box sideways only, so this held.
 const POP_OFF_Y = 14;

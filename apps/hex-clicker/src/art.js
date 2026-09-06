@@ -84,20 +84,17 @@ export const mouseParts = (fill, line = MOUSE_KEYLINE_NIGHT, tail = true) =>
 // never touch it — Cookie Clicker's own rule: only the number flips. The
 // keyline follows the theme, since it is on screen in both phases.
 //
-// The box is SQUARE and holds the whole BODY (MOUSE_COIN_VIEWBOX) — and the coin
-// is the one place the tail does not come along. Three ways to spend the tail
-// here and all three cost more than it pays: grow the box to the whole animal
-// and a 1em coin loses a fifth of its body; keep the square and the curl is
-// clipped at the frame, which is the "picture in a rectangle" v1's crop was; go
-// wide and non-square and the icon starts setting the width of every shop row.
-// At 16px the curl is under 2px of spiral anyway — v1 cropped it off for exactly
-// that reason. So the coin is the body, whole and uncut, and the tail is for the
-// sizes that can hold it.
+// CROPPED TO THE HEAD (MOUSE_COIN_VIEWBOX) — v1's answer, back for v1's reason.
+// The mouse has a tail again, and at 16px the whole animal is the wrong picture:
+// framing it costs a fifth of the body to buy about 2px of spiral, and a box
+// wide enough to hold it at size hands the icon the width of every shop row.
+// What survives a 16px crop is what the head carries — the ear, the eye and the
+// nose, three marks in three colours — so the coin shows those and the tail is
+// for the sizes that can hold it.
 //
-// The square costs size: she renders ~19px wide where a tight box would give 24.
-// That is paid back in CSS, where the coin is sized by HEIGHT (1em) rather than
-// width, so a square box can never outgrow the line it sits on and shop rows
-// stay exactly where they are.
+// `tail` is false here for bytes, not for looks: the curl sits well left of the
+// crop and would be clipped away regardless. Sized by HEIGHT (1em) in CSS, so a
+// 1.11:1 box cannot outgrow the line it sits on and shop rows stay put.
 export const currencyIconSVG = () =>
   `<svg class="coin" viewBox="${MOUSE_COIN_VIEWBOX}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${mouseParts("var(--neon)", "var(--mouse-line)", false)}</svg>`;
 

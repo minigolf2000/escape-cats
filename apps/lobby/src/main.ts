@@ -188,7 +188,7 @@ function nameChipHtml(): string {
   return `
     <button id="namechip" class="namechip">
       🐾 <span class="chip-name">${escapeHtml(myName())}</span>
-      <span class="pen">edit</span>
+      <span class="pen">rename</span>
     </button>`;
 }
 

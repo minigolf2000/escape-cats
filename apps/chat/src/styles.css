@@ -175,6 +175,11 @@ input:focus {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  /* Shrinks rather than wraps: in the channel's head it shares a line with the
+     team name, and a header that grows shoves the log around (see .chat-head
+     .muted). The name is the part that gives — never the word `rename`. */
+  min-width: 0;
+  max-width: 100%;
   font-family: inherit;
   font-size: 13px;
   color: var(--ink);
@@ -187,6 +192,8 @@ input:focus {
 }
 
 .namechip .chip-name {
+  flex: 0 1 auto;
+  min-width: 3ch;
   max-width: 12ch;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -194,6 +201,7 @@ input:focus {
 }
 
 .namechip .pen {
+  flex: none;
   color: var(--muted);
   font-size: 11px;
 }
@@ -257,13 +265,18 @@ input:focus {
   gap: 10px;
 }
 
+/* Basis ZERO, not auto: a wrapping flex line is broken on each item's
+   hypothetical size, so a long name in the who-line would push the chip onto
+   its own row before any shrinking got a chance. With basis 0 the title takes
+   what the chip leaves and ellipsises inside it. */
 .head-who {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
 }
 
 .namerow {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .namerow.editing {

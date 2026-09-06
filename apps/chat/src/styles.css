@@ -113,8 +113,8 @@ input:focus {
   transform: translateY(1px);
 }
 
-/* An <a> on the waiting card, a <button> beside the name editor — the reset is
-   what makes the two read as one control. */
+/* Only Cancel, beside the name editor — a <button> that has to read as the
+   quiet way out, hence the reset off the UA's button chrome. */
 .link {
   display: inline-block;
   background: none;

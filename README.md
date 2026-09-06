@@ -456,14 +456,16 @@ roster.
 **Being sorted is the prereq, and the channel is the reward.** `chatRoomFor` in
 `packages/shared/src/lobby.ts` is the whole rule and it is deliberately NOT
 `roomFor`: it answers one of the four teams or `null`, with no fallback. An
-unsorted phone sits on a waiting card (its lobby socket open, so the proctor can
-see it) until it is sorted, then takes its channel and stops watching; a re-sort
-lands as a reload. There are four channels, ever — no `t0`, no `?r=`, no fifth
+unsorted phone sits on a waiting card — **the lobby's own line, word for word**
+(`Waiting to be sorted…`), a spinner and the name chip, and nothing else: no
+greeting, and no link out, because the wait is the whole screen — with its lobby
+socket open, so the proctor can see it. Then it takes its channel and stops
+watching; a re-sort lands as a reload. There are four channels, ever — no `t0`, no `?r=`, no fifth
 room a typo could invent — and the wire says the same thing: `server/src/index.ts`
 404s an upgrade to `/parties/chat/<anything else>`, so a room nobody may join
 never wakes a Durable Object. That is the one place the rule lives on the wire;
 `ChatServer` itself only ever hears from `t1`–`t4`. The lobby (`/`) is the
-read-only roster you open to look, and has no link here.
+read-only roster you open to look; neither surface links to the other.
 
 Server (`server/src/chat.ts`, tunables in `packages/shared/src/chat.ts`):
 

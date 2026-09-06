@@ -271,15 +271,11 @@ function wireNameChip() {
   const submit = () => {
     renameTo(draft);
     renaming = false;
-    // The waiting card greets you by name, so it is rebuilt whole; a channel
-    // only needs the chip back.
-    if (room) paintName();
-    else render();
+    paintName();
   };
   const close = () => {
     renaming = false;
-    if (room) paintName();
-    else render();
+    paintName();
   };
   save.onclick = submit;
   cancel.onclick = close;
@@ -295,17 +291,20 @@ function wireNameChip() {
   }
 }
 
+/** The gate. One line, WORD FOR WORD the lobby's (`waitingLine`): the two
+ * surfaces are the same wait, and a phone that opened both must not be told it
+ * is waiting for two different things. No greeting — the chip under it already
+ * says who you are, and the only thing to do here is fix that. No link out
+ * either: `/` is a roster to look at, not somewhere to be sent while waiting. */
 function waitingScreen() {
   app.innerHTML = `
     <div class="card">
       <h1>🐾 Team chat</h1>
-      <p class="sub">Hi ${escapeHtml(myName())} - you're on the list.</p>
       <div class="waiting">
         <span class="spinner"></span>
-        Your team's chat opens once the proctor sorts you...
+        Waiting to be sorted\u2026
       </div>
       <div class="chiprow" id="namerow"></div>
-      <a class="link" href="/">See who's on each team</a>
     </div>
   `;
   paintName();

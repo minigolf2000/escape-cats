@@ -36,6 +36,13 @@ export class Roster {
     };
     conn.setState(m);
     this.adopt(m);
+    // A reconnect announces the CURRENT name, so it wins over the cached one:
+    // a phone that renamed itself while it was away (the chat's chip, the
+    // lobby's) must not come back under the name this room last saw. "Cat" is
+    // the placeholder a phone with no name of its own sends, and never
+    // overwrites a real one — the same rule the lobby applies to its roster.
+    const known = this.players.get(m.pid);
+    if (known && m.name !== "Cat") known.name = m.name;
     return m;
   }
 

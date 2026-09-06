@@ -10,7 +10,7 @@ things that bite.
 ```
 apps/hex-clicker/      player client (/hexxygon/)   src/README.md
 apps/goomba-glider/    player client (/g00mBa/)     src/README.md
-apps/lobby/ chat/ proctor/                          landing page, team chat, dashboard
+apps/lobby/ chat/ proctor/                          roster board, team chat (the door), dashboard
 packages/shared/src/   protocol, lobby rules, hex/{data,rules,sim}, goomba/{levels,physics,sim,codec}
 server/src/            one Worker, four Durable Objects (hex, goomba, lobby, chat)
 tools/goomba/          DESIGNING.md, the Figma bridge (figma/), seed/test/draft commands
@@ -115,6 +115,22 @@ Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
 
 ## Repo invariants
 
+- **`/chat/` is the door and being sorted is its prereq.** The URL handed out is
+  the chat, not `/`: a phone names itself there, registers in the roster, and
+  WAITS. `chatRoomFor` (shared `lobby.ts`) answers one of the four teams or
+  `null` — deliberately not `roomFor`, so there is no `t0` fallback and no `?r=`.
+  Chat has FOUR rooms, ever, and the wire agrees: `server/src/index.ts` 404s
+  `/parties/chat/<not a team>` before a Durable Object wakes. That is the one
+  place the rule lives on the wire — don't add a second in `ChatServer`. The
+  proctor's Unassigned box therefore has readouts but no chat log. `/` still
+  takes a name and still registers (same origin, same key), it is just the
+  read-only roster nobody is pointed at.
+- **A name is renamed in ONE place, the lobby.** The chat's chip (both screens)
+  sends the same `{type:"rename"}` down whichever socket it holds — the lobby's
+  at the gate, the room's in a channel, which forwards it to the lobby over
+  `POST http://lobby/name`. Never write a name into chat storage: said lines
+  snapshot the author's name on purpose. `cleanName`/`NAME_MAX` in shared is the
+  only clamp; don't retype `24`.
 - **Deploy order: Worker BEFORE the Vercel build that needs it.** CI deploys the
   Worker on push to main but races Vercel; for a breaking protocol/DO change run
   the workflow on the branch first, confirm, then merge. `wrangler.jsonc`

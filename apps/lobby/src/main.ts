@@ -1,6 +1,8 @@
 import PartySocket from "partysocket";
 import {
+  NAME_MAX,
   TEAM_SIZE,
+  cleanName,
   earsFor,
   earsHeight,
   teamEarsSvg,
@@ -83,7 +85,7 @@ function nameScreen() {
     <div class="card">
       <h1>🐾 Escape Cats</h1>
       <p class="sub">What should we call you?</p>
-      <input id="name" maxlength="24" placeholder="Your name" autocomplete="off" />
+      <input id="name" maxlength="${NAME_MAX}" placeholder="Your name" autocomplete="off" />
       <button id="go" class="primary">Join</button>
     </div>
   `;
@@ -91,7 +93,7 @@ function nameScreen() {
   const go = document.getElementById("go") as HTMLButtonElement;
   input.focus();
   const submit = () => {
-    const name = input.value.trim();
+    const name = cleanName(input.value);
     if (!name) return;
     localStorage.setItem(NAME_KEY, name);
     if (socket) socket.send(JSON.stringify({ type: "rename", name }));
@@ -177,7 +179,7 @@ function nameChipHtml(): string {
   if (renaming) {
     return `
       <div class="rename">
-        <input id="newname" maxlength="24" value="${escapeHtml(draft)}"
+        <input id="newname" maxlength="${NAME_MAX}" value="${escapeHtml(draft)}"
                placeholder="Your name" autocomplete="off" />
         <button id="savename" class="chip-go">Save</button>
         <button id="cancelname" class="link">Cancel</button>
@@ -210,7 +212,7 @@ function wireNameChip() {
     draft = input.value;
   };
   const submit = () => {
-    const name = draft.trim();
+    const name = cleanName(draft);
     if (!name) return;
     localStorage.setItem(NAME_KEY, name);
     socket?.send(JSON.stringify({ type: "rename", name }));

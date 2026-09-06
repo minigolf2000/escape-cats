@@ -90,6 +90,35 @@ export function roomFor(
   return OPEN_ROOM_OPEN ? OPEN_TEAM.id : null;
 }
 
+/** The chat channel this phone may open, or `null` = wait for the proctor.
+ * NOT `roomFor`: chat has FOUR rooms and no fallback. A channel is the thing
+ * being gated — you are IN a team's chat because the proctor put you on that
+ * team — so an unsorted phone gets no room at all rather than a shared one,
+ * `t0` included. `?r=` never reached chat and still doesn't: a slug names a
+ * GAME room, and this asks the roster, not the URL. The wire says the same
+ * thing (`server/src/index.ts` refuses any other chat room), so a phone that
+ * ignores this cannot talk its way in. */
+export function chatRoomFor(team: string | null | undefined): string | null {
+  return isTeamRoom(team) ? (team as string) : null;
+}
+
+/** Longest display name kept — clamped, never rejected. THE roster rule, so
+ * every door that takes a name asks it: the landing page, the chat's own name
+ * chip, the lobby's `rename` and the chat room's forward of one. */
+export const NAME_MAX = 24;
+
+/** Whitespace collapsed, then clamped, then trimmed — the one shape a name
+ * takes on the wire. Returns "" for a name that is nothing but spaces, which
+ * every caller refuses: a nameless row on the board is a phone nobody can
+ * sort. Applied SERVER-side too; a client's clamp is a courtesy. */
+export function cleanName(name: unknown): string {
+  return String(name ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, NAME_MAX)
+    .trim();
+}
+
 /** Players per team. The design assumes four (slot colours, wall art); the
  * board draws four seats and refuses a fifth drop. Nothing below the proctor
  * UI enforces it. */

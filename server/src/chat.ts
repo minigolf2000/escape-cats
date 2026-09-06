@@ -9,6 +9,7 @@ import {
   CHAT_HISTORY,
   CHAT_MAX_TEXT,
   CHAT_REFILL_MS,
+  cleanName,
   type ChatClientMsg,
   type ChatMessage,
   type ChatServerMsg,
@@ -16,8 +17,10 @@ import {
 import { Roster } from "./connections";
 
 /**
- * One team's chat channel; room id = team id, as the game room. NO ticker:
- * chat is event-driven, so an idle room costs nothing.
+ * One team's chat channel; room id = team id, as the game room. There are
+ * FOUR, ever: `src/index.ts` 404s an upgrade to any other room id, so this
+ * class only ever wakes for `t1`-`t4`. NO ticker: chat is event-driven, so an
+ * idle room costs nothing.
  */
 export class ChatServer extends Server<Env> {
   // Hibernate, or a backgrounded chat tab's socket pins the object resident.
@@ -71,6 +74,10 @@ export class ChatServer extends Server<Env> {
       if (this.roster.isProctor(sender)) await this.clear();
       return;
     }
+    if (msg.type === "rename") {
+      await this.renameIntent(sender, msg.name);
+      return;
+    }
     if (msg.type !== "say") return;
 
     const me = this.roster.get(sender);
@@ -98,6 +105,36 @@ export class ChatServer extends Server<Env> {
     const said: ChatServerMsg = { type: "said", message: entry };
     this.broadcast(JSON.stringify(said));
     await this.persist(entry);
+  }
+
+  /** Rename the sender everywhere. The chat is the door, so this is where a
+   * player fixes their own name — but the LOBBY owns the roster, so the write
+   * is forwarded there object-to-object and the board and both games follow.
+   * Costs a token like a message does: it is a write-through per press.
+   *
+   * The local roster is updated FIRST and presence goes out immediately —
+   * "n here" is this room's own list, and a phone should see its new name the
+   * moment it presses Save, not a round trip later. Lines already said are
+   * untouched by design (ChatMessage.name is a snapshot). */
+  private async renameIntent(sender: Connection, raw: unknown) {
+    const me = this.roster.get(sender);
+    // Proctors are spectators here too — a spectator has no name to change.
+    if (!me || me.role !== "player") return;
+    const name = cleanName(raw);
+    if (!name || name === me.name) return;
+    if (!this.spend(sender.id)) return;
+    this.roster.rename(sender, name);
+    this.broadcastPresence();
+    try {
+      await this.env.Lobby.get(this.env.Lobby.idFromName("main")).fetch(
+        "http://lobby/name",
+        { method: "POST", body: JSON.stringify({ pid: me.pid, name }) },
+      );
+    } catch {
+      // An unreachable lobby costs the board this rename, not the chat: the
+      // phone keeps the name locally and re-sends it as its `?name=` on the
+      // next connect.
+    }
   }
 
   /** One key per message, zero-padded so `storage.list` order is

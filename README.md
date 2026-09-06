@@ -1,8 +1,8 @@
 # Escape Cats 🐾
 
 Two cooperative 4-player mini games for a puzzle escape room, starring Hex and
-Goomba. Players are sorted onto a team in the lobby and play together for ~10
-minutes.
+Goomba. Players name themselves in the team chat, wait for a proctor to sort
+them onto a team, and play together for ~10 minutes.
 
 - **Hex Clicker** — a cooperative cookie-clicker. One shared mouse pool, shared
   buildings and upgrades. Petting Hex mints mice; buying the twist puts her to
@@ -17,10 +17,11 @@ minutes.
 ```
 apps/hex-clicker/    Player client — see its src/README.md
 apps/goomba-glider/  Player client — see its src/README.md
-apps/lobby/          Landing page: name entry, then the room board (read-only)
-apps/chat/           Per-team chat, roomed by team id
+apps/lobby/          The room board (read-only) — a roster to look at, not the door
+apps/chat/           Per-team chat, roomed by team id — and the door into the event
 apps/proctor/        Hidden dashboard: five boxes (Unassigned + four teams), each a
-                     drop target with its room's game readouts, resets and chat
+                     drop target with its room's game readouts and resets; the
+                     four teams also carry a chat log
 packages/shared/     Wire protocol, seeded RNG, lobby rules, and BOTH whole games:
                      hex/{data,rules,sim}, goomba/{levels,physics,sim,codec,pack}
 server/              Cloudflare Worker: four Durable Objects (hex, goomba, lobby,
@@ -223,10 +224,16 @@ median of three: hex first paint ~0.8 s, ~216 KB then 400 KB deferred; goomba
 ## Teams and the lobby
 
 Four teams `t1`–`t4` of `TEAM_SIZE` (4). **A team id is also the room id the game
-runs in.** A player opens `/`, types a name, and waits; the proctor drags them
-onto a team. Sorting is manual on purpose (who sits with whom is a judgement
-made in the room). The drag runs on **pointer events, not HTML5 drag-and-drop**,
-which never fires under a finger.
+runs in.** A player opens **`/chat/`** — the one URL that gets handed out —
+types a name, and waits; the proctor drags them onto a team. Sorting is manual on
+purpose (who sits with whom is a judgement made in the room). The drag runs on
+**pointer events, not HTML5 drag-and-drop**, which never fires under a finger.
+
+**Registering is the prereq for the chat, not a page of its own.** The root
+still takes a name and still registers a phone — same origin, same
+`escape-cats-name`, so the two doors are one — but nobody is sent there any
+more. `/` is now what you open to *look*: the four teams and who is on them,
+read-only. The gate lives where the reward is, in `/chat/`.
 
 **The game has no menu.** It asks the lobby for this pid's room and slots in;
 opening a game page also registers the phone in the roster. The room is never
@@ -246,19 +253,22 @@ proctor-only on the wire, so nothing here declares a cursor.
 - **Rosters are NOT filtered by `connected`.** That flag means "holding a lobby
   socket", which a sorted phone drops when it moves to the game. It is only
   trustworthy for an unsorted phone, which is what the proctor's board uses it for.
-- **Your name is a chip under the board.** Renaming happens in place over
-  `rename`; the half-typed draft lives in module state, because a lobby
-  broadcast rebuilds the page.
+- **Your name is a chip under the board**, and the chat has the same chip on
+  both of its screens. Renaming happens in place over `rename`; the half-typed
+  draft lives in module state, because a lobby broadcast rebuilds the page.
+  `NAME_MAX` and `cleanName` in `shared/lobby.ts` are the one clamp — collapse,
+  trim, 24 — applied on every door and again on the server.
 - If people stop reaching for the headbands, the line to put back is "Grab the
   pink ears 🐾", in the box that is already yours.
 
 ### The proctor's board
 
 **A box is everything about one room**: roster, both game readouts, chat log,
-stacked. Unassigned is a box like any other — its players are the phones in the
-testing room, so it carries `t0`'s readouts and channel (`TestRoom.tsx`,
-`TeamChat` in `Chats.tsx`). The five chat sockets live in a provider above the
-board so a re-render cannot reconnect them.
+stacked. Unassigned is a box like any other with one exception — its players are
+the phones in the testing room, so it carries `t0`'s readouts (`TestRoom.tsx`)
+but **no chat log**: a channel is what the drag buys a phone, and `t0` has none
+to read. The four chat sockets live in a provider above the board so a
+re-render cannot reconnect them.
 
 - **A box is a fixed size.** Every seat is the same height filled or empty,
   every readout line renders in every state (placeholders, never fewer lines),
@@ -396,14 +406,17 @@ that game's reset.
 
 ### The testing room
 
-`roomFor(team)` in `packages/shared/src/lobby.ts` is the whole rule: a sorted
-phone gets its team, an unsorted one gets `OPEN_TEAM` — room `t0`, "Testing
-Room". `OPEN_ROOM_OPEN = false` restores the waiting screen everywhere, which is
-what an event night wants.
+`roomFor(team)` in `packages/shared/src/lobby.ts` is the whole rule **for the
+games**: a sorted phone gets its team, an unsorted one gets `OPEN_TEAM` — room
+`t0`, "Testing Room". `OPEN_ROOM_OPEN = false` restores the waiting screen
+everywhere, which is what an event night wants.
 
+- **Chat has no testing room** and never falls back — see below. `t0` is a place
+  to try a game with no proctor about, not a place to be.
 - `t0` is not in `TEAMS`, so it can never be dragged into.
 - A sorted phone closes its lobby socket; a phone in `t0` keeps it open, because
-  its answer can change.
+  its answer can change. So does a phone waiting on /chat/'s gate — that socket
+  is what puts it on the proctor's board at all.
 - The proctor watches it inside the Unassigned box (`TestRoom.tsx`), which is the
   only way to reset a room nobody is sorted into.
 - Both games are built for four; a crowd degrades gracefully but is a reason not
@@ -436,8 +449,21 @@ somebody first JOINS it, and the list goes to proctor connections only.
 ## Team chat
 
 `/chat/` is one channel per team; the room id is the team id. No picker; it
-asks the lobby for this pid's room. The lobby has no link to it — it is reached
-by typing the path or off a QR.
+asks the lobby which team this pid is on. **It is the URL handed out** — typed
+off a card or a QR — so it is also where a phone names itself and joins the
+roster.
+
+**Being sorted is the prereq, and the channel is the reward.** `chatRoomFor` in
+`packages/shared/src/lobby.ts` is the whole rule and it is deliberately NOT
+`roomFor`: it answers one of the four teams or `null`, with no fallback. An
+unsorted phone sits on a waiting card (its lobby socket open, so the proctor can
+see it) until it is sorted, then takes its channel and stops watching; a re-sort
+lands as a reload. There are four channels, ever — no `t0`, no `?r=`, no fifth
+room a typo could invent — and the wire says the same thing: `server/src/index.ts`
+404s an upgrade to `/parties/chat/<anything else>`, so a room nobody may join
+never wakes a Durable Object. That is the one place the rule lives on the wire;
+`ChatServer` itself only ever hears from `t1`–`t4`. The lobby (`/`) is the
+read-only roster you open to look, and has no link here.
 
 Server (`server/src/chat.ts`, tunables in `packages/shared/src/chat.ts`):
 
@@ -452,9 +478,23 @@ Server (`server/src/chat.ts`, tunables in `packages/shared/src/chat.ts`):
   counted in "n here". **Clear chat** deletes `m:` keys in chunks of 128 and
   broadcasts an ordinary empty snapshot.
 
+**Renaming yourself, from the chat.** The chip is on both screens, because the
+mistake you want to fix is usually the name you typed at the door. It sends the
+same `{ type: "rename", name }` either way, down whichever socket that phone is
+holding: at the gate that is the LOBBY's, which owns the roster; in a channel it
+is the ROOM's, and `ChatServer` forwards the write to the lobby object-to-object
+(`POST http://lobby/name`, pid in the body — the same shape as goomba forwarding
+a pack edit). One place ends up authoritative either way, so the board and both
+games follow. It costs a chat token, like a message: it is a write-through per
+press. **Lines already said keep the name they were said under** —
+`ChatMessage.name` is a snapshot, and rewriting history to match a new name is
+not what anyone means by renaming themselves.
+
 Client: message bodies are set with `textContent`, never `innerHTML` (the one
 arbitrary player-authored string in the repo). A line typed before the socket
-opens is queued, not dropped; the hex client queues taps the same way.
+opens is queued, not dropped; the hex client queues taps the same way. The chip
+repaints its own row and nothing else (`paintName`), so a message landing
+mid-edit cannot rebuild the input under the caret.
 
 ## Not built yet
 

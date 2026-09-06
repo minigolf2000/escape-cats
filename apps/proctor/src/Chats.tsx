@@ -8,8 +8,6 @@ import {
 } from "react";
 import PartySocket from "partysocket";
 import {
-  OPEN_ROOM_OPEN,
-  OPEN_TEAM,
   TEAMS,
   type ChatClientMsg,
   type ChatMessage,
@@ -19,9 +17,11 @@ import {
 import { closeWhileHidden } from "./closeWhileHidden";
 import { PARTYKIT_HOST } from "./net";
 
-/** Every channel that can have anybody in it. One list drives sockets and
- * logs. */
-const ROOMS: Team[] = OPEN_ROOM_OPEN ? [...TEAMS, OPEN_TEAM] : TEAMS;
+/** Every channel that exists: the four teams. One list drives sockets and
+ * logs. The testing room is NOT here and cannot be — a chat channel is what
+ * being sorted buys you, so an unsorted phone is held on /chat/'s waiting
+ * screen and the server 404s `t0` anyway. Unassigned is a box with no log. */
+const ROOMS: Team[] = TEAMS;
 
 interface ChatState {
   byRoom: Record<string, ChatMessage[]>;

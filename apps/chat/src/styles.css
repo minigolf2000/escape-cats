@@ -113,11 +113,17 @@ input:focus {
   transform: translateY(1px);
 }
 
+/* An <a> on the waiting card, a <button> beside the name editor — the reset is
+   what makes the two read as one control. */
 .link {
   display: inline-block;
+  background: none;
+  border: 0;
   color: var(--muted);
+  font-family: inherit;
   font-size: 13px;
   text-decoration: underline;
+  cursor: pointer;
   padding: 6px;
 }
 
@@ -153,6 +159,77 @@ input:focus {
   }
 }
 
+/* --- Your own name, on both screens --------------------------------------- */
+
+/* The chip and its editor, lifted from the lobby (apps/lobby/src/styles.css)
+   because it is the same control on the same tokens — one press, one input,
+   one Save. `.chiprow` centres it on the waiting card; `.namerow` parks it in
+   the channel's head. */
+.chiprow {
+  display: flex;
+  justify-content: center;
+  margin: 18px 0 4px;
+}
+
+.namechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  height: 36px;
+  padding: 0 13px;
+  cursor: pointer;
+}
+
+.namechip .chip-name {
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.namechip .pen {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Both states share the chip's height, so opening the editor on the waiting
+   card cannot shove the card around (`#app` centres it with `margin: auto`). */
+.rename {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+}
+
+.rename input {
+  /* The shared `input` rule is sized for a card's one big field. */
+  height: 100%;
+  margin-bottom: 0;
+  padding: 0 13px;
+  font-size: 16px; /* >=16px so iOS doesn't zoom the viewport on focus */
+}
+
+.chip-go {
+  flex: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #06231d;
+  background: var(--neon);
+  border: 0;
+  border-radius: 11px;
+  height: 100%;
+  padding: 0 15px;
+  cursor: pointer;
+}
+
 /* --- The channel ---------------------------------------------------------- */
 
 .chat {
@@ -168,6 +245,30 @@ input:focus {
 .chat-head {
   padding: max(12px, env(safe-area-inset-top)) 16px 10px;
   border-bottom: 1px solid var(--line);
+}
+
+/* Title on the left, name chip on the right. The editor claims a whole second
+   line (`flex: 1 0 100%`) rather than squeezing itself in beside the title —
+   it is a mode you are in, briefly, and it wants the width. */
+.head-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.head-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.namerow {
+  flex: 0 0 auto;
+}
+
+.namerow.editing {
+  flex: 1 0 100%;
+  margin-top: 8px;
 }
 
 .chat-head h1 {

@@ -2,7 +2,7 @@
 // (click-pops, the golden mouse, the night wall) builds from these.
 
 import {
-  MOUSE_BOX, MOUSE_EYE, MOUSE_HEAD_VIEWBOX,
+  MOUSE_BOX, MOUSE_EYE, MOUSE_COIN_VIEWBOX,
   SIL_HI, BODY_HI, EAR_HI, NOSE_HI, SIL_LO, BODY_LO,
 } from "./mouse-geom.js";
 export { MOUSE_BOX, MOUSE_EYE, SIL_LO, BODY_LO };
@@ -71,14 +71,19 @@ export const mouseParts = (fill, line = MOUSE_KEYLINE_NIGHT) =>
 // Currency icon — the mouse coin next to every price. ONE constant body colour
 // (--neon, unclaimed by both phases' cost colours, so it cannot read as an
 // afford cue) and a literal `fill`, not currentColor, so .cost's red/green can
-// never touch it — Cookie Clicker's own rule: only the number flips. Cropped to
-// the head: at ~16px the whole silhouette is mostly body, and the ear, eye and
-// nose are the marks that survive. The crop comes from the geometry
-// (MOUSE_HEAD_VIEWBOX, the ear's left edge to the nose tip) rather than being
-// hand-picked, so a re-trace moves it instead of stranding it. The keyline
-// follows the theme, since it is on screen in both phases.
+// never touch it — Cookie Clicker's own rule: only the number flips. The
+// keyline follows the theme, since it is on screen in both phases.
+//
+// The box is SQUARE and holds the whole mouse (MOUSE_COIN_VIEWBOX). v1 cropped
+// to the head because its mouse was mostly tail and the curl closed into a blob
+// at 16px; this one has no tail, so nothing needs cutting — and the crop was
+// itself the problem, because a cut silhouette reads as a picture in a
+// rectangle rather than an icon. The square costs size: she renders ~19px wide
+// where a tight box would give 24. That is paid back in CSS, where the coin is
+// sized by HEIGHT (1em) rather than width, so a square box can never outgrow
+// the line it sits on and shop rows stay exactly where they are.
 export const currencyIconSVG = () =>
-  `<svg class="coin" viewBox="${MOUSE_HEAD_VIEWBOX}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${mouseParts("var(--neon)", "var(--mouse-line)")}</svg>`;
+  `<svg class="coin" viewBox="${MOUSE_COIN_VIEWBOX}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${mouseParts("var(--neon)", "var(--mouse-line)")}</svg>`;
 
 // Per-click particle: a mouse pops out of the tap, arcs under gravity, spins,
 // fades — Cookie Clicker's flying-cookie feedback, retoyed.

@@ -189,7 +189,11 @@
   /* Same coin as the shop rows (currencyIconSVG()), set once at boot. Sits
      AFTER the count, standing in for the word "mice". */
   #countIcon { display: inline-block; vertical-align: middle; margin-left: 7px; margin-bottom: 4px; }
-  #countIcon .coin { display: block; width: 28px; height: auto; }
+  /* Sized by HEIGHT, not width: the coin's box is square (MOUSE_COIN_VIEWBOX),
+     and a width-driven square grows as tall as it is wide — which is what puts
+     3px into every shop row. Height-driven, it is exactly as tall as the line
+     beside it and the rows do not move. */
+  #countIcon .coin { display: block; height: 28px; width: auto; }
   #cps {
     font: 400 13px var(--ui-font); color: var(--title-color);
     text-shadow: var(--title-shadow); opacity: .92;
@@ -814,7 +818,7 @@
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
   /* Without the coin "12/s" is a bare number. This is the unit. */
-  .item .rate .coin { flex: none; width: calc(10px * var(--ss)); height: auto; display: block; }
+  .item .rate .coin { flex: none; height: 1em; width: auto; display: block; }
   .item .fx { font: 400 11px var(--ui-font); font-size: calc(10.5px * var(--ss)); line-height: 1.1; color: var(--muted); margin-top: 1px; }
   .item .fx b { color: var(--shop-accent); font-weight: 700; }
   /* Upgrade rows never get .bought, so their effect text stays. */
@@ -829,7 +833,7 @@
   .item .cost.no { color: var(--cost-no); }
   /* The coin's fill is a literal var(--neon) baked into the SVG, not
      currentColor, so .cost.no cannot recolour it. */
-  .item .cost .coin { flex: none; width: calc(16px * var(--ss)); height: auto; display: block; }
+  .item .cost .coin { flex: none; height: 1em; width: auto; display: block; }
   /* rate and owned count share a baseline so they read as one pair. */
   .item .right { flex: none; display: flex; align-items: baseline; gap: calc(5px * var(--ss)); align-self: center; }
   .item .own {

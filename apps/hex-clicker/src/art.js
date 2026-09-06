@@ -2,10 +2,10 @@
 // (click-pops, the golden mouse, the night wall) builds from these.
 
 import {
-  MOUSE_BOX, MOUSE_EYE, MOUSE_COIN_VIEWBOX,
-  SIL_HI, BODY_HI, EAR_HI, NOSE_HI, SIL_LO, BODY_LO,
+  MOUSE_BOX, MOUSE_VIEWBOX, MOUSE_EYE, MOUSE_COIN_VIEWBOX,
+  SIL_HI, BODY_HI, EAR_HI, NOSE_HI, TAIL_HI, SIL_LO, BODY_LO, TAIL_LO,
 } from "./mouse-geom.js";
-export { MOUSE_BOX, MOUSE_EYE, SIL_LO, BODY_LO };
+export { MOUSE_BOX, MOUSE_VIEWBOX, MOUSE_EYE, SIL_LO, BODY_LO, TAIL_LO };
 
 // ONE mouse design, shared by the click-pop and the night wall (drawWallMouse):
 // the hand-drawn mouse from the art file, traced to polygons in mouse-geom.js
@@ -55,14 +55,24 @@ export const MOUSE_SIL_D = toPath(SIL_HI);
 export const MOUSE_BODY_D = toPath(BODY_HI);
 export const MOUSE_EAR_D = toPath(EAR_HI);
 export const MOUSE_NOSE_D = toPath(NOSE_HI);
+export const MOUSE_TAIL_D = toPath(TAIL_HI);
 
 // The mouse as SVG markup. `fill` is any paint; `line` is the keyline colour.
-// Draw order silhouette -> body -> ear -> nose -> eye is load-bearing: the
-// keyline is not a stroke but the silhouette showing around a slightly smaller
-// body, which is how the artist's uneven line thickens at the nose and thins
-// along the back. The three marks go on last because they sit ON the body.
-export const mouseParts = (fill, line = MOUSE_KEYLINE_NIGHT) =>
+// Draw order silhouette -> tail -> body -> ear -> nose -> eye is load-bearing:
+// the keyline is not a stroke but the silhouette showing around a slightly
+// smaller body, which is how the artist's uneven line thickens at the nose and
+// thins along the back. The tail goes between the two because it is keyline all
+// the way through and it OVERLAPS the rump: painted under the body fill, the
+// straight edge that closes its ring disappears and the curl reads as one piece
+// with the animal. The three marks go on last because they sit ON the body.
+//
+// `tail` false drops it — for the coin, which is a square box on the BODY and
+// would otherwise clip the curl at its own frame (see currencyIconSVG). Every
+// caller that draws the mouse whole must pair the tail with MOUSE_VIEWBOX;
+// MOUSE_BOX cuts it off.
+export const mouseParts = (fill, line = MOUSE_KEYLINE_NIGHT, tail = true) =>
   `<path d="${MOUSE_SIL_D}" fill="${line}" fill-rule="evenodd"/>
+   ${tail ? `<path d="${MOUSE_TAIL_D}" fill="${line}" fill-rule="evenodd"/>` : ""}
    <path d="${MOUSE_BODY_D}" fill="${fill}" fill-rule="evenodd"/>
    <path d="${MOUSE_EAR_D}" fill="${MOUSE_ACCENT}" fill-rule="evenodd"/>
    <path d="${MOUSE_NOSE_D}" fill="${MOUSE_ACCENT}" fill-rule="evenodd"/>
@@ -74,21 +84,35 @@ export const mouseParts = (fill, line = MOUSE_KEYLINE_NIGHT) =>
 // never touch it — Cookie Clicker's own rule: only the number flips. The
 // keyline follows the theme, since it is on screen in both phases.
 //
-// The box is SQUARE and holds the whole mouse (MOUSE_COIN_VIEWBOX). v1 cropped
-// to the head because its mouse was mostly tail and the curl closed into a blob
-// at 16px; this one has no tail, so nothing needs cutting — and the crop was
-// itself the problem, because a cut silhouette reads as a picture in a
-// rectangle rather than an icon. The square costs size: she renders ~19px wide
-// where a tight box would give 24. That is paid back in CSS, where the coin is
-// sized by HEIGHT (1em) rather than width, so a square box can never outgrow
-// the line it sits on and shop rows stay exactly where they are.
+// CROPPED TO THE HEAD (MOUSE_COIN_VIEWBOX) — v1's answer, back for v1's reason.
+// The mouse has a tail again, and at 16px the whole animal is the wrong picture:
+// framing it costs a fifth of the body to buy about 2px of spiral, and a box
+// wide enough to hold it at size hands the icon the width of every shop row.
+// What survives a 16px crop is what the head carries — the ear, the eye and the
+// nose, three marks in three colours — so the coin shows those and the tail is
+// for the sizes that can hold it.
+//
+// `tail` is false here for bytes, not for looks: the curl sits well left of the
+// crop and would be clipped away regardless. Sized by HEIGHT (1em) in CSS, so a
+// 1.11:1 box cannot outgrow the line it sits on and shop rows stay put.
 export const currencyIconSVG = () =>
-  `<svg class="coin" viewBox="${MOUSE_COIN_VIEWBOX}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${mouseParts("var(--neon)", "var(--mouse-line)")}</svg>`;
+  `<svg class="coin" viewBox="${MOUSE_COIN_VIEWBOX}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${mouseParts("var(--neon)", "var(--mouse-line)", false)}</svg>`;
 
 // Per-click particle: a mouse pops out of the tap, arcs under gravity, spins,
 // fades — Cookie Clicker's flying-cookie feedback, retoyed.
+// MOUSE_VIEWBOX, not MOUSE_BOX: the pop draws the whole animal, tail included.
+// .mousePop's width and updatePops' centring offset are set against this box's
+// aspect — move one and move both, or the pop stops leaving the finger.
 export const mouseSVG = (c, line) =>
-  `<svg viewBox="0 0 ${MOUSE_BOX.w} ${MOUSE_BOX.h}" xmlns="http://www.w3.org/2000/svg">${mouseParts(c, line)}</svg>`;
+  `<svg viewBox="${MOUSE_VIEWBOX}" xmlns="http://www.w3.org/2000/svg">${mouseParts(c, line)}</svg>`;
+
+// Where the BODY's centre sits across the pop's box, 0..1. The tail pushed the
+// box's left edge out past the body, so the middle of the element is no longer
+// the middle of the mouse; updatePops centres on THIS instead, or a pop leaves
+// the finger off to one side. Read off MOUSE_VIEWBOX so a re-placed tail carries
+// it — nothing here is a typed constant.
+const [vbX, , vbW] = MOUSE_VIEWBOX.split(" ").map(Number);
+export const MOUSE_POP_PIVOT = (MOUSE_BOX.w / 2 - vbX) / vbW;
 
 // Night pops are about twice a wall mouse (WALL_MOUSE_R), deliberately: tap
 // feedback at the finger answers to arm's-length legibility, not the wall's

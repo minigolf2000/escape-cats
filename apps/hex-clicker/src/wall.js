@@ -29,7 +29,7 @@ import {
 } from "@escape-cats/shared";
 import { game, mods, nightActive, wallSeed, wallNow } from "./state.js";
 import { wallCv, hexCatEl } from "./dom.js";
-import { MOUSE_COLORS, MOUSE_KEYLINE, MOUSE_EYE_INK, MOUSE_EYE, SIL_LO, BODY_LO } from "./art.js";
+import { MOUSE_COLORS, MOUSE_KEYLINE, MOUSE_EYE_INK, MOUSE_EYE, SIL_LO, BODY_LO, TAIL_LO } from "./art.js";
 
 // THE WALL IS FULLY CAST FROM THE FIRST FRAME OF NIGHT: what the night buys is
 // what the mice LOOK like (Counting Mice) and what they LEAVE BEHIND (the trail
@@ -680,9 +680,10 @@ function drawWallMouse(x, y, color, r, angle, alpha) {
   wctx.rotate(angle || 0);
 
   // One path per layer, every ring of that layer inside it, filled even-odd so
-  // any inner ring punches its hole instead of painting over it. The v2 mouse
-  // has no holes — it lost the tail curl the v1 drawing carried — but the rule
-  // costs nothing and a re-trace can bring one back.
+  // any inner ring punches its hole instead of painting over it — the tail's
+  // curl closes on itself and is exactly that case. The tail gets its OWN fill
+  // rather than riding in SIL_LO's: it overlaps the rump, and even-odd would
+  // read that overlap as a hole and punch a notch through the mouse.
   const rings = layer => {
     wctx.beginPath();
     for (const ring of layer) {
@@ -693,7 +694,9 @@ function drawWallMouse(x, y, color, r, angle, alpha) {
     }
   };
 
-  rings(SIL_LO); wctx.fillStyle = MOUSE_KEYLINE; wctx.fill('evenodd');
+  wctx.fillStyle = MOUSE_KEYLINE;
+  rings(SIL_LO); wctx.fill('evenodd');
+  rings(TAIL_LO); wctx.fill('evenodd');
   rings(BODY_LO); wctx.fillStyle = color; wctx.fill('evenodd');
 
   // eye — its own near-black dot now, because that is what the v2 drawing is:

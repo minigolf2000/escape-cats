@@ -29,16 +29,20 @@ import { petState } from "./pet.js";
 // mid-play.
 
 // How far the PUPIL travels off-centre, in SVG user units of the 828x652 box.
-// Two numbers because the socket hole is ~109x98 against a ~58x71 pupil: twice
-// the room sideways, and sideways is the range that reads (a golden is usually
-// beside her). The socket clip is what lets these stay at the full range — a
-// glance pushes the dilated pupil AGAINST the rim rather than through it.
-const LOOK_X = 14;
-const LOOK_Y = 8;
+// The v2 socket is ~132x129 against an ~85x77 pupil, so unlike v1's ~109x98 eye
+// the room is nearly square. Sideways still gets the larger number because
+// sideways is the range that READS — a golden mouse is far more often beside
+// her than above her — but the gap is now 17/10 rather than 14/8. The socket
+// clip is what lets these stay at full range: a glance pushes the dilated pupil
+// AGAINST the rim rather than through it.
+const LOOK_X = 17;
+const LOOK_Y = 10;
 // Pupil SIZE, on its own element so a blink never resets it. Rest is a slit
 // (narrow on X, drawn height on Y); a golden mouse on screen — the one thing
 // worth being excited about — opens it to a saucer, which the socket clip keeps
-// inside the eye.
+// inside the eye. The v2 sheet draws this range out as six keyframes — a dot,
+// a disc, a filled round — and these two numbers are how one traced pupil
+// covers all of them.
 const PUPIL_SLIT = 0.34;
 const PUPIL_ROUND = 1.35;
 

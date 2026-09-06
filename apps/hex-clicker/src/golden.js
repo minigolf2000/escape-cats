@@ -16,6 +16,9 @@ const GOLD_MARGIN = 10; // px of stage edge the golden won't drift past
 // The mouse, gilded: same box as the click-pop, only the material differs (a
 // gradient, since flat #ffd44d reads as "the yellow mouse"). Keyline follows
 // the phase, like the click-pop's: each phase has one line colour that survives.
+// The shine rides the BACK, ~3 units inside the body's top edge. It is fitted
+// to the silhouette, so a re-trace of mouse-geom.js strands it: re-fit it
+// against the new top edge rather than nudging the old numbers.
 const goldenMouseSVG = () =>
   `<svg viewBox="0 0 ${MOUSE_BOX.w} ${MOUSE_BOX.h}" xmlns="http://www.w3.org/2000/svg">
      <defs>
@@ -24,7 +27,7 @@ const goldenMouseSVG = () =>
        </linearGradient>
      </defs>
      ${mouseParts("url(#gmBody)", nightActive() ? MOUSE_KEYLINE_NIGHT : MOUSE_KEYLINE_DAY)}
-     <path d="M20 24 C22 20 26 17.5 31 16.5" fill="none" stroke="#fffbe6" stroke-width="1.7" stroke-linecap="round" opacity=".8"/>
+     <path d="M13 5.6 C20 6.1 24 7.2 34 10.8" fill="none" stroke="#fffbe6" stroke-width="1.7" stroke-linecap="round" opacity=".8"/>
    </svg>`;
 
 // Live-golden state, exported for the cat (her eyes track it, ears swivel).

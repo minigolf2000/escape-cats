@@ -29,7 +29,7 @@ import {
 } from "@escape-cats/shared";
 import { game, mods, nightActive, wallSeed, wallNow } from "./state.js";
 import { wallCv, hexCatEl } from "./dom.js";
-import { MOUSE_COLORS, MOUSE_KEYLINE, MOUSE_EYE, SIL_LO, BODY_LO } from "./art.js";
+import { MOUSE_COLORS, MOUSE_KEYLINE, MOUSE_EYE_INK, MOUSE_EYE, SIL_LO, BODY_LO } from "./art.js";
 
 // THE WALL IS FULLY CAST FROM THE FIRST FRAME OF NIGHT: what the night buys is
 // what the mice LOOK like (Counting Mice) and what they LEAVE BEHIND (the trail
@@ -661,7 +661,13 @@ const WALL_MOUSE_R = 1.55;
 // faces +x at rest and `angle` (canvas radians) rotates it. `alpha` multiplies
 // the whole sprite so the Counting Mice cross-fade moves body, outline and eye
 // together.
-const WALL_MOUSE_CX = 30.5, WALL_MOUSE_CY = 16.35, WALL_MOUSE_UNIT = 13.15;
+// Pivot and scale are the BODY's centre and vertical half-size, read off the
+// traced geometry rather than typed by hand: a re-trace moves the drawing
+// inside its box, and a stale pivot leaves the sprite spinning about its old
+// middle. r stays "the body's vertical half-size", so 2r is the mouse's height
+// in wall units whatever the drawing does; the v2 mouse is flatter, so at the
+// same r it renders about 12% wider than the v1 one did.
+const WALL_MOUSE_CX = 27.13, WALL_MOUSE_CY = 14.34, WALL_MOUSE_UNIT = 11.76;
 function drawWallMouse(x, y, color, r, angle, alpha) {
   const s = r / WALL_MOUSE_UNIT, cx = WALL_MOUSE_CX, cy = WALL_MOUSE_CY;
   wctx.save();
@@ -674,8 +680,9 @@ function drawWallMouse(x, y, color, r, angle, alpha) {
   wctx.rotate(angle || 0);
 
   // One path per layer, every ring of that layer inside it, filled even-odd so
-  // the inner rings punch their holes (the gap under the chin, the eye of the
-  // tail's curl) instead of painting over them.
+  // any inner ring punches its hole instead of painting over it. The v2 mouse
+  // has no holes — it lost the tail curl the v1 drawing carried — but the rule
+  // costs nothing and a re-trace can bring one back.
   const rings = layer => {
     wctx.beginPath();
     for (const ring of layer) {
@@ -689,11 +696,14 @@ function drawWallMouse(x, y, color, r, angle, alpha) {
   rings(SIL_LO); wctx.fillStyle = MOUSE_KEYLINE; wctx.fill('evenodd');
   rings(BODY_LO); wctx.fillStyle = color; wctx.fill('evenodd');
 
-  // eye — keyline-colored, like the drawing: a hole punched in the body, not a
-  // dark dot of its own. At wall size it is the one mark that still reads.
+  // eye — its own near-black dot now, because that is what the v2 drawing is:
+  // the v1 mouse wore its eye in the keyline colour, a hole punched in the
+  // body. At wall size it is still the one mark that reads, which is why it is
+  // the only one of the three the canvas draws — at WALL_MOUSE_R the ear and
+  // the nose come to about a third of a pixel each.
   wctx.beginPath();
   wctx.arc((MOUSE_EYE.cx - cx) * s, (MOUSE_EYE.cy - cy) * s, MOUSE_EYE.r * s, 0, 6.283);
-  wctx.fillStyle = MOUSE_KEYLINE; wctx.fill();
+  wctx.fillStyle = MOUSE_EYE_INK; wctx.fill();
   wctx.restore();
 }
 

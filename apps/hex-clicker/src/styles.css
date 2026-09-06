@@ -297,7 +297,6 @@
      for a no-op. */
   #hexCat #catShadow { opacity: .58; }
   #hexCat .shadowFrame, #hexCat .headFrame, #hexCat #coatDay { visibility: hidden; }
-  #hexCat[data-pose="day"] #shadowDay,
   #hexCat[data-pose="s1"]  #shadowS1,
   #hexCat[data-pose="s2"]  #shadowS2,
   #hexCat[data-pose="s3"]  #shadowS3 { visibility: visible; }
@@ -336,13 +335,14 @@
   /* idle-motion pivot: the head tilts about the neck. */
   #catFace { transform-box: fill-box; transform-origin: 50% 96%; }
   /* THE EYES. The socket holds still; the pupil moves and widens in it. Colour
-     comes through variables so Zoomies can light every yellow shape (and the
-     shut lashes) by flipping one value. The pupil is the drawing's own line
-     colour (#302B2A, sampled off hex-day.webp) on the solid yellow socket. */
-  #hexCat { --hex-eye: #D0D060; --hex-pupil: #302B2A; }
+     comes through variables so Zoomies can light the iris (and the shut
+     lashes) by flipping one value. Both are sampled off the v2 sheet: the iris
+     is her sage #A9B792, the pupil her coat's own shade #221F1E, so the pupil
+     reads as a hole in the eye rather than a dark disc on it. */
+  #hexCat { --hex-eye: #A9B792; --hex-pupil: #221F1E; }
   #hexCat .eye path { fill: var(--hex-eye); }
   #hexCat .eye path.pupil { fill: var(--hex-pupil); }
-  #catWrap.zoomies #hexCat { --hex-eye: #ffe98a; }
+  #catWrap.zoomies #hexCat { --hex-eye: #CFE0B4; }
 
   /* Open socket vs the drawn shut-lash arc, swapped as a pair, never blended:
      cross-fading them would show two eyes at once through every transition. */

@@ -676,7 +676,9 @@ export function drawStartPad(lv) {
 // blank screen — the wash and the word carry the finale on their own.
 
 const SPLASH_ART = "art/goomba-splash.webp";
-/** What the party has to say out loud. The one string this screen exists for. */
+/** The two things this screen says, in this order. The code word is what the
+ * party has to say out loud, and the one string this screen exists for. */
+const CHEER = "All levels cleared!";
 const CODE_WORD = "vegetarian cat";
 const CODE_LABEL = "CODE WORD";
 
@@ -733,11 +735,15 @@ function washStops(img) {
   });
 }
 
-// The finale's one bit of choreography, in seconds off the splash's own clock
-// (`t`, stamped in main.js when the phase lands — never tGlobal, or a phone
-// that joins a finished room would arrive mid-animation).
-const ART_IN = 0.45;    // the picture washing in over the backdrop
-const WORD_AT = 0.55;   // ...and the box coming up under it, after it lands
+// The finale's choreography, in seconds off the splash's own clock (`t`,
+// stamped in main.js when the phase lands — never tGlobal, or a phone that
+// joins a finished room would arrive mid-animation). THE ORDER IS THE POINT:
+// the picture, then WELL DONE, and only then the thing they have to carry out
+// of the room. A party that gets the code word first stops looking at the rest.
+const ART_IN = 0.45;     // the picture washing in over the backdrop
+const CHEER_AT = 0.55;   // "All levels cleared!", popped on at the top
+const CHEER_IN = 0.4;
+const WORD_AT = 1.5;     // ...and the code word, a beat later, at the bottom
 const WORD_RISE = 0.55;
 
 /** Where the picture sits: WHOLE and centred, on whichever axis binds. Null
@@ -764,6 +770,7 @@ export function drawSplash(t) {
   ctx.fillStyle = wash;
   ctx.fillRect(0, 0, W, H);
   drawSplashArt(box, t);
+  drawCheer(t);
   drawCodeWord(t);
 }
 
@@ -778,6 +785,38 @@ function drawSplashArt(box, t) {
   ctx.save();
   ctx.globalAlpha = e;
   ctx.drawImage(box.img, (W - w) / 2, (H - h) / 2, w, h);
+  ctx.restore();
+}
+
+/**
+ * WELL DONE, first: the one line that says the game is over, on the same plate
+ * family as the code word so the two read as one voice. It POPS rather than
+ * rises — the toast's own arrival (`#toast.show` in styles.css), because this
+ * is the game talking about what just happened, not a thing being handed over.
+ */
+function drawCheer(t) {
+  const p = clamp01((t - CHEER_AT) / CHEER_IN);
+  if (p <= 0) return;
+  // Overshoot and settle: the same shape as the toast's scale(.9) → scale(1).
+  const e = 1 - Math.pow(1 - p, 3);
+  const scale = 0.9 + 0.1 * e + Math.sin(Math.PI * e) * 0.05;
+
+  const px = Math.max(16, Math.min(30, Math.min(W - 40, 460) * 0.085));
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `800 ${px}px ui-rounded, system-ui, sans-serif`;
+  const w = Math.min(W - 24, ctx.measureText(CHEER).width + px * 1.8);
+  const h = px * 2.2;
+  const y = Math.max(20, H * 0.05);
+  ctx.globalAlpha = Math.min(1, p * 1.8);
+  // Scaled about its own centre, so the pop does not walk across the screen.
+  ctx.translate(W / 2, y + h / 2);
+  ctx.scale(scale, scale);
+  ctx.translate(-W / 2, -(y + h / 2));
+  plate(-1, (W - w) / 2, y, w, h);
+  ctx.fillStyle = "#ffe9b3";
+  ctx.fillText(CHEER, W / 2, y + h / 2 + px * 0.36);
   ctx.restore();
 }
 
@@ -815,14 +854,7 @@ function drawCodeWord(t) {
   const y = restY + (1 - e) * (boxH + Math.max(24, H * 0.06));
 
   ctx.globalAlpha = Math.min(1, p * 1.6);
-  ctx.shadowColor = "rgba(0,0,0,.5)";
-  ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
-  const r = Math.min(18, boxH * 0.28);
-  ctx.fillStyle = "rgba(20,10,45,.92)";
-  ctx.beginPath(); ctx.roundRect(x, y, boxW, boxH, r); ctx.fill();
-  ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-  ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(x, y, boxW, boxH, r); ctx.stroke();
+  plate(-1, x, y, boxW, boxH);
 
   ctx.fillStyle = "#c9bdf0";
   ctx.font = face(800, labelPx);
@@ -834,3 +866,17 @@ function drawCodeWord(t) {
 }
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/** The finale's plate — the toast's chrome (#toast in styles.css), which is
+ * this app's one way of saying something out loud. `r` < 0 rounds by height.
+ * Leaves the shadow off again, and the alpha alone: the caller is mid-fade. */
+function plate(r, x, y, w, h) {
+  const rad = r < 0 ? Math.min(18, h * 0.28) : r;
+  ctx.shadowColor = "rgba(0,0,0,.5)";
+  ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+  ctx.fillStyle = "rgba(20,10,45,.92)";
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, rad); ctx.fill();
+  ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, rad); ctx.stroke();
+}

@@ -372,8 +372,9 @@ instructions anywhere else.
 and lands the room on `splash` in `GoombaSim.resolve` itself — the finale never
 passes through `win`, so there is no banner and no NEXT to press: the ride ends
 on the picture, on the frame Goomba reaches the plant. That screen is TERMINAL
-and has no controls at all. It carries the party's CODE WORD, which they read
-out to the proctor, and the phone cannot be talked out of showing it: a tap does
+and has no controls at all. It plays in two beats — "All levels cleared!" first,
+then the party's CODE WORD a beat later, which they read out to the proctor —
+and the phone cannot be talked out of showing it: a tap does
 nothing, `\` and a paste are refused, and `goto` — the intent that used to leave
 it — is refused by the sim. The ways off are a proctor reset and a pack edit
 that un-clears the room (`reconcile`). The picture is

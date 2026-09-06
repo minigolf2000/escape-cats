@@ -108,9 +108,10 @@ Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
   takes it back: no tap, no `\`, no paste, no `goto` (the sim refuses it). Only
   a proctor reset, or a pack edit that un-clears the room (`reconcile`). The
   screen is `public/art/goomba-splash.webp` drawn whole with its own edge rows
-  as the wash (replace the file, the backdrop comes with it), and the CODE WORD
-  rising on a plate under it. That picture is this app's ONE image asset; every
-  prop is still procedural.
+  as the wash (replace the file, the backdrop comes with it), then two plates in
+  THIS ORDER: "All levels cleared!" pops on top, and a beat later the CODE WORD
+  rises at the bottom — hand the word over first and nobody looks at the rest.
+  That picture is this app's ONE image asset; every prop is still procedural.
 
 ## Repo invariants
 

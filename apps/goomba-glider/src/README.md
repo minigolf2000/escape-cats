@@ -11,7 +11,7 @@ is a Figma frame and a pack is a list of links; there are no levels in this repo
 | `state.js` | the snapshot mirror (`S`) + the local presentation hanging off it |
 | `net.ts` | PartySocket transport, the lobby handshake, the pack message |
 | `debug.js` | `?solo` — the shared sim in-page, no server; `#hash` level adoption |
-| `render.js` | the drawing surface and everything drawn on it |
+| `render.js` | the drawing surface, everything drawn on it, and the finale's picture |
 | `selector.js` | the levels grid, which on a laptop is the level editor |
 | `input.js` | three ways to lay a band, one way to take it back |
 | `sheet.js` | the how-to-play pictures, which are also the join gate |

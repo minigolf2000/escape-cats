@@ -661,47 +661,176 @@ export function drawStartPad(lv) {
   ctx.setLineDash([]);
 }
 // ---------- the splash (phase "splash") ----------
-// Where a cleared room lands off the finale: BLACK, the words, and the
-// selector strip up top (styles.css hides the rest on #hud.splash). The one
-// way on is the selector — the strip, or a tap anywhere (`splashTap`). No
-// picture: this app loads no image asset at all (CLAUDE.md).
-export function drawSplash() {
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, W, H);
-  drawSplashWords();
+// THE FINALE, and the end of the game: clearing the last level lands the room
+// here (`GoombaSim.resolve`) on the frame Goomba reaches the plant, and nothing
+// takes it back. No control, no tap, no key — the ways off are a proctor reset
+// and a pack edit, both of them the room's, not this screen's. So the screen is
+// two things and no instruction: the PICTURE, and the CODE WORD the party
+// carries out of the game and reads to the proctor.
+//
+// The picture is this app's ONE image asset — `public/art/goomba-splash.webp`,
+// reached through BASE_URL like hex's splash, which is right in dev and in the
+// built bundle both. It is drawn WHOLE, never cropped, on whichever axis binds,
+// and the slack around it is filled with its own top and bottom rows: replace
+// the file and the backdrop comes with it. A file that never arrives is not a
+// blank screen — the wash and the word carry the finale on their own.
+
+const SPLASH_ART = "art/goomba-splash.webp";
+/** What the party has to say out loud. The one string this screen exists for. */
+const CODE_WORD = "vegetarian cat";
+const CODE_LABEL = "CODE WORD";
+
+let splashImg = null;
+/** The picture's own edge, sampled top to bottom. The fallback is a warm dark
+ * that reads as "kitchen at dinnertime" rather than as a missing asset. */
+let splashWash = ["#2b1a10", "#17100c"];
+
+/**
+ * Ask for the picture ONCE, at an idle moment during the party. It cannot be
+ * on screen until the room clears the game, but when that lands it lands with
+ * no warning — a run ends and the finale is already up — so it may not be
+ * fetched then. Idle-time preload is hex's trick, for the same reason.
+ */
+export function preloadSplashArt() {
+  if (splashImg) return;
+  const load = () => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => { splashWash = washStops(img); };
+    img.src = import.meta.env.BASE_URL + SPLASH_ART;
+    splashImg = img;
+  };
+  if (typeof requestIdleCallback === "function") requestIdleCallback(load, { timeout: 5000 });
+  else setTimeout(load, 1000);
 }
 
-/** The congratulations and the one instruction: tap anywhere (`splashTap`).
- * Centred, measured off W/H so one set of numbers serves phone and laptop. */
-function drawSplashWords() {
+/** The art's own SIDE EDGE, sampled down its height into n colours — the
+ * backdrop to continue the picture with in every direction. This is hex's
+ * `skyStops` (phase.js) doing hex's job here; the two clients share rules
+ * through `packages/shared`, never drawing, so it is copied rather than
+ * imported. The EDGE strip, not a full row (the middle of the picture is a
+ * cat), and each stop is one exact row, so the first and last are the
+ * picture's true top and bottom — which is what the slack above and below it
+ * is painted with. */
+const WASH_STOPS = 24;
+function washStops(img) {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (!w || !h) return splashWash;
+  const c = document.createElement("canvas");
+  c.width = 2; c.height = WASH_STOPS;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  const edge = Math.max(1, Math.round(w * 0.02)); // wide enough to average the grain out
+  for (let i = 0; i < WASH_STOPS; i++) {
+    const y = Math.round((i / (WASH_STOPS - 1)) * (h - 1));
+    g.drawImage(img, 0, y, edge, 1, 0, i, 1, 1);
+    g.drawImage(img, w - edge, y, edge, 1, 1, i, 1, 1);
+  }
+  const d = g.getImageData(0, 0, 2, WASH_STOPS).data;
+  const mid = (a, b) => (d[a] + d[b]) >> 1; // the two sides, averaged into one ramp
+  return Array.from({ length: WASH_STOPS }, (_, i) => {
+    const l = i * 8, r = l + 4;
+    return `rgb(${mid(l, r)},${mid(l + 1, r + 1)},${mid(l + 2, r + 2)})`;
+  });
+}
+
+// The finale's one bit of choreography, in seconds off the splash's own clock
+// (`t`, stamped in main.js when the phase lands — never tGlobal, or a phone
+// that joins a finished room would arrive mid-animation).
+const ART_IN = 0.45;    // the picture washing in over the backdrop
+const WORD_AT = 0.55;   // ...and the box coming up under it, after it lands
+const WORD_RISE = 0.55;
+
+/** Where the picture sits: WHOLE and centred, on whichever axis binds. Null
+ * until there is a picture to place. */
+function artBox() {
+  const img = splashImg;
+  if (!img || !img.complete || !img.naturalWidth) return null;
+  const fit = Math.min(W / img.naturalWidth, H / img.naturalHeight);
+  const w = img.naturalWidth * fit, h = img.naturalHeight * fit;
+  return { img, x: (W - w) / 2, y: (H - h) / 2, w, h };
+}
+
+/** The whole finale: backdrop, picture, code word. `t` is seconds since the
+ * room landed on the splash. */
+export function drawSplash(t) {
+  const box = artBox();
+  // The ramp spans the PICTURE, not the screen, so every stop lines up with
+  // the row it was taken from. A canvas gradient clamps past its ends, which
+  // is exactly the flat band the slack above and below wants.
+  const y0 = box ? box.y : 0, y1 = box ? box.y + box.h : H;
+  const wash = ctx.createLinearGradient(0, y0, 0, Math.max(y0 + 1, y1));
+  const n = splashWash.length;
+  splashWash.forEach((c, i) => wash.addColorStop(i / (n - 1), c));
+  ctx.fillStyle = wash;
+  ctx.fillRect(0, 0, W, H);
+  drawSplashArt(box, t);
+  drawCodeWord(t);
+}
+
+/** The picture, arriving with a short fade and a push-in — the run cuts to
+ * this on one frame, and a hard cut reads as a glitch. */
+function drawSplashArt(box, t) {
+  if (!box) return;
+  const p = clamp01(t / ART_IN);
+  const e = p * p * (3 - 2 * p);                        // smoothstep
+  const push = 1 + 0.045 * (1 - e);
+  const w = box.w * push, h = box.h * push;
+  ctx.save();
+  ctx.globalAlpha = e;
+  ctx.drawImage(box.img, (W - w) / 2, (H - h) / 2, w, h);
+  ctx.restore();
+}
+
+/**
+ * The code word, on a plate that RISES into the bottom of the picture once the
+ * picture is there. The plate is the toast's chrome (#toast in styles.css) —
+ * the one plate this app already uses to say something out loud — so the word
+ * reads as the game talking, not as part of the illustration.
+ */
+function drawCodeWord(t) {
+  const p = clamp01((t - WORD_AT) / WORD_RISE);
+  if (p <= 0) return;
+  const e = 1 - Math.pow(1 - p, 3);   // out-cubic: up quickly, land softly
+
+  const room = Math.min(W - 32, 460);
+  const wordPx = Math.max(16, Math.min(34, room * 0.095));
+  const labelPx = Math.max(10, wordPx * 0.4);
+  const face = (weight, px) => `${weight} ${px}px ui-rounded, system-ui, sans-serif`;
+
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
+  ctx.font = face(800, labelPx);
+  const labelW = ctx.measureText(CODE_LABEL).width;
+  ctx.font = face(800, wordPx);
+  const wordW = ctx.measureText(CODE_WORD).width;
 
-  /** Set the font to `px`, or smaller so `text` fits the screen: a canvas has
-   * no wrapping, so a narrow phone would run the words off both sides. */
-  const fit = (text, weight, px) => {
-    const face = (n) => `${weight} ${n}px ui-rounded, system-ui, sans-serif`;
-    ctx.font = face(px);
-    const room = W - 44, wide = ctx.measureText(text).width;
-    if (wide > room) ctx.font = face(Math.max(11, px * (room / wide)));
-  };
+  const padX = wordPx * 0.9, padY = wordPx * 0.62, gap = wordPx * 0.5;
+  const boxW = Math.min(W - 24, Math.max(labelW, wordW) + padX * 2);
+  const boxH = padY * 2 + labelPx + gap + wordPx;
+  const x = (W - boxW) / 2;
+  // It comes to rest one margin above the bottom edge, and starts a box-height
+  // below that — off the bottom of the screen on any size.
+  const restY = H - Math.max(24, H * 0.06) - boxH;
+  const y = restY + (1 - e) * (boxH + Math.max(24, H * 0.06));
 
-  // The three baselines below hang off the middle of the screen.
-  const mid = H / 2;
+  ctx.globalAlpha = Math.min(1, p * 1.6);
+  ctx.shadowColor = "rgba(0,0,0,.5)";
+  ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+  const r = Math.min(18, boxH * 0.28);
+  ctx.fillStyle = "rgba(20,10,45,.92)";
+  ctx.beginPath(); ctx.roundRect(x, y, boxW, boxH, r); ctx.fill();
+  ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(x, y, boxW, boxH, r); ctx.stroke();
 
-  ctx.fillStyle = "#ffd166";
-  fit("CONGRATULATIONS!", 800, Math.min(46, W * 0.1));
-  ctx.fillText("CONGRATULATIONS!", W / 2, mid - 8);
-
-  ctx.fillStyle = "#f2ecff";
-  fit("every level cleared — the plant is watered", 700, 15);
-  ctx.fillText("every level cleared — the plant is watered", W / 2, mid + 24);
-
-  // The prompt breathes: the same "waiting" tell the band anchors use.
   ctx.fillStyle = "#c9bdf0";
-  ctx.globalAlpha = 0.6 + 0.4 * Math.sin(tGlobal * 2.2);
-  fit("tap anywhere to pick a level", 400, 13);
-  ctx.fillText("tap anywhere to pick a level", W / 2, mid + 62);
+  ctx.font = face(800, labelPx);
+  ctx.fillText(CODE_LABEL, W / 2, y + padY + labelPx);
+  ctx.fillStyle = "#ffe9b3";
+  ctx.font = face(800, wordPx);
+  ctx.fillText(CODE_WORD, W / 2, y + padY + labelPx + gap + wordPx * 0.82);
   ctx.restore();
 }
+
+const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);

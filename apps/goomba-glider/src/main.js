@@ -25,7 +25,6 @@ import {
   applyPack,
   encodeLevel,
   levelLabel,
-  nextLeadsToSplash,
   PACK_MAX,
   isTeamRoom,
 } from "@escape-cats/shared";
@@ -45,14 +44,14 @@ import {
   postFrame,
   drawBackground, drawTerrain, drawBand, drawTeammatePreview, drawAnchor,
   drawTeammateAnchor, drawCushion, drawPopper, drawCan, drawBumper,
-  drawGoalPlant, drawGoomba, drawStartPad, drawSplash,
+  drawGoalPlant, drawGoomba, drawStartPad, drawSplash, preloadSplashArt,
 } from "./render";
 import {
   setLab, resolveLabJump, onPackChanged, openSelector, tickEditMsg, drawLab,
   editSay,
 } from "./selector";
 import {
-  resetInput, liveAnchor, heartbeatAnchor, splashTap,
+  resetInput, liveAnchor, heartbeatAnchor,
 } from "./input";
 import {
   drawSheet, armSheet, closeSheet, sheetFrame, sheetIsOpen, sheetIsArmed,
@@ -86,6 +85,10 @@ for (const ev of ["gesturestart", "gesturechange", "gestureend"]) {
 const RZ = 1.9;
 
 let shownPhase = "edit", shownLevel = -1, shownRunId = 0;
+// tGlobal when the room landed on the finale — the splash animates off ITS
+// own clock, so a phone that joins a room already there sees the whole arrival
+// rather than the middle of it. -1 until the splash is up.
+let splashAt = -1;
 // The roster last written to #team, so it is rebuilt only when it changes.
 let shownRoster = "";
 let anim = null;            // { key, st } — the local replay of the scored run
@@ -150,6 +153,9 @@ function onSnapshot(s) {
     lockT = -9; lockArmed = false;
     cushAnim = L().cushions.map(() => 0); popPrev = null;
     shownRunId = s.runId; shownLevel = s.level; shownPhase = s.phase;
+    // The finale arrives here and only here: `resolve` lands the clearing win
+    // straight on the splash, which is a phase edge this branch already owns.
+    if (s.phase === "splash") splashAt = tGlobal;
     if (wasReset && !first) toast("fresh start! 🧽", 1400);
     else if (levelChanged && !first) toast(levelLabel(s.level, L().name), 1400);
     syncHud();
@@ -170,12 +176,9 @@ function onSnapshot(s) {
 
 function syncHud() {
   const s = S.snap; if (!s) return;
-  const done = s.completed.filter(Boolean).length;
-  // Only the win banner ever occupies this line.
-  hintEl.textContent =
-    s.phase === "win"
-      ? (done === s.levelCount ? "ALL LEVELS CLEAR! 🎉🪴" : "LEVEL CLEAR! 🎉")
-      : "";
+  // Only the win banner ever occupies this line. There is no "all levels
+  // clear" banner: that win is on the splash before it could be read.
+  hintEl.textContent = s.phase === "win" ? "LEVEL CLEAR! 🎉" : "";
 
   // Room state, re-read every snapshot (a reset takes the selector back).
   hudEl.classList.toggle("cleared", levelSelect());
@@ -229,11 +232,10 @@ function syncHud() {
     invEl.appendChild(el);
   }
 
-  // nextLeadsToSplash is the sim's own predicate, so the label cannot
-  // disagree with where the button goes.
+  // NEXT is never the finale's button: the win that clears the room never
+  // stops on `win` for one to be drawn (`GoombaSim.resolve`).
   playBtn.textContent =
-    s.phase === "run" ? "■ STOP" :
-    s.phase === "win" ? (nextLeadsToSplash(s) ? "FINISH ▸" : "NEXT ▸") : "▶ PLAY";
+    s.phase === "run" ? "■ STOP" : s.phase === "win" ? "NEXT ▸" : "▶ PLAY";
   playBtn.className = s.phase === "run" ? "stop" : s.phase === "win" ? "next" : "";
   // The one thing that changes with the band count. The real `disabled`:
   // pointer, `:disabled` ink and the a11y tree in one.
@@ -262,6 +264,11 @@ const GO_KEYS = [" ", "Enter", "Escape"];
 
 window.addEventListener("keydown", (e) => {
   if (chord(e)) return;
+  // THE FINALE TAKES NO INPUT — not a tap (input.js), not `\`, not a paste
+  // (below). It is where the game ends; the ways off it are the room's, from
+  // the proctor. A laptop is no exception: the door it would open leads to a
+  // `goto` the sim refuses (`GoombaSim.goto`).
+  if (S.snap && S.snap.phase === "splash") return;
   // The sheet owns those three while it is up: Space behind it would launch
   // a run nobody can see.
   if (sheetIsArmed()) {
@@ -304,6 +311,8 @@ function pasteSay(msg) {
 window.addEventListener("paste", (e) => {
   // Laptop only, like every other editing gesture.
   if (!DESKTOP()) return;
+  if (S.snap && S.snap.phase === "splash") return; // the finale takes no input
+
   e.preventDefault();
   // No zoop: the grid it is about to open hides `#help`.
   if (sheetIsArmed()) closeSheet(false);   // the grid must not open behind the sheet
@@ -388,7 +397,7 @@ function syncAnim() {
       c: PARTY_COLORS[i % 4], r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 10,
       life: 2.2 + Math.random(),
     });
-    toast(s.completed.filter(Boolean).length === s.levelCount ? "ALL LEVELS CLEAR! 🎉🪴" : "LEVEL CLEAR! 🎉", 1800);
+    toast("LEVEL CLEAR! 🎉", 1800);
   }
   return st;
 }
@@ -414,7 +423,7 @@ function frameBody(nowMs) {
   if (sheetIsOpen()) drawSheet();   // `?` mid-party: the pictures keep moving
   if (!S.snap) return;
   if (S.labOpen) { drawLab(); return; }
-  if (S.snap.phase === "splash") { drawSplash(); return; }
+  if (S.snap.phase === "splash") { drawSplash(tGlobal - splashAt); return; }
   const lv = L();
   const st = syncAnim();
   const riding = st && S.snap.phase === "run";
@@ -547,6 +556,9 @@ function netQuiet(up) {
 
 function boot() {
   requestAnimationFrame(sheetFrame);   // the gate is up: animate it until frame() exists
+  // The finale's picture, fetched at an idle moment: it arrives with no warning
+  // (a run ends and the splash is already up), so it cannot be asked for then.
+  preloadSplashArt();
   if (SOLO) {
     // Serverless: the shared sim in-page. A level pasted via the hash opens ON
     // that level; otherwise land on the grid.

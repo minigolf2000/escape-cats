@@ -354,8 +354,8 @@ lobby, which validates by decoding and pokes all four team rooms. A new event
 starts with no levels; `seed.mjs --pull` / `--push --file` moves a pack between
 events. `GoombaSim.reconcile` applies a changed pack immediately and keeps
 progress by index — deleting a level shifts every flag after it. A level's
-display number is its index + 1 (`levelLabel`), stored nowhere; the last level
-is the finale (`nextLeadsToSplash`).
+display number is its index + 1 (`levelLabel`), stored nowhere; the LAST FLAG to
+go up is the finale, whichever level it is (`GoombaSim.resolve`).
 
 ### Goomba's waiting screen is its how-to-play sheet
 
@@ -368,11 +368,19 @@ instructions anywhere else.
 
 ### The win splash
 
-**Goomba scores its own.** Clearing every level sets `finishedAt`; NEXT off the
-finale lands on a terminal `splash` phase — a black screen with CONGRATULATIONS
-drawn on the canvas (`drawSplashWords`, lines shrink to fit) and one control, the
-level selector. A tap anywhere opens the grid on the RELEASE, through the one
-`openSelector`. `nextLeadsToSplash` is the single predicate for the transition.
+**Goomba scores its own.** The win that clears the last level sets `finishedAt`
+and lands the room on `splash` in `GoombaSim.resolve` itself — the finale never
+passes through `win`, so there is no banner and no NEXT to press: the ride ends
+on the picture, on the frame Goomba reaches the plant. That screen is TERMINAL
+and has no controls at all. It carries the party's CODE WORD, which they read
+out to the proctor, and the phone cannot be talked out of showing it: a tap does
+nothing, `\` and a paste are refused, and `goto` — the intent that used to leave
+it — is refused by the sim. The ways off are a proctor reset and a pack edit
+that un-clears the room (`reconcile`). The picture is
+`apps/goomba-glider/public/art/goomba-splash.webp`, drawn whole and centred with
+the slack filled by its own top and bottom rows; like hex's, replace the file
+and the backdrop comes with it. It is preloaded at an idle moment because it
+arrives with no warning.
 
 **Hex cannot.** Its ending is a code word read out to the proctor, so the
 proctor presses **🏆 Mark won** (`wonAt`, a proctor-only `won` intent). That

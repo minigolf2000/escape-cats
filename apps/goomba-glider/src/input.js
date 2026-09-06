@@ -9,6 +9,10 @@
 // There is no panning or zooming — the edit camera shows the whole level — so a
 // tap always means "this point", never "scroll". While the levels grid is up
 // every gesture belongs to it instead, and is forwarded straight through.
+//
+// The FINALE takes no input at all: `canEdit()` is the whole rule, and the
+// splash is not an edit phase. A tap there does nothing on purpose — the game
+// is over and the screen the party is reading cannot be dismissed from a phone.
 
 import { BAND_MIN, BAND_MAX, MAX_BANDS, snapBand, bandPoints } from "@escape-cats/shared";
 import { transport } from "./net";
@@ -16,7 +20,7 @@ import { cv } from "./dom";
 import { S, L, bands, bandsOut, iMayPlace, toast } from "./state";
 import { W, H, cam, ANCHOR_TTL } from "./render";
 import {
-  labPointerDown, labPointerMove, labPointerUp, openSelector,
+  labPointerDown, labPointerMove, labPointerUp,
 } from "./selector";
 
 export const toWorld = (px, py) => ({ x: (px - W / 2) / cam.s + cam.x, y: (py - H / 2) / cam.s + cam.y });
@@ -28,16 +32,6 @@ const DRAG_SLOP = 10;    // px of travel that turns a press into a drag
 const ANCHOR_BEAT_MS = 1200; // re-send it this often; the room forgets ghosts at 3s
 
 const canEdit = () => S.snap && S.snap.phase === "edit";
-
-/** The congratulations screen is one big button: a press anywhere opens the
- * grid (same `openSelector` as the dot strip). Called from the RELEASE, not the
- * press, so the same finger's touchend cannot land on a card the grid just
- * drew under it. */
-export function splashTap() {
-  if (S.labOpen || !S.snap || S.snap.phase !== "splash") return false;
-  openSelector();
-  return true;
-}
 
 /** The open anchor, or null once it has timed out. Anything that reads the
  * anchor goes through here so a forgotten tap can't place a band minutes
@@ -181,7 +175,6 @@ cv.addEventListener("touchend", (e) => {
   e.preventDefault();
   if (S.labOpen) { const t = e.changedTouches[0]; labPointerUp(t.clientX, t.clientY); return; }
   for (const t of e.changedTouches) touches.delete(t.identifier);
-  if (splashTap()) return;
   if (!canEdit()) { resetInput(); return; }
   // A stretch places on the FIRST finger up; a drag places on its only one.
   if (S.preview && touches.size < 2) placePreview();
@@ -213,7 +206,6 @@ window.addEventListener("mousemove", (e) => {
 });
 window.addEventListener("mouseup", (e) => {
   if (S.labOpen) { labPointerUp(e.clientX, e.clientY); return; }
-  if (splashTap()) return;
   if (!mouseDrag) return;
   const drag = mouseDrag;
   mouseDrag = null;

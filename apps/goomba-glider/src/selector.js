@@ -68,12 +68,14 @@ export function editSay(msg) { editMsg = msg; editMsgT = 4; }
 export const tickEditMsg = (dt) => { if (editMsgT > 0) editMsgT = Math.max(0, editMsgT - dt); };
 
 /**
- * Open the levels grid. Two things reach it — the dot strip's plate, and a tap
- * anywhere on the congratulations screen (`splashTap`) — so the gate and the
- * "stop whatever is running first" live in one place and cannot disagree.
+ * Open the levels grid. The dot strip's plate is what reaches it, and this is
+ * where the gate and the "stop whatever is running first" live, so they cannot
+ * disagree. NOT from the finale: that screen is terminal and the jump it would
+ * make is one the sim refuses (`GoombaSim.goto`).
  */
 export function openSelector() {
   if (!levelSelect()) return; // an indicator until the team clears the game
+  if (S.snap && S.snap.phase === "splash") return;
   if (S.snap && S.snap.phase === "run") transport.send({ type: "stop" });
   setLab(true);
 }

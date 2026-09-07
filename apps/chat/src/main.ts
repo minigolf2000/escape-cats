@@ -1,23 +1,24 @@
-// Per-team chat at /chat/ on the lobby's origin, and the door into the event:
-// a phone names itself HERE, which registers it in the lobby roster, and then
-// waits. The LOBBY says which team this phone is on, and that is the room — no
-// team picker, no `?room=` override, and NO FALLBACK ROOM: chat is four
-// channels, so an unsorted phone is held on the waiting screen rather than
-// dropped into the testing room. Being sorted is the prereq (`chatRoomFor`).
+// Per-team chat at /chat/, and the door into the event: a phone names itself
+// HERE, which registers it in the lobby roster, and then waits. No team
+// picker, no `?room=`, and no fallback room — being sorted is the prereq
+// (`chatRoomFor`).
 
 import PartySocket from "partysocket";
 import {
   CHAT_BURST,
   CHAT_MAX_TEXT,
+  CHIP,
   TEAMS,
+  WAITING_LINE,
   chatRoomFor,
   cleanName,
-  nameDraft,
+  clampName,
+  nameChipHtml,
   type ChatClientMsg,
   type ChatMessage,
   type ChatServerMsg,
-  type LobbyClientMsg,
   type LobbyServerMsg,
+  type RenameMsg,
   type PlayerInfo,
 } from "@escape-cats/shared";
 import "./styles.css";
@@ -64,8 +65,10 @@ let outbox: string[] = [];
 let renaming = false;
 let draft = "";
 
+/** Cleaned on the way out, not just on the way in: the cap moved from 24 to
+ * 12, so a phone can be carrying a name the server would no longer store. */
 function myName(): string {
-  return localStorage.getItem(NAME_KEY) ?? "";
+  return cleanName(localStorage.getItem(NAME_KEY));
 }
 
 function teamName(id: string): string {
@@ -75,11 +78,9 @@ function teamName(id: string): string {
 
 // ---- Connections ----
 
-/** Watch the lobby for this phone's team (`chatRoomFor` — the four, or
- * nothing), then open that channel. Connecting also REGISTERS the phone in the
- * lobby roster, which is what puts it in front of the proctor: this socket is
- * how an unsorted phone appears on the board at all, so it stays open until
- * the answer arrives and cannot change again. */
+/** Watch the lobby for this phone's team, then open that channel. Connecting
+ * is also what REGISTERS the phone in the roster, so this socket is how an
+ * unsorted phone appears on the proctor's board at all. */
 function watchTeam() {
   const lobby = new PartySocket({
     host: PARTYKIT_HOST,
@@ -96,23 +97,17 @@ function watchTeam() {
       return;
     }
     if (msg.type !== "lobby") return;
-    const me = msg.snapshot.players.find((p) => p.pid === pid);
-    const next = chatRoomFor(me?.team);
-    // null === null: still unsorted, still waiting. Nothing to redraw.
-    if (next === room) return;
-    // Sorted, at last: take the channel and stop watching — a team is the
-    // last answer this phone needs, and a re-sort arrives as a reload below.
-    if (room === null) {
-      room = next;
-      lobby.close();
-      lobbySocket = null;
-      connect();
-      render();
-      return;
-    }
-    // Moved to another team, or unsorted again, on a snapshot still in
-    // flight. Start over: the reload re-asks and lands on the right screen.
-    location.reload();
+    const next = chatRoomFor(
+      msg.snapshot.players.find((p) => p.pid === pid)?.team,
+    );
+    if (next === null) return; // still unsorted, still waiting
+    // Sorted: take the channel and stop watching. `close()` detaches this
+    // listener, so a later re-sort arrives on the next load, not here.
+    room = next;
+    lobby.close();
+    lobbySocket = null;
+    connect();
+    render();
   });
 }
 
@@ -162,17 +157,14 @@ function connect() {
   });
 }
 
-/** Change this phone's name, on whichever socket it is holding. The two
- * intents are the SAME SHAPE on purpose (`ChatClientMsg` / `LobbyClientMsg`):
- * waiting at the gate you are on the lobby's socket, which owns the roster;
- * in a channel you are on the room's, which forwards the write to the lobby.
- * Either way the name lands in one place and the board follows. Written to
- * localStorage first, so it is also what the NEXT connection announces. */
+/** Rename on whichever socket this phone holds: the lobby's at the gate, the
+ * room's in a channel, which forwards it to the lobby. One `RenameMsg` either
+ * way. Stored first, so it is also what the next connection announces. */
 function renameTo(name: string) {
   const clean = cleanName(name);
   if (!clean || clean === myName()) return;
   localStorage.setItem(NAME_KEY, clean);
-  const msg: ChatClientMsg | LobbyClientMsg = { type: "rename", name: clean };
+  const msg: RenameMsg = { type: "rename", name: clean };
   const live = socket ?? lobbySocket;
   if (live && live.readyState === live.OPEN) live.send(JSON.stringify(msg));
   // A dropped socket is not a lost rename: it was stored above, and
@@ -192,10 +184,8 @@ function say(text: string) {
 
 // ---- Screens ----
 
-/** The registration screen: this is where a player joins the event, since
- * /chat/ is the URL that gets handed out. Naming yourself here is the same as
- * naming yourself at `/` — one origin, one `escape-cats-name` — so someone who
- * came via the lobby skips straight past it. */
+/** Where a player joins the event, /chat/ being the URL handed out. Same
+ * origin and same key as `/`, so someone who came that way skips it. */
 function nameScreen() {
   app.innerHTML = `
     <div class="card">
@@ -220,39 +210,18 @@ function nameScreen() {
   };
 }
 
-/** The name chip, and the input it becomes — the lobby's idiom, because it is
- * the lobby's rename. It rides BOTH screens: the gate (fix a typo before
- * anyone sees it) and the channel head (fix it after they have). Renaming is
- * never starting over — same pid, same team, same seat. */
-function nameChipHtml(): string {
-  if (renaming) {
-    return `
-      <div class="rename">
-        <input id="newname" value="${escapeHtml(draft)}"
-               placeholder="Your name" autocomplete="off" />
-        <button id="savename" class="chip-go">Save</button>
-        <button id="cancelname" class="link">Cancel</button>
-      </div>`;
-  }
-  return `
-    <button id="namechip" class="namechip">
-      🐾 <span class="chip-name">${escapeHtml(myName())}</span>
-      <span class="pen">rename</span>
-    </button>`;
-}
-
-/** Repaint just the chip's own row. NOT part of `paint()`: a message arriving
- * mid-edit must not rebuild the input under the caret. */
+/** Repaint the chip's own row and nothing else: a message arriving mid-edit
+ * must not rebuild the input under the caret. */
 function paintName() {
   const row = document.getElementById("namerow");
   if (!row) return;
   row.classList.toggle("editing", renaming);
-  row.innerHTML = nameChipHtml();
+  row.innerHTML = nameChipHtml(myName(), draft, renaming);
   wireNameChip();
 }
 
 function wireNameChip() {
-  const chip = document.getElementById("namechip") as HTMLButtonElement | null;
+  const chip = document.getElementById(CHIP.open);
   if (chip) {
     chip.onclick = () => {
       draft = myName();
@@ -261,51 +230,43 @@ function wireNameChip() {
     };
     return;
   }
-  const input = document.getElementById("newname") as HTMLInputElement | null;
-  const save = document.getElementById("savename") as HTMLButtonElement | null;
-  const cancel = document.getElementById("cancelname") as HTMLButtonElement | null;
+  const input = document.getElementById(CHIP.input) as HTMLInputElement | null;
+  const save = document.getElementById(CHIP.save);
+  const cancel = document.getElementById(CHIP.cancel);
   if (!input || !save || !cancel) return;
-  // Every keystroke goes to module state, so a repaint redraws what is typed —
-  // clamped first, so what is stored is what is shown.
+  // The draft lives in module state, so a repaint redraws what is typed.
   input.oninput = () => {
     clampName(input);
     draft = input.value;
   };
-  const submit = () => {
-    renameTo(draft);
+  const done = (commit: boolean) => {
+    if (commit) renameTo(draft);
     renaming = false;
     paintName();
   };
-  const close = () => {
-    renaming = false;
-    paintName();
-  };
-  save.onclick = submit;
-  cancel.onclick = close;
+  save.onclick = () => done(true);
+  cancel.onclick = () => done(false);
   input.onkeydown = (e) => {
-    if (e.key === "Enter") submit();
-    if (e.key === "Escape") close();
+    if (e.key === "Enter") done(true);
+    if (e.key === "Escape") done(false);
   };
-  // Focus once, on the repaint that opened the editor — never on a later one,
-  // which would steal the caret mid-word.
+  // Focus once, on the repaint that opened the editor — a later one would
+  // steal the caret mid-word.
   if (document.activeElement !== input) {
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   }
 }
 
-/** The gate. One line, WORD FOR WORD the lobby's (`waitingLine`): the two
- * surfaces are the same wait, and a phone that opened both must not be told it
- * is waiting for two different things. No greeting — the chip under it already
- * says who you are, and the only thing to do here is fix that. No link out
- * either: `/` is a roster to look at, not somewhere to be sent while waiting. */
+/** The gate. No greeting — the chip already says who you are, and fixing that
+ * is the only thing to do here — and no link out. */
 function waitingScreen() {
   app.innerHTML = `
     <div class="card">
       <h1>🐾 Team chat</h1>
       <div class="waiting">
         <span class="spinner"></span>
-        Waiting to be sorted\u2026
+        ${WAITING_LINE}
       </div>
       <div class="chiprow" id="namerow"></div>
     </div>
@@ -410,24 +371,6 @@ function line(m: ChatMessage): HTMLLIElement {
 
   li.append(who, body, at);
   return li;
-}
-
-/** Hold an input to what a name may be, as it is typed: 12 characters as
- * READ, Latin letters, digits, `' . - _` and emoji (`nameDraft`). No
- * `maxlength` anywhere — it counts UTF-16 units, so it would allow six emoji
- * and twelve letters. Rewritten only when it actually changed, or the caret
- * jumps to the end on every keystroke. */
-function clampName(input: HTMLInputElement) {
-  const next = nameDraft(input.value);
-  if (next !== input.value) input.value = next;
-}
-
-/** For the two card screens, which are template strings rather than nodes.
- * Message bodies do NOT come through here — see `line`. */
-function escapeHtml(s: string): string {
-  const d = document.createElement("div");
-  d.textContent = s;
-  return d.innerHTML;
 }
 
 function render() {

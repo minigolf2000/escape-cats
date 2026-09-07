@@ -1,28 +1,18 @@
-// The name rule, as cases. `cleanName` guards two one-line readouts (the
-// chat's `n here: A, B, C, D` and the column both games draw over the play
-// area) and a proctor row whose height is FIXED — every case below is a way
-// one of those breaks, not a hypothetical.
-//
-//   node tools/names.mjs
-//
-// Reads the shared source directly: this is one exported function, and a build
-// step would be more machinery than the thing it tests.
+// The name rule, as cases — every one of them a way a room breaks, not a
+// hypothetical.  node tools/names.mjs
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { transform } from "esbuild";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const src = readFileSync(path.join(here, "../packages/shared/src/lobby.ts"), "utf8");
-
-// Run the REAL rule, not a copy of it: cut the name section out of lobby.ts
-// (it imports nothing, so it stands alone), drop the types with the esbuild
-// already in the tree, and import what comes out.
-const start = src.indexOf("export const NAME_MAX");
-const end = src.indexOf("/** Players per team.");
-if (start < 0 || end < 0) throw new Error("lobby.ts no longer holds the name rule");
-const { code } = await transform(src.slice(start, end), { loader: "ts" });
+// The REAL rule, not a copy: lobby.ts's only import is a type, which esbuild
+// strips, so the whole file imports as plain JS.
+const src = readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "../packages/shared/src/lobby.ts"),
+  "utf8",
+);
+const { code } = await transform(src, { loader: "ts" });
 const { NAME_MAX, nameDraft, cleanName } = await import(
   "data:text/javascript," + encodeURIComponent(code)
 );
@@ -58,12 +48,8 @@ is("ñ", cleanName("Núñez"), "Núñez");
 is("a party name", cleanName("\u{1F408} Sam"), "\u{1F408} Sam");
 
 console.log("\n and the ways a room gets wrecked");
-// Combining marks climb out of a fixed-height row. NFC first, so the accents
-// above survive as letters and only the leftovers are stripped.
 is("zalgo", cleanName("P͓͐r̢i̴y̢a͐"), "Priya");
-// U+202E reverses everything the proctor reads after it.
 is("bidi override", cleanName("Priya‮yar"), "Priyayar");
-// A row with nothing to read and nothing to grab.
 is("zero-width only", cleanName("​​​"), "");
 is("braille blank only", cleanName("⠀⠀"), "");
 is("punctuation only", cleanName("..."), "");
@@ -72,7 +58,6 @@ is("a control character", cleanName("Priya"), "Priya");
 is("a newline", cleanName("Priya\nRay"), "Priya Ray");
 is("a tab is a space, not a weld", cleanName("Priya\tRay"), "Priya Ray");
 is("collapsed runs", cleanName("Priya    Ray"), "Priya Ray");
-// One font draws these, and nobody in the room can say them out loud.
 is("non-Latin script", cleanName("Привет"), "");
 is("mixed script keeps the Latin", cleanName("Sam При"), "Sam");
 is("html-ish", cleanName("<b>hi</b>"), "bhib");

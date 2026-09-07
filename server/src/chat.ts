@@ -9,7 +9,6 @@ import {
   CHAT_HISTORY,
   CHAT_MAX_TEXT,
   CHAT_REFILL_MS,
-  cleanName,
   type ChatClientMsg,
   type ChatMessage,
   type ChatServerMsg,
@@ -17,10 +16,9 @@ import {
 import { Roster } from "./connections";
 
 /**
- * One team's chat channel; room id = team id, as the game room. There are
- * FOUR, ever: `src/index.ts` 404s an upgrade to any other room id, so this
- * class only ever wakes for `t1`-`t4`. NO ticker: chat is event-driven, so an
- * idle room costs nothing.
+ * One team's chat channel; room id = team id, as the game room. There are four
+ * ever — `src/index.ts` 404s an upgrade to any other room id. NO ticker: chat
+ * is event-driven, so an idle room costs nothing.
  */
 export class ChatServer extends Server<Env> {
   // Hibernate, or a backgrounded chat tab's socket pins the object resident.
@@ -107,23 +105,18 @@ export class ChatServer extends Server<Env> {
     await this.persist(entry);
   }
 
-  /** Rename the sender everywhere. The chat is the door, so this is where a
-   * player fixes their own name — but the LOBBY owns the roster, so the write
-   * is forwarded there object-to-object and the board and both games follow.
-   * Costs a token like a message does: it is a write-through per press.
-   *
-   * The local roster is updated FIRST and presence goes out immediately —
-   * "n here" is this room's own list, and a phone should see its new name the
-   * moment it presses Save, not a round trip later. Lines already said are
-   * untouched by design (ChatMessage.name is a snapshot). */
+  /** Rename the sender everywhere. This room's own roster first, so "n here"
+   * updates the moment Save is pressed, then the LOBBY, which owns the name
+   * the board and both games read. */
   private async renameIntent(sender: Connection, raw: unknown) {
     const me = this.roster.get(sender);
     // Proctors are spectators here too — a spectator has no name to change.
     if (!me || me.role !== "player") return;
-    const name = cleanName(raw);
-    if (!name || name === me.name) return;
+    // Spend BEFORE cleaning, as `say` clamps before it spends: cleaning is
+    // proportional to what arrives, and this is a write-through per press.
     if (!this.spend(sender.id)) return;
-    this.roster.rename(sender, name);
+    const name = this.roster.rename(sender, raw);
+    if (!name || name === me.name) return;
     this.broadcastPresence();
     try {
       await this.env.Lobby.get(this.env.Lobby.idFromName("main")).fetch(

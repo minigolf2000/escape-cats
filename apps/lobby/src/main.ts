@@ -1,9 +1,12 @@
 import PartySocket from "partysocket";
 import {
+  CHIP,
   TEAM_SIZE,
+  WAITING_LINE,
   cleanName,
-  nameDraft,
+  clampName,
   earsFor,
+  nameChipHtml,
   earsHeight,
   teamEarsSvg,
   type LobbyPlayer,
@@ -42,8 +45,10 @@ let connected = false;
 let renaming = false;
 let draft = "";
 
+/** Cleaned on the way out, not just on the way in: the cap moved from 24 to
+ * 12, so a phone can be carrying a name the server would no longer store. */
 function myName(): string {
-  return localStorage.getItem(NAME_KEY) ?? "";
+  return cleanName(localStorage.getItem(NAME_KEY));
 }
 
 function me(): LobbyPlayer | undefined {
@@ -94,11 +99,7 @@ function nameScreen() {
   input.focus();
   input.oninput = () => clampName(input);
   const submit = () => {
-    const name = cleanName(input.value);
-    if (!name) return;
-    localStorage.setItem(NAME_KEY, name);
-    if (socket) socket.send(JSON.stringify({ type: "rename", name }));
-    else connect();
+    if (!commitName(input.value)) return;
     render();
   };
   go.onclick = submit;
@@ -172,29 +173,20 @@ function roomHtml(myTeam: string | null): string {
 
 // ---- The name, changeable from anywhere ----
 
-/** The name chip, and the input it becomes. Renaming is not starting over —
- * you keep your team and your place — so it happens in place, on whichever
- * screen you are on; `rename` is a wire intent the lobby accepts from any
- * player. */
-function nameChipHtml(): string {
-  if (renaming) {
-    return `
-      <div class="rename">
-        <input id="newname" value="${escapeHtml(draft)}"
-               placeholder="Your name" autocomplete="off" />
-        <button id="savename" class="chip-go">Save</button>
-        <button id="cancelname" class="link">Cancel</button>
-      </div>`;
-  }
-  return `
-    <button id="namechip" class="namechip">
-      🐾 <span class="chip-name">${escapeHtml(myName())}</span>
-      <span class="pen">rename</span>
-    </button>`;
+/** Store a name and tell the lobby. Renaming is not starting over — you keep
+ * your team and your place — so `rename` is a wire intent, not a rejoin.
+ * Returns false for a name that is not one. */
+function commitName(raw: string): boolean {
+  const name = cleanName(raw);
+  if (!name) return false;
+  localStorage.setItem(NAME_KEY, name);
+  if (socket) socket.send(JSON.stringify({ type: "rename", name }));
+  else connect();
+  return true;
 }
 
 function wireNameChip() {
-  const chip = document.getElementById("namechip") as HTMLButtonElement | null;
+  const chip = document.getElementById(CHIP.open);
   if (chip) {
     chip.onclick = () => {
       draft = myName();
@@ -203,36 +195,26 @@ function wireNameChip() {
     };
     return;
   }
-  const input = document.getElementById("newname") as HTMLInputElement | null;
-  const save = document.getElementById("savename") as HTMLButtonElement | null;
-  const cancel = document.getElementById("cancelname") as HTMLButtonElement | null;
+  const input = document.getElementById(CHIP.input) as HTMLInputElement | null;
+  const save = document.getElementById(CHIP.save);
+  const cancel = document.getElementById(CHIP.cancel);
   if (!input || !save || !cancel) return;
-  // The draft lives in module state — see `renaming`. Every keystroke writes
-  // it back so a broadcast redraws the input with what is in it, clamped
-  // first so what is stored is what is shown.
+  // The draft lives in module state — see `renaming` — so a broadcast redraws
+  // the input with what is in it.
   input.oninput = () => {
     clampName(input);
     draft = input.value;
   };
-  const submit = () => {
-    const name = cleanName(draft);
-    if (!name) return;
-    localStorage.setItem(NAME_KEY, name);
-    socket?.send(JSON.stringify({ type: "rename", name }));
+  const done = (commit: boolean) => {
+    if (commit && !commitName(draft)) return;
     renaming = false;
     render();
   };
-  save.onclick = submit;
+  save.onclick = () => done(true);
+  cancel.onclick = () => done(false);
   input.onkeydown = (e) => {
-    if (e.key === "Enter") submit();
-    if (e.key === "Escape") {
-      renaming = false;
-      render();
-    }
-  };
-  cancel.onclick = () => {
-    renaming = false;
-    render();
+    if (e.key === "Enter") done(true);
+    if (e.key === "Escape") done(false);
   };
   // Focus once, on the render that opened the editor — not on broadcast
   // re-renders, which would steal the caret mid-word.
@@ -246,22 +228,19 @@ function wireNameChip() {
  * function so the two states cannot drift into two different page shapes. */
 function page(cardHtml: string, myTeam: string | null) {
   app.innerHTML =
-    cardHtml + roomHtml(myTeam) + `<div class="chiprow">${nameChipHtml()}</div>`;
+    cardHtml +
+    roomHtml(myTeam) +
+    `<div class="chiprow${renaming ? " editing" : ""}">${nameChipHtml(
+      myName(),
+      draft,
+      renaming,
+    )}</div>`;
   wireNameChip();
 }
 
 /** The one thing an unsorted phone needs told: one line over the board. */
 function waitingLine(): string {
-  return `<p class="await">Waiting to be sorted\u2026</p>`;
-}
-
-/** Hold an input to what a name may be, as it is typed (`nameDraft`): 12
- * characters as READ, Latin letters, digits, `' . - _` and emoji. No
- * `maxlength` — it counts UTF-16 units, so it would allow six emoji and twelve
- * letters. Rewritten only when it changed, or the caret jumps to the end. */
-function clampName(input: HTMLInputElement) {
-  const next = nameDraft(input.value);
-  if (next !== input.value) input.value = next;
+  return `<p class="await">${WAITING_LINE}</p>`;
 }
 
 function escapeHtml(s: string): string {

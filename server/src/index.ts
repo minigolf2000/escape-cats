@@ -16,14 +16,10 @@ const CHAT_ROOM = /^\/parties\/chat\/([^/]+)\/?$/;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    // CHAT IS THE FOUR TEAMS AND NOTHING ELSE, and this is the one place that
-    // rule lives on the wire. A channel is what being sorted BUYS you, so
-    // there is no testing room to fall into and no `?r=` room to name: `t0`,
-    // an ad-hoc slug and a typo are the same 404. Refused HERE rather than in
-    // ChatServer so a room nobody may join never wakes a Durable Object or
-    // writes a byte of storage. The games keep both (`roomFor`); only chat
-    // gates. Anything already stored under an old `t0` channel is simply
-    // unreachable from now on.
+    // Chat is the four teams and nothing else, and this is the one place that
+    // rule lives on the wire — refused HERE rather than in ChatServer so a
+    // room nobody may join never wakes a Durable Object. `t0`, an ad-hoc slug
+    // and a typo are the same 404; the games still take both (`roomFor`).
     const chat = CHAT_ROOM.exec(new URL(request.url).pathname);
     if (chat && !isTeamRoom(decodeURIComponent(chat[1]))) {
       return new Response("No such chat room", {

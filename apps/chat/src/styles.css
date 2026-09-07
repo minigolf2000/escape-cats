@@ -116,7 +116,6 @@ input:focus {
 /* Only Cancel, beside the name editor — a <button> that has to read as the
    quiet way out, hence the reset off the UA's button chrome. */
 .link {
-  display: inline-block;
   background: none;
   border: 0;
   color: var(--muted);
@@ -192,7 +191,6 @@ input:focus {
 }
 
 .namechip .chip-name {
-  flex: 0 1 auto;
   min-width: 3ch;
   max-width: 12ch;
   overflow: hidden;
@@ -275,7 +273,6 @@ input:focus {
 }
 
 .namerow {
-  flex: 0 1 auto;
   min-width: 0;
 }
 

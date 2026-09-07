@@ -1,6 +1,5 @@
 import { Server, type Connection, type ConnectionContext, type WSMessage } from "partyserver";
 import {
-  cleanName,
   GoombaSim,
   applyPack,
   isAdhocRoom,
@@ -141,12 +140,7 @@ export class GoombaServer extends Server<Env> {
     const proctor = me?.role === "proctor";
     switch (msg.type) {
       case "join":
-        // Same clamp as every other door (`cleanName`), never a retyped
-        // length. An empty result is not a rename: it would blank a seat.
-        {
-          const name = cleanName(msg.name);
-          if (name) this.roster.rename(sender, name);
-        }
+        this.roster.rename(sender, msg.name);
         break;
       case "place":
         if (!proctor && me) {

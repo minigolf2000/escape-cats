@@ -133,12 +133,10 @@ Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
   snapshot the author's name on purpose.
 - **A name is 12 characters, a whitelist, and nothing invisible.** `NAME_MAX`,
   `nameDraft` and `cleanName` in shared are the whole rule — never retype a
-  length or a character class. Twelve counted by `Intl.Segmenter` (an emoji is
-  ONE), Latin letters + digits + `' . - _` + emoji, NFC first so José survives;
-  combining marks, bidi controls, zero-width and non-Latin go. `""` is not a
-  name. The choke point is `Roster.register`, not the rename intents: `?name=`
-  is the door every phone uses and anyone can type it. Clients clamp the input
-  live; no `maxlength` (it counts UTF-16 units). `node tools/names.mjs`.
+  length or a character class. BOTH of `Roster`'s doors clamp (`register` and
+  `rename`), so a server never has to remember to; `?name=` is the door every
+  phone uses and anyone can type it. Clients clamp live; no `maxlength` (it
+  counts UTF-16 units). `node tools/names.mjs` says what each rule is for.
 - **Deploy order: Worker BEFORE the Vercel build that needs it.** CI deploys the
   Worker on push to main but races Vercel; for a breaking protocol/DO change run
   the workflow on the branch first, confirm, then merge. `wrangler.jsonc`

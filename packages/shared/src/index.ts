@@ -1,6 +1,7 @@
 export * from "./protocol";
 export * from "./lobby";
 export * from "./ears";
+export * from "./namechip";
 export * from "./chat";
 export * from "./seeded";
 export * from "./hex/data";

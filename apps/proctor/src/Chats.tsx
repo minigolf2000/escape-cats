@@ -12,39 +12,32 @@ import {
   type ChatClientMsg,
   type ChatMessage,
   type ChatServerMsg,
-  type Team,
 } from "@escape-cats/shared";
 import { closeWhileHidden } from "./closeWhileHidden";
 import { PARTYKIT_HOST } from "./net";
-
-/** Every channel that exists: the four teams. One list drives sockets and
- * logs. The testing room is NOT here and cannot be — a chat channel is what
- * being sorted buys you, so an unsorted phone is held on /chat/'s waiting
- * screen and the server 404s `t0` anyway. Unassigned is a box with no log. */
-const ROOMS: Team[] = TEAMS;
 
 interface ChatState {
   byRoom: Record<string, ChatMessage[]>;
   /** Wipe ONE channel, named by its room id. `label` is the box's own name,
    * for the confirm — the wire only knows `t2`. */
   clear: (room: string, label: string) => void;
-  rooms: Team[];
 }
 
 const ChatCtx = createContext<ChatState | null>(null);
 
-/** Every channel's socket, above the board. The proctor connects
- * `?role=proctor` — a spectator: the server refuses its `say` and the Roster
- * never counts it. Sockets belong to the page, not a box: reopening on board
- * re-renders would replay history, and a box's Clear sends down the socket
- * already held. */
+/** Every channel's socket, above the board — one per TEAM, which is every
+ * channel there is: an unsorted phone has not been let into a chat at all.
+ * The proctor connects `?role=proctor`, a spectator the server refuses `say`
+ * from. Sockets belong to the page, not a box: reopening on board re-renders
+ * would replay history, and a box's Clear sends down the socket already
+ * held. */
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [byRoom, setByRoom] = useState<Record<string, ChatMessage[]>>({});
   /** One socket per room id — how a box's Clear finds its channel. */
   const socketsRef = useRef<Map<string, PartySocket>>(new Map());
 
   useEffect(() => {
-    const opened = ROOMS.map((t) => {
+    const opened = TEAMS.map((t) => {
       const socket = new PartySocket({
         host: PARTYKIT_HOST,
         room: t.id,
@@ -79,7 +72,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       return { socket, unbindVisibility: closeWhileHidden(socket) };
     });
     socketsRef.current = new Map(
-      opened.map((o, i) => [ROOMS[i].id, o.socket] as const),
+      opened.map((o, i) => [TEAMS[i].id, o.socket] as const),
     );
     return () => {
       for (const o of opened) {
@@ -101,7 +94,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ChatCtx.Provider value={{ byRoom, clear, rooms: ROOMS }}>
+    <ChatCtx.Provider value={{ byRoom, clear }}>
       {children}
     </ChatCtx.Provider>
   );

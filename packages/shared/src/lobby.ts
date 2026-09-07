@@ -91,101 +91,90 @@ export function roomFor(
 }
 
 /** The chat channel this phone may open, or `null` = wait for the proctor.
- * NOT `roomFor`: chat has FOUR rooms and no fallback. A channel is the thing
- * being gated — you are IN a team's chat because the proctor put you on that
- * team — so an unsorted phone gets no room at all rather than a shared one,
- * `t0` included. `?r=` never reached chat and still doesn't: a slug names a
- * GAME room, and this asks the roster, not the URL. The wire says the same
- * thing (`server/src/index.ts` refuses any other chat room), so a phone that
- * ignores this cannot talk its way in. */
+ * NOT `roomFor`: chat has four rooms and no fallback, because the channel is
+ * the thing being gated. Asks the roster, never the URL; `server/src/index.ts`
+ * says the same on the wire. */
 export function chatRoomFor(team: string | null | undefined): string | null {
   return isTeamRoom(team) ? (team as string) : null;
 }
 
-/** Longest display name kept, in CHARACTERS AS READ — an emoji is one, a flag
- * is one. Twelve, which is Jackbox's number, for the reason Jackbox has it:
- * FOUR of these have to fit two one-line readouts, the chat's `n here: A, B,
- * C, D` and the column of names both games draw over the play area. Neither
- * clips gracefully, and a name is a thing you say out loud in the room anyway.
- * The chip's `max-width: 12ch` is this number. */
+/** Longest display name, in characters AS READ — an emoji is one, a flag is
+ * one. Twelve is Jackbox's number, and it is right here for the same reason:
+ * four of these have to fit the chat's `n here: A, B, C, D` and the column of
+ * names both games draw over the play area. The chip's `max-width: 12ch` is
+ * this number. */
 export const NAME_MAX = 12;
 
-/**
- * What a name may be MADE OF — a WHITELIST, and it is a whitelist on purpose.
- * A blocklist of the characters that break a layout is a list nobody finishes:
- * you ban the zero-width space and U+2800 BRAILLE BLANK still draws nothing,
- * you ban Zalgo's combining marks and the next Unicode release adds more. This
- * says what a name IS instead:
- *
- * - **Latin letters** — the room is American and says these out loud, but not
- *   only ASCII: José and Núñez are ordinary US names. NFC first, so an accent
- *   typed as a combining mark becomes one Latin letter rather than being
- *   stripped down to `Jose`.
- * - **Digits and `' . - _`** — Bob2, O'Hara, Anne-Marie, J.R.
- * - **Emoji**, because this is a party game and 🐱 Sam should work.
- *
- * Everything else goes, and each of those is a real break, not a hypothetical:
- * combining marks (Zalgo climbs out of a proctor row whose height is fixed),
- * bidi controls (U+202E reverses the rest of the line it lands in), zero-width
- * and control characters (a row on the board with nothing to read or grab),
- * and non-Latin scripts (nobody in the room can say them, and the games draw
- * names in one font). ZWJ is not here either, so 👨‍👩‍👧 lands as three cats'
- * worth of separate emoji rather than one — the alternative is admitting the
- * one character whose whole job is to be invisible.
- */
+/** What a phone with no name of its own announces. Never overwrites a real
+ * name — see `Roster.register`. */
+export const DEFAULT_NAME = "Cat";
+
+/** What a name may be made of, as a WHITELIST: a blocklist of what breaks a
+ * layout is a list nobody finishes — ban the zero-width space and U+2800
+ * BRAILLE BLANK still draws nothing. Latin rather than ASCII because José is
+ * an ordinary US name; emoji because this is a party game. The cases, and what
+ * each one would have broken, are in `tools/names.mjs`. */
 const NOT_A_NAME =
   /[^\p{Script=Latin}0-9 '._\-\p{Extended_Pictographic}\p{Regional_Indicator}\uFE0F]/gu;
 
-/** At least one thing you can SEE. `...` and `   ` survive the whitelist and
- * are not names: a row nobody can read is a phone the proctor cannot sort. */
+/** Something you can SEE: `...` and `   ` pass the whitelist and are not names. */
 const HAS_A_FACE = /[\p{L}0-9\p{Extended_Pictographic}]/u;
 
-/** Cut to `n` characters AS READ. `Intl.Segmenter` counts what a person counts
- * — an emoji is one, a flag is one — and every runtime here has it; the code
- * point fallback exists so a runtime that does not can never throw, and is
- * only stricter (it can spend two of the twelve on one flag). Neither can
- * split a surrogate pair, which `String.slice` does: cap 12 with a 🐈 at the
- * boundary and you ship half an emoji. */
-let segmenter: Intl.Segmenter | null | undefined;
+const WHITESPACE = /\s+/g;
+const GAPS = / +/g;
+const LEADING = /^ +/;
+
+/** How much raw input is worth cleaning. Every pass below is proportional to
+ * what arrives, and `?name=` is a query string sized by whoever typed it. */
+const RAW_MAX = NAME_MAX * 8;
+
+/** Cut to `n` characters as READ. `String.slice` cuts UTF-16 units and would
+ * ship half a 🐈; `Intl.Segmenter` counts what a person counts. The code-point
+ * fallback cannot throw on a runtime without it, and is only stricter — a flag
+ * costs two. */
+const segmenter =
+  typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
+    ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+    : null;
+
 function cut(s: string, n: number): string {
-  if (segmenter === undefined) {
-    segmenter =
-      typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
-        ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
-        : null;
-  }
+  // A grapheme count never exceeds the UTF-16 length, so anything this short
+  // already fits and never pays for the Segmenter.
+  if (s.length <= n) return s;
   const chars = segmenter
     ? [...segmenter.segment(s)].map((g) => g.segment)
     : [...s];
   return chars.length <= n ? s : chars.slice(0, n).join("");
 }
 
-/** A name as it is being TYPED: everything `cleanName` does except the final
- * trim, so a trailing space can still become the start of a surname. Clients
- * write this back into the input on every keystroke — the limit you can see is
- * the limit that applies. */
+/** A name as it is being TYPED — `cleanName` without the final trim, so a
+ * trailing space can still become the start of a surname. Clients write this
+ * back into the input on every keystroke. */
 export function nameDraft(name: unknown): string {
   return cut(
     String(name ?? "")
+      .slice(0, RAW_MAX)
       .normalize("NFC")
-      // Whitespace FIRST, or stripping a tab would weld two words together.
-      .replace(/\s+/g, " ")
+      // Whitespace first, or stripping a tab welds two words together.
+      .replace(WHITESPACE, " ")
       .replace(NOT_A_NAME, "")
-      // Again: the strip can leave the gaps its casualties sat in.
-      .replace(/ +/g, " ")
-      .replace(/^ +/, ""),
+      .replace(GAPS, " ")
+      .replace(LEADING, ""),
     NAME_MAX,
   );
 }
 
-/** A name as it goes ON THE WIRE. `""` means "not a name" and every caller
- * refuses it rather than storing it. Applied SERVER-side, in `Roster.register`
- * and on both rename paths — a client's clamp is a courtesy, and `?name=` in a
- * socket URL is typed by whoever wants to type it. */
+/** A name as it goes ON THE WIRE; `""` means "not a name" and callers refuse
+ * it. Enforced server-side, in `Roster` — `?name=` is a socket URL, typed by
+ * whoever wants to type it. */
 export function cleanName(name: unknown): string {
   const out = nameDraft(name).trim();
   return HAS_A_FACE.test(out) ? out : "";
 }
+
+/** What a phone waiting to be sorted is told, on the lobby and in the chat.
+ * One string so the two surfaces cannot tell it two different things. */
+export const WAITING_LINE = "Waiting to be sorted\u2026";
 
 /** Players per team. The design assumes four (slot colours, wall art); the
  * board draws four seats and refuses a fifth drop. Nothing below the proctor
@@ -230,8 +219,13 @@ export interface AdhocRoom {
   seenAt: number;
 }
 
+/** Change my display name. The LOBBY owns the roster, but a sorted phone is
+ * holding a chat room's socket instead, so `ChatClientMsg` takes the same
+ * intent and forwards it. One type, so the two doors cannot drift. */
+export type RenameMsg = { type: "rename"; name: string };
+
 export type LobbyClientMsg =
-  | { type: "rename"; name: string }
+  | RenameMsg
   | { type: "assign"; pid: string; team: string | null } // proctor only
   /** Send one team's players back to Unassigned. Per TEAM, never board-wide:
    * one mis-click must not unsort a room mid-event. */

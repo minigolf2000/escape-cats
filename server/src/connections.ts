@@ -1,5 +1,5 @@
 import type { Connection, ConnectionContext } from "partyserver";
-import type { PlayerInfo } from "@escape-cats/shared";
+import { DEFAULT_NAME, cleanName, type PlayerInfo } from "@escape-cats/shared";
 
 export interface ConnMeta {
   role: "player" | "proctor";
@@ -32,18 +32,33 @@ export class Roster {
     const m: ConnMeta = {
       role: url.searchParams.get("role") === "proctor" ? "proctor" : "player",
       pid: url.searchParams.get("pid") ?? conn.id,
-      name: url.searchParams.get("name") ?? "Cat",
+      // THE door every phone comes in by, and a query string in a socket URL
+      // that anyone can type — so this is where the name rule is enforced,
+      // not on the rare rename path. Nothing legible left seats the
+      // placeholder rather than a blank row.
+      name: cleanName(url.searchParams.get("name")) || DEFAULT_NAME,
     };
     conn.setState(m);
     this.adopt(m);
+    // A reconnect announces the CURRENT name, so it wins over the cached one:
+    // a phone that renamed itself while away must not come back under the name
+    // this room last saw. The placeholder never overwrites a real one.
+    const known = this.players.get(m.pid);
+    if (known && m.name !== DEFAULT_NAME) known.name = m.name;
     return m;
   }
 
-  rename(conn: Connection, name: string) {
+  /** The roster's other door, and it clamps like `register` does — a caller
+   * that had to remember `cleanName` would eventually be a caller that forgot.
+   * Returns what was stored, or "" for a name that is not one. */
+  rename(conn: Connection, raw: unknown): string {
     const m = this.get(conn);
-    if (!m || m.role !== "player") return;
+    if (!m || m.role !== "player") return "";
+    const name = cleanName(raw);
+    if (!name) return "";
     conn.setState({ ...m, name });
     this.players.get(m.pid)!.name = name; // get() adopted the entry above
+    return name;
   }
 
   disconnect(conn: Connection) {

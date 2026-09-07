@@ -268,7 +268,7 @@ input:focus {
 }
 
 .namechip .chip-name {
-  max-width: 14ch;
+  max-width: 12ch; /* NAME_MAX */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -3,6 +3,7 @@ import {
   PACK_MAX,
   TEAMS,
   TEAM_IDS,
+  cleanName,
   decodeLevel,
   isAdhocRoom,
   type AdhocRoom,
@@ -68,10 +69,23 @@ export class LobbyServer extends Server<Env> {
    * object: a room cannot take a phone's word for the geometry it scores.
    * Unauthenticated because `routePartykitRequest` never routes here. */
   async onRequest(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    // A rename forwarded by a CHAT room (`chat.ts`). It has to land here: the
+    // roster is the lobby's, so a name that stopped at the chat room would
+    // leave the board and both games on the old one. Carries its own pid —
+    // there is no connection here to read it off.
+    if (request.method === "POST" && url.pathname === "/name") {
+      const body = (await request.json().catch(() => null)) as {
+        pid?: unknown;
+        name?: unknown;
+      } | null;
+      const ok = await this.renameByPid(String(body?.pid ?? ""), body?.name);
+      return Response.json({ ok });
+    }
     // `?room=` is a goomba room announcing itself — the registry's only
     // source. Rides this fetch so an announce cannot drift from "a phone is
     // in there".
-    const room = new URL(request.url).searchParams.get("room");
+    const room = url.searchParams.get("room");
     if (room) await this.sawRoom(room);
     if (request.method === "POST") {
       // A pack edit forwarded by a game room (goomba.ts): same validation as
@@ -173,9 +187,8 @@ export class LobbyServer extends Server<Env> {
     switch (msg.type) {
       case "rename": {
         if (!me || me.role !== "player") return;
-        const name = String(msg.name).slice(0, 24).trim();
+        const name = this.roster.rename(sender, msg.name);
         if (!name) return;
-        this.roster.rename(sender, name);
         this.names.set(me.pid, name);
         break;
       }
@@ -306,6 +319,18 @@ export class LobbyServer extends Server<Env> {
           .catch(() => undefined),
       ),
     );
+  }
+
+  /** Rename a player the lobby ALREADY KNOWS — the forwarded door's half of
+   * the socket `rename` case, sharing its clamp, its persist and its
+   * broadcast. An unknown pid is refused: this is not a way in. */
+  private async renameByPid(pid: string, raw: unknown): Promise<boolean> {
+    const name = cleanName(raw);
+    if (!pid || !name || !this.names.has(pid)) return false;
+    this.names.set(pid, name);
+    await this.persist();
+    this.broadcastState();
+    return true;
   }
 
   private connectedPids(): Set<string> {

@@ -140,7 +140,7 @@ export class GoombaServer extends Server<Env> {
     const proctor = me?.role === "proctor";
     switch (msg.type) {
       case "join":
-        this.roster.rename(sender, String(msg.name).slice(0, 24));
+        this.roster.rename(sender, msg.name);
         break;
       case "place":
         if (!proctor && me) {

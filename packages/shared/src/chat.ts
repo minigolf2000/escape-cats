@@ -3,6 +3,7 @@
 // ordering, clients send a line of text.
 
 import type { PlayerInfo } from "./protocol";
+import type { RenameMsg } from "./lobby";
 
 /** Longest message kept. Past this is TRUNCATED, not rejected. */
 export const CHAT_MAX_TEXT = 240;
@@ -32,6 +33,9 @@ export interface ChatMessage {
 
 export type ChatClientMsg =
   | { type: "say"; text: string }
+  /** Forwarded to the LOBBY, which owns the roster. Lines already said keep
+   * the name they were said under — see `ChatMessage.name`. */
+  | RenameMsg
   /** Wipe this room's history. Proctor only. Per ROOM: a Durable Object can
    * only clear itself. */
   | { type: "clear" };

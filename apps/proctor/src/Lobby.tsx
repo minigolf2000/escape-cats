@@ -5,8 +5,6 @@ import {
   earsFor,
   earsHeight,
   teamEarsSvg,
-  OPEN_ROOM_OPEN,
-  OPEN_TEAM,
   TEAM_SIZE,
   TEAMS,
   type AdhocRoom,
@@ -79,9 +77,10 @@ interface Drag {
 
 /** The board: five boxes; dragging a name is the only way to sort anyone, and
  * a team id is the room id both games run in. A box is also everything about
- * that room (TeamGame, TeamChat); Unassigned carries t0's readout and channel.
- * POINTER events, not HTML5 drag-and-drop, which fires no dragstart under a
- * finger. */
+ * that room (TeamGame, TeamChat); Unassigned carries t0's readout, but no
+ * chat — a channel is what the drag BUYS a phone, so those four exist and t0's
+ * does not. POINTER events, not HTML5 drag-and-drop, which fires no dragstart
+ * under a finger. */
 export function Lobby() {
   const [players, setPlayers] = useState<LobbyPlayer[]>([]);
   /** Only ever populated on a proctor's socket — the lobby sends every other
@@ -365,14 +364,10 @@ export function Lobby() {
                   <TestRoom />
                 </>
               )}
-              {/* Last block for teams and the pen alike; the pen reads t0's
-                  channel. Skipped when the testing room is closed. */}
-              {(isTeam || OPEN_ROOM_OPEN) && (
-                <TeamChat
-                  room={isTeam ? z.id : OPEN_TEAM.id}
-                  label={isTeam ? z.name : OPEN_TEAM.name}
-                />
-              )}
+              {/* Last block, TEAMS ONLY: there are four channels and the pen
+                  is not one of them — an unsorted phone is still waiting to
+                  be let into a chat at all. */}
+              {isTeam && <TeamChat room={z.id} label={z.name} />}
               {/* The roster this team is supposed to end up with — see INTENDED. */}
               {isTeam && INTENDED[z.id] && (
                 <p className="zone-intended">{INTENDED[z.id].join(" · ")}</p>

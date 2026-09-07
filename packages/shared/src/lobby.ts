@@ -102,21 +102,89 @@ export function chatRoomFor(team: string | null | undefined): string | null {
   return isTeamRoom(team) ? (team as string) : null;
 }
 
-/** Longest display name kept — clamped, never rejected. THE roster rule, so
- * every door that takes a name asks it: the landing page, the chat's own name
- * chip, the lobby's `rename` and the chat room's forward of one. */
-export const NAME_MAX = 24;
+/** Longest display name kept, in CHARACTERS AS READ — an emoji is one, a flag
+ * is one. Twelve, which is Jackbox's number, for the reason Jackbox has it:
+ * FOUR of these have to fit two one-line readouts, the chat's `n here: A, B,
+ * C, D` and the column of names both games draw over the play area. Neither
+ * clips gracefully, and a name is a thing you say out loud in the room anyway.
+ * The chip's `max-width: 12ch` is this number. */
+export const NAME_MAX = 12;
 
-/** Whitespace collapsed, then clamped, then trimmed — the one shape a name
- * takes on the wire. Returns "" for a name that is nothing but spaces, which
- * every caller refuses: a nameless row on the board is a phone nobody can
- * sort. Applied SERVER-side too; a client's clamp is a courtesy. */
+/**
+ * What a name may be MADE OF — a WHITELIST, and it is a whitelist on purpose.
+ * A blocklist of the characters that break a layout is a list nobody finishes:
+ * you ban the zero-width space and U+2800 BRAILLE BLANK still draws nothing,
+ * you ban Zalgo's combining marks and the next Unicode release adds more. This
+ * says what a name IS instead:
+ *
+ * - **Latin letters** — the room is American and says these out loud, but not
+ *   only ASCII: José and Núñez are ordinary US names. NFC first, so an accent
+ *   typed as a combining mark becomes one Latin letter rather than being
+ *   stripped down to `Jose`.
+ * - **Digits and `' . - _`** — Bob2, O'Hara, Anne-Marie, J.R.
+ * - **Emoji**, because this is a party game and 🐱 Sam should work.
+ *
+ * Everything else goes, and each of those is a real break, not a hypothetical:
+ * combining marks (Zalgo climbs out of a proctor row whose height is fixed),
+ * bidi controls (U+202E reverses the rest of the line it lands in), zero-width
+ * and control characters (a row on the board with nothing to read or grab),
+ * and non-Latin scripts (nobody in the room can say them, and the games draw
+ * names in one font). ZWJ is not here either, so 👨‍👩‍👧 lands as three cats'
+ * worth of separate emoji rather than one — the alternative is admitting the
+ * one character whose whole job is to be invisible.
+ */
+const NOT_A_NAME =
+  /[^\p{Script=Latin}0-9 '._\-\p{Extended_Pictographic}\p{Regional_Indicator}\uFE0F]/gu;
+
+/** At least one thing you can SEE. `...` and `   ` survive the whitelist and
+ * are not names: a row nobody can read is a phone the proctor cannot sort. */
+const HAS_A_FACE = /[\p{L}0-9\p{Extended_Pictographic}]/u;
+
+/** Cut to `n` characters AS READ. `Intl.Segmenter` counts what a person counts
+ * — an emoji is one, a flag is one — and every runtime here has it; the code
+ * point fallback exists so a runtime that does not can never throw, and is
+ * only stricter (it can spend two of the twelve on one flag). Neither can
+ * split a surrogate pair, which `String.slice` does: cap 12 with a 🐈 at the
+ * boundary and you ship half an emoji. */
+let segmenter: Intl.Segmenter | null | undefined;
+function cut(s: string, n: number): string {
+  if (segmenter === undefined) {
+    segmenter =
+      typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
+        ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+        : null;
+  }
+  const chars = segmenter
+    ? [...segmenter.segment(s)].map((g) => g.segment)
+    : [...s];
+  return chars.length <= n ? s : chars.slice(0, n).join("");
+}
+
+/** A name as it is being TYPED: everything `cleanName` does except the final
+ * trim, so a trailing space can still become the start of a surname. Clients
+ * write this back into the input on every keystroke — the limit you can see is
+ * the limit that applies. */
+export function nameDraft(name: unknown): string {
+  return cut(
+    String(name ?? "")
+      .normalize("NFC")
+      // Whitespace FIRST, or stripping a tab would weld two words together.
+      .replace(/\s+/g, " ")
+      .replace(NOT_A_NAME, "")
+      // Again: the strip can leave the gaps its casualties sat in.
+      .replace(/ +/g, " ")
+      .replace(/^ +/, ""),
+    NAME_MAX,
+  );
+}
+
+/** A name as it goes ON THE WIRE. `""` means "not a name" and every caller
+ * refuses it rather than storing it. Applied SERVER-side, in `Roster.register`
+ * and on both rename paths — a client's clamp is a courtesy, and `?name=` in a
+ * socket URL is typed by whoever wants to type it. */
 export function cleanName(name: unknown): string {
-  return String(name ?? "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, NAME_MAX)
-    .trim();
+  const out = nameDraft(name).trim();
+  return HAS_A_FACE.test(out) ? out : "";
 }
 
 /** Players per team. The design assumes four (slot colours, wall art); the

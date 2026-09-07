@@ -1,5 +1,5 @@
 import type { Connection, ConnectionContext } from "partyserver";
-import type { PlayerInfo } from "@escape-cats/shared";
+import { cleanName, type PlayerInfo } from "@escape-cats/shared";
 
 export interface ConnMeta {
   role: "player" | "proctor";
@@ -32,7 +32,13 @@ export class Roster {
     const m: ConnMeta = {
       role: url.searchParams.get("role") === "proctor" ? "proctor" : "player",
       pid: url.searchParams.get("pid") ?? conn.id,
-      name: url.searchParams.get("name") ?? "Cat",
+      // THE choke point for names. Every server registers through here, and
+      // this is the door every phone comes in by — a rename is the rare path,
+      // `?name=` is the common one, and it is a query string in a socket URL
+      // that anyone can type. Clamped here, so no room can hold a name the
+      // rules would not allow; "" (nothing legible survived) falls back to the
+      // placeholder rather than seating a blank row.
+      name: cleanName(url.searchParams.get("name")) || "Cat",
     };
     conn.setState(m);
     this.adopt(m);

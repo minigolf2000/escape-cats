@@ -26,6 +26,7 @@ Figma frame, not code — see below).
 ```sh
 npm run dev            # server :1999, hex :5173, proctor :5175, lobby :5176, chat :5177, goomba :5178
 npm run typecheck      # all workspaces
+node tools/names.mjs   # what a name may be
 npm run build:vercel   # build + assemble + check:routing + check:cursors + check:visibility
 cd tools/goomba && node test-codec.mjs        # save format
 cd tools/goomba && node bands.mjs             # room band rule
@@ -129,8 +130,15 @@ Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
   sends the same `{type:"rename"}` down whichever socket it holds — the lobby's
   at the gate, the room's in a channel, which forwards it to the lobby over
   `POST http://lobby/name`. Never write a name into chat storage: said lines
-  snapshot the author's name on purpose. `cleanName`/`NAME_MAX` in shared is the
-  only clamp; don't retype `24`.
+  snapshot the author's name on purpose.
+- **A name is 12 characters, a whitelist, and nothing invisible.** `NAME_MAX`,
+  `nameDraft` and `cleanName` in shared are the whole rule — never retype a
+  length or a character class. Twelve counted by `Intl.Segmenter` (an emoji is
+  ONE), Latin letters + digits + `' . - _` + emoji, NFC first so José survives;
+  combining marks, bidi controls, zero-width and non-Latin go. `""` is not a
+  name. The choke point is `Roster.register`, not the rename intents: `?name=`
+  is the door every phone uses and anyone can type it. Clients clamp the input
+  live; no `maxlength` (it counts UTF-16 units). `node tools/names.mjs`.
 - **Deploy order: Worker BEFORE the Vercel build that needs it.** CI deploys the
   Worker on push to main but races Vercel; for a breaking protocol/DO change run
   the workflow on the branch first, confirm, then merge. `wrangler.jsonc`

@@ -1,8 +1,8 @@
 import PartySocket from "partysocket";
 import {
-  NAME_MAX,
   TEAM_SIZE,
   cleanName,
+  nameDraft,
   earsFor,
   earsHeight,
   teamEarsSvg,
@@ -85,13 +85,14 @@ function nameScreen() {
     <div class="card">
       <h1>🐾 Escape Cats</h1>
       <p class="sub">What should we call you?</p>
-      <input id="name" maxlength="${NAME_MAX}" placeholder="Your name" autocomplete="off" />
+      <input id="name" placeholder="Your name" autocomplete="off" />
       <button id="go" class="primary">Join</button>
     </div>
   `;
   const input = document.getElementById("name") as HTMLInputElement;
   const go = document.getElementById("go") as HTMLButtonElement;
   input.focus();
+  input.oninput = () => clampName(input);
   const submit = () => {
     const name = cleanName(input.value);
     if (!name) return;
@@ -179,7 +180,7 @@ function nameChipHtml(): string {
   if (renaming) {
     return `
       <div class="rename">
-        <input id="newname" maxlength="${NAME_MAX}" value="${escapeHtml(draft)}"
+        <input id="newname" value="${escapeHtml(draft)}"
                placeholder="Your name" autocomplete="off" />
         <button id="savename" class="chip-go">Save</button>
         <button id="cancelname" class="link">Cancel</button>
@@ -207,8 +208,10 @@ function wireNameChip() {
   const cancel = document.getElementById("cancelname") as HTMLButtonElement | null;
   if (!input || !save || !cancel) return;
   // The draft lives in module state — see `renaming`. Every keystroke writes
-  // it back so a broadcast redraws the input with what is in it.
+  // it back so a broadcast redraws the input with what is in it, clamped
+  // first so what is stored is what is shown.
   input.oninput = () => {
+    clampName(input);
     draft = input.value;
   };
   const submit = () => {
@@ -250,6 +253,15 @@ function page(cardHtml: string, myTeam: string | null) {
 /** The one thing an unsorted phone needs told: one line over the board. */
 function waitingLine(): string {
   return `<p class="await">Waiting to be sorted\u2026</p>`;
+}
+
+/** Hold an input to what a name may be, as it is typed (`nameDraft`): 12
+ * characters as READ, Latin letters, digits, `' . - _` and emoji. No
+ * `maxlength` — it counts UTF-16 units, so it would allow six emoji and twelve
+ * letters. Rewritten only when it changed, or the caret jumps to the end. */
+function clampName(input: HTMLInputElement) {
+  const next = nameDraft(input.value);
+  if (next !== input.value) input.value = next;
 }
 
 function escapeHtml(s: string): string {

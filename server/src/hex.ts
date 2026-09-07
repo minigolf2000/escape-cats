@@ -1,5 +1,6 @@
 import { Server, type Connection, type ConnectionContext, type WSMessage } from "partyserver";
 import {
+  cleanName,
   HexSim,
   SNAPSHOT_TICK_MS,
   isAdhocRoom,
@@ -143,7 +144,12 @@ export class HexServer extends Server<Env> {
     if (!proctor) this.wake();
     switch (msg.type) {
       case "join":
-        this.roster.rename(sender, String(msg.name).slice(0, 24));
+        // Same clamp as every other door (`cleanName`), never a retyped
+        // length. An empty result is not a rename: it would blank a seat.
+        {
+          const name = cleanName(msg.name);
+          if (name) this.roster.rename(sender, name);
+        }
         break;
       case "pets": {
         this.petSeq.set(sender.id, Number(msg.seq) || 0);

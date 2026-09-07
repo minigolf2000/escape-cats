@@ -89,6 +89,7 @@ Set `escape-cats-name` in that origin's `localStorage` for a name other than
 ```sh
 npm run typecheck                          # all workspaces
 npm run build:vercel                       # build + assemble + routing, cursor & visibility checks
+node tools/names.mjs                       # what a name may be
 cd tools/goomba && node test-codec.mjs     # the save format
 cd tools/goomba && node bands.mjs          # the room's band rule
 cd tools/goomba && node seed.mjs --pull    # what is this event running?
@@ -239,6 +240,45 @@ read-only. The gate lives where the reward is, in `/chat/`.
 opening a game page also registers the phone in the roster. The room is never
 in the URL, so a refresh re-asks and a re-sort takes effect on reload.
 
+### What a name may be
+
+**Twelve characters, a whitelist, and nothing invisible** — `NAME_MAX`,
+`nameDraft` and `cleanName` in `packages/shared/src/lobby.ts`, tested by
+`node tools/names.mjs`.
+
+- **Twelve, counted as a person counts.** Jackbox's number, for the reason
+  Jackbox has it: FOUR names have to fit the chat's one-line `n here: A, B, C,
+  D` and the column both games draw over the play area, and neither clips
+  gracefully. `Intl.Segmenter`, so an emoji is one character and a flag is one
+  character — `String.slice` would cap 12 in the middle of a surrogate pair and
+  ship half a 🐈. The chip's `max-width: 12ch` is this number.
+- **A whitelist, not a blocklist**: Latin letters, digits, `' . - _`, and
+  emoji. A blocklist of what breaks a layout is a list nobody finishes — ban
+  the zero-width space and U+2800 BRAILLE BLANK still draws nothing. Latin
+  rather than ASCII because José and Núñez are ordinary US names; NFC first, so
+  an accent typed as a combining mark becomes one letter instead of being
+  stripped to `Jose`.
+- What that keeps out, each a real break: **combining marks** (Zalgo climbs out
+  of a proctor row whose height is fixed), **bidi controls** (U+202E reverses
+  the rest of the line), **zero-width and control characters** (a row with
+  nothing to read and nothing to grab), **non-Latin scripts** (one font, and
+  nobody in the room can say them). ZWJ is out too, so 👨‍👩‍👧 lands as three
+  separate emoji — the alternative is admitting the one character whose whole
+  job is to be invisible.
+- **`""` is not a name.** Whatever is left has to contain a letter, a digit or
+  an emoji, or the caller refuses it; `Roster.register` seats "Cat" instead of
+  a blank row.
+- **`Roster.register` is the choke point**, not the rename intents: `?name=` in
+  a socket URL is the door every phone comes in by and is typed by whoever
+  wants to type it. The clients clamp the input on every keystroke (`nameDraft`
+  keeps a trailing space, so a surname can still follow) — no `maxlength`
+  anywhere, which counts UTF-16 units and would allow six emoji and twelve
+  letters.
+
+Nothing filters for profanity. Jackbox ships a three-level filter because it
+runs for strangers on a stream; this runs for a room the proctor is standing
+in, and the board can rename or forget anybody in one press.
+
 ### The room, on a player's phone
 
 Every phone shows the four teams and who is on them, with your box lifted in
@@ -256,8 +296,7 @@ proctor-only on the wire, so nothing here declares a cursor.
 - **Your name is a chip under the board**, and the chat has the same chip on
   both of its screens. Renaming happens in place over `rename`; the half-typed
   draft lives in module state, because a lobby broadcast rebuilds the page.
-  `NAME_MAX` and `cleanName` in `shared/lobby.ts` are the one clamp — collapse,
-  trim, 24 — applied on every door and again on the server.
+  `NAME_MAX` and `cleanName` in `shared/lobby.ts` are the one rule — see below.
 - If people stop reaching for the headbands, the line to put back is "Grab the
   pink ears 🐾", in the box that is already yours.
 

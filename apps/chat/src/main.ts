@@ -9,10 +9,10 @@ import PartySocket from "partysocket";
 import {
   CHAT_BURST,
   CHAT_MAX_TEXT,
-  NAME_MAX,
   TEAMS,
   chatRoomFor,
   cleanName,
+  nameDraft,
   type ChatClientMsg,
   type ChatMessage,
   type ChatServerMsg,
@@ -201,12 +201,13 @@ function nameScreen() {
     <div class="card">
       <h1>🐾 Team chat</h1>
       <p class="sub">What should we call you?</p>
-      <input id="name" maxlength="${NAME_MAX}" placeholder="Your name" autocomplete="off" />
+      <input id="name" placeholder="Your name" autocomplete="off" />
       <button id="go" class="primary">Join</button>
     </div>
   `;
   const input = document.getElementById("name") as HTMLInputElement;
   input.focus();
+  input.oninput = () => clampName(input);
   const submit = () => {
     const name = cleanName(input.value);
     if (!name) return;
@@ -227,7 +228,7 @@ function nameChipHtml(): string {
   if (renaming) {
     return `
       <div class="rename">
-        <input id="newname" maxlength="${NAME_MAX}" value="${escapeHtml(draft)}"
+        <input id="newname" value="${escapeHtml(draft)}"
                placeholder="Your name" autocomplete="off" />
         <button id="savename" class="chip-go">Save</button>
         <button id="cancelname" class="link">Cancel</button>
@@ -264,8 +265,10 @@ function wireNameChip() {
   const save = document.getElementById("savename") as HTMLButtonElement | null;
   const cancel = document.getElementById("cancelname") as HTMLButtonElement | null;
   if (!input || !save || !cancel) return;
-  // Every keystroke goes to module state, so a repaint redraws what is typed.
+  // Every keystroke goes to module state, so a repaint redraws what is typed —
+  // clamped first, so what is stored is what is shown.
   input.oninput = () => {
+    clampName(input);
     draft = input.value;
   };
   const submit = () => {
@@ -407,6 +410,16 @@ function line(m: ChatMessage): HTMLLIElement {
 
   li.append(who, body, at);
   return li;
+}
+
+/** Hold an input to what a name may be, as it is typed: 12 characters as
+ * READ, Latin letters, digits, `' . - _` and emoji (`nameDraft`). No
+ * `maxlength` anywhere — it counts UTF-16 units, so it would allow six emoji
+ * and twelve letters. Rewritten only when it actually changed, or the caret
+ * jumps to the end on every keystroke. */
+function clampName(input: HTMLInputElement) {
+  const next = nameDraft(input.value);
+  if (next !== input.value) input.value = next;
 }
 
 /** For the two card screens, which are template strings rather than nodes.

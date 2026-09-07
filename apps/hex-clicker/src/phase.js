@@ -6,7 +6,7 @@ import { mulberry32 } from "@escape-cats/shared";
 import { game, nightActive, wallSeed } from "./state.js";
 import {
   hexCatEl, starsEl, dockEl, cutsceneVeilEl,
-  splashEl, splashArtEl, wonPillEl,
+  splashEl, splashArtEl, splashWordEl, splashWordTextEl, wonPillEl,
 } from "./dom.js";
 import { loadWallScene, resizeWall } from "./wall.js";
 import { YAWN_MS, ZZZ_HOLD_MS } from "./cat.js";
@@ -55,6 +55,8 @@ function makeStars() {
 // night scene — the wall they read is what they earned. Which view a phone
 // shows is LOCAL, unlike Goomba's level cards, which move what the room PLAYS.
 let splashOpen = false;
+// The arrival beat plays ONCE per win — see setSplash.
+let introPlayed = false;
 
 /** Point the splash at its picture and take the sky colours FROM that picture:
  * replace the file, get a new sky. BASE_URL rather than a literal /hexxygon/ —
@@ -112,10 +114,25 @@ function skyStops(img, n) {
 }
 
 /** Show or hide the splash. Local, idempotent, and the pill's label follows it
- * so the one control always says where it goes rather than where you are. */
+ * so the one control always says where it goes rather than where you are.
+ *
+ * Raising it the FIRST time also runs the finale beat Goomba's splash runs
+ * (drawSplash there, `#splash.intro` here): the cheer pops on, and the code
+ * word rises a beat later. Once only, because unlike Goomba's finale this
+ * screen has a way back — a party returning to re-read the word should find it
+ * already up rather than wait through the beat again. `syncWon` re-arms it if
+ * the win is ever taken back. */
 export function setSplash(open) {
+  const rising = !splashOpen;
   splashOpen = open && game.wonAt !== null; // no splash without the win
+  if (splashOpen && rising && !introPlayed) {
+    introPlayed = true;
+    splashEl.classList.add("intro");
+  }
   splashEl.classList.toggle("on", splashOpen);
+  // The picture alone was decoration; the code word is something to read, so
+  // the screen stops hiding itself from a reader while it is up.
+  splashEl.setAttribute("aria-hidden", splashOpen ? "false" : "true");
   wonPillEl.textContent = splashOpen ? "← back to game" : "🏆 win screen";
 }
 
@@ -130,7 +147,19 @@ export function toggleSplash() {
 export function syncWon() {
   const won = game.wonAt !== null;
   wonPillEl.classList.toggle("on", won);
-  if (!won) setSplash(false);
+  // The word is the room's, not this screen's: it rides the snapshot, gated on
+  // the wall being legible (HexSim.snapshot). Before that there is nothing to
+  // hand over and the plate is simply not there.
+  const word = game.codeword;
+  splashWordEl.hidden = !word;
+  if (word) splashWordTextEl.textContent = word;
+  if (!won) {
+    setSplash(false);
+    // A taken-back win (or a reset) re-arms the beat: the next one is an
+    // arrival again.
+    introPlayed = false;
+    splashEl.classList.remove("intro");
+  }
 }
 
 // The night-transition CUTSCENE. Fired once, only on the live day->night edge —

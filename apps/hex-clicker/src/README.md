@@ -16,7 +16,7 @@ Rendering is plain JS; the typed seams are TS. Game RULES live in
 | `pet.js`    | tap handling, streaks, night pokes                                    |
 | `mates.js`  | teammates' taps, replayed with their real rhythm and spot             |
 | `fx.js`     | "+N" floats and mouse-pop particles                                   |
-| `phase.js`  | day/night projection, starfield, the night cutscene                   |
+| `phase.js`  | day/night projection, starfield, night cutscene, the win splash       |
 | `art.js`    | the one mouse silhouette + palette every renderer builds from         |
 | `mouse-geom.js` | GENERATED — the mouse traced from the art file; art.js's input    |
 | `format.js` | `fmt` — the one number formatter (night appends "M")                  |

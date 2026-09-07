@@ -424,8 +424,15 @@ granting does not. Which view a phone shows is LOCAL. The splash raises itself
 once, on the live edge, so a rejoin gets the pill and not a replayed celebration.
 The picture is `apps/hex-clicker/public/art/hex-splash.webp`, drawn whole and
 fitted on whichever axis binds, with slack filled by sky sampled from its own
-edges — replace the file and it brings its own sky. Either win is taken back by
-that game's reset.
+edges — replace the file and it brings its own sky. Over it the same two beats
+Goomba's finale plays: "Congratulations!" pops on, and the CODE WORD rises in
+under it a beat later. Both plates sit at the BOTTOM here, not one at each end —
+this picture's empty sky is under the moon, and on a laptop the cat's ears reach
+the top edge. The word is the one the SNAPSHOT carries (`codeword`, which the sim
+withholds until the wall is legible), never a second copy of `HEX_CODEWORD` in
+the client. The beat plays once per win: the pill ping-pongs, and a party coming
+back to re-read the word finds it already up. Either win is taken back by that
+game's reset, which re-arms the beat with everything else.
 
 ### The testing room
 

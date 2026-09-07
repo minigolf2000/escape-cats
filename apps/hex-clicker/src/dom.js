@@ -50,6 +50,8 @@ export const eyeRightEl = $("#eyeRight");
 // The win splash (proctor-marked win) and its one control
 export const splashEl = $("#splash");
 export const splashArtEl = $("#splashArt");
+export const splashWordEl = $("#splashWord");
+export const splashWordTextEl = $("#splashWordText");
 export const wonPillEl = $("#wonPill");
 
 // Multiplayer shell

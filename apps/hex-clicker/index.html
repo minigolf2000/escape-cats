@@ -236,6 +236,18 @@
      before the gate/rotate covers, which outrank them (z-index note on #splash). -->
 <div id="splash" aria-hidden="true">
   <div class="sky top"></div><img id="splashArt" alt=""><div class="sky bottom"></div>
+  <!-- The finale's two plates, in THIS ORDER (see #splashSay in styles.css):
+       the cheer pops on, and a beat later the CODE WORD rises in under it. The
+       stack is OUT of the flex column above (absolute), so the two .sky slacks
+       go on measuring against the picture alone. The word's text is written
+       from the snapshot (syncWon in phase.js), never typed here: the server
+       only sends it once the wall is legible. -->
+  <div id="splashSay">
+    <div id="splashCheer" class="plate">Congratulations!</div>
+    <div id="splashWord" class="plate" hidden>
+      <b>CODE WORD</b><span id="splashWordText"></span>
+    </div>
+  </div>
 </div>
 <button id="wonPill" type="button">🏆 win screen</button>
 

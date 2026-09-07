@@ -1062,6 +1062,77 @@
     flex: 0 1 auto; min-height: 0;
     width: 100%; height: auto; object-fit: contain;
   }
+  /* ---- THE FINALE'S TWO PLATES ----
+     Goomba's finale runs this beat on canvas (drawSplash, its render.js); hex's
+     splash is an <img>, so it runs in DOM and CSS instead. The choreography is
+     the same and the ORDER is the point: the cheer POPS on first, and only a
+     beat later does the CODE WORD rise in under it — hand the word over first
+     and nobody looks at the rest.
+     BOTH sit at the bottom, where Goomba puts only the word: this picture's
+     empty sky is under the moon, and on a laptop (where height binds) the cat's
+     ears reach the top edge, so a plate up there would sit on her head. The
+     stack is absolute, so the two .sky slacks keep measuring against the
+     picture alone (see TWO SLACKS above), and the word is laid out from the
+     first frame — it only ARRIVES late, so the cheer never shifts under it.
+     The plates' chrome is the night panel's, not the theme's: the splash brings
+     its own daylight sky with the picture, so a plate that restyled itself on
+     body.night would be lit for the wrong room. */
+  #splashSay {
+    position: absolute; left: 0; right: 0;
+    bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px));
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    padding: 0 12px;
+  }
+  #splash .plate {
+    box-sizing: border-box;
+    /* max-content, so a plate is as wide as its line and no wider; the cap is
+       the real limit and the only thing that may wrap it. */
+    width: max-content; max-width: 100%;
+    text-align: center; color: #ffe9b3;
+    background: rgba(9,11,18,.92);
+    border: 2px solid var(--gold); border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  }
+  #splashCheer {
+    padding: 9px 22px;
+    font: 800 clamp(18px, 5.4vw, 30px)/1.25 var(--ui-font);
+  }
+  #splashWord { padding: 13px 26px; }
+  #splashWord b {
+    display: block; color: #c9bdf0; letter-spacing: .14em;
+    font: 800 clamp(10px, 2.6vw, 13px)/1 var(--ui-font);
+  }
+  #splashWord span {
+    display: block; margin-top: 5px;
+    font: 800 clamp(20px, 6.6vw, 34px)/1.15 var(--ui-font);
+  }
+  /* `.intro` is added for the ARRIVAL only (setSplash in phase.js) — the pill
+     ping-pongs, and a party coming back to re-read the word should not sit
+     through the beat again. Without it both plates are simply here, which is
+     also what every frame after the animation looks like (fill-mode both). */
+  #splash.intro #splashCheer { animation: splashPop .42s ease-out .55s both; }
+  #splash.intro #splashWord  { animation: splashRise .55s var(--tap-ease) 1.5s both; }
+  /* Overshoot and settle, scaled about the plate's own centre so the pop does
+     not walk across the screen. */
+  @keyframes splashPop {
+    0%   { opacity: 0; transform: scale(.9); }
+    55%  { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  /* Starts a full plate-height below its rest, which is off the bottom edge on
+     any size, and lands softly on --tap-ease. */
+  @keyframes splashRise {
+    from { opacity: 0; transform: translateY(calc(100% + 24px)); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  /* The movement goes, the ORDER stays: the word still arrives after the cheer,
+     which is the only thing this beat is really saying. */
+  @media (prefers-reduced-motion: reduce) {
+    #splash.intro #splashCheer { animation: splashFade .3s linear .55s both; }
+    #splash.intro #splashWord  { animation: splashFade .3s linear 1.5s both; }
+    @keyframes splashFade { from { opacity: 0; } to { opacity: 1; } }
+  }
+
   /* THE TOGGLE — the only control the win adds. Hidden until the proctor marks
      the team won, then ping-pongs between game and splash. Top-left: the one
      corner nothing else uses, and where Goomba's level selector opens too. */

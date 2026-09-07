@@ -163,4 +163,9 @@ Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
   cannot score itself. It is a toggle; taking a win back confirms, granting
   does not. `#wonPill` flips between splash and game LOCALLY (Goomba's card taps
   are wire intents because they move what the room plays). The splash picture
-  is a drop-in file that brings its own sky; don't hardcode a sky or crop.
+  is a drop-in file that brings its own sky; don't hardcode a sky or crop. Over
+  it runs Goomba's finale beat — cheer first, CODE WORD a beat later — but with
+  BOTH plates at the bottom (the cat owns the top edge on a laptop) and once per
+  win, because unlike Goomba's finale this screen has a way back. The word comes
+  off the snapshot (`codeword`, gated on the wall being legible); never type
+  `HEX_CODEWORD` into a client.

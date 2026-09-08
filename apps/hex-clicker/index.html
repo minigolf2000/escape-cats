@@ -51,13 +51,14 @@
     <svg id="hexCat" role="button" aria-label="Pet Hex" width="828" height="652" viewBox="0 0 828 652" fill="none" xmlns="http://www.w3.org/2000/svg">
      <defs>
       <!-- THE SOCKET CLIP. The pupil is bounded by the socket the way a pupil is
-           bounded by its iris: it can grow until it fills the eye, and a glance
-           then slides it AGAINST the rim instead of through it — dilation and
-           gaze always happen together (she widens exactly when she looks
-           hardest). The clip is the socket's own INNER contour. It hangs on a
-           wrapper OUTSIDE the look group, never on the pupil: a clip-path rides
-           its element's own transform, so clipping the pupil directly would drag
-           the socket around with the glance and clip nothing. -->
+           bounded by its iris: it can grow until it fills the eye. It is a
+           BACKSTOP, not the mechanism — a dilated pupil has ~5 units of room in
+           there, so the look collapses to LOOK_WIDE (cat.js) the moment she
+           widens and never leans on the rim. The clip is the socket's own INNER
+           contour. It hangs on a wrapper OUTSIDE the look group, never on the
+           pupil: a clip-path rides its element's own transform, so clipping the
+           pupil directly would drag the socket around with the glance and clip
+           nothing. -->
       <clipPath id="socketClipL"><path d="M280.5 429.5 307.5 435.5 322.5 446.5 328.5 454.5 330.5 461.5 334.5 467.5 336.5 477.5 335.5 479.5 336.5 494.5 334.5 501.5 333.5 514.5 325.5 533.5 321.5 538.5 319.5 538.5 310.5 546.5 301.5 550.5 289.5 553.5 265.5 552.5 258.5 550.5 257.5 551.5 247.5 546.5 243.5 546.5 236.5 543.5 229.5 537.5 218.5 523.5 213.5 513.5 209.5 497.5 209.5 480.5 214.5 470.5 215.5 465.5 224.5 449.5 226.5 449.5 234.5 441.5 247.5 434.5 257.5 433.5 259.5 431.5 270.5 431.5Z"/></clipPath>
       <clipPath id="socketClipR"><path d="M508.5 416.5 509.5 417.5 512.5 416.5 523.5 417.5 533.5 421.5 551.5 436.5 560.5 448.5 562.5 453.5 566.5 470.5 566.5 480.5 567.5 481.5 566.5 486.5 567.5 487.5 564.5 498.5 558.5 508.5 558.5 511.5 550.5 522.5 542.5 529.5 517.5 538.5 514.5 537.5 507.5 539.5 488.5 538.5 465.5 528.5 458.5 522.5 452.5 511.5 451.5 505.5 446.5 493.5 447.5 489.5 445.5 475.5 452.5 450.5 455.5 444.5 466.5 433.5 477.5 425.5 480.5 425.5 490.5 420.5 497.5 419.5 500.5 417.5Z"/></clipPath>
      </defs>

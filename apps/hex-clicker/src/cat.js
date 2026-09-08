@@ -32,11 +32,18 @@ import { petState } from "./pet.js";
 // The v2 socket is ~132x129 against an ~85x77 pupil, so unlike v1's ~109x98 eye
 // the room is nearly square. Sideways still gets the larger number because
 // sideways is the range that READS — a golden mouse is far more often beside
-// her than above her — but the gap is now 17/10 rather than 14/8. The socket
-// clip is what lets these stay at full range: a glance pushes the dilated pupil
-// AGAINST the rim rather than through it.
+// her than above her — but the gap is now 17/10 rather than 14/8. This is the
+// SLIT's range: a resting pupil is 29 wide inside a 127-wide socket and has
+// room to wander. LOOK_WIDE is the same range once she has dilated.
 const LOOK_X = 17;
 const LOOK_Y = 10;
+// What the look is worth while the pupil is BLOWN. A saucer is 113 wide in that
+// same socket — about 5 units of room, against a full-range 17 — so at 1 the
+// clip shaved the far side into a straight edge, and by different amounts per
+// eye (the right socket is the smaller). It also reads wrong: a blown pupil
+// sits centred, staring, not glancing. So the wander is the slit's tell and
+// widening collapses it.
+const LOOK_WIDE = 0.4;
 // Pupil SIZE, on its own element so a blink never resets it. Rest is a slit
 // (narrow on X, drawn height on Y); a golden mouse on screen — the one thing
 // worth being excited about — opens it to a saucer, which the socket clip keeps
@@ -185,12 +192,16 @@ export function updateCat(t) {
   // Widened while awake AND excited: a golden on screen, or Zoomies running (so
   // her eyes stay wide through the sprint rather than snapping shut when the
   // mouse is gone). Never during sleep, matching the look branch above.
-  const lookT = `translate(${lookX.toFixed(2)}px, ${lookY.toFixed(2)}px)`;
+  const wide = !asleep && (goldState.active || zoomBuff() > 1);
+  // Same gain on both axes and on both .look groups, so the eyes stay a pair.
+  // The lash arc is the other .look and never sees it: it is the sleeping eye,
+  // and nothing is wide at night.
+  const gain = wide ? LOOK_WIDE : 1;
+  const lookT = `translate(${(lookX * gain).toFixed(2)}px, ${(lookY * gain).toFixed(2)}px)`;
   for (const el of lookEls) el.style.transform = lookT;
   // Dilation lands one level in, on the pupils, so it composes with the look
   // and stays off the shut-lash arc. Rest opens on X alone (a slit); dilating
   // grows BOTH axes, so a saucer reads as opening rather than stretching.
-  const wide = !asleep && (goldState.active || zoomBuff() > 1);
   const r = PUPIL_ROUND;
   const pupilT = wide ? `scale(${r}, ${r})` : `scale(${PUPIL_SLIT}, 1)`;
   if (pupilLeftEl.style.transform !== pupilT) {

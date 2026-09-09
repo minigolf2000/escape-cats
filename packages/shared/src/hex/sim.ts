@@ -486,8 +486,12 @@ export class HexSim {
 
   /** Assemble the wire snapshot. The ONE place this happens — the room server
    * and the ?debug mode both call it, so derived fields (progress, cps) and the
-   * codeword gate ("the word never leaves before the wall is legible") cannot
-   * drift between them. */
+   * `codeword` gate cannot drift between them.
+   *
+   * `codeword` is the PROCTOR's readout, not the players': it answers "is this
+   * team's wall legible yet" ("codeword locked" -> the word, in TeamGame.tsx).
+   * The player-facing win screen does NOT read it — it shows HEX_CODEWORD flat,
+   * because a screen that only exists after the win has nothing to gate on. */
   snapshot(now: number, players: PlayerInfo[], taps: TapEvent[] = []): HexSnapshot {
     return {
       ...this.state,

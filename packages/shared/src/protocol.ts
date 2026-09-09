@@ -39,8 +39,8 @@ export interface HexSnapshot extends HexSimState {
   /** Mice/second the bank is actually accruing (base rate × dev speed) —
    * stamped by the authority so dashboards don't re-run the economy fold. */
   cps: number;
-  /** null until the wall is legible — the word never leaves the server
-   * before that. */
+  /** The PROCTOR's progress readout: null until the wall is legible. Player
+   * clients don't read it — their win screen shows HEX_CODEWORD directly. */
   codeword: string | null;
 }
 

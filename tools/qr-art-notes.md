@@ -234,6 +234,40 @@ This is also how you carry a finished drawing between canvases: pick the size
 where the URL fits with headroom and the corner furniture frames the shape,
 then nudge with the arrow keys. Nothing about the art itself changes.
 
+## Select: box it, move it
+
+The select tool (S) is the Paint marquee, and only that: drag out a box, then
+drag the box (or press the arrows) to move what is inside it. Enter or a click
+outside sets it down, Escape puts it back, Delete clears it, Ctrl+C / X / V
+copy, cut and paste it, Ctrl+A boxes the whole canvas. Whole modules only,
+never a rotate or a scale — the same rule as the canvas change above.
+
+The model is *lift, place, set down*. Lifting copies the boxed cells (tone and
+paint order) into a float and keeps two whole-grid snapshots: the grid as it
+was, and the grid with the box cleared to noise. Every placement recomposes
+the live grid as the cleared one plus the float stamped at its offset, and
+three choices in that stamp are the ones that matter:
+
+- **Only painted float cells stamp.** The noise in a box is nothing, not an
+  eraser, so a ragged shape can be dragged across the drawing without wiping
+  a rectangle of it.
+- **Cells hanging off the board are simply not drawn**, and reappear if the
+  float is dragged back on — nothing is lost until it is set down.
+- **Cells that land under function patterns are kept** and ignored by the
+  solver, exactly as the arrow keys have always kept them.
+
+Because the live grid is always the composed grid, the solver, the meter, the
+renderer and the autosave never hear about floats — the code keeps re-solving
+under the drag at the usual ~6ms. Setting down turns the difference between
+the "as it was" snapshot and the grid into ONE undo record; cancel is that
+snapshot again. Paste lands *in place*, floating over the spot it was copied
+from (clamped onto the board if the canvas shrank), with fresh paint order so
+a copy pins after everything already down: paste + arrows is "duplicate and
+nudge". Everything that replaces the grid wholesale — undo, redo, a canvas
+change, a preset, an import, switching to a brush — sets any float down first
+and takes the box away, so a float can never be orphaned over a grid it was
+not lifted from.
+
 ## The URL is the save file
 
 The studio has no server, so a shareable drawing was always going to be the

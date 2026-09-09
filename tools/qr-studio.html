@@ -203,6 +203,7 @@
       <button id="b-black" class="on"><span class="swatch" style="background:#101418"></span>black <span class="key">(B)</span></button>
       <button id="b-white"><span class="swatch" style="background:#fff;border:1px solid var(--line)"></span>white <span class="key">(W)</span></button>
       <button id="b-noise"><span class="swatch" style="background:repeating-conic-gradient(#9aa 0 25%,#dde 0 50%) 0 0/8px 8px"></span>eraser <span class="key">(E)</span></button>
+      <button id="b-select"><span class="swatch" style="border:1.5px dashed var(--dim);box-sizing:border-box"></span>select <span class="key">(S)</span></button>
     </div>
     <div class="toolcol" role="radiogroup" aria-label="Brush size">
       <button class="sizebtn" data-size="1" aria-label="1 by 1"><i style="width:4px;height:4px"></i>1×1 <span class="key">(1)</span></button>
@@ -212,8 +213,9 @@
     <div class="toolrow">
       <button id="undo">undo <span class="key" id="undoKey">(Ctrl+Z)</span></button>
     </div>
-    <span class="hint">arrow keys nudge the whole drawing</span>
+    <span class="hint">arrow keys nudge the whole drawing — or the selection</span>
     <span class="hint">shift locks to H, V or 45° — drag or click</span>
+    <span class="hint">select: box it, then drag it · Enter sets, Esc cancels, Del clears · Ctrl+C / X / V</span>
   </aside>
 
   <section id="center">
@@ -1639,6 +1641,9 @@ window.QR_PRESET_IMGS = {
     urlCase: "schemehost", // "schemehost" = let solver remix case | "none" = exact
     scheme: "slate",    // noise tint scheme
     hover: -1,          // module index under the cursor (brush preview)
+    sel: null,          // {r0,c0,r1,c1} inclusive — the marquee, when one is up
+    float: null,        // a lifted selection riding over the grid (see "selection")
+    clip: null,         // last Ctrl+C / Ctrl+X, in-tab only
   };
   const size = () => E.sizeOf(state.version);
 
@@ -1881,7 +1886,7 @@ window.QR_PRESET_IMGS = {
     }
     // brush preview: outline the cells the next click would paint, filled
     // with the active color so size + color are always confirmed
-    if (focus && state.hover >= 0) {
+    if (focus && state.hover >= 0 && state.brush !== "select") {
       const bs = state.brushSize;
       const hr = (state.hover / S) | 0, hc = state.hover % S;
       const col = state.brush === "black" ? "rgba(20,22,28,0.55)" : state.brush === "white" ? "rgba(255,255,255,0.7)" : "rgba(140,150,170,0.4)";
@@ -1898,6 +1903,18 @@ window.QR_PRESET_IMGS = {
       g.lineWidth = 2;
       const bx = (hc - ((bs / 2) | 0)) * px, by = (hr - ((bs / 2) | 0)) * px;
       g.strokeRect(bx + 1, by + 1, bs * px - 2, bs * px - 2);
+    }
+    // the marquee: the box being dragged out, or the selection (floating or
+    // not). Dashed so it never reads as paint; blue so it never reads as an
+    // over-budget flag.
+    const R = marquee ? normRect(marquee.a, marquee.b) : selRect();
+    if (R) {
+      g.save();
+      g.strokeStyle = "#4da3ff";
+      g.lineWidth = 2;
+      g.setLineDash([5, 4]);
+      g.strokeRect(R.c0 * px + 1, R.r0 * px + 1, (R.c1 - R.c0 + 1) * px - 2, (R.r1 - R.r0 + 1) * px - 2);
+      g.restore();
     }
   }
   const NOISE_TINT = {
@@ -2117,6 +2134,7 @@ window.QR_PRESET_IMGS = {
   can.addEventListener("pointerenter", () => setFocusMode(true));
   can.addEventListener("pointerleave", () => { if (!painting) setFocusMode(false); });
   can.addEventListener("pointerdown", (ev) => {
+    if (state.brush === "select") { selPointerDown(ev); return; }
     painting = true;
     setFocusMode(true);
     if (!$("threshRow").hidden) $("threshRow").hidden = true; // committing to hand-paint
@@ -2142,6 +2160,7 @@ window.QR_PRESET_IMGS = {
     ev.preventDefault();
   });
   can.addEventListener("pointermove", (ev) => {
+    if (state.brush === "select") { selPointerMove(ev); return; }
     const raw = cellFromEvent(ev);
     // Shift is read live off the event rather than latched at pointerdown, so
     // it can be taken up or dropped WITHIN one drag: pressing it re-anchors
@@ -2166,6 +2185,7 @@ window.QR_PRESET_IMGS = {
     else render(); // keep preview in sync even when nothing changed
   });
   const endStroke = (ev) => {
+    if (marquee || selDrag) { selPointerUp(ev); return; }
     painting = false;
     lastCell = lockAnchor = lockDir = null; // lastPaint SURVIVES: Shift+click needs it
     if (state.strokeRec && state.strokeRec.length > 0) pushUndo(state.strokeRec);
@@ -2218,12 +2238,14 @@ window.QR_PRESET_IMGS = {
     return inv;
   }
   function undo() {
+    dropSel(); // a move in flight becomes the step being undone; the box goes with it
     const rec = state.undoStack.pop();
     if (!rec) return;
     state.redoStack.push(applyRec(rec));
     capStack(state.redoStack);
   }
   function redo() {
+    dropSel();
     const rec = state.redoStack.pop();
     if (!rec) return;
     // straight onto the undo stack, NOT via pushUndo: a redo continues the
@@ -2232,6 +2254,244 @@ window.QR_PRESET_IMGS = {
     capStack(state.undoStack);
   }
   $("undo").addEventListener("click", undo);
+
+  // ---------- selection (the Paint marquee) ----------
+  // Box a rectangle with the select tool, then drag the box (or use the
+  // arrows) to move what is inside it; Enter or a click outside sets it down,
+  // Escape puts it back, Delete clears it, Ctrl+C/X/V copy, cut and paste it.
+  //
+  // The model is "lift, place, set down". Lifting a selection copies its cells
+  // into a FLOAT (tone + paint order) and remembers two whole-grid snapshots:
+  // `before`, the grid as it was, and `base`, the grid with the selection's
+  // cells cleared to noise. Every placement recomposes the live grid as base
+  // plus the float stamped at its current offset — only PAINTED float cells
+  // stamp (a ragged shape does not drag a box of noise over its neighbours),
+  // cells hanging off the board are simply not drawn (and come back if the
+  // float is dragged back on), and cells landing under function patterns are
+  // kept, as moveArt keeps them. Because state.tone is always the composed
+  // grid, the solver, the renderer, the meter and the autosave need to know
+  // nothing about floats. Setting down turns the difference between `before`
+  // and the grid into ONE undo record, and cancel is just `before` again.
+  // Everything that replaces the grid wholesale (undo, redo, a canvas change,
+  // a preset, an import) sets the float down first, so a float can never be
+  // orphaned over a grid it was not lifted from.
+  let marquee = null; // {a, b}: the box being dragged out
+  let selDrag = null; // {dr, dc}: grab offset while dragging a float
+  const normRect = (a, b) => ({ r0: Math.min(a.r, b.r), c0: Math.min(a.c, b.c), r1: Math.max(a.r, b.r), c1: Math.max(a.c, b.c) });
+  const inRect = (R, cell) => !!R && !!cell && cell.r >= R.r0 && cell.r <= R.r1 && cell.c >= R.c0 && cell.c <= R.c1;
+  // a rect clipped to the board, or null when nothing of it is on the board
+  function clipRect(R) {
+    if (!R) return null;
+    const S = size();
+    const r0 = Math.max(0, R.r0), c0 = Math.max(0, R.c0), r1 = Math.min(S - 1, R.r1), c1 = Math.min(S - 1, R.c1);
+    return r0 > r1 || c0 > c1 ? null : { r0, c0, r1, c1 };
+  }
+  // where the box is: around the float when one is up, else the selection
+  function selRect() {
+    const f = state.float;
+    if (f) return clipRect({ r0: f.r0, c0: f.c0, r1: f.r0 + f.h - 1, c1: f.c0 + f.w - 1 });
+    return clipRect(state.sel);
+  }
+  // pointer position in whole cells WITHOUT the board clip, so a float can be
+  // dragged past the edge and back
+  function cellFromEventRaw(ev) {
+    const rect = can.getBoundingClientRect(), px = rect.width / size();
+    return { r: Math.floor((ev.clientY - rect.top) / px), c: Math.floor((ev.clientX - rect.left) / px) };
+  }
+  function liftSel() {
+    const R = selRect();
+    if (!R || state.float) return;
+    const S = size(), h = R.r1 - R.r0 + 1, w = R.c1 - R.c0 + 1;
+    const tone = new Int8Array(h * w), seq = new Int32Array(h * w).fill(-1);
+    const before = { tone: state.tone.slice(), seq: state.seq.slice() };
+    const base = { tone: state.tone.slice(), seq: state.seq.slice() };
+    for (let r = 0; r < h; r++)
+      for (let c = 0; c < w; c++) {
+        const i = (R.r0 + r) * S + R.c0 + c;
+        tone[r * w + c] = state.tone[i];
+        seq[r * w + c] = state.seq[i];
+        base.tone[i] = 0;
+        base.seq[i] = -1;
+      }
+    state.float = { r0: R.r0, c0: R.c0, h, w, tone, seq, before, base };
+    state.sel = null;
+  }
+  function composeFloat() {
+    const f = state.float, S = size();
+    state.tone = f.base.tone.slice();
+    state.seq = f.base.seq.slice();
+    for (let r = 0; r < f.h; r++)
+      for (let c = 0; c < f.w; c++) {
+        const t = f.tone[r * f.w + c];
+        if (!t) continue; // noise in the float is nothing, not an eraser
+        const rr = f.r0 + r, cc = f.c0 + c;
+        if (rr < 0 || cc < 0 || rr >= S || cc >= S) continue;
+        state.tone[rr * S + cc] = t;
+        state.seq[rr * S + cc] = f.seq[r * f.w + c];
+      }
+    requestSolve();
+  }
+  function placeFloat(r0, c0) {
+    const f = state.float;
+    if (!f || (f.r0 === r0 && f.c0 === c0)) return;
+    f.r0 = r0;
+    f.c0 = c0;
+    composeFloat();
+  }
+  // the undo record for whatever a float did: each cell as it was `before`
+  function diffFrom(before) {
+    const rec = [];
+    for (let i = 0; i < state.tone.length; i++)
+      if (state.tone[i] !== before.tone[i] || state.seq[i] !== before.seq[i]) rec.push({ i, t: before.tone[i], s: before.seq[i] });
+    return rec;
+  }
+  // set the float down where it is; the box stays up around it
+  function commitFloat() {
+    const f = state.float;
+    if (!f) return;
+    const rec = diffFrom(f.before);
+    if (rec.length) pushUndo(rec);
+    state.sel = selRect();
+    state.float = null;
+  }
+  function cancelFloat() {
+    const f = state.float;
+    if (!f) return;
+    state.tone = f.before.tone;
+    state.seq = f.before.seq;
+    state.float = null;
+    state.sel = null;
+    selDrag = null;
+    requestSolve();
+  }
+  // set down and take the box away
+  function dropSel() {
+    commitFloat();
+    marquee = selDrag = null;
+    if (state.sel) { state.sel = null; render(); }
+  }
+  function moveSel(dx, dy) {
+    liftSel();
+    const f = state.float;
+    if (f) placeFloat(f.r0 + dy, f.c0 + dx);
+  }
+  function deleteSel() {
+    const R = selRect();
+    if (!R) return;
+    if (state.float) {
+      // the float's cells go; what was under it stays
+      const f = state.float;
+      state.tone = f.base.tone;
+      state.seq = f.base.seq;
+      const rec = diffFrom(f.before);
+      if (rec.length) pushUndo(rec);
+      state.float = null;
+    } else {
+      const S = size();
+      state.strokeRec = [];
+      for (let r = R.r0; r <= R.r1; r++) for (let c = R.c0; c <= R.c1; c++) paintCell(r * S + c, 0);
+      if (state.strokeRec.length) pushUndo(state.strokeRec);
+      state.strokeRec = null;
+    }
+    state.sel = null;
+    requestSolve();
+  }
+  function copySel() {
+    const R = selRect();
+    if (!R) return;
+    const S = size(), f = state.float;
+    const h = R.r1 - R.r0 + 1, w = R.c1 - R.c0 + 1;
+    const tone = new Int8Array(h * w), seq = new Int32Array(h * w).fill(-1);
+    for (let r = 0; r < h; r++)
+      for (let c = 0; c < w; c++) {
+        // off a float read the float itself (its off-board cells included in
+        // spirit: the clipped box is what you see, so that is what you copy);
+        // off the grid read the grid
+        let t, q;
+        if (f) { const fi = (R.r0 + r - f.r0) * f.w + (R.c0 + c - f.c0); t = f.tone[fi]; q = f.seq[fi]; }
+        else { const i = (R.r0 + r) * S + R.c0 + c; t = state.tone[i]; q = state.seq[i]; }
+        tone[r * w + c] = t;
+        seq[r * w + c] = q;
+      }
+    state.clip = { r0: R.r0, c0: R.c0, h, w, tone, seq };
+  }
+  // paste in place: the copy lands floating exactly where it was cut from
+  // (clamped onto the board if the canvas has shrunk), so paste + arrows is
+  // "duplicate and nudge" and paste after a canvas change is "same spot"
+  function pasteClip() {
+    const k = state.clip;
+    if (!k) return;
+    commitFloat();
+    if (state.brush !== "select") $("b-select").click();
+    const S = size();
+    const r0 = Math.max(0, Math.min(k.r0, S - k.h)), c0 = Math.max(0, Math.min(k.c0, S - k.w));
+    // fresh paint order, same relative order: a copy pins after everything
+    // already down, never in a tie with its original
+    const order = [];
+    for (let j = 0; j < k.tone.length; j++) if (k.tone[j]) order.push(j);
+    order.sort((a, b) => k.seq[a] - k.seq[b]);
+    const seq = new Int32Array(k.tone.length).fill(-1);
+    for (const j of order) seq[j] = state.counter++;
+    const snap = () => ({ tone: state.tone.slice(), seq: state.seq.slice() });
+    state.float = { r0, c0, h: k.h, w: k.w, tone: k.tone.slice(), seq, before: snap(), base: snap() };
+    state.sel = null;
+    composeFloat();
+  }
+  function selectAll() {
+    dropSel();
+    if (state.brush !== "select") $("b-select").click();
+    const S = size();
+    state.sel = { r0: 0, c0: 0, r1: S - 1, c1: S - 1 };
+    render();
+  }
+  // -- the select tool's pointer gestures --
+  function selPointerDown(ev) {
+    const cell = cellFromEvent(ev);
+    if (!cell) return;
+    setFocusMode(true);
+    if (!$("threshRow").hidden) $("threshRow").hidden = true;
+    can.setPointerCapture(ev.pointerId);
+    if (inRect(selRect(), cell)) {
+      // grab: lift on first touch, then follow the pointer by whole cells
+      liftSel();
+      selDrag = { dr: cell.r - state.float.r0, dc: cell.c - state.float.c0 };
+    } else {
+      // a press outside sets any float down and starts a new box; a click
+      // that never becomes a drag just clears the box (Paint's convention)
+      dropSel();
+      marquee = { a: cell, b: cell };
+    }
+    render();
+    ev.preventDefault();
+  }
+  function selPointerMove(ev) {
+    if (selDrag) {
+      const raw = cellFromEventRaw(ev);
+      placeFloat(raw.r - selDrag.dr, raw.c - selDrag.dc);
+      return;
+    }
+    const cell = cellFromEvent(ev);
+    if (marquee) {
+      if (cell && (cell.r !== marquee.b.r || cell.c !== marquee.b.c)) { marquee.b = cell; render(); }
+      return;
+    }
+    can.style.cursor = inRect(selRect(), cell) ? "move" : "crosshair";
+    if (state.hover !== -1) { state.hover = -1; render(); } // no brush preview here
+  }
+  function selPointerUp(ev) {
+    if (marquee) {
+      const { a, b } = marquee;
+      marquee = null;
+      state.sel = a.r === b.r && a.c === b.c ? null : normRect(a, b);
+    }
+    selDrag = null; // the float stays up, boxed, until set down
+    render();
+    if (ev) {
+      const rect = can.getBoundingClientRect();
+      const out = ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom;
+      if (out) setFocusMode(false);
+    }
+  }
   // The GLYPH is the one thing in this feature that genuinely differs by
   // platform. The binding below doesn't: it takes ctrl and meta on every OS
   // without asking which one it is on. But a label is a promise about which
@@ -2253,8 +2513,15 @@ window.QR_PRESET_IMGS = {
     // so the muscle memory you brought works either way
     if (k === "z") { ev.preventDefault(); if (ev.shiftKey) redo(); else undo(); }
     else if (k === "y" && !ev.shiftKey) { ev.preventDefault(); redo(); }
+    // clipboard verbs only claim the chord when they have something to act
+    // on — otherwise the browser keeps them (copying selected page text, say)
+    else if (k === "c" && selRect()) { ev.preventDefault(); copySel(); }
+    else if (k === "x" && selRect()) { ev.preventDefault(); copySel(); deleteSel(); }
+    else if (k === "v" && state.clip) { ev.preventDefault(); pasteClip(); }
+    else if (k === "a") { ev.preventDefault(); selectAll(); }
   });
   function clearAll() {
+    dropSel();
     const S = size();
     state.strokeRec = [];
     for (let i = 0; i < S * S; i++) if (state.tone[i] !== 0) paintCell(i, 0);
@@ -2664,6 +2931,7 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
 
   function rasterizeUpload() {
     if (!state.uploadImg) return;
+    dropSel();
     const S = size(), R = 4;
     const off = document.createElement("canvas");
     off.width = S * R;
@@ -2772,6 +3040,7 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   // keeps them — the solver ignores them, and the arrow keys or the next
   // canvas change can bring them back out.
   function setVersion(v, keepArt = true) {
+    commitFloat(); // the snapshot below must be the grid as it will be undone to
     const oldS = size(), oldTone = state.tone, oldSeq = state.seq, oldV = state.version;
     // snapshot the whole grid so a canvas-size change is undoable like any
     // other action (undo() restores this version + art wholesale)
@@ -2794,10 +3063,14 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
         }
       state.tone = tone;
       state.seq = seq;
+      // the box rides along with its pixels; a box left entirely off the
+      // smaller canvas is gone
+      if (state.sel) state.sel = clipRect({ r0: state.sel.r0 + off, c0: state.sel.c0 + off, r1: state.sel.r1 + off, c1: state.sel.c1 + off });
     } else {
       state.tone = new Int8Array(S * S);
       state.seq = new Int32Array(S * S).fill(-1);
       state.counter = 0;
+      state.sel = null;
     }
     invalidatePreps();
     requestSolve(true); // new geometry — re-pick the config now
@@ -2831,11 +3104,16 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     linkPanel.classList.add("scan");
     renderLink();
   });
-  const brushes = { "b-black": "black", "b-white": "white", "b-noise": "noise" };
+  const brushes = { "b-black": "black", "b-white": "white", "b-noise": "noise", "b-select": "select" };
   for (const [id, name] of Object.entries(brushes)) {
     $(id).addEventListener("click", () => {
+      if (state.brush === name) return;
+      // leaving the select tool sets the selection down and takes the box away
+      if (name !== "select") dropSel();
       state.brush = name;
+      if (name !== "select") can.style.cursor = "";
       for (const o of Object.keys(brushes)) $(o).classList.toggle("on", o === id);
+      render();
     });
   }
   const sizeBtns = [...document.querySelectorAll(".sizebtn")];
@@ -2854,10 +3132,17 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     // arrow keys nudge the whole drawing 1 module (Move-tool convention);
     // Shift jumps 5
     const step = ev.shiftKey ? 5 : 1;
-    if (ev.key === "ArrowLeft") moveArt(-step, 0);
-    else if (ev.key === "ArrowRight") moveArt(step, 0);
-    else if (ev.key === "ArrowUp") moveArt(0, -step);
-    else if (ev.key === "ArrowDown") moveArt(0, step);
+    // with a selection up the arrows move IT (the rest of the drawing stays
+    // put); without one they move the whole drawing, as before
+    const move = selRect() ? moveSel : moveArt;
+    if (ev.key === "ArrowLeft") move(-step, 0);
+    else if (ev.key === "ArrowRight") move(step, 0);
+    else if (ev.key === "ArrowUp") move(0, -step);
+    else if (ev.key === "ArrowDown") move(0, step);
+    else if (ev.key === "Escape") { if (state.float) cancelFloat(); else if (state.sel || marquee) { state.sel = null; marquee = null; render(); } else return; }
+    else if (ev.key === "Enter" && selRect()) commitFloat();
+    else if ((ev.key === "Delete" || ev.key === "Backspace") && selRect()) deleteSel();
+    else if (k === "s") $("b-select").click();
     else if (k === "[") setBrushSize(state.brushSize - 1);
     else if (k === "]") setBrushSize(state.brushSize + 1);
     else if (k === "1") setBrushSize(1);
@@ -2941,6 +3226,7 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
       requestSolve();
     },
     res: () => state.res,
+    sel: { liftSel, placeFloat, commitFloat, cancelFloat, deleteSel, copySel, pasteClip, selectAll, moveSel, selRect },
   };
 
   // ---------- save / restore in the URL hash ----------

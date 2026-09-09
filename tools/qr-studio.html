@@ -2761,8 +2761,18 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
   for (const id of ["tDark", "tLight", "tInvert", "tMode"]) $(id).addEventListener("input", rasterizeUpload);
 
   // ---------- top controls ----------
-  function setVersion(v, resample = true) {
-    const oldS = size(), oldTone = state.tone, oldSeq = state.seq, oldFp = state.fp, oldV = state.version;
+  // Changing the canvas MOVES the art, it never scales it. This is pixel art:
+  // a module is a promise about one cell, and a nearest-neighbour resample
+  // turns a 2-module stroke into a 1- or 3-module one and bends every
+  // diagonal. So the drawing is carried over 1:1, anchored on the CENTRE
+  // (sizes step by 4, so the offset is a whole number and the middle module
+  // stays the middle module): a bigger canvas grows noise around the same
+  // pixels, a smaller one crops the edge. Cells that land under the new
+  // canvas's function patterns are kept, not dropped, exactly as moveArt
+  // keeps them — the solver ignores them, and the arrow keys or the next
+  // canvas change can bring them back out.
+  function setVersion(v, keepArt = true) {
+    const oldS = size(), oldTone = state.tone, oldSeq = state.seq, oldV = state.version;
     // snapshot the whole grid so a canvas-size change is undoable like any
     // other action (undo() restores this version + art wholesale)
     if (oldTone) {
@@ -2772,17 +2782,15 @@ function triTone(mean, mn, mx, dark, light, fp, S, out) {
     $("version").value = String(v);
     const S = size();
     state.fp = E.functionPatterns(v);
-    if (resample && oldTone) {
+    if (keepArt && oldTone) {
       const tone = new Int8Array(S * S), seq = new Int32Array(S * S).fill(-1);
-      for (let r = 0; r < S; r++)
-        for (let c = 0; c < S; c++) {
-          const or = Math.min(oldS - 1, ((r * oldS) / S) | 0);
-          const oc = Math.min(oldS - 1, ((c * oldS) / S) | 0);
-          const i = r * S + c, oi = or * oldS + oc;
-          if (!state.fp.func[i] && !oldFp.func[oi]) {
-            tone[i] = oldTone[oi];
-            seq[i] = oldSeq[oi];
-          }
+      const off = (S - oldS) / 2; // new = old + off, on both axes
+      for (let or = 0; or < oldS; or++)
+        for (let oc = 0; oc < oldS; oc++) {
+          const r = or + off, c = oc + off;
+          if (r < 0 || c < 0 || r >= S || c >= S) continue; // cropped away
+          tone[r * S + c] = oldTone[or * oldS + oc];
+          seq[r * S + c] = oldSeq[or * oldS + oc];
         }
       state.tone = tone;
       state.seq = seq;

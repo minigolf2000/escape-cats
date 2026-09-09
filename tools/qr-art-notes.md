@@ -212,6 +212,62 @@ The brush preview follows the PAINT rather than the pointer, because under a
 lock the two part company and the cell about to change colour is the honest one
 to outline.
 
+## The canvas is a viewport, not a scale
+
+Changing the canvas (v2-v10) used to nearest-neighbour resample the drawing
+into the new size. For pixel art that is the wrong operation at every ratio:
+41 → 45 modules turns some 2-module strokes into 3 and leaves others at 2, so
+every diagonal grows a kink and every outline a bulge, and there is no way to
+draw the art back to what it was short of repainting it. A module is a promise
+about one cell; the canvas is how many cells there are.
+
+So a canvas change now **moves** the art and never scales it: every painted
+module keeps its offset from the centre (sizes step by 4, so that offset is a
+whole number and the middle module stays the middle module). A bigger canvas
+grows noise around the same pixels; a smaller one crops at the edge, which is
+lossy and says so in the pin count. Cells that land under the new size's
+function patterns are kept, not dropped, the same way the arrow keys keep them:
+the solver ignores them, and moving the art or growing the canvas again brings
+them back out. The change is one undo step, as before.
+
+This is also how you carry a finished drawing between canvases: pick the size
+where the URL fits with headroom and the corner furniture frames the shape,
+then nudge with the arrow keys. Nothing about the art itself changes.
+
+## Select: box it, move it
+
+The select tool (S) is the Paint marquee, and only that: drag out a box, then
+drag the box (or press the arrows) to move what is inside it. Enter or a click
+outside sets it down, Escape puts it back, Delete clears it, Ctrl+C / X / V
+copy, cut and paste it, Ctrl+A boxes the whole canvas. Whole modules only,
+never a rotate or a scale — the same rule as the canvas change above.
+
+The model is *lift, place, set down*. Lifting copies the boxed cells (tone and
+paint order) into a float and keeps two whole-grid snapshots: the grid as it
+was, and the grid with the box cleared to noise. Every placement recomposes
+the live grid as the cleared one plus the float stamped at its offset, and
+three choices in that stamp are the ones that matter:
+
+- **Only painted float cells stamp.** The noise in a box is nothing, not an
+  eraser, so a ragged shape can be dragged across the drawing without wiping
+  a rectangle of it.
+- **Cells hanging off the board are simply not drawn**, and reappear if the
+  float is dragged back on — nothing is lost until it is set down.
+- **Cells that land under function patterns are kept** and ignored by the
+  solver, exactly as the arrow keys have always kept them.
+
+Because the live grid is always the composed grid, the solver, the meter, the
+renderer and the autosave never hear about floats — the code keeps re-solving
+under the drag at the usual ~6ms. Setting down turns the difference between
+the "as it was" snapshot and the grid into ONE undo record; cancel is that
+snapshot again. Paste lands *in place*, floating over the spot it was copied
+from (clamped onto the board if the canvas shrank), with fresh paint order so
+a copy pins after everything already down: paste + arrows is "duplicate and
+nudge". Everything that replaces the grid wholesale — undo, redo, a canvas
+change, a preset, an import, switching to a brush — sets any float down first
+and takes the box away, so a float can never be orphaned over a grid it was
+not lifted from.
+
 ## The URL is the save file
 
 The studio has no server, so a shareable drawing was always going to be the

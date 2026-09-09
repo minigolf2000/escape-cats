@@ -2,14 +2,21 @@
 // night-transition cutscene, and the win splash. The cutscene fires off the
 // snapshot's day->night edge (main.js), so every phone takes the beat together.
 
-import { mulberry32 } from "@escape-cats/shared";
+import { mulberry32, HEX_CODEWORD } from "@escape-cats/shared";
 import { game, nightActive, wallSeed } from "./state.js";
 import {
   hexCatEl, starsEl, dockEl, cutsceneVeilEl,
-  splashEl, splashArtEl, splashWordEl, splashWordTextEl, wonPillEl,
+  splashEl, splashArtEl, splashWordTextEl, wonPillEl,
 } from "./dom.js";
 import { loadWallScene, resizeWall } from "./wall.js";
 import { YAWN_MS, ZZZ_HOLD_MS } from "./cat.js";
+
+// The win screen says the same thing every time it is raised, so the word is
+// written ONCE here rather than tracked through the snapshot. It is the shared
+// constant, not a second copy of the string: hex's bundle already carries it
+// (the sim ships in-page for ?debug), so mirroring it over the wire bought the
+// player nothing and only gave the splash a state it could be wrong about.
+splashWordTextEl.textContent = HEX_CODEWORD;
 
 let nightInited = false;
 export function isNightInited() { return nightInited; }
@@ -147,12 +154,6 @@ export function toggleSplash() {
 export function syncWon() {
   const won = game.wonAt !== null;
   wonPillEl.classList.toggle("on", won);
-  // The word is the room's, not this screen's: it rides the snapshot, gated on
-  // the wall being legible (HexSim.snapshot). Before that there is nothing to
-  // hand over and the plate is simply not there.
-  const word = game.codeword;
-  splashWordEl.hidden = !word;
-  if (word) splashWordTextEl.textContent = word;
   if (!won) {
     setSplash(false);
     // A taken-back win (or a reset) re-arms the beat: the next one is an

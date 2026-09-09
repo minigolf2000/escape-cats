@@ -166,6 +166,9 @@ Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
   is a drop-in file that brings its own sky; don't hardcode a sky or crop. Over
   it runs Goomba's finale beat — cheer first, CODE WORD a beat later — but with
   BOTH plates at the bottom (the cat owns the top edge on a laptop) and once per
-  win, because unlike Goomba's finale this screen has a way back. The word comes
-  off the snapshot (`codeword`, gated on the wall being legible); never type
-  `HEX_CODEWORD` into a client.
+  win, because unlike Goomba's finale this screen has a way back. The word is
+  `HEX_CODEWORD` imported from shared and written into the plate ONCE, not
+  synced: the screen only exists after the win, so it has nothing to gate on.
+  Never TYPE the string into a client — import the constant. The snapshot's
+  `codeword` is the PROCTOR's readout (gated on `legibleAt`, drives `codeword
+  locked`); no player client reads it.

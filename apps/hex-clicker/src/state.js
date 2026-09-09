@@ -31,11 +31,6 @@ export const game = {
   zoomUntil: 0, // performance.now() ms while Zoomies is active (converted from server time)
   nightAt: null, // wall-clock (server epoch) ms the twist fired — anchors the wall
   wonAt: null, // server epoch ms the PROCTOR marked this team won (see HexSim.setWon)
-  // THE ANSWER, as the authority hands it out: HEX_CODEWORD once the wall is
-  // legible and null before that (HexSim.snapshot holds that gate). Mirrored
-  // rather than imported, so the client never keeps a second copy of the word
-  // that could outrun the gate.
-  codeword: null,
   // The wall's odometer, banked by the authority (see HexWallClock in rules.ts):
   // scene units walked as of `wallAt` (server epoch ms), out of the rate and glow
   // it was holding then. wall.js reads position AND brightness off this, so every
@@ -195,7 +190,6 @@ export function applySnapshot(snap) {
   game.bought = { ...snap.bought };
   game.nightAt = snap.nightAt;
   game.wonAt = snap.wonAt ?? null;
-  game.codeword = snap.codeword ?? null;
   game.wallBase = snap.wallBase ?? 0;
   game.wallAt = snap.wallAt ?? snap.nightAt;
   game.speed = snap.speed;

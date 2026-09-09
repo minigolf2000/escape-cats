@@ -214,7 +214,9 @@ median of three: hex first paint ~0.8 s, ~216 KB then 400 KB deferred; goomba
 4. **Deterministic synced animation** — toy positions are a pure function of
    (room seed, index, server-synced clock), so four phones agree with no
    position traffic.
-5. **The code word is gated, not secret.** It ships in the client bundle.
+5. **The code word is not secret.** It ships in the client bundle. The proctor's
+   readout is gated on the wall being legible; the win screen is not gated at
+   all, because it only exists after the win.
 6. **10 minutes is a completion target, not a timer** — reached through balance
    in `hex/data.ts`, never in game code.
 7. **Seat reclaim** — a persistent player id in localStorage rejoins the same seat.
@@ -428,9 +430,16 @@ edges — replace the file and it brings its own sky. Over it the same two beats
 Goomba's finale plays: "Congratulations!" pops on, and the CODE WORD rises in
 under it a beat later. Both plates sit at the BOTTOM here, not one at each end —
 this picture's empty sky is under the moon, and on a laptop the cat's ears reach
-the top edge. The word is the one the SNAPSHOT carries (`codeword`, which the sim
-withholds until the wall is legible), never a second copy of `HEX_CODEWORD` in
-the client. The beat plays once per win: the pill ping-pongs, and a party coming
+the top edge. The word is `HEX_CODEWORD` imported from shared and written into the
+plate ONCE (`phase.js`), not tracked through the snapshot: this screen only
+exists after the win, so it says the same thing every time it is raised and has
+nothing to gate on. That is one home for the string, not two — the constant is
+already in hex's bundle either way, because the sim ships in-page for `?debug`.
+
+The snapshot's `codeword` field is the PROCTOR's, and stays gated on
+`legibleAt`: it is how the dashboard shows `codeword locked` turning into the
+word (`TeamGame.tsx`), which is a progress signal about the wall, not about the
+win. The beat plays once per win: the pill ping-pongs, and a party coming
 back to re-read the word finds it already up. Either win is taken back by that
 game's reset, which re-arms the beat with everything else.
 

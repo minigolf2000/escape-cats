@@ -670,16 +670,22 @@ export function drawStartPad(lv) {
 //
 // The picture is this app's ONE image asset — `public/art/goomba-splash.webp`,
 // reached through BASE_URL like hex's splash, which is right in dev and in the
-// built bundle both. It is drawn WHOLE, never cropped, on whichever axis binds,
-// and the slack around it is filled with its own top and bottom rows: replace
-// the file and the backdrop comes with it. A file that never arrives is not a
-// blank screen — the wash and the word carry the finale on their own.
+// built bundle both. It FILLS the screen — scaled on whichever axis leaves it
+// short and cropped on the other, so the finale is the picture and nothing
+// else. The crop is spent OFF THE RIGHT: the fridge, the plant and the cat
+// with its cucumber all live in the left two thirds, and the right is the far
+// end of the window and a jug. See `artBox`.
+//
+// The wash behind it is still the picture's own edge rows, and still the thing
+// that makes a missing file a warm dark screen rather than a blank one — but
+// on a phone it is only ever seen through the fade-in, because the picture
+// covers it. Replace the file and both come with it.
 
 const SPLASH_ART = "art/goomba-splash.webp";
 /** The two things this screen says, in this order. The code word is what the
  * party has to say out loud, and the one string this screen exists for. */
 const CHEER = "All levels cleared!";
-const CODE_WORD = "vegetarian cat";
+const CODE_WORD = "vegetarian";
 const CODE_LABEL = "CODE WORD";
 
 let splashImg = null;
@@ -712,8 +718,8 @@ export function preloadSplashArt() {
  * through `packages/shared`, never drawing, so it is copied rather than
  * imported. The EDGE strip, not a full row (the middle of the picture is a
  * cat), and each stop is one exact row, so the first and last are the
- * picture's true top and bottom — which is what the slack above and below it
- * is painted with. */
+ * picture's true top and bottom. Under a cover fit this is the fade-in's
+ * backdrop and the missing-file screen, not a band around the art. */
 const WASH_STOPS = 24;
 function washStops(img) {
   const w = img.naturalWidth, h = img.naturalHeight;
@@ -746,14 +752,25 @@ const CHEER_IN = 0.4;
 const WORD_AT = 1.5;     // ...and the code word, a beat later, at the bottom
 const WORD_RISE = 0.55;
 
-/** Where the picture sits: WHOLE and centred, on whichever axis binds. Null
- * until there is a picture to place. */
+/**
+ * Where the picture sits: FILLING the screen, pinned to its LEFT edge. Null
+ * until there is a picture to place.
+ *
+ * `Math.max` is the cover fit — the axis that would leave slack sets the
+ * scale, and the other one overflows. Every phone is narrower than the art's
+ * 0.695, so height binds there and the whole overflow is horizontal; a
+ * landscape screen binds the other way and loses top and bottom instead.
+ *
+ * `x` is 0, not centred, and that is the point: the overflow comes off the
+ * RIGHT, where the picture keeps the least. `y` stays centred — there is no
+ * side of the art worth saving over the other one vertically.
+ */
 function artBox() {
   const img = splashImg;
   if (!img || !img.complete || !img.naturalWidth) return null;
-  const fit = Math.min(W / img.naturalWidth, H / img.naturalHeight);
+  const fit = Math.max(W / img.naturalWidth, H / img.naturalHeight);
   const w = img.naturalWidth * fit, h = img.naturalHeight * fit;
-  return { img, x: (W - w) / 2, y: (H - h) / 2, w, h };
+  return { img, x: 0, y: (H - h) / 2, w, h };
 }
 
 /** The whole finale: backdrop, picture, code word. `t` is seconds since the
@@ -761,8 +778,8 @@ function artBox() {
 export function drawSplash(t) {
   const box = artBox();
   // The ramp spans the PICTURE, not the screen, so every stop lines up with
-  // the row it was taken from. A canvas gradient clamps past its ends, which
-  // is exactly the flat band the slack above and below wants.
+  // the row it was taken from — including when the picture runs off the top
+  // and bottom, where a canvas gradient simply clamps.
   const y0 = box ? box.y : 0, y1 = box ? box.y + box.h : H;
   const wash = ctx.createLinearGradient(0, y0, 0, Math.max(y0 + 1, y1));
   const n = splashWash.length;
@@ -784,7 +801,9 @@ function drawSplashArt(box, t) {
   const w = box.w * push, h = box.h * push;
   ctx.save();
   ctx.globalAlpha = e;
-  ctx.drawImage(box.img, (W - w) / 2, (H - h) / 2, w, h);
+  // The push grows about the SAME anchor `artBox` settles on — left edge,
+  // vertical centre — or the picture would slide sideways as it lands.
+  ctx.drawImage(box.img, box.x, box.y - (h - box.h) / 2, w, h);
   ctx.restore();
 }
 

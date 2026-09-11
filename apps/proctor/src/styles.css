@@ -509,3 +509,17 @@ button.small.danger:disabled {
   font-size: 11px;
   line-height: 1.4;
 }
+
+/* The event's doc, in the lobby head beside the phone count. Quiet on
+ * purpose: it sits among live readouts and must not read as a control that
+ * changes a room. */
+.doclink {
+  color: #a9a2c8;
+  text-decoration: none;
+  border-bottom: 1px dotted #5b5478;
+  white-space: nowrap;
+}
+.doclink:hover {
+  color: #ece9f5;
+  border-bottom-color: #a9a2c8;
+}

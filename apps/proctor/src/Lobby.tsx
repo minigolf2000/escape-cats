@@ -18,6 +18,7 @@ import { TeamGame } from "./TeamGame";
 import { TeamChat } from "./Chats";
 import { TestRoom } from "./TestRoom";
 import { AdhocRooms } from "./AdhocRooms";
+import { DOC_LABEL, DOC_URL } from "./doc";
 
 /** Zone id for the players nobody has sorted yet. `null` is the wire value for
  * "no team"; this string never leaves the page. */
@@ -274,6 +275,10 @@ export function Lobby() {
          * page (LobbyPlayer.connected). */}
         <span className="muted">
           {players.length} phones · {byZone.get(UNSORTED)?.length ?? 0} unsorted
+          {" · "}
+          <a className="doclink" href={DOC_URL} target="_blank" rel="noreferrer">
+            📄 {DOC_LABEL}
+          </a>
         </span>
       </div>
 

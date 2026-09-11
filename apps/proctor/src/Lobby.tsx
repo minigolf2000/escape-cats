@@ -33,9 +33,9 @@ const teamOf = (zone: string) => (zone === UNSORTED ? null : zone);
 /** Who is MEANT to be on each team, typed by hand: a reading aid for the
  * proctor, not checked against the roster. Edit per event. */
 const INTENDED: Record<string, string[]> = {
-  t1: ["Deepa", "Emi", "Gia Hoa", "Zerah"],
+  t1: ["Emi", "Gia Hoa", "Krithi", "Zerah"],
   t2: ["Amanda", "John", "Kyle"],
-  t3: ["Ashley", "Bill", "Krithi", "Vanessa"],
+  t3: ["Ashley", "Bill", "Deepa", "Vanessa"],
   t4: ["Alyssa", "Anamaria", "Patrin", "Will"],
 };
 

@@ -5,6 +5,8 @@
 
 import PartySocket from "partysocket";
 import {
+  ANSWER_BURST,
+  ANSWER_REFILL_MS,
   CHAT_BURST,
   CHAT_MAX_TEXT,
   CHIP,
@@ -14,6 +16,7 @@ import {
   cleanName,
   clampName,
   nameChipHtml,
+  type AnswerSubmission,
   type ChatClientMsg,
   type ChatMessage,
   type ChatServerMsg,
@@ -42,12 +45,22 @@ function playerId(): string {
 const pid = playerId();
 const app = document.getElementById("app") as HTMLDivElement;
 
+/** The answer's one mark, drawn three times and nowhere else: the composer's
+ * button, the confirm's button, a submitted line. A key because the answer is
+ * a CODE WORD — `currentColor` so each of the three paints it itself. */
+const KEY_SVG = `<svg class="key" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+ stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+><circle cx="9" cy="9" r="4.6"/><path d="M12.4 12.4L20 20"/><path d="M15.6 15.6l-2 2"/><path d="M18 18l-2 2"/></svg>`;
+
 let room: string | null = null;
 let socket: PartySocket | null = null;
 /** The lobby socket, held only until this phone is sorted — while it is open
  * it is the one that carries a rename (see `renameTo`). */
 let lobbySocket: PartySocket | null = null;
 let messages: ChatMessage[] = [];
+/** The team's answers. A list of their own, not lines with a flag: they
+ * survive a proctor's Clear chat, and `paint` merges the two by `at`. */
+let answers: AnswerSubmission[] = [];
 let players: PlayerInfo[] = [];
 let connected = false;
 /** Whether we have EVER been connected, so the first wait says "Connecting"
@@ -58,8 +71,48 @@ let everConnected = false;
 let shell = false;
 /** Lines typed before the socket opened, flushed when it opens — partysocket
  * connects asynchronously, and venue wifi drops mid-conversation. Bounded by
- * CHAT_BURST, all the server accepts in one flush. */
-let outbox: string[] = [];
+ * CHAT_BURST, all the server accepts in one flush. Submissions queue HERE
+ * too, tagged: an answer lost to a wifi blink is the one this feature exists
+ * to prevent. */
+let outbox: { kind: "say" | "submit"; text: string }[] = [];
+/** The client's copy of the server's answer bucket (`ANSWER_BURST` /
+ * `ANSWER_REFILL_MS`), so a spent budget DISABLES the button instead of
+ * swallowing a deliberate press. The server still decides — this only keeps
+ * the refusal from being invisible. Same shape as `ChatServer.spend`. */
+let askTokens = ANSWER_BURST;
+let askAt = Date.now();
+/** Pending re-enable, so repeated submits don't stack timers. */
+let askTimer = 0;
+
+/** Refill, then report whether one is affordable. */
+function askReady(): boolean {
+  const now = Date.now();
+  askTokens = Math.min(
+    ANSWER_BURST,
+    askTokens + (now - askAt) / ANSWER_REFILL_MS,
+  );
+  askAt = now;
+  return askTokens >= 1;
+}
+
+/** Grey the button out while the bucket is empty, and wake it when it isn't.
+ * The composer is built once, so this only ever touches the button. */
+function paintAsk() {
+  const ask = document.getElementById("ask") as HTMLButtonElement | null;
+  if (!ask) return;
+  const ready = askReady();
+  ask.disabled = !ready;
+  if (ready || askTimer) return;
+  askTimer = window.setTimeout(() => {
+    askTimer = 0;
+    paintAsk();
+  }, Math.ceil((1 - askTokens) * ANSWER_REFILL_MS));
+}
+
+/** The line waiting on the confirm step, or null. Module state, as the
+ * rename draft is: a teammate speaking repaints the log under you and must
+ * not take the answer you are half-committed to with it. */
+let pending: string | null = null;
 /** Rename state lives up here, as in the lobby: a broadcast repaints the page
  * under you, and a draft held only in the DOM would go with it. */
 let renaming = false;
@@ -124,7 +177,10 @@ function connect() {
     everConnected = true;
     const queued = outbox;
     outbox = [];
-    for (const text of queued) say(text);
+    for (const q of queued) {
+      if (q.kind === "say") say(q.text);
+      else submit(q.text);
+    }
     render();
   });
   socket.addEventListener("close", () => {
@@ -140,8 +196,16 @@ function connect() {
     }
     switch (msg.type) {
       case "chat":
-        // A reconnect replays history: REPLACE, never append.
+        // A reconnect replays history: REPLACE, never append. A proctor's
+        // clear arrives as this too — and carries the answers it did not
+        // wipe, so they stay on screen.
         messages = msg.messages;
+        // Tolerated missing, not assumed present: Vercel and the Worker
+        // deploy independently, so a phone can hold a bundle that knows
+        // about answers while the live Worker does not yet. Without this
+        // the whole log throws on the first snapshot rather than simply
+        // going without them until the Worker catches up.
+        answers = msg.answers ?? [];
         players = msg.players;
         break;
       case "said":
@@ -149,6 +213,19 @@ function connect() {
         if (messages.some((m) => m.id === msg.message.id)) return;
         messages.push(msg.message);
         break;
+      case "submitted":
+        // Ids are per-list; never compared against a message's.
+        if (answers.some((a) => a.id === msg.answer.id)) return;
+        answers.push(msg.answer);
+        break;
+      case "answerAt": {
+        // Whole row, so a client that missed the `submitted` still lands
+        // correct rather than dropping the acknowledgement.
+        const i = answers.findIndex((a) => a.id === msg.answer.id);
+        if (i === -1) answers.push(msg.answer);
+        else answers[i] = msg.answer;
+        break;
+      }
       case "presence":
         players = msg.players;
         break;
@@ -174,12 +251,22 @@ function renameTo(name: string) {
 
 /** Send a line now, or hold it in the outbox until the socket opens. */
 function say(text: string) {
-  if (socket && socket.readyState === socket.OPEN) {
-    const msg: ChatClientMsg = { type: "say", text };
-    socket.send(JSON.stringify(msg));
-    return;
-  }
-  if (outbox.length < CHAT_BURST) outbox.push(text);
+  if (send({ type: "say", text })) return;
+  if (outbox.length < CHAT_BURST) outbox.push({ kind: "say", text });
+}
+
+/** The same for an answer. No optimistic echo here either: the server
+ * stamps the id and the time, and the row it fans back is the receipt. */
+function submit(text: string) {
+  if (send({ type: "submit", text })) return;
+  if (outbox.length < CHAT_BURST) outbox.push({ kind: "submit", text });
+}
+
+/** True if it went down the wire. */
+function send(msg: ChatClientMsg): boolean {
+  if (!socket || socket.readyState !== socket.OPEN) return false;
+  socket.send(JSON.stringify(msg));
+  return true;
 }
 
 // ---- Screens ----
@@ -288,11 +375,16 @@ function chatScreen() {
           </div>
         </header>
         <ol class="log" id="log"></ol>
+        <div class="confirm" id="confirm" hidden></div>
         <form class="composer" id="composer">
+          <button class="ask" id="ask" type="button" aria-label="Submit an answer">
+            ${KEY_SVG}
+            <span>Answer</span>
+          </button>
           <input
             id="text"
             maxlength="${CHAT_MAX_TEXT}"
-            placeholder="Message your team"
+            placeholder="Message team"
             autocomplete="off"
             enterkeyhint="send"
           />
@@ -313,8 +405,76 @@ function chatScreen() {
       // acceptance.
       input.focus();
     };
+    // Enter belongs to Send, the common case; an answer costs the deliberate
+    // press. The composer does not change under you — it is REPLACED, and
+    // only by this.
+    (document.getElementById("ask") as HTMLButtonElement).onclick = () => {
+      const text = input.value.trim();
+      // Refuse at the door rather than at the confirm: opening a step that
+      // cannot commit is worse than a button that is plainly unavailable.
+      if (!text || !askReady()) {
+        input.focus();
+        return;
+      }
+      pending = text;
+      paintDock();
+    };
+    paintAsk();
   }
   paint();
+}
+
+/** The composer, or the confirm step that briefly replaces it. Swapped with
+ * `hidden` so the composer element — and whatever is typed in it — outlives
+ * a cancel. */
+function paintDock() {
+  const confirm = document.getElementById("confirm") as HTMLElement;
+  const composer = document.getElementById("composer") as HTMLElement;
+  const input = document.getElementById("text") as HTMLInputElement;
+  composer.hidden = pending !== null;
+  confirm.hidden = pending === null;
+  if (pending === null) {
+    confirm.replaceChildren();
+    input.focus();
+    return;
+  }
+
+  // The text is the only thing being asked about, so it gets the size. Built
+  // with textContent, never innerHTML — this is the same player-authored
+  // string the log refuses to trust.
+  const quote = document.createElement("p");
+  quote.className = "quote";
+  quote.textContent = pending;
+
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "cancel";
+  cancel.textContent = "Cancel";
+  cancel.onclick = () => {
+    pending = null;
+    paintDock();
+  };
+
+  const go = document.createElement("button");
+  go.type = "button";
+  go.className = "go";
+  go.innerHTML = `${KEY_SVG}<span>Submit answer</span>`;
+  go.onclick = () => {
+    const text = pending;
+    pending = null;
+    if (text) {
+      submit(text);
+      askTokens -= 1;
+    }
+    input.value = "";
+    paintDock();
+    paintAsk();
+  };
+
+  const row = document.createElement("div");
+  row.className = "confirm-btns";
+  row.append(cancel, go);
+  confirm.replaceChildren(quote, row);
 }
 
 function paint() {
@@ -323,15 +483,20 @@ function paint() {
   // up reading history should not be yanked away by a new message.
   const pinned = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
 
-  if (messages.length === 0) {
+  if (messages.length === 0 && answers.length === 0) {
     const empty = document.createElement("li");
     empty.className = "empty";
     empty.textContent = "No messages yet - say hi.";
     log.replaceChildren(empty);
   } else {
     // Rebuilt, not appended: the log holds no state, and the composer is
-    // outside it.
-    log.replaceChildren(...messages.map(line));
+    // outside it. Two lists, one log: merged on the server's clock, which is
+    // the only one both were stamped by.
+    const rows = [
+      ...messages.map((m) => ({ at: m.at, el: () => line(m) })),
+      ...answers.map((a) => ({ at: a.at, el: () => answerLine(a) })),
+    ].sort((p, q) => p.at - q.at);
+    log.replaceChildren(...rows.map((r) => r.el()));
   }
 
   (document.getElementById("team") as HTMLElement).textContent = teamName(
@@ -370,6 +535,47 @@ function line(m: ChatMessage): HTMLLIElement {
   });
 
   li.append(who, body, at);
+  return li;
+}
+
+/** A submission in the log. Same bubble geometry as a said line — it is the
+ * same conversation — wearing the answer's own colour, and carrying the two
+ * receipts instead of a verdict. */
+function answerLine(a: AnswerSubmission): HTMLLIElement {
+  const li = document.createElement("li");
+  const mine = a.pid === pid;
+  li.className = mine ? "line mine answer" : "line answer";
+
+  const tag = document.createElement("span");
+  tag.className = "tag";
+  // The key, then who: on your own phone the name would be noise.
+  tag.innerHTML = KEY_SVG;
+  const label = document.createElement("span");
+  label.textContent = mine ? "Answer submitted" : `${a.name} submitted`;
+  tag.append(label);
+
+  const body = document.createElement("span");
+  body.className = "body";
+  body.textContent = a.text;
+
+  const foot = document.createElement("span");
+  foot.className = "foot";
+  const state = document.createElement("span");
+  state.className = a.receivedAt ? "got" : "wait";
+  state.textContent = a.receivedAt
+    ? "Received by proctor"
+    : "Waiting for the proctor";
+
+  const at = document.createElement("time");
+  at.className = "at";
+  at.dateTime = new Date(a.at).toISOString();
+  at.textContent = new Date(a.at).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  foot.append(state, at);
+  li.append(tag, body, foot);
   return li;
 }
 

@@ -200,7 +200,12 @@ function connect() {
         // clear arrives as this too — and carries the answers it did not
         // wipe, so they stay on screen.
         messages = msg.messages;
-        answers = msg.answers;
+        // Tolerated missing, not assumed present: Vercel and the Worker
+        // deploy independently, so a phone can hold a bundle that knows
+        // about answers while the live Worker does not yet. Without this
+        // the whole log throws on the first snapshot rather than simply
+        // going without them until the Worker catches up.
+        answers = msg.answers ?? [];
         players = msg.players;
         break;
       case "said":

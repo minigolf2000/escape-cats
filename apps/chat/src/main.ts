@@ -46,11 +46,17 @@ const pid = playerId();
 const app = document.getElementById("app") as HTMLDivElement;
 
 /** The answer's one mark, drawn three times and nowhere else: the composer's
- * button, the confirm's button, a submitted line. A key because the answer is
+ * Answer button, the Submit it becomes, and a submitted line. A key because the answer is
  * a CODE WORD — `currentColor` so each of the three paints it itself. */
 const KEY_SVG = `<svg class="key" viewBox="0 0 24 24" fill="none" stroke="currentColor"
  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
 ><circle cx="9" cy="9" r="4.6"/><path d="M12.4 12.4L20 20"/><path d="M15.6 15.6l-2 2"/><path d="M18 18l-2 2"/></svg>`;
+
+/** The way back out of the mode. Same viewBox and stroke as the key so the
+ * two swap inside the button without anything shifting. */
+const X_SVG = `<svg class="key" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+ stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>`;
 
 let room: string | null = null;
 let socket: PartySocket | null = null;
@@ -100,8 +106,9 @@ function askReady(): boolean {
 function paintAsk() {
   const ask = document.getElementById("ask") as HTMLButtonElement | null;
   if (!ask) return;
+  // Never disable the way OUT: only arming is rationed.
   const ready = askReady();
-  ask.disabled = !ready;
+  ask.disabled = !armed && !ready;
   if (ready || askTimer) return;
   askTimer = window.setTimeout(() => {
     askTimer = 0;
@@ -109,10 +116,16 @@ function paintAsk() {
   }, Math.ceil((1 - askTokens) * ANSWER_REFILL_MS));
 }
 
-/** The line waiting on the confirm step, or null. Module state, as the
- * rename draft is: a teammate speaking repaints the log under you and must
- * not take the answer you are half-committed to with it. */
-let pending: string | null = null;
+/** Whether the composer is armed to submit. Module state, as the rename
+ * draft is: a teammate speaking repaints the log under you and must not take
+ * the mode you are in with it.
+ *
+ * The mode is DELIBERATELY not sticky past a send. Submitting disarms, so it
+ * only ever lives as long as one answer takes to compose — chat is the room's
+ * resting state and so it is the composer's. A mode that survived its own
+ * send would submit the next thing typed, which is the classic mode error and
+ * at a party is a certainty, not a risk. */
+let armed = false;
 /** Rename state lives up here, as in the lobby: a broadcast repaints the page
  * under you, and a draft held only in the DOM would go with it. */
 let renaming = false;
@@ -375,106 +388,78 @@ function chatScreen() {
           </div>
         </header>
         <ol class="log" id="log"></ol>
-        <div class="confirm" id="confirm" hidden></div>
         <form class="composer" id="composer">
-          <button class="ask" id="ask" type="button" aria-label="Submit an answer">
-            ${KEY_SVG}
-            <span>Answer</span>
-          </button>
+          <button class="ask" id="ask" type="button"></button>
           <input
             id="text"
             maxlength="${CHAT_MAX_TEXT}"
-            placeholder="Message team"
             autocomplete="off"
             enterkeyhint="send"
           />
-          <button class="send" type="submit">Send</button>
+          <button class="send" id="send" type="submit"></button>
         </form>
       </div>
     `;
     shell = true;
     paintName();
     const input = document.getElementById("text") as HTMLInputElement;
+    // ONE exit, whichever mode it is in: the right-hand button and the Enter
+    // key always do the thing the composer currently says it does.
     (document.getElementById("composer") as HTMLFormElement).onsubmit = (e) => {
       e.preventDefault();
       const text = input.value.trim();
       if (!text) return;
-      say(text);
+      if (armed) {
+        submit(text);
+        askTokens -= 1;
+        armed = false; // submitting always lands back in chat
+      } else {
+        say(text);
+      }
       input.value = "";
       // No optimistic echo: the server decides ordering, truncation and
       // acceptance.
+      paintComposer();
       input.focus();
     };
-    // Enter belongs to Send, the common case; an answer costs the deliberate
-    // press. The composer does not change under you — it is REPLACED, and
-    // only by this.
+    // Arm, or stand down. Disarming KEEPS what is typed — changing your mind
+    // should cost nothing, and Send is right there to say it to the team
+    // instead.
     (document.getElementById("ask") as HTMLButtonElement).onclick = () => {
-      const text = input.value.trim();
-      // Refuse at the door rather than at the confirm: opening a step that
-      // cannot commit is worse than a button that is plainly unavailable.
-      if (!text || !askReady()) {
-        input.focus();
-        return;
-      }
-      pending = text;
-      paintDock();
+      // Arming with an empty field is fine and probably the common order:
+      // read the wall, press Answer, then type.
+      if (!armed && !askReady()) return;
+      armed = !armed;
+      paintComposer();
+      input.focus();
     };
-    paintAsk();
+    paintComposer();
   }
   paint();
 }
 
-/** The composer, or the confirm step that briefly replaces it. Swapped with
- * `hidden` so the composer element — and whatever is typed in it — outlives
- * a cancel. */
-function paintDock() {
-  const confirm = document.getElementById("confirm") as HTMLElement;
-  const composer = document.getElementById("composer") as HTMLElement;
+/** Dress the composer for the mode it is in. Only labels, ink and the
+ * placeholder change — every control keeps its place and its size, and the
+ * input is never rebuilt, so what is typed and where the caret sits both
+ * survive arming and standing down. */
+function paintComposer() {
+  const form = document.getElementById("composer") as HTMLFormElement | null;
+  if (!form) return;
+  const ask = document.getElementById("ask") as HTMLButtonElement;
+  const send = document.getElementById("send") as HTMLButtonElement;
   const input = document.getElementById("text") as HTMLInputElement;
-  composer.hidden = pending !== null;
-  confirm.hidden = pending === null;
-  if (pending === null) {
-    confirm.replaceChildren();
-    input.focus();
-    return;
-  }
 
-  // The text is the only thing being asked about, so it gets the size. Built
-  // with textContent, never innerHTML — this is the same player-authored
-  // string the log refuses to trust.
-  const quote = document.createElement("p");
-  quote.className = "quote";
-  quote.textContent = pending;
-
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.className = "cancel";
-  cancel.textContent = "Cancel";
-  cancel.onclick = () => {
-    pending = null;
-    paintDock();
-  };
-
-  const go = document.createElement("button");
-  go.type = "button";
-  go.className = "go";
-  go.innerHTML = `${KEY_SVG}<span>Submit answer</span>`;
-  go.onclick = () => {
-    const text = pending;
-    pending = null;
-    if (text) {
-      submit(text);
-      askTokens -= 1;
-    }
-    input.value = "";
-    paintDock();
-    paintAsk();
-  };
-
-  const row = document.createElement("div");
-  row.className = "confirm-btns";
-  row.append(cancel, go);
-  confirm.replaceChildren(quote, row);
+  form.classList.toggle("armed", armed);
+  ask.innerHTML = armed
+    ? `${X_SVG}<span>Cancel</span>`
+    : `${KEY_SVG}<span>Answer</span>`;
+  ask.setAttribute(
+    "aria-label",
+    armed ? "Cancel, and go back to chat" : "Submit an answer to the proctor",
+  );
+  send.innerHTML = armed ? `${KEY_SVG}<span>Submit</span>` : "<span>Send</span>";
+  input.placeholder = armed ? "Type your answer" : "Message team";
+  paintAsk();
 }
 
 function paint() {

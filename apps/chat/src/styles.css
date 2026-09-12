@@ -436,15 +436,6 @@ input:focus {
   flex: none;
 }
 
-/* BOTH of these set `display`, which beats the UA's `[hidden] { display:
-   none }` — without this rule `hidden` does nothing to either and the two
-   sends are reachable at once. Every flex/grid element toggled with `hidden`
-   needs its own. */
-.composer[hidden],
-.confirm[hidden] {
-  display: none;
-}
-
 /* Cooling down. The server's answer bucket is stingier than chat's, so the
    button says so rather than letting a deliberate press vanish. */
 .ask:disabled {
@@ -452,68 +443,37 @@ input:focus {
   cursor: default;
 }
 
-/* The confirm step. It REPLACES the composer rather than sitting over it, so
-   there is never a moment where both sends are reachable. */
-.confirm {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
-  border-top: 1px solid rgba(232, 163, 61, 0.55);
+/* --- Armed ---------------------------------------------------------------
+
+   The mode changes the composer's CLOTHES, never its bones: same three
+   controls, same widths, same places. Only the rail, the field and where the
+   loud colour sits move, so nothing jumps when you arm or stand down. The way
+   OUT is quiet and the way FORWARD is amber. */
+.composer.armed {
+  /* Colour, not width — a thicker rail would reflow the log by a pixel every
+     time the mode flipped. */
+  border-top-color: var(--ask);
   background: #15110a;
 }
 
-.confirm .quote {
-  margin: 0;
-  padding: 13px 14px;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--ink);
-  background: #0f1117;
-  border: 1px solid var(--ask);
-  border-radius: 12px;
-  overflow-wrap: anywhere;
+.composer.armed #text {
+  border-color: var(--ask);
 }
 
-.confirm-btns {
-  display: flex;
-  gap: 8px;
-}
-
-/* Cancel is as reachable as Submit — this is a confirmation, not a funnel. */
-.confirm .cancel {
-  flex: 0 0 auto;
-  padding: 14px 20px;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--muted);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  cursor: pointer;
-}
-
-.confirm .go {
-  flex: 1 1 auto;
+.composer.armed .send {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px 18px;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 700;
+  gap: 6px;
+  padding: 14px 15px;
   color: var(--ask-ink);
   background: var(--ask);
-  border: 0;
-  border-radius: 12px;
-  cursor: pointer;
 }
 
-.confirm .go:active,
-.confirm .cancel:active {
-  transform: translateY(1px);
+/* Standing down is not a decision, so it does not wear the decision's colour. */
+.composer.armed .ask {
+  color: var(--muted);
+  background: var(--panel);
+  border-color: var(--line);
 }
 
 /* A submitted line: the said bubble's geometry, the answer's colour. It sits

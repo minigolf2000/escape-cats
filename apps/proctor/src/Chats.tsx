@@ -9,6 +9,7 @@ import {
 import PartySocket from "partysocket";
 import {
   TEAMS,
+  type AnswerSubmission,
   type ChatClientMsg,
   type ChatMessage,
   type ChatServerMsg,
@@ -18,6 +19,9 @@ import { PARTYKIT_HOST } from "./net";
 
 interface ChatState {
   byRoom: Record<string, ChatMessage[]>;
+  /** Submissions per room. Held apart from the messages because the server
+   * does: they have their own storage and survive a Clear chat. */
+  answersByRoom: Record<string, AnswerSubmission[]>;
   /** Wipe ONE channel, named by its room id. `label` is the box's own name,
    * for the confirm — the wire only knows `t2`. */
   clear: (room: string, label: string) => void;
@@ -33,6 +37,9 @@ const ChatCtx = createContext<ChatState | null>(null);
  * held. */
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [byRoom, setByRoom] = useState<Record<string, ChatMessage[]>>({});
+  const [answersByRoom, setAnswers] = useState<
+    Record<string, AnswerSubmission[]>
+  >({});
   /** One socket per room id — how a box's Clear finds its channel. */
   const socketsRef = useRef<Map<string, PartySocket>>(new Map());
 
@@ -50,6 +57,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           msg = JSON.parse(ev.data as string);
         } catch {
           return;
+        }
+        if (msg.type === "chat") {
+          setAnswers((prev) => ({ ...prev, [t.id]: msg.answers ?? [] }));
+        } else if (msg.type === "submitted") {
+          setAnswers((prev) => {
+            const have = prev[t.id] ?? [];
+            // Dedupe on id, as the messages do; ids are per-LIST.
+            if (have.some((a) => a.id === msg.answer.id)) return prev;
+            return { ...prev, [t.id]: [...have, msg.answer] };
+          });
         }
         setByRoom((prev) => {
           switch (msg.type) {
@@ -94,7 +111,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ChatCtx.Provider value={{ byRoom, clear }}>
+    <ChatCtx.Provider value={{ byRoom, answersByRoom, clear }}>
       {children}
     </ChatCtx.Provider>
   );
@@ -114,9 +131,24 @@ const hhmm = (at: number) =>
  * target ONLY because it is fixed-height and internally scrolled — a box that
  * grew when somebody typed would shove its neighbours out from under a drag. */
 export function TeamChat({ room, label }: { room: string; label: string }) {
-  const { byRoom, clear } = useChats();
+  const { byRoom, answersByRoom, clear } = useChats();
   const messages = byRoom[room] ?? [];
+  const answers = answersByRoom[room] ?? [];
   const loaded = byRoom[room] !== undefined;
+  // One log, two lists, merged on the server's clock — the only one both were
+  // stamped by. The LAST submission is pinned to the log's bottom edge and so
+  // is drawn outside the scroller; a newer one simply replaces it, which is
+  // why pinning needs no press to undo and no state to track.
+  const latest = answers.at(-1) ?? null;
+  const rows: (
+    | { at: number; kind: "say"; m: ChatMessage }
+    | { at: number; kind: "answer"; a: AnswerSubmission }
+  )[] = [
+    ...messages.map((m) => ({ at: m.at, kind: "say" as const, m })),
+    ...answers
+      .filter((a) => a !== latest)
+      .map((a) => ({ at: a.at, kind: "answer" as const, a })),
+  ].sort((p, q) => p.at - q.at);
   const logRef = useRef<HTMLOListElement | null>(null);
   /** Whether the log was at the bottom BEFORE this render, so a proctor
    * reading back is not yanked to the end. */
@@ -138,25 +170,50 @@ export function TeamChat({ room, label }: { room: string; label: string }) {
     <section className="chat-col">
       {/* Titled like a game block; the box's head already says whose. */}
       <h3>
-        <span>💬 Chat</span>
+        <span>Chat</span>
         <span className="muted">{messages.length}</span>
       </h3>
       <ol className="chat-log" ref={logRef} onScroll={onScroll}>
-        {messages.length === 0 ? (
+        {rows.length === 0 ? (
           <li className="chat-empty">{loaded ? "No messages" : "connecting…"}</li>
         ) : (
-          messages.map((m) => (
-            <li className="chat-line" key={m.id}>
-              <span className="chat-who">{m.name}</span>
-              {/* Player-authored text: React escapes it, never innerHTML. */}
-              <span className="chat-body">{m.text}</span>
-              <time className="chat-at" dateTime={new Date(m.at).toISOString()}>
-                {hhmm(m.at)}
-              </time>
-            </li>
-          ))
+          rows.map((r) =>
+            r.kind === "say" ? (
+              <li className="chat-line" key={`m${r.m.id}`}>
+                <span className="chat-who">{r.m.name}</span>
+                {/* Player-authored text: React escapes it, never innerHTML. */}
+                <span className="chat-body">{r.m.text}</span>
+                <time className="chat-at" dateTime={new Date(r.m.at).toISOString()}>
+                  {hhmm(r.m.at)}
+                </time>
+              </li>
+            ) : (
+              <li className="chat-line answer past" key={`a${r.a.id}`}>
+                <span className="chat-who">{r.a.name}</span>
+                <span className="chat-body">{r.a.text}</span>
+                <time className="chat-at" dateTime={new Date(r.a.at).toISOString()}>
+                  {hhmm(r.a.at)}
+                </time>
+              </li>
+            ),
+          )
         )}
       </ol>
+      {/* The one loud thing on the board, and the only saturated fill in the
+          box. Outside the scroller so the chatter cannot carry it away — the
+          earlier inline sketch was sliced in half by this log's 150px. Always
+          rendered, invisible when empty, so the box height never moves. */}
+      <div className={latest ? "answer-pin on" : "answer-pin"}>
+        {latest ? (
+          <>
+            <span className="answer-who">Answer &middot; {latest.name}</span>
+            <span className="answer-body">{latest.text}</span>
+            <time className="answer-at" dateTime={new Date(latest.at).toISOString()}>
+              {hhmm(latest.at)}
+            </time>
+          </>
+        ) : null}
+      </div>
       {/* One wipe per channel, in the box it wipes. Always drawn, disabled
           at zero: this is a drop target and its height must not move. */}
       <button

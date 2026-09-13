@@ -24,7 +24,7 @@ const mmss = (ms: number) => {
  * absent state is placeholders (see TeamGame). Long values are clipped by CSS. */
 function hexStats(s: HexSnapshot | null): string[] {
   if (!s) return ["…", "…", `…/${UPGRADES.length} upgrades`];
-  const phase = s.nightAt ? "🌙 night" : "☀️ day";
+  const phase = s.nightAt ? "night" : "day";
   const boughtN = Object.keys(s.bought).length;
   // The clock freezes at the finish — the run is scored, stop counting.
   const elapsed = mmss((s.legibleAt ?? s.serverTime) - s.startedAt);
@@ -87,16 +87,14 @@ function goombaStats(s: GoombaSnapshot | null, names: string[]): StatLine[] {
   if (!s) return [{ text: "…" }, { text: "…/… levels" }, { text: "…" }];
   const total = s.levelCount;
   // Icon alone; the word is the line's `title`.
+  // One word, not a glyph: the icons were the line's only colour, and the
+  // word was already its `title`.
   const phase =
-    s.phase === "run" ? "🛹"
-    : s.phase === "win" ? "🎉"
-    : s.phase === "splash" ? "🏁" // done with the game, on the curtain call
-    : "✏️";
-  const phaseWord =
     s.phase === "run" ? "riding"
     : s.phase === "win" ? "cleared"
-    : s.phase === "splash" ? "splash"
+    : s.phase === "splash" ? "splash" // done with the game, on the curtain call
     : "placing";
+  const phaseWord = phase;
   const done = s.completed.filter(Boolean).length;
   const finishedMs = s.finishedAt ? s.finishedAt - s.startedAt : null;
   // No pack yet, or a pack message not yet on THIS socket, is a real state.
@@ -111,7 +109,7 @@ function goombaStats(s: GoombaSnapshot | null, names: string[]): StatLine[] {
     { text: `${phase} ${name}`, title: `${phaseWord} · ${name}` },
     s.finishedAt
       ? {
-          text: `✅ all ${total} levels${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,
+          text: `all ${total} levels${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,
           className: "codeword",
         }
       : { text: `${done}/${total} levels done` },
@@ -139,7 +137,7 @@ export function TeamGame({
   );
 }
 
-/** One room's Hex readout, 🏆 and reset. The trophy is why an ad-hoc room
+/** One room's Hex readout, the win mark and reset. The mark is why an ad-hoc room
  * needs this block: Hex cannot score its own win (`wonAt` is a proctor-only
  * intent), so a room with no box here could reach the code word and never be
  * told. */
@@ -178,21 +176,22 @@ export function HexBlock({
     },
     snap?.codeword
       ? {
-          // The trophy replaces the tick on the same line, same height.
-          text: `${won ? "🏆" : "✅"} ${snap.codeword}${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,
+          // Won or merely legible reads off the WORD, on the same line at
+          // the same height — the trophy and the tick were two more colours.
+          text: `${won ? "won · " : ""}${snap.codeword}${finishedMs !== null ? ` · ${mmss(finishedMs)}` : ""}`,
           className: "codeword",
         }
-      : { text: won ? "🏆 marked won" : "codeword locked" },
+      : { text: won ? "marked won" : "codeword locked" },
   ];
 
   return (
-    <GameBlock title="🐱 Hex Clicker" progress={snap?.progress ?? 0} lines={lines}>
+    <GameBlock title="Hex Clicker" progress={snap?.progress ?? 0} lines={lines}>
       <div className="btns">
         {/* The proctor witnesses the win: press, and all four phones get their
             splash. Pressing again takes it back; that direction confirms,
             granting doesn't. */}
         <button className={won ? "won on" : "won"} onClick={() => setWon(!won)}>
-          {won ? "🏆 Won ✓" : "🏆 Mark won"}
+          {won ? "\u2713 Won" : "Mark won"}
         </button>
         <button className="danger" onClick={reset}>
           Reset Hex
@@ -220,7 +219,7 @@ export function GoombaBlock({
   const playing = (snap?.players ?? []).filter((p) => p.connected).length;
   return (
     <GameBlock
-      title="🍄 Goomba Glider"
+      title="Goomba Glider"
       progress={snap?.progress ?? 0}
       lines={[
         ...goombaStats(snap, names),

@@ -90,12 +90,6 @@ export class ChatServer extends Server<Env> {
       if (this.roster.isProctor(sender)) await this.clear(msg.scope ?? "chat");
       return;
     }
-    if (msg.type === "received") {
-      // The one thing a proctor may send into a channel besides `clear`.
-      // Still no `say` — acknowledging is not speaking.
-      if (this.roster.isProctor(sender)) await this.receivedIntent(msg.id);
-      return;
-    }
     if (msg.type === "rename") {
       await this.renameIntent(sender, msg.name);
       return;
@@ -157,24 +151,11 @@ export class ChatServer extends Server<Env> {
       name: me.name,
       text,
       at: Date.now(),
-      receivedAt: null,
     };
     this.answers.push(entry);
     const out: ChatServerMsg = { type: "submitted", answer: entry };
     this.broadcast(JSON.stringify(out));
     await this.persistAnswer(entry);
-  }
-
-  /** A proctor has the answer in hand. Idempotent: a second press on an
-   * already-received row changes nothing and re-broadcasts nothing, so two
-   * proctor tabs cannot fight over the timestamp. */
-  private async receivedIntent(id: unknown) {
-    const entry = this.answers.find((a) => a.id === id);
-    if (!entry || entry.receivedAt !== null) return;
-    entry.receivedAt = Date.now();
-    const out: ChatServerMsg = { type: "answerAt", answer: entry };
-    this.broadcast(JSON.stringify(out));
-    await this.ctx.storage.put(answerKey(entry.id), entry);
   }
 
   /** One key per submission, under its own prefix so `clear` (which deletes

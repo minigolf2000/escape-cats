@@ -231,14 +231,6 @@ function connect() {
         if (answers.some((a) => a.id === msg.answer.id)) return;
         answers.push(msg.answer);
         break;
-      case "answerAt": {
-        // Whole row, so a client that missed the `submitted` still lands
-        // correct rather than dropping the acknowledgement.
-        const i = answers.findIndex((a) => a.id === msg.answer.id);
-        if (i === -1) answers.push(msg.answer);
-        else answers[i] = msg.answer;
-        break;
-      }
       case "presence":
         players = msg.players;
         break;
@@ -543,14 +535,9 @@ function answerLine(a: AnswerSubmission): HTMLLIElement {
   body.className = "body";
   body.textContent = a.text;
 
-  const foot = document.createElement("span");
-  foot.className = "foot";
-  const state = document.createElement("span");
-  state.className = a.receivedAt ? "got" : "wait";
-  state.textContent = a.receivedAt
-    ? "Received by proctor"
-    : "Waiting for the proctor";
-
+  // No status line: nothing in this app will ever answer, so the receipt is
+  // that it left the phone and nothing more. "Waiting for the proctor" would
+  // promise a press that is not coming.
   const at = document.createElement("time");
   at.className = "at";
   at.dateTime = new Date(a.at).toISOString();
@@ -559,8 +546,7 @@ function answerLine(a: AnswerSubmission): HTMLLIElement {
     minute: "2-digit",
   });
 
-  foot.append(state, at);
-  li.append(tag, body, foot);
+  li.append(tag, body, at);
   return li;
 }
 

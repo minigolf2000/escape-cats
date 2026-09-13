@@ -506,25 +506,6 @@ input:focus {
   letter-spacing: 0.01em;
 }
 
-/* Both receipts share this row, so the bubble is the same height waiting or
-   received — only the ink changes. */
-.line.answer .foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.line.answer .foot .got {
-  font-size: 11px;
-  color: var(--ask);
-}
-
-.line.answer .foot .wait {
-  font-size: 11px;
-  color: var(--muted);
-}
-
 .line.answer .at {
-  justify-self: auto;
+  justify-self: end;
 }

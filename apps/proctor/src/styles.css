@@ -331,7 +331,7 @@ button.small:disabled {
   cursor: default;
 }
 
-/* ---- Chat, read-only, inside the zone boxes ---- */
+/* ---- Chat, inside the zone boxes ---- */
 /* The last block in a box, same divider, no background of its own — the box
  * is the card. Allowed inside a drop target ONLY because the log is
  * fixed-height and scrolls internally (Chats.tsx). */
@@ -400,6 +400,44 @@ button.small:disabled {
   font-size: 12px;
   font-style: italic;
   padding: 8px 0;
+}
+/* The proctor's own lines, read by BRIGHTNESS rather than a hue: the board
+   spends its whole colour budget on the amber answer row, and a talking
+   proctor is not a louder thing than a team's answer. */
+.chat-line.proctor .chat-who {
+  color: #ece9f5;
+}
+.chat-line.proctor .chat-body {
+  color: #8a90a2;
+}
+
+/* Answering the team. One row, fixed height, no wrap: this block sits in a
+   drop target, so it must be exactly as tall with a half-typed line in it as
+   it is empty. */
+.chat-say {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.chat-say input {
+  flex: 1;
+  /* Or a long draft widens the flex item and pushes Send off the box. */
+  min-width: 0;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid #2b3040;
+  background: #12141b;
+  color: #ece9f5;
+}
+.chat-say input::placeholder {
+  color: #4c5162;
+}
+/* The row owns the spacing; the button's own top margin would drop it out of
+   line with the input. */
+.chat-say button.small {
+  margin-top: 0;
 }
 
 /* ---- The shared testing room ---- */

@@ -10,6 +10,7 @@ import {
   CHAT_BURST,
   CHAT_MAX_TEXT,
   CHIP,
+  PROCTOR_PID,
   TEAMS,
   WAITING_LINE,
   chatRoomFor,
@@ -491,7 +492,15 @@ function paint() {
 
 function line(m: ChatMessage): HTMLLIElement {
   const li = document.createElement("li");
-  li.className = m.pid === pid ? "line mine" : "line";
+  // The proctor first: its socket carries a pid of its own (PROCTOR_PID), and
+  // that — never the name — is what dresses a line as the proctor's. A phone
+  // may call itself Proctor and still gets an ordinary bubble.
+  const fromProctor = m.pid === PROCTOR_PID;
+  li.className = fromProctor
+    ? "line proctor"
+    : m.pid === pid
+      ? "line mine"
+      : "line";
 
   const who = document.createElement("span");
   who.className = "who";

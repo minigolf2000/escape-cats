@@ -123,9 +123,13 @@ Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
   Chat has FOUR rooms, ever, and the wire agrees: `server/src/index.ts` 404s
   `/parties/chat/<not a team>` before a Durable Object wakes. That is the one
   place the rule lives on the wire — don't add a second in `ChatServer`. The
-  proctor's Unassigned box therefore has readouts but no chat log. `/` still
-  takes a name and still registers (same origin, same key), it is just the
-  read-only roster nobody is pointed at.
+  proctor's Unassigned box therefore has readouts but no chat log. The board
+  READS all four as a spectator and TALKS on a second, player-seated socket per
+  room (`PROCTOR_PID`), opened only once it answers that team — `ChatServer`
+  still refuses a spectator's `say` and wants no carve-out. Both clients dress a
+  proctor line by the PID, never the name. `/` still takes a name and still
+  registers (same origin, same key), it is just the read-only roster nobody is
+  pointed at.
 - **A name is renamed in ONE place, the lobby.** The chat's chip (both screens)
   sends the same `{type:"rename"}` down whichever socket it holds — the lobby's
   at the gate, the room's in a channel, which forwards it to the lobby over

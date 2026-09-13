@@ -49,15 +49,18 @@ export interface ChatMessage {
 /**
  * One answer a team has put in front of the proctor.
  *
- * NOT a `ChatMessage` carrying a flag: a submission has its own budget
- * (`ANSWER_BURST`), its own storage, and outlives a proctor's Clear chat —
- * none of which a flag on a chat line could carry. Clients merge the two
- * lists by `at` to draw one log.
+ * This is a chat message said LOUDER, and nothing more. It is still its own
+ * kind rather than a `ChatMessage` with a flag, for two reasons a flag could
+ * not carry: its own budget (`ANSWER_BURST` — the louder a message is, the
+ * less it may be spammed), and its own storage, so a proctor clearing the
+ * chatter mid-event does not take the team's code words with it. Clients
+ * merge the two lists by `at` to draw one log.
  *
- * There is NO verdict field, on purpose. The proctor acknowledges that a
- * human has the answer; whether it is RIGHT is settled out loud, and scored
- * somewhere that is not this app. A `correct` boolean here would be a score
- * board nobody asked this repo to keep.
+ * There is NO verdict and NO acknowledgement, on purpose. Nothing in this app
+ * handles a submission: it lands on the proctor's board where it cannot be
+ * missed, and everything after that happens in the room. A `correct` boolean
+ * would be a score board nobody asked this repo to keep, and an acknowledged
+ * stamp would promise a press nobody is going to make.
  */
 export interface AnswerSubmission {
   /** Monotonic within the room, in its own sequence — clients dedupe on it.
@@ -69,9 +72,6 @@ export interface AnswerSubmission {
   text: string;
   /** Server clock (ms epoch) when the submission was accepted. */
   at: number;
-  /** Server clock when a proctor pressed Received, or null while it waits.
-   * The team's receipt reads off this. */
-  receivedAt: number | null;
 }
 
 export type ChatClientMsg =
@@ -80,16 +80,13 @@ export type ChatClientMsg =
    * same clamp as `say`; a separate type because it costs a different
    * budget and is kept in a different place. */
   | { type: "submit"; text: string }
-  /** A proctor marking a submission as in human hands. PROCTOR ONLY, and the
-   * only thing a proctor may send into a channel besides `clear`: the rule
-   * that proctors are spectators still holds for `say`, so acknowledging an
-   * answer never makes one a voice in the room. */
-  | { type: "received"; id: number }
   /** Forwarded to the LOBBY, which owns the roster. Lines already said keep
    * the name they were said under — see `ChatMessage.name`. */
   | RenameMsg
   /** Wipe this room. Proctor only. Per ROOM: a Durable Object can only clear
-   * itself. SCOPED, and defaulting to the chat, because the two want
+   * itself. `clear` is once again the ONLY thing a proctor sends into a
+   * channel — proctors are spectators, with no carve-out. SCOPED, and
+   * defaulting to the chat, because the two want
    * different things: wiping the chatter mid-event must not take the team's
    * submissions with it, but a room reused by the next event has to be able
    * to drop both. An omitted scope is the old behaviour. */
@@ -111,8 +108,5 @@ export type ChatServerMsg =
   /** One accepted submission, fanned out to the room — teammates see it the
    * moment it lands, which is what stops four phones sending it four times. */
   | { type: "submitted"; answer: AnswerSubmission }
-  /** A submission a proctor has taken in hand. Whole row, not just an id:
-   * a client that missed the `submitted` still ends up correct. */
-  | { type: "answerAt"; answer: AnswerSubmission }
   /** Someone joined or left. */
   | { type: "presence"; players: PlayerInfo[] };

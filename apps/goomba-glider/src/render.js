@@ -685,7 +685,7 @@ const SPLASH_ART = "art/goomba-splash.webp";
 /** The two things this screen says, in this order. The code word is what the
  * party has to say out loud, and the one string this screen exists for. */
 const CHEER = "All levels cleared!";
-const CODE_WORD = "vegetarian";
+const CODE_WORD = "vegetaricat";
 const CODE_LABEL = "CODE WORD";
 
 let splashImg = null;

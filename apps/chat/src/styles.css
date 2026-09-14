@@ -359,6 +359,26 @@ input:focus {
   color: var(--neon);
 }
 
+/* The proctor talking to the team. A different SHAPE, not a fourth hue: full
+   width and square-shouldered, so it reads as the room being addressed rather
+   than a fifth teammate. The amber stays the answer's alone — an announcement
+   and a code word must not argue. */
+.line.proctor {
+  max-width: 100%;
+  align-self: stretch;
+  border-radius: 12px;
+  border-color: rgba(232, 234, 240, 0.28);
+  background: #1b1e26;
+}
+
+.line.proctor .who {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
 .body {
   font-size: 15px;
   line-height: 1.35;

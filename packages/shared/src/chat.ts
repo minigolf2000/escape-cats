@@ -17,6 +17,32 @@ export const CHAT_HISTORY = 200;
 export const CHAT_BURST = 5;
 export const CHAT_REFILL_MS = 700;
 
+/**
+ * Who the proctor is when it talks, and it talks as an ORDINARY PLAYER.
+ *
+ * The board reads all four channels as a spectator (`?role=proctor`), and a
+ * spectator's `say` is refused — so to answer a team it opens a SECOND socket
+ * per room under these two, which the server seats like any phone. That keeps
+ * the whole feature on Vercel: no carve-out in `ChatServer`, nothing to deploy
+ * mid-event, and it works against a Worker that has never heard of it.
+ *
+ * What it costs, in exchange:
+ * - The proctor takes a seat in that room's roster, so it appears in the
+ *   phone's "n here" — which is why the board opens the socket LAZILY, on the
+ *   first line sent, and never for a team it is only watching.
+ * - The mark is a pid, not a server stamp, so it is only as good as the fact
+ *   that a phone's own pid is a `crypto.randomUUID` it never chose. Typing the
+ *   name is not enough to forge it; editing localStorage is. That is the right
+ *   trade for a party game and the wrong one for anything else — if this ever
+ *   needs to be true, it becomes a `from: "proctor"` the SERVER stamps, and
+ *   the deploy that costs.
+ *
+ * Clients key the look on the PID. The name is what an old bundle draws in the
+ * `who` slot, so it has to read as a name and obey the lobby's rules.
+ */
+export const PROCTOR_NAME = "Proctor";
+export const PROCTOR_PID = "proctor";
+
 /** An answer is the same field as a chat line — it is typed into the same
  * input — so it clamps to the same length. One rule, never two. */
 export const ANSWER_MAX_TEXT = CHAT_MAX_TEXT;

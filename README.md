@@ -21,7 +21,7 @@ apps/lobby/          The room board (read-only) — a roster to look at, not the
 apps/chat/           Per-team chat, roomed by team id — and the door into the event
 apps/proctor/        Hidden dashboard: five boxes (Unassigned + four teams), each a
                      drop target with its room's game readouts and resets; the
-                     four teams also carry a chat log
+                     four teams also carry a chat log, and a line into it
 packages/shared/     Wire protocol, seeded RNG, lobby rules, and BOTH whole games:
                      hex/{data,rules,sim}, goomba/{levels,physics,sim,codec,pack}
 server/              Cloudflare Worker: four Durable Objects (hex, goomba, lobby,
@@ -295,6 +295,14 @@ but **no chat log**: a channel is what the drag buys a phone, and `t0` has none
 to read. The four chat sockets live in a provider above the board so a
 re-render cannot reconnect them.
 
+**Answering a team** is a composer under each team's log, and it sends down a
+SECOND socket for that room — one seated as an ordinary player, because the
+spectator socket's `say` is refused (see the chat section). It opens lazily, on
+the first line sent, so the proctor only appears in a team's "n here" once it
+has actually talked to them, and it closes with the tab like every other socket
+here. The trade that buys: the whole feature is a Vercel deploy, with nothing to
+ship to the Worker mid-event.
+
 - **A box is a fixed size.** Every seat is the same height filled or empty,
   every readout line renders in every state (placeholders, never fewer lines),
   long values clip. Adding a line to a game block is a layout decision. The chat
@@ -518,6 +526,14 @@ Server (`server/src/chat.ts`, tunables in `packages/shared/src/chat.ts`):
 - The proctor connects with `?role=proctor` as a spectator: `say` refused, not
   counted in "n here". **Clear chat** deletes `m:` keys in chunks of 128 and
   broadcasts an ordinary empty snapshot.
+- **The board answers a team as a PLAYER, not as the spectator.** `ChatServer`
+  has no carve-out and needs none: the board opens a second socket per room
+  under `PROCTOR_PID`/`PROCTOR_NAME` (shared `chat.ts`) and the server seats it
+  like any phone. Both clients dress those lines by the **pid** — never the
+  name, which a phone can type. That is deliberately worth less than a server
+  stamp: it is a party game, and this way the feature ships without a Worker
+  deploy. If it ever has to be true rather than merely tidy, it becomes a
+  `from: "proctor"` the server stamps, and the deploy is the price.
 
 **Renaming yourself, from the chat.** The chip is on both screens, because the
 mistake you want to fix is usually the name you typed at the door. It sends the

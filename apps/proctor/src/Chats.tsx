@@ -8,6 +8,9 @@ import {
 } from "react";
 import PartySocket from "partysocket";
 import {
+  CHAT_MAX_TEXT,
+  PROCTOR_NAME,
+  PROCTOR_PID,
   TEAMS,
   type AnswerSubmission,
   type ChatClientMsg,
@@ -25,16 +28,20 @@ interface ChatState {
   /** Wipe ONE channel, named by its room id. `label` is the box's own name,
    * for the confirm — the wire only knows `t2`. */
   clear: (room: string, label: string) => void;
+  /** Answer ONE team, in the channel they are already looking at. Goes down a
+   * socket of its own — see `sayer`. */
+  say: (room: string, text: string) => void;
 }
 
 const ChatCtx = createContext<ChatState | null>(null);
 
 /** Every channel's socket, above the board — one per TEAM, which is every
  * channel there is: an unsorted phone has not been let into a chat at all.
- * The proctor connects `?role=proctor`, a spectator the server refuses `say`
- * from. Sockets belong to the page, not a box: reopening on board re-renders
- * would replay history, and a box's Clear sends down the socket already
- * held. */
+ * The proctor READS on `?role=proctor`, a spectator, and TALKS on a second
+ * socket seated as a player (`sayer`), because that is the only kind the
+ * server takes a `say` from. Sockets belong to the page, not a box: reopening
+ * on board re-renders would replay history, and a box's Clear sends down the
+ * socket already held. */
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [byRoom, setByRoom] = useState<Record<string, ChatMessage[]>>({});
   const [answersByRoom, setAnswers] = useState<
@@ -42,6 +49,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   >({});
   /** One socket per room id — how a box's Clear finds its channel. */
   const socketsRef = useRef<Map<string, PartySocket>>(new Map());
+  /** The OTHER socket per room, and only for the rooms this proctor has
+   * actually talked in: the one seated as a player, which is the only kind
+   * whose `say` the server accepts. Opened on the first line and kept, so a
+   * team the proctor only watches never sees anyone arrive. */
+  const sayersRef = useRef<Map<string, { socket: PartySocket; off: () => void }>>(
+    new Map(),
+  );
 
   useEffect(() => {
     const opened = TEAMS.map((t) => {
@@ -97,6 +111,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         o.socket.close();
       }
       socketsRef.current = new Map();
+      for (const s of sayersRef.current.values()) {
+        s.off();
+        s.socket.close();
+      }
+      sayersRef.current = new Map();
     };
   }, []);
 
@@ -110,8 +129,40 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     socketsRef.current.get(room)?.send(JSON.stringify(msg));
   };
 
+  /** This room's player socket, opened the first time it is needed. It carries
+   * no message listener: the spectator socket above is already holding this
+   * room's log, and a second one would double every line. */
+  const sayer = (room: string): PartySocket => {
+    const open = sayersRef.current.get(room);
+    if (open) return open.socket;
+    const socket = new PartySocket({
+      host: PARTYKIT_HOST,
+      room,
+      party: "chat",
+      // No `role`, which IS the point — a proctor-role socket's `say` is
+      // dropped. `pid` is stable so a reconnect reclaims the same seat rather
+      // than seating a second Proctor, and is what a phone draws the line by.
+      query: { pid: PROCTOR_PID, name: PROCTOR_NAME },
+    });
+    const off = closeWhileHidden(socket);
+    sayersRef.current.set(room, { socket, off });
+    return socket;
+  };
+
+  /** Clamp exactly as the server will (collapse, trim, truncate) so the board
+   * and the room never disagree about what was said. An empty line is not a
+   * line, and costs no token. */
+  const say = (room: string, raw: string) => {
+    const text = raw.replace(/\s+/g, " ").trim().slice(0, CHAT_MAX_TEXT);
+    if (!text) return;
+    const msg: ChatClientMsg = { type: "say", text };
+    // partysocket queues anything sent while it is still connecting, so the
+    // first line of the session does not need the socket to be open yet.
+    sayer(room).send(JSON.stringify(msg));
+  };
+
   return (
-    <ChatCtx.Provider value={{ byRoom, answersByRoom, clear }}>
+    <ChatCtx.Provider value={{ byRoom, answersByRoom, clear, say }}>
       {children}
     </ChatCtx.Provider>
   );
@@ -131,7 +182,11 @@ const hhmm = (at: number) =>
  * target ONLY because it is fixed-height and internally scrolled — a box that
  * grew when somebody typed would shove its neighbours out from under a drag. */
 export function TeamChat({ room, label }: { room: string; label: string }) {
-  const { byRoom, answersByRoom, clear } = useChats();
+  const { byRoom, answersByRoom, clear, say } = useChats();
+  /** The half-typed line, per box. Held here rather than in the provider so
+   * four drafts cannot collide, and so a line typed into one team's box is
+   * still there after a drag re-renders the board. */
+  const [draft, setDraft] = useState("");
   const messages = byRoom[room] ?? [];
   const answers = answersByRoom[room] ?? [];
   const loaded = byRoom[room] !== undefined;
@@ -179,7 +234,15 @@ export function TeamChat({ room, label }: { room: string; label: string }) {
         ) : (
           rows.map((r) =>
             r.kind === "say" ? (
-              <li className="chat-line" key={`m${r.m.id}`}>
+              <li
+                // Keyed on the PID, never the name: a player may call
+                // themselves Proctor and must not be dressed as one here
+                // either.
+                className={
+                  r.m.pid === PROCTOR_PID ? "chat-line proctor" : "chat-line"
+                }
+                key={`m${r.m.id}`}
+              >
                 <span className="chat-who">{r.m.name}</span>
                 {/* Player-authored text: React escapes it, never innerHTML. */}
                 <span className="chat-body">{r.m.text}</span>
@@ -214,6 +277,35 @@ export function TeamChat({ room, label }: { room: string; label: string }) {
           </>
         ) : null}
       </div>
+      {/* Answering the team, in the channel they are already reading. One row,
+          fixed height: the box is a drop target and nothing in it may grow
+          under a drag. Send is always DRAWN and disabled at empty, the same
+          shape as Clear chat below — and Enter sends, because this is a
+          chat. */}
+      <form
+        className="chat-say"
+        onSubmit={(e) => {
+          e.preventDefault();
+          say(room, draft);
+          // Cleared optimistically, with no line echoed into the log: the
+          // server owns ordering and truncation, and its `said` is already on
+          // its way back down the socket that draws this box.
+          setDraft("");
+        }}
+      >
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          maxLength={CHAT_MAX_TEXT}
+          autoComplete="off"
+          enterKeyHint="send"
+          aria-label={`Message ${label}`}
+          placeholder={`Message ${label}`}
+        />
+        <button className="small" type="submit" disabled={!draft.trim()}>
+          Send
+        </button>
+      </form>
       {/* One wipe per channel, in the box it wipes. Always drawn, disabled
           at zero: this is a drop target and its height must not move. */}
       <button

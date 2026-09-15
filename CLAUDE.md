@@ -138,8 +138,12 @@ Figma, Ctrl+V into the game, play it, export, commit.
 - **Never write `visibility: visible`** — hide with `hidden`, re-show with
   `inherit`, or a leaf re-opens itself under every hidden ancestor.
   `check-visibility.mjs` enforces it. Goomba only.
-- **The waiting screen IS the how-to-play sheet, and it is pictures** drawn by
-  the renderer from level-shaped literals in `sheet.js`. Load-bearing: the band
+- **The how-to-play sheet is pictures** drawn by the renderer from level-shaped
+  literals in `sheet.js`. It is NOT armed under anything that covers it — the
+  grid (`#hud.lab > *`) or the finale (`#hud.splash > *`), both of which hide it
+  wholesale: an armed invisible sheet swallows the next key and then reappears
+  the moment its cover comes off (which is how it turned up over a post-credits
+  level). Load-bearing: the band
   gap is at the END of the run; no X over a band being taken back; the plant's
   goal sits 3.6 above the floor; the fingertip is the one mark with no game
   counterpart; the title cat is sized by the GOAL picture. The sheet never

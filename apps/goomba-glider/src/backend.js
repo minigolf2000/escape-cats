@@ -50,14 +50,15 @@ export function startBackend(opts) {
   const sim = new GoombaSim(Date.now());
   let runTimer = null;
 
-  // The saved room: bands, level, phase. Restored BEFORE the progress
-  // projection, because `restore` reconciles against whatever list is loaded
-  // and applyLibrary is what makes that list's `completed` true.
+  // The saved room: bands, level, phase. The PROGRESS record is read first and
+  // handed to `restore`, which applies it before its own reconcile — the save's
+  // `completed` is indexed against whatever list existed when it was written,
+  // and reconciling on that stale array can drop a finished game's splash.
   const saved = loadState();
   loadProgress();
   if (saved && saved.v === 1) {
     try {
-      sim.restore(saved, Date.now());
+      sim.restore(saved, Date.now(), completedNow());
     } catch {
       // A save from an older shape, or one somebody hand-edited. A fresh room
       // is a perfectly good answer and the id-keyed progress survives it.

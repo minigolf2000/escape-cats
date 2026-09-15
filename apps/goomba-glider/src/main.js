@@ -50,7 +50,7 @@ import {
   editSay,
 } from "./selector";
 import {
-  resetInput, liveAnchor, heartbeatAnchor,
+  resetInput, liveAnchor,
 } from "./input";
 import {
   drawSheet, armSheet, closeSheet, sheetFrame, sheetIsOpen, sheetIsArmed,
@@ -131,10 +131,13 @@ function onSnapshot(s) {
 
   if (first) {
     S.inited = true;
-    // The room is live: arm the sheet (the player dismisses it). Unless the
-    // GRID is already open (`?solo`, a pasted level): `#hud.lab > *` hides
-    // the sheet, and an armed invisible sheet would swallow the next key.
-    if (S.labOpen) closeSheet(false);
+    // Arm the sheet (the player dismisses it) — unless something is already
+    // covering it. `#hud.lab > *` and `#hud.splash > *` both hide it wholesale,
+    // and an armed INVISIBLE sheet swallows the next key and then reappears the
+    // moment its cover comes off. Two ways to be covered:
+    //   the GRID is open   — `?debug`, an empty list, a pasted level
+    //   the FINALE is up   — a reload by someone who has already beaten it
+    if (S.labOpen || s.phase === "splash") closeSheet(false);
     else armSheet();
     requestAnimationFrame(frame);
   }
@@ -480,10 +483,7 @@ function frameBody(nowMs) {
   if (S.preview && S.snap.phase === "edit") drawBand(S.preview, 0, true);
   if (S.snap.phase === "edit") {
     const a = liveAnchor();
-    if (a && !S.preview) {
-      drawAnchor(a);
-      heartbeatAnchor(a); // keep it alive on every teammate's phone
-    }
+    if (a && !S.preview) drawAnchor(a);
   }
   if (S.snap.phase !== "run") drawStartPad(lv);
 

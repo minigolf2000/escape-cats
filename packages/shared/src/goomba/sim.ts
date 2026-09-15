@@ -319,8 +319,20 @@ export class GoombaSim {
     return { v: 1, savedAt: now, state: this.st };
   }
 
-  restore(saved: GoombaPersistedV1, now: number): void {
+  /**
+   * Rebuild from a save. `completed` is the caller's own projection of its
+   * durable record onto the list that is loaded NOW, and it is applied BEFORE
+   * `reconcile` runs — which is the whole point of the parameter.
+   *
+   * Without it, reconcile's first look is at the save's own `completed`, an
+   * array indexed against whatever list existed when it was written. Ship a
+   * level and that array is stale: a finished game can read as unfinished for
+   * one reconcile, which is long enough to take the finale's splash away
+   * (`s.phase === "splash" && !all` below) and nothing puts it back.
+   */
+  restore(saved: GoombaPersistedV1, now: number, completed?: boolean[]): void {
     this.st = saved.state;
+    if (completed) this.st.completed = completed;
     this.reconcile(now);
   }
 

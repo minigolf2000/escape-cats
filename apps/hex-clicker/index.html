@@ -15,11 +15,23 @@
      strip — the paper carries her on both. ONE size is enough; browsers
      resample this to the 16px they actually draw and it lands the same as a
      purpose-rendered 16, so there is no icon set to keep in step.
-     THE CROP, to redo it if the cat art is ever replaced: hex-day.webp is
-     828x652 with her opaque pixels at 60,3 -> 771,632; scale that 712px width
-     to the full width of the tile, put the ear tips 4% down, ship 180x180.
-     Whiskers and jowls bleed off the edges on purpose — contained, she reads
-     as a smudge at 16px. -->
+     HER EYES ARE BIGGER HERE THAN IN THE ART, and that is the whole reason
+     this is a baked file and not the webp itself. She is drawn squinting — two
+     closed-eye brushstrokes, in every frame she has — and each one is ~50px of
+     an 828px image, so at the 16px a tab draws it lands on ONE pixel of thin
+     diagonal, greys out against her black face and she arrives eyeless. A
+     tighter crop does not save them; only more pixels do. So the two strokes
+     are scaled 1.8x in the ICON ONLY: her own brushwork, no repaint, and
+     `public/art/` is untouched — the game still shows the cat as drawn.
+     THE RECIPE, to redo it if the cat art is ever replaced. hex-day.webp is
+     828x652 with her opaque pixels at 60,3 -> 771,632. Scale that 712px width
+     to the full width of the tile, put the ear tips 4% down, ground it in
+     #f4c0c0, ship 180x180. Whiskers and jowls bleed off the edges on purpose —
+     contained, she reads as a smudge. Then the eyes: her white strokes sit at
+     274,361 -> 323,396 and 440,338 -> 491,386; pad each box 8px and scale it
+     1.8x about its own centre. The padded boxes stay well inside her black
+     face, which is what keeps the enlarged patches seamless — check that again
+     if the head is ever redrawn. Past ~2.4x she stops looking like herself. -->
 <link rel="icon" href="/favicon.png" sizes="any">
 <!--
   Hex Clicker — the player client's markup. A Cookie Clicker homage: pet Hex

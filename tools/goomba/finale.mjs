@@ -10,7 +10,7 @@
 // rule is quiet when it breaks — a mis-set flag does not crash, it just moves
 // where the game says goodbye — so it is worth a test.
 import {
-  GoombaSim, rowsToLevels, setGoombaLevels, hasBonusLevels,
+  GoombaSim, rowsToLevels, setGoombaLevels, hasBonusLevels, preCreditsCount,
   goombaCleared, BAKED_LEVELS,
 } from "./lib.mjs";
 
@@ -102,6 +102,28 @@ console.log("\nANYTHING NOT SHIPPED IS POST-CREDITS, WHATEVER ITS ROW SAYS");
   is("...and both count as the way out", hasBonusLevels(), true);
 }
 
+console.log("\nWHAT THE LEVEL DOTS MAY COUNT (preCreditsCount)");
+{
+  // The dots span this until the game is cleared, so it must never count a
+  // level the ending has not introduced yet.
+  install("mmm");
+  is("no bonus section: the whole list, because all of it is pre-credits",
+    preCreditsCount(), 3);
+  install("mmbbb");
+  is("a bonus tail is not counted", preCreditsCount(), 2);
+  install("bbb");
+  is("nothing but bonus counts nothing", preCreditsCount(), 0);
+  install("mbm");
+  is("a stray bonus row SHORTS the count rather than leaking the tail",
+    preCreditsCount(), 1);
+  setGoombaLevels([
+    ...rowsToLevels([{ id: "a", name: "A", hash: H }], "baked"),
+    ...rowsToLevels([{ id: "b", name: "B", hash: H }], "local"),
+    ...rowsToLevels([{ id: "c", name: "C", hash: H }], "hash"),
+  ]);
+  is("an unshipped level is post-credits here too", preCreditsCount(), 1);
+}
+
 console.log("\nTHE LIST THE GAME ACTUALLY SHIPS");
 {
   // Its SHAPE (a main game exists, the bonus rows are a tail) is
@@ -109,6 +131,8 @@ console.log("\nTHE LIST THE GAME ACTUALLY SHIPS");
   // real list, sees the post-credits section at all.
   setGoombaLevels(rowsToLevels(BAKED_LEVELS, "baked"));
   is("the sim sees post-credits levels in the shipped list", hasBonusLevels(), true);
+  is("...so the dots start out short of the whole list",
+    preCreditsCount() < BAKED_LEVELS.length, true);
 }
 
 console.log(failed ? `\n${failed} failed` : "\nall good");

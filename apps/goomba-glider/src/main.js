@@ -23,6 +23,8 @@ import {
   encodeLevel,
   levelLabel,
   hasBonusLevels,
+  goombaCleared,
+  preCreditsCount,
   PACK_MAX,
 } from "@escape-cats/shared";
 import { transport } from "./transport";
@@ -189,8 +191,22 @@ function syncHud() {
   // the surface can change under a live room (a tablet gaining a trackpad).
   hudEl.classList.toggle("editing", editorOn());
 
+  // THE DOTS ARE THE PRE-CREDITS RUN until the game has been cleared, and the
+  // whole list after it: a dot per post-credits level would count the ending
+  // out loud from the first frame, which is the one thing this corner must not
+  // do. `goombaCleared` is the same latch `levelSelect` rides, so the row grows
+  // on the beat the plate does and a list edit that un-clears the game
+  // (`reconcile`) takes both back.
+  //
+  // A level BEYOND that window still gets its dot — a `#hash` link boots
+  // straight onto one and the grid can jump to one early — because a row with
+  // no `cur` is a progress indicator that cannot say where you are. What it
+  // reveals is only what you are already looking at.
   dotsEl.innerHTML = "";
-  s.completed.forEach((c, i) => {
+  const dotSpan = goombaCleared(s)
+    ? s.completed.length
+    : Math.max(preCreditsCount(), s.level + 1);
+  s.completed.slice(0, dotSpan).forEach((c, i) => {
     const d = document.createElement("div");
     d.className = "dot" + (i === s.level ? " cur" : c ? " done" : "");
     dotsEl.appendChild(d);

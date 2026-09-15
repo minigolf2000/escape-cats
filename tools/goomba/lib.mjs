@@ -23,8 +23,10 @@ await writeFile(
   `export * from ${JSON.stringify(join(srcDir, "pack.ts"))};\n` +
   // sim.ts: the game rules, for the one test that drives them (bands.mjs).
   `export * from ${JSON.stringify(join(srcDir, "sim.ts"))};\n` +
-  // levels.data.ts: the list the game ships, which is the default to work on.
-  `export * from ${JSON.stringify(join(srcDir, "levels.data.ts"))};\n`,
+  // levels.data.ts: the list the game ships, which is the default to work on,
+  // and library.ts: what a ROW means (ids, the bonus flag, progress).
+  `export * from ${JSON.stringify(join(srcDir, "levels.data.ts"))};\n` +
+  `export * from ${JSON.stringify(join(srcDir, "library.ts"))};\n`,
 );
 const outfile = join(dir, "sim.mjs");
 await build({ entryPoints: [entry], bundle: true, format: "esm", outfile, logLevel: "silent" });
@@ -46,6 +48,11 @@ export const {
   applyPack,
   packToLevels,
   levelsToPack,
+  rowsToLevels,
+  setGoombaLevels,
+  hasBonusLevels,
+  goombaCleared,
+  BAKED_LEVELS,
 } = sim;
 
 /**

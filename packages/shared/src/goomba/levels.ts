@@ -109,6 +109,9 @@ export interface GoombaLevel {
   /** Which layer this came from: the shipped list, the power user's local
    * overlay, or the URL hash. */
   source?: LevelSource;
+  /** POST-CREDITS: this level sits behind the finale and does not hold it up
+   * (`LevelRow.bonus`, and `mainCleared` in sim.ts). */
+  bonus?: boolean;
   /** "Not a level the game shipped" — the selector draws a dashed card. Set
    * for both editable layers; predates `source` and is kept because it is a
    * PRESENTATION flag and the card has no business asking which layer. */

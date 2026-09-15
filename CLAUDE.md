@@ -147,14 +147,26 @@ Figma, Ctrl+V into the game, play it, export, commit.
   kills click) and on Space/Enter/Escape ONLY (a catch-all ate Cmd+R and
   Ctrl+V). `zoopMs` must stay unit-aware (the minifier writes `.46s`). Don't
   copy these instructions anywhere else.
-- **The finale is TERMINAL and it is a picture.** Clearing the last level lands
-  the game on `splash` from `resolve` itself — no banner, no NEXT — and nothing
-  takes it back: no tap, no `\`, no paste, no `goto` (the sim refuses it). Only
-  `reset`, or a level-list edit that un-clears the game (`reconcile`). The
+- **The finale fires on the last MAIN level and it is a picture.** Clearing the
+  last level NOT marked `bonus` lands the game on `splash` from `resolve`
+  itself — no banner, no NEXT — and it fires ONCE (`finishedAt` is the latch),
+  so no post-credits win re-runs it. It is TERMINAL only when there are no
+  post-credits levels: with none, nothing takes it back (no tap, no `\`, no
+  paste, no `goto` — the sim refuses it) except `reset` or a list edit that
+  un-clears the game (`reconcile`). With a bonus section behind it, a tap and
+  `\` open the levels grid, which is the door to them — `hasBonusLevels()` is
+  the one question, asked in `sim.goto`, `openSelector` and main.js alike. A
+  paste stays refused either way. A RESTORED finished game lands in `edit`, not
+  on the splash: the ending plays on the win that earns it, not on every load. The
   screen is `public/art/goomba-splash.webp` drawn whole with its own edge rows
   as the wash (replace the file, the backdrop comes with it), then two plates in
-  THIS ORDER: "All levels cleared!" pops on top, and a beat later the CODE WORD
-  rises at the bottom — hand the word over first and nobody looks at the rest.
+  THIS ORDER: the cheer pops on top, and a beat later the CODE WORD rises at the
+  bottom — hand the word over first and nobody looks at the rest. With
+  POST-CREDITS levels there is a THIRD beat, later still ("tap for more
+  levels"), and a tap then opens the grid; the tap is gated on that beat
+  showing (`splashMoreReady`) so it cannot take the word away before it has been
+  read. The cheer says "You beat the game!", not "All levels cleared!" — the
+  bonus levels are all untouched when it pops on.
   That picture is this app's ONE image asset; every prop is still procedural.
 
 ## Repo invariants

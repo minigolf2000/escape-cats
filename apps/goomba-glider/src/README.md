@@ -40,6 +40,17 @@ comes apart.
    a same-document navigation and deliberately does nothing). Scratch: no id,
    never remembered. `node tools/goomba/draft.mjs link` prints these.
 
+## Where the credits roll
+
+A shipped row may carry `bonus: true`. The finale fires on the last row
+WITHOUT it (today: Fireworks), and everything after sits behind the ending —
+still real, still numbered, reached through the levels grid that clearing the
+game unlocks. Anything not shipped is bonus whatever its row says, so a local
+paste can never hold the ending up. `tools/goomba/finale.mjs` is that rule.
+
+The splash is terminal only when there is no bonus section. With one it grows a
+third beat, later than the code word, and a tap opens the grid.
+
 ## Progress
 
 Keyed by a level's **id**, never its index — `goomba/library.ts`. Reorder the

@@ -23,6 +23,7 @@ import {
   snapBand,
   encodeLevel,
   levelLabel,
+  hasBonusLevels,
 } from "@escape-cats/shared";
 import { transport } from "./transport";
 import { startBackend } from "./backend";
@@ -41,7 +42,8 @@ import {
   postFrame,
   drawBackground, drawTerrain, drawBand, drawAnchor,
   drawCushion, drawPopper, drawCan, drawBumper,
-  drawGoalPlant, drawGoomba, drawStartPad, drawSplash, preloadSplashArt,
+  drawGoalPlant, drawGoomba, drawStartPad, drawSplash, splashMoreReady,
+  preloadSplashArt,
 } from "./render";
 import {
   setLab, resolveLabJump, onPackChanged, openSelector, tickEditMsg, drawLab,
@@ -240,11 +242,12 @@ const GO_KEYS = [" ", "Enter", "Escape"];
 
 window.addEventListener("keydown", (e) => {
   if (chord(e)) return;
-  // THE FINALE TAKES NO INPUT — not a tap (input.js), not `\`, not a paste
-  // (below). It is where the game ends; the ways off it are the room's, from
-  // the proctor. A laptop is no exception: the door it would open leads to a
-  // `goto` the sim refuses (`GoombaSim.goto`).
-  if (S.snap && S.snap.phase === "splash") return;
+  // THE FINALE TAKES NO INPUT while it is the END — no tap (input.js), no
+  // `\`, no paste (below). With POST-CREDITS levels behind it there is
+  // somewhere to go, so `\` opens the grid like anywhere else; without them
+  // the door leads to a `goto` the sim refuses (`GoombaSim.goto`), so it stays
+  // shut. Same question in both places, asked of the same list.
+  if (S.snap && S.snap.phase === "splash" && !hasBonusLevels()) return;
   // The sheet owns those three while it is up: Space behind it would launch
   // a run nobody can see.
   if (sheetIsArmed()) {
@@ -287,7 +290,9 @@ function pasteSay(msg) {
 window.addEventListener("paste", (e) => {
   // Laptop only, like every other editing gesture.
   if (!DESKTOP()) return;
-  if (S.snap && S.snap.phase === "splash") return; // the finale takes no input
+  // A paste stays refused on the finale even with bonus levels behind it: it
+  // would land a level on a screen with no grid up and nothing to land on.
+  if (S.snap && S.snap.phase === "splash") return;
 
   e.preventDefault();
   // No zoop: the grid it is about to open hides `#help`.
@@ -404,7 +409,7 @@ function frameBody(nowMs) {
   if (sheetIsOpen()) drawSheet();   // `?` mid-party: the pictures keep moving
   if (!S.snap) return;
   if (S.labOpen) { drawLab(); return; }
-  if (S.snap.phase === "splash") { drawSplash(tGlobal - splashAt); return; }
+  if (S.snap.phase === "splash") { drawSplash(tGlobal - splashAt, hasBonusLevels()); return; }
   const lv = L();
   const st = syncAnim();
   const riding = st && S.snap.phase === "run";
@@ -512,6 +517,22 @@ function frameBody(nowMs) {
 // No menu and no join: the game IS the page. There is nothing to reach and
 // nothing to wait for, so the gate exists only for the one frame before the
 // first snapshot lands — which `startBackend` emits synchronously.
+
+/**
+ * THE WAY OFF THE FINALE, when there is one. A tap anywhere opens the levels
+ * grid — the same door `\` opens, and the only one a phone has.
+ *
+ * Gated on the way-out line actually SHOWING (`splashMoreReady`): the code
+ * word rises a beat after the cheer and is the thing the player is meant to
+ * carry away, so an early tap must not take the screen out from under it.
+ * `pointerdown`, like the sheet, because the kiosk lockdown kills `click`.
+ */
+cv.addEventListener("pointerdown", () => {
+  if (!S.snap || S.snap.phase !== "splash") return;
+  if (!hasBonusLevels() || !splashMoreReady(tGlobal - splashAt)) return;
+  S.selected = null;
+  openSelector();
+}, { capture: true });
 
 function boot() {
   requestAnimationFrame(sheetFrame);   // the gate is up: animate it until frame() exists

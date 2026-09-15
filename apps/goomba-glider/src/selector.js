@@ -5,7 +5,7 @@
 // A card carries NO verdict: nothing evaluates a level except people playing
 // it (CLAUDE.md). Don't add one.
 
-import { GOOMBA_LEVELS, levelLabel } from "@escape-cats/shared";
+import { GOOMBA_LEVELS, hasBonusLevels, levelLabel } from "@escape-cats/shared";
 import { exportOverlay, isEditable, overlayBase } from "./library";
 import { transport } from "./transport";
 import { exportBtn, hudEl } from "./dom";
@@ -72,12 +72,15 @@ export const tickEditMsg = (dt) => { if (editMsgT > 0) editMsgT = Math.max(0, ed
 /**
  * Open the levels grid. The dot strip's plate is what reaches it, and this is
  * where the gate and the "stop whatever is running first" live, so they cannot
- * disagree. NOT from the finale: that screen is terminal and the jump it would
- * make is one the sim refuses (`GoombaSim.goto`).
+ * disagree.
+ *
+ * From the FINALE only when there are post-credits levels — the grid is the
+ * door to them. With none the screen is terminal and the jump it would make is
+ * one the sim refuses (`GoombaSim.goto`).
  */
 export function openSelector() {
-  if (!levelSelect()) return; // an indicator until the team clears the game
-  if (S.snap && S.snap.phase === "splash") return;
+  if (!levelSelect()) return; // an indicator until the game is cleared
+  if (S.snap && S.snap.phase === "splash" && !hasBonusLevels()) return;
   if (S.snap && S.snap.phase === "run") transport.send({ type: "stop" });
   setLab(true);
 }

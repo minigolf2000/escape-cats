@@ -6,6 +6,7 @@ it does that; [`DESIGNING.md`](./DESIGNING.md) is what was learned from doing so
 ```sh
 node levels.mjs                        # what the game ships (--check for the build)
 node test-library.mjs                  # progress surviving a changed level list
+node finale.mjs                        # where the credits roll, and what is post-credits
 node test-codec.mjs                    # the save format: round-trips, and every older link still decodes
 node bands.mjs                         # MAX_BANDS is handed out and rationed to nobody
 node draft.mjs                         # the draft bench (usage)

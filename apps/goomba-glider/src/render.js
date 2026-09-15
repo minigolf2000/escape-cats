@@ -682,9 +682,14 @@ export function drawStartPad(lv) {
 // covers it. Replace the file and both come with it.
 
 const SPLASH_ART = "art/goomba-splash.webp";
-/** The two things this screen says, in this order. The code word is what the
- * party has to say out loud, and the one string this screen exists for. */
-const CHEER = "All levels cleared!";
+/** The two things this screen says, in this order. The code word is the one
+ * string this screen exists for.
+ *
+ * The cheer used to read "All levels cleared!" and that stopped being true the
+ * day there were POST-CREDITS levels behind the ending — five of them, all
+ * untouched, at the moment it pops on. It says the GAME is over, which is what
+ * it always meant. One string, true with a bonus section or without. */
+const CHEER = "You beat the game!";
 const CODE_WORD = "vegetaricat";
 const CODE_LABEL = "CODE WORD";
 
@@ -747,10 +752,20 @@ function washStops(img) {
 // the picture, then WELL DONE, and only then the thing they have to carry out
 // of the room. A party that gets the code word first stops looking at the rest.
 const ART_IN = 0.45;     // the picture washing in over the backdrop
-const CHEER_AT = 0.55;   // "All levels cleared!", popped on at the top
+const CHEER_AT = 0.55;   // the cheer, popped on at the top
 const CHEER_IN = 0.4;
 const WORD_AT = 1.5;     // ...and the code word, a beat later, at the bottom
 const WORD_RISE = 0.55;
+/** LAST, and only when there are post-credits levels: the way out. Late on
+ * purpose — the word has been up for over a second by now, so this cannot be
+ * the thing anyone reads first, and a tap cannot dismiss the word before it
+ * has been read (`splashMoreReady` gates the tap on the same clock). */
+const MORE_AT = 3.2;
+const MORE_IN = 0.5;
+
+/** Is the finale's way-out showing yet? The tap that opens the levels grid
+ * asks this, so the screen and the gesture agree to the frame. */
+export const splashMoreReady = (t) => t >= MORE_AT;
 
 /**
  * Where the picture sits: FILLING the screen, pinned to its LEFT edge. Null
@@ -775,7 +790,7 @@ function artBox() {
 
 /** The whole finale: backdrop, picture, code word. `t` is seconds since the
  * room landed on the splash. */
-export function drawSplash(t) {
+export function drawSplash(t, more) {
   const box = artBox();
   // The ramp spans the PICTURE, not the screen, so every stop lines up with
   // the row it was taken from — including when the picture runs off the top
@@ -788,7 +803,46 @@ export function drawSplash(t) {
   ctx.fillRect(0, 0, W, H);
   drawSplashArt(box, t);
   drawCheer(t);
-  drawCodeWord(t);
+  const wordTop = drawCodeWord(t);
+  if (more) drawMore(t, wordTop);
+}
+
+/**
+ * "There is more" — a quiet line resting just above the code word's plate.
+ *
+ * No plate of its own: the two plates are the finale's voice and this is an
+ * aside. It sits ABOVE the word rather than below because the word's plate
+ * rests one margin off the bottom edge and there is nothing under it; the
+ * reading order is carried by TIME instead (MORE_AT), which holds even for a
+ * phone that loads straight onto the splash, since the beats replay from zero
+ * on every boot.
+ */
+function drawMore(t, wordTop) {
+  const p = clamp01((t - MORE_AT) / MORE_IN);
+  if (p <= 0 || wordTop === null) return;
+  const px = Math.max(11, Math.min(15, Math.min(W - 32, 460) * 0.036));
+  const label = "tap for more levels";
+  ctx.save();
+  ctx.globalAlpha = p;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `700 ${px}px ui-rounded, system-ui, sans-serif`;
+  // On its own PILL. Bare text was unreadable: the picture behind it is a
+  // bright kitchen, and the splash's ink is the plates' pale lilac, which only
+  // works on the plates' dark ground. Smaller and unstroked so it still reads
+  // as an aside rather than a third plate.
+  const padX = px * 0.85, padY = px * 0.5;
+  const boxW = ctx.measureText(label).width + padX * 2;
+  const boxH = px + padY * 2;
+  const y = wordTop - px * 0.8 - boxH;
+  ctx.shadowColor = "rgba(0,0,0,.45)";
+  ctx.shadowBlur = 16; ctx.shadowOffsetY = 5;
+  ctx.fillStyle = "rgba(20,10,45,.88)";
+  ctx.beginPath(); ctx.roundRect((W - boxW) / 2, y, boxW, boxH, boxH / 2); ctx.fill();
+  ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.fillStyle = "#c9bdf0";
+  ctx.fillText(label, W / 2, y + padY + px * 0.82);
+  ctx.restore();
 }
 
 /** The picture, arriving with a short fade and a push-in — the run cuts to
@@ -845,9 +899,12 @@ function drawCheer(t) {
  * the one plate this app already uses to say something out loud — so the word
  * reads as the game talking, not as part of the illustration.
  */
+/** Draws the code word and returns the TOP of its plate, so the way-out line
+ * can rest above it without a second copy of this geometry. Null before it
+ * starts to rise. */
 function drawCodeWord(t) {
   const p = clamp01((t - WORD_AT) / WORD_RISE);
-  if (p <= 0) return;
+  if (p <= 0) return null;
   const e = 1 - Math.pow(1 - p, 3);   // out-cubic: up quickly, land softly
 
   const room = Math.min(W - 32, 460);
@@ -882,6 +939,7 @@ function drawCodeWord(t) {
   ctx.font = face(800, wordPx);
   ctx.fillText(CODE_WORD, W / 2, y + padY + labelPx + gap + wordPx * 0.82);
   ctx.restore();
+  return y;
 }
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);

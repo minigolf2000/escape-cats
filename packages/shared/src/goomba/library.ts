@@ -35,6 +35,16 @@ export interface LevelRow {
   name: string;
   /** The level itself — `encodeLevel` output, exactly as Ctrl+C gives it. */
   hash: string;
+  /**
+   * POST-CREDITS. The finale fires when the last level WITHOUT this flag is
+   * cleared, and these sit behind it: still real levels, still numbered, but
+   * the game has already said goodbye.
+   *
+   * It rides the ROW and not the hash on purpose — it is a fact about the
+   * list's shape, not about the level's geometry, so moving a level in or out
+   * of the bonus section costs no re-paste and no codec version.
+   */
+  bonus?: boolean;
 }
 
 /**
@@ -50,6 +60,10 @@ export function rowsToLevels(rows: LevelRow[], source: LevelSource): GoombaLevel
     if (!L) continue;
     L.id = row.id;
     L.source = source;
+    // Anything not SHIPPED is bonus, whatever its row says. A level pasted
+    // into the overlay lands after the shipped list, and if it counted toward
+    // the main game nobody with a scratch level could ever reach the finale.
+    L.bonus = source !== "baked" || row.bonus === true;
     // The selector's one visible difference, from before there were sources:
     // a dashed card means "this is not a level the game shipped".
     if (source !== "baked") L.pasted = true;
@@ -65,6 +79,7 @@ export const levelToRow = (L: GoombaLevel, hash: string): LevelRow => ({
   id: L.id ?? "",
   name: L.name,
   hash,
+  ...(L.bonus ? { bonus: true } : {}),
 });
 
 /** An id for a level the power user just pasted. Slug for legibility (it is

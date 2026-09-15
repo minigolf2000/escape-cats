@@ -14,9 +14,13 @@
 // becomes when it ships. To change one, change the frame and re-paste it.
 //
 // The ORDER is the page's own left-to-right, top-to-bottom layout, which is
-// also the difficulty ramp: the teaching level first, "The end" last. A level's
-// number is its position here + 1 (`levelLabel`) and is computed at display —
-// never typed into a name.
+// also the difficulty ramp. A level's number is its position here + 1
+// (`levelLabel`), computed at display — never typed into a name.
+//
+// `bonus: true` marks a POST-CREDITS level. The finale fires on the last row
+// WITHOUT it — Fireworks — and everything after sits behind the ending, reached
+// from the levels grid that clearing the game unlocks. Moving that line is
+// moving the flag: nothing else knows where the credits roll.
 //
 // HOW TO ADD ONE (tools/goomba/DESIGNING.md is the long version):
 //   1. draw the frame in Figma, Ctrl+C
@@ -61,26 +65,31 @@ export const BAKED_LEVELS: LevelRow[] = [
   },
   {
     id: "cats-cradle",
+    bonus: true,
     name: "Cat's Cradle",
     hash: "AwIMQ2F0J3MgQ3JhZGxl2AKoAcUBgBABAmqRD9gBRgSsBXy7BYIF9gOOB50CAwgQ4QurAqgUsAcAAACvB8QJAACECJgCtxcAALUJAABTnge4FwDbBpgCtxcAALUJAAAAAP8FpwbwEfIU",
   },
   {
     id: "the-long-way-up",
+    bonus: true,
     name: "The Long Way Up",
     hash: "AwIPVGhlIExvbmcgV2F5IFVw5AHEGugB9QsFGKkCyA2mBFCAAwAKAAoBCgEMAQoBCAMKAwoFCAUKBQgFBgcIBQYHBgkGBwYJBAcECQIJAgkNqgS3D74BPB5PMRNuWTsTblk7E25ZOxNQE58BbVC9AQOkA-sDKLgDE7gDA4ESmgPIAcgBtAHHARqoCa4PugMACgEKAAoBDAEKAwgDCgMKAwgFCgUIBQYHCAcGBwYHBgcGCQQJBAkCCQIJAgkCCQAJA8sEvRfXBKwChwSIBAf0BtICmwmoFJkI7A6cCQC-Cg4AAMQD7wSLFQDlC-0FwA0A8gUAuwYA6AOJCzwAAAKEAtsBnwnMCYkJ8Q2KFuwd",
   },
   {
     id: "merry-go-round",
+    bonus: true,
     name: "Merry Go Round",
     hash: "AwIOTWVycnkgR28gUm91bmTKCcwDAJwTCgJP1xMAyAECoAHHAQDIAREMpAM8CjoOOBQ4GDQeMiAwJiwoKCwmMCAyHDQaNhI6EDoKPBEAugEJOg86ETgZOBs0HzIlMCcsKygvJjEgMx43GDcSORA7ChG5AQA5CTkNORM1FzMdMx8tJSsnKSsjLx8xHTMXNRM5DTkJOxEAtwEKOw45FDcYNxwzIjEkLyorLCcuJTIfNh02FzoROg86CRe6AYUCPgg-DDwQOhI6GDoaNh40IjIkMCguKiouKDAkMiI0HjYaOhg4EjwQPAw-CD4XALoBBzwLPg88ETwXOBk6HTYhNCMyJzApLi0qLygxJDMiNR45GjkYORI7ED0MPQgXuQEAPQc7CzsPOxE5FzcZNR0zITMjLycrKSstJS8lMR8zHTUZORc3EzsNOws9Bz0XALcBCD0MPQ47FDsWNxw5HjUgMyYxKC8qLS4pLic0IzQhNh04GToXPBE8DzwLPgcE9wSQBIQJlwKzBfIF-APYARXNCM0DiA6oFADMA5MFAOYBkAOHBQCQA-YB7wQAzAMAzQQAkAPlAacEAOYBjwONBAAAywONBADnAY8DpwQAjQPlAc0EAMsDALAzAI8D5gGHBQCECdAG0QEAswK0AoQHALMDAJsxALUCswKEBwAAswOEBwC2ArMChAcAtAMAhAcAtAK0AoQHAI0E2gHCAwAAAMkJzw2UE9gY",
   },
   {
     id: "slalom",
+    bonus: true,
     name: "Slalom",
     hash: "AwIGU2xhbG9tiAS4A7gNzBwCAs8P8xyoBcgBBN8DUACwGKgPkAMAvxsDnwv4BfAGmAfvBpgHAAAAvwfPGdAU2CI",
   },
   {
     id: "the-end",
+    bonus: true,
     name: "The end",
     hash: "AwIHVGhlIGVuZNQCsgWCJNQECSS5In-2AgARQBU6HTYjMCkoKyAxGjEOMwY1AzENMRUtHSknIy0fNRc5ETsJPwNBBEEOPxI7HDcgMyYrLCUuGzITNAs0ATQIMhIwGibmBgUsICoqJC4eNhY6Ej4IQAJCBUINPhM8GzghMiUsKyIvHDEUMwgzADMHMRMvGykhJyshMRs3EzsNPQVBAkEIPxI9FjkeNSQvKCcuHyasCQAsICoqJC4eNhY6Ej4IQAJCBUINPhM8GzghMiUsKyIvHDEUMwgzADMHMRMvGykhJyshMRs3EzsNPQVBAkEIPxI9FjkeNSQvKCcuHwamBdYGAIMH1ALQBYwBANQCzwUAhAchoAGHBFoBVgdUCUwPRBM6FTAZIhscOQAAGzkAACMbLRk5FUMTSw9TCVUHWQEAhAdcAVgFVglQC0gPQhM2FSwVIBkaNRk2DOUE8wFaAloGVgpQDEgQQBQ4FiwYIBgSGggcAjy-AawCswUC4AO0BasCswUCpQOuBJgFAAHnHE0DkQexAaELqBTsAzv8AQDwBgAcAAACwgoY5gjQAscigQuEKpwO",
   },

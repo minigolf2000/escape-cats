@@ -20,7 +20,7 @@
     "check:cursors": "node scripts/check-cursors.mjs",
     "check:visibility": "node scripts/check-visibility.mjs",
     "check:levels": "node tools/goomba/levels.mjs --check",
-    "test:goomba": "node tools/goomba/test-codec.mjs && node tools/goomba/test-library.mjs && node tools/goomba/levels.mjs --check"
+    "test:goomba": "node tools/goomba/test-codec.mjs && node tools/goomba/test-library.mjs && node tools/goomba/finale.mjs && node tools/goomba/levels.mjs --check"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",

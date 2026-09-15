@@ -12,6 +12,9 @@
 //   - a row whose `name` has drifted from the name inside its `hash`
 //   - a duplicate or empty `id` — progress is keyed on ids, so two levels
 //     sharing one would silently share a player's clear
+//   - no main game at all, or bonus rows that are not a contiguous tail: the
+//     finale fires on the last row WITHOUT `bonus`, so a bonus row in the
+//     middle would put the ending somewhere nobody meant
 //
 // It does NOT grade a level. Nothing does; playing it is the verdict
 // (DESIGNING.md). This only asks whether the list is well-formed.
@@ -37,17 +40,26 @@ BAKED_LEVELS.forEach((row, i) => {
     problems.push(`${at}: name drifted — row says "${row.name}", hash says "${L.name}"`);
   if (!check)
     console.log(
-      `  ${String(i + 1).padStart(2)}. ${row.id.padEnd(24)} ${L.name}` +
-        `   (${L.terrain.length} polylines, ${L.cans.length} cans, ${row.hash.length} chars)`,
+      `  ${String(i + 1).padStart(2)}. ${row.id.padEnd(24)} ${L.name.padEnd(26)}` +
+        `${L.terrain.length} polylines, ${L.cans.length} cans, ${row.hash.length} chars`,
     );
+  // The ending, drawn where it actually falls.
+  if (!check && !row.bonus && BAKED_LEVELS[i + 1]?.bonus)
+    console.log("      ── the credits roll here ── everything below is post-credits");
 });
+
+const firstBonus = BAKED_LEVELS.findIndex((r) => r.bonus);
+if (firstBonus === 0) problems.push("every row is `bonus` — an ending needs something to be the end of");
+if (firstBonus > 0 && !BAKED_LEVELS.slice(firstBonus).every((r) => r.bonus))
+  problems.push("`bonus` rows are not a contiguous tail — the finale fires on the last row without it");
 
 if (!problems.length)
   console.log(
     check
       // One line, like the other build checks: a silent check reads as a
       // check that did not run.
-      ? `Levels OK (${BAKED_LEVELS.length} shipped; ids unique, names match their hashes)`
+      ? `Levels OK (${BAKED_LEVELS.length} shipped, ${BAKED_LEVELS.filter((r) => !r.bonus).length} before the credits; ` +
+        `ids unique, names match their hashes)`
       : `\n${BAKED_LEVELS.length} level(s) shipped. Nothing grades them — play them.`,
   );
 if (problems.length) {

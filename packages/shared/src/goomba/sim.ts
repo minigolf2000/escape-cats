@@ -99,7 +99,35 @@ const num = (v: unknown): number | null =>
 export const canPlaceBand = (bands: GoombaBand[]): boolean => bands.length < MAX_BANDS;
 
 /**
- * Has the game been cleared? The gate on the level selector; `?debug` and `\`
+ * Are there POST-CREDITS levels — any marked `bonus` (`goomba/library.ts`)?
+ * The finale is terminal only when there are not: with a bonus section behind
+ * it, the ending has somewhere to let you out to.
+ */
+export const hasBonusLevels = (): boolean => GOOMBA_LEVELS.some((L) => L.bonus === true);
+
+/**
+ * Has the MAIN game been cleared — every level that is NOT post-credits?
+ *
+ * This is what the finale fires on, and it used to be "every level, full
+ * stop". The bonus section sits BEHIND the ending, so counting it would mean
+ * the game could never say goodbye until the extras were done too.
+ *
+ * A list with nothing but bonus levels is never cleared (`any` stays false):
+ * an ending needs something to be the end OF.
+ */
+function mainCleared(completed: boolean[]): boolean {
+  let any = false;
+  for (let i = 0; i < GOOMBA_LEVELS.length; i++) {
+    if (GOOMBA_LEVELS[i].bonus) continue;
+    any = true;
+    if (completed[i] !== true) return false;
+  }
+  return any;
+}
+
+/**
+ * Has the game been cleared? The gate on the level selector — which, now that
+ * there are post-credits levels, is also the DOOR to them. `?debug` and `\`
  * are client-side overrides of it and nothing more.
  */
 export const goombaCleared = (s: GoombaSimState): boolean => s.finishedAt !== null;
@@ -135,13 +163,17 @@ export class GoombaSim {
     if (now < s.runAt + s.runT * 1000) return false;
     if (s.runResult === "win") {
       s.completed[s.level] = true;
-      // `[].every` is true, so an empty pack would otherwise clear the game.
-      const cleared = s.completed.length > 0 && s.completed.every(Boolean);
-      if (cleared && s.finishedAt === null) s.finishedAt = now;
-      // The win that CLEARS the room skips `win` altogether: the ride ends on
-      // the splash, on the frame Goomba reaches the plant. Every other win
-      // stops for its banner and its NEXT.
-      s.phase = cleared ? "splash" : "win";
+      // The win that clears the MAIN game skips `win` altogether: the ride ends
+      // on the splash, on the frame Goomba reaches the plant. Every other win
+      // stops for its banner and its NEXT — including every post-credits win,
+      // which happens after the game has already said goodbye.
+      //
+      // ONCE, on the first time: `finishedAt` is the latch. Clearing a bonus
+      // level must not re-run the ending, and neither must re-clearing a main
+      // level the player went back to.
+      const firstClear = s.finishedAt === null && mainCleared(s.completed);
+      if (firstClear) s.finishedAt = now;
+      s.phase = firstClear ? "splash" : "win";
     } else {
       s.phase = "edit";
       s.runAt = null;
@@ -227,16 +259,18 @@ export class GoombaSim {
     s.runT = null;
   }
 
-  /** The selector's jump: fresh edit phase on the chosen level for the whole
-   * room. Completed flags untouched. NEVER from the splash — the finale is
-   * terminal, and this is the intent that used to leave it. */
+  /** The selector's jump: fresh edit phase on the chosen level. Completed
+   * flags untouched.
+   *
+   * From the SPLASH only when there are post-credits levels to jump to. With
+   * none, the finale is terminal and this is the intent that would leave it. */
   goto(level: unknown, now: number): void {
     this.resolve(now);
     if (!Number.isInteger(level)) return;
     const li = level as number;
     if (li < 0 || li >= GOOMBA_LEVELS.length) return;
     const s = this.st;
-    if (s.phase === "splash") return;
+    if (s.phase === "splash" && !hasBonusLevels()) return;
     s.level = li;
     s.phase = "edit";
     s.bands = [];
@@ -309,15 +343,15 @@ export class GoombaSim {
       s.runResult = null;
       s.runT = null;
     }
-    // "Every level done" can change in both directions: a new level un-clears
-    // a room, deleting the last unfinished one clears it.
-    const all = n > 0 && s.completed.every(Boolean);
+    // "The main game is done" can change in both directions: a new main level
+    // un-clears the game, deleting the last unfinished one clears it.
+    const all = mainCleared(s.completed);
     if (!all) s.finishedAt = null;
     else if (s.finishedAt === null) s.finishedAt = now;
     if (n === 0) s.phase = s.phase === "splash" ? "splash" : "edit";
-    // The splash is terminal only while the room is still CLEARED: adding a
-    // level un-clears it above, and the room has somewhere to be again. An
-    // emptied pack keeps the finale, having nothing to show instead.
+    // The splash is terminal only while the game is still CLEARED: adding a
+    // main level un-clears it above, and there is somewhere to be again. An
+    // emptied list keeps the finale, having nothing to show instead.
     if (s.phase === "splash" && !all && n > 0) {
       s.phase = "edit";
       s.bands = [];

@@ -1,25 +1,21 @@
-// The room's word, plus the local presentation that hangs off it. `S.snap` is
-// the authority's latest snapshot; everything else is derived or local. Nothing
+// The sim's word, plus the local presentation that hangs off it. `S.snap` is
+// the latest snapshot; everything else is derived or local. Nothing
 // here draws. `S` is one mutable object because several modules assign into it
 // and an `export let` is read-only to importers.
 
 import {
   GOOMBA_LEVELS,
   canPlaceBand,
-  earsFor,
   goombaCleared,
   initLevel,
 } from "@escape-cats/shared";
-import { debugFromUrl, soloFromUrl } from "./debug";
+import { debugFromUrl } from "./debug";
 import { hudEl, toastEl } from "./dom";
 
 export const S = {
-  snap: null,          // latest GoombaSnapshot — the authority's word
-  serverOffset: 0,     // serverTime - Date.now(), from the last snapshot
+  snap: null,          // latest GoombaSnapshot — the sim's word
   inited: false,       // has the first snapshot landed?
-  myTeam: null,        // a team id doubles as its room id; set before the first snapshot
   preview: null,       // band being stretched right now, local only
-  pending: null,       // optimistic ghost: sent to the server, not yet echoed
   anchor: null,        // first tap of a tap-tap placement, awaiting its end
   cam: { x: 0, y: 0, s: 10 },
   labOpen: false,      // levels grid showing?
@@ -29,7 +25,7 @@ export const S = {
 
 export const level = () => (S.snap ? S.snap.level : 0);
 export const bands = () => (S.snap ? S.snap.bands : []);
-export const now = () => Date.now() + S.serverOffset; // the room's shared clock
+export const now = () => Date.now(); // one tab, one clock
 
 /**
  * A level to draw when the pack is EMPTY (not arrived yet, or the last one
@@ -45,8 +41,10 @@ const NO_LEVELS = initLevel({
 export const L = () => GOOMBA_LEVELS[level()] ?? NO_LEVELS;
 
 // ---------- surfaces and modes ----------
-export const DEBUG = debugFromUrl(); // selector override (?debug = your room)
-export const SOLO = soloFromUrl();   // serverless backend for the same menu
+/** `?debug` opens the level grid without having earned it — the power user's
+ * way in, and nothing else. (`?solo` is gone: there is no other kind of game
+ * to be the opposite of.) */
+export const DEBUG = debugFromUrl();
 
 /**
  * LAPTOP OR PHONE — one switch, two level grids (a phone taps to play; a
@@ -61,8 +59,8 @@ const calmMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 export const REDUCED = () => calmMotion.matches;
 
 /**
- * WHO GETS THE LEVEL SELECTOR: a team that has CLEARED the game (room state,
- * so all phones unlock together and a reset takes it back). `?debug` and
+ * WHO GETS THE LEVEL SELECTOR: a game that has been CLEARED (sim state, so
+ * a reset takes it back). `?debug` and
  * `unlocked` (`\`) are local overrides of this one gate — a DOOR, not a mode:
  * never what the selector looks like once open.
  */
@@ -77,37 +75,26 @@ export const levelSelect = () =>
  */
 export const editorOn = () => DESKTOP();
 
-// ---------- the team's colour ----------
-// Every band wears ONE colour, the TEAM's — the same ink as the proctor's board
-// and the cat-ear headband (TEAM_EARS in shared/ears.ts).
-/** The testing room (t0) is not a team and ?solo has no lobby. */
-const NO_TEAM_INK = "#ff5db1";
-export const bandInk = () => earsFor(S.myTeam)?.ink ?? NO_TEAM_INK;
-/** The darker under-stroke, derived rather than tabled per team. */
-const shade = (hex, k) => {
-  const n = parseInt(hex.slice(1), 16);
-  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v * k));
-  return "#" + ch.map((v) => v.toString(16).padStart(2, "0")).join("");
-};
-let inkShade = { ink: null, dark: NO_TEAM_INK };
-export const bandInkDark = () => {
-  const ink = bandInk();
-  if (inkShade.ink !== ink) inkShade = { ink, dark: shade(ink, 0.72) };
-  return inkShade.dark;
-};
+// ---------- the band's colour ----------
+// Every band wears ONE colour. It used to be the TEAM's, picked out of
+// TEAM_EARS to match the proctor's board and the cat-ear headbands; with one
+// player there is no team to be, so the old no-team pink is simply the colour.
+// Kept as functions, not constants, because every caller already asks.
+const BAND_INK = "#ff5db1";
+const BAND_INK_DARK = "#b8437f"; // the same ink at 0.72, worked out once
+export const bandInk = () => BAND_INK;
+/** The darker under-stroke. */
+export const bandInkDark = () => BAND_INK_DARK;
 
 // The party palette: confetti, the ambient drift, the bunting. DECOR only —
 // a band wears the team colour.
 export const PARTY_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
 
 // ---------- the 4 bands ----------
-// Four bands for the room, no per-player share. Asked with the authority's own
-// predicate so a gesture is refused BEFORE it goes on the wire. `pending`
-// counts as placed, or a fast double-tap on the last free band shows a band
-// that then vanishes.
-export const bandsOut = () => bands().length + (S.pending ? 1 : 0);
-export const iMayPlace = () =>
-  canPlaceBand(S.pending ? [...bands(), S.pending] : bands());
+// Four bands a level. Asked with the sim's own predicate so a gesture is
+// refused by the rule the sim would refuse it with.
+export const bandsOut = () => bands().length;
+export const iMayPlace = () => canPlaceBand(bands());
 
 // ---------- talking to the player ----------
 let toastT = 0;

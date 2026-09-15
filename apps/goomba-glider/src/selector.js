@@ -5,11 +5,12 @@
 // A card carries NO verdict: nothing evaluates a level except people playing
 // it (CLAUDE.md). Don't add one.
 
-import { GOOMBA_LEVELS, levelLabel } from "@escape-cats/shared";
-import { transport } from "./net";
-import { hudEl } from "./dom";
+import { GOOMBA_LEVELS, hasBonusLevels, levelLabel } from "@escape-cats/shared";
+import { exportOverlay, isEditable, overlayBase } from "./library";
+import { transport } from "./transport";
+import { exportBtn, hudEl } from "./dom";
 import {
-  S, DESKTOP, SOLO, editorOn, askConfirm, levelSelect,
+  S, DESKTOP, editorOn, askConfirm, levelSelect,
 } from "./state";
 import {
   ctx, W, H, cam, setCamOffset, tGlobal,
@@ -24,7 +25,7 @@ let labBtns = [];
 /**
  * A card tap is a wire intent: it only LATCHES, and the grid stays up until
  * the snapshot lands on the chosen level (closing on the tap would uncover the
- * OLD level for a round trip). The timeout covers an intent the room never
+ * OLD level for a round trip). The timeout covers an intent the sim never
  * echoes.
  */
 let labJump = null;
@@ -40,6 +41,7 @@ export function clearLabJump() {
 export function setLab(open) {
   S.labOpen = open;
   hudEl.classList.toggle("lab", open);
+  if (open) syncExportBtn();
   if (!open) { clearLabJump(); labDrag = null; }
 }
 /** The latched tap resolves on the goto's exact signature — that level, a fresh
@@ -70,12 +72,15 @@ export const tickEditMsg = (dt) => { if (editMsgT > 0) editMsgT = Math.max(0, ed
 /**
  * Open the levels grid. The dot strip's plate is what reaches it, and this is
  * where the gate and the "stop whatever is running first" live, so they cannot
- * disagree. NOT from the finale: that screen is terminal and the jump it would
- * make is one the sim refuses (`GoombaSim.goto`).
+ * disagree.
+ *
+ * From the FINALE only when there are post-credits levels — the grid is the
+ * door to them. With none the screen is terminal and the jump it would make is
+ * one the sim refuses (`GoombaSim.goto`).
  */
 export function openSelector() {
-  if (!levelSelect()) return; // an indicator until the team clears the game
-  if (S.snap && S.snap.phase === "splash") return;
+  if (!levelSelect()) return; // an indicator until the game is cleared
+  if (S.snap && S.snap.phase === "splash" && !hasBonusLevels()) return;
   if (S.snap && S.snap.phase === "run") transport.send({ type: "stop" });
   setLab(true);
 }
@@ -85,6 +90,7 @@ export function openSelector() {
 export function onPackChanged() {
   if (S.selected !== null && S.selected >= GOOMBA_LEVELS.length) S.selected = null;
   labDrag = null;
+  syncExportBtn(); // the first paste is what makes there be anything to export
 }
 
 /** Ellipsise `s` to at most `maxW` px in the current ctx font. */
@@ -153,6 +159,35 @@ function labButtonHit(b) {
       return;
   }
 }
+
+/**
+ * THE COMMIT STEP: your overlay as `levels.data.ts` rows, on the clipboard.
+ * Deliberately a copy-paste a human does — the shipped list is source, and
+ * source goes through review (`library.js`, `exportOverlay`).
+ *
+ * A real button rather than a canvas pill, because writing to the clipboard
+ * wants a real user gesture behind it.
+ */
+exportBtn.addEventListener("click", () => {
+  const rows = exportOverlay();
+  if (!rows.length) return editSay("nothing to export — paste a level in first");
+  const text = rows.join("\n");
+  navigator.clipboard.writeText(text).then(
+    () => editSay(`${rows.length} level(s) copied — paste into levels.data.ts`),
+    () => {
+      // A clipboard the browser refuses (no permission, an insecure origin) is
+      // not a dead end: the rows still have to reach a file somehow.
+      console.log(text);
+      editSay("clipboard refused — the rows are in the console");
+    },
+  );
+});
+
+/** Nothing pasted in yet means nothing to export. Called from `setLab`, so the
+ * button's state is decided the moment the grid opens rather than every frame. */
+function syncExportBtn() {
+  exportBtn.hidden = !GOOMBA_LEVELS.some((L) => L.source === "local");
+}
 /**
  * A press on the grid. This is where the two surfaces part company: a phone
  * plays the card it touched, a laptop selects it and holds the press open in
@@ -171,7 +206,10 @@ export function labPointerDown(px, py) {
   // THE LAPTOP: select on the press. Clicking off the cards selects the
   // trailing slot ("the next paste adds a level").
   S.selected = i < 0 ? null : i;
-  if (editorOn() && i >= 0)
+  // Only YOUR levels reorder. A shipped level's place is its line in
+  // `levels.data.ts`, and dragging one here would claim a number that the next
+  // load takes straight back.
+  if (editorOn() && i >= 0 && isEditable(i))
     labDrag = { i, sx: px, sy: py, x: px, y: py, moved: false, gap: i };
 }
 export function labPointerMove(px, py) {
@@ -189,7 +227,9 @@ export function labPointerUp(px, py) {
     // packMove's `to` is an index in the list with the dragged level already
     // pulled OUT, so a gap to its right has shifted back by one.
     const to = d.gap > d.i ? d.gap - 1 : d.gap;
-    if (to !== d.i && to >= 0 && to < GOOMBA_LEVELS.length) {
+    // Clamped into the overlay: a drop above the shipped levels would ask for
+    // a slot the backend refuses, and the card would spring back with no word.
+    if (to !== d.i && to >= overlayBase() && to < GOOMBA_LEVELS.length) {
       S.selected = to; // the selection is the level, not the slot it was in
       transport.send({ type: "packMove", from: d.i, to });
       editSay(`moved level ${d.i + 1} to slot ${to + 1}`);
@@ -219,8 +259,7 @@ function labHelp() {
     return DESKTOP()
       ? "no levels yet — copy a frame in Figma and press Ctrl+V"
       : "no levels yet — a laptop pastes them in from Figma";
-  const play = SOLO ? "plays it locally — no server, no room" : "jumps the whole room there";
-  if (!DESKTOP()) return `tap a card — it ${play}`;
+  if (!DESKTOP()) return "tap a card to play it";
   return "click selects · double-click plays · drag reorders · Ctrl+V lands on the selection";
 }
 export function drawLab() {
@@ -232,6 +271,10 @@ export function drawLab() {
   ctx.font = "12px ui-rounded, system-ui, sans-serif";
   ctx.fillStyle = editorOn() && editMsgT > 0 ? "#ffd166" : "#8a80b0";
   ctx.fillText(fitText(labHelp(), W - 32), 16, 48);
+  // Both hit lists are rebuilt every frame the grid draws, and everything that
+  // pushes to them is below this line.
+  labCells = [];
+  labBtns = [];
 
   // One extra slot on a laptop: the dashed "paste a new level here" card,
   // which is what `selected === null` looks like on screen.
@@ -241,17 +284,18 @@ export function drawLab() {
   const padX = 12, top = 62, bottom = 24;
   const cw = (W - padX * (cols + 1)) / cols;
   const ch = Math.min((H - top - bottom - 12 * (rows - 1)) / rows, cw * 1.5);
-  labCells = [];
-  labBtns = [];
   const savedCam = { ...cam };
 
   /** The per-card editor controls. Drawn last so they sit over the level, and
    * hit-tested BEFORE the card, so pressing ⌫ never also selects it. Acts on
    * the card it sits on, whatever is selected. ONE button: reorder is the
-   * drag, and there is no copy-out — the Figma frame is the source and
-   * `seed.mjs --pull` reads a whole pack. */
+   * drag, and the copy-out is `export` under the grid, which prints the whole
+   * overlay at once because that is the shape `levels.data.ts` wants.
+   *
+   * Only on a card you may EDIT. A shipped level has no ⌫ because it is
+   * source: the way to change one is a commit (`library.js`). */
   const cardButtons = (i, x, y) => {
-    if (!editorOn()) return;
+    if (!editorOn() || !isEditable(i)) return;
     const B = 22, G = 4;
     const kinds = [["del", "⌫"]];
     let bx = x + cw - 8 - (B * kinds.length + G * (kinds.length - 1));
@@ -304,23 +348,27 @@ export function drawLab() {
     const current = S.snap !== null && i === S.snap.level;
     ctx.strokeStyle = jumping ? "#57e6c9" : current ? "#ffd166" : "rgba(201,189,240,0.22)";
     ctx.lineWidth = jumping || current ? 2.5 : 1.5;
-    if (lv.pasted) ctx.setLineDash([5, 4]);
+    if (lv.source !== "baked") ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
     ctx.setLineDash([]);
     ctx.font = "700 12px ui-rounded, system-ui, sans-serif";
     ctx.fillStyle = "#f2ecff";
-    // The number is the card's PLACE (`levelLabel`). A hash-adopted level gets
-    // none: it is not in the pack at all.
-    const title = lv.pasted ? lv.name : levelLabel(i, lv.name);
+    // The number is the card's PLACE (`levelLabel`). The hash level gets none:
+    // it is scratch, and numbering it would claim a slot it does not hold.
+    const title = lv.source === "hash" ? lv.name : levelLabel(i, lv.name);
     ctx.fillText(fitText(title, cw - 18), x + 9, y + ch - 8);
-    // A level adopted from the URL hash (?solo#…): plays identically, but
-    // nobody else can see it and no room has to clear it.
-    if (lv.pasted) {
+    // WHERE THIS CAME FROM, on the two cards that are not the shipped game.
+    // Both play identically; the difference is what happens to them next.
+    const badge =
+      lv.source === "hash" ? "FROM A LINK — not saved"
+      : lv.source === "local" ? "YOURS — export to ship it"
+      : null;
+    if (badge) {
       ctx.font = "700 9px ui-rounded, system-ui, sans-serif";
       ctx.fillStyle = "#ffd166";
-      ctx.fillText("FROM A LINK — not in the pack", x + 9, y + 16);
+      ctx.fillText(badge, x + 9, y + 16);
     }
-    // The round trip, made visible: the tap landed, the room is coming with us.
+    // The round trip, made visible: the tap landed, the level is on its way.
     if (jumping) {
       ctx.save();
       ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.clip();
@@ -333,7 +381,7 @@ export function drawLab() {
       ctx.restore();
     }
     // SELECTION, outside the card's frame so it coexists with the amber
-    // "the room is on this level" — a card is often both.
+    // "the game is on this level" — a card is often both.
     if (DESKTOP() && S.selected === i) {
       ctx.strokeStyle = "#f2ecff"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.roundRect(x - 4, y - 4, cw + 8, ch + 8, 15); ctx.stroke();

@@ -32,7 +32,7 @@ import {
 import { game, mods, nightActive, baseCps, isUnlocked } from "./state.js";
 import { fmt } from "./format.js";
 import { currencyIconSVG } from "./art.js";
-import { transport } from "./net";
+import { transport } from "./transport";
 
 // ---- DOCK STATE ----
 // Last touch anywhere in the shop, and how long a reveal holds the list still
@@ -76,7 +76,7 @@ export function syncDock() {
     return;
   }
   // Not sold out, so any closure hanging off the dock is stale — only a
-  // proctor reset reaches this (real play never un-buys an upgrade).
+  // a reset reaches this (real play never un-buys an upgrade).
   if (shopClosePhase) reopenShop();
   const show =
     upgradeSecEl.classList.contains("show") ||
@@ -441,7 +441,7 @@ function buyUpgrade(key) {
   if (!u || game.bought[u.key] || !isUnlocked(u) || game.mice < u.cost) return;
   // Intent only. The beats a purchase can fire — the night cutscene, the neon
   // flip, the shop close — ride the snapshot's edges (see main.js), so they
-  // play on every phone in the room, not just the one that pressed the button.
+  // play off the snapshot edge, not off the button press.
   transport.send({ type: "buyUpgrade", key });
 }
 
@@ -466,7 +466,7 @@ const SHOP_CLOSE_MS = 220;
 const SHOP_SIGN_MS = 1800; // how long the closed sign holds before the dock leaves
 const SHOP_OUT_MS = 500; // the dockOut animation
 // Bumped by every start and every abandonment of the beat, so an orphaned
-// stage can't land on a shop that has moved on (a proctor reset mid-beat).
+// stage can't land on a shop that has moved on (a reset mid-beat).
 let shopCloseGen = 0;
 // The rail stops being an expandable region and becomes a sign — shared by
 // the closing beat's first frame and the rejoin path's instant retire.
@@ -515,7 +515,7 @@ export function retireShop() {
   disableRail();
 }
 
-// Un-closing, reached only by a proctor reset (real play never un-buys).
+// Un-closing, reached only by a reset (real play never un-buys).
 export function reopenShop() {
   shopClosePhase = null;
   shopCloseGen++; // orphans any stage of the beat still queued

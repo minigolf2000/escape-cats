@@ -1,7 +1,7 @@
 // NIGHT WALL — the reveal. Moon scene, 1-stroke alphabet, every mouse faces its
-// direction of travel. Position is a pure function of (room seed, mouse index,
-// shared clock) — no wall state on the wire — so all four phones draw the
-// IDENTICAL reveal. drawWall must be called with wallNow() (server-aligned
+// direction of travel. Position is a pure function of (wall seed, mouse index,
+// the snapshot clock) — no wall state is stored — so a reload draws the
+// IDENTICAL reveal. drawWall must be called with wallNow() (snapshot-aligned
 // milliseconds), never performance.now(). The one exception is each mouse's
 // smoothed heading vector: cosmetic, and it re-converges within a few frames.
 //
@@ -615,7 +615,7 @@ function syncWallFrame(now) {
 }
 const wallUnits = t => wallUnitsAt(game, wallFrameSpeed, t);
 
-// A proctor reset starts a new run: the sim clears the odometer for us, but the
+// A reset starts a new run: the sim clears the odometer for us, but the
 // per-run RENDER state is ours and has to go with it, or the new night inherits
 // the old one's grown trail and a neon beat that already played.
 export function resetWallClock() {

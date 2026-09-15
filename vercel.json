@@ -1,163 +1,29 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "npm run build:vercel",
-  "outputDirectory": "dist",
   "trailingSlash": true,
   "headers": [
     {
       "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/assets/(.*)",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/(.*)/assets/(.*)",
+      "source": "/art/(.*)",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
       ]
     },
     {
-      "source": "/hexxygon/art/(.*)",
+      "source": "/fonts/(.*)",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=86400, stale-while-revalidate=604800"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
       ]
-    },
-    {
-      "source": "/g00mBa/art/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=86400, stale-while-revalidate=604800"
-        }
-      ]
-    },
-    {
-      "source": "/hexxygon/fonts/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=86400, stale-while-revalidate=604800"
-        }
-      ]
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "hexxygon.com"
-        }
-      ],
-      "permanent": false,
-      "destination": "https://escape-cats.vercel.app/hexxygon/"
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.hexxygon.com"
-        }
-      ],
-      "permanent": false,
-      "destination": "https://escape-cats.vercel.app/hexxygon/"
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "g00.mba"
-        }
-      ],
-      "permanent": false,
-      "destination": "https://escape-cats.vercel.app/g00mBa/"
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.g00.mba"
-        }
-      ],
-      "permanent": false,
-      "destination": "https://escape-cats.vercel.app/g00mBa/"
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "hexxygon.com"
-        }
-      ],
-      "permanent": false,
-      "destination": "https://escape-cats.vercel.app/hexxygon/:path*"
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.hexxygon.com"
-        }
-      ],
-      "permanent": false,
-      "destination": "https://escape-cats.vercel.app/hexxygon/:path*"
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "g00.mba"
-        }
-      ],
-      "permanent": false,
-      "destination": "https://escape-cats.vercel.app/g00mBa/:path*"
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.g00.mba"
-        }
-      ],
-      "permanent": false,
-      "destination": "https://escape-cats.vercel.app/g00mBa/:path*"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/proctor",
-      "destination": "/proctor/index.html"
-    },
-    {
-      "source": "/proctor/",
-      "destination": "/proctor/index.html"
     }
   ]
 }

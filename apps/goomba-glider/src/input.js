@@ -10,12 +10,18 @@
 // tap always means "this point", never "scroll". While the levels grid is up
 // every gesture belongs to it instead, and is forwarded straight through.
 //
-// The FINALE takes no input at all: `canEdit()` is the whole rule, and the
-// splash is not an edit phase. A tap there does nothing on purpose — the game
-// is over and the screen the party is reading cannot be dismissed from a phone.
+// `canEdit()` is the whole rule for laying a band, and the splash is not an
+// edit phase, so no gesture here reaches the finale. Its own way out — a tap
+// that opens the levels grid, once there are post-credits levels to reach — is
+// wired in main.js, on the canvas, ahead of this.
+//
+// Nothing STREAMS any more. A half-drawn band used to go on the wire at 10Hz
+// so teammates could watch the stretch (`transport.preview`, deleted with the
+// room); `S.preview` and `S.anchor` are local, the renderer reads them off
+// `S`, and there is nobody else to tell.
 
 import { BAND_MIN, BAND_MAX, MAX_BANDS, snapBand, bandPoints } from "@escape-cats/shared";
-import { transport } from "./net";
+import { transport } from "./transport";
 import { cv } from "./dom";
 import { S, L, bands, bandsOut, iMayPlace, toast } from "./state";
 import { W, H, cam, ANCHOR_TTL } from "./render";
@@ -29,7 +35,6 @@ let mouseDrag = null;
 let down = null;   // the single finger that's down: where it started, in both spaces
 let mode = null;   // null | "tap" | "drag" | "stretch" — what this gesture became
 const DRAG_SLOP = 10;    // px of travel that turns a press into a drag
-const ANCHOR_BEAT_MS = 1200; // re-send it this often; the room forgets ghosts at 3s
 
 const canEdit = () => S.snap && S.snap.phase === "edit";
 
@@ -40,30 +45,13 @@ export function liveAnchor() {
   if (S.anchor && performance.now() - S.anchor.at > ANCHOR_TTL) closeAnchor();
   return S.anchor;
 }
-/** Teammates see the waiting tap as a degenerate preview — both ends on the
- * one point — which the wire already carries and everyone already draws
- * (see GoombaBandPreview). Re-sent on a heartbeat because the room expires a
- * ghost after 3s and an anchor may wait for 8. */
-export function streamAnchor() {
-  if (!S.anchor) return;
-  S.anchor.sentAt = performance.now();
-  transport.preview({ ax: S.anchor.x, ay: S.anchor.y, bx: S.anchor.x, by: S.anchor.y });
-}
-/** Keep an open anchor alive on every teammate's phone: the room expires a ghost
- * after 3s and an anchor may wait for 8. Called from the frame that draws it. */
-export function heartbeatAnchor(a) {
-  if (performance.now() - a.sentAt > ANCHOR_BEAT_MS) streamAnchor();
-}
-/** The anchor goes away and so does everything drawn from it, here and on
- * every teammate's phone. */
+/** The anchor goes away, and so does everything drawn from it. */
 function closeAnchor() {
   if (!S.anchor) return;
   S.anchor = null; S.preview = null;
-  transport.preview(null);
 }
 /** Drop every in-flight gesture (phase change, level change, cancelled touch). */
 export function resetInput() {
-  if (S.preview || S.anchor) transport.preview(null);
   touches.clear();
   S.preview = null; S.anchor = null; down = null; mode = null; mouseDrag = null;
 }
@@ -73,8 +61,6 @@ function previewFrom(a, b) {
   S.preview = snapBand(L(), { ax: a.x, ay: a.y, bx: b.x, by: b.y });
   S.preview.ok = len >= BAND_MIN && len <= BAND_MAX && iMayPlace();
   S.preview.len = len;
-  // Teammates watch the stretch live — send what I'm seeing (snapped).
-  transport.preview({ ax: S.preview.ax, ay: S.preview.ay, bx: S.preview.bx, by: S.preview.by });
 }
 function previewFromTouches() {
   const [p, q] = [...touches.values()];
@@ -82,11 +68,6 @@ function previewFromTouches() {
 }
 function placePreview() {
   if (S.preview && S.preview.ok) {
-    // The server snaps again; the ghost bridges the gap and placing clears my
-    // streamed preview server-side. The ghost goes up BEFORE the send: ?solo
-    // answers synchronously, and a ghost set afterwards outlives the snapshot
-    // that should retire it.
-    S.pending = { ax: S.preview.ax, ay: S.preview.ay, bx: S.preview.bx, by: S.preview.by };
     transport.send({ type: "place", ax: S.preview.ax, ay: S.preview.ay, bx: S.preview.bx, by: S.preview.by });
   } else {
     // Say why nothing landed — a tap-tap that silently does nothing reads as
@@ -96,7 +77,6 @@ function placePreview() {
       // Short enough to fit a phone (#toast is one `nowrap` line). The way out
       // — tap a band to take it back — is the sheet's fourth picture, not this.
       toast("all 4 bands used! 😿", 1300);
-    transport.preview(null); // gesture ended without a placement
   }
   S.preview = null;
 }
@@ -117,8 +97,7 @@ function tapAt(w) {
     return;
   }
   if (tryDelete(w)) return;
-  S.anchor = { x: w.x, y: w.y, at: performance.now(), sentAt: 0 };
-  streamAnchor();
+  S.anchor = { x: w.x, y: w.y, at: performance.now() };
 }
 function tryDelete(w) {
   const bs = bands();
@@ -202,7 +181,7 @@ window.addEventListener("mousemove", (e) => {
   }
   const a = liveAnchor();
   if (a) previewFrom(a, toWorld(e.clientX, e.clientY)); // band follows the cursor
-  else if (S.preview) { S.preview = null; transport.preview(null); } // anchor expired
+  else if (S.preview) S.preview = null; // anchor expired
 });
 window.addEventListener("mouseup", (e) => {
   if (S.labOpen) { labPointerUp(e.clientX, e.clientY); return; }

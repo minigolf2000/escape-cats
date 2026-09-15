@@ -271,7 +271,7 @@ export function drawSheet() {
 
 // The sheet opens as the GATE and is the same element `?` reopens. `sheetOpen`
 // is what the loops render off; `sheetTap` is "may this be dismissed". It is
-// NEVER dismissed by anything but a tap or a key: the room going live only
+// NEVER dismissed by anything but a tap or a key: the first snapshot only
 // ARMS it (`armSheet`) — a sheet that vanishes by itself is a sheet nobody read.
 let sheetOpen = true, sheetTap = false;
 /** Is the sheet on screen (so the loop must keep drawing it)? */
@@ -295,9 +295,8 @@ export function armSheet() {
 // never written into the CSS: `#help` sits on a safe-area inset and a rotation
 // moves it.
 let zoopTimers = [];
-/** Put the sheet away. `.ready` comes off HERE, not at the top of the close:
- * it is one of the two things keeping the connection lines invisible, and
- * dropping it early raises "Joining your team…" on a sheet already flying. */
+/** Put the sheet away. `.ready` comes off HERE, not at the top of the close,
+ * so `#gateTap` does not flicker on a sheet already flying. */
 function hideGate() {
   gateEl.classList.add("hidden"); gateEl.classList.remove("ready");
 }

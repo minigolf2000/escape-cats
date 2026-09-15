@@ -18,21 +18,22 @@
          /* Where the HUD's top row begins: 10px, or the notch. The canvas never
             reads this: render.js MEASURES #top's box (measureBunting). */
          --hud-top: max(10px, env(safe-area-inset-top));
-         /* The same at the other end; --play-h exists so #team can clear the
-            button without a second copy of its height. */
+         /* The same at the other end. --play-h is PLAY's height, named so the
+            sheet's hide rule can say why it uses `visibility` (see #hud.sheet
+            below) rather than a second copy of the number. */
          --hud-bottom: max(16px, env(safe-area-inset-bottom));
          --play-h: 56px; }
   /* Two plates, NOT the same height (40 and 56): `flex-start` gives them one
      top line. The 14px side padding is the gutter a thumb from the screen
-     edge lands in, on CANVAS, not on the button that empties the room's
+     edge lands in, on CANVAS, not on the button that empties the level's
      bands. `#top`'s bottom edge is where the bunting hangs (render.js
      MEASURES it), so every plate keeps its box in every phase. */
   #top { position: absolute; top: var(--hud-top); left: 0; right: 0;
          display: flex; align-items: flex-start; justify-content: space-between; padding: 0 14px; gap: 8px; }
-  /* The level dots — and once the team has CLEARED the game (or ?debug), the
-     level grid's button. Before the clear it is an indicator only, hence the
+  /* The level dots — and once the game is CLEARED (or ?debug), the level
+     grid's button. Before the clear it is an indicator only, hence the
      pointer-events and cursor reset; `.cleared` toggles per snapshot because
-     it is room state and a proctor reset takes it away. */
+     it is sim state and a reset takes it away. */
   #lab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0;
          background: none; pointer-events: none; cursor: default; }
   #hud.cleared #lab { padding: 5px 10px; border-radius: 13px; gap: 5px;
@@ -53,28 +54,13 @@
                box-sizing: border-box; transition: opacity .25s, transform .25s; }
   #inv .band.used { border-style: solid; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
   /* An empty slot I could fill (every empty slot during edit): lit, in the
-     TEAM's colour, set inline. Presentation, never layout. */
+     one band colour, set inline. Presentation, never layout. */
   #inv .band.open { box-shadow: 0 0 10px rgba(255,255,255,.18); }
   /* The first prose line under the top bar. The 24px between the tall plate
      (56) and it is the CORRIDOR the first bunting string lives in (22px of
      string); check drawBackground before moving either number. */
   #hint { position: absolute; top: calc(var(--hud-top) + 80px); left: 0; right: 0;
           text-align: center; font-size: 13px; color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); padding: 0 20px; }
-  /* WHO IS HERE: one name per line, right-aligned, on PLAY's line — the one
-     corner nothing else is in and no bunting string crosses. A COLUMN, because
-     four names in a row (~250px) do not fit and stacked they are as wide as
-     the longest name. No plate: #hint's own prose colour and shadow. Off
-     --hud-bottom and --play-h. A direct child of #hud, so .lab and .splash
-     hide it with everything else. */
-  #team { position: absolute; right: 18px;
-          bottom: calc(var(--hud-bottom) + var(--play-h) + 14px);
-          display: flex; flex-direction: column; align-items: flex-end;
-          font-size: 13px; font-weight: 700; line-height: 1.45;
-          color: #c9bdf0; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
-  #team span { white-space: nowrap; }
-  /* A phone that dropped, in the colour an unearned level dot wears — it falls
-     out of the foreground without adding a mark to read. */
-  #team .off { color: #6b5a98; }
   button { pointer-events: auto; font: inherit; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   #play { position: absolute; right: 16px; bottom: var(--hud-bottom);
           min-width: 118px; height: var(--play-h); border-radius: 28px; font-size: 19px; font-weight: 800;
@@ -119,16 +105,25 @@
   #bandbar:enabled:active { transform: scale(.96); }
   /* levels open: the grid is the whole screen; tap a card to leave */
   #hud.lab > * { visibility: hidden; }
-  /* ...except the link to the Figma file: a real <a> (middle-click and
-     open-in-new-tab work), and only while EDITING. */
-  #figma { position: absolute; top: var(--hud-top); right: 14px;
-           display: none; padding: 5px 10px; border-radius: 13px;
-           font-size: 12px; font-weight: 700; letter-spacing: .02em;
-           color: var(--plate-ink); text-decoration: none; pointer-events: auto;
-           background: var(--plate);
-           border: 1.5px solid var(--plate-edge); }
+  /* ...except the editor's tools: `export` copies the local overlay as rows
+     for levels.data.ts, `figma` opens the file the levels are drawn in. Only
+     while EDITING, which is the laptop grid. */
+  #labtools { position: absolute; top: var(--hud-top); right: 14px;
+              display: none; gap: 6px; align-items: center; }
   /* `inherit`, not `visible`, like every re-show in this file. */
-  #hud.lab.editing #figma { display: block; visibility: inherit; }
+  #hud.lab.editing #labtools { display: flex; visibility: inherit; }
+  #figma, #export { padding: 5px 10px; border-radius: 13px;
+                    font: inherit; font-size: 12px; font-weight: 700;
+                    letter-spacing: .02em; color: var(--plate-ink);
+                    text-decoration: none; pointer-events: auto;
+                    background: var(--plate);
+                    border: 1.5px solid var(--plate-edge); }
+  #export { cursor: pointer; }
+  #export:active { transform: scale(.96); }
+  /* Nothing pasted in yet, so there is nothing to export: `#export` is hidden
+     by the `hidden` ATTRIBUTE (selector.js), which is the rule this whole file
+     lives under — gone, not disabled, because a control for a thing you have
+     not done yet is just a question. */
   /* The splash (phase "splash", goomba/sim.ts) is the FINALE and it has no
      controls at all: the whole HUD goes and the picture, the code word and
      nothing else are on the CANVAS (drawSplash). Terminal — there is no way
@@ -139,24 +134,11 @@
            padding: 14px 26px; border-radius: 18px; font-size: 20px; font-weight: 800; text-align: center;
            opacity: 0; transition: opacity .18s, transform .18s; white-space: nowrap; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
   #toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
-  /* THIS PHONE DROPPED: one row under #hint's line, never on the top bar
-     (no spare width there, and the left plate GROWS with the pack). Full-width
-     box with the pill centred by `fit-content` + `margin-inline: auto`, so it
-     can never be pushed off an edge. 104 = #hint's 80 + its line + 6, one line
-     below the win banner so both can be up. It lands on the second bunting
-     string; accepted — it wears an opaque plate, and only while the socket is
-     down. A plate, unlike #team: the one line allowed to be loud. */
-  #conn { position: absolute; top: calc(var(--hud-top) + 104px);
-          left: 0; right: 0; width: fit-content; margin-inline: auto;
-          background: rgba(255,93,177,.92); color: #fff;
-          padding: 6px 14px; border-radius: 14px; font-size: 12px; font-weight: 700;
-          display: none; }
-  #conn.on { display: block; }
 
-  /* The waiting-room gate, same contract as hex-clicker's: an unsorted phone
-     waits here (already on the proctor's board). It is also the HOW-TO-PLAY
-     sheet: PICTURES drawn by sheet.js from the level renderer. `?` reopens it
-     mid-party. `.ready` = dismissible; it NEVER dismisses itself. OPAQUE, which
+  /* The gate, same contract as hex-clicker's cover over the stage — here it
+     is the HOW-TO-PLAY sheet: PICTURES drawn by sheet.js from the level
+     renderer. `?` reopens it mid-game. `.ready` = dismissible; it NEVER
+     dismisses itself. OPAQUE, which
      is why `#gateTap` says the way out in words, only while there is one.
      THE SURPLUS: the pictures are WIDTH-bound (GOAL_SCENE is 80x18.8 in a
      column of at most 340), so extra height sits in the vh-scaled GAPS, not in
@@ -228,22 +210,11 @@
      stack measures narrower. */
   #gate .pair .cap { min-height: 2.8em; text-wrap: balance; }
   #gate .cap b { color: #ffd166; font-weight: 700; }
-  /* The connection lines. In the common case NOBODY SEES THEM: held invisible
-     (`.quiet`) until the join has been slow for STALL_MS, and again once the
-     room is live (`.ready`). Invisible by OPACITY, never display, and the
-     min-heights keep the box while empty, so the pictures are never shunted.
-     Absolute at the BOTTOM, so the box no longer counts toward what the
-     pictures centre on; the gate's side padding is repeated because an
-     absolute box is out of its reach. */
-  #gateLines { position: absolute; left: 24px; right: 24px;
-               bottom: max(20px, env(safe-area-inset-bottom) + 6px); }
-  #gateStatus { color: #c9bdf0; font-size: 14px; min-height: 1.2em; }
-  #gateErr { color: #ff8f8f; font-size: 13px; min-height: 1.2em; }
-  #gateStatus, #gateErr { transition: opacity .3s; }
-  #gate.quiet #gateStatus, #gate.quiet #gateErr,
-  #gate.ready #gateStatus, #gate.ready #gateErr { opacity: 0; }
-  /* The way out, in the connection lines' slot: those show only before
-     `.ready`, this only after, never both. Absolute for the same reason. TINY:
+  /* The way out, at the bottom of the sheet. It used to share this slot with
+     the connection lines and take it over once the room was live; there is no
+     room to be live, so it simply lives here. Absolute so its box does not
+     count toward what the pictures are centred on, and the gate's side
+     padding is repeated because an absolute box is out of its reach. TINY:
      the only chrome on the sheet, a reminder, not an instruction. `pointer`
      on the gate is the same sentence for a laptop. */
   #gateTap { position: absolute; left: 24px; right: 24px;
@@ -301,8 +272,8 @@
           border: 1.5px solid rgba(201,189,240,.35); line-height: 1; }
   #help:active { transform: scale(.94); }
   /* BOTH buttons hidden under the sheet — while it is up there is nothing to
-     press. `visibility`, never `display`: PLAY is measured (--play-h, #team's
-     line), and a box that stops existing moves when the sheet goes. */
+     press. `visibility`, never `display`: PLAY is measured (--play-h), and a
+     box that stops existing moves when the sheet goes. */
   #hud.sheet #help, #hud.sheet #play { visibility: hidden; }
 
   /* ---- PORTRAIT GATE — same rule as hex clicker's, kept in sync BY HAND

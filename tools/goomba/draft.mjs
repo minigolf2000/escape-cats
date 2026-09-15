@@ -11,7 +11,7 @@
 //   node draft.mjs sweep <key> <a..b>  one param across a range (add --from to
 //                                      sweep an injected stage, not the bare run)
 //   node draft.mjs card [bands]        an SVG ride card you can look at
-//   node draft.mjs link                a ?solo#hash URL — play the draft for
+//   node draft.mjs link                a #hash URL — play the draft for
 //                                      real, on prod, on a phone
 //   node draft.mjs figma [--copy]      a TRACING TEMPLATE as SVG (names and
 //                                      positions right, node types lost)
@@ -30,10 +30,10 @@ import { makeRun, stepRun, snapBand, SUB, RUN_MAX, initLevel, encodeLevel, decod
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DRAFTS = join(HERE, "draft");
 /**
- * The ONE origin (CLAUDE.md, "One origin"). A link printed against a retired
+ * Goomba's own site (CLAUDE.md, "TWO SITES"). A link printed against a retired
  * host does not fail — it 404s at Vercel's edge, looking like a broken level.
  */
-const ORIGIN = "https://escape-cats.vercel.app";
+const ORIGIN = "https://g00.mba";
 
 const argv = process.argv.slice(2);
 let draftName = null;
@@ -263,9 +263,11 @@ switch (cmd) {
     break;
   }
   case "link": {
-    // `?solo` runs the shipped sim in-page with no server and no room.
-    // `adoptHashLevel` reads the fragment ONCE, at boot: navigating from `#A`
-    // to `#B` changes nothing on screen, so always open a fresh tab.
+    // The game is single player and reads the fragment ONCE, at boot
+    // (`library.js`): navigating from `#A` to `#B` is a same-document
+    // navigation and changes nothing on screen, so always open a fresh tab.
+    // A `#hash` level is scratch — appended, never saved, never in the
+    // shipped list.
     const { mod } = await load();
     const over = overrides(mod);
     const P = { ...mod.P, ...over };
@@ -273,8 +275,8 @@ switch (cmd) {
     const hash = encodeLevel(L);
     if (!decodeLevel(hash)) die("the level encoded to something the codec will not read back");
     const pts = L.terrain.reduce((n, p) => n + p.length, 0);
-    console.log(`${ORIGIN}/g00mBa/?solo#${hash}`);
-    console.log(`http://localhost:5178/?solo#${hash}`);
+    console.log(`${ORIGIN}/#${hash}`);
+    console.log(`http://localhost:5178/#${hash}`);
     console.log(`
   "${L.name}" — ${L.terrain.length} polylines / ${pts} points, ` +
       `${(L.pops || []).length} poppers, ${hash.length} chars

@@ -1,15 +1,19 @@
-// THE ROOM'S BAND RULE: the room hands out exactly MAX_BANDS (4) and puts no
-// conditions on who lays or lifts them. A test of SHIPPED code, not of a level:
-// it drives the real GoombaSim (the class the Durable Object wraps) through the
-// placement paths a room takes. "A may lay all four while B, C and D watch" is
-// a product decision — a re-introduced per-player quota must fail here.
+// THE BAND RULE: a level hands out exactly MAX_BANDS (4) and puts no conditions
+// on WHOSE they are. A test of SHIPPED code, not of a level — it drives the real
+// GoombaSim through every placement path.
+//
+// The `pid` a band carries is a note and nothing reads it as a rule. That was a
+// product decision for four players sharing a room ("A may lay all four while
+// B, C and D watch"); the game is single player and the property still holds,
+// so the multi-pid cases below stay as the guard against a per-player quota
+// being re-introduced into `place`.
 //
 //   node bands.mjs
 
 import { GoombaSim, canPlaceBand, MAX_BANDS, applyPack, levelsToPack } from "./lib.mjs";
 
 /**
- * A board of its own — a floor, a spawn, a plant — installed before any room is
+ * A board of its own — a floor, a spawn, a plant — installed before any sim is
  * built. GoombaSim places bands against the loaded level, and this must not
  * pass or fail on whatever an event happens to be playing.
  */
@@ -33,7 +37,7 @@ const band = () => {
   y += 1;
   return { ax: 10, ay: 20 + y, bx: 40, by: 20 + y };
 };
-/** Try a placement; report whether the room took it. */
+/** Try a placement; report whether the sim took it. */
 const place = (sim, pid) => {
   const before = sim.st.bands.length;
   sim.place(pid, band(), Date.now());
@@ -56,13 +60,14 @@ section("anybody's band");
   const sim = new GoombaSim(Date.now());
   check("A, B, C, D lay one each", ["A", "B", "C", "D"].every((p) => place(sim, p)));
   check("that is the whole budget", sim.st.bands.length === MAX_BANDS);
-  check("and a fifth from a fifth phone is still refused", !place(sim, "E"));
+  check("and a fifth pid is still refused the fifth band", !place(sim, "E"));
 }
 {
-  // A full room where one player does all the placing.
+  // One pid doing all the placing — the single-player case, and the one that
+  // would break first if a quota came back.
   const sim = new GoombaSim(Date.now());
   place(sim, "A"); place(sim, "A");
-  check("A holds two with three teammates present", held(sim, "A") === 2);
+  check("A holds two", held(sim, "A") === 2);
   check("A may lay a third", place(sim, "A"));
   check("B may still lay the fourth", place(sim, "B"));
   check("the split can be anything that adds to four",
@@ -93,7 +98,7 @@ section("nothing else gates a placement");
 
 console.log(
   fails === 0
-    ? `\nPASS — ${MAX_BANDS} bands for the room, and no rule about whose`
+    ? `\nPASS — ${MAX_BANDS} bands a level, and no rule about whose`
     : `\nFAIL — ${fails} check(s) above`,
 );
 process.exit(fails === 0 ? 0 : 1);

@@ -1,47 +1,32 @@
 /**
- * Crawl the assembled dist/ through a router that implements vercel.json, and
- * fail if any page's links or assets 404. `python -m http.server` cannot
- * catch these: it redirects /x to /x/, the opposite of Vercel's default.
+ * Crawl each assembled site through a router that implements vercel.json, and
+ * fail if any page's links or assets 404. `python -m http.server` cannot catch
+ * these: it redirects /x to /x/, the opposite of Vercel's default.
  *
- * Run: node scripts/check-routing.mjs
+ * Run: node scripts/check-routing.mjs [hex|goomba]
+ *
+ * There are TWO sites now, one per game, each rooted at `/` on its own domain
+ * (scripts/assemble.mjs). That deleted most of what this file used to be: the
+ * vanity-domain redirects, the host rules that made them meaningful, and the
+ * "a vanity root must land in its game's subdirectory, never the dist root"
+ * expectation. A site whose app is at `/` has nowhere else to land. What is
+ * left is still worth running — a wrong Vite `base` breaks every asset
+ * reference at once, and that is exactly what this catches.
  */
 import { readFile, access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve, extname } from "node:path";
+import { pickSites } from "./sites.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const DIST = join(repoRoot, "dist");
-const config = JSON.parse(
-  await readFile(join(repoRoot, "vercel.json"), "utf8"),
-);
-const ORIGIN_HOST = "escape-cats.vercel.app";
-const ORIGIN = `https://${ORIGIN_HOST}`;
+const config = JSON.parse(await readFile(join(repoRoot, "vercel.json"), "utf8"));
 
 const exists = async (p) => access(p).then(() => true, () => false);
 
-/** path-to-regexp-lite: supports the /:path* and /literal forms we use. */
-function matchSource(source, pathname) {
-  if (source.endsWith("/:path*")) {
-    const prefix = source.slice(0, -"/:path*".length);
-    // `/:path*` does NOT match a bare directory on Vercel — the tail must be
-    // non-empty, for ANY prefix, root included. That directory needs its own
-    // literal rule, listed first. `trailingSlash: true` turns `/chat` into
-    // `/chat/` BEFORE redirects run, so the empty-tail form is the only one
-    // these rules are ever asked about.
-    if (pathname === prefix + "/" || (prefix === "" && pathname === "/"))
-      return null;
-    if (pathname === prefix) return { path: "" };
-    if (pathname.startsWith(prefix + "/"))
-      return { path: pathname.slice(prefix.length + 1) };
-    return null;
-  }
-  return source === pathname ? {} : null;
-}
-
 /** Resolve a request the way Vercel does: trailing-slash normalisation, then
- * redirects, rewrites, filesystem. Returns { status, file, location }. */
-function route(pathname, host = ORIGIN_HOST) {
-  // trailingSlash, which skips paths carrying a file extension.
+ * the filesystem. No redirects or rewrites left to model — if either comes
+ * back, this is where it gets implemented. */
+function route(pathname) {
   if (!extname(pathname)) {
     const want = config.trailingSlash === true;
     const has = pathname.endsWith("/") && pathname !== "/";
@@ -49,41 +34,18 @@ function route(pathname, host = ORIGIN_HOST) {
       return { status: 308, location: pathname + "/" };
     if (!want && has) return { status: 308, location: pathname.slice(0, -1) };
   }
-  for (const r of config.redirects ?? []) {
-    const hostRule = r.has?.find((h) => h.type === "host");
-    if (hostRule && hostRule.value !== host) continue;
-    const m = matchSource(r.source, pathname);
-    if (m)
-      return {
-        status: r.permanent ? 308 : 307,
-        location: r.destination.replace(":path*", m.path ?? ""),
-      };
-  }
-  for (const r of config.rewrites ?? []) {
-    const hostRule = r.has?.find((h) => h.type === "host");
-    if (hostRule && hostRule.value !== host) continue;
-    if (matchSource(r.source, pathname)) return { file: r.destination };
-  }
   return { file: pathname };
 }
 
-/** Follow redirects (within our own origin) to a final file on disk. */
-async function fetchPath(pathname, host) {
+/** Follow redirects to a final file on disk, inside one site's tree. */
+async function fetchPath(dist, pathname) {
   for (let hop = 0; hop < 6; hop++) {
-    const res = route(pathname, host);
+    const res = route(pathname);
     if (res.location) {
-      const loc = res.location.startsWith(ORIGIN)
-        ? res.location.slice(ORIGIN.length)
-        : res.location;
-      if (!loc.startsWith("/")) return { status: 0, external: res.location };
-      pathname = loc;
-      host = ORIGIN_HOST;
+      pathname = res.location;
       continue;
     }
-    for (const cand of [
-      join(DIST, res.file),
-      join(DIST, res.file, "index.html"),
-    ]) {
+    for (const cand of [join(dist, res.file), join(dist, res.file, "index.html")]) {
       if ((await exists(cand)) && extname(cand)) {
         return { status: 200, file: cand, pathname };
       }
@@ -114,65 +76,44 @@ function refsOf(html, pageUrl) {
   return out;
 }
 
-/** [entry, host, expected-landing-path]. The third element is what makes a
- * vanity check meaningful: a root landing on the WRONG app still resolves to
- * a file whose refs resolve. */
-const ENTRIES = [
-  // The origin root legitimately serves the lobby from the dist root.
-  ["/", ORIGIN_HOST, "/"],
-  ["/hexxygon", ORIGIN_HOST, "/hexxygon/"],
-  ["/proctor", ORIGIN_HOST, "/proctor/"],
-  ["/chat", ORIGIN_HOST, "/chat/"],
-  ["/g00mBa", ORIGIN_HOST, "/g00mBa/"],
-  ["/qr-studio", ORIGIN_HOST, "/qr-studio/"],
-  ["/reveal-lab", ORIGIN_HOST, "/reveal-lab/"],
-  // A retired host gets no row: this models vercel.json against dist/, but
-  // Vercel rejects an unattached host at the edge before the config is
-  // consulted, so a green row would be a simulation artifact.
-  // Vanity roots MUST land in their game's subdirectory, never the dist root.
-  ["/", "hexxygon.com", "/hexxygon/"],
-  ["/", "www.hexxygon.com", "/hexxygon/"],
-  ["/", "g00.mba", "/g00mBa/"],
-  ["/", "www.g00.mba", "/g00mBa/"],
-];
-
 let failures = 0;
-for (const [entry, host, expect] of ENTRIES) {
-  const page = await fetchPath(entry, host);
-  const label = `${host}${entry}`;
-  if (page.status !== 200) {
-    console.log(`FAIL  ${label}  -> HTTP ${page.status}`);
+for (const [name, { out: rel, entries }] of pickSites(process.argv[2])) {
+  const dist = join(repoRoot, rel);
+  if (!(await exists(dist))) {
+    console.log(`FAIL  ${name}: ${rel} does not exist — assemble it first`);
     failures++;
     continue;
   }
-  if (expect && page.pathname !== expect) {
-    console.log(
-      `FAIL  ${label}  -> ${page.pathname}  (expected ${expect})`,
-    );
-    failures++;
-    continue;
-  }
-  console.log(`ok    ${label}  -> ${page.pathname}`);
-  if (extname(page.file) !== ".html") continue;
-  const html = await readFile(page.file, "utf8");
-  for (const ref of refsOf(html, page.pathname)) {
-    const sub = await fetchPath(ref, ORIGIN_HOST);
-    if (sub.status !== 200) {
-      console.log(`  FAIL  ${ref}  -> HTTP ${sub.status}`);
+  console.log(`\n${name}  (${rel})`);
+  for (const entry of entries) {
+    const page = await fetchPath(dist, entry);
+    if (page.status !== 200) {
+      console.log(`FAIL  ${entry}  -> HTTP ${page.status}`);
       failures++;
       continue;
     }
-    console.log(`  ok    ${ref}`);
-    // A linked stylesheet is a page of refs in its own right.
-    if (extname(sub.file) !== ".css") continue;
-    const css = await readFile(sub.file, "utf8");
-    for (const cssRef of refsOf(css, sub.pathname)) {
-      const asset = await fetchPath(cssRef, ORIGIN_HOST);
-      if (asset.status !== 200) {
-        console.log(`    FAIL  ${cssRef}  -> HTTP ${asset.status}`);
+    console.log(`ok    ${entry}  -> ${page.pathname}`);
+    if (extname(page.file) !== ".html") continue;
+    const html = await readFile(page.file, "utf8");
+    for (const ref of refsOf(html, page.pathname)) {
+      const sub = await fetchPath(dist, ref);
+      if (sub.status !== 200) {
+        console.log(`  FAIL  ${ref}  -> HTTP ${sub.status}`);
         failures++;
-      } else {
-        console.log(`    ok    ${cssRef}`);
+        continue;
+      }
+      console.log(`  ok    ${ref}`);
+      // A linked stylesheet is a page of refs in its own right.
+      if (extname(sub.file) !== ".css") continue;
+      const css = await readFile(sub.file, "utf8");
+      for (const cssRef of refsOf(css, sub.pathname)) {
+        const asset = await fetchPath(dist, cssRef);
+        if (asset.status !== 200) {
+          console.log(`    FAIL  ${cssRef}  -> HTTP ${asset.status}`);
+          failures++;
+        } else {
+          console.log(`    ok    ${cssRef}`);
+        }
       }
     }
   }

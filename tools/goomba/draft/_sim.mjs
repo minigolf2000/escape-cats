@@ -22,7 +22,9 @@ await writeFile(
   entry,
   `export * from ${JSON.stringify(join(srcDir, "levels.ts"))};\n` +
   `export * from ${JSON.stringify(join(srcDir, "physics.ts"))};\n` +
-  `export * from ${JSON.stringify(join(srcDir, "codec.ts"))};\n`,
+  `export * from ${JSON.stringify(join(srcDir, "codec.ts"))};\n` +
+  `export * from ${JSON.stringify(join(srcDir, "library.ts"))};\n` +
+  `export * from ${JSON.stringify(join(srcDir, "levels.data.ts"))};\n`,
 );
 const outfile = join(dir, "sim.mjs");
 await build({ entryPoints: [entry], bundle: true, format: "esm", outfile, logLevel: "silent" });
@@ -30,4 +32,6 @@ const sim = await import(pathToFileURL(outfile).href);
 
 export const {
   makeRun, stepRun, snapBand, SUB, RUN_MAX, initLevel, encodeLevel, decodeLevel,
+  BAKED_LEVELS, rowsToLevels, localId,
+  completedFor, foldProgress, freshProgress, readProgress,
 } = sim;

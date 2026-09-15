@@ -2,9 +2,8 @@
 // `GoombaLevel` as a base64url string for `location.hash`, `decodeLevel` reads
 // it back. There is no database — a design is saved by BEING a link.
 //
-// Shared because the browser, the lobby DO (which validates by DECODING) and
-// the node tools must agree byte for byte. NEVER fork it;
-// `tools/goomba/test-codec.mjs` is the proof.
+// Shared because the browser and the node tools must agree byte for byte.
+// NEVER fork it; `tools/goomba/test-codec.mjs` is the proof.
 //
 // Every coordinate is quantised to TENTHS of a unit (exact for everything the
 // design tools produce) and clamped to ±3276.7.
@@ -34,15 +33,16 @@
 //
 // VERSIONING RULE: a new field rides at the TAIL behind a flag bit, so an
 // older reader stops early. Anything that moves an existing byte costs a
-// version — an old bundle then REFUSES the link (null, the pack drops it
-// visibly) rather than misreading it — so the Worker ships first (CLAUDE.md,
-// "Deploy order"). Shorter links: compression, a denser alphabet and fitting
+// version — an old bundle then REFUSES the link (null, the list drops it
+// visibly) rather than misreading it. There is no longer a Worker that has to
+// ship first; a version bump is one deploy, and `levels.data.ts` is rewritten
+// by the same build that can read it. Shorter links: compression, a denser alphabet and fitting
 // terrain into arcs were all measured and all lost (README); varint steps are
 // the one lever that pays, and only a level drawn wider than twice the world
 // can make them lose.
 //
 // `bounds` is NOT carried (derived by initLevel) and neither is a band budget
-// (the room's MAX_BANDS is the only one).
+// (MAX_BANDS is the only one).
 import type { GoombaLevel, Pt } from "./levels";
 
 /** What `encodeLevel` writes. `decodeLevel` also accepts 1 and 2. */

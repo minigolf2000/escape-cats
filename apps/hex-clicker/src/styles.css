@@ -1,6 +1,5 @@
-/* hex-clicker — the whole stylesheet, imported from main.js. Two halves: the
- * GAME, and under it the MULTIPLAYER SHELL (join gate, team strip, reconnect
- * toast, win pill). */
+/* hex-clicker — the whole stylesheet, imported from main.js. The GAME, and
+ * under it the cover over the stage (the gate) and the win pill. */
 
   /* ---- THEME ----
      DAY is the default in :root and NIGHT overrides the same names on
@@ -949,8 +948,8 @@
     #rotate .glyph { font-size: 46px; animation: rotateHint 2.2s ease-in-out infinite; }
     #rotate b { font-size: 19px; font-weight: 800; letter-spacing: .01em; }
     #rotate span { font-size: 14px; opacity: .62; max-width: 30ch; }
-    /* Everything behind the gate keeps running — the room is server-authoritative
-       and a teammate may still be petting. Hiding is purely visual. */
+    /* Everything behind the gate keeps running — income accrues whether or
+       not the stage is visible. Hiding is purely visual. */
     body > *:not(#rotate) { visibility: hidden; }
   }
   @keyframes rotateHint {
@@ -972,61 +971,7 @@
   #gate.hidden { display: none; }
   #gate h1 { font-size: 28px; letter-spacing: .08em; margin: 0 0 6px; }
   #gate p { margin: 0; opacity: .75; font-size: 14px; max-width: 34ch; }
-  #gate .err { color: #ff6fa5; font-size: 13px; min-height: 1.2em; margin: 0; }
-  /* WHO IS HERE. One name per line, right-aligned, riding the top edge of the
-     shop TRAY (--dock-up, measured by the ResizeObserver in main.js) — the
-     tray, not the tab, which is in the far left corner with nothing under the
-     names. A COLUMN, not a line: four names in a row are ~250px on a 390px
-     screen, and a row ellipsised the fourth player, which a roster may never
-     do. No plate: --title-color/--title-shadow are the page's pair for a
-     readout floating ON the stage, and both flip on body.night. The 0px
-     fallback is deliberate: a display:none tray measures 0, dropping the names
-     to the screen's own bottom inset, which is where they belong before the
-     shop appears and after it is gone. */
-  #team {
-    position: fixed; z-index: 6;
-    right: 14px;
-    bottom: calc(max(var(--dock-up, 0px), env(safe-area-inset-bottom)) + 10px);
-    display: flex; flex-direction: column; align-items: flex-end;
-    pointer-events: none;
-    font: 400 13px var(--ui-font); line-height: 1.42;
-    color: var(--title-color); text-shadow: var(--title-shadow);
-    /* THE RETURN LEG of the rule below. .5s is #dock's own slide: `dissolving`
-       comes off in the callback that starts the tray back up, so names and
-       tray arrive as one thing. Declared HERE, not on the state rule, for
-       #dock's cascade reason — a transition on `body.dissolving` alone vanishes
-       with it. */
-    transition: opacity .5s ease;
-  }
-  /* THE ROSTER SITS OUT THE TWIST. --title-color flips on `body.night` on the
-     FIRST frame while #nightSky takes 2.2s to fade the daylight out under it;
-     a custom property cannot interpolate, so the names went gold on pink
-     (1.12:1) for the whole dissolve. A readout may be legible or gone, not
-     half — so it is GONE for the beat, with no transition out (a fade from
-     invisible is a fade from nothing). It also hides the jump when the emptied
-     night tray drops --dock-up 180px on the flip's frame. `dissolving`, not
-     `night`: a restored save never gets the class and paints its roster at once. */
-  body.dissolving #team { opacity: 0; transition: none; }
-  #team span { white-space: nowrap; }
-  /* A phone that dropped. Dimmed, not struck through: a strike is a MARK, and
-     this readout has none. */
-  #team .off { opacity: .42; }
-  /* THIS PHONE DROPPED. Hung off #hud's MEASURED bottom edge (--hud-h, main.js)
-     because both numbers it needs vary: the count's line box and the notch
-     padding. A constant printed the pill over the mouse count on one phone and
-     in the status bar on another. z-70, ABOVE the win splash (35) and the join
-     gate (60) on purpose (see #splash). pointer-events off: a fixed box outside
-     #hud's blanket rule was eating taps. */
-  #connToast {
-    position: fixed; top: calc(var(--hud-h, 78px) + 8px);
-    left: 50%; transform: translateX(-50%); z-index: 70;
-    padding: 6px 14px; border-radius: 999px; font-size: 13px;
-    background: rgba(255,111,165,.15); border: 1px solid rgba(255,111,165,.4);
-    display: none; pointer-events: none;
-  }
-  #connToast.on { display: block; }
-
-  /* ---- THE WIN SPLASH (the proctor pressed "Mark won" — HexSim.setWon) ----
+  /* ---- THE WIN SPLASH (the wall went legible — hexWon) ----
      One picture OVER the night scene, never instead of it: the pill below
      flips back and forth. Always in the DOM, faded out, so the 200KB picture is
      decoded before the win lands and the arrival is a cross-fade;
@@ -1133,8 +1078,8 @@
     @keyframes splashFade { from { opacity: 0; } to { opacity: 1; } }
   }
 
-  /* THE TOGGLE — the only control the win adds. Hidden until the proctor marks
-     the team won, then ping-pongs between game and splash. Top-left: the one
+  /* THE TOGGLE — the only control the win adds. Hidden until the wall goes
+     legible, then ping-pongs between game and splash. Top-left: the one
      corner nothing else uses, and where Goomba's level selector opens too. */
   #wonPill {
     position: fixed; z-index: 36; display: none;

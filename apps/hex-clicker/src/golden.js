@@ -1,14 +1,13 @@
-// GOLDEN MOUSE — the fun spike. The SERVER owns when one exists and for how
-// long (HexSim); this module owns what it looks like on this phone. Catching it
-// triggers team-wide ZOOMIES. Position is deliberately per-phone: the seed
-// drives a deterministic placement, but each phone bounces it inside its own
-// layout, and ANY phone's tap catches it for the whole team.
+// GOLDEN MOUSE — the fun spike. The SIM owns when one exists and for how long
+// (HexSim); this module owns what it looks like on screen. Catching it
+// triggers ZOOMIES. The seed drives a deterministic placement and the mouse
+// bounces inside this screen's own layout.
 
 import { mulberry32 } from "@escape-cats/shared";
 import { stageEl, goldenEl, hudEl, dockEl } from "./dom.js";
 import { mods, wallNow, nightActive } from "./state.js";
 import { floatNum } from "./fx.js";
-import { transport } from "./net";
+import { transport } from "./transport";
 import { mouseParts, MOUSE_VIEWBOX, MOUSE_KEYLINE_DAY, MOUSE_KEYLINE_NIGHT } from "./art.js";
 
 const GOLD_MARGIN = 10; // px of stage edge the golden won't drift past
@@ -96,7 +95,7 @@ export function despawnGold() {
 }
 
 /** Per-frame drift + bounce. Lifetime runs on the shared clock so every phone
- * sees the same escape moment even if the server's despawn broadcast lags. */
+ * sees the escape moment on the frame it is due, not a tick later. */
 export function moveGold(dt) {
   if (!goldState.active) return;
   const leftS = bornAt + lifeS * 1000 - wallNow();
@@ -129,8 +128,8 @@ export function initGoldenInput() {
       e.stopPropagation();
       if (!goldState.active) return;
       const rect = stageEl.getBoundingClientRect();
-      // Optimistic: hide it and float the buff callout now; the server's
-      // snapshot delivers the actual team-wide Zoomies deadline.
+      // Optimistic: hide it and float the buff callout now; the next
+      // snapshot delivers the actual Zoomies deadline.
       floatNum(
         goldState.x - rect.left + 30,
         goldState.y - rect.top + 20,

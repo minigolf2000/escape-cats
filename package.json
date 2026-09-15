@@ -2,28 +2,25 @@
   "name": "escape-cats",
   "private": true,
   "version": "0.1.0",
-  "description": "Two cooperative 4-player escape-room mini games starring Hex and Goomba",
+  "description": "Two single-player mini games starring Hex and Goomba",
   "workspaces": [
     "packages/*",
-    "apps/*",
-    "server"
+    "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently -k -n server,hex,goomba,proctor,lobby,chat -c blue,magenta,red,green,cyan,yellow \"npm:dev:server\" \"npm:dev:hex\" \"npm:dev:goomba\" \"npm:dev:proctor\" \"npm:dev:lobby\" \"npm:dev:chat\"",
-    "dev:server": "npm run dev -w server",
+    "dev": "concurrently -k -n hex,goomba -c magenta,red \"npm:dev:hex\" \"npm:dev:goomba\"",
     "dev:hex": "npm run dev -w apps/hex-clicker",
     "dev:goomba": "npm run dev -w apps/goomba-glider",
-    "dev:proctor": "npm run dev -w apps/proctor",
-    "dev:lobby": "npm run dev -w apps/lobby",
-    "dev:chat": "npm run dev -w apps/chat",
     "build": "npm run build --workspaces --if-present",
-    "build:vercel": "npm run build --workspaces --if-present && node scripts/assemble.mjs && node scripts/check-routing.mjs && node scripts/check-cursors.mjs && node scripts/check-visibility.mjs",
+    "build:hex": "npm run build -w apps/hex-clicker && node scripts/assemble.mjs hex && node scripts/check-routing.mjs hex && npm run check:cursors",
+    "build:goomba": "npm run build -w apps/goomba-glider && node scripts/assemble.mjs goomba && node scripts/check-routing.mjs goomba && npm run check:cursors && npm run check:visibility && npm run check:levels",
+    "build:sites": "npm run build --workspaces --if-present && node scripts/assemble.mjs && node scripts/check-routing.mjs && npm run check:cursors && npm run check:visibility && npm run check:levels",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "check:routing": "node scripts/check-routing.mjs",
     "check:cursors": "node scripts/check-cursors.mjs",
     "check:visibility": "node scripts/check-visibility.mjs",
-    "cf:login": "npm exec -w server -- wrangler login",
-    "deploy:server": "npm run deploy -w server"
+    "check:levels": "node tools/goomba/levels.mjs --check",
+    "test:goomba": "node tools/goomba/test-codec.mjs && node tools/goomba/test-library.mjs && node tools/goomba/finale.mjs && npm run check:levels"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",

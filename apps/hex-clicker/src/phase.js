@@ -2,7 +2,7 @@
 // night-transition cutscene, and the win splash. The cutscene fires off the
 // snapshot's day->night edge (main.js), so every phone takes the beat together.
 
-import { mulberry32, HEX_CODEWORD } from "@escape-cats/shared";
+import { hexWon, mulberry32, HEX_CODEWORD } from "@escape-cats/shared";
 import { game, nightActive, wallSeed } from "./state.js";
 import {
   hexCatEl, starsEl, dockEl, cutsceneVeilEl,
@@ -56,11 +56,16 @@ function makeStars() {
   starsEl.appendChild(frag);
 }
 
-// ---- THE WIN SPLASH — the picture a won team gets, and the toggle off it ----
-// Hex cannot score its own win: the proctor presses it and `wonAt` arrives on
-// the snapshot (HexSim.setWon). The splash deliberately has a way BACK to the
-// night scene — the wall they read is what they earned. Which view a phone
-// shows is LOCAL, unlike Goomba's level cards, which move what the room PLAYS.
+// ---- THE WIN SPLASH — the picture a finished game gets, and the toggle off it ----
+// The win is `legibleAt`: the wall has inked enough of the word to READ. It
+// used to be a proctor's press on a separate dashboard, because the code word
+// left the game on a phone and came back as four humans saying it out loud, so
+// the win was witnessed rather than scored. With one player and nobody to say
+// it to, the wall going readable IS the win (`hexWon`).
+//
+// The splash deliberately has a way BACK to the night scene — the wall they
+// read is what they earned. Which view is showing is LOCAL, unlike Goomba's
+// level cards, which move what is being PLAYED.
 let splashOpen = false;
 // The arrival beat plays ONCE per win — see setSplash.
 let introPlayed = false;
@@ -84,8 +89,8 @@ export function initSplashArt() {
         .join(",")})`,
     );
   };
-  // 200KB that cannot be on screen until a proctor presses the win, so it waits
-  // for an idle moment rather than riding out with the room's first snapshot.
+  // 200KB that cannot be on screen until the wall goes legible, so it waits
+  // for an idle moment rather than riding out with the first snapshot.
   // The timeout is generous because nothing is watching for it.
   const load = () => {
     splashArtEl.src = import.meta.env.BASE_URL + "art/hex-splash.webp";
@@ -126,12 +131,12 @@ function skyStops(img, n) {
  * Raising it the FIRST time also runs the finale beat Goomba's splash runs
  * (drawSplash there, `#splash.intro` here): the cheer pops on, and the code
  * word rises a beat later. Once only, because unlike Goomba's finale this
- * screen has a way back — a party returning to re-read the word should find it
+ * screen has a way back — someone returning to re-read the word should find it
  * already up rather than wait through the beat again. `syncWon` re-arms it if
  * the win is ever taken back. */
 export function setSplash(open) {
   const rising = !splashOpen;
-  splashOpen = open && game.wonAt !== null; // no splash without the win
+  splashOpen = open && hexWon(game); // no splash without the win
   if (splashOpen && rising && !introPlayed) {
     introPlayed = true;
     splashEl.classList.add("intro");
@@ -148,11 +153,11 @@ export function toggleSplash() {
   setSplash(!splashOpen);
 }
 
-/** A PROJECTION of `wonAt`, the same way syncPhase is one of the night: every
- * snapshot re-asserts it, so the proctor taking a win back (or resetting the
- * room) drops the splash and retires the pill with no inverse to hand-write. */
+/** A PROJECTION of `legibleAt`, the same way syncPhase is one of the night:
+ * every snapshot re-asserts it, so starting over (or the 🛠 panel taking the
+ * win back) drops the splash and retires the pill with no inverse to write. */
 export function syncWon() {
-  const won = game.wonAt !== null;
+  const won = hexWon(game);
   wonPillEl.classList.toggle("on", won);
   if (!won) {
     setSplash(false);

@@ -16,16 +16,20 @@
     <button id="bandbar" aria-label="clear bands"><div id="inv"></div></button>
   </div>
   <div id="hint"></div>
-  <!-- WHO IS HERE: one name per line on PLAY's line (#team in styles.css). A
-       direct child of #hud so .lab and .splash hide it with everything else. -->
-  <div id="team"></div>
-  <div id="conn">reconnecting…</div>
-  <a id="figma" href="https://www.figma.com/design/vRN6Q44ReIaESP5wv8M2dI/"
-     target="_blank" rel="noopener">Figma ↗</a>
+  <!-- THE LEVEL EDITOR'S TOOLS, top-right of the grid and only while EDITING.
+       Real elements rather than canvas pills: `export` writes to the clipboard
+       (which wants a real user gesture) and `figma` wants middle-click and
+       open-in-new-tab to work. One wrapper so they lay out side by side and
+       `.lab` hides and re-shows them together. -->
+  <div id="labtools">
+    <button id="export" hidden>export</button>
+    <a id="figma" href="https://www.figma.com/design/vRN6Q44ReIaESP5wv8M2dI/"
+       target="_blank" rel="noopener">Figma ↗</a>
+  </div>
   <button id="play">▶ PLAY</button>
   <button id="help" aria-label="how to play">?</button>
   <div id="toast"></div>
-  <div id="gate" class="quiet">
+  <div id="gate">
     <div id="title">
       <!-- THE MARK: two words stacked, ColecoVision-style, as OUTLINES rather
            than text in a face — no font to arrive late, no font bytes at all.
@@ -68,15 +72,10 @@
         </div>
       </div>
     </div>
-    <!-- THE CONNECTION LINES, pinned to the bottom of the gate (#gateLines in
-         styles.css): their box is reserved in every state, but down here it
-         does not count toward what the pictures are centred on. -->
-    <div id="gateLines">
-      <div id="gateStatus">Connecting…</div>
-      <div id="gateErr"></div>
-    </div>
-    <!-- THE WAY OUT, in the slot the connection lines vacate once the room is
-         live (#gateTap in styles.css). Invisible until a tap does something. -->
+    <!-- THE WAY OUT (#gateTap in styles.css). It used to share this slot with
+         the connection lines, which are gone: there is nothing to connect to,
+         so the sheet is never waiting on anything and is dismissible from the
+         first frame. -->
     <div id="gateTap">tap to continue</div>
   </div>
 </div>

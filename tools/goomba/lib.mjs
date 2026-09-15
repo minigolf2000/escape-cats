@@ -21,8 +21,12 @@ await writeFile(
   // codec.ts + pack.ts: a level is a link and a pack is a list of them.
   `export * from ${JSON.stringify(join(srcDir, "codec.ts"))};\n` +
   `export * from ${JSON.stringify(join(srcDir, "pack.ts"))};\n` +
-  // sim.ts: the ROOM rules, for the one test that drives them (bands.mjs).
-  `export * from ${JSON.stringify(join(srcDir, "sim.ts"))};\n`,
+  // sim.ts: the game rules, for the one test that drives them (bands.mjs).
+  `export * from ${JSON.stringify(join(srcDir, "sim.ts"))};\n` +
+  // levels.data.ts: the list the game ships, which is the default to work on,
+  // and library.ts: what a ROW means (ids, the bonus flag, progress).
+  `export * from ${JSON.stringify(join(srcDir, "levels.data.ts"))};\n` +
+  `export * from ${JSON.stringify(join(srcDir, "library.ts"))};\n`,
 );
 const outfile = join(dir, "sim.mjs");
 await build({ entryPoints: [entry], bundle: true, format: "esm", outfile, logLevel: "silent" });
@@ -44,15 +48,20 @@ export const {
   applyPack,
   packToLevels,
   levelsToPack,
+  rowsToLevels,
+  setGoombaLevels,
+  hasBonusLevels,
+  goombaCleared,
+  BAKED_LEVELS,
 } = sim;
 
 /**
- * Fill the level array from a PACK. The repo holds no levels (a level's source
- * is its Figma frame; an event's levels are links in its lobby), so:
+ * Fill the level array. Default: the list the game SHIPS
+ * (`packages/shared/src/goomba/levels.data.ts`), so a tool run with no flags
+ * works on the real levels. Override with either of:
  *
- *   node seed.mjs --pull > pack.json    then no flag is needed (gitignored)
- *   --pack <file>                       per-run
- *   GOOMBA_PACK=<file>                  for a whole session
+ *   --pack <file>          per-run    (a JSON array of level links)
+ *   GOOMBA_PACK=<file>     for a whole session
  *
  * `--pack` is spliced OUT of `process.argv` here, before any tool's own argument
  * parsing runs (imports evaluate first), so positional readers never see it.
@@ -62,7 +71,12 @@ const packFile = packArgAt > 1 && process.argv[packArgAt + 1]
   ? process.argv.splice(packArgAt, 2)[1]
   : process.env.GOOMBA_PACK || join(dirname(fileURLToPath(import.meta.url)), "pack.json");
 export const packSource = existsSync(packFile) ? packFile : null;
+// The shipped list goes through `rowsToLevels`, the same door the game uses,
+// so every level keeps its id, its source and its `bonus` flag — a tool that
+// drives the sim (bands.mjs, finale.mjs) sees the finale where the game does.
+// A `--pack` file is bare links and has none of that to keep.
 if (packSource) applyPack(JSON.parse(await readFile(packSource, "utf8")));
+else sim.setGoombaLevels(sim.rowsToLevels(sim.BAKED_LEVELS, "baked"));
 
 /**
  * The level at `<idx>`, or a message a person can act on — stderr + exit(2),
@@ -72,12 +86,9 @@ export function levelAt(li) {
   if (!LEVELS.length) {
     console.error(packSource
       ? `${packSource} decoded to an empty pack — no levels to work on`
-      : "no levels loaded. There are no levels in this repo: a level's source is\n" +
-        "its Figma frame, and an event's levels live in its lobby. Point this at a\n" +
-        "pack, any of three ways —\n" +
-        "  node seed.mjs --pull > pack.json   (then this command needs no flag)\n" +
-        "  --pack <file>                      per-run\n" +
-        "  GOOMBA_PACK=<file>                 for a whole session");
+      : "the shipped list (packages/shared/src/goomba/levels.data.ts) is empty,\n" +
+        "so there is nothing to work on. Add a level to it, or point this at a\n" +
+        "pack file — `--pack <file>` for one run, GOOMBA_PACK=<file> for a session.");
     process.exit(2);
   }
   const L = LEVELS[li];

@@ -1,7 +1,5 @@
 import { defineConfig } from "vite";
 import { execSync } from "node:child_process";
-// @ts-expect-error — a plain .mjs build plugin shared by both game clients.
-import { netHints } from "../../scripts/vite-net-hints.mjs";
 
 /** Build id, stamped in and printed by `?pixels` so a photographed readout says
  * which build it is. SHA first (names the commit), time second (Vercel
@@ -21,12 +19,10 @@ function buildId(): string {
 }
 
 export default defineConfig({
-  // Absolute base matching the dist/ subdirectory (check-routing.mjs). The
-  // casing is load-bearing: URL paths are case-sensitive.
-  base: "/g00mBa/",
-  // preconnect to the room server + modulepreload the partysocket chunk;
-  // see scripts/vite-net-hints.mjs for what each one buys.
-  plugins: [netHints({ preloadModules: ["/partysocket/"] })],
+  // The app IS the site: g00.mba serves this at the root. It used to be
+  // `/g00mBa/` (casing load-bearing), a subdirectory of one assembled origin
+  // shared with three other surfaces — see "Two sites" in CLAUDE.md.
+  base: "/",
   define: { __BUILD__: JSON.stringify(buildId()) },
   server: { host: true },
 });

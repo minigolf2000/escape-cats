@@ -55,7 +55,3 @@ export const wonPillEl = $("#wonPill");
 
 // Multiplayer shell
 export const gateEl = $("#gate");
-export const gateStatusEl = $("#gateStatus");
-export const gateErrEl = $("#gateErr");
-export const teamEl = $("#team");
-export const connToastEl = $("#connToast");

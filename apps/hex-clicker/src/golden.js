@@ -8,7 +8,7 @@ import { mulberry32 } from "@escape-cats/shared";
 import { stageEl, goldenEl, hudEl, dockEl } from "./dom.js";
 import { mods, wallNow, nightActive } from "./state.js";
 import { floatNum } from "./fx.js";
-import { transport } from "./net";
+import { transport } from "./transport";
 import { mouseParts, MOUSE_VIEWBOX, MOUSE_KEYLINE_DAY, MOUSE_KEYLINE_NIGHT } from "./art.js";
 
 const GOLD_MARGIN = 10; // px of stage edge the golden won't drift past

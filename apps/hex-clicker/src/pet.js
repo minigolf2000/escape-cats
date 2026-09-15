@@ -8,7 +8,7 @@ import { nightActive, clickGain, petCredit } from "./state.js";
 import { fmt } from "./format.js";
 import { floatNum, spawnMousePop } from "./fx.js";
 import { refreshHud } from "./shop.js";
-import { transport } from "./net";
+import { transport } from "./transport";
 import { squashPet, IDLE } from "./cat.js";
 
 // Petting streak. Feeds two idle animations (the purr, and the slow blink she
@@ -50,18 +50,13 @@ export function pet(clientX, clientY) {
   }
 
   const gain = clickGain();
-  // Where on Hex the finger landed, as a fraction of her box — stage px cannot
-  // cross the wire, since a teammate's phone has Hex somewhere else at another
-  // size. Measured against #hexCat so the fraction survives every layout.
-  const cat = hexCatEl.getBoundingClientRect();
-  // Queue first: the credit is held against the batch this tap leaves in.
-  petCredit(
-    gain,
-    transport.queuePet(
-      (clientX - cat.left) / cat.width,
-      (clientY - cat.top) / cat.height,
-    ),
-  );
+  // Queue first, then credit: the credit is held until the flush that folds
+  // this tap into the sim (`backend.ts`). Where on Hex the finger landed used
+  // to ride along, so teammates' phones could replay the tap at the right spot
+  // on their own layout; with one player the tap pops under the finger that
+  // made it and never has to travel.
+  transport.queuePet();
+  petCredit(gain);
   // Every tap squashes; the streak beat below upgrades it, and squashPet ignores
   // a soft call landing on a big one already playing.
   squashPet(false);

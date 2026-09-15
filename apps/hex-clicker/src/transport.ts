@@ -1,0 +1,39 @@
+// THE SEAM. Everything the player does is an intent sent through here, and
+// everything the game knows arrives as a snapshot — the shape the room server
+// used to sit behind. There is no server (`backend.ts` runs the shared HexSim
+// in this tab), and the seam stays anyway: `applySnapshot` and the edge flags
+// it reports are the spine of this client, and a shortcut past `transport`
+// is how that comes apart.
+//
+// This file used to be `net.ts` and held a WebSocket to a Durable Object. The
+// only thing that changed is who answers.
+
+import type { HexClientMsg } from "@escape-cats/shared";
+
+export interface Transport {
+  send(msg: HexClientMsg): void;
+  /** Enqueue one pet for the next batched `pets` message.
+   *
+   * Still BATCHED with nothing to batch for: a Zoomies mash is 20 taps a
+   * second, and folding them into one `pets` per flush keeps the sim's income
+   * fold off the tap path — which is the one path in this game that has to
+   * stay at 60fps. What went with the server is the ACK: credit used to be
+   * optimistic until the authority confirmed the batch, and a local sim
+   * confirms it inside the same call. */
+  queuePet(): void;
+}
+
+/** Swapped in by `startBackend`. A stable object so game modules can import it
+ * once at load, before the backend is wired. */
+export const transport: Transport = {
+  send() {},
+  queuePet() {},
+};
+
+/** `?debug` mounts the 🛠 tuning panel. `?solo` was the old name for "no
+ * server", which is every game now; it is still accepted so an old bookmark
+ * lands on the panel rather than dead-ending. */
+export function debugFromUrl(): boolean {
+  const q = new URLSearchParams(location.search);
+  return q.has("debug") || q.has("solo");
+}

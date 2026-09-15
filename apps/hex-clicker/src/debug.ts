@@ -1,12 +1,18 @@
-// ?debug mode: the SAME shared HexSim the server runs, in-page — the tuning
-// bench. The floating 🛠 panel calls the sim directly, so nothing debug-only
-// touches the wire protocol and none of this can reach a real room.
+// `?debug` — the floating 🛠 tuning bench. The panel calls the sim DIRECTLY,
+// which is the one sanctioned exception to "nothing calls a sim method
+// directly" (`transport.ts`): it is a tuning tool reaching past the game, and
+// keeping it out of the intent list is what stops any of it becoming a move a
+// player could make.
+//
+// It used to also BE the backend — `?debug` meant "the sim in-page instead of
+// a room". Every game is that now (`backend.ts`), so this is the panel and
+// nothing else, and it is mounted only when `?debug` is present so none of it
+// reaches a normal player's bundle.
 
 import {
   BUILDINGS,
   DEBUG_PRESETS,
   HexSim,
-  SNAPSHOT_TICK_MS,
   UPGRADES,
   costOf,
   isRevealed,
@@ -14,89 +20,8 @@ import {
   onRail,
   unlockMet,
   type HexUpgrade,
-  type HexSnapshot,
 } from "@escape-cats/shared";
 import { effectText } from "./shop.js";
-import { transport } from "./net";
-
-export function startDebug(opts: {
-  onSnapshot: (snap: HexSnapshot) => void;
-  onPetAck: (seq: number) => void;
-}): void {
-  const sim = new HexSim(Date.now());
-
-  // ?speed=N accelerates a debug run (income + golden cadence, never click
-  // feel) — the ?debug stand-in for the proctor's dev dial.
-  const speed = Number(new URLSearchParams(location.search).get("speed"));
-  if (Number.isFinite(speed) && speed > 0) sim.state.speed = Math.min(50, speed);
-
-  let pendingPets = 0;
-  let batchSeq = 0;
-  const flushPets = (now: number) => {
-    if (pendingPets > 0) {
-      sim.pets(pendingPets, now);
-      pendingPets = 0;
-      // Ack before the snapshot that carries them, exactly as the room does.
-      opts.onPetAck(++batchSeq);
-    }
-  };
-  // Income up to the instant the snapshot is STAMPED, exactly as the room's
-  // broadcastState does it — a snapshot banked at the last tick but stamped
-  // now is a bank the page then has to count backwards to. Every path that
-  // emits (the loop, a purchase, the panel) goes through here, so none of them
-  // can forget.
-  const emit = () => {
-    const now = Date.now();
-    sim.tick(now);
-    opts.onSnapshot(sim.snapshot(now, []));
-  };
-
-  // Mounted before the loop, because the loop is what keeps the panel's
-  // day-only control in step with the phase: the twist lands on a PURCHASE,
-  // which never passes through the panel's own click handler.
-  const syncPanel = mountPanel(sim, emit);
-
-  setInterval(() => {
-    flushPets(Date.now());
-    emit(); // ticks
-    syncPanel();
-  }, SNAPSHOT_TICK_MS);
-
-  // First snapshot synchronously: the page must be fully interactive (gate
-  // down, pet listener live) before the first finger lands, not a tick later.
-  emit();
-
-  transport.queuePet = () => {
-    pendingPets++;
-    return batchSeq + 1;
-  };
-  transport.send = (msg) => {
-    const now = Date.now();
-    // Purchases must land AFTER the taps already queued, or the sim may
-    // reject them for a bank the pets have actually filled.
-    flushPets(now);
-    switch (msg.type) {
-      case "buyBuilding":
-        sim.buyBuilding(msg.id, now);
-        break;
-      case "buyUpgrade":
-        sim.buyUpgrade(msg.key, now);
-        break;
-      case "catchGold":
-        sim.catchGold(msg.id, now);
-        break;
-      case "reset":
-        sim.reset(now);
-        break;
-    }
-    emit();
-  };
-
-  // Console handle on the AUTHORITY, not the mirror: window.__hex.game is the
-  // render mirror and deliberately drops server-private fields (legibleAt), so
-  // tuning work and tests assert against the sim itself.
-  (window as unknown as { __hexSim: HexSim }).__hexSim = sim;
-}
 
 const buildingName = (id: string) =>
   (BUILDINGS.find((b) => b.id === id) || { name: id }).name;
@@ -183,7 +108,7 @@ function devContentHTML(sim: HexSim): string {
  *
  * Returns a sync callback the tick loop calls, for the one control whose
  * availability depends on state the panel does not itself move (see below). */
-function mountPanel(sim: HexSim, emit: () => void): () => void {
+export function mountPanel(sim: HexSim, emit: () => void): () => void {
   const st = document.createElement("style");
   st.textContent = `
     #devbar { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 10px; z-index: 40;
@@ -261,10 +186,11 @@ function mountPanel(sim: HexSim, emit: () => void): () => void {
       .map((k) => `<button data-p="${k}">${k}</button>`)
       .join("")}</div>
     <div class="r"><span>spawn</span><button data-gold="1">🐭 golden</button></div>
-    <!-- The win is the PROCTOR's press in a real room (HexSim.setWon), so a
-         debug phone needs its own way in or the splash is only ever testable
-         with a second surface open. Same sim call the room makes, and a toggle
-         for the same reason theirs is one. -->
+    <!-- The win is the wall going LEGIBLE (hexWon), which takes a whole run to
+         reach, so the bench needs a way to stand on it. Poked straight onto the
+         state like speed below, because there is no intent for it and there
+         should not be. Toggling it OFF only holds while the wall has not
+         really got there: the sim re-sets it on the next tick once it has. -->
     <div class="r"><span>won</span><button data-won="1">🏆 toggle</button></div>
     <div class="r"><span>speed</span>${[1, 5, 20]
       .map((n) => `<button data-s="${n}">×${n}</button>`)
@@ -310,7 +236,7 @@ function mountPanel(sim: HexSim, emit: () => void): () => void {
     else if (b.dataset.gold) sim.spawnGold(now);
     else if (b.dataset.s)
       sim.state.speed = Math.max(0.25, Math.min(50, Number(b.dataset.s)));
-    else if (b.dataset.won) sim.setWon(sim.state.wonAt === null, now);
+    else if (b.dataset.won) sim.state.legibleAt = sim.state.legibleAt === null ? now : null;
     else if (b.dataset.r) sim.reset(now);
     emit();
     syncGold();

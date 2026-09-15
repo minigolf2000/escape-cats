@@ -32,7 +32,7 @@ import {
 import { game, mods, nightActive, baseCps, isUnlocked } from "./state.js";
 import { fmt } from "./format.js";
 import { currencyIconSVG } from "./art.js";
-import { transport } from "./net";
+import { transport } from "./transport";
 
 // ---- DOCK STATE ----
 // Last touch anywhere in the shop, and how long a reveal holds the list still

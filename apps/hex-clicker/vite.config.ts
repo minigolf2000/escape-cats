@@ -1,14 +1,11 @@
 import { defineConfig } from "vite";
-// @ts-expect-error — a plain .mjs build plugin shared by both game clients.
-import { netHints } from "../../scripts/vite-net-hints.mjs";
 
 export default defineConfig({
-  // Absolute, matching the dist/ subdirectory this app is assembled into. NOT
-  // relative: Vercel normalises /hexxygon/ to /hexxygon, against which
-  // "./assets/" resolves to /assets/ — the lobby's — and the script 404s.
-  base: "/hexxygon/",
-  // preconnect to the room server + modulepreload the partysocket chunk;
-  // see scripts/vite-net-hints.mjs for what each one buys.
-  plugins: [netHints({ preloadModules: ["/partysocket/"] })],
+  // The app IS the site: hexxygon.com serves this at the root. It used to be
+  // `/hexxygon/`, a subdirectory of one assembled origin, because four
+  // surfaces shared an origin so they could share a player's localStorage.
+  // Nothing is shared now, and a per-game origin is the honest shape — see
+  // "Two sites" in CLAUDE.md.
+  base: "/",
   server: { host: true },
 });

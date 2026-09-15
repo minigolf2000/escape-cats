@@ -1,13 +1,14 @@
-// The authoritative Goomba Glider ROOM state: bands, level, phase, which
-// levels are done. Same shape as hex/sim.ts — the Durable Object wraps one per
-// team and is transport only. The room mutates only on player intents plus one
+// The Goomba Glider game state: bands, level, phase, which levels are done.
+// Same shape as hex/sim.ts. It mutates only on player intents plus one
 // transition when a run finishes: a run is SCORED the instant PLAY lands, what
-// is "in flight" is only the phones' animation, so run-end is a timestamp
-// comparison applied lazily by resolve(now).
+// is "in flight" is only the animation, so run-end is a timestamp comparison
+// applied lazily by resolve(now) — which is what lets a backgrounded tab, one
+// that missed every frame, resolve correctly the moment it comes back.
+//
+// It used to be the authority a Durable Object wrapped, one per team. "Room"
+// survives in a few names below because the state it describes is unchanged.
 
-import type { PlayerInfo } from "../protocol";
 import { GOOMBA_LEVELS, MAX_BANDS, BAND_MIN, BAND_MAX } from "./levels";
-import type { LevelPack } from "./pack";
 import { snapBand, scoreRun, type GoombaBand, type RunResult } from "./physics";
 
 /**
@@ -15,13 +16,13 @@ import { snapBand, scoreRun, type GoombaBand, type RunResult } from "./physics";
  * the last flag going up lands on directly (`resolve` — the clearing win never
  * passes through `win`, so there is no banner and no NEXT to press). It is
  * TERMINAL: nothing may be placed, played or jumped to from it, and the only
- * ways off are a proctor `reset` and a pack edit that un-clears the room
+ * ways off are `reset` and a level-list edit that un-clears the game
  * (`reconcile`).
  */
 export type GoombaPhase = "edit" | "run" | "win" | "splash";
 
 export interface GoombaSimState {
-  /** Bumped on every proctor reset — clients treat a new runId as a fresh boot. */
+  /** Bumped on every reset — the client treats a new runId as a fresh boot. */
   runId: number;
   startedAt: number; // epoch ms this room first saw a player intent
   level: number;
@@ -35,8 +36,8 @@ export interface GoombaSimState {
   runResult: RunResult | null;
   /** Seconds the scored run lasts — phones animate exactly this long. */
   runT: number | null;
-  /** Epoch ms every level went done, else null — the proctor's finish line,
-   * and the room's "we cleared it" flag (see `goombaCleared`). */
+  /** Epoch ms every level went done, else null — the "we cleared it" flag
+   * (see `goombaCleared`). */
   finishedAt: number | null;
 }
 
@@ -46,31 +47,12 @@ export interface GoombaPersistedV1 {
   state: GoombaSimState;
 }
 
-/** A teammate's band-in-progress, streamed while they drag. Presentation
- * only — never read by the sim, never persisted, rides the snapshot.
- *
- * A preview SHORTER than BAND_MIN means "I'm choosing here": the tap-tap
- * placement streams its waiting first tap as both ends on one point, and
- * clients draw that as a marker rather than a band ghost. */
-export interface GoombaBandPreview {
-  pid: string;
-  ax: number;
-  ay: number;
-  bx: number;
-  by: number;
-  /** Server clock (ms) of the last update — clients drop stale ghosts, so a
-   * phone that dies mid-drag doesn't leave one hanging. */
-  at: number;
-}
-
 export interface GoombaSnapshot extends GoombaSimState {
-  players: PlayerInfo[];
-  /** Teammates' bands-in-progress. Presentation only. */
-  previews: GoombaBandPreview[];
-  /** Server clock (ms epoch) at send — phones sync their run animation to
-   * `runAt` on this timeline, so everyone watches the same moment. */
+  /** The clock at send. It was the SERVER's, and the name is kept because the
+   * run animation still syncs to `runAt` on this timeline — there is just one
+   * clock now, so the offset it produces is zero. */
   serverTime: number;
-  /** 0..1 for the proctor progress bar: levels completed / levels. */
+  /** 0..1: levels completed / levels. */
   progress: number;
   levelCount: number;
 }
@@ -85,17 +67,12 @@ export type GoombaClientMsg =
       bx: number;
       by: number;
     }
-  /** Take a band back. Any player may remove ANY band, including a teammate's —
-   * bands are the room's, not a player's. `index` into `bands`. */
+  /** Take a band back. `index` into `bands`. */
   | { type: "remove"; index: number }
   | { type: "clear" }
-  /** The band being stretched right now (already snapped by the sender);
-   * omitted coords = the drag ended without a placement. Presentation only —
-   * never touches the sim, never persisted. */
-  | { type: "preview"; ax?: number; ay?: number; bx?: number; by?: number }
   | { type: "play" }
-  /** Stop watching a run early (any player) — back to edit with the bands
-   * still down and NOTHING scored, neither a clear nor a fail. See `stop`. */
+  /** Stop watching a run early — back to edit with the bands still down and
+   * NOTHING scored, neither a clear nor a fail. See `stop`. */
   | { type: "stop" }
   /** Advance after a win (any player). */
   | { type: "next" }
@@ -103,39 +80,27 @@ export type GoombaClientMsg =
    * (`?debug` is only a local override of the client gate) — the party's own
    * phones are the trusted tool, as `play`/`next` already assume. */
   | { type: "goto"; level: number }
-  // ---- editing the level pack. These ride the ROOM socket (the lobby's is
-  // closed once a phone knows its team); the room forwards them to the lobby,
-  // which owns the pack and tells every room about the write.
+  // ---- editing the level list. The client's backend applies these to the
+  // LOCAL overlay only; the shipped levels are source (`goomba/library.ts`).
   /** Paste a level in: `index` null appends a slot, otherwise replaces one. */
   | { type: "packSet"; index: number | null; hash: string }
   | { type: "packMove"; from: number; to: number }
   | { type: "packDelete"; index: number }
-  | { type: "packAll"; pack: LevelPack }
-  | { type: "reset" }; // proctor only
-
-export type GoombaServerMsg =
-  | { type: "state"; state: GoombaSnapshot }
-  /**
-   * The level pack, sent on connect and whenever it changes. Separate from the
-   * snapshot, which goes out on every intent including 10Hz previews.
-   */
-  | { type: "pack"; v: number; pack: LevelPack };
+  /** Start over. Was proctor-only; it is the player's own button now. */
+  | { type: "reset" };
 
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
 /**
- * The whole band budget: `MAX_BANDS` per level, shared by whoever is in the
- * room. There is deliberately NO per-player quota (README, "The four bands");
- * any player may lay, lift or clear any band. Shared with the client so the
- * phone greys the gesture out by the rule the server rejects it with.
+ * The whole band budget: `MAX_BANDS` per level. Shared with the client so a
+ * gesture is greyed out by the same rule the sim refuses it with.
  */
 export const canPlaceBand = (bands: GoombaBand[]): boolean => bands.length < MAX_BANDS;
 
 /**
- * Has this ROOM cleared the game? Room state, so all four phones unlock the
- * selector on the same snapshot and a proctor `reset` takes it back. `?debug`
- * is a client-side override of this gate and nothing more.
+ * Has the game been cleared? The gate on the level selector; `?debug` and `\`
+ * are client-side overrides of it and nothing more.
  */
 export const goombaCleared = (s: GoombaSimState): boolean => s.finishedAt !== null;
 
@@ -304,13 +269,11 @@ export class GoombaSim {
     this.st = { ...freshState(now), runId };
   }
 
-  snapshot(now: number, players: PlayerInfo[], previews: GoombaBandPreview[] = []): GoombaSnapshot {
+  snapshot(now: number): GoombaSnapshot {
     this.resolve(now);
     const done = this.st.completed.filter(Boolean).length;
     return {
       ...this.st,
-      players,
-      previews,
       serverTime: now,
       progress: GOOMBA_LEVELS.length ? done / GOOMBA_LEVELS.length : 0,
       levelCount: GOOMBA_LEVELS.length,

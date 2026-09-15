@@ -222,17 +222,6 @@
 <div id="cutsceneVeil"></div>
 
 
-<!-- ==== MULTIPLAYER SHELL: the join gate covers the stage until the player is
-     in a room; the roster and reconnect toast are the only other additions. ==== -->
-
-<!-- WHO IS HERE: one name per line, stacked above the shop tray (see #team in
-     styles.css). A sibling of #dock, not a child, so it survives the tray being
-     hidden before the shop unlocks and gone after it retires; it rides the
-     tray's top edge by measurement (the ResizeObserver in main.js). aria-live
-     off: four names changing a handful of times a session are not an announcement. -->
-<div id="team" aria-live="off"></div>
-<div id="connToast">reconnecting…</div>
-
 <!-- The win splash and its toggle: after the shell so they paint over the game,
      before the gate/rotate covers, which outrank them (z-index note on #splash). -->
 <div id="splash" aria-hidden="true">
@@ -252,10 +241,12 @@
 </div>
 <button id="wonPill" type="button">🏆 win screen</button>
 
+<!-- Covers the stage until the first snapshot lands. That is now zero frames —
+     the backend emits one synchronously — so this is a paint cover and a title,
+     not a wait. It was the JOIN GATE, and carried the lines about which team
+     had you and whether the server was reachable. -->
 <div id="gate">
   <h1>🐱 Hex Clicker</h1>
-  <p id="gateStatus"></p>
-  <p class="err" id="gateErr"></p>
 </div>
 
 <!-- Portrait gate. Hidden by default; only the media query in the stylesheet

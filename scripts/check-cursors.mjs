@@ -4,10 +4,9 @@
  * These are phone games — almost nobody playing has a cursor, so a third
  * value cannot carry information and can only be inconsistent.
  *
- * NOT applied to apps/proctor or tools/: they run on a laptop in front of one
- * operator (`grab`/`grabbing` for the proctor's drag, `crosshair`/`text` for
- * qr-studio). ROOTS lists the player-facing apps; a new app belongs in it
- * only if players open it.
+ * NOT applied to tools/: the standalone pages run on a laptop in front of one
+ * operator (`crosshair`/`text` in qr-studio). ROOTS lists the player-facing
+ * apps; a new app belongs in it only if players open it.
  *
  * Run: node scripts/check-cursors.mjs
  */
@@ -18,12 +17,7 @@ import { dirname, join, resolve, relative, extname } from "node:path";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Player-facing apps only — see the header. */
-const ROOTS = [
-  "apps/hex-clicker",
-  "apps/goomba-glider",
-  "apps/lobby",
-  "apps/chat",
-];
+const ROOTS = ["apps/hex-clicker", "apps/goomba-glider"];
 const ALLOWED = new Set(["pointer", "default"]);
 const SKIP_DIRS = new Set(["node_modules", "dist", ".git"]);
 const EXTS = new Set([".html", ".css", ".js", ".jsx", ".ts", ".tsx"]);

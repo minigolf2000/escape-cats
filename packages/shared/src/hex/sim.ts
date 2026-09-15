@@ -1,12 +1,15 @@
-// The authoritative Hex Clicker simulation. The PartyKit server wraps one per
-// room; the client's ?debug mode runs one in-page. Exactly one implementation
-// of "what a purchase does". All timestamps are epoch ms supplied by the caller
-// (`now`), never read from a clock here — deterministic enough to test, and the
-// server stamps everything from one Date.now() per message.
+// The Hex Clicker simulation, and the intents and snapshot that reach it.
+// Exactly one implementation of "what a purchase does". All timestamps are
+// epoch ms supplied by the caller (`now`), never read from a clock here —
+// deterministic enough to test.
+//
+// It used to be the authority a Durable Object wrapped, one per team, with the
+// client's ?debug running a second copy in-page. There is no server: the
+// client's copy is the only one, and the intent/snapshot shape below is the
+// seam it sits behind rather than a wire format.
 
-import { BUILDINGS, UPGRADES, HEX_CODEWORD } from "./data";
+import { BUILDINGS, UPGRADES } from "./data";
 import { debugDerivedBought, type HexPreset } from "./presets";
-import type { HexSnapshot, PlayerInfo, TapEvent } from "../protocol";
 import {
   type HexCore,
   type HexMods,
@@ -51,12 +54,6 @@ export interface HexSimState extends HexCore {
   gold: HexGold | null;
   nightAt: number | null; // epoch ms the twist fired
   legibleAt: number | null; // epoch ms the word became readable
-  /** Epoch ms the PROCTOR marked this team won, else null. The one piece of hex
-   * state no player can reach: the code word leaves the game on a phone and
-   * comes back as four humans reading it out, so the win is witnessed and
-   * pressed (`setWon`), never scored. `legibleAt` is the neighbouring fact —
-   * the word is READABLE — and says nothing about whether anyone read it. */
-  wonAt: number | null;
   /** The wall's odometer: scene units walked as of `wallAt`, re-banked by the
    * authority whenever wallSpeed or wallGlow changes, so a phone joining
    * mid-night lands on the same frame. See HexWallClock in rules.ts. */
@@ -91,10 +88,6 @@ export interface HexPersistedV1 {
   zoomUntil: number;
   /** So a restored room can't reissue a golden id a client already saw. */
   goldSeq: number;
-  /** The proctor's win mark (see HexSimState). OPTIONAL for the same reason
-   * `wallBase` is: a save written before this existed should rehydrate as "not
-   * won yet" rather than be refused outright. Cheap to re-press if it was. */
-  wonAt?: number | null;
   /** The wall odometer (see HexSimState). OPTIONAL rather than a version bump:
    * a room saved before this existed rehydrates with wallAt = nightAt, which
    * replays that night at its current speed — one eviction's worth of drift on
@@ -129,9 +122,42 @@ function freshCore(): HexCore {
   return { mice: 0, total: 0, clicks: 0, goldCaught: 0, owned, bought: {} };
 }
 
-/** Has the proctor marked this room as won? The one gate on hex's win splash;
- * every surface asks this rather than remembering which field carries it. */
-export const hexWon = (s: { wonAt: number | null }): boolean => s.wonAt !== null;
+/**
+ * Has this game been won? The one gate on hex's win splash.
+ *
+ * It used to be `wonAt`: a PROCTOR's press, because the code word left the game
+ * on a phone and came back as four humans reading it out, so the win was
+ * witnessed rather than scored. With one player and nobody to read it to, the
+ * honest translation is the neighbouring fact this has always sat next to —
+ * the wall is READABLE. Reaching that IS the win now, and `setWon` is gone.
+ */
+export const hexWon = (s: { legibleAt: number | null }): boolean => s.legibleAt !== null;
+
+/**
+ * The full snapshot the client renders from. One per tick (~4Hz) and after
+ * every intent; the client extrapolates income between them with the same
+ * shared rules, so the counter stays smooth.
+ */
+export interface HexSnapshot extends HexSimState {
+  /** The clock at send. It was the SERVER's, and the name is kept because
+   * every consumer already syncs its own timeline to it — there is just one
+   * clock now, so the offset it produces is zero. */
+  serverTime: number;
+  /** 0..1, how far along the run is. */
+  progress: number;
+  /** Mice/second the bank is actually accruing (base rate x dev speed) —
+   * stamped here so nothing else re-runs the economy fold to draw a rate. */
+  cps: number;
+}
+
+/** Everything the player can ask for. Intents only: the sim decides. */
+export type HexClientMsg =
+  | { type: "pets"; count: number }
+  | { type: "buyBuilding"; id: string }
+  | { type: "buyUpgrade"; key: string }
+  | { type: "catchGold"; id: number }
+  /** Start over. Was proctor-only; it is the player's own button now. */
+  | { type: "reset" };
 
 export class HexSim {
   state: HexSimState;
@@ -149,7 +175,6 @@ export class HexSim {
       gold: null,
       nightAt: null,
       legibleAt: null,
-      wonAt: null,
       wallBase: 0,
       wallAt: null,
       wallFrom: 0,
@@ -176,7 +201,6 @@ export class HexSim {
       legibleAt: s.legibleAt,
       zoomUntil: s.zoomUntil,
       goldSeq: this.goldSeq,
-      wonAt: s.wonAt,
       wallBase: s.wallBase,
       wallAt: s.wallAt,
       wallFrom: s.wallFrom,
@@ -210,7 +234,6 @@ export class HexSim {
       gold: null,
       nightAt: p.nightAt,
       legibleAt: p.legibleAt,
-      wonAt: p.wonAt ?? null,
       wallBase: p.wallBase ?? 0,
       wallAt: p.wallAt ?? p.nightAt,
       wallFrom: 0,
@@ -239,14 +262,6 @@ export class HexSim {
     }
   }
 
-  /** The proctor's win mark. Proctor-only at the transport. A TOGGLE, not a
-   * latch: four team boxes side by side make a mis-press realistic, and undoing
-   * one must not reset the team. Re-marking a won room keeps the original
-   * timestamp. */
-  setWon(won: boolean, now: number): void {
-    this.state.wonAt = won ? (this.state.wonAt ?? now) : null;
-  }
-
   reset(now: number): void {
     const runId = this.state.runId + 1;
     this.state = {
@@ -257,7 +272,6 @@ export class HexSim {
       gold: null,
       nightAt: null,
       legibleAt: null,
-      wonAt: null,
       wallBase: 0,
       wallAt: null,
       wallFrom: 0,
@@ -484,23 +498,19 @@ export class HexSim {
     return true;
   }
 
-  /** Assemble the wire snapshot. The ONE place this happens — the room server
-   * and the ?debug mode both call it, so derived fields (progress, cps) and the
-   * `codeword` gate cannot drift between them.
+  /** Assemble the snapshot. The ONE place this happens, so derived fields
+   * (progress, cps) cannot drift from the state they are derived from.
    *
-   * `codeword` is the PROCTOR's readout, not the players': it answers "is this
-   * team's wall legible yet" ("codeword locked" -> the word, in TeamGame.tsx).
-   * The player-facing win screen does NOT read it — it shows HEX_CODEWORD flat,
-   * because a screen that only exists after the win has nothing to gate on. */
-  snapshot(now: number, players: PlayerInfo[], taps: TapEvent[] = []): HexSnapshot {
+   * `codeword` is gone with the proctor: it was that dashboard's readout of
+   * "is this team's wall legible yet". The player's win screen never read it —
+   * it shows HEX_CODEWORD flat, because a screen that only exists after the
+   * win has nothing to gate on. */
+  snapshot(now: number): HexSnapshot {
     return {
       ...this.state,
-      players,
-      taps,
       serverTime: now,
       progress: this.progress(),
       cps: this.baseCps() * this.state.speed,
-      codeword: this.state.legibleAt ? HEX_CODEWORD : null,
     };
   }
 

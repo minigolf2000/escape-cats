@@ -30,10 +30,10 @@ import { makeRun, stepRun, snapBand, SUB, RUN_MAX, initLevel, encodeLevel, decod
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DRAFTS = join(HERE, "draft");
 /**
- * The ONE origin (CLAUDE.md, "One origin"). A link printed against a retired
+ * Goomba's own site (CLAUDE.md, "TWO SITES"). A link printed against a retired
  * host does not fail — it 404s at Vercel's edge, looking like a broken level.
  */
-const ORIGIN = "https://escape-cats.vercel.app";
+const ORIGIN = "https://g00.mba";
 
 const argv = process.argv.slice(2);
 let draftName = null;
@@ -275,8 +275,8 @@ switch (cmd) {
     const hash = encodeLevel(L);
     if (!decodeLevel(hash)) die("the level encoded to something the codec will not read back");
     const pts = L.terrain.reduce((n, p) => n + p.length, 0);
-    console.log(`${ORIGIN}/g00mBa/#${hash}`);
-    console.log(`http://localhost:5178/g00mBa/#${hash}`);
+    console.log(`${ORIGIN}/#${hash}`);
+    console.log(`http://localhost:5178/#${hash}`);
     console.log(`
   "${L.name}" — ${L.terrain.length} polylines / ${pts} points, ` +
       `${(L.pops || []).length} poppers, ${hash.length} chars

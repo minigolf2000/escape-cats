@@ -18,7 +18,7 @@
 //   page, every time the power user pastes, deletes or reorders the overlay.
 
 import { GoombaSim } from "@escape-cats/shared";
-import { transport, PLAYER_ID } from "./transport";
+import { PLAYER_ID, transport } from "./transport";
 import {
   completedNow,
   composeLibrary,
@@ -67,7 +67,7 @@ export function startBackend(opts) {
 
   const emit = () => {
     const now = Date.now();
-    const snap = sim.snapshot(now, [{ id: PLAYER_ID, name: "you", connected: true }]);
+    const snap = sim.snapshot(now);
     // Persist on the way out, so a tab closed on the win screen keeps the win.
     saveProgress(snap.completed, now);
     saveState(sim.persisted(now));

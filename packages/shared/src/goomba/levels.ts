@@ -1,9 +1,9 @@
-// Goomba Glider level types + physics constants — the ONLY copy. The client
-// animates a run with the same sim the server scored it with, so a constant
-// that differed would show as the cat teleporting at the finish line.
+// Goomba Glider level types + physics constants — the ONLY copy. A run is
+// animated with the same sim that scored it, so a constant that differed would
+// show as the cat teleporting at the finish line.
 //
-// There are no levels here: a level is a Figma frame, and an event's pack lives
-// in its lobby DO. See tools/goomba/DESIGNING.md.
+// There are no levels HERE: a level's source is a Figma frame, and the list the
+// game ships is `levels.data.ts`. See tools/goomba/DESIGNING.md.
 
 export const G = 140; // gravity, units/s^2
 export const R = 2.2; // Goomba's collision radius

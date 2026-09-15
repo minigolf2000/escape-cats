@@ -27,27 +27,52 @@ Figma frame, not code — see below).
 npm run dev            # server :1999, hex :5173, proctor :5175, lobby :5176, chat :5177, goomba :5178
 npm run typecheck      # all workspaces
 node tools/names.mjs   # what a name may be
-npm run build:vercel   # build + assemble + check:routing + check:cursors + check:visibility
+npm run build:vercel   # build + assemble + the four build checks
+npm run test:goomba    # codec + progress identity + the shipped list
 cd tools/goomba && node test-codec.mjs        # save format
-cd tools/goomba && node bands.mjs             # room band rule
-cd tools/goomba && node seed.mjs --pull       # what an event is running
+cd tools/goomba && node test-library.mjs      # progress across a changed list
+cd tools/goomba && node levels.mjs            # what the game ships
+cd tools/goomba && node bands.mjs             # band rule
+cd tools/goomba && node seed.mjs --pull       # what an event is running (HEX-ERA)
 cd tools/goomba/figma && node test-*.mjs      # the Figma readers
 ```
 
-Testing a real room: `/proctor`, drag yourself onto a team, open the game with
-`?debug`. No server: hex `?debug&speed=N`, goomba `?solo`.
+Goomba is SINGLE PLAYER and serverless: open it and play. `?debug` or `\` opens
+the levels grid early. Hex is still the old multiplayer client — testing a real
+hex room is `/proctor`, drag yourself onto a team, open with `?debug`; no
+server, `?debug&speed=N`.
+
+**The pivot is half done.** Goomba no longer talks to the Worker; hex, the
+lobby, chat and the proctor still do, and `server/` still ships all four Durable
+Objects. `seed.mjs` only makes sense until the lobby DO goes — and the
+production pack has to be pulled out of it (`seed.mjs --pull`) and committed to
+`levels.data.ts` BEFORE that happens, or the event's levels are gone.
 
 ## Goomba levels (the most common task)
 
 Start at [`tools/goomba/DESIGNING.md`](./tools/goomba/DESIGNING.md). Draw in
-Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
+Figma, Ctrl+V into the game, play it, export, commit.
 
-- **No level lives in this repo and nothing grades one.** A level is a Figma
-  frame; an event's levels are links in its lobby pack. The simulation bench and
-  its 4-band gate are deleted on purpose — don't rebuild them, don't put a
-  verdict on a level card, don't write "must pass" into a doc.
-- **A paste is live on every phone a second later.** Point a second thread at its
-  own event rather than editing over a party in progress.
+- **The shipped list lives in `packages/shared/src/goomba/levels.data.ts`**, one
+  `{ id, name, hash }` row per level. This REPLACED "no level lives in this
+  repo": that rule described a pack that was an event's live state in a lobby
+  Durable Object, and there is no event and no lobby. `name` is a readable copy
+  of a name that really lives inside `hash`; `npm run check:levels` fails if the
+  two drift, or if an `id` is empty or duplicated.
+- **Nothing grades a level.** Still true and not negotiable. The simulation
+  bench and its 4-band gate are deleted on purpose — don't rebuild them, don't
+  put a verdict on a level card, don't write "must pass" into a doc.
+- **A paste is LOCAL now.** It lands in this browser's overlay (`library.js`),
+  after the shipped levels, visible to nobody else. `export` in the grid copies
+  the overlay as `levels.data.ts` rows; that copy-paste and its review are the
+  whole publishing pipeline, and they are deliberately a human's job.
+- **Progress is keyed by a level's `id`, never its index** (`goomba/library.ts`,
+  `test-library.mjs`). Reorder, rename or retune-and-re-paste and a cleared
+  level stays cleared; change the `id` and it un-clears. `GoombaSim.reconcile`
+  still re-fits `completed` BY INDEX and still should — so the id projection is
+  written BEFORE reconcile runs (`backend.js`, `applyLibrary`). An id in the
+  save that is not in the list is left alone, which is what makes deleting a
+  level and pasting it back a no-op.
 - **Figma file `vRN6Q44ReIaESP5wv8M2dI`: Levels page `47:2`, Components `45:55`,
   Scratchpad `0:1`.** `get_metadata` with no nodeId lists only `Components` —
   go straight to `47:2`. **Never take a position from `get_metadata`**: it gives
@@ -57,8 +82,10 @@ Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
 - **The selector is the editor; `\` is only the door.** Editing controls depend
   on the SURFACE (`editorOn` in `state.js`, read live): a laptop always has ⌫ and
   drag, a phone never does. Ctrl+V lands on what you were looking at; only an
-  empty pack opens the grid. Delete, and a paste whose name differs, confirm on
-  the browser's own `confirm()`; a matching name goes straight through.
+  empty list opens the grid. Delete, and a paste whose name differs, confirm on
+  the browser's own `confirm()`; a matching name goes straight through. ⌫, drag
+  and paste-over act on the OVERLAY only — a shipped level has no ⌫, because it
+  is source and the way to change it is a commit.
 - **`stitch.js` welds Figma's one-Line-per-segment terrain into polylines**
   (`WELD` 2.0 u, under the 4.4 u wedge rule) and snaps loose ends onto walls
   (T-junctions). Terrain must be a Line, Rectangle or Ellipse; a pen path is
@@ -74,15 +101,17 @@ Figma, Ctrl+V into the game, play it with `?solo` and then with four people.
   never forked.** A new field rides at the TAIL behind a flag bit. Anything that
   moves an existing byte costs a format version, and the Worker ships first.
   `test-codec.mjs` holds a frozen link per version.
-- **Four bands for the ROOM, no rule about whose.** `bands.mjs` tests that. A band
-  wears the TEAM colour; `PARTY_COLORS` is confetti and bunting only.
-- **A level's number is its pack index + 1**, computed at display (`levelLabel`).
+- **Four bands a level, no rule about whose.** `bands.mjs` tests that.
+  `PARTY_COLORS` is confetti and bunting only; a band wears the one band colour
+  (`bandInk`), which used to be the team's.
+- **A level's number is its list index + 1**, computed at display (`levelLabel`).
   Don't type a number into a name.
-- **The pack can change under a live room.** `GoombaSim.reconcile` keeps progress
-  by index, not identity: deleting a level shifts every flag after it.
+- **The list can change under a live page** — the overlay is edited while you
+  play. `reconcile` is still needed for exactly that.
 - **A level whose numbers are still being swept lives in `tools/goomba/draft/`**
   (`P` + `buildLevel(P)`, driven by `draft.mjs run|from|sweep|audit|card|link`).
-  `link` prints a `?solo#hash` URL; that is the verdict. Nothing there grades.
+  `link` prints a `#hash` URL; that is the verdict. Nothing there grades. A
+  `#hash` level is SCRATCH: appended to the list, no id, never saved.
 
 ### Goomba client invariants
 

@@ -15,7 +15,7 @@
 // is over and the screen the party is reading cannot be dismissed from a phone.
 
 import { BAND_MIN, BAND_MAX, MAX_BANDS, snapBand, bandPoints } from "@escape-cats/shared";
-import { transport } from "./net";
+import { transport } from "./transport";
 import { cv } from "./dom";
 import { S, L, bands, bandsOut, iMayPlace, toast } from "./state";
 import { W, H, cam, ANCHOR_TTL } from "./render";

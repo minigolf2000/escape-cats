@@ -46,6 +46,8 @@ export const BUMP_R = 5.5,
   BUMP_E = 1.18,
   BUMP_MIN = 58; // piñata bumper: pinball-style radial kick
 
+import type { LevelSource } from "./library";
+
 export type Pt = [number, number];
 
 export interface GoombaPopper {
@@ -100,6 +102,17 @@ export interface GoombaLevel {
   /** Derived by initLevel — the ink, its margins, and `frame` if there is one. */
   bounds?: { x0: number; y0: number; x1: number; y1: number };
   startAngle?: number;
+  /** Stable identity, from the row this level was loaded from — what SAVED
+   * PROGRESS is keyed on (`library.ts`). Absent only for the `#hash` level,
+   * which is a scratch level and is deliberately never remembered. */
+  id?: string;
+  /** Which layer this came from: the shipped list, the power user's local
+   * overlay, or the URL hash. */
+  source?: LevelSource;
+  /** "Not a level the game shipped" — the selector draws a dashed card. Set
+   * for both editable layers; predates `source` and is kept because it is a
+   * PRESENTATION flag and the card has no business asking which layer. */
+  pasted?: boolean;
 }
 
 /** A level with every optional collection and derived field filled in. */
@@ -186,9 +199,10 @@ export function initLevel(L: GoombaLevel): GoombaLevelInit {
 
 /**
  * The levels the game is playing right now — the ONE array every rule reads.
- * Starts EMPTY (the pack arrives from the lobby DO) and is MUTATED in place,
- * never rebound: `adoptHashLevel` pushes onto it and every module holds this
- * binding.
+ * Starts EMPTY and is MUTATED in place, never rebound: every module holds this
+ * binding. The client fills it once at boot by composing the three layers
+ * (shipped + local overlay + `#hash`) and again on every overlay edit; see
+ * `library.ts` and the client's `library.js`.
  */
 export const GOOMBA_LEVELS: GoombaLevelInit[] = [];
 

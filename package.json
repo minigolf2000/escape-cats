@@ -17,13 +17,15 @@
     "dev:lobby": "npm run dev -w apps/lobby",
     "dev:chat": "npm run dev -w apps/chat",
     "build": "npm run build --workspaces --if-present",
-    "build:vercel": "npm run build --workspaces --if-present && node scripts/assemble.mjs && node scripts/check-routing.mjs && node scripts/check-cursors.mjs && node scripts/check-visibility.mjs",
+    "build:vercel": "npm run build --workspaces --if-present && node scripts/assemble.mjs && node scripts/check-routing.mjs && node scripts/check-cursors.mjs && node scripts/check-visibility.mjs && node tools/goomba/levels.mjs --check",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "check:routing": "node scripts/check-routing.mjs",
     "check:cursors": "node scripts/check-cursors.mjs",
     "check:visibility": "node scripts/check-visibility.mjs",
     "cf:login": "npm exec -w server -- wrangler login",
-    "deploy:server": "npm run deploy -w server"
+    "deploy:server": "npm run deploy -w server",
+    "check:levels": "node tools/goomba/levels.mjs --check",
+    "test:goomba": "node tools/goomba/test-codec.mjs && node tools/goomba/test-library.mjs && node tools/goomba/levels.mjs --check"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",

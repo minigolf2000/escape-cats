@@ -8,9 +8,10 @@ them onto a team, and play together for ~10 minutes.
   buildings and upgrades. Petting Hex mints mice; buying the twist puts her to
   sleep, and the night wall's drifting dream-mice gradually ink the code word,
   identically on every phone.
-- **Goomba Glider** — a line rider where the track is silly bandz. The room
-  shares 4 elastic bands a level. Anyone hits PLAY and every phone watches the
-  same deterministic ride: collect every watering can, then land on the plant.
+- **Goomba Glider** — a line rider where the track is silly bandz. Four elastic
+  bands a level; hit PLAY and watch the deterministic ride: collect every
+  watering can, then land on the plant. **Single player and serverless** — the
+  shared sim runs in the tab and localStorage is the save.
 
 ## Layout
 
@@ -38,9 +39,10 @@ scripts/             assemble.mjs + check-routing/cursors/visibility, run by bui
   phones and `?debug` all import it. Game logic: `hex/sim.ts`; the room server is
   a thin websocket wrapper around it.
 - **Goomba physics and level types** — `goomba/physics.ts`, `goomba/levels.ts`
-  (the type and `initLevel`); the room state machine is `goomba/sim.ts`; the
-  save format is `goomba/codec.ts`. **There are no levels in this repo** — a
-  level is a Figma frame and an event's levels are links in its lobby pack.
+  (the type and `initLevel`); the state machine is `goomba/sim.ts`; the save
+  format is `goomba/codec.ts`. **The levels the game ships are
+  `goomba/levels.data.ts`**, one `{ id, name, hash }` row each; a level's source
+  is still its Figma frame, and a row is what a frame becomes when it ships.
   Start at [`tools/goomba/DESIGNING.md`](./tools/goomba/DESIGNING.md).
 - **Art & rendering** — client-only, one module per system. Hex:
   `src/{wall,cat,art,fx,shop,phase}.js`. Goomba: `src/{render,selector,sheet}.js`.

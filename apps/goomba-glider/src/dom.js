@@ -5,8 +5,6 @@ const $ = (id) => document.getElementById(id);
 export const cv = $("c");
 export const hudEl = $("hud");
 export const hintEl = $("hint");
-// The roster: who is in this room, one name per line. See #team in styles.css.
-export const teamEl = $("team");
 export const dotsEl = $("dots");
 export const invEl = $("inv");
 export const playBtn = $("play");
@@ -15,14 +13,15 @@ export const playBtn = $("play");
 export const bandbarEl = $("bandbar");
 export const toastEl = $("toast");
 export const labEl = $("lab");
+// The level editor's tools, top-right of the grid (#labtools in styles.css).
+export const labToolsEl = $("labtools");
+export const exportBtn = $("export");
 // The top bar itself, measured (never copied) for where the bunting hangs from.
 export const topEl = $("top");
-export const connEl = $("conn");
 
-// The how-to-play sheet, which is also the join gate.
+// The how-to-play sheet. It used to be the join gate as well, and held the
+// connection lines; with nothing to join it is only the sheet.
 export const gateEl = $("gate");
-export const gateStatusEl = $("gateStatus");
-export const gateErrEl = $("gateErr");
 export const helpEl = $("help");
 export const scGoalEl = $("scGoal");
 export const scTitleEl = $("scTitle");

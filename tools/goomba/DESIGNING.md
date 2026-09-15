@@ -5,11 +5,18 @@ contract and the scale are in [`figma/README.md`](./figma/README.md). `\` in
 Goomba Glider opens the levels grid; Ctrl+V lands a copied frame on whatever
 you were looking at.
 
-No level lives in this repo and **nothing here grades one**. A level's source is
-its Figma frame; an event plays a pack of links in its lobby; whether it is good
-is answered by four people playing it. The numbers below were measured on a
-simulation bench that is deleted — treat them as findings about the physics,
-not as claims about your board.
+**Nothing here grades one.** A level's source is its Figma frame; whether it is
+good is answered by playing it. The numbers below were measured on a simulation
+bench that is deleted — treat them as findings about the physics, not as claims
+about your board.
+
+The shipped list DOES live in this repo now, in
+`packages/shared/src/goomba/levels.data.ts`, one `{ id, name, hash }` row per
+level. That is a change: a pack used to be an event's live state in a lobby
+Durable Object, and a paste was on every phone a second later. There is no
+event and no lobby — a paste lands in YOUR overlay, on YOUR laptop, and reaches
+players when you export it and commit it. Give a row an `id` you are happy to
+keep: player progress is keyed on it.
 
 ## The loop
 
@@ -19,22 +26,23 @@ not as claims about your board.
    forced re-launch that erases state), `cushions`, `bumpers`. The world is
    portrait-leaning (~110 × 200), y is DOWN, and **the frame's own size is the
    world** — padding you draw is room you gave the players.
-2. **Play it yourself with `?solo`** (the grid on the in-page sim, no server).
-   Ctrl+V your frame onto the level in front of you; a paste whose name matches
-   redraws without a question. Scriptable via `window.__goomba`: `state()`,
-   `send({type:'place',...})`, `send({type:'play'})`, `send({type:'goto',level:i})`.
+2. **Ctrl+V it into the game** on a laptop — `\` opens the grid. It lands in
+   your local overlay, after the shipped levels, and is playable immediately
+   with nothing deployed and nobody else affected. A paste whose name matches
+   what it lands on redraws without a question. Scriptable via `window.__goomba`:
+   `state()`, `send({type:'place',...})`, `send({type:'play'})`,
+   `send({type:'goto',level:i})`.
 3. **A level whose geometry is COMPUTED** (a ring, an arc, a lattice) is easier
    to keep in `draft/<name>.mjs` — a params object `P` and `buildLevel(P)` —
    driven by `draft.mjs`: `run [bands]` (the route, in polar terms when the
    draft names a centre), `from <x,y,vx,vy>` (drop her mid-level to judge one
    stage), `sweep <key> <lo> <hi>`, `audit` (the draft's own geometry
    invariants — facts a run cannot show, like two popper rings being separate
-   rooms), `card` (an SVG ride card), `link` (a `?solo#hash` URL, which is the
+   rooms), `card` (an SVG ride card), `link` (a `#hash` URL, which is the
    verdict). Figma still decides the shape; this is for the numbers under it.
-4. **Then play it with four people.** `/proctor`, assign yourself, open with
-   `?debug`; tapping a card jumps the whole room. Watch for the two failures one
-   player never sees: nobody having anything to do, and everybody talking over
-   one placement.
+4. **Then ship it.** `export` in the grid copies your whole overlay as
+   `levels.data.ts` rows; paste them in, check the `id` on each one, and commit.
+   Review is the step that replaced "it was live before you looked at it".
 5. A level carries a `name` and no other prose. Make the title earn its place.
 
 ## Physics cheat sheet (world units)
@@ -119,7 +127,7 @@ forces one band per stage. Rules:
 aimed in alternation, three poppers a lane 24 u apart, lanes interlocked half a
 step, no terrain at all. Bands cannot help her travel; the only verb is to WALL
 a lane so she rebounds at 0.32, drifts back while falling, and lands in the lane
-below. Each lane needs its own wall, which reliably gives four people four jobs.
+below. Each lane needs its own wall, so the level is four separate decisions.
 Wall the END of a lane, past its last popper, and let the half-step stagger aim
 the drop; a wall before the lane's last popper drops her through a gap. Ship the
 wall LONG: ±3 u of slop on a 26 u wall tilts it 13° and the rebound by 26°; on a

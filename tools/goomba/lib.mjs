@@ -51,6 +51,7 @@ export const {
   rowsToLevels,
   setGoombaLevels,
   hasBonusLevels,
+  preCreditsCount,
   goombaCleared,
   BAKED_LEVELS,
 } = sim;

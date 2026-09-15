@@ -130,7 +130,11 @@ Figma, Ctrl+V into the game, play it, export, commit.
 ### Goomba client invariants
 
 - **Both top corners are one idiom**: a strip of state that wears a plate and a
-  label when its control is live. `#lab` grows its plate ONCE (on the clear);
+  label when its control is live. `#lab` grows its plate ONCE (on the clear),
+  and on that same beat its dots stop counting only the PRE-CREDITS levels
+  (`preCreditsCount`) and start counting the whole list — before the ending, a
+  dot per bonus level would give it away; a current level past that span still
+  gets its dot, so the row can always say where you are.
   the band plate's box is always reserved and only the ink changes, keyed on the
   EDIT PHASE, never on the band count. The bunting hangs off `#top`'s MEASURED
   bottom edge (`drawBackground` + ResizeObserver); the 24px under it is a

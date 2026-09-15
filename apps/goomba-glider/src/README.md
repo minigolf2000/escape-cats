@@ -51,6 +51,14 @@ paste can never hold the ending up. `tools/goomba/finale.mjs` is that rule.
 The splash is terminal only when there is no bonus section. With one it grows a
 third beat, later than the code word, and a tap opens the grid.
 
+The level dots (top-left) count the PRE-CREDITS run and nothing more until the
+game is cleared — `preCreditsCount()` is that span, and `goombaCleared` is when
+it becomes the whole list, the same latch the plate and the grid's gate ride.
+The dots go by the SIM, not by the debug door: `?debug` and `\` open the grid
+early without letting the corner count the ending out. One exception, so the
+row can always say where you are — a current level past the span gets its dot
+anyway, which is how a `#hash` link boots onto one.
+
 ## Progress
 
 Keyed by a level's **id**, never its index — `goomba/library.ts`. Reorder the

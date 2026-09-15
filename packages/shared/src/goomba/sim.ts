@@ -110,6 +110,27 @@ const isMain = (L: GoombaLevelInit): boolean => L.source === "baked" && L.bonus 
 export const hasBonusLevels = (): boolean => GOOMBA_LEVELS.some((L) => !isMain(L));
 
 /**
+ * How many levels are in the PRE-CREDITS run — the levels the game shows you
+ * before it has said goodbye.
+ *
+ * The main levels are a PREFIX of the list and this counts it: the shipped
+ * rows come first, `bonus` rows are a contiguous tail (`levels.mjs --check`
+ * enforces that), and every layer that is not shipped at all — the local
+ * overlay, a `#hash` link — lands after them. So the first level that is not
+ * `isMain` is where the credits roll, and everything from there on is
+ * post-credits.
+ *
+ * Asked by a UI that must not give the ending away by COUNTING: the level dots
+ * span this until `goombaCleared`, then the whole list. A stray `bonus` row in
+ * the middle of the shipped list would short the count rather than leak the
+ * tail, which is the safe direction to be wrong in.
+ */
+export function preCreditsCount(): number {
+  const i = GOOMBA_LEVELS.findIndex((L) => !isMain(L));
+  return i === -1 ? GOOMBA_LEVELS.length : i;
+}
+
+/**
  * Has the MAIN game been cleared — every level `isMain`?
  *
  * This is what the finale fires on, and it used to be "every level, full

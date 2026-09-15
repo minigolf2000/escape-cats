@@ -9,14 +9,26 @@
      CORS mode, and without it the preload lands in the other pool and the font
      is fetched twice. -->
 <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/baloo2.woff2">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❓</text></svg>">
+<!-- HEX'S FACE. `public/art/hex-day.webp` cropped to the head and laid on
+     --paper (#f4c0c0). The TILE is load-bearing, not decoration: she is nearly
+     black, so a transparent cutout would be a cat-shaped hole on a dark tab
+     strip — the paper carries her on both. ONE size is enough; browsers
+     resample this to the 16px they actually draw and it lands the same as a
+     purpose-rendered 16, so there is no icon set to keep in step.
+     THE CROP, to redo it if the cat art is ever replaced: hex-day.webp is
+     828x652 with her opaque pixels at 60,3 -> 771,632; scale that 712px width
+     to the full width of the tile, put the ear tips 4% down, ship 180x180.
+     Whiskers and jowls bleed off the edges on purpose — contained, she reads
+     as a smudge at 16px. -->
+<link rel="icon" href="/favicon.png" sizes="any">
 <!--
-  Hex Clicker — the multiplayer client's markup. A Cookie Clicker homage: pet
-  Hex the cat, collect MICE, spend them on buildings and upgrades. The room
-  server owns the economy (packages/shared/src/hex/); src/README.md is the
-  module map. THE TWIST: buying Catnap Hypnalysis flips the game into the NIGHT
-  PHASE, where the reveal wall inks TO THE MOON (src/wall.js). Hex has no win
-  screen of its own — the win is the proctor's press (see the root README).
+  Hex Clicker — the player client's markup. A Cookie Clicker homage: pet Hex
+  the cat, collect MICE, spend them on buildings and upgrades. The economy is
+  the shared sim (packages/shared/src/hex/), run in this tab by backend.js;
+  src/README.md is the module map. THE TWIST: buying Catnap Hypnalysis flips the
+  game into the NIGHT PHASE, where the reveal wall inks TO THE MOON
+  (src/wall.js). The WIN is that wall going legible (`hexWon`), which raises
+  #splash; #wonPill is the way back (see the root README).
 -->
 <body class="booting">
 

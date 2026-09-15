@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -46 55 55" width="32" height="32">
+  <title>Goomba — Goomba Glider</title>
+  <rect x="-12" y="-46" width="55" height="55" fill="#150a2a"/>
+    <rect id="deck" x="-42" y="15.84" width="84" height="8.5" rx="5" fill="#8f6cf0"/>
+      <rect id="deck-shine" x="-34" y="17.34" width="24"
+            height="2.5" rx="1.5" fill="#ffffff" fill-opacity="0.35"/>
+      <path id="tail" d="M -18,3 Q -36,-4 -39,-19"
+            fill="none" stroke="#e8853d" stroke-width="10" stroke-linecap="round"/>
+      <ellipse id="body" cx="-3" cy="-4" rx="23" ry="19" fill="#e8853d"/>
+      <path id="stripes" d="M -16,-17 L -13,-9 M -6,-20 L -4,-11"
+            fill="none" stroke="#c96a24" stroke-width="3.2"/>
+      <circle id="head" cx="17" cy="-16" r="15" fill="#e8853d"/>
+      <path id="ears" d="M 7,-26 L 9,-39 L 17,-29 Z M 21,-30 L 27,-40 L 30,-27 Z"
+            fill="#e8853d"/>
+      <path id="ear-crease" d="M 10,-34 L 11.5,-29.5"
+            fill="none" stroke="#c96a24" stroke-width="2.8"/>
+      <path id="scarf" d="M 11,-6 Q 0,-2 -16,-1"
+            fill="none" stroke="#ff5db1" stroke-width="5.5" stroke-linecap="round"/>
+      <g id="face">
+        <circle cx="14.5" cy="-18" r="1.9" fill="#4d3319"/>
+        <circle cx="24.5" cy="-18" r="1.9" fill="#4d3319"/>
+        <path id="mouth" d="M 17.5,-13.5 L 19.5,-12 L 21.5,-13.5"
+              fill="none" stroke="#4d3319" stroke-width="1.4" stroke-linecap="round"/>
+      </g>
+</svg>

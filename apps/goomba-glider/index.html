@@ -3,7 +3,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Goomba Glider</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❓</text></svg>">
+<!-- GOOMBA HERSELF, framed on her face. GENERATED — `art/export-svg.mjs` writes
+     it off the same layers as the Figma sheet, so don't hand-edit public/
+     favicon.svg: retune her in render.js, re-run the export, commit both. Why
+     her face and not the whole sprite, and why the purple tile, are in the
+     comment over `favicon()` there. An SVG icon and not a raster because every
+     prop in this game is vector to begin with; the ❓ placeholder it replaces
+     was an SVG data URI, so this asks nothing new of a browser. -->
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <canvas id="c"></canvas>
 <div id="rotate">
   <div class="glyph">📱</div>

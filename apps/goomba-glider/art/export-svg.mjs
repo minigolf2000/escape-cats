@@ -116,20 +116,16 @@ ${blades}
 // ---------- the goomba, still (drawGoomba + drawStartPad) ----------
 // Frozen at the pose a level opens on: grounded (crouch = 1), not airborne, not
 // idling, angle 0, facing right — so no bob, no tail flick, no scarf stream.
-// The dashed start pad rides along, because the cat ON her pad is what "start"
-// actually looks like on screen.
+// The dashed start pad rides along with the Figma sheet, because the cat ON her
+// pad is what "start" actually looks like on screen. The favicon below takes
+// the cat without it.
 const R_CAT = 2.2; // her collision radius, from goomba/levels.ts
-function goomba() {
+// Her layers on their own, deck to face, with no pad and no frame around them:
+// the sheet and the favicon are then the SAME cat and cannot drift apart.
+function goombaLayers() {
   const crouch = 1;
   const board = R_CAT * 0.72;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-55 -55 110 110" width="110" height="110">
-  <title>Goomba on her start pad — Goomba Glider</title>
-  <g id="start">
-    <circle id="pad" cx="0" cy="${u(0.5)}" r="${u(R_CAT + 1.6)}" fill="none"
-            stroke="#57e6c9" stroke-opacity="0.5" stroke-width="${u(0.4)}"
-            stroke-dasharray="${u(1.2)} ${u(1.2)}"/>
-    <g id="goomba">
-${rrect(-4.2, board, 8.4, 0.85, 0.5, "#8f6cf0", "deck")}
+  return `${rrect(-4.2, board, 8.4, 0.85, 0.5, "#8f6cf0", "deck")}
       <rect id="deck-shine" x="${u(-3.4)}" y="${u(board + 0.15)}" width="${u(2.4)}"
             height="${u(0.25)}" rx="${u(0.15)}" fill="#ffffff" fill-opacity="0.35"/>
       <path id="tail" d="M ${u(-1.8)},${u(0.3)} Q ${u(-3.6)},${u(-0.4)} ${u(-3.9)},${u(-1.9)}"
@@ -149,9 +145,45 @@ ${rrect(-4.2, board, 8.4, 0.85, 0.5, "#8f6cf0", "deck")}
         <circle cx="${u(2.45)}" cy="${u(-1.8)}" r="${u(0.19)}" fill="#4d3319"/>
         <path id="mouth" d="M ${u(1.75)},${u(-1.35)} L ${u(1.95)},${u(-1.2)} L ${u(2.15)},${u(-1.35)}"
               fill="none" stroke="#4d3319" stroke-width="${u(0.14)}" stroke-linecap="round"/>
-      </g>
+      </g>`;
+}
+
+function goomba() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-55 -55 110 110" width="110" height="110">
+  <title>Goomba on her start pad — Goomba Glider</title>
+  <g id="start">
+    <circle id="pad" cx="0" cy="${u(0.5)}" r="${u(R_CAT + 1.6)}" fill="none"
+            stroke="#57e6c9" stroke-opacity="0.5" stroke-width="${u(0.4)}"
+            stroke-dasharray="${u(1.2)} ${u(1.2)}"/>
+    <g id="goomba">
+${goombaLayers()}
     </g>
   </g>
+</svg>
+`;
+}
+
+// ---------- the favicon (the ONE export the SITE loads) ----------
+// ../public/favicon.svg, the tab icon in index.html. Everything else in this
+// folder is for Figma and the game loads none of it; this one ships, which is
+// why it is generated HERE — off goombaLayers(), so retuning the art in
+// render.js and re-running this export carries the tab icon along instead of
+// leaving a third hand-drawn copy of the cat to rot.
+// FRAMED ON HER FACE, not on the whole sprite. She is a wide lozenge grounded
+// on her deck, and at the 16px a tab actually draws, the whole sprite collapses
+// into an orange smear with a pink stripe — the head is a quarter of its width.
+// Cropped to head, ears, eyes and the near end of the scarf, she still reads as
+// a cat at 16. The viewBox does the cropping: the deck and tail are still in
+// the markup, just outside it, so there is nothing here to keep in step.
+// The #150a2a tile is the page's own ground (styles.css) and is what keeps her
+// off a bare tab strip in either browser theme.
+const ICON = { x: -1.2, y: -4.6, s: 5.5 }; // world units, like everything else
+function favicon() {
+  const box = `${u(ICON.x)} ${u(ICON.y)} ${u(ICON.s)} ${u(ICON.s)}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box}" width="32" height="32">
+  <title>Goomba — Goomba Glider</title>
+  <rect x="${u(ICON.x)}" y="${u(ICON.y)}" width="${u(ICON.s)}" height="${u(ICON.s)}" fill="#150a2a"/>
+${goombaLayers()}
 </svg>
 `;
 }
@@ -246,10 +278,12 @@ await writeFile(new URL("watering-can.svg", import.meta.url), wateringCan());
 await writeFile(new URL("spider-plant-watered.svg", import.meta.url), spiderPlant(true));
 await writeFile(new URL("spider-plant-thirsty.svg", import.meta.url), spiderPlant(false));
 await writeFile(new URL("goomba.svg", import.meta.url), goomba());
+await writeFile(new URL("../public/favicon.svg", import.meta.url), favicon());
 await writeFile(new URL("party-popper.svg", import.meta.url), popper());
 await writeFile(new URL("bumper.svg", import.meta.url), bumper());
 await writeFile(new URL("cushion.svg", import.meta.url), cushion());
 console.log(
   "wrote watering-can.svg, spider-plant-watered.svg, spider-plant-thirsty.svg,\n" +
-  "      goomba.svg, party-popper.svg, bumper.svg, cushion.svg",
+  "      goomba.svg, party-popper.svg, bumper.svg, cushion.svg,\n" +
+  "      ../public/favicon.svg",
 );

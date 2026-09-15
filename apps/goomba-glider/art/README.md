@@ -9,6 +9,12 @@ on canvas and that is the only copy the game runs. `export-svg.mjs` mirrors that
 canvas geometry by hand, so the two can drift: **retune the art in `render.js`,
 then re-run the export and commit the result.**
 
+**One exception, and it does not live here: `../public/favicon.svg`**, the tab
+icon, which the same run writes out of the same layers as `goomba.svg` — cropped
+to her face by its viewBox, on the page's own `#150a2a`. It is generated for the
+reason everything else here is: so the cat in the tab cannot become a third
+hand-drawn copy that drifts. Don't edit it in place; re-run the export.
+
 ```sh
 cd apps/goomba-glider/art && node export-svg.mjs
 ```

@@ -83,7 +83,7 @@ for (const ev of ["gesturestart", "gesturechange", "gestureend"]) {
 // screen — nothing pans, so every band point must be reachable by a finger.
 const RZ = 1.9;
 
-let shownPhase = "edit", shownLevel = -1, shownRunId = 0;
+let shownPhase = "edit", shownLevel = -1;
 // tGlobal when the game landed on the finale — the splash animates off ITS
 // own clock, so a reload onto it sees the whole arrival
 // rather than the middle of it. -1 until the splash is up.
@@ -118,7 +118,6 @@ function onPack() {
 function onSnapshot(s) {
   const first = !S.inited;
   const levelChanged = s.level !== shownLevel;
-  const wasReset = s.runId !== shownRunId;
   // Crossing into or out of the splash is fresh footing: a `goto` out of it
   // can land on the SAME level (the finale), which no other signal notices.
   const splashEdge = (s.phase === "splash") !== (shownPhase === "splash");
@@ -142,7 +141,7 @@ function onSnapshot(s) {
   }
   if (s.phase !== "edit") resetInput(); // a run kills any half-drawn band
 
-  if (first || wasReset || levelChanged || splashEdge) {
+  if (first || levelChanged || splashEdge) {
     // Fresh footing: recenter the camera, drop run debris.
     const b = L().bounds;
     Object.assign(cam, clampCam((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, fitScale(L()), b));
@@ -150,12 +149,11 @@ function onSnapshot(s) {
     anim = null; winFx = false; parts = []; confetti = [];
     lockT = -9; lockArmed = false;
     cushAnim = L().cushions.map(() => 0); popPrev = null;
-    shownRunId = s.runId; shownLevel = s.level; shownPhase = s.phase;
+    shownLevel = s.level; shownPhase = s.phase;
     // The finale arrives here and only here: `resolve` lands the clearing win
     // straight on the splash, which is a phase edge this branch already owns.
     if (s.phase === "splash") splashAt = tGlobal;
-    if (wasReset && !first) toast("fresh start! 🧽", 1400);
-    else if (levelChanged && !first) toast(levelLabel(s.level, L().name), 1400);
+    if (levelChanged && !first) toast(levelLabel(s.level, L().name), 1400);
     syncHud();
     return;
   }
@@ -178,7 +176,7 @@ function syncHud() {
   // clear" banner: that win is on the splash before it could be read.
   hintEl.textContent = s.phase === "win" ? "LEVEL CLEAR! 🎉" : "";
 
-  // Room state, re-read every snapshot (a reset takes the selector back).
+  // Room state, re-read every snapshot (a list edit can take the selector back).
   hudEl.classList.toggle("cleared", levelSelect());
   hudEl.classList.toggle("splash", s.phase === "splash");
   // The band plate's CHROME rides the PHASE, never the band count — keyed on
@@ -364,7 +362,9 @@ const lockFlare = (dt) =>
 function syncAnim() {
   const s = S.snap;
   if (!s || s.runAt === null || (s.phase !== "run" && s.phase !== "win")) return null;
-  const key = `${s.runId}:${s.level}:${s.runAt}`;
+  // `runAt` is the run's start stamp, so level + stamp name a run uniquely —
+  // a replay of the same level is a new `play` and a new stamp.
+  const key = `${s.level}:${s.runAt}`;
   if (!anim || anim.key !== key) {
     anim = { key, st: makeRun(L(), s.bands) };
     popPrev = anim.st.popT.slice();

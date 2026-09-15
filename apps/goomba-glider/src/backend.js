@@ -22,7 +22,6 @@ import { PLAYER_ID, transport } from "./transport";
 import {
   completedNow,
   composeLibrary,
-  forgetProgress,
   loadProgress,
   loadState,
   overlayDelete,
@@ -126,13 +125,6 @@ export function startBackend(opts) {
         break;
       case "packMove":
         edited(overlayMove(msg.from, msg.to), now);
-        break;
-      // START OVER — the old proctor's reset, now the player's own. It forgets
-      // the id-keyed record too, or the next load would hand every clear back.
-      case "reset":
-        forgetProgress();
-        sim.reset(now);
-        applyLibrary(sim, now);
         break;
       default:
         return; // nothing to answer; don't redraw

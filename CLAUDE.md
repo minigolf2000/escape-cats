@@ -156,10 +156,17 @@ Figma, Ctrl+V into the game, play it, export, commit.
   itself — no banner, no NEXT — and it fires ONCE (`finishedAt` is the latch),
   so no post-credits win re-runs it. It is TERMINAL only when there are no
   post-credits levels: with none, nothing takes it back (no tap, no `\`, no
-  paste, no `goto` — the sim refuses it) except `reset` or a list edit that
-  un-clears the game (`reconcile`). With a bonus section behind it, a tap and
-  `\` open the levels grid, which is the door to them — `hasBonusLevels()` is
-  the one question, asked in `sim.goto` (the authority) and `openSelector`
+  paste, no `goto` — the sim refuses it) except a list edit that un-clears the
+  game (`reconcile`). **There is no start-over intent** to be the other way
+  off, and there is not going to be one: Goomba has nothing to start over FROM
+  (no score, no grade, and a clear only ever GRANTS the grid, from which every
+  level is already replayable), so the whole `reset` path — the intent, the sim
+  method, `runId`, `forgetProgress` — is deleted rather than left dormant. A
+  dead intent is a door waiting to be opened by accident. Hex is the opposite
+  case (one linear run, a terminal end, a one-shot twist) and keeps its own.
+  With a bonus section behind it, a tap and `\` open the levels grid, which is
+  the door to them — `hasBonusLevels()` is the one question, asked in
+  `sim.goto` (the authority) and `openSelector`
   (the UI declining to open a grid whose every tap the sim would refuse). A
   paste stays refused either way. A RESTORED game lands where it was saved —
   on the splash if the tab was closed there, else in `edit`: the ending plays

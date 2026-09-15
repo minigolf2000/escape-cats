@@ -59,10 +59,11 @@ const calmMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 export const REDUCED = () => calmMotion.matches;
 
 /**
- * WHO GETS THE LEVEL SELECTOR: a game that has been CLEARED (sim state, so
- * a reset takes it back). `?debug` and
- * `unlocked` (`\`) are local overrides of this one gate — a DOOR, not a mode:
- * never what the selector looks like once open.
+ * WHO GETS THE LEVEL SELECTOR: a game that has been CLEARED (sim state, so a
+ * list edit that un-clears the main game takes it back — `reconcile`; there is
+ * no start-over intent, see `GoombaClientMsg`). `?debug` and `unlocked` (`\`)
+ * are local overrides of this one gate — a DOOR, not a mode: never what the
+ * selector looks like once open.
  */
 export const levelSelect = () =>
   DEBUG || S.unlocked || (S.snap !== null && goombaCleared(S.snap));

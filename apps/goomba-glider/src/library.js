@@ -218,16 +218,3 @@ export function saveProgress(completed, now) {
  * and the other half is the durable one. */
 export const loadState = () => load(STATE_KEY, null);
 export const saveState = (persisted) => save(STATE_KEY, persisted);
-
-/** Forget everything this browser knows: progress, the saved room, and the
- * local overlay's levels stay (they are the power user's drafts, not
- * progress). Wired to the grid's "start over". */
-export function forgetProgress() {
-  progress = freshProgress();
-  save(PROGRESS_KEY, progress);
-  try {
-    localStorage.removeItem(STATE_KEY);
-  } catch {
-    /* nothing to do: a browser that cannot write cannot have saved */
-  }
-}

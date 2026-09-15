@@ -118,11 +118,11 @@ export const completedFor = (levels: GoombaLevel[], p: GoombaProgressV1): boolea
 /**
  * Fold this session's `completed` back into the durable record.
  *
- * Levels IN the list track the sim exactly, in both directions — so "start
- * over" (`GoombaSim.reset`, which blanks `completed`) actually forgets them
- * rather than being undone by the next load. Ids NOT in the list are left
- * alone: that is what makes deleting a level and pasting it back keep its
- * clear, and it is the whole reason progress is keyed by id.
+ * Levels IN the list track the sim exactly, in BOTH directions: one the sim
+ * reports as un-cleared is deleted from the record, not merely left out of it,
+ * so nothing can hand a clear back that the sim has dropped. Ids NOT in the
+ * list are left alone: that is what makes deleting a level and pasting it back
+ * keep its clear, and it is the whole reason progress is keyed by id.
  */
 export function foldProgress(
   p: GoombaProgressV1,

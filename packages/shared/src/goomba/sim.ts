@@ -13,16 +13,16 @@ import { snapBand, scoreRun, type GoombaBand, type RunResult } from "./physics";
 /**
  * `edit` → `run` → (`win` | back to `edit`), plus `splash`: THE FINALE, which
  * the last flag going up lands on directly (`resolve` — the clearing win never
- * passes through `win`, so there is no banner and no NEXT to press). It is
- * TERMINAL: nothing may be placed, played or jumped to from it, and the only
- * ways off are `reset` and a level-list edit that un-clears the game
- * (`reconcile`).
+ * passes through `win`, so there is no banner and no NEXT to press). Nothing
+ * may be placed or played from it, and a `goto` off it is refused unless there
+ * are post-credits levels for the grid to be the door to (`hasBonusLevels`).
+ * With none it is TERMINAL, and the one way off is a level-list edit that
+ * un-clears the game (`reconcile`) — there is no start-over intent to be the
+ * other one, deliberately: see the note under `GoombaClientMsg`.
  */
 export type GoombaPhase = "edit" | "run" | "win" | "splash";
 
 export interface GoombaSimState {
-  /** Bumped on every reset — the client treats a new runId as a fresh boot. */
-  runId: number;
   startedAt: number; // epoch ms of the first intent this run
   level: number;
   phase: GoombaPhase;
@@ -78,9 +78,17 @@ export type GoombaClientMsg =
   /** Paste a level in: `index` null appends a slot, otherwise replaces one. */
   | { type: "packSet"; index: number | null; hash: string }
   | { type: "packMove"; from: number; to: number }
-  | { type: "packDelete"; index: number }
-  /** Start over. Was proctor-only; it is the player's own button now. */
-  | { type: "reset" };
+  | { type: "packDelete"; index: number };
+
+// NO `reset`, deliberately. A start-over was plumbed all the way through for
+// the single-player port and never given a door; the door is not coming.
+// Goomba has nothing to start over FROM — no score, no grade (nothing grades a
+// level), and a clear only ever GRANTS the levels grid, from which every level
+// is already replayable — so a wipe would hand the player nothing back and
+// cost them the grid. Gone rather than left dormant: an intent in this union
+// is by definition something a player can be handed, and a dead one is a door
+// waiting to be opened by accident. Hex is the opposite case — one linear run,
+// a terminal end state, a one-shot twist — and keeps its own.
 
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
@@ -138,7 +146,6 @@ export const goombaCleared = (s: GoombaSimState): boolean => s.finishedAt !== nu
 
 function freshState(now: number): GoombaSimState {
   return {
-    runId: 1,
     startedAt: now,
     level: 0,
     phase: "edit",
@@ -300,11 +307,6 @@ export class GoombaSim {
       const open = s.completed.findIndex((c) => !c);
       if (open >= 0) s.level = open;
     }
-  }
-
-  reset(now: number): void {
-    const runId = this.st.runId + 1;
-    this.st = { ...freshState(now), runId };
   }
 
   snapshot(now: number): GoombaSnapshot {

@@ -64,11 +64,14 @@ Start at [`tools/goomba/DESIGNING.md`](./tools/goomba/DESIGNING.md). Draw in
 Figma, Ctrl+V into the game, play it, export, commit.
 
 - **The shipped list lives in `packages/shared/src/goomba/levels.data.ts`**, one
-  `{ id, name, hash }` row per level. This REPLACED "no level lives in this
-  repo": that rule described a pack that was an event's live state in a lobby
-  Durable Object, and there is no event and no lobby. `name` is a readable copy
-  of a name that really lives inside `hash`; `npm run check:levels` fails if the
-  two drift, or if an `id` is empty or duplicated.
+  `{ id, name, hash }` row per level — ten of them, read out of the Figma Levels
+  page (`47:2`) frame by frame through the shipped reader. This REPLACED "no
+  level lives in this repo": that rule described a pack that was an event's live
+  state in a lobby Durable Object, and there is no event and no lobby. Figma is
+  still a level's SOURCE; a row is what a frame becomes when it ships, so to
+  change one, change the frame and re-paste it. `name` is a readable copy of a
+  name that really lives inside `hash`; `npm run check:levels` fails if the two
+  drift, or if an `id` is empty or duplicated.
 - **Nothing grades a level.** Still true and not negotiable. The simulation
   bench and its 4-band gate are deleted on purpose — don't rebuild them, don't
   put a verdict on a level card, don't write "must pass" into a doc.

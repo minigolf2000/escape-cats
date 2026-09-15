@@ -89,8 +89,8 @@ export function initSplashArt() {
         .join(",")})`,
     );
   };
-  // 200KB that cannot be on screen until a proctor presses the win, so it waits
-  // for an idle moment rather than riding out with the room's first snapshot.
+  // 200KB that cannot be on screen until the wall goes legible, so it waits
+  // for an idle moment rather than riding out with the first snapshot.
   // The timeout is generous because nothing is watching for it.
   const load = () => {
     splashArtEl.src = import.meta.env.BASE_URL + "art/hex-splash.webp";

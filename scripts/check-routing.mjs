@@ -16,15 +16,10 @@
 import { readFile, access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve, extname } from "node:path";
+import { pickSites } from "./sites.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const config = JSON.parse(await readFile(join(repoRoot, "vercel.json"), "utf8"));
-
-/** [site, dist dir, the paths a person can type]. */
-const SITES = {
-  hex: ["dist/hex", ["/", "/reveal-lab", "/qr-studio"]],
-  goomba: ["dist/goomba", ["/"]],
-};
 
 const exists = async (p) => access(p).then(() => true, () => false);
 
@@ -81,15 +76,8 @@ function refsOf(html, pageUrl) {
   return out;
 }
 
-const which = process.argv[2];
-if (which && !SITES[which]) {
-  console.error(`check-routing: no site "${which}" — try ${Object.keys(SITES).join(" or ")}`);
-  process.exit(1);
-}
-
 let failures = 0;
-for (const [name, [rel, entries]] of Object.entries(SITES)) {
-  if (which && which !== name) continue;
+for (const [name, { out: rel, entries }] of pickSites(process.argv[2])) {
   const dist = join(repoRoot, rel);
   if (!(await exists(dist))) {
     console.log(`FAIL  ${name}: ${rel} does not exist — assemble it first`);

@@ -21,41 +21,12 @@
 import { cp, mkdir, rm, access, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+import { pickSites } from "./sites.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
-/** [source, dest-under-the-site-root, label]. `.` is the site root. A
- * single-file surface lands as <dest>/index.html, so it is reachable at a bare
- * directory path like a built app is. */
-const SITES = {
-  hex: {
-    out: "dist/hex",
-    domain: "hexxygon.com",
-    surfaces: [
-      ["apps/hex-clicker/dist", ".", "Hex Clicker"],
-      // Kept at hexxygon.com/reveal-lab by request; qr-studio rides along
-      // because this is the only site left to host it. Both are one HTML file
-      // with no build and no dependency on either game.
-      ["tools/reveal-lab.html", "reveal-lab", "Night reveal wall lab"],
-      ["tools/qr-studio.html", "qr-studio", "QR Art Studio"],
-    ],
-  },
-  goomba: {
-    out: "dist/goomba",
-    domain: "g00.mba",
-    surfaces: [["apps/goomba-glider/dist", ".", "Goomba Glider"]],
-  },
-};
-
 const exists = async (p) => access(p).then(() => true, () => false);
 
-const which = process.argv[2];
-if (which && !SITES[which]) {
-  throw new Error(`assemble: no site "${which}" — try ${Object.keys(SITES).join(" or ")}`);
-}
-
-for (const [name, site] of Object.entries(SITES)) {
-  if (which && which !== name) continue;
+for (const [name, site] of pickSites(process.argv[2])) {
   const outRoot = join(repoRoot, site.out);
   await rm(outRoot, { recursive: true, force: true });
   await mkdir(outRoot, { recursive: true });

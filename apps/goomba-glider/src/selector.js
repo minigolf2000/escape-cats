@@ -25,7 +25,7 @@ let labBtns = [];
 /**
  * A card tap is a wire intent: it only LATCHES, and the grid stays up until
  * the snapshot lands on the chosen level (closing on the tap would uncover the
- * OLD level for a round trip). The timeout covers an intent the room never
+ * OLD level for a round trip). The timeout covers an intent the sim never
  * echoes.
  */
 let labJump = null;
@@ -170,14 +170,14 @@ function labButtonHit(b) {
  */
 exportBtn.addEventListener("click", () => {
   const rows = exportOverlay();
-  if (!rows) return editSay("nothing to export — paste a level in first");
-  const n = rows.split("  },").length - 1;
-  navigator.clipboard.writeText(rows).then(
-    () => editSay(`${n} level(s) copied — paste into levels.data.ts`),
+  if (!rows.length) return editSay("nothing to export — paste a level in first");
+  const text = rows.join("\n");
+  navigator.clipboard.writeText(text).then(
+    () => editSay(`${rows.length} level(s) copied — paste into levels.data.ts`),
     () => {
       // A clipboard the browser refuses (no permission, an insecure origin) is
       // not a dead end: the rows still have to reach a file somehow.
-      console.log(rows);
+      console.log(text);
       editSay("clipboard refused — the rows are in the console");
     },
   );
@@ -186,7 +186,7 @@ exportBtn.addEventListener("click", () => {
 /** Nothing pasted in yet means nothing to export. Called from `setLab`, so the
  * button's state is decided the moment the grid opens rather than every frame. */
 function syncExportBtn() {
-  exportBtn.hidden = GOOMBA_LEVELS.length <= overlayBase();
+  exportBtn.hidden = !GOOMBA_LEVELS.some((L) => L.source === "local");
 }
 /**
  * A press on the grid. This is where the two surfaces part company: a phone
@@ -348,7 +348,7 @@ export function drawLab() {
     const current = S.snap !== null && i === S.snap.level;
     ctx.strokeStyle = jumping ? "#57e6c9" : current ? "#ffd166" : "rgba(201,189,240,0.22)";
     ctx.lineWidth = jumping || current ? 2.5 : 1.5;
-    if (lv.pasted) ctx.setLineDash([5, 4]);
+    if (lv.source !== "baked") ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
     ctx.setLineDash([]);
     ctx.font = "700 12px ui-rounded, system-ui, sans-serif";
@@ -368,7 +368,7 @@ export function drawLab() {
       ctx.fillStyle = "#ffd166";
       ctx.fillText(badge, x + 9, y + 16);
     }
-    // The round trip, made visible: the tap landed, the room is coming with us.
+    // The round trip, made visible: the tap landed, the level is on its way.
     if (jumping) {
       ctx.save();
       ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.clip();
@@ -381,7 +381,7 @@ export function drawLab() {
       ctx.restore();
     }
     // SELECTION, outside the card's frame so it coexists with the amber
-    // "the room is on this level" — a card is often both.
+    // "the game is on this level" — a card is often both.
     if (DESKTOP() && S.selected === i) {
       ctx.strokeStyle = "#f2ecff"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.roundRect(x - 4, y - 4, cw + 8, ch + 8, 15); ctx.stroke();

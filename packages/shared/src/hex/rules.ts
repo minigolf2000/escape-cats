@@ -326,11 +326,11 @@ export function wallGlow(m: HexMods): number {
   return m.lantern ? 1 : WALL.unlitGlow;
 }
 
-// ---- THE WALL'S ODOMETER — scene units travelled, banked by the authority ----
+// ---- THE WALL'S ODOMETER — scene units travelled, banked by the sim ----
 // Position on the wall is DISTANCE TRAVELLED, not elapsed time (wallPosAt):
 // multiplying elapsed time by a changed speed rescales the whole of history and
 // teleports every mouse. So a rate change banks the distance so far and
-// re-anchors from there — ONCE, on the authority, riding the snapshot, or a
+// re-anchors from there — ONCE, in the sim, riding the snapshot, or a
 // phone joining after the change replays the whole night at the new rate.
 //
 // The from-values record what the wall WAS at `wallAt`, because the change is
@@ -416,7 +416,7 @@ export const WALL_PERSIST_MS = 40;
 // A MEASUREMENT of the rendered 1-stroke word, not a taste dial: a centreline
 // word still drops whole letter strokes at 1.2x and only resolves near 1.7x.
 // Never scale it with the speed — that would declare the word readable (to the
-// proctor, the progress bar and the win) on a wall visibly missing strokes.
+// win) on a wall visibly missing strokes.
 // Slower mice ink less; the fix is more trail (data.ts), not a lower bar.
 export const LEGIBLE_COV = 1.6;
 // The word's total ink in scene units, measured off the live wall.
@@ -450,7 +450,7 @@ export function nightReset(s: HexCore & { zoomUntil?: number }): void {
   if (s.zoomUntil !== undefined) s.zoomUntil = 0;
 }
 
-// ---- SHOP TEXT DERIVATIONS shared by the client (the proctor may want them too) ----
+// ---- SHOP TEXT DERIVATIONS shared with the client ----
 // The wall rows are the MYSTERY, so they do not describe themselves — every
 // effect that touches the wall renders as ??? in the shop.
 export const WALL_EFFECTS = new Set([

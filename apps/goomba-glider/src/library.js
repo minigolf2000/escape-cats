@@ -19,17 +19,16 @@
 import {
   BAKED_LEVELS,
   completedFor,
-  encodeLevel,
   foldProgress,
   freshProgress,
-  initLevel,
   localId,
   readProgress,
   rowsToLevels,
   setGoombaLevels,
+  slugOf,
   GOOMBA_LEVELS,
+  decodeLevel,
 } from "@escape-cats/shared";
-import { decodeLevel } from "@escape-cats/shared";
 
 const OVERLAY_KEY = "goomba-overlay";
 const PROGRESS_KEY = "goomba-progress";
@@ -84,25 +83,26 @@ function hashLevel() {
   const L = decodeLevel(raw);
   if (!L) return null;
   L.source = "hash";
-  L.pasted = true;
   return L; // deliberately no id: a scratch level is never remembered
 }
 
 // ---------- composing ----------
 
-let hashed = null; // the boot-time hash level, kept across recomposes
+/** The hash level, read ONCE, at load. Module state rather than a boot-time
+ * argument because that is what "once" means; every recompose reuses it. */
+const hashed = hashLevel();
 
 /**
  * Rebuild `GOOMBA_LEVELS` from the three layers. Returns the index of the hash
  * level when there is one, so boot can open straight onto the thing you just
- * pasted into the URL instead of making you find it.
+ * pasted into the URL instead of making you find it. `setGoombaLevels` runs
+ * `initLevel` on everything it is handed, the hash level included.
  */
-export function composeLibrary({ first = false } = {}) {
-  if (first) hashed = hashLevel();
+export function composeLibrary() {
   setGoombaLevels([
     ...rowsToLevels(BAKED_LEVELS, "baked"),
     ...rowsToLevels(readOverlay(), "local"),
-    ...(hashed ? [initLevel(hashed)] : []),
+    ...(hashed ? [hashed] : []),
   ]);
   return hashed ? GOOMBA_LEVELS.length - 1 : null;
 }
@@ -161,29 +161,27 @@ export function overlayMove(from, to) {
 }
 
 /**
- * The overlay as `levels.data.ts` rows, ready to paste in. THE COMMIT STEP:
- * this is the whole distance between "it plays on my laptop" and "it ships",
- * and it is deliberately a copy-paste a human does, not a write this app can
- * make — the list is source, and source goes through review.
+ * The overlay as `levels.data.ts` rows, one string each, ready to paste in.
+ * THE COMMIT STEP: this is the whole distance between "it plays on my laptop"
+ * and "it ships", and it is deliberately a copy-paste a human does, not a
+ * write this app can make — the list is source, and source goes through
+ * review.
  *
- * The id is re-slugged off the name with no `local-` prefix and no random
- * suffix, because the suffix exists only to keep two local pastes apart. Check
- * it before you commit: the id is forever (`library.ts`).
+ * The id is the name's slug (`slugOf`, the same rule the paste's local id was
+ * built on) with no `local-` prefix and no random suffix, because the suffix
+ * exists only to keep two local pastes apart. Check it before you commit: the
+ * id is forever (`library.ts`).
  */
 export function exportOverlay() {
-  return readOverlay()
-    .map((row) => {
-      const L = decodeLevel(row.hash);
-      if (!L) return null;
-      const id = row.id.replace(/^local-/, "").replace(/-[a-z0-9]{4}$/, "");
-      return (
-        `  {\n    id: ${JSON.stringify(id)},\n` +
-        `    name: ${JSON.stringify(L.name)},\n` +
-        `    hash: ${JSON.stringify(row.hash)},\n  },`
-      );
-    })
-    .filter(Boolean)
-    .join("\n");
+  return readOverlay().flatMap((row) => {
+    const L = decodeLevel(row.hash);
+    if (!L) return [];
+    return [
+      `  {\n    id: ${JSON.stringify(slugOf(L.name))},\n` +
+      `    name: ${JSON.stringify(L.name)},\n` +
+      `    hash: ${JSON.stringify(row.hash)},\n  },`,
+    ];
+  });
 }
 
 // ---------- progress ----------
@@ -233,6 +231,3 @@ export function forgetProgress() {
     /* nothing to do: a browser that cannot write cannot have saved */
   }
 }
-
-/** Re-encode a level as a link — the clipboard format, for the grid's copy. */
-export const levelLink = (L) => encodeLevel(L);

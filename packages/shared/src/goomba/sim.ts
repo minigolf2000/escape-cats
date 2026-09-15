@@ -5,10 +5,9 @@
 // applied lazily by resolve(now) — which is what lets a backgrounded tab, one
 // that missed every frame, resolve correctly the moment it comes back.
 //
-// It used to be the authority a Durable Object wrapped, one per team. "Room"
-// survives in a few names below because the state it describes is unchanged.
+// It used to be the authority a Durable Object wrapped, one per team.
 
-import { GOOMBA_LEVELS, MAX_BANDS, BAND_MIN, BAND_MAX } from "./levels";
+import { GOOMBA_LEVELS, MAX_BANDS, BAND_MIN, BAND_MAX, type GoombaLevelInit } from "./levels";
 import { snapBand, scoreRun, type GoombaBand, type RunResult } from "./physics";
 
 /**
@@ -24,17 +23,17 @@ export type GoombaPhase = "edit" | "run" | "win" | "splash";
 export interface GoombaSimState {
   /** Bumped on every reset — the client treats a new runId as a fresh boot. */
   runId: number;
-  startedAt: number; // epoch ms this room first saw a player intent
+  startedAt: number; // epoch ms of the first intent this run
   level: number;
   phase: GoombaPhase;
   bands: GoombaBand[];
   /** One flag per level. "How many levels completed" is this, counted. */
   completed: boolean[];
   /** Set while phase is "run" (and kept through "win" for the toast):
-   * when the run started (epoch ms, server clock) and how it was scored. */
+   * when the run started (epoch ms) and how it was scored. */
   runAt: number | null;
   runResult: RunResult | null;
-  /** Seconds the scored run lasts — phones animate exactly this long. */
+  /** Seconds the scored run lasts — the animation runs exactly this long. */
   runT: number | null;
   /** Epoch ms every level went done, else null — the "we cleared it" flag
    * (see `goombaCleared`). */
@@ -47,15 +46,10 @@ export interface GoombaPersistedV1 {
   state: GoombaSimState;
 }
 
-export interface GoombaSnapshot extends GoombaSimState {
-  /** The clock at send. It was the SERVER's, and the name is kept because the
-   * run animation still syncs to `runAt` on this timeline — there is just one
-   * clock now, so the offset it produces is zero. */
-  serverTime: number;
-  /** 0..1: levels completed / levels. */
-  progress: number;
-  levelCount: number;
-}
+/** What the client renders from. Nothing rides beside the state any more —
+ * the players, the band ghosts, the server clock and the proctor's progress
+ * bar all left with the room. */
+export type GoombaSnapshot = GoombaSimState;
 
 export type GoombaClientMsg =
   | { type: "join"; name: string }
@@ -74,11 +68,10 @@ export type GoombaClientMsg =
   /** Stop watching a run early — back to edit with the bands still down and
    * NOTHING scored, neither a clear nor a fail. See `stop`. */
   | { type: "stop" }
-  /** Advance after a win (any player). */
+  /** Advance after a win. */
   | { type: "next" }
-  /** Level-selector jump: point the WHOLE ROOM at a level. Open to any player
-   * (`?debug` is only a local override of the client gate) — the party's own
-   * phones are the trusted tool, as `play`/`next` already assume. */
+  /** Level-selector jump. `?debug` is only a local override of the client's
+   * gate on the grid; the sim itself accepts any level in the list. */
   | { type: "goto"; level: number }
   // ---- editing the level list. The client's backend applies these to the
   // LOCAL overlay only; the shipped levels are source (`goomba/library.ts`).
@@ -99,14 +92,25 @@ const num = (v: unknown): number | null =>
 export const canPlaceBand = (bands: GoombaBand[]): boolean => bands.length < MAX_BANDS;
 
 /**
- * Are there POST-CREDITS levels — any marked `bonus` (`goomba/library.ts`)?
- * The finale is terminal only when there are not: with a bonus section behind
- * it, the ending has somewhere to let you out to.
+ * Is this level part of the MAIN game — the one the finale is the end of?
+ * A shipped row not marked `bonus`. Everything else is post-credits: a bonus
+ * row, and any level that did not ship at all — the power user's local paste,
+ * a `#hash` link — because those land after the shipped list, and if they
+ * counted toward the main game nobody carrying one could ever reach the
+ * ending. ONE predicate, asked here, so every layer that can put a level in
+ * the list gets the rule without having to know it.
  */
-export const hasBonusLevels = (): boolean => GOOMBA_LEVELS.some((L) => L.bonus === true);
+const isMain = (L: GoombaLevelInit): boolean => L.source === "baked" && L.bonus !== true;
 
 /**
- * Has the MAIN game been cleared — every level that is NOT post-credits?
+ * Are there POST-CREDITS levels? The finale is terminal only when there are
+ * not: with a bonus section behind it, the ending has somewhere to let you
+ * out to.
+ */
+export const hasBonusLevels = (): boolean => GOOMBA_LEVELS.some((L) => !isMain(L));
+
+/**
+ * Has the MAIN game been cleared — every level `isMain`?
  *
  * This is what the finale fires on, and it used to be "every level, full
  * stop". The bonus section sits BEHIND the ending, so counting it would mean
@@ -118,7 +122,7 @@ export const hasBonusLevels = (): boolean => GOOMBA_LEVELS.some((L) => L.bonus =
 function mainCleared(completed: boolean[]): boolean {
   let any = false;
   for (let i = 0; i < GOOMBA_LEVELS.length; i++) {
-    if (GOOMBA_LEVELS[i].bonus) continue;
+    if (!isMain(GOOMBA_LEVELS[i])) continue;
     any = true;
     if (completed[i] !== true) return false;
   }
@@ -154,9 +158,9 @@ export class GoombaSim {
     this.st = freshState(now);
   }
 
-  /** Apply the finished run if the phones' animation of it has played out.
-   * Callers invoke this with every message and on connect; the server also
-   * arms one short timeout so the transition lands even in a silent room. */
+  /** Apply the finished run if its animation has played out. Called with every
+   * intent; the backend also arms one short timeout so the transition lands in
+   * a tab nobody is touching. */
   resolve(now: number): boolean {
     const s = this.st;
     if (s.phase !== "run" || s.runAt === null || s.runT === null) return false;
@@ -211,7 +215,7 @@ export class GoombaSim {
     if (len < BAND_MIN || len > BAND_MAX) return;
     const L = GOOMBA_LEVELS[s.level];
     if (!L) return; // pack emptied under us
-    // Snapped HERE, once, so every phone animates the endpoints the server
+    // Snapped HERE, once, so the animation runs on the endpoints the run was
     // scored with.
     s.bands.push(snapBand(L, { ax, ay, bx, by, pid }));
     s.runResult = null;
@@ -283,7 +287,7 @@ export class GoombaSim {
     this.resolve(now);
     const s = this.st;
     if (s.phase !== "win") return;
-    // Never the finale: the win that clears the room went straight to the
+    // Never the finale: the win that clears the game went straight to the
     // splash and this button was never drawn (`resolve`).
     s.phase = "edit";
     s.bands = [];
@@ -305,13 +309,7 @@ export class GoombaSim {
 
   snapshot(now: number): GoombaSnapshot {
     this.resolve(now);
-    const done = this.st.completed.filter(Boolean).length;
-    return {
-      ...this.st,
-      serverTime: now,
-      progress: GOOMBA_LEVELS.length ? done / GOOMBA_LEVELS.length : 0,
-      levelCount: GOOMBA_LEVELS.length,
-    };
+    return { ...this.st };
   }
 
   persisted(now: number): GoombaPersistedV1 {
@@ -319,33 +317,32 @@ export class GoombaSim {
     return { v: 1, savedAt: now, state: this.st };
   }
 
-  /**
-   * Rebuild from a save. `completed` is the caller's own projection of its
-   * durable record onto the list that is loaded NOW, and it is applied BEFORE
-   * `reconcile` runs — which is the whole point of the parameter.
-   *
-   * Without it, reconcile's first look is at the save's own `completed`, an
-   * array indexed against whatever list existed when it was written. Ship a
-   * level and that array is stale: a finished game can read as unfinished for
-   * one reconcile, which is long enough to take the finale's splash away
-   * (`s.phase === "splash" && !all` below) and nothing puts it back.
-   */
+  /** Rebuild from a save, then fit it to the list that is loaded now. See
+   * `reconcile` for what `completed` is and why it rides along. */
   restore(saved: GoombaPersistedV1, now: number, completed?: boolean[]): void {
     this.st = saved.state;
-    if (completed) this.st.completed = completed;
-    this.reconcile(now);
+    this.reconcile(now, completed);
   }
 
   /**
-   * Fit the room to the pack it is now looking at — the whole of "apply
-   * immediately, keep progress", taken whenever the pack lands: `completed`
+   * Fit the game to the list it is now looking at — the whole of "apply
+   * immediately, keep progress", taken whenever the list changes: `completed`
    * re-fitted to the new length, `level` clamped inside it, a run in flight
-   * abandoned (scored against geometry that may be gone). It deliberately does
-   * NOT remap flags by identity: a delete shifts every flag after it. Accepted
-   * cost of editing live.
+   * abandoned (scored against geometry that may be gone).
+   *
+   * The re-fit is BY INDEX and deliberately so — this sim knows levels by
+   * position and nothing else. Progress that has to survive the list changing
+   * is keyed by id OUTSIDE the sim (`goomba/library.ts`), and `completed` is
+   * how the caller hands that projection in: applied FIRST, so the re-fit
+   * lands on an array that already says the right thing for this list rather
+   * than on a save's array indexed against whatever list existed when it was
+   * written. Order is the rule — a stale first look can read a finished game
+   * as unfinished, which is long enough to drop the finale's splash below
+   * (`s.phase === "splash" && !all`), and nothing puts it back.
    */
-  reconcile(now: number): void {
+  reconcile(now: number, completed?: boolean[]): void {
     const s = this.st;
+    if (completed) s.completed = completed;
     const n = GOOMBA_LEVELS.length;
     s.completed = GOOMBA_LEVELS.map((_, i) => s.completed[i] === true);
     s.level = Math.max(0, Math.min(s.level, n - 1));

@@ -1,6 +1,6 @@
 // The Goomba Glider physics — the ONLY copy. Deterministic and side-effect
-// free: the server scores a run the instant PLAY lands and every phone animates
-// it with the same 240Hz substeps, so the animation ends where the server said.
+// free: the sim scores a run the instant PLAY lands and the client animates
+// it with the same 240Hz substeps, so the animation ends where the score said.
 // A number changed here retunes every level in every event's pack.
 
 import {
@@ -34,7 +34,7 @@ export interface GoombaBand {
   bx: number;
   by: number;
   /** pid of whoever laid it. A note, not a rule: any player may take any band
-   * back, and every band wears the TEAM's colour. */
+   * back, and every band wears the one band colour. */
   pid: string;
 }
 
@@ -377,8 +377,8 @@ export function stepRun(st: RunState, dt: number): void {
   }
 }
 
-/** Score a whole run instantly — what the server does the moment PLAY lands.
- * `bands` must already be snapped (the room snaps at placement time). */
+/** Score a whole run instantly — what the sim does the moment PLAY lands.
+ * `bands` must already be snapped (the sim snaps at placement time). */
 export function scoreRun(
   levelIdx: number,
   bands: readonly { ax: number; ay: number; bx: number; by: number }[],

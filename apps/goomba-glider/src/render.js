@@ -290,7 +290,7 @@ export function drawTerrain(lv) {
   }
 }
 
-/** One band, in the TEAM's colour — every band on the board is the same. */
+/** One band, in the one band colour — every band on the board is the same. */
 export function drawBand(bd, excite, ghost) {
   const pts = bandPoints(bd);
   const jig = excite * Math.sin(tGlobal * 32) * 1.2;
@@ -316,31 +316,6 @@ export function drawBand(bd, excite, ghost) {
     ctx.beginPath(); ctx.arc(sxp(x), syp(y), 0.9 * cam.s, 0, 6.28); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.beginPath(); ctx.arc(sxp(x) - 0.25 * cam.s, syp(y) - 0.25 * cam.s, 0.3 * cam.s, 0, 6.28); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-}
-
-/** A teammate's band-in-progress: translucent, marching dashes, hollow rings
- * — reads as "being dragged", never "placed". Team colour; the motion is what
- * makes it theirs, no name anywhere on this screen. */
-export function drawTeammatePreview(p) {
-  const pts = bandPoints(p);
-  const col = bandInk();
-  ctx.lineCap = "round"; ctx.lineJoin = "round";
-  ctx.globalAlpha = 0.5 + 0.15 * Math.sin(tGlobal * 6);
-  ctx.strokeStyle = col;
-  ctx.setLineDash([1.6 * cam.s, 1.6 * cam.s]);
-  ctx.lineDashOffset = -tGlobal * 8 * cam.s; // marching ants: motion at a glance
-  ctx.lineWidth = 1.0 * cam.s;
-  ctx.beginPath();
-  pts.forEach(([x, y], i) => (i ? ctx.lineTo(sxp(x), syp(y)) : ctx.moveTo(sxp(x), syp(y))));
-  ctx.stroke();
-  // the offset goes back with the pattern: it is context state
-  ctx.setLineDash([]); ctx.lineDashOffset = 0;
-  for (const [x, y] of [pts[0], pts[8]]) {
-    ctx.strokeStyle = col;
-    ctx.lineWidth = 0.45 * cam.s;
-    ctx.beginPath(); ctx.arc(sxp(x), syp(y), 0.9 * cam.s, 0, 6.28); ctx.stroke();
   }
   ctx.globalAlpha = 1;
 }
@@ -373,22 +348,6 @@ export function drawAnchor(a) {
   ctx.fillText(label, x, y + 30.5);
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   ctx.globalAlpha = 1;
-}
-
-/** The same waiting point from a teammate's phone: a ring alone, no
- * instruction, no name. Drawn for any preview too short to be a band
- * (GoombaBandPreview). */
-export function drawTeammateAnchor(p) {
-  const x = sxp(p.ax), y = syp(p.ay);
-  const col = bandInk();
-  ctx.globalAlpha = 0.55 + 0.25 * Math.sin(tGlobal * 4);
-  ctx.strokeStyle = col; ctx.lineWidth = 1.5;
-  ctx.setLineDash([4, 4]); ctx.lineDashOffset = -tGlobal * 22;
-  ctx.beginPath(); ctx.arc(x, y, 13, 0, 6.28); ctx.stroke();
-  ctx.setLineDash([]); ctx.lineDashOffset = 0;
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = col; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.28); ctx.stroke();
 }
 
 export function drawCushion(c, squish) {
@@ -661,12 +620,11 @@ export function drawStartPad(lv) {
   ctx.setLineDash([]);
 }
 // ---------- the splash (phase "splash") ----------
-// THE FINALE, and the end of the game: clearing the last level lands the room
-// here (`GoombaSim.resolve`) on the frame Goomba reaches the plant, and nothing
-// takes it back. No control, no tap, no key — the ways off are a proctor reset
-// and a pack edit, both of them the room's, not this screen's. So the screen is
-// two things and no instruction: the PICTURE, and the CODE WORD the party
-// carries out of the game and reads to the proctor.
+// THE FINALE, and the end of the game: clearing the last MAIN level lands the
+// game here (`GoombaSim.resolve`) on the frame Goomba reaches the plant. With
+// no post-credits levels nothing takes it back — no control, no tap, no key;
+// with some, a late third beat offers the levels grid (`drawMore`). Either way
+// the screen is the PICTURE and the CODE WORD, and no instruction.
 //
 // The picture is this app's ONE image asset — `public/art/goomba-splash.webp`,
 // reached through BASE_URL like hex's splash, which is right in dev and in the
@@ -699,8 +657,8 @@ let splashImg = null;
 let splashWash = ["#2b1a10", "#17100c"];
 
 /**
- * Ask for the picture ONCE, at an idle moment during the party. It cannot be
- * on screen until the room clears the game, but when that lands it lands with
+ * Ask for the picture ONCE, at an idle moment. It cannot be on screen until
+ * the game is cleared, but when that lands it lands with
  * no warning — a run ends and the finale is already up — so it may not be
  * fetched then. Idle-time preload is hex's trick, for the same reason.
  */

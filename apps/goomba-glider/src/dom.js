@@ -13,8 +13,7 @@ export const playBtn = $("play");
 export const bandbarEl = $("bandbar");
 export const toastEl = $("toast");
 export const labEl = $("lab");
-// The level editor's tools, top-right of the grid (#labtools in styles.css).
-export const labToolsEl = $("labtools");
+// The level editor's export, top-right of the grid (#labtools in styles.css).
 export const exportBtn = $("export");
 // The top bar itself, measured (never copied) for where the bunting hangs from.
 export const topEl = $("top");

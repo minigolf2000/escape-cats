@@ -6,11 +6,11 @@
 // it did by broadcasting on a tick, this does by calling `onSnapshot`.
 //
 // EVERY emit flushes first. The tap path queues pets and credits the counter
-// optimistically (`state.js`); the queue is cleared between the flush and the
-// snapshot, which is the only instant at which "every queued tap is in this
-// snapshot" is true. A snapshot emitted without flushing would clear credit
-// for taps the sim had not counted, and the bank would tick backwards — so
-// there is ONE emit and it does both, rather than a rule for callers to keep.
+// optimistically (`state.js`), and `applySnapshot` spends that credit on
+// arrival — which is only right if every snapshot already contains every
+// queued tap. A snapshot emitted without flushing would spend credit for taps
+// the sim had not counted, and the bank would tick backwards — so there is
+// ONE emit and it does both, rather than a rule for callers to keep.
 
 import { HexSim, SNAPSHOT_TICK_MS, type HexSnapshot } from "@escape-cats/shared";
 import type { HexPersistedV1 } from "@escape-cats/shared";
@@ -44,8 +44,6 @@ export function startBackend(opts: {
    * imported, so the panel's whole module stays out of a normal player's
    * bundle. */
   onSim?: (sim: HexSim, emit: () => void) => (() => void) | void;
-  /** Credit for taps already folded in is dropped here — see the note above. */
-  onFlush: () => void;
 }): void {
   const sim = new HexSim(Date.now());
 
@@ -86,7 +84,6 @@ export function startBackend(opts: {
     // to. Every path that emits goes through here, so none can forget.
     sim.tick(now);
     const snap = sim.snapshot(now);
-    opts.onFlush();
     if (now - lastSaveAt >= SAVE_MS || sim.state.runId !== savedRunId) {
       lastSaveAt = now;
       savedRunId = sim.state.runId;
@@ -119,9 +116,6 @@ export function startBackend(opts: {
   transport.send = (msg) => {
     const now = Date.now();
     switch (msg.type) {
-      case "pets":
-        pendingPets += msg.count;
-        break;
       case "buyBuilding":
         sim.buyBuilding(msg.id, now);
         break;

@@ -25,15 +25,15 @@
          --play-h: 56px; }
   /* Two plates, NOT the same height (40 and 56): `flex-start` gives them one
      top line. The 14px side padding is the gutter a thumb from the screen
-     edge lands in, on CANVAS, not on the button that empties the room's
+     edge lands in, on CANVAS, not on the button that empties the level's
      bands. `#top`'s bottom edge is where the bunting hangs (render.js
      MEASURES it), so every plate keeps its box in every phase. */
   #top { position: absolute; top: var(--hud-top); left: 0; right: 0;
          display: flex; align-items: flex-start; justify-content: space-between; padding: 0 14px; gap: 8px; }
-  /* The level dots — and once the team has CLEARED the game (or ?debug), the
-     level grid's button. Before the clear it is an indicator only, hence the
+  /* The level dots — and once the game is CLEARED (or ?debug), the level
+     grid's button. Before the clear it is an indicator only, hence the
      pointer-events and cursor reset; `.cleared` toggles per snapshot because
-     it is room state and a proctor reset takes it away. */
+     it is sim state and a reset takes it away. */
   #lab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0;
          background: none; pointer-events: none; cursor: default; }
   #hud.cleared #lab { padding: 5px 10px; border-radius: 13px; gap: 5px;
@@ -54,7 +54,7 @@
                box-sizing: border-box; transition: opacity .25s, transform .25s; }
   #inv .band.used { border-style: solid; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
   /* An empty slot I could fill (every empty slot during edit): lit, in the
-     TEAM's colour, set inline. Presentation, never layout. */
+     one band colour, set inline. Presentation, never layout. */
   #inv .band.open { box-shadow: 0 0 10px rgba(255,255,255,.18); }
   /* The first prose line under the top bar. The 24px between the tall plate
      (56) and it is the CORRIDOR the first bunting string lives in (22px of
@@ -120,12 +120,10 @@
                     border: 1.5px solid var(--plate-edge); }
   #export { cursor: pointer; }
   #export:active { transform: scale(.96); }
-  /* Nothing pasted in yet, so there is nothing to export: gone, not disabled —
-     a control for a thing you have not done yet is just a question. Hidden by
-     the `hidden` ATTRIBUTE, which is the rule this whole file lives under
-     (check-visibility.mjs); this spells the browser's own answer out so a
-     later `display:` on the button cannot quietly outrank it. */
-  #labtools [hidden] { display: none !important; }
+  /* Nothing pasted in yet, so there is nothing to export: `#export` is hidden
+     by the `hidden` ATTRIBUTE (selector.js), which is the rule this whole file
+     lives under — gone, not disabled, because a control for a thing you have
+     not done yet is just a question. */
   /* The splash (phase "splash", goomba/sim.ts) is the FINALE and it has no
      controls at all: the whole HUD goes and the picture, the code word and
      nothing else are on the CANVAS (drawSplash). Terminal — there is no way
@@ -137,10 +135,10 @@
            opacity: 0; transition: opacity .18s, transform .18s; white-space: nowrap; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
   #toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
 
-  /* The waiting-room gate, same contract as hex-clicker's: an unsorted phone
-     waits here (already on the proctor's board). It is also the HOW-TO-PLAY
-     sheet: PICTURES drawn by sheet.js from the level renderer. `?` reopens it
-     mid-party. `.ready` = dismissible; it NEVER dismisses itself. OPAQUE, which
+  /* The gate, same contract as hex-clicker's cover over the stage — here it
+     is the HOW-TO-PLAY sheet: PICTURES drawn by sheet.js from the level
+     renderer. `?` reopens it mid-game. `.ready` = dismissible; it NEVER
+     dismisses itself. OPAQUE, which
      is why `#gateTap` says the way out in words, only while there is one.
      THE SURPLUS: the pictures are WIDTH-bound (GOAL_SCENE is 80x18.8 in a
      column of at most 340), so extra height sits in the vh-scaled GAPS, not in

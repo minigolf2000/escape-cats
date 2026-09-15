@@ -32,19 +32,10 @@ import {
   saveState,
 } from "./library";
 
-/**
- * Fit the sim to the level list as it stands, then let it fit itself.
- *
- * ORDER IS THE RULE. `reconcile` re-fits `completed` BY INDEX — right for a
- * party editing a pack for ten minutes, wrong for a save that outlives a level
- * being inserted at slot 1. So the id-keyed projection is written first and
- * reconcile's own re-fit lands on an array that is already the right length
- * and already says the right thing.
- */
-function applyLibrary(sim, now) {
-  sim.st.completed = completedNow();
-  sim.reconcile(now);
-}
+/** Fit the sim to the level list as it stands: the id-keyed projection goes in
+ * as `reconcile`'s argument, which applies it before its own by-index re-fit
+ * (the order, and why it matters, is documented on `reconcile`). */
+const applyLibrary = (sim, now) => sim.reconcile(now, completedNow());
 
 export function startBackend(opts) {
   const sim = new GoombaSim(Date.now());
@@ -56,15 +47,18 @@ export function startBackend(opts) {
   // and reconciling on that stale array can drop a finished game's splash.
   const saved = loadState();
   loadProgress();
+  let restored = false;
   if (saved && saved.v === 1) {
     try {
       sim.restore(saved, Date.now(), completedNow());
+      restored = true;
     } catch {
       // A save from an older shape, or one somebody hand-edited. A fresh room
       // is a perfectly good answer and the id-keyed progress survives it.
     }
   }
-  applyLibrary(sim, Date.now());
+  // `restore` projected and reconciled already; a fresh room still needs to.
+  if (!restored) applyLibrary(sim, Date.now());
 
   const emit = () => {
     const now = Date.now();

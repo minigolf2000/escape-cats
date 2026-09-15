@@ -1,5 +1,5 @@
 // The Hex Clicker economy: every building, upgrade and dial. The ONE place
-// balance lives — the server, the client and `?debug` all import it. A note
+// balance lives — the client and its `?debug` panel both import it. A note
 // beside a number says what pins it.
 
 export interface HexBuilding {

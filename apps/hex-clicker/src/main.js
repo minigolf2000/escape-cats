@@ -19,7 +19,6 @@ import {
   game,
   mods,
   nightActive,
-  ackPets,
   applySnapshot,
   extrapolate,
   wallNow,
@@ -191,7 +190,6 @@ function frame(now) {
 function boot() {
   startBackend({
     onSnapshot,
-    onFlush: ackPets,
     onSim: debugFromUrl()
       ? (sim, emit) => {
           // Dynamic, for the reason above. The panel mounts a tick or two
@@ -229,11 +227,11 @@ window.addEventListener("keydown", (e) => {
 boot();
 
 // Alternate cat poses, fetched once the page is up (warmPoseFrames in cat.js).
-// Out here so they are on their way while the room is still connecting.
+// Out here so they are on their way before the first snapshot lands.
 warmPoseFrames();
 
 // Debug handle: lets a console (or a Playwright test) inspect the mirror and
-// inject intents. Harmless to ship; the server validates everything.
+// inject intents. Harmless to ship; the sim validates everything.
 window.__hex = {
   game,
   mods,

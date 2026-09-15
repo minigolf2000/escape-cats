@@ -47,11 +47,11 @@ export const pupilRightEl = $("#pupilRight");
 export const eyeLeftEl = $("#eyeLeft");
 export const eyeRightEl = $("#eyeRight");
 
-// The win splash (proctor-marked win) and its one control
+// The win splash and its one control
 export const splashEl = $("#splash");
 export const splashArtEl = $("#splashArt");
 export const splashWordTextEl = $("#splashWordText");
 export const wonPillEl = $("#wonPill");
 
-// Multiplayer shell
+// The cover over the stage until the first snapshot
 export const gateEl = $("#gate");

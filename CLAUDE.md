@@ -83,9 +83,9 @@ Figma, Ctrl+V into the game, play it, export, commit.
   `test-library.mjs`). Reorder, rename or retune-and-re-paste and a cleared
   level stays cleared; change the `id` and it un-clears. `GoombaSim.reconcile`
   still re-fits `completed` BY INDEX and still should — so the id projection is
-  written BEFORE reconcile runs (`backend.js`, `applyLibrary`). An id in the
-  save that is not in the list is left alone, which is what makes deleting a
-  level and pasting it back a no-op.
+  handed to it as an argument, applied before the re-fit (`backend.js`,
+  `applyLibrary`). An id in the save that is not in the list is left alone,
+  which is what makes deleting a level and pasting it back a no-op.
 - **Figma file `vRN6Q44ReIaESP5wv8M2dI`: Levels page `47:2`, Components `45:55`,
   Scratchpad `0:1`.** `get_metadata` with no nodeId lists only `Components` —
   go straight to `47:2`. **Never take a position from `get_metadata`**: it gives
@@ -159,9 +159,13 @@ Figma, Ctrl+V into the game, play it, export, commit.
   paste, no `goto` — the sim refuses it) except `reset` or a list edit that
   un-clears the game (`reconcile`). With a bonus section behind it, a tap and
   `\` open the levels grid, which is the door to them — `hasBonusLevels()` is
-  the one question, asked in `sim.goto`, `openSelector` and main.js alike. A
-  paste stays refused either way. A RESTORED finished game lands in `edit`, not
-  on the splash: the ending plays on the win that earns it, not on every load. The
+  the one question, asked in `sim.goto` (the authority) and `openSelector`
+  (the UI declining to open a grid whose every tap the sim would refuse). A
+  paste stays refused either way. A RESTORED game lands where it was saved —
+  on the splash if the tab was closed there, else in `edit`: the ending plays
+  on the win that earns it and is never re-run by a later load. "Not shipped
+  is post-credits" (a local paste, a `#hash` link) is the sim's rule, `isMain`,
+  asked of `source` — not a flag a layer has to remember to set. The
   screen is `public/art/goomba-splash.webp` drawn whole with its own edge rows
   as the wash (replace the file, the backdrop comes with it), then two plates in
   THIS ORDER: the cheer pops on top, and a beat later the CODE WORD rises at the

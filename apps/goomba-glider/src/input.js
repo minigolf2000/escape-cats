@@ -68,10 +68,6 @@ function previewFromTouches() {
 }
 function placePreview() {
   if (S.preview && S.preview.ok) {
-    // The optimistic ghost goes up BEFORE the send, not after: the backend
-    // answers synchronously, so a ghost set afterwards would outlive the
-    // snapshot that should retire it (`S.pending = null` in onSnapshot).
-    S.pending = { ax: S.preview.ax, ay: S.preview.ay, bx: S.preview.bx, by: S.preview.by };
     transport.send({ type: "place", ax: S.preview.ax, ay: S.preview.ay, bx: S.preview.bx, by: S.preview.by });
   } else {
     // Say why nothing landed — a tap-tap that silently does nothing reads as

@@ -37,7 +37,7 @@ import {
 } from "./rules";
 
 /** A golden mouse in flight. Position is client-local (each phone bounces it
- * inside its own layout); the server only owns WHEN one exists and for how
+ * inside its own layout); the sim only owns WHEN one exists and for how
  * long. `seed` feeds the client's deterministic spawn placement. */
 export interface HexGold {
   id: number;
@@ -47,7 +47,7 @@ export interface HexGold {
 }
 
 export interface HexSimState extends HexCore {
-  /** Bumped on every proctor reset — clients treat a new runId as a fresh boot. */
+  /** Bumped on every reset — the client treats a new runId as a fresh boot. */
   runId: number;
   startedAt: number; // epoch ms this run began
   zoomUntil: number; // epoch ms while Zoomies (pet power x mods.zoomMult) runs
@@ -71,7 +71,7 @@ export interface HexSimState extends HexCore {
 }
 
 /**
- * A room's saved game — everything a Durable Object eviction would erase.
+ * A saved game — everything a closed tab would erase.
  * Versioned so a deploy that changes the shape refuses stale data.
  * Absent on purpose: mods (derived on restore, so a rebalance applies to live
  * rooms), gold (expired after any gap; restore reschedules), speed (?debug
@@ -86,11 +86,11 @@ export interface HexPersistedV1 {
   nightAt: number | null;
   legibleAt: number | null;
   zoomUntil: number;
-  /** So a restored room can't reissue a golden id a client already saw. */
+  /** So a restored game can't reissue a golden id the client already saw. */
   goldSeq: number;
   /** The wall odometer (see HexSimState). OPTIONAL rather than a version bump:
-   * a room saved before this existed rehydrates with wallAt = nightAt, which
-   * replays that night at its current speed — one eviction's worth of drift on
+   * a game saved before this existed rehydrates with wallAt = nightAt, which
+   * replays that night at its current speed — one reload's worth of drift on
    * a cosmetic timeline, against refusing an otherwise-good save. */
   wallBase?: number;
   wallAt?: number | null;
@@ -108,8 +108,7 @@ const OFFLINE_CREDIT_MS = 30_000;
 /** Max pets creditable in one batch message — a tap-storm ceiling per flush. */
 export const PETS_BATCH_MAX = 50;
 
-/** How often the authority ticks income and broadcasts a snapshot — shared by
- * the room server and the client's ?debug mode so their pacing is identical. */
+/** How often the backend ticks income and emits a snapshot. */
 export const SNAPSHOT_TICK_MS = 250;
 
 /** Lifetime total at which a day is "about done" (bank + Lab + Catnap) — only
@@ -143,8 +142,6 @@ export interface HexSnapshot extends HexSimState {
    * every consumer already syncs its own timeline to it — there is just one
    * clock now, so the offset it produces is zero. */
   serverTime: number;
-  /** 0..1, how far along the run is. */
-  progress: number;
   /** Mice/second the bank is actually accruing (base rate x dev speed) —
    * stamped here so nothing else re-runs the economy fold to draw a rate. */
   cps: number;
@@ -152,7 +149,6 @@ export interface HexSnapshot extends HexSimState {
 
 /** Everything the player can ask for. Intents only: the sim decides. */
 export type HexClientMsg =
-  | { type: "pets"; count: number }
   | { type: "buyBuilding"; id: string }
   | { type: "buyUpgrade"; key: string }
   | { type: "catchGold"; id: number }
@@ -187,9 +183,8 @@ export class HexSim {
     this.scheduleGold(true);
   }
 
-  /** Snapshot of everything worth surviving an eviction. Pure — storage I/O
-   * stays in the room server, so ?debug (no storage) shares this code path
-   * for free and the round-trip is unit-testable without a server. */
+  /** Everything worth surviving a closed tab. Pure — storage I/O stays in
+   * the backend, so the round-trip is unit-testable without a browser. */
   persisted(now: number): HexPersistedV1 {
     const s = this.state;
     return {
@@ -251,8 +246,8 @@ export class HexSim {
     this.lastTick = now;
     this.scheduleGold(true);
     // Capped credit for the gap, at the RESTORED build rate. Elapsed time is
-    // wall-clock on purpose: an eviction makes the proctor's timer jump, and
-    // nothing else — the reveal keys off total, not elapsed time.
+    // wall-clock on purpose: a gap in play makes nothing but the run's clock
+    // jump — the reveal keys off total, not elapsed time.
     const gapSec =
       Math.min(Math.max(0, now - p.savedAt), OFFLINE_CREDIT_MS) / 1000;
     const inc = this.baseCps() * gapSec;
@@ -344,14 +339,6 @@ export class HexSim {
     return baseCpsWith(this.mods, this.state.owned);
   }
 
-  /** 0..1 for the proctor's progress bar: day is the first half, the wall
-   * becoming readable is the second. */
-  progress(): number {
-    if (this.state.legibleAt) return 1;
-    if (this.night())
-      return 0.5 + 0.5 * Math.min(1, wallCoverage(this.mods) / LEGIBLE_COV);
-    return 0.5 * Math.min(1, this.state.total / DAY_TOTAL_TARGET);
-  }
 
   private recalc(): void {
     this.mods = foldMods(this.state.bought, this.state.owned);
@@ -509,7 +496,6 @@ export class HexSim {
     return {
       ...this.state,
       serverTime: now,
-      progress: this.progress(),
       cps: this.baseCps() * this.state.speed,
     };
   }

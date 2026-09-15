@@ -60,40 +60,31 @@ export function rowsToLevels(rows: LevelRow[], source: LevelSource): GoombaLevel
     if (!L) continue;
     L.id = row.id;
     L.source = source;
-    // Anything not SHIPPED is bonus, whatever its row says. A level pasted
-    // into the overlay lands after the shipped list, and if it counted toward
-    // the main game nobody with a scratch level could ever reach the finale.
-    L.bonus = source !== "baked" || row.bonus === true;
-    // The selector's one visible difference, from before there were sources:
-    // a dashed card means "this is not a level the game shipped".
-    if (source !== "baked") L.pasted = true;
+    // Only what the row SAYS. "Anything not shipped is post-credits too" is
+    // the sim's rule (`isMain` in sim.ts), asked of `source` — so a layer that
+    // never passes through here (the `#hash` level) gets it as well.
+    L.bonus = row.bonus === true;
     out.push(L);
   }
   return out;
 }
 
-/** A level back out as a row — what the overlay stores and what the export
- * command prints for `levels.data.ts`. The name is re-read from the level, so
- * a row written here can never drift from its own hash. */
-export const levelToRow = (L: GoombaLevel, hash: string): LevelRow => ({
-  id: L.id ?? "",
-  name: L.name,
-  hash,
-  ...(L.bonus ? { bonus: true } : {}),
-});
-
-/** An id for a level the power user just pasted. Slug for legibility (it is
- * the line they will edit when committing), suffix because two frames may
- * carry the same name and an id collision would silently share progress. */
-export function localId(name: string): string {
-  const slug = name
+/** A name as an id: the ONE slug rule. What a paste's local id is built on,
+ * and what the export writes as the id to commit — one function, so the id
+ * a player's progress was saved under and the id that lands in
+ * `levels.data.ts` cannot drift apart. */
+export const slugOf = (name: string): string =>
+  name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 32);
-  const suffix = Math.random().toString(36).slice(2, 6);
-  return `local-${slug || "level"}-${suffix}`;
-}
+    .slice(0, 32) || "level";
+
+/** An id for a level the power user just pasted. The slug for legibility (it
+ * is the line they will edit when committing), a suffix because two frames may
+ * carry the same name and an id collision would silently share progress. */
+export const localId = (name: string): string =>
+  `local-${slugOf(name)}-${Math.random().toString(36).slice(2, 6)}`;
 
 // ---------- progress ----------
 

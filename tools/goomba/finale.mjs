@@ -10,8 +10,8 @@
 // rule is quiet when it breaks — a mis-set flag does not crash, it just moves
 // where the game says goodbye — so it is worth a test.
 import {
-  GoombaSim, LEVELS, rowsToLevels, setGoombaLevels, hasBonusLevels,
-  goombaCleared, BAKED_LEVELS, decodeLevel,
+  GoombaSim, rowsToLevels, setGoombaLevels, hasBonusLevels,
+  goombaCleared, BAKED_LEVELS,
 } from "./lib.mjs";
 
 let failed = 0;
@@ -90,31 +90,25 @@ install("bbb");
   is("...and the grid stays locked", goombaCleared(sim.st), false);
 }
 
-console.log("\nA PASTED LEVEL IS ALWAYS BONUS");
+console.log("\nANYTHING NOT SHIPPED IS POST-CREDITS, WHATEVER ITS ROW SAYS");
 {
   setGoombaLevels([
     ...rowsToLevels([{ id: "a", name: "A", hash: H }], "baked"),
     ...rowsToLevels([{ id: "b", name: "B", hash: H }], "local"),
+    ...rowsToLevels([{ id: "c", name: "C", hash: H }], "hash"),
   ]);
   const sim = new GoombaSim(1000);
-  is("a local paste cannot hold the ending up", clear(sim, 0), "splash");
+  is("neither a local paste nor a #hash level can hold the ending up", clear(sim, 0), "splash");
+  is("...and both count as the way out", hasBonusLevels(), true);
 }
 
 console.log("\nTHE LIST THE GAME ACTUALLY SHIPS");
 {
-  const main = BAKED_LEVELS.filter((r) => !r.bonus);
-  const bonus = BAKED_LEVELS.filter((r) => r.bonus);
-  is("has a main game", main.length > 0, true);
-  is("the credits roll after " + (decodeLevel(main[main.length - 1].hash)?.name), true, true);
-  console.log(`      main:  ${main.map((r) => r.id).join(", ")}`);
-  console.log(`      bonus: ${bonus.map((r) => r.id).join(", ") || "(none)"}`);
-  // The bonus rows are a SUFFIX: a bonus level in the middle would number the
-  // post-credits section around a main level nobody had reached yet.
-  const firstBonus = BAKED_LEVELS.findIndex((r) => r.bonus);
-  is("bonus rows are a contiguous tail",
-    firstBonus < 0 || BAKED_LEVELS.slice(firstBonus).every((r) => r.bonus), true);
+  // Its SHAPE (a main game exists, the bonus rows are a tail) is
+  // `levels.mjs --check`'s to enforce; this only asks that the sim, given the
+  // real list, sees the post-credits section at all.
   setGoombaLevels(rowsToLevels(BAKED_LEVELS, "baked"));
-  is("the shipped list has post-credits levels", hasBonusLevels(), true);
+  is("the sim sees post-credits levels in the shipped list", hasBonusLevels(), true);
 }
 
 console.log(failed ? `\n${failed} failed` : "\nall good");

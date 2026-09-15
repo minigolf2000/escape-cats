@@ -1,6 +1,5 @@
-/* hex-clicker — the whole stylesheet, imported from main.js. Two halves: the
- * GAME, and under it the MULTIPLAYER SHELL (join gate, team strip, reconnect
- * toast, win pill). */
+/* hex-clicker — the whole stylesheet, imported from main.js. The GAME, and
+ * under it the cover over the stage (the gate) and the win pill. */
 
   /* ---- THEME ----
      DAY is the default in :root and NIGHT overrides the same names on
@@ -949,8 +948,8 @@
     #rotate .glyph { font-size: 46px; animation: rotateHint 2.2s ease-in-out infinite; }
     #rotate b { font-size: 19px; font-weight: 800; letter-spacing: .01em; }
     #rotate span { font-size: 14px; opacity: .62; max-width: 30ch; }
-    /* Everything behind the gate keeps running — the room is server-authoritative
-       and a teammate may still be petting. Hiding is purely visual. */
+    /* Everything behind the gate keeps running — income accrues whether or
+       not the stage is visible. Hiding is purely visual. */
     body > *:not(#rotate) { visibility: hidden; }
   }
   @keyframes rotateHint {
@@ -1079,8 +1078,8 @@
     @keyframes splashFade { from { opacity: 0; } to { opacity: 1; } }
   }
 
-  /* THE TOGGLE — the only control the win adds. Hidden until the proctor marks
-     the team won, then ping-pongs between game and splash. Top-left: the one
+  /* THE TOGGLE — the only control the win adds. Hidden until the wall goes
+     legible, then ping-pongs between game and splash. Top-left: the one
      corner nothing else uses, and where Goomba's level selector opens too. */
   #wonPill {
     position: fixed; z-index: 36; display: none;

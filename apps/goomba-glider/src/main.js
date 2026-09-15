@@ -1,8 +1,8 @@
 // Goomba Glider, multiplayer client — boot, the frame loop, and the wiring
-// between a snapshot and the UI. The room server owns bands, level, phase and
+// between a snapshot and the UI. The backend owns bands, level, phase and
 // score; this file renders snapshots and sends intents. A run is animated
-// LOCALLY against the server's runAt timestamp with the same shared sim, so
-// every phone watches the same ride and reaches the ending the server banked.
+// against the snapshot's `runAt` timestamp with the same shared sim that
+// scored it, so the ride reaches the ending the sim banked.
 //
 // The rest of the client is split by what it owns:
 //   dom.js       every element reference
@@ -20,10 +20,10 @@ import {
   SUB,
   makeRun,
   stepRun,
-  snapBand,
   encodeLevel,
   levelLabel,
   hasBonusLevels,
+  PACK_MAX,
 } from "@escape-cats/shared";
 import { transport } from "./transport";
 import { startBackend } from "./backend";
@@ -84,8 +84,8 @@ for (const ev of ["gesturestart", "gesturechange", "gestureend"]) {
 const RZ = 1.9;
 
 let shownPhase = "edit", shownLevel = -1, shownRunId = 0;
-// tGlobal when the room landed on the finale — the splash animates off ITS
-// own clock, so a phone that joins a room already there sees the whole arrival
+// tGlobal when the game landed on the finale — the splash animates off ITS
+// own clock, so a reload onto it sees the whole arrival
 // rather than the middle of it. -1 until the splash is up.
 let splashAt = -1;
 let anim = null;            // { key, st } — the local replay of the scored run
@@ -123,7 +123,6 @@ function onSnapshot(s) {
   // can land on the SAME level (the finale), which no other signal notices.
   const splashEdge = (s.phase === "splash") !== (shownPhase === "splash");
   S.snap = s;
-  S.pending = null; // whatever we sent, the authority has now spoken
 
   // The latched card tap resolves here, in the same handler that recenters
   // the camera below, so the first frame without the lab is the new level.
@@ -198,7 +197,7 @@ function syncHud() {
   });
 
 
-  // The 4 band slots — the room's whole budget, all in the team's colour. An
+  // The 4 band slots — the level's whole budget, all in the one band colour. An
   // empty slot during edit is lit: it is one I may fill.
   const ink = bandInk();
   invEl.innerHTML = "";
@@ -207,13 +206,13 @@ function syncHud() {
     const bd = s.bands[i];
     const open = !bd && s.phase === "edit";
     el.className = "band" + (bd ? " used" : open ? " open" : "");
-    // Inline: only the client knows its team. Mid-run slots keep the CSS dashes.
+    // Inline (`bandInk`). Mid-run slots keep the CSS dashes.
     if (bd || open) el.style.borderColor = ink;
     if (bd) el.style.background = ink + "33";
     invEl.appendChild(el);
   }
 
-  // NEXT is never the finale's button: the win that clears the room never
+  // NEXT is never the finale's button: the win that clears the game never
   // stops on `win` for one to be drawn (`GoombaSim.resolve`).
   playBtn.textContent =
     s.phase === "run" ? "■ STOP" : s.phase === "win" ? "NEXT ▸" : "▶ PLAY";
@@ -229,7 +228,7 @@ playBtn.onclick = () => {
   else if (S.snap.phase === "run") transport.send({ type: "stop" });
   else if (S.snap.phase === "win") transport.send({ type: "next" });
 };
-// One tap wipes the ROOM's bands, teammates' included, with no confirm and no
+// One tap wipes every band on the level, with no confirm and no
 // toast: four people in one living room answer a stray out loud. If strays turn
 // up, the answer is UNDO, never a confirm step. The whole plate is the target;
 // `disabled` (syncHud) limits it to edit-with-bands, and every other moment the
@@ -258,18 +257,18 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault(); closeSheet(); return;
   }
   if (e.key === " ") { e.preventDefault(); playBtn.onclick(); }
-  // `\` — the DOOR to the level pack, and only the door: what the grid looks
-  // like is the surface's business (editorOn).
+  // `\` — the DOOR to the level list, and only the door: what the grid looks
+  // like is the surface's business (editorOn). `openSelector` holds the gate
+  // and the "stop whatever is running first", so they cannot disagree.
   if (e.key === "\\") {
     e.preventDefault();
     // A plain toggle. Closing locks the door behind you.
     if (S.labOpen) { S.unlocked = false; setLab(false); syncHud(); return; }
     S.unlocked = true;
-    if (S.snap && S.snap.phase === "run") transport.send({ type: "stop" });
-    setLab(true);
+    openSelector();
     syncHud();
   }
-  // Escape only takes back the door `\` opened; a cleared team keeps its grid.
+  // Escape only takes back the door `\` opened; a cleared game keeps its grid.
   if (e.key === "Escape" && S.labOpen && S.unlocked) {
     S.unlocked = false; setLab(false); syncHud();
   }
@@ -305,9 +304,9 @@ window.addEventListener("paste", (e) => {
   const toGrid = !onGrid && GOOMBA_LEVELS.length === 0;
   if (onGrid || toGrid) {
     // A paste earns the door as surely as `\` does, or the grid it opened on
-    // an un-cleared room could not be opened again.
+    // an un-cleared game could not be opened again.
     S.unlocked = true;
-    if (!S.labOpen) { S.selected = null; setLab(true); }
+    if (!S.labOpen) { S.selected = null; openSelector(); }
     syncHud();
   }
   pasteSay("reading the clipboard…");
@@ -360,7 +359,7 @@ const lockFlare = (dt) =>
   dt < 0 ? 0
     : dt < LOCK_ATTACK ? dt / LOCK_ATTACK
     : Math.max(0, 1 - (dt - LOCK_ATTACK) / LOCK_RELEASE);
-/** Keep the local animation in step with the room's shared clock. Returns the
+/** Keep the animation in step with the snapshot's clock. Returns the
  * RunState to draw, or null when nobody is riding. */
 function syncAnim() {
   const s = S.snap;
@@ -479,7 +478,6 @@ function frameBody(nowMs) {
   });
   drawGoalPlant(lv, st, lockFx);
   bands().forEach((bd, i) => drawBand(bd, bandExcite.get(i) || 0, false));
-  if (S.pending && S.snap.phase === "edit") drawBand(snapBand(lv, S.pending), 0, true);
   if (S.preview && S.snap.phase === "edit") drawBand(S.preview, 0, true);
   if (S.snap.phase === "edit") {
     const a = liveAnchor();
@@ -542,9 +540,9 @@ function boot() {
   // The three layers become `GOOMBA_LEVELS`. A `#hash` level opens ON itself,
   // so `draft.mjs link` lands you on the thing you just drew; otherwise the
   // grid opens when there is nothing to play and the game does when there is.
-  const hashLevel = composeLibrary({ first: true });
+  const hashLevel = composeLibrary();
   setLab(hashLevel === null && GOOMBA_LEVELS.length === 0);
-  startBackend({ onSnapshot, onPackChanged: () => onPack() });
+  startBackend({ onSnapshot, onPackChanged: onPack });
   if (hashLevel !== null) transport.send({ type: "goto", level: hashLevel });
 }
 

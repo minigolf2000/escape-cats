@@ -1,5 +1,5 @@
 // CLICK / PET. A pet credits the display optimistically and joins the next
-// batched `pets` message; the server's snapshot reconciles within a tick.
+// batched flush; the next snapshot reconciles within a tick.
 // Night pets never leave the phone — Hex is asleep and the sleepy reaction is
 // entirely local theatre.
 

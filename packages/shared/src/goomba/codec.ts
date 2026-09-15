@@ -42,7 +42,7 @@
 // can make them lose.
 //
 // `bounds` is NOT carried (derived by initLevel) and neither is a band budget
-// (the room's MAX_BANDS is the only one).
+// (MAX_BANDS is the only one).
 import type { GoombaLevel, Pt } from "./levels";
 
 /** What `encodeLevel` writes. `decodeLevel` also accepts 1 and 2. */

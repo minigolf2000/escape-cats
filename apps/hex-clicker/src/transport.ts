@@ -30,10 +30,7 @@ export const transport: Transport = {
   queuePet() {},
 };
 
-/** `?debug` mounts the 🛠 tuning panel. `?solo` was the old name for "no
- * server", which is every game now; it is still accepted so an old bookmark
- * lands on the panel rather than dead-ending. */
+/** `?debug` mounts the 🛠 tuning panel. */
 export function debugFromUrl(): boolean {
-  const q = new URLSearchParams(location.search);
-  return q.has("debug") || q.has("solo");
+  return new URLSearchParams(location.search).has("debug");
 }

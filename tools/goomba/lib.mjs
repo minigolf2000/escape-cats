@@ -71,11 +71,12 @@ const packFile = packArgAt > 1 && process.argv[packArgAt + 1]
   ? process.argv.splice(packArgAt, 2)[1]
   : process.env.GOOMBA_PACK || join(dirname(fileURLToPath(import.meta.url)), "pack.json");
 export const packSource = existsSync(packFile) ? packFile : null;
-applyPack(
-  packSource
-    ? JSON.parse(await readFile(packSource, "utf8"))
-    : sim.BAKED_LEVELS.map((row) => row.hash),
-);
+// The shipped list goes through `rowsToLevels`, the same door the game uses,
+// so every level keeps its id, its source and its `bonus` flag — a tool that
+// drives the sim (bands.mjs, finale.mjs) sees the finale where the game does.
+// A `--pack` file is bare links and has none of that to keep.
+if (packSource) applyPack(JSON.parse(await readFile(packSource, "utf8")));
+else sim.setGoombaLevels(sim.rowsToLevels(sim.BAKED_LEVELS, "baked"));
 
 /**
  * The level at `<idx>`, or a message a person can act on — stderr + exit(2),

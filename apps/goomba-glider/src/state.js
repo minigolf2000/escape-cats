@@ -1,5 +1,5 @@
-// The room's word, plus the local presentation that hangs off it. `S.snap` is
-// the authority's latest snapshot; everything else is derived or local. Nothing
+// The sim's word, plus the local presentation that hangs off it. `S.snap` is
+// the latest snapshot; everything else is derived or local. Nothing
 // here draws. `S` is one mutable object because several modules assign into it
 // and an `export let` is read-only to importers.
 
@@ -13,10 +13,9 @@ import { debugFromUrl } from "./debug";
 import { hudEl, toastEl } from "./dom";
 
 export const S = {
-  snap: null,          // latest GoombaSnapshot — the authority's word
+  snap: null,          // latest GoombaSnapshot — the sim's word
   inited: false,       // has the first snapshot landed?
   preview: null,       // band being stretched right now, local only
-  pending: null,       // optimistic ghost: sent to the server, not yet echoed
   anchor: null,        // first tap of a tap-tap placement, awaiting its end
   cam: { x: 0, y: 0, s: 10 },
   labOpen: false,      // levels grid showing?
@@ -60,8 +59,8 @@ const calmMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 export const REDUCED = () => calmMotion.matches;
 
 /**
- * WHO GETS THE LEVEL SELECTOR: a team that has CLEARED the game (room state,
- * so all phones unlock together and a reset takes it back). `?debug` and
+ * WHO GETS THE LEVEL SELECTOR: a game that has been CLEARED (sim state, so
+ * a reset takes it back). `?debug` and
  * `unlocked` (`\`) are local overrides of this one gate — a DOOR, not a mode:
  * never what the selector looks like once open.
  */
@@ -92,13 +91,10 @@ export const bandInkDark = () => BAND_INK_DARK;
 export const PARTY_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
 
 // ---------- the 4 bands ----------
-// Four bands for the room, no per-player share. Asked with the authority's own
-// predicate so a gesture is refused BEFORE it goes on the wire. `pending`
-// counts as placed, or a fast double-tap on the last free band shows a band
-// that then vanishes.
-export const bandsOut = () => bands().length + (S.pending ? 1 : 0);
-export const iMayPlace = () =>
-  canPlaceBand(S.pending ? [...bands(), S.pending] : bands());
+// Four bands a level. Asked with the sim's own predicate so a gesture is
+// refused by the rule the sim would refuse it with.
+export const bandsOut = () => bands().length;
+export const iMayPlace = () => canPlaceBand(bands());
 
 // ---------- talking to the player ----------
 let toastT = 0;

@@ -1,4 +1,4 @@
-// The client's mirror of the room. The server (or the ?debug sim) is
+// The client's mirror of the game. The backend's sim is
 // authoritative; this module holds the latest snapshot plus just enough local
 // extrapolation to keep the counter smooth between broadcasts, and turns each
 // snapshot into EDGES (day->night flip, neon on, gold spawned...) that main.js
@@ -32,7 +32,7 @@ export const game = {
   zoomUntil: 0, // performance.now() ms while Zoomies is active (converted from server time)
   nightAt: null, // wall-clock (server epoch) ms the twist fired — anchors the wall
   legibleAt: null, // epoch ms the wall became readable — which IS the win (hexWon)
-  // The wall's odometer, banked by the authority (see HexWallClock in rules.ts):
+  // The wall's odometer, banked by the sim (see HexWallClock in rules.ts):
   // scene units walked as of `wallAt` (server epoch ms), out of the rate and glow
   // it was holding then. wall.js reads position AND brightness off this, so every
   // phone draws the same frame — including one that joins mid hand-over.
@@ -107,9 +107,9 @@ export function wallSeed() {
 //
 // What went with the server is the BOOKKEEPING. Credit used to be held per
 // batch `seq` until the authority acked that batch, with a timestamp backstop
-// in case an ack was lost to a reconnect. Locally the flush and the snapshot
-// that includes it happen in one synchronous call (`backend.ts`, `emit`), so
-// the whole queue clears at a known instant and there is nothing to lose.
+// in case an ack was lost to a reconnect. Locally every snapshot is emitted
+// AFTER the queue is folded in (`backend.ts`, `emit`), so a snapshot arriving
+// IS the ack: `applySnapshot` clears the credit, and there is nothing to lose.
 let optimistic = 0;
 
 export function petCredit(gain) {
@@ -120,21 +120,14 @@ export function petCredit(gain) {
   extrapolate();
 }
 
-/** Every queued tap is in the snapshot about to be applied. Called by the
- * backend between the flush and the snapshot, which is the only moment at
- * which that is true. */
-export function ackPets() {
-  optimistic = 0;
-}
 
-const optimisticGain = () => optimistic;
 
 // ---- THE BANK IS A FUNCTION OF TIME, NOT A RUNNING TOTAL ----
 // A running total that a snapshot then overwrites ticks backwards two ways: it
 // re-bases on ARRIVAL, so network jitter moves the bank, and the frame after a
 // snapshot double-counts the sliver since the previous frame. So the bank is
 // read off an ANCHOR — a value, the shared-clock moment it was true, and the
-// rate it was climbing at. Consecutive anchors AGREE (the authority integrates
+// rate it was climbing at. Consecutive anchors AGREE (the sim integrates
 // the same rate over the same interval), so there is nothing to reconcile. And
 // income can never move the bank DOWN: `total` only climbs and the spent gap
 // only steps on a purchase, so the one thing that takes the number down is a
@@ -149,7 +142,7 @@ let anchorAt = null; // server-epoch ms, on the shared clock — see wallNow()
 export function extrapolate() {
   if (anchorAt === null) return;
   const age = Math.max(0, (wallNow() - anchorAt) / 1000);
-  game.total = anchorTotal + anchorCps * age + optimisticGain();
+  game.total = anchorTotal + anchorCps * age + optimistic;
   game.mice = game.total - anchorSpent;
 }
 
@@ -157,6 +150,9 @@ export function extrapolate() {
 let runId = null;
 
 export function applySnapshot(snap) {
+  // Every queued tap is in this snapshot (the backend folds them in before it
+  // emits), so the optimistic credit is spent.
+  optimistic = 0;
   syncClock(snap.serverTime);
   const first = runId === null;
   const edges = {
@@ -181,7 +177,6 @@ export function applySnapshot(snap) {
     // Start over.
     game.unlocked = {};
     game.seen = {};
-    optimistic = 0;
   }
 
   game.clicks = snap.clicks;
@@ -189,7 +184,7 @@ export function applySnapshot(snap) {
   game.owned = { ...snap.owned };
   game.bought = { ...snap.bought };
   game.nightAt = snap.nightAt;
-  game.legibleAt = snap.legibleAt ?? null;
+  game.legibleAt = snap.legibleAt;
   game.wallBase = snap.wallBase ?? 0;
   game.wallAt = snap.wallAt ?? snap.nightAt;
   game.speed = snap.speed;
@@ -205,7 +200,7 @@ export function applySnapshot(snap) {
   game.wallFrom = snap.wallFrom ?? wallSpeed(mods);
   game.wallGlowFrom = snap.wallGlowFrom ?? wallGlow(mods);
 
-  // The bank's anchor — what the authority held, the moment it held it, and how
+  // The bank's anchor — what the sim held, the moment it held it, and how
   // fast it was climbing. `cps` and `serverTime` both ride the snapshot, so none
   // of it is measured against when the message happened to ARRIVE. After the
   // fold too, so the fallback rate is this snapshot's economy and not the last.

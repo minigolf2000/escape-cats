@@ -113,7 +113,12 @@ export function composeLibrary({ first = false } = {}) {
  * overwritten from inside the game — it is source, and the way to change it is
  * a commit. The grid asks this before it draws a ⌫ on a card. */
 export const overlayBase = () => BAKED_LEVELS.length;
-export const isEditable = (i) => i >= overlayBase() && i < overlayBase() + readOverlay().length;
+/** Answered off the list on screen, not off storage: the grid asks this per
+ * card per frame, and `composeLibrary` already stamped every level with where
+ * it came from. It is also the answer that cannot disagree with the grid —
+ * `readOverlay` keeps a row whose hash will not decode, `rowsToLevels` drops
+ * it, so an index range derived from storage can be off by one. */
+export const isEditable = (i) => GOOMBA_LEVELS[i]?.source === "local";
 
 /** Paste a level in. `index` null appends; otherwise it REPLACES that slot,
  * which is how you fix a level in Figma and paste over it — and the id is kept

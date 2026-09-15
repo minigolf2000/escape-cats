@@ -13,12 +13,12 @@
 // get alone.
 //
 // NEVER take a position out of `get_metadata`'s XML: it reports x/y as the
-// node's ORIGIN but width/height as the BOUNDING BOX, with no rotation, so
-// `x + width/2` is the centre only for an unrotated node and nothing says which
-// those are (a popper turned 90° reads 14 units off). Use it to find frames
-// and names; come here for numbers.
+// node's ORIGIN but width/height as the BOUNDING BOX, with no rotation and no
+// flip, so `x + width/2` is the centre only for a node that has neither and
+// nothing says which those are (a popper turned 90° reads 14 units off). Use it
+// to find frames and names; come here for numbers.
 import { readFile } from "node:fs/promises";
-import { classify, levelName, hasFigmaBuffer, levelFromFigmaClipboard, FIGMA_POP_SPD }
+import { classify, levelName, hasFigmaBuffer, levelFromFigmaClipboard, degOf, FIGMA_POP_SPD }
   from "../../../apps/goomba-glider/src/figma/clipboard.js";
 import { stitchTerrain } from "../../../apps/goomba-glider/src/figma/stitch.js";
 import { rectPoly, ellipsePoly, cutTester, applyCuts }
@@ -41,21 +41,33 @@ await figma.setCurrentPageAsync(page);
 const f = await figma.getNodeByIdAsync("<the L: frame's id>");
 return { frame: { name: f.name, w: f.width, h: f.height },
   kids: f.children.map((c) => ({ name: c.name, type: c.type,
-    x: c.x, y: c.y, w: c.width, h: c.height, rot: c.rotation ?? 0 })) };`;
+    w: c.width, h: c.height, m: c.relativeTransform })) };`;
 
 // ------------------------------------------------------------ nodes carrier
 
 /**
- * Figma's transform from what the Plugin API hands back: `x`/`y` place the
- * node's own (0,0) in its parent and `rotation` turns it about that point,
- * counter-clockwise positive in a y-DOWN space — the usual matrix with the
- * sines swapped. Every anchor (an instance's centre, a Line's ends, a cushion's
- * left edge) is a point pushed through it.
+ * The node's transform, laid out [a b tx / c d ty] like the clipboard reader's.
+ * Every anchor (an instance's centre, a Line's ends, a cushion's left edge) is
+ * a point pushed through it.
+ *
+ * TAKE IT FROM THE CARRIER. `relativeTransform` is the whole truth; `x`/`y`
+ * plus `rotation` is NOT, because a node can also be FLIPPED — Ctrl+Shift+H on
+ * a popper to aim it the other way — and a mirror is a determinant of -1 that
+ * no angle can stand for. Rebuilding one from the angle alone silently relocates
+ * the node by twice its offset from the flip axis: that is how Cat's Cradle's
+ * four left-aimed poppers shipped 4.2 across and 16 up from where they are
+ * drawn. `rotMatrix` stays only so a dump taken before the snippet carried `m`
+ * still reads; it is warned about below.
  */
-const matrix = (x, y, rot) => {
+const rotMatrix = (x, y, rot) => {
   const r = (rot * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
   return [c, s, x, -s, c, y];
 };
+/** Figma hands `relativeTransform` back as [[a, b, tx], [c, d, ty]]. */
+const matrixOf = (k) =>
+  Array.isArray(k.m) && k.m.length === 2
+    ? [k.m[0][0], k.m[0][1], k.m[0][2], k.m[1][0], k.m[1][1], k.m[1][2]]
+    : rotMatrix(k.x || 0, k.y || 0, k.rot || 0);
 const apply = (m, x, y) => ({ x: m[0] * x + m[1] * y + m[2], y: m[3] * x + m[4] * y + m[5] });
 
 function fromNodes(doc) {
@@ -74,7 +86,7 @@ function fromNodes(doc) {
   };
   const warnings = [];
   const shapes = [], cuts = [];
-  let bands = 0;
+  let bands = 0, boxed = 0;
 
   for (const k of doc.kids) {
     const hit = classify(k.name);
@@ -85,7 +97,8 @@ function fromNodes(doc) {
       continue;
     }
     const { kind } = hit;
-    const m = matrix(k.x, k.y, k.rot || 0);
+    const m = matrixOf(k);
+    if (!Array.isArray(k.m)) boxed++;
     if (kind === "band") { bands++; continue; }
     if (kind === "cut") {
       const isEllipse = k.type === "ELLIPSE";
@@ -117,9 +130,10 @@ function fromNodes(doc) {
     else if (kind === "goal") level.goal = pt;
     else if (kind === "can") level.cans.push(pt);
     else if (kind === "bumper") level.bumpers.push({ x: pt[0], y: pt[1] });
-    // `deg = -rotation`: Figma's rotation is counter-clockwise positive and the
-    // game's deg feeds cos/sin in a y-down world, so it is clockwise positive.
-    else if (kind === "pop") level.pops.push({ x: pt[0], y: pt[1], deg: ROUND(-(k.rot || 0)), spd: FIGMA_POP_SPD });
+    // Where the node's own +x points, read off the matrix by the SHIPPED
+    // `degOf` — which for an unflipped node is exactly minus Figma's rotation
+    // (Figma counts counter-clockwise; deg feeds cos/sin in a y-down world).
+    else if (kind === "pop") level.pops.push({ x: pt[0], y: pt[1], deg: ROUND(degOf(m)), spd: FIGMA_POP_SPD });
     else if (kind === "cushion") {
       const left = apply(m, 0, k.h / 2);
       level.cushions.push({ x: W(left.x), y: W(left.y), w: W(k.w) });
@@ -129,6 +143,11 @@ function fromNodes(doc) {
   // caps, so unstitched chains grow half-stroke stubs at every shared vertex.
   level.terrain = applyCuts([...stitchTerrain(level.terrain), ...shapes], cuts);
   if (bands) warnings.push(`${bands} \`band\` layer${bands > 1 ? "s" : ""} ignored — a level has no solution field.`);
+  if (boxed) warnings.push(
+    `${boxed} node${boxed > 1 ? "s" : ""} carried no \`m\` (relativeTransform), so ` +
+    `${boxed > 1 ? "their anchors were" : "its anchor was"} rebuilt from x/y/rot — which ` +
+    `cannot express a FLIP, and a flipped node reads twice its offset from the flip axis ` +
+    `away from where it is drawn. Re-dump with the snippet in --help.`);
   return { level, warnings };
 }
 

@@ -67,7 +67,7 @@ export const BAKED_LEVELS: LevelRow[] = [
     id: "cats-cradle",
     bonus: true,
     name: "Cat's Cradle",
-    hash: "AwIMQ2F0J3MgQ3JhZGxl2AKoAcUBgBABAmqRD9gBRgSsBXy7BYIF9gOOB50CAwgQ4QurAqgUsAcAAACvB8QJAACECJgCtxcAALUJAABTnge4FwDbBpgCtxcAALUJAAAAAP8FpwbwEfIU",
+    hash: "AwIMQ2F0J3MgQ3JhZGxl2AKoAcUBgBABAmqRD9gBRgSsBXy7BYIF9gOOB50CAwgQ4QurAqgUsAcAAACvB8QJAACuB9YEtxcAALUJAAAC4AS4FwCvB9YEtxcAALUJAAAAAKsF5QjwEfIU",
   },
   {
     id: "the-long-way-up",

@@ -3,11 +3,19 @@
 //
 //   node test-read-frame.mjs
 //
-// The fixture is REAL: `fixtures/fireworks-nodes.json` is what a read-only
-// `use_figma` script returned for the Fireworks frame, untouched. It must be a
-// carrier with the TRANSFORM: ten of Fireworks' fifteen poppers are turned 90°,
-// and a box-only carrier (`get_metadata` XML) reads each 14 units off — a
-// fixture generated under the same assumption as the code cannot catch that.
+// Both fixtures are REAL: what a read-only `use_figma` script returned for the
+// frame, untouched. They must be carriers with the TRANSFORM: ten of Fireworks'
+// fifteen poppers are turned 90°, and a box-only carrier (`get_metadata` XML)
+// reads each 14 units off — a fixture generated under the same assumption as
+// the code cannot catch that.
+//
+// `fireworks-nodes.json` is an OLD dump, from before the snippet carried `m`:
+// it keeps the x/y/rot fallback honest, and it is the shape of dump that hid
+// the Cat's Cradle bug. `cats-cradle-nodes.json` carries `m`, and four of its
+// eight poppers are FLIPPED as well as turned — a mirror is a determinant of
+// -1 and no rotation angle stands for one, so rebuilding the matrix from the
+// angle put those four 4.2 units across and 16 up from where they are drawn.
+// That is the case only a transform-carrying fixture can catch.
 import { FIGMA_POP_SPD } from "../../../apps/goomba-glider/src/figma/clipboard.js";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -15,6 +23,7 @@ import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = join(here, "fixtures", "fireworks-nodes.json");
+const cradle = join(here, "fixtures", "cats-cradle-nodes.json");
 const run = (...args) =>
   JSON.parse(execFileSync("node", [join(here, "read-frame.mjs"), ...args], { encoding: "utf8" }));
 
@@ -66,6 +75,35 @@ eq("goal", L.goal, [88.5, 62.6]);
 // A Line is zero-height, so its transform IS its two endpoints — this one
 // slopes down to the right, which the box alone could not have told you.
 eq("terrain comes back as stitched polylines", L.terrain, [[[0.7, 116.3], [11.5, 119.8]]]);
+
+// ---------------------------------------------------------- the flipped case
+
+const C = run("--nodes", cradle, "--json");
+
+eq("a flipped frame still names itself", C.name, "Cat's Cradle");
+
+// The four lanes are drawn evenly spaced, alternating which way they fire.
+// Read through the angle alone the left-aimed pair lands at y 40.4 and 100.7
+// — a lattice with a 46-unit hole in the middle that nothing in Figma shows.
+const lanes = [...new Set(C.pops.map((p) => p.y))].sort((a, b) => a - b);
+eq("a flipped popper anchors through its MATRIX: four evenly spaced lanes",
+  lanes, [25.7, 56.3, 86.7, 116.6]);
+eq("...and two columns, the flipped ones sharing the unflipped ones' x",
+  [...new Set(C.pops.map((p) => p.x))].sort((a, b) => a - b), [34.2, 81.3, 81.4]);
+
+// The mirror is in the matrix, not the angle: aim was never the broken half.
+eq("the lanes alternate their aim",
+  lanes.map((y) => C.pops.find((p) => p.y === y).deg), [-15, -165, -15, -165]);
+
+// An unflipped node in the same frame must read the same either way.
+eq("an unflipped neighbour is untouched", C.cans, [[57.6, 23.6], [22.6, 55.7], [47.7, 101.2], [33.4, 101]]);
+eq("start", C.start, [17.2, 8.4]);
+eq("goal", C.goal, [7.3, 110.8]);
+
+// A dump with no `m` cannot say whether anything was flipped, so it says so.
+const boxed = run("--nodes", fixture, "--json").warnings.filter((w) => w.includes("FLIP"));
+eq("a transform-less dump warns that a flip would be invisible to it", boxed.length, 1);
+eq("...and a dump that carries `m` does not", C.warnings.filter((w) => w.includes("FLIP")).length, 0);
 
 console.log(fail ? `\n${fail} failed` : "\nall good");
 process.exit(fail ? 1 : 0);

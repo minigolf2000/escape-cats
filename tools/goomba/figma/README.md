@@ -74,7 +74,7 @@ digits and a `-42` suffix.
 | `start`, `goal` | instance | bbox centre |
 | `watering-can`, `bumper` | instance | a `cans[]` / `bumpers[]` entry, bbox centre |
 | `cushion` | instance | `{x: left, y: centre, w: width}` — horizontal only, rotation ignored |
-| `party-popper` | instance | popper at bbox centre; `deg` from rotation, `spd` = `FIGMA_POP_SPD` (130, in `clipboard.js`) |
+| `party-popper` | instance | popper at bbox centre; `deg` from its matrix (flip included), `spd` = `FIGMA_POP_SPD` (130, in `clipboard.js`) |
 | `band` | Line | **ignored** with a warning; delete these |
 | `_…` or `//…` | anything | **ignored** (gauges, guides, notes) |
 | any Text | text | **ignored** |
@@ -83,8 +83,15 @@ An instance whose component is not in the payload (a detached copy, a synthetic
 fixture) falls back to its layer name.
 
 - **1 unit = 10 px.** **y is DOWN**, same as Figma.
-- **Rotation: `deg = -rotation`.** Figma is counter-clockwise positive; the game's
-  `deg` feeds cos/sin in a y-down world.
+- **Every anchor comes off the node's MATRIX, never an angle.** A popper's `deg`
+  is which way its own +x points once the matrix has had it; for a node that was
+  only turned that is exactly `-rotation` (Figma counts counter-clockwise, the
+  game's `deg` feeds cos/sin in a y-down world), but a node can also be
+  **FLIPPED** — Ctrl+Shift+H, which is the natural way to aim a popper the other
+  way — and a mirror is a determinant of -1 that no angle stands for. Rebuild a
+  matrix from an angle and a flipped node lands twice its offset from the flip
+  axis away from where it is drawn, aiming correctly at the wrong place. Both
+  carriers below hand over the real matrix; feed the readers nothing less.
 - Toy glyphs are symmetric about their anchor (the popper's arrow is inside its
   ring), so bbox-centre is exact.
 - Popper speed is one constant. Per-popper tuning belongs in a draft, not in a
@@ -107,8 +114,14 @@ await figma.setCurrentPageAsync(page);
 const f = await figma.getNodeByIdAsync("<the L: frame's id>");
 return { frame: { name: f.name, w: f.width, h: f.height },
   kids: f.children.map((c) => ({ name: c.name, type: c.type,
-    x: c.x, y: c.y, w: c.width, h: c.height, rot: c.rotation ?? 0 })) };
+    w: c.width, h: c.height, m: c.relativeTransform })) };
 ```
+
+`m` is the whole truth — position, rotation and any flip in one 2x3. A dump made
+before the snippet asked for it (`x`/`y`/`rot` instead) still reads, but it
+cannot say whether anything was mirrored, so the reader warns and you should
+re-dump. That gap is how Cat's Cradle's four left-aimed poppers shipped 4.2 u
+across and 16 u up from their frame.
 
 **Do not read positions out of `get_metadata`.** Its XML reports `x`/`y` as the
 node's ORIGIN and `width`/`height` as its BOUNDING BOX, with no rotation, so

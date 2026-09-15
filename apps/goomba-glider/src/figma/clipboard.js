@@ -130,7 +130,14 @@ function mul(m, t) {
   ];
 }
 const apply = (m, x, y) => ({ x: m[0] * x + m[1] * y + m[2], y: m[3] * x + m[4] * y + m[5] });
-const degOf = (m) => (Math.atan2(m[3], m[0]) * 180) / Math.PI;
+/**
+ * Which way the node's own +x points, in the game's y-down clockwise-positive
+ * degrees — read off the MATRIX, so a node that was FLIPPED as well as turned
+ * still answers honestly. Exported for the same reason `classify` is: the
+ * `--nodes` carrier reads the same contract from a different payload, and a
+ * second copy of this line is how the two drift.
+ */
+export const degOf = (m) => (Math.atan2(m[3], m[0]) * 180) / Math.PI;
 
 /**
  * One popper speed for every level drawn in Figma. Never read it off the layer

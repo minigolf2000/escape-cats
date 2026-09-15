@@ -152,7 +152,16 @@ export type HexClientMsg =
   | { type: "buyBuilding"; id: string }
   | { type: "buyUpgrade"; key: string }
   | { type: "catchGold"; id: number }
-  /** Start over. Was proctor-only; it is the player's own button now. */
+  /** Start over. Was the proctor's press; it is the player's intent now — but
+   * it has NO DOOR: nothing in the UI sends it, and the 🛠 panel resets the sim
+   * DIRECTLY (`debug.ts`), which is the bench's sanctioned bypass, not this.
+   * Kept anyway, where Goomba's is deleted (`GoombaClientMsg`): hex is one
+   * linear run with a terminal end and a one-shot twist, so starting over is a
+   * real want here, and everything behind this intent is written and working —
+   * `savedRunId` in `backend.ts` forces the fresh run to disk so a reload
+   * cannot hand the old one back, and the `reset` edge is handled across
+   * `state.js`, `main.js`, `shop.js` (un-closing a sold-out shop), `phase.js`
+   * and `wall.js`. What is missing is only WHERE to put it. */
   | { type: "reset" };
 
 export class HexSim {

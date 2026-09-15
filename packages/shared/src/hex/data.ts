@@ -376,9 +376,9 @@ export const UPGRADES: HexUpgrade[] = [
   // Catnap Hypnalysis is the END OF PHASE 1. 1M is more than five times the
   // dearest day row, so no day ladder is mistaken for the capstone and every day
   // upgrade — petting most of all — is affordable before it. Unlock is OWNING a
-  // Lab: the Lab causes the dream, phase 1 ends when a team decides to open the
+  // Lab: the Lab causes the dream, phase 1 ends when the player decides to open the
   // door, and a 1M row never sits unaffordable on screen for minutes. Night
-  // derives from `bought`, so saves restore it for free. A team that never buys
+  // derives from `bought`, so saves restore it for free. A player who never buys
   // a Lab never sees the twist; the fix for that is a nudge toward the Lab, not
   // a second unlock condition here.
   { key: "catnap", name: "Catnap Hypnalysis", icon: "💤",
@@ -481,7 +481,7 @@ export const UPGRADES: HexUpgrade[] = [
   // The night's one economy row, gated on six HOLES rather than the stage above
   // it; parked here by cost because array order is rail order. globalMult so it
   // multiplies the whole stack. Six Holes, not six goldens: goldens arrive on a
-  // wall clock, so a fast team's night ended before the sixth — exactly
+  // wall clock, so a fast run's night ended before the sixth — exactly
   // backwards. The price is what lands it mid-night, after Counting Mice.
   { key: "lucky6", name: "Lucky Number 6", icon: "🎲",
     cost: 1.8e6, unlock: { requires: "countingmice", owned: [["portal", 6]] },

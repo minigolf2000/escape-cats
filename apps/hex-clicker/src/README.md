@@ -5,16 +5,16 @@ Rendering is plain JS; the typed seams are TS. Game RULES live in
 
 | file        | owns                                                                  |
 | ----------- | --------------------------------------------------------------------- |
-| `main.js`   | boot, join gate, frame loop, and the snapshot→UI-beat wiring          |
-| `state.js`  | the server-state mirror, snapshot EDGES, shared clock, optimistic pets |
-| `net.ts`    | PartySocket transport + pet batching                                  |
-| `debug.ts`  | `?debug` — the shared HexSim running in-page, no server               |
+| `main.js`   | boot, paint cover, frame loop, and the snapshot→UI-beat wiring        |
+| `state.js`  | the sim-state mirror, snapshot EDGES, shared clock, optimistic pets   |
+| `transport.ts` | the intent/snapshot seam + pet batching                            |
+| `backend.ts` | the shared HexSim in this tab, and the `hex-save` write              |
+| `debug.ts`  | `?debug` — the 🛠 bench, the one thing that calls the sim directly    |
 | `shop.js`   | dock, building rows, upgrade rail, HUD, badge/seen, sold-out beat     |
 | `wall.js`   | the night reveal: tracer, glyphs, moon scene, cast, canvas drawing    |
 | `cat.js`    | Hex herself — blink, gaze, lean, purr, yawn, dream twitches, squash   |
-| `golden.js` | the golden mouse (server decides WHEN; each phone decides WHERE)      |
+| `golden.js` | the golden mouse (the sim decides WHEN; this file decides WHERE)      |
 | `pet.js`    | tap handling, streaks, night pokes                                    |
-| `mates.js`  | teammates' taps, replayed with their real rhythm and spot             |
 | `fx.js`     | "+N" floats and mouse-pop particles                                   |
 | `phase.js`  | day/night projection, starfield, night cutscene, the win splash       |
 | `art.js`    | the one mouse silhouette + palette every renderer builds from         |
@@ -73,9 +73,7 @@ pupil, shut lash — are traced off the v2 eye keyframes (node 53:104), the pupi
 from the artist's own drawn pupil rather than derived from the socket, which is
 what `PUPIL_SLIT`/`PUPIL_ROUND` then scale between.
 
-The markup is in `index.html`; the CSS in `styles.css`. The roster is a column
-of names riding the shop tray's measured top edge (`--dock-up`, written by
-`main.js`) — see `#team` in `styles.css`.
+The markup is in `index.html`; the CSS in `styles.css`.
 
 **Debug**: `window.__hex` exposes the mirror + `send()`. `?debug&speed=20`
 fast-forwards a run. The 🛠 panel's `spawn golden` puts a golden mouse up

@@ -262,8 +262,8 @@ const S = {
   neon: true,
 };
 // THE REVEAL LADDER, as the game actually sells it now. This is a port of the night
-// rows in packages/shared/src/hex/data.ts — the shared table the server and every
-// client read — not a design of the lab's own, and the order is the whole point:
+// rows in packages/shared/src/hex/data.ts — the shared table the game reads —
+// not a design of the lab's own, and the order is the whole point:
 //
 //   dark      night opens on the FULL cast of drifting white specks, no ink at all
 //   LD I      THE SPECKS START LEAVING TRAILS   <- the hinge; still white
@@ -359,7 +359,7 @@ const crewPhase = idx => ((idx + 1) * 0.6180339887498949) % 1;
 //     4: T· ·HE ··O·      9: TO THE MOON
 //     5: T· ·HE ··ON
 //
-// The goal is to delay the moment a team can GUESS the rest, which is not the
+// The goal is to delay the moment a player can GUESS the rest, which is not the
 // same as revealing slowly. What this order buys:
 //
 // - It INTERLEAVES the two lines, so neither word completes until step 6. A

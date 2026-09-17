@@ -51,10 +51,8 @@ export function pet(clientX, clientY) {
 
   const gain = clickGain();
   // Queue first, then credit: the credit is held until the flush that folds
-  // this tap into the sim (`backend.ts`). Where on Hex the finger landed used
-  // to ride along, so teammates' phones could replay the tap at the right spot
-  // on their own layout; with one player the tap pops under the finger that
-  // made it and never has to travel.
+  // this tap into the sim (`backend.ts`). Where the finger landed stays local:
+  // the tap pops under the finger that made it.
   transport.queuePet();
   petCredit(gain);
   // Every tap squashes; the streak beat below upgrades it, and squashPet ignores

@@ -56,7 +56,7 @@ const SHOP_LOOK_MS = 1000;
 let programmaticScroll = false;
 
 // True once the opening render is done — tells the shop ARRIVING from the page
-// merely being drawn, so a rejoin doesn't replay the slide-in.
+// merely being drawn, so a restored save doesn't replay the slide-in.
 let booted = false;
 export function setBooted() {
   booted = true;
@@ -70,7 +70,7 @@ export function syncDock() {
   // NOTHING LEFT TO SELL — the beat plays once (runShopClose, fired off the
   // sold-out edge) and then the dock is gone for good.
   if (shopSoldOut()) {
-    // Arrived this way rather than got here by buying: a rejoin lands on the
+    // Arrived this way rather than got here by buying: a restored save lands on the
     // end state with no beat, the same rule the night cutscene follows.
     if (!shopClosePhase) retireShop();
     return;
@@ -96,11 +96,11 @@ function toggleShop() {
 shopToggleEl.addEventListener("click", toggleShop);
 
 // Does this row belong on the rail in the CURRENT phase? The shared rule —
-// the sim's wire guard and the sold-out test are the same predicate.
+// the sim's own guard and the sold-out test are the same predicate.
 const onRailInPhase = (u) => onRail(u, game.bought);
 
 // NOTHING LEFT TO SELL — every row this phase would ever show is bought.
-// Derived from the table and the state, so a rejoin lands right for free.
+// Derived from the table and the state, so a restored save lands right for free.
 export function shopSoldOut() {
   return allRailBought(game);
 }
@@ -469,7 +469,7 @@ const SHOP_OUT_MS = 500; // the dockOut animation
 // stage can't land on a shop that has moved on (a reset mid-beat).
 let shopCloseGen = 0;
 // The rail stops being an expandable region and becomes a sign — shared by
-// the closing beat's first frame and the rejoin path's instant retire.
+// the closing beat's first frame and the restore path's instant retire.
 function disableRail() {
   shopToggleEl.disabled = true;
   shopToggleEl.removeAttribute("aria-expanded");
@@ -505,7 +505,7 @@ export function runShopClose() {
   }, SHOP_CLOSE_MS);
 }
 
-// The terminal state, and the one syncDock jumps straight to for a rejoin that
+// The terminal state, and the one syncDock jumps straight to for a restored save that
 // was already sold out when it landed. Idempotent.
 export function retireShop() {
   shopClosePhase = "retired";

@@ -360,7 +360,7 @@ function headTiltDeg(t, calm) {
 // #headNight (the SLEEPING cat) the page's LCP. So the frames that cannot be on
 // screen at boot park their URL in `data-href` and land here, one idle callback
 // after the page is up; the 2s deadline beats the first pet on any phone, and a
-// pet cannot land before the room's first snapshot anyway. The paths are
+// pet cannot land before the first snapshot anyway. The paths are
 // BASE_URL-relative: Vite rewrites `href` through `base` but not `data-href`.
 export function warmPoseFrames() {
   const land = () => {

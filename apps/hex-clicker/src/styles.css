@@ -602,7 +602,7 @@
      The tray is transparent-over-blur and takes its colour from the page, which
      at night is right and by day left the shop invisible. So day hands it a
      ground and re-pitches every token for it — scoped here rather than in :root
-     because the page still needs its own readings (the join gate prints --ink
+     because the page still needs its own readings (the gate prints --ink
      on pink; the HUD's coin keeps the dark --mouse-line). A THIRD theme scope,
      the only place a var means one thing inside an element and another outside. */
   body:not(.night) #dock {
@@ -930,8 +930,8 @@
      The shop and the wall stack vertically; a sideways phone squeezes the wall
      into an unreadable band. CSS-only, so it covers the screen on first paint
      with no state to sync. `max-height` is the load-bearing half: `orientation:
-     landscape` alone also matches every laptop, where the game plays fine and
-     the proctor drives from. Phones in landscape are ~430px tall at most,
+     landscape` alone also matches every laptop, where the game plays fine.
+     Phones in landscape are ~430px tall at most,
      laptops start ~650; 520 sits in the gap. dvh, not vh: Safari's vh is the
      tallest-possible viewport, so a 100vh overlay can put the message under
      the fold. */
@@ -960,7 +960,7 @@
     #rotate .glyph { animation: none; }
   }
 
-/* ---- THE MULTIPLAYER SHELL — everything the coop port added to the page ---- */
+/* ---- THE SHELL — the paint cover, the rotate gate, the win splash and its pill ---- */
 
   #gate {
     position: fixed; inset: 0; z-index: 60;
@@ -970,15 +970,13 @@
   }
   #gate.hidden { display: none; }
   #gate h1 { font-size: 28px; letter-spacing: .08em; margin: 0 0 6px; }
-  #gate p { margin: 0; opacity: .75; font-size: 14px; max-width: 34ch; }
   /* ---- THE WIN SPLASH (the wall went legible — hexWon) ----
      One picture OVER the night scene, never instead of it: the pill below
      flips back and forth. Always in the DOM, faded out, so the 200KB picture is
      decoded before the win lands and the arrival is a cross-fade;
      `pointer-events` is what makes the invisible div harmless. z-index 35
      clears the game (dock 10, HUD 6, veil 30) and stays under the ?debug panel
-     (40, which must be reachable FROM this screen), the join gate (60) and the
-     reconnect toast (70). */
+     (40, which must be reachable FROM this screen) and the gate (60). */
   #splash {
     position: fixed; inset: 0; z-index: 35;
     opacity: 0; pointer-events: none; transition: opacity .28s ease;
@@ -1052,7 +1050,7 @@
     font: 800 clamp(20px, 6.6vw, 34px)/1.15 var(--ui-font);
   }
   /* `.intro` is added for the ARRIVAL only (setSplash in phase.js) — the pill
-     ping-pongs, and a party coming back to re-read the word should not sit
+     ping-pongs, and a player coming back to re-read the word should not sit
      through the beat again. Without it both plates are simply here, which is
      also what every frame after the animation looks like (fill-mode both). */
   #splash.intro #splashCheer { animation: splashPop .42s ease-out .55s both; }

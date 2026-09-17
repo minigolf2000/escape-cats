@@ -18,10 +18,10 @@ import {
   hashString,
 } from "@escape-cats/shared";
 
-// ---- STATE. `unlocked`/`seen` are per-phone UI stickiness (what this player
-// has been shown), never server state. ----
+// ---- STATE. `unlocked`/`seen` are local UI stickiness (what this player
+// has been shown), never sim state. ----
 export const game = {
-  mice: 0, // display bank: server value + local extrapolation
+  mice: 0, // display bank: sim value + local extrapolation
   total: 0,
   clicks: 0,
   goldCaught: 0,
@@ -29,13 +29,13 @@ export const game = {
   bought: {}, // upgrade key -> 1 once purchased
   unlocked: {}, // upgrade key -> 1 once revealed (sticky; never re-hides)
   seen: {}, // upgrade key -> 1 once its row has been laid eyes on
-  zoomUntil: 0, // performance.now() ms while Zoomies is active (converted from server time)
-  nightAt: null, // wall-clock (server epoch) ms the twist fired — anchors the wall
+  zoomUntil: 0, // epoch ms while Zoomies is active
+  nightAt: null, // epoch ms the twist fired — anchors the wall
   legibleAt: null, // epoch ms the wall became readable — which IS the win (hexWon)
   // The wall's odometer, banked by the sim (see HexWallClock in rules.ts):
-  // scene units walked as of `wallAt` (server epoch ms), out of the rate and glow
-  // it was holding then. wall.js reads position AND brightness off this, so every
-  // phone draws the same frame — including one that joins mid hand-over.
+  // scene units walked as of `wallAt` (epoch ms), out of the rate and glow it
+  // was holding then. wall.js reads position AND brightness off this, so a
+  // reload draws the same frame — including one mid hand-over.
   wallBase: 0,
   wallAt: null,
   wallFrom: 0,
@@ -56,7 +56,7 @@ export function baseCps() {
   return baseCpsWith(mods, game.owned);
 }
 export function zoomBuff() {
-  return performance.now() < game.zoomUntil ? mods.zoomMult : 1;
+  return wallNow() < game.zoomUntil ? mods.zoomMult : 1;
 }
 export function clickGain() {
   return clickBaseWith(mods, game.owned) * zoomBuff();
@@ -71,27 +71,16 @@ export function isUnlocked(u) {
   return true;
 }
 
-// ---- SHARED CLOCK — the night wall is a pure function of (seed, time), so
-// every phone draws it against the same timeline. wallNow() is server-epoch ms
-// riding on this device's performance.now() ticker. ----
-let clockSkew = null; // serverEpoch - performance.now()
-function syncClock(serverTime) {
-  const skew = serverTime - performance.now();
-  // First snapshot pins it; later ones only correct real drift (a re-pin every
-  // 250ms would make the wall micro-stutter with network jitter).
-  if (clockSkew === null || Math.abs(skew - clockSkew) > 500) clockSkew = skew;
-}
-export function wallNow() {
-  return performance.now() + (clockSkew ?? 0);
-}
+// ---- THE CLOCK — the night wall is a pure function of (seed, time), and every
+// timestamp in a snapshot is epoch ms, so the frame loop reads the clock the
+// sim stamps with. ----
+export const wallNow = () => Date.now();
 
 /**
  * The wall's seed — which mice are cast into the night scene, and in what
- * phases. It used to be a hash of the ROOM code, so all four phones in a team
- * drew the same wall; with one player there is nobody to agree with, so it is
- * one constant and the wall is the same every run. Deliberately fixed rather
- * than random per run: the night is a reveal, and a player coming back to
- * finish one should find the wall they left.
+ * phases. One constant, so the wall is the same every run. Deliberately fixed
+ * rather than random per run: the night is a reveal, and a player coming back
+ * to finish one should find the wall they left.
  */
 const WALL_SEED = hashString("hex");
 export function wallSeed() {
@@ -105,11 +94,9 @@ export function wallSeed() {
 // stay off the 60fps tap path), so there is still up to a tick between the
 // finger and the bank.
 //
-// What went with the server is the BOOKKEEPING. Credit used to be held per
-// batch `seq` until the authority acked that batch, with a timestamp backstop
-// in case an ack was lost to a reconnect. Locally every snapshot is emitted
-// AFTER the queue is folded in (`backend.ts`, `emit`), so a snapshot arriving
-// IS the ack: `applySnapshot` clears the credit, and there is nothing to lose.
+// Every snapshot is emitted AFTER the queue is folded in (`backend.ts`,
+// `emit`), so a snapshot arriving IS the ack: `applySnapshot` clears the
+// credit, and there is nothing to lose.
 let optimistic = 0;
 
 export function petCredit(gain) {
@@ -124,18 +111,18 @@ export function petCredit(gain) {
 
 // ---- THE BANK IS A FUNCTION OF TIME, NOT A RUNNING TOTAL ----
 // A running total that a snapshot then overwrites ticks backwards two ways: it
-// re-bases on ARRIVAL, so network jitter moves the bank, and the frame after a
+// re-bases on ARRIVAL, so the tick's timing moves the bank, and the frame after a
 // snapshot double-counts the sliver since the previous frame. So the bank is
-// read off an ANCHOR — a value, the shared-clock moment it was true, and the
+// read off an ANCHOR — a value, the moment it was true, and the
 // rate it was climbing at. Consecutive anchors AGREE (the sim integrates
 // the same rate over the same interval), so there is nothing to reconcile. And
 // income can never move the bank DOWN: `total` only climbs and the spent gap
-// only steps on a purchase, so the one thing that takes the number down is a
-// teammate at the shop — the money actually being gone.
+// only steps on a purchase, so the one thing that takes the number down is
+// the money actually being spent at the shop.
 let anchorTotal = 0; // lifetime mice as of anchorAt
 let anchorSpent = 0; // total - mice there; only a purchase moves it
 let anchorCps = 0; // mice/sec it was climbing at (dev speed already folded in)
-let anchorAt = null; // server-epoch ms, on the shared clock — see wallNow()
+let anchorAt = null; // epoch ms — see wallNow()
 
 /** Recompute the bank from the anchor. Every frame, and again the instant
  * anything feeding it changes, so no reader is handed a stale one. */
@@ -153,7 +140,6 @@ export function applySnapshot(snap) {
   // Every queued tap is in this snapshot (the backend folds them in before it
   // emits), so the optimistic credit is spent.
   optimistic = 0;
-  syncClock(snap.serverTime);
   const first = runId === null;
   const edges = {
     first,
@@ -188,11 +174,7 @@ export function applySnapshot(snap) {
   game.wallBase = snap.wallBase ?? 0;
   game.wallAt = snap.wallAt ?? snap.nightAt;
   game.speed = snap.speed;
-  // Zoomies deadline arrives in server time; convert onto this device's ticker.
-  game.zoomUntil =
-    snap.zoomUntil > snap.serverTime
-      ? performance.now() + (snap.zoomUntil - snap.serverTime)
-      : 0;
+  game.zoomUntil = snap.zoomUntil;
   recalc();
   // After the fold, because the fallbacks need the CURRENT rest values: a snapshot
   // from a build without these must read as "nothing is handing over" rather than
@@ -201,13 +183,12 @@ export function applySnapshot(snap) {
   game.wallGlowFrom = snap.wallGlowFrom ?? wallGlow(mods);
 
   // The bank's anchor — what the sim held, the moment it held it, and how
-  // fast it was climbing. `cps` and `serverTime` both ride the snapshot, so none
-  // of it is measured against when the message happened to ARRIVE. After the
+  // fast it was climbing. `cps` and `at` both ride the snapshot. After the
   // fold too, so the fallback rate is this snapshot's economy and not the last.
   anchorTotal = snap.total;
   anchorSpent = snap.total - snap.mice;
   anchorCps = snap.cps ?? baseCps() * game.speed;
-  anchorAt = snap.serverTime;
+  anchorAt = snap.at;
   extrapolate();
 
   const nightAfter = nightOf(game.bought);

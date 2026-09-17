@@ -34,9 +34,8 @@
 // VERSIONING RULE: a new field rides at the TAIL behind a flag bit, so an
 // older reader stops early. Anything that moves an existing byte costs a
 // version — an old bundle then REFUSES the link (null, the list drops it
-// visibly) rather than misreading it. There is no longer a Worker that has to
-// ship first; a version bump is one deploy, and `levels.data.ts` is rewritten
-// by the same build that can read it. Shorter links: compression, a denser alphabet and fitting
+// visibly) rather than misreading it. A version bump is one deploy, and
+// `levels.data.ts` is rewritten by the same build that can read it. Shorter links: compression, a denser alphabet and fitting
 // terrain into arcs were all measured and all lost (README); varint steps are
 // the one lever that pays, and only a level drawn wider than twice the world
 // can make them lose.
@@ -342,7 +341,7 @@ export function decodeLevel(input: string): GoombaLevel | null {
 
   // Any short read above tripped `ok`. A level needs SOMETHING to interact
   // with — furniture of any kind, not terrain specifically: a level can be all
-  // poppers with the players' bands as its only surfaces.
+  // poppers with the player's bands as its only surfaces.
   if (!r.ok || !(terrain.length || pops.length || cushions.length || bumpers.length))
     return null;
 

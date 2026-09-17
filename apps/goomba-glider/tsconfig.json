@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     // Like hex-clicker: the game module is plain JS (ported from the
-    // prototype); only the typed seam (net.ts) is checked. allowJs lets the
+    // prototype); only the typed seam (transport.ts) is checked. allowJs lets the
     // seam and checker read the JS without implicit-any import errors.
     "allowJs": true,
     "allowImportingTsExtensions": true

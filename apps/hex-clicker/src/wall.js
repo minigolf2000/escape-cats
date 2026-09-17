@@ -599,9 +599,9 @@ function rebuildWallCast() {
 // on a phone. Lerp in scene space, map to screen once.
 //
 // DISTANCE TRAVELLED, not elapsed time, and the (base, anchor) pair lives on the
-// authority (HexSimState.wallBase/wallAt), banked once per purchase — a phone
-// integrating its own would re-anchor at its own frame time, and a late joiner
-// would replay the whole night at the new rate. This is a pure read of shared
+// sim (HexSimState.wallBase/wallAt), banked once per purchase — a renderer
+// integrating its own would re-anchor at its own frame time, and a reload
+// would replay the whole night at the new rate. This is a pure read of sim
 // state.
 //
 // RATE and GLOW are cached per frame by syncWallFrame(now), the ONE place per

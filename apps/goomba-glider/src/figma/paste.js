@@ -52,7 +52,7 @@ export async function levelFromPaste(dt) {
 
   // The Figma reader (kiwi, the shape readers, the stitcher, fzstd) is loaded
   // HERE, not imported at the top: only a laptop that pressed Ctrl+V can reach
-  // it, and every phone would otherwise download it before the game starts.
+  // it, and a phone would otherwise download it before the game starts.
   const figma = await import("./clipboard.js");
   if (figma.hasFigmaBuffer(html)) return await figma.levelFromFigmaClipboard(html);
 

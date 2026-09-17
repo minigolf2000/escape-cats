@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// THE SHIPPED PACK, checked and listed. `levels.data.ts` is the level list the
-// game ships (there is no lobby DO any more), and it carries one piece of
+// THE SHIPPED LIST, checked and listed. `levels.data.ts` is the level list the
+// game ships, and it carries one piece of
 // deliberate redundancy: a row's `name` is a readable copy of a name that
 // really lives inside `hash`. This is what keeps the two honest.
 //

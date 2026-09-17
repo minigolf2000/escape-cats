@@ -1,12 +1,7 @@
-// THE PACK THE GAME SHIPS. This file is the level list: a level PR adds a row
-// here, and that is the whole publishing pipeline.
-//
-// It replaces the lobby Durable Object, which used to hold an event's pack as
-// the only copy anywhere. The old rule was "no level lives in this repo" —
-// true while a pack was a party's live state, edited from a phone and live on
-// every other phone a second later. A single-player game that anyone can open
-// has no party to be live to, so the pack is source now: reviewable in a diff,
-// versioned with the code that plays it, and impossible to lose.
+// THE LEVELS THE GAME SHIPS. This file is the level list: a level PR adds a row
+// here, and that is the whole publishing pipeline. The list is SOURCE:
+// reviewable in a diff, versioned with the code that plays it, and impossible
+// to lose.
 //
 // EVERY ROW BELOW WAS READ OUT OF FIGMA, frame by frame, through the shipped
 // reader (`figma/read-frame.mjs --nodes`) — the same code path a Ctrl+V takes.
@@ -31,7 +26,7 @@
 //   5. give it an `id` you are happy to keep forever (see library.ts): it is
 //      what a player's saved progress is keyed on
 //
-// `name` is advisory — the name players see is inside `hash`. Keeping a
+// `name` is advisory — the name the player sees is inside `hash`. Keeping a
 // readable copy here is what makes the diff mean anything;
 // `node tools/goomba/levels.mjs` fails if the two ever drift.
 

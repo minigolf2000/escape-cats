@@ -1,5 +1,5 @@
 // Bundles `packages/shared/src/goomba` (TypeScript) with esbuild on the fly, so
-// these tools share the shipped codec, pack rules and room sim rather than a
+// these tools share the shipped codec, list rules and sim rather than a
 // copy. It exposes NO grading: physics rides along because `sim.ts` imports it,
 // and nothing here offers a way to run it — a level is evaluated by people
 // playing it. The draft bench's physics bridge is `draft/_sim.mjs`.
@@ -18,9 +18,8 @@ const entry = join(dir, "entry.ts");
 await writeFile(
   entry,
   `export * from ${JSON.stringify(join(srcDir, "levels.ts"))};\n` +
-  // codec.ts + pack.ts: a level is a link and a pack is a list of them.
+  // codec.ts: a level is a link.
   `export * from ${JSON.stringify(join(srcDir, "codec.ts"))};\n` +
-  `export * from ${JSON.stringify(join(srcDir, "pack.ts"))};\n` +
   // sim.ts: the game rules, for the one test that drives them (bands.mjs).
   `export * from ${JSON.stringify(join(srcDir, "sim.ts"))};\n` +
   // levels.data.ts: the list the game ships, which is the default to work on,
@@ -45,9 +44,6 @@ export const {
   encodeLevel,
   decodeLevel,
   initLevel,
-  applyPack,
-  packToLevels,
-  levelsToPack,
   rowsToLevels,
   setGoombaLevels,
   hasBonusLevels,
@@ -72,12 +68,14 @@ const packFile = packArgAt > 1 && process.argv[packArgAt + 1]
   ? process.argv.splice(packArgAt, 2)[1]
   : process.env.GOOMBA_PACK || join(dirname(fileURLToPath(import.meta.url)), "pack.json");
 export const packSource = existsSync(packFile) ? packFile : null;
-// The shipped list goes through `rowsToLevels`, the same door the game uses,
-// so every level keeps its id, its source and its `bonus` flag — a tool that
-// drives the sim (bands.mjs, finale.mjs) sees the finale where the game does.
-// A `--pack` file is bare links and has none of that to keep.
-if (packSource) applyPack(JSON.parse(await readFile(packSource, "utf8")));
-else sim.setGoombaLevels(sim.rowsToLevels(sim.BAKED_LEVELS, "baked"));
+// Both go through `rowsToLevels`, the same door the game uses. The shipped
+// list keeps every id, source and `bonus` flag, so a tool that drives the sim
+// (finale.mjs) sees the finale where the game does. A `--pack` file is bare
+// links: it gets throwaway ids and lands as `local`, the way a paste would.
+const links = packSource ? JSON.parse(await readFile(packSource, "utf8")) : null;
+setGoombaLevels(links
+  ? rowsToLevels(links.map((hash, i) => ({ id: `pack-${i}`, name: "", hash })), "local")
+  : rowsToLevels(BAKED_LEVELS, "baked"));
 
 /**
  * The level at `<idx>`, or a message a person can act on — stderr + exit(2),
@@ -101,8 +99,8 @@ export function levelAt(li) {
   return L;
 }
 
-// `LEVELS` IS `sim.GOOMBA_LEVELS` and `applyPack` fills it IN PLACE; swapping
-// the binding instead would strand every module holding the old array.
+// `LEVELS` IS `sim.GOOMBA_LEVELS` and `setGoombaLevels` fills it IN PLACE;
+// swapping the binding instead would strand every module holding the old array.
 
 /**
  * Every index in the loaded pack, or `levelAt`'s guidance when there is none —

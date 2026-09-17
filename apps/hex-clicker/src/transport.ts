@@ -1,12 +1,9 @@
 // THE SEAM. Everything the player does is an intent sent through here, and
-// everything the game knows arrives as a snapshot — the shape the room server
+// everything the game knows arrives as a snapshot — the shape a server
 // used to sit behind. There is no server (`backend.ts` runs the shared HexSim
 // in this tab), and the seam stays anyway: `applySnapshot` and the edge flags
 // it reports are the spine of this client, and a shortcut past `transport`
 // is how that comes apart.
-//
-// This file used to be `net.ts` and held a WebSocket to a Durable Object. The
-// only thing that changed is who answers.
 
 import type { HexClientMsg } from "@escape-cats/shared";
 

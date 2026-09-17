@@ -108,7 +108,7 @@ const load = async () => {
   return { file, mod };
 };
 
-/** Snap a JSON band list against the level, as the room does at placement. */
+/** Snap a JSON band list against the level, as the sim does at placement. */
 const snapAll = (L, raw) =>
   raw.map(([a, b]) => snapBand(L, { ax: a[0], ay: a[1], bx: b[0], by: b[1] }));
 

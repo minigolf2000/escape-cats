@@ -12,7 +12,7 @@ import {
   bandPoints,
 } from "@escape-cats/shared";
 import { cv, topEl } from "./dom";
-import { S, bandInk, bandInkDark, PARTY_COLORS } from "./state";
+import { S, BAND_INK, BAND_INK_DARK, PARTY_COLORS } from "./state";
 
 /** The camera. A const alias onto the one in `S`: it is mutated in place
  * (`Object.assign`, `cam.x +=`), never rebound, so both names are one object. */
@@ -59,8 +59,8 @@ const MAX_BACKING = 4;
 /** iOS's ~16.7 MP canvas ceiling fails SILENTLY (valid context, every draw a
  * no-op, blank screen), so the AREA binds too, with margin. Charged only to
  * touch-capable machines, and UNKNOWN COUNTS AS TOUCH: guessing desktop wrong
- * is a blank screen at a party, guessing touch wrong costs sharpness on a
- * display nobody carries to one. Not a runtime allocation probe, because an
+ * is a blank screen on a phone, guessing touch wrong costs sharpness on a
+ * desktop display. Not a runtime allocation probe, because an
  * iOS allocation failure cannot be tested here. `finePointer` in state.js asks
  * a different question (a CURSOR) and is not reused. */
 const MAX_AREA_TOUCH = 14e6;
@@ -304,8 +304,8 @@ export function drawBand(bd, excite, ghost) {
   };
   const bad = ghost && S.preview && !S.preview.ok;
   ctx.globalAlpha = ghost ? 0.75 : 1;
-  const ink = bandInk();
-  ctx.strokeStyle = bad ? "#ff4a4a" : bandInkDark();
+  const ink = BAND_INK;
+  ctx.strokeStyle = bad ? "#ff4a4a" : BAND_INK_DARK;
   if (ghost) ctx.setLineDash(bad ? [6, 6] : []);
   ctx.lineWidth = 1.5 * cam.s; path(); ctx.stroke();
   ctx.strokeStyle = bad ? "#ff8f8f" : ink;
@@ -329,7 +329,7 @@ export const ANCHOR_TTL = 8000;
 export function drawAnchor(a) {
   // Screen units, not world: a fingertip is the same size on every level.
   const x = sxp(a.x), y = syp(a.y);
-  const col = bandInk();
+  const col = BAND_INK;
   const left = ANCHOR_TTL - (performance.now() - a.at);
   ctx.globalAlpha = Math.max(0, Math.min(1, left / 900));
   ctx.strokeStyle = col; ctx.lineWidth = 2;
@@ -705,10 +705,10 @@ function washStops(img) {
 }
 
 // The finale's choreography, in seconds off the splash's own clock (`t`,
-// stamped in main.js when the phase lands — never tGlobal, or a phone that
-// joins a finished room would arrive mid-animation). THE ORDER IS THE POINT:
-// the picture, then WELL DONE, and only then the thing they have to carry out
-// of the room. A party that gets the code word first stops looking at the rest.
+// stamped in main.js when the phase lands — never tGlobal, or a reload onto a
+// finished game would arrive mid-animation). THE ORDER IS THE POINT: the
+// picture, then WELL DONE, and only then the thing they have to carry away. A
+// player who gets the code word first stops looking at the rest.
 const ART_IN = 0.45;     // the picture washing in over the backdrop
 const CHEER_AT = 0.55;   // the cheer, popped on at the top
 const CHEER_IN = 0.4;
@@ -747,7 +747,7 @@ function artBox() {
 }
 
 /** The whole finale: backdrop, picture, code word. `t` is seconds since the
- * room landed on the splash. */
+ * game landed on the splash. */
 export function drawSplash(t, more) {
   const box = artBox();
   // The ramp spans the PICTURE, not the screen, so every stop lines up with

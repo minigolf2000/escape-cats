@@ -3,10 +3,8 @@
 // epoch ms supplied by the caller (`now`), never read from a clock here —
 // deterministic enough to test.
 //
-// It used to be the authority a Durable Object wrapped, one per team, with the
-// client's ?debug running a second copy in-page. There is no server: the
-// client's copy is the only one, and the intent/snapshot shape below is the
-// seam it sits behind rather than a wire format.
+// The intent/snapshot shape below is the seam the sim sits behind, not a wire
+// format: there is no server, and this copy is the only one.
 
 import { BUILDINGS, UPGRADES } from "./data";
 import { debugDerivedBought, type HexPreset } from "./presets";
@@ -36,9 +34,9 @@ import {
   goldLifeS,
 } from "./rules";
 
-/** A golden mouse in flight. Position is client-local (each phone bounces it
- * inside its own layout); the sim only owns WHEN one exists and for how
- * long. `seed` feeds the client's deterministic spawn placement. */
+/** A golden mouse in flight. Position is client-local; the sim only owns WHEN
+ * one exists and for how long. `seed` feeds the client's deterministic spawn
+ * placement. */
 export interface HexGold {
   id: number;
   bornAt: number; // epoch ms
@@ -55,8 +53,8 @@ export interface HexSimState extends HexCore {
   nightAt: number | null; // epoch ms the twist fired
   legibleAt: number | null; // epoch ms the word became readable
   /** The wall's odometer: scene units walked as of `wallAt`, re-banked by the
-   * authority whenever wallSpeed or wallGlow changes, so a phone joining
-   * mid-night lands on the same frame. See HexWallClock in rules.ts. */
+   * sim whenever wallSpeed or wallGlow changes, so a restored save lands on
+   * the same frame. See HexWallClock in rules.ts. */
   wallBase: number;
   wallAt: number | null;
   /** The rate walked, and the glow drawn, UP TO wallAt — what the hand-over
@@ -66,15 +64,15 @@ export interface HexSimState extends HexCore {
   wallFrom: number;
   wallGlowFrom: number;
   /** Dev time-scale (?debug only) — multiplies passive income + golden cadence,
-   * never click feel. A real room never leaves 1. */
+   * never click feel. A normal game never leaves 1. */
   speed: number;
 }
 
 /**
  * A saved game — everything a closed tab would erase.
  * Versioned so a deploy that changes the shape refuses stale data.
- * Absent on purpose: mods (derived on restore, so a rebalance applies to live
- * rooms), gold (expired after any gap; restore reschedules), speed (?debug
+ * Absent on purpose: mods (derived on restore, so a rebalance applies to saved
+ * games), gold (expired after any gap; restore reschedules), speed (?debug
  * only), lastTick / gold timer (restart-local).
  */
 export interface HexPersistedV1 {
@@ -105,15 +103,11 @@ export interface HexPersistedV1 {
  * is nudged. In a ~10 minute game 30s cannot shortcut anyone to a win. */
 const OFFLINE_CREDIT_MS = 30_000;
 
-/** Max pets creditable in one batch message — a tap-storm ceiling per flush. */
-export const PETS_BATCH_MAX = 50;
+/** Max pets credited in one flush — a defensive tap-storm ceiling. */
+const PETS_BATCH_MAX = 50;
 
 /** How often the backend ticks income and emits a snapshot. */
 export const SNAPSHOT_TICK_MS = 250;
-
-/** Lifetime total at which a day is "about done" (bank + Lab + Catnap) — only
- * used for the proctor's progress bar, never by game rules. */
-const DAY_TOTAL_TARGET = 1.5e6;
 
 function freshCore(): HexCore {
   const owned: Record<string, number> = {};
@@ -138,10 +132,9 @@ export const hexWon = (s: { legibleAt: number | null }): boolean => s.legibleAt 
  * shared rules, so the counter stays smooth.
  */
 export interface HexSnapshot extends HexSimState {
-  /** The clock at send. It was the SERVER's, and the name is kept because
-   * every consumer already syncs its own timeline to it — there is just one
-   * clock now, so the offset it produces is zero. */
-  serverTime: number;
+  /** The clock at send: epoch ms, what every timestamp in the snapshot is
+   * measured against. */
+  at: number;
   /** Mice/second the bank is actually accruing (base rate x dev speed) —
    * stamped here so nothing else re-runs the economy fold to draw a rate. */
   cps: number;
@@ -152,7 +145,7 @@ export type HexClientMsg =
   | { type: "buyBuilding"; id: string }
   | { type: "buyUpgrade"; key: string }
   | { type: "catchGold"; id: number }
-  /** Start over. Was proctor-only; it is the player's own button now. */
+  /** Start over. */
   | { type: "reset" };
 
 export class HexSim {
@@ -212,7 +205,7 @@ export class HexSim {
   }
 
   /** Rebuild from a save. Seeded from freshCore() so a building added by a
-   * rebalance deploy exists (at 0) even in rooms saved before it did. */
+   * rebalance deploy exists (at 0) even in games saved before it did. */
   restore(p: HexPersistedV1, now: number): void {
     const core = freshCore();
     Object.assign(core.owned, p.core.owned);
@@ -437,13 +430,13 @@ export class HexSim {
     const u = UPGRADES.find((x) => x.key === key);
     if (!u || this.state.bought[u.key] || !unlockMet(u, this.state)) return false;
     // Phase enforcement, same rule the shop rail renders by: the client never
-    // shows off-phase rows; this guards the wire.
+    // shows off-phase rows; this guards the sim itself.
     if (!onRail(u, this.state.bought)) return false;
     if (this.state.mice < u.cost) return false;
     const nightBefore = this.night();
     // Read BEFORE the fold, twice: *Target is the change test (a purchase that
     // touches neither leaves a running hand-over alone); *Now is what gets
-    // banked, so a change landing INSIDE a hand-over — a fast team buys the
+    // banked, so a change landing INSIDE a hand-over — a fast player buys the
     // second pace rung inside the first's 1.4s — continues from the speed and
     // glow on screen rather than snapping to the old targets. Glow is tracked
     // apart from speed: Lucid Dreaming I moves the pace, not the light.
@@ -455,20 +448,20 @@ export class HexSim {
     this.state.bought[u.key] = 1;
     this.recalc();
     if (!nightBefore && this.night()) {
-      // THE TWIST: hard reset into the dream economy. Clients see the flip in
-      // the snapshot diff and play the cutscene themselves.
+      // THE TWIST: hard reset into the dream economy. The client sees the flip
+      // in the snapshot diff and plays the cutscene itself.
       this.state.nightAt = now;
       nightReset(this.state);
       this.state.gold = null;
       this.recalc();
-      // The wall starts walking at the twist's own timestamp, so every phone
+      // The wall starts walking at the twist's own timestamp, so a restored save
       // derives the same opening frame. It starts AT the unlit values (restWall).
       this.state.wallBase = 0;
       this.state.wallAt = now;
       this.restWall();
     } else if (this.state.wallAt !== null) {
       // A change to EITHER quantity banks the distance walked so far and
-      // re-anchors — once, here, so every phone agrees. wallUnitsAt against the
+      // re-anchors — once, here. wallUnitsAt against the
       // clock as it stands banks the EASED distance when a change lands mid
       // hand-over. See HexWallClock in rules.ts.
       if (
@@ -486,16 +479,13 @@ export class HexSim {
   }
 
   /** Assemble the snapshot. The ONE place this happens, so derived fields
-   * (progress, cps) cannot drift from the state they are derived from.
-   *
-   * `codeword` is gone with the proctor: it was that dashboard's readout of
-   * "is this team's wall legible yet". The player's win screen never read it —
-   * it shows HEX_CODEWORD flat, because a screen that only exists after the
-   * win has nothing to gate on. */
+   * (cps) cannot drift from the state they are derived from. Nothing here
+   * carries the code word: the win screen shows HEX_CODEWORD flat, because a
+   * screen that only exists after the win has nothing to gate on. */
   snapshot(now: number): HexSnapshot {
     return {
       ...this.state,
-      serverTime: now,
+      at: now,
       cps: this.baseCps() * this.state.speed,
     };
   }

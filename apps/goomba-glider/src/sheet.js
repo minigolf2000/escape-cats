@@ -4,7 +4,7 @@
 // one screen a player passes through exactly once; `?` brings it back.
 
 import { R } from "@escape-cats/shared";
-import { S, REDUCED } from "./state";
+import { REDUCED } from "./state";
 import {
   gateEl, helpEl, hudEl, scGoalEl, scTitleEl, titleH1El,
   scDragEl, scLiftEl,
@@ -12,7 +12,6 @@ import {
 import {
   ctx, cam, tGlobal, sxp, syp, drawScene,
   drawTerrain, drawCan, drawGoalPlant, goalMid, drawBand, drawGoomba,
-  advanceClock,
 } from "./render";
 
 /** A scene: only the fields the draw functions actually read. Nothing here is
@@ -315,7 +314,7 @@ function zoopMs() {
 }
 /**
  * @param animate false where there is nothing to watch — the grid is already
- *   up over the sheet (`?solo`, a pasted level), so `#help` is hidden with the
+ *   up over the sheet (`?debug`, a pasted level), so `#help` is hidden with the
  *   rest of the HUD and the sheet would be flying at a button nobody can see.
  */
 export function closeSheet(animate = true) {
@@ -346,14 +345,3 @@ gateEl.addEventListener("pointerdown", (e) => {
   e.preventDefault();
   closeSheet();
 });
-
-/** Before the first snapshot there is no game loop, so the sheet drives its
- * own clock and stands down when frame() takes over (which draws it too). */
-export function sheetFrame(nowMs) {
-  if (S.inited) return;
-  requestAnimationFrame(sheetFrame);
-  const dt = Math.min(0.05, (nowMs - (sheetFrame.last || nowMs)) / 1000);
-  sheetFrame.last = nowMs;
-  advanceClock(dt);
-  drawSheet();
-}

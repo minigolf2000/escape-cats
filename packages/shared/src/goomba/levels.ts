@@ -14,8 +14,7 @@ export const START_VX = 20; // the little push when PLAY is hit
 export const MAX_SPEED = 145;
 export const BAND_MAX = 58; // one silly band's worth of stretch
 export const BAND_MIN = 6;
-/** Four bands per level for the whole ROOM, and no rule about whose: any player
- * may lay any of them and lift any of them (`canPlaceBand` in sim.ts). */
+/** Four bands per level — the whole budget (`canPlaceBand` in sim.ts). */
 export const MAX_BANDS = 4;
 export const SUB = 1 / 240; // physics substep
 export const RUN_MAX = 15; // seconds before we call a run stuck
@@ -74,7 +73,7 @@ export interface GoombaBumper {
 }
 
 /**
- * How a level is NAMED to players: pack index + 1, then its name. The number
+ * How a level is NAMED to the player: list index + 1, then its name. The number
  * is computed here and stored nowhere — the pack's order IS the numbering, so
  * never type a number into a `name`.
  */

@@ -8,13 +8,10 @@
  * (`npm run build:hex` / `npm run build:goomba`) and Output Directory, and
  * both read the one `vercel.json` at the root.
  *
- * It used to be ONE origin with the games in subdirectories (`/hexxygon/`,
- * `/g00mBa/`) and the vanity domains 307-redirecting into them. That existed
- * because five surfaces shared a player's per-origin localStorage — the pid
- * the lobby wrote was the pid the game read. The games share nothing now, so
- * an origin each is the honest shape, and the obscure paths have nothing left
- * to protect (they existed so a guessable URL could not walk a player into a
- * game before the proctor had sorted them).
+ * It used to be ONE origin with the games in subdirectories and the vanity
+ * domains 307-redirecting into them, because several surfaces shared a
+ * player's per-origin localStorage. The games share nothing now, so an origin
+ * each is the honest shape.
  *
  * Run: node scripts/assemble.mjs [hex|goomba]
  */

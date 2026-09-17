@@ -4,10 +4,8 @@
 // keeping it out of the intent list is what stops any of it becoming a move a
 // player could make.
 //
-// It used to also BE the backend — `?debug` meant "the sim in-page instead of
-// a room". Every game is that now (`backend.ts`), so this is the panel and
-// nothing else, and it is mounted only when `?debug` is present so none of it
-// reaches a normal player's bundle.
+// Mounted only when `?debug` is present, so none of it reaches a normal
+// player's bundle.
 
 import {
   BUILDINGS,
@@ -56,7 +54,7 @@ function unlockText(u: HexUpgrade): string {
 }
 
 // The full content table, read off the SIM (the authority), not the mirror,
-// which drops server-private fields. `available` is unlockMet against live
+// which is a render copy that extrapolates. `available` is unlockMet against live
 // state, NOT the shop's sticky `unlocked`: "are this row's gates met right
 // now?" is the useful truth for tuning. Rows walk in UPGRADES order, which is
 // shop order, so a row out of cost sequence here is out of sequence on the rail.

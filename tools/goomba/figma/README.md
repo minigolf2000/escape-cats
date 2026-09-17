@@ -145,7 +145,7 @@ derive bounds from the ink alone.
 **The game itself**, behind `\`:
 
 ```
-copy a frame in Figma  →  \  →  Ctrl+V on the grid      →  the pack, on four phones
+copy a frame in Figma  →  \  →  Ctrl+V on the grid      →  your local overlay, after the shipped levels
 copy a frame in Figma  →  Ctrl+V while playing          →  over the level on screen
 ```
 
@@ -203,8 +203,8 @@ crossed `cut` Rectangles make a ring level with four doorways per ring.
    sub-unit slop invisible while drawing is glaring while playing.
 4. **A/B with level LINKS, never by re-pasting.** Encode both geometries and
    load each; a paste needs focus and silently does nothing without it.
-5. **`#hash` is read ONCE, at boot.** `?solo#A` → `?solo#B` does not reload.
-   Change a query param too (`?solo&v=2#B`) and assert
+5. **`#hash` is read ONCE, at boot.** `#A` → `#B` does not reload. Change a
+   query param too (`?v=2#B`) and assert
    `window.__goomba.LEVELS[0].terrain` before believing a screenshot.
 6. **Run the counterfactual**: set `WELD` to 0 and re-decode.
 

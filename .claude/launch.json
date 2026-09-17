@@ -2,12 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "server",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "server"],
-      "port": 1999
-    },
-    {
       "name": "goomba-glider",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "-w", "apps/goomba-glider", "--", "--port", "5178", "--strictPort"],
@@ -20,31 +14,19 @@
       "port": 5173
     },
     {
-      "name": "lobby",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "apps/lobby", "--", "--port", "5176", "--strictPort"],
-      "port": 5176
-    },
-    {
-      "name": "chat",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "apps/chat", "--", "--port", "5177", "--strictPort"],
-      "port": 5177
-    },
-    {
-      "name": "proctor",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "apps/proctor", "--", "--port", "5175", "--strictPort"],
-      "port": 5175
-    },
-    {
-      // The ASSEMBLED build (`npm run build:vercel` first) — the only way to
-      // see real chunking; dev serves modules unsplit, so it cannot show
-      // whether ?debug avoids fetching the websocket client.
-      "name": "built-site",
+      // The ASSEMBLED sites (`npm run build:sites` first) — the only way to see
+      // real chunking; dev serves modules unsplit, so it cannot show whether
+      // ?debug's panel stays out of the player bundle.
+      "name": "built-hex",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "dist", "-l", "4180"],
+      "runtimeArgs": ["serve", "dist/hex", "-l", "4180"],
       "port": 4180
+    },
+    {
+      "name": "built-goomba",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "dist/goomba", "-l", "4181"],
+      "port": 4181
     }
   ]
 }

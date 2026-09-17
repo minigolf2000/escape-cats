@@ -1,6 +1,6 @@
 // The LEVELS menu — and, on a laptop, the level editor. One screen either way.
 // Every level as a card drawn from its own geometry; tapping one sends the
-// whole room there. Who may open it is `levelSelect()` in state.js.
+// game there. Who may open it is `levelSelect()` in state.js.
 //
 // A card carries NO verdict: nothing evaluates a level except people playing
 // it (CLAUDE.md). Don't add one.
@@ -13,7 +13,7 @@ import {
   S, DESKTOP, editorOn, askConfirm, levelSelect,
 } from "./state";
 import {
-  ctx, W, H, cam, setCamOffset, tGlobal,
+  ctx, W, H, cam, setCamOffset,
   drawTerrain, drawCan, drawGoalPlant, drawGoomba,
   drawCushion, drawPopper, drawBumper,
 } from "./render";
@@ -22,34 +22,13 @@ import {
 let labCells = [];
 let labBtns = [];
 
-/**
- * A card tap is a wire intent: it only LATCHES, and the grid stays up until
- * the snapshot lands on the chosen level (closing on the tap would uncover the
- * OLD level for a round trip). The timeout covers an intent the sim never
- * echoes.
- */
-let labJump = null;
-const LAB_JUMP_MS = 1500;
-
-export function clearLabJump() {
-  if (labJump) clearTimeout(labJump.timer);
-  labJump = null;
-}
-/** Open or close the grid. Everything it was in the middle of goes with it: a
- * latched card tap can pull the grid out from under a drag, and a drag with no
- * cards under it has nothing left to mean. */
+/** Open or close the grid. A card tap can pull the grid out from under a
+ * drag, and a drag with no cards under it has nothing left to mean. */
 export function setLab(open) {
   S.labOpen = open;
   hudEl.classList.toggle("lab", open);
   if (open) syncExportBtn();
-  if (!open) { clearLabJump(); labDrag = null; }
-}
-/** The latched tap resolves on the goto's exact signature — that level, a fresh
- * edit phase, no bands — so a snapshot merely in flight when we tapped does not
- * drop the grid early. */
-export function resolveLabJump(s) {
-  if (labJump && s.level === labJump.level && s.phase === "edit" && !s.bands.length)
-    setLab(false);
+  if (!open) labDrag = null;
 }
 
 /** A card being dragged to a new slot. `gap` is an insertion point (0..n), not a
@@ -126,17 +105,16 @@ function labGapAt(px, py) {
   if (!best) return 0;
   return px > best.x + best.w / 2 ? best.i + 1 : best.i;
 }
-/** Send the whole room to a level — the one thing a card tap has always done.
- * Latches BEFORE sending: the ?solo backend answers inside send(), and that
- * synchronous snapshot is what closes the lab. */
-export function labJumpTo(i) {
+/** Send the game to a level — the one thing a card tap has always done. The
+ * backend answers inside send(), so by the time it returns the snapshot is in;
+ * the grid closes only if the sim actually went (that level, a fresh edit
+ * phase, no bands), so a refused jump leaves it up rather than uncovering
+ * the old level. */
+function labJumpTo(i) {
   if (i < 0 || i >= GOOMBA_LEVELS.length) return;
-  clearLabJump();
-  labJump = {
-    level: i,
-    timer: setTimeout(() => { labJump = null; setLab(false); }, LAB_JUMP_MS),
-  };
   transport.send({ type: "goto", level: i });
+  const s = S.snap;
+  if (s && s.level === i && s.phase === "edit" && !s.bands.length) setLab(false);
 }
 /** A per-card editor button, pressed. */
 function labButtonHit(b) {
@@ -344,10 +322,9 @@ export function drawLab() {
     setCamOffset(0, 0);
     ctx.restore();
     // frame + labels
-    const jumping = labJump !== null && i === labJump.level;
     const current = S.snap !== null && i === S.snap.level;
-    ctx.strokeStyle = jumping ? "#57e6c9" : current ? "#ffd166" : "rgba(201,189,240,0.22)";
-    ctx.lineWidth = jumping || current ? 2.5 : 1.5;
+    ctx.strokeStyle = current ? "#ffd166" : "rgba(201,189,240,0.22)";
+    ctx.lineWidth = current ? 2.5 : 1.5;
     if (lv.source !== "baked") ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
     ctx.setLineDash([]);
@@ -367,18 +344,6 @@ export function drawLab() {
       ctx.font = "700 9px ui-rounded, system-ui, sans-serif";
       ctx.fillStyle = "#ffd166";
       ctx.fillText(badge, x + 9, y + 16);
-    }
-    // The round trip, made visible: the tap landed, the level is on its way.
-    if (jumping) {
-      ctx.save();
-      ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.clip();
-      ctx.fillStyle = "rgba(16,7,34,0.55)"; ctx.fillRect(x, y, cw, ch);
-      ctx.globalAlpha = 0.55 + 0.45 * Math.sin(tGlobal * 6);
-      ctx.fillStyle = "#57e6c9";
-      ctx.font = "700 13px ui-rounded, system-ui, sans-serif";
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("jumping…", x + cw / 2, y + ch / 2);
-      ctx.restore();
     }
     // SELECTION, outside the card's frame so it coexists with the amber
     // "the game is on this level" — a card is often both.

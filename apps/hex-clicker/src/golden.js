@@ -94,8 +94,8 @@ export function despawnGold() {
   goldenEl.style.opacity = "1";
 }
 
-/** Per-frame drift + bounce. Lifetime runs on the shared clock so every phone
- * sees the escape moment on the frame it is due, not a tick later. */
+/** Per-frame drift + bounce. Lifetime runs on the snapshot clock so the
+ * escape lands on the frame it is due, not a tick later. */
 export function moveGold(dt) {
   if (!goldState.active) return;
   const leftS = bornAt + lifeS * 1000 - wallNow();

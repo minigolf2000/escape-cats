@@ -11,12 +11,12 @@
 <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/baloo2.woff2">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❓</text></svg>">
 <!--
-  Hex Clicker — the multiplayer client's markup. A Cookie Clicker homage: pet
-  Hex the cat, collect MICE, spend them on buildings and upgrades. The room
-  server owns the economy (packages/shared/src/hex/); src/README.md is the
-  module map. THE TWIST: buying Catnap Hypnalysis flips the game into the NIGHT
-  PHASE, where the reveal wall inks TO THE MOON (src/wall.js). Hex has no win
-  screen of its own — the win is the proctor's press (see the root README).
+  Hex Clicker — the page. A Cookie Clicker homage: pet Hex the cat, collect
+  MICE, spend them on buildings and upgrades. The shared sim owns the economy
+  (packages/shared/src/hex/); src/README.md is the module map. THE TWIST:
+  buying Catnap Hypnalysis flips the game into the NIGHT PHASE, where the
+  reveal wall inks TO THE MOON (src/wall.js), and the wall going legible is
+  the win (src/phase.js, #splash).
 -->
 <body class="booting">
 
@@ -241,10 +241,8 @@
 </div>
 <button id="wonPill" type="button">🏆 win screen</button>
 
-<!-- Covers the stage until the first snapshot lands. That is now zero frames —
-     the backend emits one synchronously — so this is a paint cover and a title,
-     not a wait. It was the JOIN GATE, and carried the lines about which team
-     had you and whether the server was reachable. -->
+<!-- Covers the stage until the module script runs and the first snapshot lands
+     (synchronous in `startBackend`): a paint cover and a title, not a wait. -->
 <div id="gate">
   <h1>🐱 Hex Clicker</h1>
 </div>

@@ -379,7 +379,7 @@ export async function levelFromFigmaClipboard(html) {
     warnings.push(
       `ignored ${droppedBands} \`band\` layer(s): a level does not carry a ` +
       `solution — there is no field for one. Delete them from the frame; the ` +
-      `players find the bands.`,
+      `player finds the bands.`,
     );
   return { level, warnings };
 }

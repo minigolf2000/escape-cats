@@ -2,7 +2,7 @@
 // this tab and emits snapshots; state.js mirrors them and reports EDGES; this
 // file wires those edges to the UI beats.
 //
-// The seam is what it was when a room server was behind it, and the edge flags
+// The seam is what it was when a server was behind it, and the edge flags
 // are why: "the twist just fired", "the wall just went legible", "a golden just
 // left" are all differences between two snapshots, and every beat in this file
 // hangs off one. Don't reach past `transport` to the sim.
@@ -67,7 +67,6 @@ window.addEventListener(
 );
 
 // ---- SNAPSHOT WIRING ----
-let inited = false;
 
 function onSnapshot(snap) {
   const e = applySnapshot(snap);
@@ -103,7 +102,7 @@ function onSnapshot(snap) {
     }
     if (e.neonOn && isNightInited()) startWallNeon();
     // The purchase that empties the rail closes the shop — an edge, so a
-    // rejoin that arrives already sold out retires it silently (syncDock).
+    // restored save that lands already sold out retires it silently (syncDock).
     if (e.soldOut && !shopClosePhase) runShopClose();
     if (e.goldSpawn) spawnGold(e.goldSpawn);
     if (e.goldGone) despawnGold();
@@ -116,9 +115,8 @@ function onSnapshot(snap) {
 }
 
 function initGame() {
-  inited = true;
   buildShop();
-  syncPhase(); // a rejoin restores the phase with no beat, like a saved game
+  syncPhase(); // a restored save lands on its phase with no beat
   countIconEl.innerHTML = currencyIconSVG(); // static art, set once
   initShopSkin();
   initPetInput();
@@ -151,8 +149,9 @@ function frame(now) {
   extrapolate();
 
   // Buff pill countdown
-  if (game.zoomUntil > now) {
-    const left = (game.zoomUntil - now) / 1000;
+  const zoomNow = wallNow();
+  if (game.zoomUntil > zoomNow) {
+    const left = (game.zoomUntil - zoomNow) / 1000;
     buffEl.textContent =
       "⚡ ZOOMIES ×" + mods.zoomMult + " · " + left.toFixed(1) + "s";
     buffEl.style.display = "block";
@@ -178,7 +177,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// BOOT — there is no menu and nothing to join. `startBackend` emits its first
+// BOOT — there is no menu. `startBackend` emits its first
 // snapshot synchronously, so the page is fully wired (gate down, pet listener
 // live) before a finger can reach it; `initGame` hides the gate on that
 // snapshot.

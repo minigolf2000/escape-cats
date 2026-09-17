@@ -7,6 +7,5 @@ export * from "./goomba/levels";
 export * from "./goomba/library";
 export * from "./goomba/levels.data";
 export * from "./goomba/codec";
-export * from "./goomba/pack";
 export * from "./goomba/physics";
 export * from "./goomba/sim";

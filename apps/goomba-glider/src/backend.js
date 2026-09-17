@@ -1,10 +1,9 @@
 // THE BACKEND: the shared `GoombaSim`, running in this tab, answering intents.
 //
-// It is the room server's job, minus the room — same sim, same intents, same
-// snapshots, so nothing upstream of `transport` can tell the difference. What
-// the Durable Object did with `ctx.storage`, this does with localStorage
-// (`library.js`), and what it did by broadcasting, this does by calling
-// `onSnapshot` synchronously inside `send()`.
+// Same sim, same intents, same snapshots as when a server answered, so nothing
+// upstream of `transport` can tell the difference. It saves to localStorage
+// (`library.js`) and "broadcasts" by calling `onSnapshot` synchronously inside
+// `send()`.
 //
 // The two things worth not "simplifying" later:
 //
@@ -18,7 +17,7 @@
 //   page, every time the power user pastes, deletes or reorders the overlay.
 
 import { GoombaSim } from "@escape-cats/shared";
-import { PLAYER_ID, transport } from "./transport";
+import { transport } from "./transport";
 import {
   completedNow,
   composeLibrary,
@@ -41,7 +40,7 @@ export function startBackend(opts) {
   const sim = new GoombaSim(Date.now());
   let runTimer = null;
 
-  // The saved room: bands, level, phase. The PROGRESS record is read first and
+  // The saved game: bands, level, phase. The PROGRESS record is read first and
   // handed to `restore`, which applies it before its own reconcile — the save's
   // `completed` is indexed against whatever list existed when it was written,
   // and reconciling on that stale array can drop a finished game's splash.
@@ -53,11 +52,11 @@ export function startBackend(opts) {
       sim.restore(saved, Date.now(), completedNow());
       restored = true;
     } catch {
-      // A save from an older shape, or one somebody hand-edited. A fresh room
+      // A save from an older shape, or one somebody hand-edited. A fresh game
       // is a perfectly good answer and the id-keyed progress survives it.
     }
   }
-  // `restore` projected and reconciled already; a fresh room still needs to.
+  // `restore` projected and reconciled already; a fresh game still needs to.
   if (!restored) applyLibrary(sim, Date.now());
 
   const emit = () => {
@@ -69,8 +68,8 @@ export function startBackend(opts) {
     opts.onSnapshot(snap);
   };
 
-  /** The room server's `armRunTimer`, in miniature: one timeout so win/fail
-   * lands in a tab nobody is touching. Everything else about run-end is lazy. */
+  /** One timeout so win/fail lands in a tab nobody is touching. Everything
+   * else about run-end is lazy. */
   const armRunTimer = () => {
     const ms = sim.runEndsIn(Date.now());
     if (ms === null) return;
@@ -81,7 +80,7 @@ export function startBackend(opts) {
     }, ms + 50);
   };
 
-  /** An overlay edit: write it, rebuild the list, re-fit the room. Returns
+  /** An overlay edit: write it, rebuild the list, re-fit the sim. Returns
    * whether anything changed, so a refused paste does not redraw the world. */
   const edited = (ok, now) => {
     if (!ok) return false;
@@ -95,7 +94,7 @@ export function startBackend(opts) {
     const now = Date.now();
     switch (msg.type) {
       case "place":
-        sim.place(PLAYER_ID, msg, now);
+        sim.place(msg, now);
         break;
       case "remove":
         sim.remove(msg.index, now);
@@ -127,8 +126,8 @@ export function startBackend(opts) {
       case "packMove":
         edited(overlayMove(msg.from, msg.to), now);
         break;
-      // START OVER — the old proctor's reset, now the player's own. It forgets
-      // the id-keyed record too, or the next load would hand every clear back.
+      // START OVER. It forgets the id-keyed record too, or the next load would
+      // hand every clear back.
       case "reset":
         forgetProgress();
         sim.reset(now);
@@ -141,6 +140,6 @@ export function startBackend(opts) {
   };
 
   // The first snapshot is synchronous, so the page is wired before boot
-  // returns — same contract the socket backend reached asynchronously.
+  // returns.
   emit();
 }

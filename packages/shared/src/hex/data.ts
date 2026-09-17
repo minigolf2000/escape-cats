@@ -325,7 +325,7 @@ export const UPGRADES: HexUpgrade[] = [
   // Window Perch #2 and #3, two effects each. goldenLife is PAIRED with
   // goldenFreq, never sold alone: the spawn timer only runs while nothing is on
   // screen and a caught golden despawns instantly, so linger is pure insurance
-  // against a MISS and worth zero to a room that catches everything. No
+  // against a MISS and worth zero to a player who catches everything. No
   // `requires` between them, for the cardboard line's reason — the pets gates
   // already order them. The titles carry the gag (three perches, two windows);
   // never collapse them back to a bare "Window Perch".

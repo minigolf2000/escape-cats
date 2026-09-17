@@ -1,7 +1,7 @@
 // The Goomba Glider physics — the ONLY copy. Deterministic and side-effect
 // free: the sim scores a run the instant PLAY lands and the client animates
 // it with the same 240Hz substeps, so the animation ends where the score said.
-// A number changed here retunes every level in every event's pack.
+// A number changed here retunes every level in the list.
 
 import {
   GOOMBA_LEVELS,
@@ -27,15 +27,12 @@ import {
   BUMP_MIN,
 } from "./levels";
 
-/** A placed band: two endpoints, already snapped, plus who owns it. */
+/** A placed band: two endpoints, already snapped. */
 export interface GoombaBand {
   ax: number;
   ay: number;
   bx: number;
   by: number;
-  /** pid of whoever laid it. A note, not a rule: any player may take any band
-   * back, and every band wears the one band colour. */
-  pid: string;
 }
 
 const SNAP = 5; // a dragged endpoint this close to terrain lands ON it
@@ -46,7 +43,7 @@ const SNAP = 5; // a dragged endpoint this close to terrain lands ON it
 // (0.8 cost 77% of her speed); lift it and the same kerb moves to the
 // departure end. Never "fix" a bonk by offsetting an endpoint.
 function snapEnd(L: GoombaLevelInit, x: number, y: number): Pt {
-  // lips and ledge corners are vertices — players aim for those, so vertices win
+  // lips and ledge corners are vertices — the player aims for those, so vertices win
   let best: Pt | null = null,
     bestD2 = SNAP * SNAP;
   for (const poly of L.terrain)

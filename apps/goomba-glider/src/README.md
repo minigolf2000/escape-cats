@@ -1,8 +1,8 @@
 # goomba-glider client — module map
 
-Single player, no server. The shared `GoombaSim` runs in the tab, behind the
-same intent/snapshot seam the room server used to sit behind: everything the
-player does is an intent, everything the game knows arrives as a snapshot.
+Single player, no server. The shared `GoombaSim` runs in the tab behind an
+intent/snapshot seam: everything the player does is an intent, everything the
+game knows arrives as a snapshot.
 Game RULES live in `packages/shared/src/goomba/` (levels/physics/sim/codec) —
 never here.
 
@@ -14,7 +14,7 @@ comes apart.
 | --- | --- |
 | `main.js` | boot, the frame loop, and the snapshot→UI wiring |
 | `state.js` | the snapshot mirror (`S`) + the local presentation hanging off it |
-| `transport.ts` | the seam: intents out, nothing else. Was `net.ts` and a socket |
+| `transport.ts` | the seam: intents out, nothing else |
 | `backend.js` | the sim, answering those intents, saving to localStorage |
 | `library.js` | the three level layers, and progress that survives them changing |
 | `debug.js` | `?debug` — open the levels grid without having earned it |
@@ -64,8 +64,8 @@ anyway, which is how a `#hash` link boots onto one.
 Keyed by a level's **id**, never its index — `goomba/library.ts`. Reorder the
 list, rename a level, or retune its geometry and re-paste it, and a cleared
 level stays cleared; change the **id** and it reads as new and un-clears. The
-room keyed `completed` by index (`GoombaSim.reconcile` still does, and still
-should — it fits a list that moved), so the id projection is written *before*
+sim keys `completed` by index (`GoombaSim.reconcile`, and still should — it
+fits a list that moved), so the id projection is written *before*
 reconcile runs. `tools/goomba/test-library.mjs` is that rule, case by case.
 
 **Debug**: `window.__goomba` exposes the mirror + `send()`. `?debug` or `\`

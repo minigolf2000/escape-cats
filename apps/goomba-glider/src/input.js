@@ -15,10 +15,8 @@
 // that opens the levels grid, once there are post-credits levels to reach — is
 // wired in main.js, on the canvas, ahead of this.
 //
-// Nothing STREAMS any more. A half-drawn band used to go on the wire at 10Hz
-// so teammates could watch the stretch (`transport.preview`, deleted with the
-// room); `S.preview` and `S.anchor` are local, the renderer reads them off
-// `S`, and there is nobody else to tell.
+// Nothing STREAMS: a half-drawn band is local. `S.preview` and `S.anchor` are
+// read by the renderer off `S`, and no intent carries them.
 
 import { BAND_MIN, BAND_MAX, MAX_BANDS, snapBand, bandPoints } from "@escape-cats/shared";
 import { transport } from "./transport";

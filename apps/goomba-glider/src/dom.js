@@ -18,8 +18,7 @@ export const exportBtn = $("export");
 // The top bar itself, measured (never copied) for where the bunting hangs from.
 export const topEl = $("top");
 
-// The how-to-play sheet. It used to be the join gate as well, and held the
-// connection lines; with nothing to join it is only the sheet.
+// The how-to-play sheet.
 export const gateEl = $("gate");
 export const helpEl = $("help");
 export const scGoalEl = $("scGoal");

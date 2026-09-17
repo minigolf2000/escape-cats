@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate the gate logo — GOOMBA GLIDER as SVG outlines, for index.html.
+"""Regenerate the sheet logo — GOOMBA GLIDER as SVG outlines, for index.html.
 
 The mark is outlines, not text in Titan One, so no face can arrive late and
 flash a fallback under a gate that has already painted. The cost is FROZEN

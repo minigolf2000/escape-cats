@@ -1,9 +1,8 @@
 // THE BACKEND: the shared `HexSim`, running in this tab, answering intents.
 //
-// It is the room server's job, minus the room — same sim, same intents, same
-// snapshots, so nothing upstream of `transport` can tell the difference. What
-// the Durable Object did with `ctx.storage`, this does with localStorage; what
-// it did by broadcasting on a tick, this does by calling `onSnapshot`.
+// Same sim, same intents, same snapshots as when a server answered, so nothing
+// upstream of `transport` can tell the difference. It saves to localStorage
+// and "broadcasts" on a tick by calling `onSnapshot`.
 //
 // EVERY emit flushes first. The tap path queues pets and credits the counter
 // optimistically (`state.js`), and `applySnapshot` spends that credit on
@@ -58,7 +57,7 @@ export function startBackend(opts: {
   }
 
   // ?speed=N accelerates a run (income + golden cadence, never click feel) —
-  // the ?debug stand-in for the proctor's old dev dial. Applied after restore,
+  // the ?debug time dial. Applied after restore,
   // because `speed` is deliberately not persisted.
   const speed = Number(new URLSearchParams(location.search).get("speed"));
   if (Number.isFinite(speed) && speed > 0) sim.state.speed = Math.min(50, speed);

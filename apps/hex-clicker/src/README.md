@@ -6,7 +6,7 @@ Rendering is plain JS; the typed seams are TS. Game RULES live in
 | file        | owns                                                                  |
 | ----------- | --------------------------------------------------------------------- |
 | `main.js`   | boot, paint cover, frame loop, and the snapshot→UI-beat wiring        |
-| `state.js`  | the sim-state mirror, snapshot EDGES, shared clock, optimistic pets   |
+| `state.js`  | the sim-state mirror, snapshot EDGES, optimistic pets                 |
 | `transport.ts` | the intent/snapshot seam + pet batching                            |
 | `backend.ts` | the shared HexSim in this tab, and the `hex-save` write              |
 | `debug.ts`  | `?debug` — the 🛠 bench, the one thing that calls the sim directly    |

@@ -1,7 +1,7 @@
 # tools 🛠
 
 [`goomba/`](./goomba/) is the Goomba Glider design guide, the Figma bridge and
-the event commands; it has its own README.
+the level commands; it has its own README.
 
 The two HTML files are **standalone browser tools**: single self-contained
 files, no dependencies, no build, no server. `scripts/assemble.mjs` copies each

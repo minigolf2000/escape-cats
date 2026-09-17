@@ -9,15 +9,19 @@
 //     re-paste it — the id is unchanged, so a cleared level stays cleared;
 //   - CHANGE the id when you want a level to read as new and un-clear itself.
 //
-// It is a decision, not a derivation. The old room keyed progress by INDEX
-// (`GoombaSim.reconcile`, which shifts every flag after a delete) — fine for
-// one party, wrong for a save that outlives a pack edit by months.
+// It is a decision, not a derivation. `GoombaSim.reconcile` keys progress by
+// INDEX (and shifts every flag after a delete) — fine for one sitting, wrong
+// for a save that outlives a list edit by months.
 //
 // Nothing here touches localStorage or the DOM: the client owns where the rows
 // and the progress are STORED, this owns what they mean.
 
 import { decodeLevel } from "./codec";
 import type { GoombaLevel } from "./levels";
+
+/** How many levels a list may hold. Not a design limit — a sanity bound on
+ * the paste path, so a local overlay cannot grow without end. */
+export const PACK_MAX = 64;
 
 /** Where a level in the live list came from. Only `baked` ships. */
 export type LevelSource = "baked" | "local" | "hash";
@@ -29,7 +33,7 @@ export interface LevelRow {
    * else, so it must be unique across the baked list and must not be edited
    * casually — changing it un-clears the level for everyone. */
   id: string;
-  /** Advisory, for a readable diff: the name players SEE lives inside `hash`,
+  /** Advisory, for a readable diff: the name the player SEES lives inside `hash`,
    * and the codec's copy is the one that wins. `node tools/goomba/levels.mjs`
    * fails the build if the two drift. */
   name: string;
@@ -48,9 +52,8 @@ export interface LevelRow {
 }
 
 /**
- * Rows -> levels, DROPPING anything that will not decode, the same way
- * `packToLevels` does: a local overlay is edited live, and one bad entry must
- * not take the grid down with it.
+ * Rows -> levels, DROPPING anything that will not decode: a local overlay is
+ * edited live, and one bad entry must not take the grid down with it.
  */
 export function rowsToLevels(rows: LevelRow[], source: LevelSource): GoombaLevel[] {
   const out: GoombaLevel[] = [];

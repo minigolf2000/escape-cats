@@ -25,7 +25,7 @@ keep: player progress is keyed on it.
    toys: `cans` (collectibles that lock the goal plant), `pops` (poppers: a
    forced re-launch that erases state), `cushions`, `bumpers`. The world is
    portrait-leaning (~110 × 200), y is DOWN, and **the frame's own size is the
-   world** — padding you draw is room you gave the players.
+   world** — padding you draw is room you gave the player.
 2. **Ctrl+V it into the game** on a laptop — `\` opens the grid. It lands in
    your local overlay, after the shipped levels, and is playable immediately
    with nothing deployed and nobody else affected. A paste whose name matches
@@ -123,7 +123,7 @@ forces one band per stage. Rules:
   band honestly load-bearing. The exit is at an apex, so pair it with something
   that re-centres her.
 
-**Cat's Cradle: the players build the walls.** Four horizontal popper lanes
+**Cat's Cradle: the player builds the walls.** Four horizontal popper lanes
 aimed in alternation, three poppers a lane 24 u apart, lanes interlocked half a
 step, no terrain at all. Bands cannot help her travel; the only verb is to WALL
 a lane so she rebounds at 0.32, drifts back while falling, and lands in the lane
@@ -214,7 +214,8 @@ the structure of the teaching level.
 
 ## Sharing the result
 
-Paste it into the event; there is no file and no deploy. A pack can change under
-a live room: `GoombaSim.reconcile` re-fits progress by index and abandons a run
+Paste it into your overlay and play it; ship it by exporting a row (step 4).
+The list can still change under a live page — the overlay is edited while you
+play — and `GoombaSim.reconcile` re-fits progress by index and abandons a run
 in flight. If someone asked for an *idea*, still build it — a board people can
 play for thirty seconds settles what prose cannot.

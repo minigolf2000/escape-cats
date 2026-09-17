@@ -1,6 +1,6 @@
 // Debug-mode jump presets: one press lands the game at a story beat with the
-// state a real run would plausibly hold there. Debug-only: nothing on the wire
-// reads these.
+// state a real run would plausibly hold there. Debug-only: no intent reads
+// these.
 //
 // The night math (rules.ts wallCoverage): the full trail ladder is 34+50+68+84
 // = 236 units, ~1.53 coverage without Scent Trail (short of LEGIBLE_COV 1.6)

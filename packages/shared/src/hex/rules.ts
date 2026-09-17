@@ -1,5 +1,5 @@
 // Pure rules of Hex Clicker: every function here is a pure function of
-// game-shaped state, so the server, the client and ?debug price the same rules
+// game-shaped state, so the sim, the client mirror and ?debug price the same rules
 // instead of copies that drift.
 
 import {
@@ -17,7 +17,7 @@ import {
   type HexUnlock,
 } from "./data";
 
-/** The game-shaped core every rule reads. Both the server sim and the client
+/** The game-shaped core every rule reads. Both the sim state and the client
  * mirror satisfy this. */
 export interface HexCore {
   mice: number;
@@ -249,7 +249,7 @@ export const GOLD_FIRST_MIN_S = 90,
 /** Seconds a golden stays on screen before escaping. */
 export const goldLifeS = (m: HexMods): number => 9 + m.goldenLife;
 
-// ---- NIGHT WALL RAMP + LEGIBILITY — the win condition, computable server-side ----
+// ---- NIGHT WALL RAMP + LEGIBILITY — the win condition, computed in the sim ----
 // Per-shape headcounts. yellow spells the word.
 export const WALL_COUNT: Record<string, number> = {
   yellow: 9,
@@ -330,8 +330,8 @@ export function wallGlow(m: HexMods): number {
 // Position on the wall is DISTANCE TRAVELLED, not elapsed time (wallPosAt):
 // multiplying elapsed time by a changed speed rescales the whole of history and
 // teleports every mouse. So a rate change banks the distance so far and
-// re-anchors from there — ONCE, in the sim, riding the snapshot, or a
-// phone joining after the change replays the whole night at the new rate.
+// re-anchors from there — ONCE, in the sim, riding the snapshot, or a reload
+// after the change would replay the whole night at the new rate.
 //
 // The from-values record what the wall WAS at `wallAt`, because the change is
 // eased (WALL.rampMs) and reproducing an eased change needs where it came FROM.
@@ -362,9 +362,8 @@ export function wallRampAt(w: HexWallClock, t: number): number {
 
 // Scene units walked by time `t`. During the hand-over this is the INTEGRAL of
 // the smoothstep blend between the two rates, in closed form — the wall must be
-// a pure function of (shared state, time), or four phones accumulating their
-// own frames drift apart and a phone joining mid-ramp cannot land where the
-// others are.
+// a pure function of (sim state, time), or a renderer accumulating its own
+// frames drifts and a reload mid-ramp cannot land where the saved game was.
 //
 //   rate(d) = from + (to - from) * smoothstep(d / R)
 //   ∫₀ᴰ smoothstep(d/R) dd = R(x³ - x⁴/2) for x = D/R ≤ 1,  else D - R/2
@@ -434,10 +433,6 @@ export function wallCoverage(m: HexMods): number {
     m.trail * WALL.trailDt +
     (m.persist > 0 ? (m.persist * WALL_PERSIST_MS) / Math.LN2 : 0);
   return (WALL_COUNT.yellow * (wallSpeed(m) / 1000) * visibleMs) / WORD_INK_EST;
-}
-
-export function isLegible(s: HexCore): boolean {
-  return wallCoverage(foldMods(s.bought, s.owned)) >= LEGIBLE_COV;
 }
 
 // ---- THE TWIST — the hard reset into the dream economy ----

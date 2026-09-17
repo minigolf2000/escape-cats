@@ -1,5 +1,5 @@
-// Deterministic randomness shared by server and clients: room seeds and the
-// night wall's per-mouse phases, so every phone renders the identical reveal.
+// Deterministic randomness: the night wall's seed and per-mouse phases, so a
+// reload draws the identical reveal.
 
 /** mulberry32 PRNG: tiny, fast, deterministic across JS engines. */
 export function mulberry32(seed: number): () => number {

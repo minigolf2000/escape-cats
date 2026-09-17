@@ -42,14 +42,13 @@ export const L = () => GOOMBA_LEVELS[level()] ?? NO_LEVELS;
 
 // ---------- surfaces and modes ----------
 /** `?debug` opens the level grid without having earned it — the power user's
- * way in, and nothing else. (`?solo` is gone: there is no other kind of game
- * to be the opposite of.) */
+ * way in, and nothing else. */
 export const DEBUG = debugFromUrl();
 
 /**
  * LAPTOP OR PHONE — one switch, two level grids (a phone taps to play; a
  * laptop selects, double-clicks, drags, pastes). Read LIVE, not latched at
- * boot: a tablet can gain a trackpad mid-party.
+ * boot: a tablet can gain a trackpad mid-game.
  */
 const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
 export const DESKTOP = () => finePointer.matches;
@@ -76,18 +75,13 @@ export const levelSelect = () =>
 export const editorOn = () => DESKTOP();
 
 // ---------- the band's colour ----------
-// Every band wears ONE colour. It used to be the TEAM's, picked out of
-// TEAM_EARS to match the proctor's board and the cat-ear headbands; with one
-// player there is no team to be, so the old no-team pink is simply the colour.
-// Kept as functions, not constants, because every caller already asks.
-const BAND_INK = "#ff5db1";
-const BAND_INK_DARK = "#b8437f"; // the same ink at 0.72, worked out once
-export const bandInk = () => BAND_INK;
-/** The darker under-stroke. */
-export const bandInkDark = () => BAND_INK_DARK;
+// Every band wears ONE colour.
+export const BAND_INK = "#ff5db1";
+/** The darker under-stroke: the same ink at 0.72, worked out once. */
+export const BAND_INK_DARK = "#b8437f";
 
 // The party palette: confetti, the ambient drift, the bunting. DECOR only —
-// a band wears the team colour.
+// a band wears `BAND_INK`.
 export const PARTY_COLORS = ["#ff5db1", "#57e6c9", "#ffd166", "#b18bff"];
 
 // ---------- the 4 bands ----------

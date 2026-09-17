@@ -1,4 +1,4 @@
-// Goomba Glider, multiplayer client — boot, the frame loop, and the wiring
+// Goomba Glider — boot, the frame loop, and the wiring
 // between a snapshot and the UI. The backend owns bands, level, phase and
 // score; this file renders snapshots and sends intents. A run is animated
 // against the snapshot's `runAt` timestamp with the same shared sim that
@@ -10,7 +10,7 @@
 //   render.js    the drawing surface and everything drawn on it
 //   selector.js  the levels grid, which on a laptop is the level editor
 //   input.js     three ways to lay a band, one way to take it back
-//   sheet.js     the how-to-play pictures, which are also the join gate
+//   sheet.js     the how-to-play pictures
 
 import "./styles.css";
 import {
@@ -36,7 +36,7 @@ import {
   gateEl,
 } from "./dom";
 import {
-  S, L, bands, level, now, toast, askConfirm, bandInk, FAIL_MSG,
+  S, L, bands, level, now, toast, askConfirm, BAND_INK, FAIL_MSG,
   DESKTOP, PARTY_COLORS, levelSelect, editorOn,
 } from "./state";
 import {
@@ -48,14 +48,14 @@ import {
   preloadSplashArt,
 } from "./render";
 import {
-  setLab, resolveLabJump, onPackChanged, openSelector, tickEditMsg, drawLab,
+  setLab, onPackChanged, openSelector, tickEditMsg, drawLab,
   editSay,
 } from "./selector";
 import {
   resetInput, liveAnchor,
 } from "./input";
 import {
-  drawSheet, armSheet, closeSheet, sheetFrame, sheetIsOpen, sheetIsArmed,
+  drawSheet, armSheet, closeSheet, sheetIsOpen, sheetIsArmed,
 } from "./sheet";
 import "./input";
 
@@ -126,10 +126,6 @@ function onSnapshot(s) {
   const splashEdge = (s.phase === "splash") !== (shownPhase === "splash");
   S.snap = s;
 
-  // The latched card tap resolves here, in the same handler that recenters
-  // the camera below, so the first frame without the lab is the new level.
-  resolveLabJump(s);
-
   if (first) {
     S.inited = true;
     // Arm the sheet (the player dismisses it) — unless something is already
@@ -180,15 +176,15 @@ function syncHud() {
   // clear" banner: that win is on the splash before it could be read.
   hintEl.textContent = s.phase === "win" ? "LEVEL CLEAR! 🎉" : "";
 
-  // Room state, re-read every snapshot (a reset takes the selector back).
+  // Game state, re-read every snapshot (a reset takes the selector back).
   hudEl.classList.toggle("cleared", levelSelect());
   hudEl.classList.toggle("splash", s.phase === "splash");
   // The band plate's CHROME rides the PHASE, never the band count — keyed on
   // the count it would grow and collapse every time it crossed 0 (`#bandbar`
   // in styles.css). At zero bands it only goes quiet: `disabled`, below.
   hudEl.classList.toggle("laying", s.phase === "edit");
-  // `editing` is the SURFACE (editorOn), not room state; synced here because
-  // the surface can change under a live room (a tablet gaining a trackpad).
+  // `editing` is the SURFACE (editorOn), not game state; synced here because
+  // the surface can change mid-game (a tablet gaining a trackpad).
   hudEl.classList.toggle("editing", editorOn());
 
   // THE DOTS ARE THE PRE-CREDITS RUN until the game has been cleared, and the
@@ -215,14 +211,14 @@ function syncHud() {
 
   // The 4 band slots — the level's whole budget, all in the one band colour. An
   // empty slot during edit is lit: it is one I may fill.
-  const ink = bandInk();
+  const ink = BAND_INK;
   invEl.innerHTML = "";
   for (let i = 0; i < MAX_BANDS; i++) {
     const el = document.createElement("div");
     const bd = s.bands[i];
     const open = !bd && s.phase === "edit";
     el.className = "band" + (bd ? " used" : open ? " open" : "");
-    // Inline (`bandInk`). Mid-run slots keep the CSS dashes.
+    // Inline (`BAND_INK`). Mid-run slots keep the CSS dashes.
     if (bd || open) el.style.borderColor = ink;
     if (bd) el.style.background = ink + "33";
     invEl.appendChild(el);
@@ -244,9 +240,9 @@ playBtn.onclick = () => {
   else if (S.snap.phase === "run") transport.send({ type: "stop" });
   else if (S.snap.phase === "win") transport.send({ type: "next" });
 };
-// One tap wipes every band on the level, with no confirm and no
-// toast: four people in one living room answer a stray out loud. If strays turn
-// up, the answer is UNDO, never a confirm step. The whole plate is the target;
+// One tap wipes every band on the level, with no confirm and no toast: a
+// stray costs one tap to re-lay. If strays turn up, the answer is UNDO, never
+// a confirm step. The whole plate is the target;
 // `disabled` (syncHud) limits it to edit-with-bands, and every other moment the
 // corner belongs to the canvas underneath.
 bandbarEl.onclick = () => { resetInput(); transport.send({ type: "clear" }); };
@@ -369,7 +365,7 @@ window.addEventListener("paste", (e) => {
 
 // ---------- the run replay ----------
 // The flare's shape: snap up, fall away. Clocked off the RUN's seconds, not
-// wall-clock dt, so it survives a late joiner's fast-forward.
+// wall-clock dt, so it survives a backgrounded tab's fast-forward.
 const LOCK_ATTACK = 0.06, LOCK_RELEASE = 0.34;
 const lockFlare = (dt) =>
   dt < 0 ? 0
@@ -386,8 +382,8 @@ function syncAnim() {
     popPrev = anim.st.popT.slice();
     lockT = -9; lockArmed = false;
   }
-  // Step to the shared timeline. A phone that joins late fast-forwards through
-  // the missed part in one frame — same substeps, same ending.
+  // Step to the snapshot's timeline. A tab that was backgrounded fast-forwards
+  // through the missed part in one frame — same substeps, same ending.
   const target = Math.min((now() - s.runAt) / 1000, s.runT ?? 0);
   const st = anim.st;
   while (!st.result && st.t < target) stepRun(st, SUB);
@@ -424,7 +420,7 @@ function frameBody(nowMs) {
   advanceClock(dt);
   if (tGlobal - lastFitCheck > 1) { lastFitCheck = tGlobal; checkFit(); }
   tickEditMsg(dt);
-  if (sheetIsOpen()) drawSheet();   // `?` mid-party: the pictures keep moving
+  if (sheetIsOpen()) drawSheet();   // `?` mid-game: the pictures keep moving
   if (!S.snap) return;
   if (S.labOpen) { drawLab(); return; }
   if (S.snap.phase === "splash") { drawSplash(tGlobal - splashAt, hasBonusLevels()); return; }
@@ -436,7 +432,7 @@ function frameBody(nowMs) {
   if (st) {
     if (riding && st.onBand >= 0 && Math.random() < 0.5) {
       parts.push({ x: st.p.x, y: st.p.y + R, vx: -st.v.x * 0.15, vy: -12,
-                   c: bandInk(), life: 0.5 });
+                   c: BAND_INK, life: 0.5 });
     }
     st.cushHits.forEach((h, i) => { if (h) { cushAnim[i] = 1; st.cushHits[i] = 0; } });
     st.popT.forEach((t, i) => {
@@ -528,9 +524,9 @@ function frameBody(nowMs) {
 
 
 // ---------- boot ----------
-// No menu and no join: the game IS the page. There is nothing to reach and
-// nothing to wait for, so the gate exists only for the one frame before the
-// first snapshot lands — which `startBackend` emits synchronously.
+// No menu: the game IS the page. The how-to-play sheet is up from the first
+// frame, and the first snapshot lands before boot returns (`startBackend`
+// emits it synchronously).
 
 /**
  * THE WAY OFF THE FINALE, when there is one. A tap anywhere opens the levels
@@ -549,7 +545,6 @@ cv.addEventListener("pointerdown", () => {
 }, { capture: true });
 
 function boot() {
-  requestAnimationFrame(sheetFrame);   // the gate is up: animate it until frame() exists
   // The finale's picture, fetched at an idle moment: it arrives with no warning
   // (a run ends and the splash is already up), so it cannot be asked for then.
   preloadSplashArt();

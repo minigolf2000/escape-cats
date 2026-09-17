@@ -13,8 +13,8 @@ node draft.mjs                         # the draft bench (usage)
 node figma/read-frame.mjs --nodes f.json   # a Figma frame in world units
 ```
 
-`seed.mjs` is gone with the lobby Durable Object it talked to. The shipped list
-is [`levels.data.ts`](../../packages/shared/src/goomba/levels.data.ts) and a
+The shipped list is
+[`levels.data.ts`](../../packages/shared/src/goomba/levels.data.ts) and a
 level is published by committing a row.
 
 - `lib.mjs` bundles `packages/shared/src/goomba/` with esbuild on the fly so no
@@ -30,5 +30,5 @@ level is published by committing a row.
 - `bands.mjs` tests SHIPPED code: that all four bands may be spent however the
   player likes. It outlived the party it was written for — the budget is still
   a product decision that should fail a test rather than surprise anyone.
-- `logo-outline.py` regenerates the gate logo's SVG outlines from the Titan One
+- `logo-outline.py` regenerates the how-to-play sheet's logo as SVG outlines from the Titan One
   face; its docstring has the recipe.

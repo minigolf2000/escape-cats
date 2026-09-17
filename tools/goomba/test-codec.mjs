@@ -3,10 +3,10 @@
 //
 //   node test-codec.mjs
 //
-// The browser, the Worker and these tools must agree on a link byte for byte.
+// The browser and these tools must agree on a link byte for byte.
 // A new field rides at the TAIL behind a flag, and this holds it to that: every
 // older link still decodes unchanged, a level without the field encodes to the
-// SAME bytes it always did (live lobby packs are not quietly rewritten), and a
+// SAME bytes it always did (shipped rows are not quietly rewritten), and a
 // link that claims the field and ends early is `null`, not a NaN world edge.
 import { encodeLevel, decodeLevel, initLevel } from "./lib.mjs";
 
@@ -74,7 +74,7 @@ console.log("\nfmt 1: a link written before the solution field was removed");
 // in the MIDDLE of the layout, so dropping it cost a version: fmt 1 reads it
 // and throws it away, fmt 2 never writes it.
 const FMT1 = "AQAPVGhlIExvbmcgV2F5IFVwKADgBpYANgYDKAAACAdkAPkGkQBOB8gAOge-ACEHDgESBwQB_gZUAeoGRQHWBpABuAaBAaQGwgGGBpABOwbgAeEFMAIJBlMC4QU_AtIFewKlBWcClgWjAmkFjwJaBcsCKAW3Ah4F7gLsBNoC3QQCA84EvAKSBPgCHwRXAz0EZgMVBE0DCwSEA94DZgPUA50DpwN_A50DtgNwA5gDZgPAA1wDcAMlA5gDxgIDfgQYAZIE9AGIBNACAzIA3AWWAEAG8ADcBQMgAzoC9AHQAvAA1AMEOQDuBsT_3AWoAQAGNP7cBccCTwSy_dwFmAPGApr8FAUAARoEWAIEZAD5BpABOwbgAeEFvAKSBPgCHwRwAyUDKAAQBCgAUAU";
-// The same level as fmt 2 wrote it — the shape sitting in lobby packs today.
+// The same level as fmt 2 wrote it — the shape older links and rows carry.
 const FMT2 = "AgAPVGhlIExvbmcgV2F5IFVwKADgBpYANgYDKAAACAdkAPkGkQBOB8gAOge-ACEHDgESBwQB_gZUAeoGRQHWBpABuAaBAaQGwgGGBpABOwbgAeEFMAIJBlMC4QU_AtIFewKlBWcClgWjAmkFjwJaBcsCKAW3Ah4F7gLsBNoC3QQCA84EvAKSBPgCHwRXAz0EZgMVBE0DCwSEA94DZgPUA50DpwN_A50DtgNwA5gDZgPAA1wDcAMlA5gDxgIDfgQYAZIE9AGIBNACAzIA3AWWAEAG8ADcBQMgAzoC9AHQAvAA1AMEOQDuBsT_3AWoAQAGNP7cBccCTwSy_dwFmAPGApr8FAUAARoEWAI";
 
 {
@@ -135,7 +135,7 @@ check("...and the ink's own box is the floor", [wide.x0 <= plain.x0, wide.y0 <= 
 // put terrain outside the world.
 const tight = initLevel({ ...clone(FIXTURE), frame: { x0: 50, y0: 50, x1: 60, y1: 60 } });
 check("a frame INSIDE the ink changes nothing", tight.bounds, plain);
-// `bounds` is written onto the level object, and applyPack -> initLevel runs
+// `bounds` is written onto the level object, and setGoombaLevels -> initLevel runs
 // again on a level that already has one.
 const once = initLevel(clone(framed));
 check("initLevel twice cannot drift", initLevel(once).bounds, once.bounds);

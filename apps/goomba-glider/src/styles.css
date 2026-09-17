@@ -1,5 +1,5 @@
 /* goomba-glider — the whole stylesheet, imported from main.js. The game is a
- * canvas; this is the HUD around it and the how-to-play sheet / join gate.
+ * canvas; this is the HUD around it and the how-to-play sheet.
  */
 
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #150a2a; }
@@ -82,7 +82,7 @@
         generated content, so `aria-label` carries it).
      The label cannot widen the plate: the slots are 120px and "clear bands" at
      11px/700 is 72. Past 120 the label would drive the width — no more words.
-     One tap wipes the WHOLE ROOM's bands with no confirm; if strays turn up
+     One tap wipes every band on the level with no confirm; if strays turn up
      the answer is UNDO, never a confirm step. */
   #bandbar { display: flex; flex-direction: column; align-items: center; gap: 5px;
              padding: 5px 10px; border-radius: 13px;
@@ -126,8 +126,8 @@
      not done yet is just a question. */
   /* The splash (phase "splash", goomba/sim.ts) is the FINALE and it has no
      controls at all: the whole HUD goes and the picture, the code word and
-     nothing else are on the CANVAS (drawSplash). Terminal — there is no way
-     back that a phone could press, so there is no button to keep. */
+     (with post-credits levels) the way out are on the CANVAS (drawSplash), so
+     there is no button to keep. */
   #hud.splash > * { visibility: hidden; }
   #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.9);
            background: rgba(20,10,45,.92); border: 2px solid #ffd166; color: #ffe9b3;
@@ -210,9 +210,7 @@
      stack measures narrower. */
   #gate .pair .cap { min-height: 2.8em; text-wrap: balance; }
   #gate .cap b { color: #ffd166; font-weight: 700; }
-  /* The way out, at the bottom of the sheet. It used to share this slot with
-     the connection lines and take it over once the room was live; there is no
-     room to be live, so it simply lives here. Absolute so its box does not
+  /* The way out, at the bottom of the sheet. Absolute so its box does not
      count toward what the pictures are centred on, and the gate's side
      padding is repeated because an absolute box is out of its reach. TINY:
      the only chrome on the sheet, a reminder, not an instruction. `pointer`
@@ -263,7 +261,7 @@
     45%  { transform: scale(1.22); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
   }
-  /* The way back to the sheet, mid-party: PLAY's corner, mirrored. Quiet
+  /* The way back to the sheet, mid-game: PLAY's corner, mirrored. Quiet
      chrome, not a second PLAY. Hidden while the sheet is up, and under .lab
      and .splash with the rest of the HUD. */
   #help { position: absolute; left: 16px; bottom: var(--hud-bottom);

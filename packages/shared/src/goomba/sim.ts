@@ -4,8 +4,6 @@
 // is "in flight" is only the animation, so run-end is a timestamp comparison
 // applied lazily by resolve(now) — which is what lets a backgrounded tab, one
 // that missed every frame, resolve correctly the moment it comes back.
-//
-// It used to be the authority a Durable Object wrapped, one per team.
 
 import { GOOMBA_LEVELS, MAX_BANDS, BAND_MIN, BAND_MAX, type GoombaLevelInit } from "./levels";
 import { snapBand, scoreRun, type GoombaBand, type RunResult } from "./physics";
@@ -13,10 +11,11 @@ import { snapBand, scoreRun, type GoombaBand, type RunResult } from "./physics";
 /**
  * `edit` → `run` → (`win` | back to `edit`), plus `splash`: THE FINALE, which
  * the last flag going up lands on directly (`resolve` — the clearing win never
- * passes through `win`, so there is no banner and no NEXT to press). It is
- * TERMINAL: nothing may be placed, played or jumped to from it, and the only
- * ways off are `reset` and a level-list edit that un-clears the game
- * (`reconcile`).
+ * passes through `win`, so there is no banner and no NEXT to press). Nothing
+ * may be placed or played from it. It is TERMINAL when there are no
+ * post-credits levels — the only ways off are `reset` and a level-list edit
+ * that un-clears the game (`reconcile`); with a bonus section behind it,
+ * `goto` is the door out (`hasBonusLevels`).
  */
 export type GoombaPhase = "edit" | "run" | "win" | "splash";
 
@@ -46,13 +45,10 @@ export interface GoombaPersistedV1 {
   state: GoombaSimState;
 }
 
-/** What the client renders from. Nothing rides beside the state any more —
- * the players, the band ghosts, the server clock and the proctor's progress
- * bar all left with the room. */
+/** What the client renders from. Nothing rides beside the state. */
 export type GoombaSnapshot = GoombaSimState;
 
 export type GoombaClientMsg =
-  | { type: "join"; name: string }
   | {
       type: "place";
       /** Endpoints in world units. The sim snaps and validates. */
@@ -79,7 +75,7 @@ export type GoombaClientMsg =
   | { type: "packSet"; index: number | null; hash: string }
   | { type: "packMove"; from: number; to: number }
   | { type: "packDelete"; index: number }
-  /** Start over. Was proctor-only; it is the player's own button now. */
+  /** Start over. */
   | { type: "reset" };
 
 const num = (v: unknown): number | null =>
@@ -215,13 +211,7 @@ export class GoombaSim {
     return Math.max(0, s.runAt + s.runT * 1000 - now);
   }
 
-  /** `pid` rides on the band as a note of who laid it; nothing reads it as a
-   * rule. */
-  place(
-    pid: string,
-    msg: { ax: unknown; ay: unknown; bx: unknown; by: unknown },
-    now: number,
-  ): void {
+  place(msg: { ax: unknown; ay: unknown; bx: unknown; by: unknown }, now: number): void {
     this.resolve(now);
     const s = this.st;
     if (s.phase !== "edit") return;
@@ -238,7 +228,7 @@ export class GoombaSim {
     if (!L) return; // pack emptied under us
     // Snapped HERE, once, so the animation runs on the endpoints the run was
     // scored with.
-    s.bands.push(snapBand(L, { ax, ay, bx, by, pid }));
+    s.bands.push(snapBand(L, { ax, ay, bx, by }));
     s.runResult = null;
   }
 

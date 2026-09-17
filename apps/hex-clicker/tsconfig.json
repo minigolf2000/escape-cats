@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     // The ported game modules are plain JS (they came verbatim from the
-    // prototype); only the typed seams (net.ts, debug.ts) are checked.
+    // prototype); only the typed seams (transport.ts, backend.ts, debug.ts) are checked.
     //
     // allowJs lets a seam IMPORT one of those modules and get inferred types
     // for it — debug.ts reuses the shop's effectText for its content dump

@@ -1,4 +1,4 @@
-// WHAT THIS PHONE CAN PLAY, and what it remembers. Three layers, composed once
+// WHAT THIS BROWSER CAN PLAY, and what it remembers. Three layers, composed once
 // at boot and again on every overlay edit:
 //
 //   baked    `levels.data.ts` — the list the game ships. Read-only at runtime.
@@ -210,7 +210,7 @@ export function saveProgress(completed, now) {
   if (!same) save(PROGRESS_KEY, progress);
 }
 
-// ---------- the rest of the room's state ----------
+// ---------- the rest of the game's state ----------
 
 /** Bands, level and phase, so closing the tab mid-puzzle does not throw the
  * puzzle away. Progress is NOT read back from here (`completed` is projected
@@ -219,7 +219,7 @@ export function saveProgress(completed, now) {
 export const loadState = () => load(STATE_KEY, null);
 export const saveState = (persisted) => save(STATE_KEY, persisted);
 
-/** Forget everything this browser knows: progress, the saved room, and the
+/** Forget everything this browser knows: progress and the saved game; the
  * local overlay's levels stay (they are the power user's drafts, not
  * progress). Wired to the grid's "start over". */
 export function forgetProgress() {

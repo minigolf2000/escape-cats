@@ -12,7 +12,7 @@
  * The rule: `hidden` to hide, `inherit` to re-show, `visible` never.
  *
  * Goomba ONLY: hex's cat is a pose-frame DOM sprite where `visible` under a
- * hidden parent is the mechanism itself; lobby and chat use no visibility.
+ * hidden parent is the mechanism itself.
  *
  * Run: node scripts/check-visibility.mjs
  */

@@ -1,6 +1,6 @@
 // PHASE — day/night as a PROJECTION of folded state, the seeded starfield, the
 // night-transition cutscene, and the win splash. The cutscene fires off the
-// snapshot's day->night edge (main.js), so every phone takes the beat together.
+// snapshot's day->night edge (main.js).
 
 import { hexWon, mulberry32, HEX_CODEWORD } from "@escape-cats/shared";
 import { game, nightActive, wallSeed } from "./state.js";
@@ -14,8 +14,8 @@ import { YAWN_MS, ZZZ_HOLD_MS } from "./cat.js";
 // The win screen says the same thing every time it is raised, so the word is
 // written ONCE here rather than tracked through the snapshot. It is the shared
 // constant, not a second copy of the string: hex's bundle already carries it
-// (the sim ships in-page for ?debug), so mirroring it over the wire bought the
-// player nothing and only gave the splash a state it could be wrong about.
+// (the sim runs in-page), so carrying it through the snapshot would buy the
+// player nothing and only give the splash a state it could be wrong about.
 splashWordTextEl.textContent = HEX_CODEWORD;
 
 let nightInited = false;
@@ -169,7 +169,7 @@ export function syncWon() {
 }
 
 // The night-transition CUTSCENE. Fired once, only on the live day->night edge —
-// never on load/reconnect or a preset — so a returning player drops straight
+// never on load or a preset — so a returning player drops straight
 // into night. A transparent veil locks ALL input while the beat plays.
 let cutsceneLock = false;
 // How long #dock takes to slide back in. Mirrors the .5s transition on #dock;

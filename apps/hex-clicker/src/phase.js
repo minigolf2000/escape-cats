@@ -148,6 +148,20 @@ export function setSplash(open) {
   wonPillEl.textContent = splashOpen ? "← back to game" : "🏆 win screen";
 }
 
+// A raise that is WAITING on a beat somebody else owns (the shop closing). One
+// timer, because there is only ever one win.
+let splashTimer = 0;
+
+/** Raise the picture, now or `afterMs` from now. The delay is the caller's
+ * business — this only holds the handle, so `syncWon` has one thing to drop
+ * when the win is taken back. `setSplash` still asks `hexWon` when the timer
+ * lands, so a reset inside the wait cannot raise a splash on a fresh run. */
+export function raiseSplash(afterMs) {
+  clearTimeout(splashTimer);
+  if (!afterMs) setSplash(true);
+  else splashTimer = setTimeout(() => setSplash(true), afterMs);
+}
+
 /** The pill's whole job: whichever of the two views you are not looking at. */
 export function toggleSplash() {
   setSplash(!splashOpen);
@@ -160,6 +174,7 @@ export function syncWon() {
   const won = hexWon(game);
   wonPillEl.classList.toggle("on", won);
   if (!won) {
+    clearTimeout(splashTimer); // a raise still waiting on the shop's beat
     setSplash(false);
     // A taken-back win (or a reset) re-arms the beat: the next one is an
     // arrival again.

@@ -35,6 +35,7 @@ import {
   syncDock,
   shopClosePhase,
   runShopClose,
+  SHOP_CLOSE_BEAT_MS,
   reopenShop,
 } from "./shop.js";
 import { initPetInput } from "./pet.js";
@@ -43,7 +44,7 @@ import { updatePops } from "./fx.js";
 import { updateCat, warmPoseFrames } from "./cat.js";
 import {
   syncPhase, runNightCutscene, isNightInited,
-  initSplashArt, setSplash, syncWon, toggleSplash,
+  initSplashArt, raiseSplash, syncWon, toggleSplash,
 } from "./phase.js";
 import { drawWall, startWallNeon, resetWallClock } from "./wall.js";
 import { currencyIconSVG } from "./art.js";
@@ -95,15 +96,22 @@ function onSnapshot(snap) {
       despawnGold();
       runNightCutscene();
     }
-    if (e.wonFlip) {
-      // The wall just became readable: raise the picture on the beat it
-      // happens, with the pill right there to go back with.
-      setSplash(true);
-    }
-    if (e.neonOn && isNightInited()) startWallNeon();
     // The purchase that empties the rail closes the shop — an edge, so a
     // restored save that lands already sold out retires it silently (syncDock).
-    if (e.soldOut && !shopClosePhase) runShopClose();
+    // BEFORE the win below, which is the one thing that waits on this beat.
+    const closing = e.soldOut && !shopClosePhase;
+    if (closing) runShopClose();
+    if (e.wonFlip) {
+      // The wall just became readable, with the pill right there to go back
+      // with. On the natural win both edges land on THIS snapshot — the rung
+      // that makes the word readable is also the last row on the rail — so the
+      // shop's closing beat plays first and the picture arrives as the dock
+      // finishes leaving. `closing`, not `e.soldOut`: a beat that did not start
+      // is not a beat to wait for. A win arriving with no close behind it (the
+      // 🛠 panel's 🏆) has nothing to wait for and lands at once.
+      raiseSplash(closing ? SHOP_CLOSE_BEAT_MS : 0);
+    }
+    if (e.neonOn && isNightInited()) startWallNeon();
     if (e.goldSpawn) spawnGold(e.goldSpawn);
     if (e.goldGone) despawnGold();
   }

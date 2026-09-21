@@ -148,6 +148,35 @@ export function setSplash(open) {
   wonPillEl.textContent = splashOpen ? "← back to game" : "🏆 win screen";
 }
 
+// A raise that is WAITING on a beat somebody else owns (the shop closing). One
+// timer, because there is only ever one win. `splashWaiting` is the window
+// between the win landing and the picture arriving — the one state where the
+// game has been won and there is nothing on screen saying so.
+let splashTimer = 0;
+let splashWaiting = false;
+
+/** Raise the picture, now or `afterMs` from now. The delay is the caller's
+ * business — this only holds the handle, so `syncWon` has one thing to drop
+ * when the win is taken back. `setSplash` still asks `hexWon` when the timer
+ * lands, so a reset inside the wait cannot raise a splash on a fresh run. */
+export function raiseSplash(afterMs) {
+  clearTimeout(splashTimer);
+  splashWaiting = false;
+  if (!afterMs) {
+    setSplash(true);
+    return;
+  }
+  splashWaiting = true;
+  splashTimer = setTimeout(() => {
+    splashWaiting = false;
+    setSplash(true);
+    // The pill was waiting on this. Assert it here rather than letting the next
+    // snapshot do it: at 4Hz that is a quarter second of picture with no way
+    // back drawn on it.
+    syncWon();
+  }, afterMs);
+}
+
 /** The pill's whole job: whichever of the two views you are not looking at. */
 export function toggleSplash() {
   setSplash(!splashOpen);
@@ -158,8 +187,15 @@ export function toggleSplash() {
  * win back) drops the splash and retires the pill with no inverse to write. */
 export function syncWon() {
   const won = hexWon(game);
-  wonPillEl.classList.toggle("on", won);
+  // The pill is the way BACK from the picture, so it arrives WITH it: while a
+  // raise is still waiting on the shop's closing beat, the win has happened but
+  // nothing on screen says so, and a toggle labelled 🏆 would say it first. A
+  // RESTORED win never waits, and lights the pill at once — that is the only
+  // way to a splash this run will never raise for you.
+  wonPillEl.classList.toggle("on", won && !splashWaiting);
   if (!won) {
+    clearTimeout(splashTimer); // a raise still waiting on the shop's beat
+    splashWaiting = false;
     setSplash(false);
     // A taken-back win (or a reset) re-arms the beat: the next one is an
     // arrival again.

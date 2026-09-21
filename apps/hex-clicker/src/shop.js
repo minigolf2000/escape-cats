@@ -465,6 +465,12 @@ export function refreshHud() {
 const SHOP_CLOSE_MS = 220;
 const SHOP_SIGN_MS = 1800; // how long the closed sign holds before the dock leaves
 const SHOP_OUT_MS = 500; // the dockOut animation
+/** The whole beat, end to end. The win splash WAITS this long when the two
+ * land together (main.js), which they do on the natural win: the rung that
+ * makes the word readable is also the last row on the rail. The dock is what
+ * covers the bottom of the word, so this is the beat that uncovers it — the
+ * picture must not arrive before the player gets to read what they inked. */
+export const SHOP_CLOSE_BEAT_MS = SHOP_CLOSE_MS + SHOP_SIGN_MS + SHOP_OUT_MS;
 // Bumped by every start and every abandonment of the beat, so an orphaned
 // stage can't land on a shop that has moved on (a reset mid-beat).
 let shopCloseGen = 0;

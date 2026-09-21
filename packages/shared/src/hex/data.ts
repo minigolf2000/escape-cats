@@ -152,7 +152,7 @@ export const HEX_CODEWORD = "TO THE MOON";
 //     zoomMult      add              — Zoomies multiplies pets by this much more
 //     zoomTime      add              — Zoomies lasts this many more seconds
 //     trail         add              — night wall trail segments (the reveal ink)
-//     persist       add              — night ink half-life (Scent Trail)
+//     persist       add              — night ink half-life (the Scent Trail rung)
 //     neon          (no fields)      — the specks resolve into mice
 //     lantern       (no fields)      — the night is LIT (Paper Lantern)
 //     pace          add              — instalments of the wall's speed paid back
@@ -418,7 +418,7 @@ export const UPGRADES: HexUpgrade[] = [
   //   Lucid Dreaming III    longer trails
   //   Lucky Number 6        x6 income
   //   Lucid Dreaming IV     longer trails
-  //   Scent Trail           INK STOPS FADING, WORD READABLE <- the finale
+  //   ?? ??? ????           INK STOPS FADING, WORD READABLE <- the finale
   //
   // Wall rows show ??? for their effect (WALL_EFFECTS, oneEffectText). The
   // numerals exist because the four trail rungs ARE the same purchase four times
@@ -503,9 +503,19 @@ export const UPGRADES: HexUpgrade[] = [
   // not this row; push the price up to buy clock and this row's hoard becomes
   // the worst wait instead (100e6: a 31s gap).
   //
-  // `key` stays `hypnagogia` — a save key. Footprints, and NOT a moon: the
-  // answer is TO THE MOON, and every icon on a night row has to pass that test.
-  { key: "hypnagogia", name: "Scent Trail", icon: "👣",
+  // `key` stays `hypnagogia` — a save key — and the code goes on calling this
+  // rung the Scent Trail, which is what `persist` still IS. It ships unnamed.
+  //
+  // THE ONE NIGHT ROW THAT LEAKS THE ANSWER, and only because it is the last
+  // one: every other icon on the ladder has to pass "not a moon" (the answer is
+  // TO THE MOON), but this row is the purchase the win lands on, so the mask IS
+  // the reveal. `?? ??? ????` is the code word's own shape — 2, 3, 4 — and the
+  // rocket is the ride. A player reading the row has seconds to sit with it
+  // before the wall says it outright, and no time at all to spend knowing it.
+  // Nothing derives the mask from HEX_CODEWORD: it is drawn to be READ as
+  // blanks, and a mask that re-counted itself would quietly restate the answer
+  // in the bundle next to the row that is hiding it.
+  { key: "hypnagogia", name: "?? ??? ????", icon: "🚀",
     cost: 60e6, unlock: { requires: "remsleep" },
     effect: { type: "persist", add: 60 } },
 ];

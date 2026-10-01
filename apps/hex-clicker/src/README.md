@@ -10,6 +10,7 @@ Rendering is plain JS; the typed seams are TS. Game RULES live in
 | `transport.ts` | the intent/snapshot seam + pet batching                            |
 | `backend.ts` | the shared HexSim in this tab, and the `hex-save` write              |
 | `debug.ts`  | `?debug` — the 🛠 bench, the one thing that calls the sim directly    |
+| `analytics.js` | Vercel page views + the `/progress/…` milestones (README)       |
 | `shop.js`   | dock, building rows, upgrade rail, HUD, badge/seen, sold-out beat     |
 | `wall.js`   | the night reveal: tracer, glyphs, moon scene, cast, canvas drawing    |
 | `cat.js`    | Hex herself — blink, gaze, lean, purr, yawn, dream twitches, squash   |

@@ -10,7 +10,8 @@
     "preview": "vite preview --port 5173"
   },
   "dependencies": {
-    "@escape-cats/shared": "*"
+    "@escape-cats/shared": "*",
+    "@vercel/analytics": "^2.0.1"
   },
   "devDependencies": {
     "vite": "^7.3.6"

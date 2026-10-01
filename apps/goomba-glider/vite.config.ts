@@ -18,11 +18,17 @@ function buildId(): string {
   return `${sha ? sha.slice(0, 7) : "local"} ${when}`;
 }
 
+/** Vercel's Web Analytics client config (where its script and endpoints
+ * live), handed to the build as an env var once Analytics is enabled on the
+ * project. Empty locally and that is fine — `inject` falls back to
+ * `/_vercel/insights`. See src/analytics.js. */
+const vaConf = JSON.stringify(process.env.VERCEL_OBSERVABILITY_CLIENT_CONFIG ?? "");
+
 export default defineConfig({
   // The app IS the site: g00.mba serves this at the root. It used to be
   // `/g00mBa/` (casing load-bearing), a subdirectory of one assembled origin
   // shared with three other surfaces — see "Two sites" in CLAUDE.md.
   base: "/",
-  define: { __BUILD__: JSON.stringify(buildId()) },
+  define: { __BUILD__: JSON.stringify(buildId()), __VA_CONF__: vaConf },
   server: { host: true },
 });

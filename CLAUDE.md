@@ -196,6 +196,11 @@ Figma, Ctrl+V into the game, play it, export, commit.
 - **Two cursors, ever**: `pointer` if a tap does something, `default` if not.
   `check-cursors.mjs` enforces it over the two player apps; `tools/` is exempt.
 - **Each client's CSS is `src/styles.css`**, imported from `main`, never inline.
+- **Analytics is Vercel's free tier: page views only, no custom events.** A
+  game milestone is a VIRTUAL page view (`milestone()` in each app's
+  `analytics.js` -> `/progress/…`), fired off a snapshot EDGE in `main.js` like
+  any other beat. Each one spends from a 50k/month quota the two sites share,
+  so a new milestone is a choice, not a freebie. README "Analytics" lists them.
 - **Hex's win is the wall going LEGIBLE** (`legibleAt`, asked through
   `hexWon`) — it used to be the proctor's press (`wonAt`, `setWon`, both
   deleted), because the code word left the game on a phone and came back as

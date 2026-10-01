@@ -48,6 +48,7 @@ import {
 } from "./phase.js";
 import { drawWall, startWallNeon, resetWallClock } from "./wall.js";
 import { currencyIconSVG } from "./art.js";
+import { initAnalytics, milestone } from "./analytics.js";
 
 // Kiosk lockdown: swallow the long-press context menu and the touch gestures
 // that would buzz the phone mid-mash. Native controls and scrollers opt out —
@@ -95,6 +96,7 @@ function onSnapshot(snap) {
       syncPhase();
       despawnGold();
       runNightCutscene();
+      milestone("night");
     }
     // The purchase that empties the rail closes the shop — an edge, so a
     // restored save that lands already sold out retires it silently (syncDock).
@@ -110,6 +112,7 @@ function onSnapshot(snap) {
       // is not a beat to wait for. A win arriving with no close behind it (the
       // 🛠 panel's 🏆) has nothing to wait for and lands at once.
       raiseSplash(closing ? SHOP_CLOSE_BEAT_MS : 0);
+      milestone("won");
     }
     if (e.neonOn && isNightInited()) startWallNeon();
     if (e.goldSpawn) spawnGold(e.goldSpawn);
@@ -231,6 +234,7 @@ window.addEventListener("keydown", (e) => {
   if (panel) panel.open = !panel.open;
 });
 
+initAnalytics();
 boot();
 
 // Alternate cat poses, fetched once the page is up (warmPoseFrames in cat.js).

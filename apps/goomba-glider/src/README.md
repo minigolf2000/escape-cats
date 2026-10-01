@@ -18,6 +18,7 @@ comes apart.
 | `backend.js` | the sim, answering those intents, saving to localStorage |
 | `library.js` | the three level layers, and progress that survives them changing |
 | `debug.js` | `?debug` — open the levels grid without having earned it |
+| `analytics.js` | Vercel page views + the `/progress/…` milestones (root README) |
 | `render.js` | the drawing surface, everything drawn on it, and the finale's picture |
 | `selector.js` | the levels grid, which on a laptop is the level editor |
 | `input.js` | three ways to lay a band, one way to take it back |

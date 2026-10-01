@@ -118,3 +118,24 @@ origin with the games at `/hexxygon/` and `/g00mBa/` and the vanity domains
 A branch preview is therefore a complete, standalone game — which it could not
 be before, when every deploy pointed at one live Worker and one global level
 pack. Its `localStorage` is its own, so a preview always starts as a new player.
+
+### Analytics
+
+Vercel Web Analytics, switched on per project in the dashboard (Analytics →
+Enable) and loaded by each game's `src/analytics.js` in production builds only,
+never under `?debug`. Cookieless; it records page views and referrers.
+
+We are on the free tier, which has **no custom events**, so a game milestone is
+sent as a virtual page view under `/progress/…` and shows up as a row in the
+Pages panel:
+
+| site    | page                    | when                                         |
+| ------- | ----------------------- | -------------------------------------------- |
+| hex     | `/progress/night`       | the twist: day turns to night                |
+| hex     | `/progress/won`         | the wall goes legible                        |
+| goomba  | `/progress/cleared/<id>`| a SHIPPED level is cleared (not the last main one) |
+| goomba  | `/progress/finale`      | the game is beaten (the splash rises)        |
+
+Every one of those is an event against the account's 50k a month, shared by
+both sites; past it, collection pauses until the next cycle. Keep the list
+short. `/reveal-lab` and `/qr-studio` load no analytics.

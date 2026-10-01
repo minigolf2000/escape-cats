@@ -28,6 +28,7 @@ import {
   PACK_MAX,
 } from "@escape-cats/shared";
 import { transport } from "./transport";
+import { initAnalytics, milestone } from "./analytics.js";
 import { startBackend } from "./backend";
 import { composeLibrary, isEditable } from "./library";
 import { levelFromPaste } from "./figma/paste.js";
@@ -151,7 +152,10 @@ function onSnapshot(s) {
     shownRunId = s.runId; shownLevel = s.level; shownPhase = s.phase;
     // The finale arrives here and only here: `resolve` lands the clearing win
     // straight on the splash, which is a phase edge this branch already owns.
-    if (s.phase === "splash") splashAt = tGlobal;
+    if (s.phase === "splash") {
+      splashAt = tGlobal;
+      if (!first) milestone("finale"); // a reload onto the splash is not a win
+    }
     if (wasReset && !first) toast("fresh start! 🧽", 1400);
     else if (levelChanged && !first) toast(levelLabel(s.level, L().name), 1400);
     syncHud();
@@ -164,6 +168,13 @@ function onSnapshot(s) {
     shake = 1;
     toast(FAIL_MSG[s.runResult] || "try again!");
     anim = null;
+  }
+  // A SHIPPED level's clear, by id (the slug that survives a reorder). A paste
+  // or a `#hash` level is this browser's scratch and reports nothing. The last
+  // main level never lands here — its win goes straight to the splash — so the
+  // finale is its milestone.
+  if (shownPhase === "run" && s.phase === "win" && L().source === "baked") {
+    milestone(`cleared/${L().id}`);
   }
   if (s.phase !== "run" && s.phase !== "win") anim = null;
   shownPhase = s.phase;
@@ -557,6 +568,7 @@ function boot() {
   if (hashLevel !== null) transport.send({ type: "goto", level: hashLevel });
 }
 
+initAnalytics();
 boot();
 
 // Console/test handle, like window.__hex. The sim validates every intent, so
